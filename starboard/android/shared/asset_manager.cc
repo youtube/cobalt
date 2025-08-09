@@ -117,7 +117,8 @@ int AssetManager::Open(const char* path, int oflag) {
   // Create temporary POSIX file for the asset
   uint64_t internal_fd = AcquireInternalFd();
   std::string filepath = TempFilepath(internal_fd);
-  int fd = open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT);
+  int fd =
+      open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
     mutex_.Acquire();
     in_use_internal_fd_set_.erase(internal_fd);

@@ -5,14 +5,13 @@ on:
     types: [opened, reopened, synchronize, labeled]
     branches:
       - main
+      - experimental/*
       - feature/*
   push:
     branches:
       - main
+      - experimental/*
       - feature/*
-  schedule:
-    # GMT timezone.
-    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       nightly:
@@ -22,7 +21,19 @@ on:
         default: false
 
 jobs:
-  linux-x64:
+  # This is default Chromium build config
+  chromium_linux-x64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: chromium_linux
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
+  # This is default Cobalt build config
+  linux:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
@@ -30,31 +41,16 @@ jobs:
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
-  linux-clang-3-9:
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
+  # This is cobalt on linux using evergreen build config
+  linux-evergreen:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-clang-3-9
+      platform: linux-evergreen
       nightly: ${{ github.event.inputs.nightly }}
-      modular: true
-  linux-gcc-6-3:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: linux-gcc-6-3
-      nightly: ${{ github.event.inputs.nightly }}
-      modular: true
-  # TODO(b/285632780): Enable blackbox tests for modular linux workflows.
-  linux-modular:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: linux-modular
-      nightly: ${{ github.event.inputs.nightly }}
-      modular: true
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}

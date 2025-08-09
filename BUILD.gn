@@ -831,9 +831,8 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
-
-  if (is_chrome_for_testing) {
-    deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
   }
 }
 

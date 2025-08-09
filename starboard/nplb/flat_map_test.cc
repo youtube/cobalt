@@ -135,7 +135,7 @@ struct MapTester {
     CheckEquality();
   }
 
-  void BulkInsert(const std::vector<std::pair<int, int> >& values) {
+  void BulkInsert(const std::vector<std::pair<int, int>>& values) {
     std::map<int, int> old_std_map = std_map;
     FlatMap<int, int> old_flat_map = flat_map;
 
@@ -443,7 +443,7 @@ TEST(FlatMap, BulkInsertDuplicate) {
   FlatMap<int, int> flat_int_map;
   flat_int_map[1] = 1;
 
-  std::vector<std::pair<int, int> > bulk_entries;
+  std::vector<std::pair<int, int>> bulk_entries;
   bulk_entries.push_back(std::pair<int, int>(1, -1));
   flat_int_map.insert(bulk_entries.begin(), bulk_entries.end());
 
@@ -534,7 +534,7 @@ TEST(FlatMap, FlatMapDetail_IsPod) {
   EXPECT_TRUE(flat_map_detail::IsPod<CustomKey*>::value);
 
   EXPECT_FALSE(flat_map_detail::IsPod<std::string>::value);
-  EXPECT_FALSE(flat_map_detail::IsPod<std::vector<int> >::value);
+  EXPECT_FALSE(flat_map_detail::IsPod<std::vector<int>>::value);
 }
 
 ////////////////////////////// PERFORMANCE TEST ///////////////////////////////
@@ -549,11 +549,10 @@ std::vector<int> GenerateRandomIntVector(size_t size_vector,
   return output;
 }
 
-std::vector<std::pair<int, int> > GenerateRandomIntPairVector(
-    size_t size_vector,
-    int min_random,
-    int max_random) {
-  std::vector<std::pair<int, int> > output;
+std::vector<std::pair<int, int>> GenerateRandomIntPairVector(size_t size_vector,
+                                                             int min_random,
+                                                             int max_random) {
+  std::vector<std::pair<int, int>> output;
   for (size_t i = 0; i < size_vector; ++i) {
     std::pair<int, int> entry(Random(min_random, max_random),
                               Random(min_random, max_random));
@@ -594,7 +593,7 @@ TEST(FlatMap, DISABLED_PerformanceTestFind) {
   test_sizes.push_back(10000);
   test_sizes.push_back(100000);
 
-  std::vector<std::pair<int, int> > insert_data;
+  std::vector<std::pair<int, int>> insert_data;
 
   const std::vector<int> query_data =
       GenerateRandomIntVector(1000,     // Number of elements.
@@ -669,7 +668,7 @@ TEST(FlatMap, FuzzerTest) {
       } else {
         // Bulk insert
         const size_t num_values = Random(0, 20);
-        std::vector<std::pair<int, int> > values;
+        std::vector<std::pair<int, int>> values;
         for (size_t i = 0; i < num_values; ++i) {
           int key = MapTester::RandomKey();
           int value = MapTester::RandomValue();

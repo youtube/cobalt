@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ELF_LOADER_ELF_LOADER_H_
 #define STARBOARD_ELF_LOADER_ELF_LOADER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -64,7 +65,7 @@ class ElfLoader {
   std::unique_ptr<ElfLoaderImpl> impl_;
 
   // The single ELF Loader instance.
-  static ElfLoader* g_instance;
+  static std::atomic<ElfLoader*> g_instance;
 
   ElfLoader(const ElfLoader&) = delete;
   void operator=(const ElfLoader&) = delete;

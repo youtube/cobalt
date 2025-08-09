@@ -23,7 +23,6 @@
 #include <memory>
 #include <vector>
 
-#include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -161,8 +160,7 @@ class Application {
   // Gets the current instance of the Application. DCHECKS if called before the
   // application has been constructed.
   static inline Application* Get() {
-    Application* instance = reinterpret_cast<Application*>(
-        SbAtomicAcquire_LoadPtr(reinterpret_cast<SbAtomicPtr*>(&g_instance)));
+    Application* instance = g_instance.load(std::memory_order_acquire);
     SB_DCHECK(instance);
     return instance;
   }
@@ -355,13 +353,17 @@ class Application {
 
   // Gets the next time in microseconds that a TimedEvent is due. Returns
   // CurrentMonotonicTime() if the next TimedEvent is past due. Returns
-  // kSbInt64Max if there are no queued TimedEvents.
+  // std::numeric_limits<int64_t>::max() if there are no queued TimedEvents.
   virtual int64_t GetNextTimedEventTargetTime() = 0;
 
   // Sets the command-line parameters for the application. Used to support
   // system message pump-based implementations, which don't call |Run()|.
   void SetCommandLine(int argc, const char** argv) {
     command_line_.reset(new CommandLine(argc, argv));
+  }
+
+  void SetCommandLine(std::unique_ptr<CommandLine> command_line) {
+    command_line_ = std::move(command_line);
   }
 
   // Sets the launch deep link string, if any, which is passed in the start
@@ -426,7 +428,7 @@ class Application {
   bool HandleEventAndUpdateState(Application::Event* event);
 
   // The single application instance.
-  static Application* g_instance;
+  static std::atomic<Application*> g_instance;
 
   // The error_level set by the last call to Stop().
   int error_level_;

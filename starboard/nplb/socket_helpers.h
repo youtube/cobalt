@@ -29,19 +29,6 @@ namespace nplb {
 
 const int64_t kSocketTimeout = 200'000;  // 200ms
 
-// Returns a valid port number that can be bound to for use in nplb tests.
-// This will always return the same port number.
-int GetPortNumberForTests();
-
-// Creates a TCP/IP server socket (sets Reuse Address option).
-SbSocket CreateServerTcpSocket(SbSocketAddressType address_type);
-
-// Creates a TCP/IP socket bound to all interfaces on the given port.
-SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port);
-
-// Creates a TCP/IP socket listening on all interfaces on the given port.
-SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port);
-
 // Waits on the given waiter, and returns the elapsed time in microseconds.
 int64_t TimedWait(SbSocketWaiter waiter);
 
@@ -104,23 +91,6 @@ static inline bool SocketErrorIn(
     EXPECT_FALSE(SocketErrorIn(error, {kSbSocketOk, kSbSocketPending})) \
         << "With " #error " = " << error;                               \
   } while (false)
-
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-std::string GetSbSocketAddressTypeName(
-    ::testing::TestParamInfo<SbSocketAddressType> info);
-std::string GetSbSocketAddressTypePairName(
-    ::testing::TestParamInfo<
-        std::pair<SbSocketAddressType, SbSocketAddressType>> info);
-std::string GetSbSocketAddressTypeFilterPairName(
-    ::testing::TestParamInfo<
-        std::pair<SbSocketAddressType, SbSocketResolveFilter>> info);
-std::string GetSbSocketFilterAddressTypePairName(
-    ::testing::TestParamInfo<
-        std::pair<SbSocketResolveFilter, SbSocketAddressType>> info);
-std::string GetSbSocketAddressTypeProtocolPairName(
-    ::testing::TestParamInfo<std::pair<SbSocketAddressType, SbSocketProtocol>>
-        info);
-#endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace nplb
 }  // namespace starboard

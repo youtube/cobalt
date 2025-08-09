@@ -1,0 +1,17 @@
+import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
+import("//cobalt/build/configs/common.gn")
+
+use_ozone = true
+
+# Vulkan is a new rendering (and presentation, and more) API intended to replace
+# E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
+# Disable Vulkan until we formally decide to support it.
+enable_vulkan = false
+
+# Overriding flag from //media/media_options.gni.
+# Cobalt doesn't use //third_party/ffmpeg.
+media_use_ffmpeg = false
+
+# Overriding flag from components/nacl/features.gni
+# NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
+enable_nacl = false

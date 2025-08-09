@@ -18,45 +18,25 @@ import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
 
 ##########################################################
-# Configuration to extract GameActivity native files.
-##########################################################
-
-game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-2.0.2.aar"
-
-game_activity_source_files = [
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.cpp",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityLog.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
-]
-
-game_activity_include_dirs =
-    [ "$target_gen_dir/game_activity/prefab/modules/game-activity/include" ]
-
-action("game_activity_sources") {
-  script = "//starboard/tools/unzip_file.py"
-  sources = [ game_activity_aar_file ]
-  outputs = game_activity_source_files
-  args = [
-    "--zip_file",
-    rebase_path(game_activity_aar_file, root_build_dir),
-    "--output_dir",
-    rebase_path(target_gen_dir, root_build_dir) + "/game_activity",
-  ]
-}
-
-##########################################################
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+# This shared library contains only shared state variables needed
+# for shared JNI to work across library boundaries.
+shared_library("starboard_jni_state") {
+  sources = [
+    "jni_state.cc",
+    "jni_state.h",
+  ]
+
+  # Do not just hide symbols from us
+  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+}
+
+# TODO(cobalt, b/375669373): re-enable API without ApplicationAndroid
 static_library("starboard_platform") {
   sources = [
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/internal_only.h",
@@ -86,17 +66,7 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/memory_free_aligned.cc",
     "//starboard/shared/posix/page_internal.cc",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
-    "//starboard/shared/posix/socket_accept.cc",
-    "//starboard/shared/posix/socket_bind.cc",
-    "//starboard/shared/posix/socket_connect.cc",
-    "//starboard/shared/posix/socket_create.cc",
-    "//starboard/shared/posix/socket_destroy.cc",
-    "//starboard/shared/posix/socket_get_local_address.cc",
     "//starboard/shared/posix/socket_internal.cc",
-    "//starboard/shared/posix/socket_is_ipv6_supported.cc",
-    "//starboard/shared/posix/socket_listen.cc",
-    "//starboard/shared/posix/socket_receive_from.cc",
-    "//starboard/shared/posix/socket_set_reuse_address.cc",
     "//starboard/shared/posix/storage_write_record.cc",
     "//starboard/shared/posix/system_break_into_debugger.cc",
     "//starboard/shared/posix/system_clear_last_error.cc",
@@ -132,6 +102,9 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
     "//starboard/shared/starboard/command_line.cc",
     "//starboard/shared/starboard/command_line.h",
+    "//starboard/shared/starboard/decode_target/decode_target_get_info.cc",
+    "//starboard/shared/starboard/decode_target/decode_target_internal.h",
+    "//starboard/shared/starboard/decode_target/decode_target_release.cc",
     "//starboard/shared/starboard/drm/drm_close_session.cc",
     "//starboard/shared/starboard/drm/drm_destroy_system.cc",
     "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",
@@ -193,9 +166,10 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-    "asset_manager.cc",
-    "asset_manager.h",
-    "atomic_public.h",
+
+    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
+    # "asset_manager.cc",
+    # "asset_manager.h",
     "audio_decoder.cc",
     "audio_decoder.h",
     "audio_decoder_passthrough.h",
@@ -218,12 +192,8 @@ static_library("starboard_platform") {
     "configuration_public.h",
     "crash_handler.cc",
     "crash_handler.h",
-    "decode_target_create.cc",
-    "decode_target_create.h",
-    "decode_target_get_info.cc",
-    "decode_target_internal.cc",
-    "decode_target_internal.h",
-    "decode_target_release.cc",
+    "decode_target.cc",
+    "decode_target.h",
     "drm_create_system.cc",
     "drm_system.cc",
     "drm_system.h",
@@ -233,8 +203,9 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "input_events_generator.cc",
-    "input_events_generator.h",
+
+    #"input_events_generator.cc",
+    #"input_events_generator.h",
     "jni_env_ext.cc",
     "jni_env_ext.h",
     "jni_utils.h",
@@ -244,7 +215,6 @@ static_library("starboard_platform") {
     "log_internal.cc",
     "log_internal.h",
     "log_raw.cc",
-    "main.cc",
     "max_media_codec_output_buffers_lookup_table.cc",
     "max_media_codec_output_buffers_lookup_table.h",
     "media_capabilities_cache.cc",
@@ -268,7 +238,6 @@ static_library("starboard_platform") {
     "media_settings_api.cc",
     "media_settings_api.h",
     "microphone_impl.cc",
-    "network_status_impl.cc",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -282,17 +251,21 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "posix_emu/dirent.cc",
-    "posix_emu/errno.cc",
-    "posix_emu/file.cc",
-    "posix_emu/pthread.cc",
-    "posix_emu/stat.cc",
+
+    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
+    # "posix_emu/dirent.cc",
+    # "posix_emu/errno.cc",
+    # "posix_emu/file.cc",
+    # "posix_emu/pthread.cc",
+    # "posix_emu/stat.cc",
     "sanitizer_options.cc",
-    "socket_get_interface_address.cc",
-    "speech_synthesis_cancel.cc",
-    "speech_synthesis_internal.cc",
-    "speech_synthesis_is_supported.cc",
-    "speech_synthesis_speak.cc",
+
+    #"speech_synthesis_cancel.cc",
+    #"speech_synthesis_internal.cc",
+    #"speech_synthesis_is_supported.cc",
+    #"speech_synthesis_speak.cc",
+    "starboard_bridge.cc",
+    "starboard_bridge.h",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",
@@ -319,15 +292,15 @@ static_library("starboard_platform") {
     "video_render_algorithm.h",
     "video_window.cc",
     "video_window.h",
-    "window_create.cc",
-    "window_destroy.cc",
-    "window_get_diagonal_size_in_inches.cc",
-    "window_get_platform_handle.cc",
-    "window_get_size.cc",
-    "window_internal.h",
+
+    #"window_create.cc",
+    #"window_destroy.cc",
+    #"window_get_diagonal_size_in_inches.cc",
+    #"window_get_platform_handle.cc",
+    #"window_get_size.cc",
+    #"window_internal.h",
   ]
 
-  sources += game_activity_source_files
   sources += common_player_sources
 
   sources -= [
@@ -339,19 +312,19 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  include_dirs = game_activity_include_dirs
-
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
-    ":game_activity_sources",
     ":starboard_base_symbolize",
+    ":starboard_jni_state",
+    "//cobalt/android:jni_headers",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
   deps = [
+    "//base",
     "//third_party/libevent",
     "//third_party/opus",
   ]
@@ -383,8 +356,8 @@ static_library("starboard_platform") {
 
 static_library("starboard_base_symbolize") {
   sources = [
-    "//third_party/symbolize/demangle.cc",
-    "//third_party/symbolize/symbolize.cc",
+    "//base/third_party/symbolize/demangle.cc",
+    "//base/third_party/symbolize/symbolize.cc",
   ]
 
   deps = [
@@ -394,6 +367,11 @@ static_library("starboard_base_symbolize") {
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
+
+  # TODO(cobalt, 377295011): enable dependency checking. A dependency on
+  # //base/third_party/symbolize:symbolize is needed but introduces a duplicate
+  # symbol error.
+  check_includes = false
 }
 
 target(gtest_target_type, "starboard_platform_tests") {
@@ -411,6 +389,7 @@ target(gtest_target_type, "starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    ":starboard_platform",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",

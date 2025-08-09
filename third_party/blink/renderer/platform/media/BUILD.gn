@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//media/media_options.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 
 # TODO(https://crbug.com/1198341): use blink_platform_sources once the code is
 # ported to Blink code conventions.
@@ -77,7 +80,7 @@ component("media") {
     "//third_party/blink/renderer/platform:allow_discouraged_type",
   ]
 
-  if (media_use_ffmpeg || !is_android) {
+  if (media_use_ffmpeg || !is_android || is_cobalt) {
     sources += [
       "buffered_data_source_host_impl.cc",
       "buffered_data_source_host_impl.h",
@@ -106,6 +109,12 @@ component("media") {
     sources += [
       "hls_data_source_provider_impl.cc",
       "hls_data_source_provider_impl.h",
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [
+      "//starboard($starboard_toolchain)",
     ]
   }
 }

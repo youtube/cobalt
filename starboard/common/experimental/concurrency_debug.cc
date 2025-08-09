@@ -17,10 +17,10 @@
 #if SB_ENABLE_CONCURRENCY_DEBUG
 
 #include <algorithm>
+#include <atomic>
 #include <string>
 #include <vector>
 
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/system.h"
@@ -39,15 +39,15 @@ const int64_t kMinimumWaitToLog = 5000;          // 5ms
 const int64_t kLoggingInterval = 5 * 1'000'000;  // 5s
 const int kStackTraceDepth = 0;
 
-volatile SbAtomic32 s_mutex_acquire_call_counter = 0;
-volatile SbAtomic32 s_mutex_acquire_contention_counter = 0;
-volatile SbAtomic32 s_mutex_max_contention_time = 0;
+volatile std::atomic<int32_t> s_mutex_acquire_call_counter{0};
+volatile std::atomic<int32_t> s_mutex_acquire_contention_counter{0};
+volatile std::atomic<int32_t> s_mutex_max_contention_time{0};
 
 }  // namespace
 
 ScopedMutexWaitTracker::ScopedMutexWaitTracker(SbMutex* mutex)
     : acquired_(SbMutexAcquireTry(mutex) == kSbMutexAcquired) {
-  SbAtomicNoBarrier_Increment(&s_mutex_acquire_call_counter, 1);
+  s_mutex_acquire_call_counter.fetch_add(1, std::memory_order_relaxed);
   if (!acquired_) {
     wait_start_ = starboard::CurrentMonotonicTime();
   }
@@ -57,44 +57,46 @@ ScopedMutexWaitTracker::~ScopedMutexWaitTracker() {
   if (kMinimumWaitToLog == 0 || acquired_) {
     return;
   }
-  if (SbAtomicNoBarrier_Increment(&s_mutex_acquire_contention_counter, 1) <
-      kNumberOfInitialContentionsToIgnore) {
+  if ((s_mutex_acquire_contention_counter.fetch_add(1,
+                                                    std::memory_order_relaxed) +
+       1) < kNumberOfInitialContentionsToIgnore) {
     return;
   }
 
   auto elapsed = starboard::CurrentMonotonicTime() - wait_start_;
 
   for (;;) {
-    SbAtomic32 old_value = s_mutex_max_contention_time;
+    int32_t old_value = s_mutex_max_contention_time;
     if (elapsed <= old_value) {
       break;
     }
-    if (SbAtomicNoBarrier_CompareAndSwap(&s_mutex_max_contention_time,
-                                         old_value, elapsed) == old_value) {
-      break;
+    if (s_mutex_max_contention_time.compare_exchange_weak(
+            old_value, elapsed, std::memory_order_release,
+            std::memory_order_relaxed)) {                                  old_value, elapsed) == old_value) {
+        break;
+      }
     }
-  }
 
-  if (elapsed < kMinimumWaitToLog) {
-    return;
-  }
+    if (elapsed < kMinimumWaitToLog) {
+      return;
+    }
 
-  SB_LOG(INFO) << "SbMutexAcquire() takes " << elapsed;
+    SB_LOG(INFO) << "SbMutexAcquire() takes " << elapsed;
 
-  if (kStackTraceDepth > 0) {
-    void* stack[kStackTraceDepth];
-    int num_stack = SbSystemGetStack(stack, kStackTraceDepth);
+    if (kStackTraceDepth > 0) {
+      void* stack[kStackTraceDepth];
+      int num_stack = SbSystemGetStack(stack, kStackTraceDepth);
 
-    for (int i = 2; i < std::min(num_stack, 5); ++i) {
-      char name[kMaxSymbolNameLength + 1];
-      if (SbSystemSymbolize(stack[i], name, kMaxSymbolNameLength)) {
-        SB_LOG(INFO) << "  - " << name;
-      } else {
-        SB_LOG(INFO) << "  - 0x" << stack[i];
+      for (int i = 2; i < std::min(num_stack, 5); ++i) {
+        char name[kMaxSymbolNameLength + 1];
+        if (SbSystemSymbolize(stack[i], name, kMaxSymbolNameLength)) {
+          SB_LOG(INFO) << "  - " << name;
+        } else {
+          SB_LOG(INFO) << "  - 0x" << stack[i];
+        }
       }
     }
   }
-}
 
 }  // namespace experimental
 }  // namespace starboard

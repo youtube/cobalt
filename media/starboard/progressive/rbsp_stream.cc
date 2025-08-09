@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/rbsp_stream.h"
+#include "media/starboard/progressive/rbsp_stream.h"
 
+#include "base/check.h"
 #include "base/logging.h"
 
-namespace cobalt {
 namespace media {
 
-RBSPStream::RBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size)
+RBSPStream::RBSPStream(const uint8_t* nalu_buffer, size_t nalu_buffer_size)
     : nalu_buffer_(nalu_buffer),
       nalu_buffer_size_(nalu_buffer_size),
       nalu_buffer_byte_offset_(0),
@@ -28,10 +28,10 @@ RBSPStream::RBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size)
       rbsp_bit_offset_(0) {}
 
 // read unsigned Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-bool RBSPStream::ReadUEV(uint32* uev_out) {
-  DCHECK(uev_out);
+bool RBSPStream::ReadUEV(uint32_t* uev_out) {
+  CHECK(uev_out);
   int leading_zero_bits = -1;
-  for (uint8 b = 0; b == 0; leading_zero_bits++) {
+  for (uint8_t b = 0; b == 0; leading_zero_bits++) {
     if (!ReadRBSPBit(&b)) {
       return false;
     }
@@ -40,8 +40,8 @@ bool RBSPStream::ReadUEV(uint32* uev_out) {
   if (leading_zero_bits >= 32) {
     return false;
   }
-  uint32 result = (1 << leading_zero_bits) - 1;
-  uint32 remainder = 0;
+  uint32_t result = (1 << leading_zero_bits) - 1;
+  uint32_t remainder = 0;
   if (!ReadBits(leading_zero_bits, &remainder)) {
     return false;
   }
@@ -51,16 +51,16 @@ bool RBSPStream::ReadUEV(uint32* uev_out) {
 }
 
 // read signed Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-bool RBSPStream::ReadSEV(int32* sev_out) {
-  DCHECK(sev_out);
+bool RBSPStream::ReadSEV(int32_t* sev_out) {
+  CHECK(sev_out);
   // we start off by reading an unsigned Exp-Golomb coded number
-  uint32 uev = 0;
+  uint32_t uev = 0;
   if (!ReadUEV(&uev)) {
     return false;
   }
   // the LSb in this number is treated as the inverted sign bit
   bool is_negative = !(uev & 1);
-  int32 result = static_cast<int32>((uev + 1) >> 1);
+  int32_t result = static_cast<int32_t>((uev + 1) >> 1);
   if (is_negative) {
     result *= -1;
   }
@@ -70,34 +70,34 @@ bool RBSPStream::ReadSEV(int32* sev_out) {
 
 // read and return up to 32 bits, filling from the right, meaning that
 // ReadBits(17) on a stream of all 1s would return 0x01ffff
-bool RBSPStream::ReadBits(size_t bits, uint32* bits_out) {
-  DCHECK(bits_out);
+bool RBSPStream::ReadBits(size_t bits, uint32_t* bits_out) {
+  CHECK(bits_out);
   if (bits > 32) {
     return false;
   }
   if (bits == 0) {
     return true;
   }
-  uint32 result = 0;
+  uint32_t result = 0;
   size_t bytes = bits >> 3;
   // read bytes first
   for (int i = 0; i < bytes; i++) {
-    uint8 new_byte = 0;
+    uint8_t new_byte = 0;
     if (!ReadRBSPByte(&new_byte)) {
       return false;
     }
     result = result << 8;
-    result = result | static_cast<uint32>(new_byte);
+    result = result | static_cast<uint32_t>(new_byte);
   }
   // scoot any leftover bits in
   bits = bits % 8;
   for (int i = 0; i < bits; i++) {
-    uint8 new_bit = 0;
+    uint8_t new_bit = 0;
     if (!ReadRBSPBit(&new_bit)) {
       return false;
     }
     result = result << 1;
-    result = result | static_cast<uint32>(new_bit);
+    result = result | static_cast<uint32_t>(new_bit);
   }
   *bits_out = result;
   return true;
@@ -173,8 +173,8 @@ bool RBSPStream::ConsumeNALUByte() {
 
 // return single bit in the LSb from the RBSP stream. Bits are read from MSb
 // to LSb in the stream.
-bool RBSPStream::ReadRBSPBit(uint8* bit_out) {
-  DCHECK(bit_out);
+bool RBSPStream::ReadRBSPBit(uint8_t* bit_out) {
+  CHECK(bit_out);
   // check to see if we need to consume a fresh byte
   if (rbsp_bit_offset_ == 0) {
     if (!ConsumeNALUByte()) {
@@ -182,15 +182,15 @@ bool RBSPStream::ReadRBSPBit(uint8* bit_out) {
     }
   }
   // since we read from MSb to LSb in stream we shift right
-  uint8 bit = (current_nalu_byte_ >> (7 - rbsp_bit_offset_)) & 1;
+  uint8_t bit = (current_nalu_byte_ >> (7 - rbsp_bit_offset_)) & 1;
   // increment bit offset
   rbsp_bit_offset_ = (rbsp_bit_offset_ + 1) % 8;
   *bit_out = bit;
   return true;
 }
 
-bool RBSPStream::ReadRBSPByte(uint8* byte_out) {
-  DCHECK(byte_out);
+bool RBSPStream::ReadRBSPByte(uint8_t* byte_out) {
+  CHECK(byte_out);
   // fast path for byte-aligned access
   if (rbsp_bit_offset_ == 0) {
     if (!ConsumeNALUByte()) {
@@ -201,7 +201,7 @@ bool RBSPStream::ReadRBSPByte(uint8* byte_out) {
   }
   // at least some of the bits in the current byte will be included in this
   // next byte, absorb them
-  uint8 upper_part = current_nalu_byte_;
+  uint8_t upper_part = current_nalu_byte_;
   // read next byte from stream
   if (!ConsumeNALUByte()) {
     return false;
@@ -213,4 +213,3 @@ bool RBSPStream::ReadRBSPByte(uint8* byte_out) {
 }
 
 }  // namespace media
-}  // namespace cobalt

@@ -67,7 +67,11 @@ if (is_android || is_chromeos) {
 
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
-    default_min_sdk_version = 26
+    if (is_cobalt) {
+      default_min_sdk_version = 26
+    } else {
+      default_min_sdk_version = 24
+    }
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This
@@ -118,8 +122,8 @@ if (is_android || is_chromeos) {
       # Today (2023-08-30) only the canary Android NDK supports RISC-V64.
       default_android_ndk_root = "//third_party/android_toolchain_canary/ndk"
     }
-    default_android_ndk_version = "r25c"
-    default_android_ndk_major_version = 25
+    default_android_ndk_version = "r26"
+    default_android_ndk_major_version = 26
   } else {
     assert(defined(default_android_ndk_version))
     assert(defined(default_android_ndk_major_version))

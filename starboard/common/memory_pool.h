@@ -65,7 +65,7 @@ class MemoryPool : public Allocator {
   FixedNoFreeAllocator no_free_allocator_;
 
   // A reuse allocator that will be setup to fallback on the no free allocator
-  // to expand its pool as memory is required for which there is no re-usable
+  // to expand its pool as memory is required for which there is no reusable
   // space already.
   ReuseAllocator reuse_allocator_;
 };

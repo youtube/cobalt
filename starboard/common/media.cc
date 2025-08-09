@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/media.h"
+
+#include <string.h>
+
 #include <algorithm>
 #include <cctype>
 #include <string>
-
-#include "starboard/common/media.h"
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -165,8 +167,8 @@ bool ParseAv1Info(std::string codec,
   // "0.110.01.01.01.0".
   // All fields are fixed size and leading zero cannot be omitted, so the
   // expected sizes are known.
-  const char kShortFormReference[] = "av01.0.05M.08";
-  const char kLongFormReference[] = "av01.0.04M.10.0.110.09.16.09.0";
+  const char kShortFormReference[] = "av01.0.05?.08";
+  const char kLongFormReference[] = "av01.0.04?.10.0.110.09.16.09.0";
   const size_t kShortFormSize = strlen(kShortFormReference);
   const size_t kLongFormSize = strlen(kLongFormReference);
 
@@ -945,27 +947,7 @@ std::ostream& operator<<(std::ostream& os,
 
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaAudioSampleInfo& sample_info) {
-  using starboard::GetMediaAudioCodecName;
-  using starboard::HexEncode;
-
-  const SbMediaAudioStreamInfo& stream_info = sample_info.stream_info;
-
-  if (stream_info.codec == kSbMediaAudioCodecNone) {
-    return os;
-  }
-
-  os << "codec: " << GetMediaAudioCodecName(stream_info.codec) << ", ";
-  os << "mime: " << (stream_info.mime ? stream_info.mime : "<null>");
-  os << "channels: " << stream_info.number_of_channels
-     << ", sample rate: " << stream_info.samples_per_second
-     << ", config: " << stream_info.audio_specific_config_size << " bytes, "
-     << "["
-     << HexEncode(
-            stream_info.audio_specific_config,
-            std::min(static_cast<int>(stream_info.audio_specific_config_size),
-                     16),
-            " ")
-     << (stream_info.audio_specific_config_size > 16 ? " ...]" : " ]");
+  os << sample_info.stream_info;
 
   return os;
 }
@@ -1002,7 +984,7 @@ std::ostream& operator<<(std::ostream& os,
 
   os << "codec: " << GetMediaAudioCodecName(stream_info.codec) << ", ";
   os << "mime: " << (stream_info.mime ? stream_info.mime : "<null>");
-  os << "channels: " << stream_info.number_of_channels
+  os << ", channels: " << stream_info.number_of_channels
      << ", sample rate: " << stream_info.samples_per_second
      << ", config: " << stream_info.audio_specific_config_size << " bytes, "
      << "["
@@ -1014,4 +996,81 @@ std::ostream& operator<<(std::ostream& os,
      << (stream_info.audio_specific_config_size > 16 ? " ...]" : " ]");
 
   return os;
+}
+
+bool operator==(const SbMediaColorMetadata& metadata_1,
+                const SbMediaColorMetadata& metadata_2) {
+  return memcmp(&metadata_1, &metadata_2, sizeof(SbMediaColorMetadata)) == 0;
+}
+
+bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
+                const SbMediaVideoSampleInfo& sample_info_2) {
+  const SbMediaVideoStreamInfo& stream_info_1 = sample_info_1.stream_info;
+  const SbMediaVideoStreamInfo& stream_info_2 = sample_info_2.stream_info;
+
+  if (stream_info_1.codec != stream_info_2.codec) {
+    return false;
+  }
+  if (stream_info_1.codec == kSbMediaVideoCodecNone) {
+    return true;
+  }
+
+  if (strcmp(stream_info_1.mime, stream_info_2.mime) != 0) {
+    return false;
+  }
+  if (strcmp(stream_info_1.max_video_capabilities,
+             stream_info_2.max_video_capabilities) != 0) {
+    return false;
+  }
+
+  if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
+    return false;
+  }
+  if (stream_info_1.frame_width != stream_info_2.frame_width) {
+    return false;
+  }
+  if (stream_info_1.frame_height != stream_info_2.frame_height) {
+    return false;
+  }
+  return stream_info_1.color_metadata == stream_info_2.color_metadata;
+}
+
+bool operator==(const SbMediaVideoStreamInfo& stream_info_1,
+                const SbMediaVideoStreamInfo& stream_info_2) {
+  if (stream_info_1.codec != stream_info_2.codec) {
+    return false;
+  }
+  if (stream_info_1.codec == kSbMediaVideoCodecNone) {
+    return true;
+  }
+
+  if (strcmp(stream_info_1.mime, stream_info_2.mime) != 0) {
+    return false;
+  }
+  if (strcmp(stream_info_1.max_video_capabilities,
+             stream_info_2.max_video_capabilities) != 0) {
+    return false;
+  }
+  if (stream_info_1.frame_width != stream_info_2.frame_width) {
+    return false;
+  }
+  if (stream_info_1.frame_height != stream_info_2.frame_height) {
+    return false;
+  }
+  return stream_info_1.color_metadata == stream_info_2.color_metadata;
+}
+
+bool operator!=(const SbMediaColorMetadata& metadata_1,
+                const SbMediaColorMetadata& metadata_2) {
+  return !(metadata_1 == metadata_2);
+}
+
+bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
+                const SbMediaVideoSampleInfo& sample_info_2) {
+  return !(sample_info_1 == sample_info_2);
+}
+
+bool operator!=(const SbMediaVideoStreamInfo& stream_info_1,
+                const SbMediaVideoStreamInfo& stream_info_2) {
+  return !(stream_info_1 == stream_info_2);
 }

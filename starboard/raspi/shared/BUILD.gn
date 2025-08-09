@@ -25,7 +25,6 @@ static_library("starboard_platform_sources") {
   has_pedantic_warnings = true
 
   sources = [
-    "//starboard/linux/shared/atomic_public.h",
     "//starboard/linux/shared/configuration_constants.cc",
     "//starboard/linux/shared/configuration_public.h",
     "//starboard/linux/shared/netlink.cc",
@@ -78,7 +77,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/iso/memory_allocate_unchecked.cc",
     "//starboard/shared/iso/memory_free.cc",
     "//starboard/shared/iso/memory_reallocate_unchecked.cc",
@@ -93,7 +91,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/dev_input/dev_input.cc",
     "//starboard/shared/linux/get_home_directory.cc",
-    "//starboard/shared/linux/socket_get_interface_address.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
     "//starboard/shared/linux/system_get_stack.cc",
     "//starboard/shared/linux/system_get_total_cpu_memory.cc",
@@ -114,17 +111,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/memory_free_aligned.cc",
     "//starboard/shared/posix/page_internal.cc",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
-    "//starboard/shared/posix/socket_accept.cc",
-    "//starboard/shared/posix/socket_bind.cc",
-    "//starboard/shared/posix/socket_connect.cc",
-    "//starboard/shared/posix/socket_create.cc",
-    "//starboard/shared/posix/socket_destroy.cc",
-    "//starboard/shared/posix/socket_get_local_address.cc",
     "//starboard/shared/posix/socket_internal.cc",
-    "//starboard/shared/posix/socket_is_ipv6_supported.cc",
-    "//starboard/shared/posix/socket_listen.cc",
-    "//starboard/shared/posix/socket_receive_from.cc",
-    "//starboard/shared/posix/socket_set_reuse_address.cc",
     "//starboard/shared/posix/storage_write_record.cc",
     "//starboard/shared/posix/system_break_into_debugger.cc",
     "//starboard/shared/posix/system_clear_last_error.cc",
@@ -282,8 +269,8 @@ static_library("starboard_platform_sources") {
 
 static_library("starboard_base_symbolize") {
   sources = [
-    "//third_party/symbolize/demangle.cc",
-    "//third_party/symbolize/symbolize.cc",
+    "//base/third_party/symbolize/demangle.cc",
+    "//base/third_party/symbolize/symbolize.cc",
   ]
   deps = [
     "//starboard:starboard_headers_only",

@@ -46,6 +46,7 @@ namespace logging {
 void SetMinLogLevel(SbLogPriority level);
 SbLogPriority GetMinLogLevel();
 SbLogPriority StringToLogLevel(const std::string& log_level);
+SbLogPriority ChromiumIntToStarboardLogLevel(const std::string& log_level);
 void Break();
 
 // An object which will dumps the stack to the given ostream, without adding any

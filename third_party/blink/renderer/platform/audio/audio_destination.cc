@@ -53,6 +53,9 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace blink {
 
 namespace {
@@ -357,9 +360,10 @@ AudioDestination::AudioDestination(
           context_sample_rate.has_value()
               ? context_sample_rate.value()
               : (web_audio_device_ ? web_audio_device_->SampleRate() : 0)),
-      fifo_(std::make_unique<PushPullFIFO>(number_of_output_channels,
-                                           kFIFOSize,
-                                           render_quantum_frames)),
+      fifo_(std::make_unique<PushPullFIFO>(
+          number_of_output_channels,
+          std::max(kFIFOSize, callback_buffer_size_ + render_quantum_frames),
+          render_quantum_frames)),
       output_bus_(AudioBus::Create(number_of_output_channels,
                                    render_quantum_frames,
                                    false)),
@@ -399,9 +403,6 @@ AudioDestination::AudioDestination(
       fifo_->Push(render_bus_.get());
     }
   }
-
-  // Check if the requested buffer size is too large.
-  DCHECK_LE(callback_buffer_size_ + render_quantum_frames, kFIFOSize);
 
   double scale_factor = 1.0;
 

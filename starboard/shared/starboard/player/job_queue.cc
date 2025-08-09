@@ -15,6 +15,8 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 
 #include <pthread.h>
+
+#include <limits>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -228,7 +230,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.WaitTimed(kSbInt64Max);
+      condition_.WaitTimed(std::numeric_limits<int64_t>::max());
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING

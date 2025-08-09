@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 
-#include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/extension/graphics.h"
 
@@ -34,10 +33,12 @@ float GetMinimumFrameIntervalInMilliseconds() {
   return 16.0f;
 }
 
+// TODO(cobalt b/375669373): replace Application usage.
 bool IsMapToMeshEnabled() {
-  bool supports_spherical_videos =
-      starboard::android::shared::ApplicationAndroid::Get()
-          ->GetOverlayedBoolValue("supports_spherical_videos");
+  // bool supports_spherical_videos =
+  //     starboard::android::shared::ApplicationAndroid::Get()
+  //         ->GetOverlayedBoolValue("supports_spherical_videos");
+  bool supports_spherical_videos = false;
   return supports_spherical_videos;
 }
 

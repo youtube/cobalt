@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_ENDIAN_UTIL_H_
-#define COBALT_MEDIA_BASE_ENDIAN_UTIL_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_ENDIAN_UTIL_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_ENDIAN_UTIL_H_
 
 #include "base/sys_byteorder.h"
 
 // TODO: Consider Starboardize functions in this file.
 
-namespace cobalt {
 namespace media {
 namespace endian_util {
 
@@ -138,6 +137,5 @@ inline void store_uint64_little_endian(uint64_t d, uint8_t* p) {
 
 }  // namespace endian_util
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_ENDIAN_UTIL_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_ENDIAN_UTIL_H_

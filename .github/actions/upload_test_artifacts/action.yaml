@@ -1,78 +1,50 @@
 name: Test Artifact Upload
-description: Uploads test archives to GCS and runs on-device tests.
+description: Uploads test archives for on-device and on-host tests.
 inputs:
-  type:
-    description: "Type of artifacts to upload (ondevice or onhost)"
+  on_host:
+    description: "Indicates if on-host test artifacts should be uploaded."
     required: true
-  os:
-    description: "Host OS (either linux or windows)."
+  on_device:
+    description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  test_artifacts_key:
+    description: "Artifact key used to store on-host test artifacts."
     required: true
 runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
+      if: inputs.on_device == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Configure Environment
+    - name: Upload Android Test Artifacts to GCS
+      if: inputs.on_device == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
-        set -x
-        project_name=$(gcloud config get-value project)
-        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]
-        then
-          PLATFORM=${{matrix.platform}}
-          echo "TARGET_PLATFORM=${{matrix.target_platform}}" >> $GITHUB_ENV
-        else
-          PLATFORM=${COBALT_EVERGREEN_LOADER}
-          echo "TARGET_PLATFORM=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
-        fi
-
-        if [ "${{ inputs.type }}" == 'ondevice' ]
-        then
-          echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
-          echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/artifacts.tar" >> $GITHUB_ENV
-          echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
-        elif [ "${{ inputs.type }}" == 'onhost' ]
-        then
-          if [ "${{ inputs.os }}" == 'linux' ]
-          then
-            echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
-            echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
-          elif [ "${{ inputs.os }}" == 'windows' ]
-          then
-            echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-            echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-          fi
-          echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
-        fi
-
-        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-        project_name=$(gcloud config get-value project)
-      shell: bash
-    - name: Create Test Files Archive
-      run: |
-        set -x
-        [ -f "${ARCHIVE_PATH}" ] && rm -rf "${ARCHIVE_PATH}"
-        if [ "${{ inputs.type }}" == 'ondevice' ]
-        then
-          outdir="$GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}"
-          if [ -n "${COBALT_EVERGREEN_LOADER}" ]
-          then
-            outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_EVERGREEN_LOADER}_${{matrix.config}}"
-          fi
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
-        elif [ "${{ inputs.type }}" == 'onhost' ]
-        then
-          parallel=
-          if [[ "${{inputs.os}}" == 'linux' ]]; then
-            parallel='--parallel'
-          fi
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${TARGET_PLATFORM}_${{matrix.config}} $parallel
-        fi
-      shell: bash
-    - name: Copy Test Files to GCS
-      id: upload-test-archive
-      shell: bash
-      run: |
         set -eux
-        gsutil -d cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"
+        project_name=$(gcloud config get-value project)
+        gsutil cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/**/*.apk" \
+          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+      shell: bash
+
+    - name: Create On-Host Test Artifacts Archive
+      if: inputs.on_host == 'true'
+      run: |
+        set -x
+        cd src/out/${{ matrix.platform }}_${{ matrix.config }}
+        test_deps_file="test.deps"
+        for test_binary in $(ls {nplb,*tests}); do
+          echo $test_binary
+          if [ -f "${test_binary}.runtime_deps" ]; then
+            cat "${test_binary}.runtime_deps" >> "${test_deps_file}"
+          fi
+        done
+        tar cvf - -T "${test_deps_file}" | xz -T0 -1 -z - > "${GITHUB_WORKSPACE}/test_artifacts.tar.xz"
+      shell: bash
+    - name: Upload On-Host Test Artifacts Archive
+      if: inputs.on_host == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.test_artifacts_key }}
+        path: test_artifacts.tar.xz
+        retention-days: 3

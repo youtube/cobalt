@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/avc_access_unit.h"
+#include "media/starboard/progressive/avc_access_unit.h"
 
 #include <algorithm>
 
-#include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/progressive/progressive_parser.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/timestamp_constants.h"
+#include "media/starboard/progressive/endian_util.h"
+#include "media/starboard/progressive/progressive_parser.h"
 
-namespace cobalt {
 namespace media {
 
 namespace {
 
-using ::media::DecoderBuffer;
-using ::media::DemuxerStream;
-
-bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
+bool ReadBytes(uint64_t offset,
+               size_t size,
+               uint8_t* buffer,
                DataSourceReader* reader) {
   if (reader->BlockingRead(offset, size, buffer) != size) {
     LOG(ERROR) << "unable to download AU";
@@ -43,9 +41,7 @@ bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
 class EndOfStreamAU : public AvcAccessUnit {
  public:
   EndOfStreamAU(Type type, TimeDelta timestamp)
-      : type_(type),
-        timestamp_(timestamp),
-        duration_(::media::kInfiniteDuration) {}
+      : type_(type), timestamp_(timestamp), duration_(kInfiniteDuration) {}
 
  private:
   bool IsEndOfStream() const override { return true; }
@@ -79,13 +75,18 @@ class EndOfStreamAU : public AvcAccessUnit {
 
 class AudioAU : public AvcAccessUnit {
  public:
-  AudioAU(uint64 offset, size_t size, size_t prepend_size, bool is_keyframe,
-          TimeDelta timestamp, TimeDelta duration, ProgressiveParser* parser);
+  AudioAU(uint64_t offset,
+          size_t size,
+          size_t prepend_size,
+          bool is_keyframe,
+          TimeDelta timestamp,
+          TimeDelta duration,
+          ProgressiveParser* parser);
 
  private:
   bool IsEndOfStream() const override { return false; }
   bool IsValid() const override {
-    return offset_ != 0 && size_ != 0 && timestamp_ != ::media::kNoTimestamp;
+    return offset_ != 0 && size_ != 0 && timestamp_ != kNoTimestamp;
   }
   bool Read(DataSourceReader* reader, DecoderBuffer* buffer) override;
   Type GetType() const override { return DemuxerStream::AUDIO; }
@@ -98,7 +99,7 @@ class AudioAU : public AvcAccessUnit {
   void SetDuration(TimeDelta duration) override { duration_ = duration; }
   void SetTimestamp(TimeDelta timestamp) override { timestamp_ = timestamp; }
 
-  uint64 offset_;
+  uint64_t offset_;
   size_t size_;
   size_t prepend_size_;
   bool is_keyframe_;
@@ -107,8 +108,12 @@ class AudioAU : public AvcAccessUnit {
   ProgressiveParser* parser_;
 };
 
-AudioAU::AudioAU(uint64 offset, size_t size, size_t prepend_size,
-                 bool is_keyframe, TimeDelta timestamp, TimeDelta duration,
+AudioAU::AudioAU(uint64_t offset,
+                 size_t size,
+                 size_t prepend_size,
+                 bool is_keyframe,
+                 TimeDelta timestamp,
+                 TimeDelta duration,
                  ProgressiveParser* parser)
     : offset_(offset),
       size_(size),
@@ -121,8 +126,9 @@ AudioAU::AudioAU(uint64 offset, size_t size, size_t prepend_size,
 bool AudioAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   DCHECK_LE(size_ + prepend_size_, buffer->data_size());
   if (!ReadBytes(offset_, size_, buffer->writable_data() + prepend_size_,
-                 reader))
+                 reader)) {
     return false;
+  }
 
   if (!parser_->Prepend(this, buffer)) {
     LOG(ERROR) << "prepend fail";
@@ -136,14 +142,19 @@ bool AudioAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
 
 class VideoAU : public AvcAccessUnit {
  public:
-  VideoAU(uint64 offset, size_t size, size_t prepend_size,
-          uint8 length_of_nalu_size, bool is_keyframe, TimeDelta timestamp,
-          TimeDelta duration, ProgressiveParser* parser);
+  VideoAU(uint64_t offset,
+          size_t size,
+          size_t prepend_size,
+          uint8_t length_of_nalu_size,
+          bool is_keyframe,
+          TimeDelta timestamp,
+          TimeDelta duration,
+          ProgressiveParser* parser);
 
  private:
   bool IsEndOfStream() const override { return false; }
   bool IsValid() const override {
-    return offset_ != 0 && size_ != 0 && timestamp_ != ::media::kNoTimestamp;
+    return offset_ != 0 && size_ != 0 && timestamp_ != kNoTimestamp;
   }
   bool Read(DataSourceReader* reader, DecoderBuffer* buffer) override;
   Type GetType() const override { return DemuxerStream::VIDEO; }
@@ -160,19 +171,23 @@ class VideoAU : public AvcAccessUnit {
   void SetDuration(TimeDelta duration) override { duration_ = duration; }
   void SetTimestamp(TimeDelta timestamp) override { timestamp_ = timestamp; }
 
-  uint64 offset_;
+  uint64_t offset_;
   size_t size_;
   size_t prepend_size_;
-  uint8 length_of_nalu_size_;
+  uint8_t length_of_nalu_size_;
   bool is_keyframe_;
   TimeDelta timestamp_;
   TimeDelta duration_;
   ProgressiveParser* parser_;
 };
 
-VideoAU::VideoAU(uint64 offset, size_t size, size_t prepend_size,
-                 uint8 length_of_nalu_size, bool is_keyframe,
-                 TimeDelta timestamp, TimeDelta duration,
+VideoAU::VideoAU(uint64_t offset,
+                 size_t size,
+                 size_t prepend_size,
+                 uint8_t length_of_nalu_size,
+                 bool is_keyframe,
+                 TimeDelta timestamp,
+                 TimeDelta duration,
                  ProgressiveParser* parser)
     : offset_(offset),
       size_(size),
@@ -188,7 +203,7 @@ VideoAU::VideoAU(uint64 offset, size_t size, size_t prepend_size,
 
 bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   size_t au_left = size_;                 // bytes left in the AU
-  uint64 au_offset = offset_;             // offset to read in the reader
+  uint64_t au_offset = offset_;           // offset to read in the reader
   size_t buf_left = buffer->data_size();  // bytes left in the buffer
   // The current write position in the buffer
   int64_t decoder_buffer_offset = prepend_size_;
@@ -197,8 +212,8 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   // transform it into [start code][data][start code][data]....
   // The length of size is indicated by length_of_nalu_size_
   while (au_left >= length_of_nalu_size_ && buf_left >= kAnnexBStartCodeSize) {
-    uint8 size_buf[4];
-    uint32 nal_size;
+    uint8_t size_buf[4];
+    uint32_t nal_size;
 
     // Store [start code]
     memcpy(buffer->writable_data() + decoder_buffer_offset, kAnnexBStartCode,
@@ -207,8 +222,9 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
     buf_left -= kAnnexBStartCodeSize;
 
     // Read [size]
-    if (!ReadBytes(au_offset, length_of_nalu_size_, size_buf, reader))
+    if (!ReadBytes(au_offset, length_of_nalu_size_, size_buf, reader)) {
       return false;
+    }
 
     au_offset += length_of_nalu_size_;
     au_left -= length_of_nalu_size_;
@@ -222,7 +238,9 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
       nal_size = endian_util::load_uint32_big_endian(size_buf);
     }
 
-    if (au_left < nal_size || buf_left < nal_size) break;
+    if (au_left < nal_size || buf_left < nal_size) {
+      break;
+    }
 
     // Read the [data] from reader into buf
     if (!ReadBytes(au_offset, nal_size,
@@ -263,26 +281,36 @@ AvcAccessUnit::~AvcAccessUnit() {}
 
 // static
 scoped_refptr<AvcAccessUnit> AvcAccessUnit::CreateEndOfStreamAU(
-    DemuxerStream::Type type, TimeDelta timestamp) {
+    DemuxerStream::Type type,
+    TimeDelta timestamp) {
   return new EndOfStreamAU(type, timestamp);
 }
 
 // static
 scoped_refptr<AvcAccessUnit> AvcAccessUnit::CreateAudioAU(
-    uint64 offset, size_t size, size_t prepend_size, bool is_keyframe,
-    TimeDelta timestamp, TimeDelta duration, ProgressiveParser* parser) {
+    uint64_t offset,
+    size_t size,
+    size_t prepend_size,
+    bool is_keyframe,
+    TimeDelta timestamp,
+    TimeDelta duration,
+    ProgressiveParser* parser) {
   return new AudioAU(offset, size, prepend_size, is_keyframe, timestamp,
                      duration, parser);
 }
 
 // static
 scoped_refptr<AvcAccessUnit> AvcAccessUnit::CreateVideoAU(
-    uint64 offset, size_t size, size_t prepend_size, uint8 length_of_nalu_size,
-    bool is_keyframe, TimeDelta timestamp, TimeDelta duration,
+    uint64_t offset,
+    size_t size,
+    size_t prepend_size,
+    uint8_t length_of_nalu_size,
+    bool is_keyframe,
+    TimeDelta timestamp,
+    TimeDelta duration,
     ProgressiveParser* parser) {
   return new VideoAU(offset, size, prepend_size, length_of_nalu_size,
                      is_keyframe, timestamp, duration, parser);
 }
 
 }  // namespace media
-}  // namespace cobalt

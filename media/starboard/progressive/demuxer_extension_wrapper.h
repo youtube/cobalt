@@ -15,8 +15,8 @@
 // Contains classes that wrap the Demuxer Cobalt Extension, providing an
 // implementation of a Cobalt demuxer. The main API is DemuxerExtensionWrapper.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
-#define COBALT_MEDIA_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
 
 #include <deque>
 #include <memory>
@@ -24,24 +24,23 @@
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/optional.h"
 #include "base/sequence_checker.h"
 #include "base/threading/thread.h"
-#include "cobalt/media/progressive/data_source_reader.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
 #include "media/base/video_decoder_config.h"
+#include "media/starboard/progressive/data_source_reader.h"
 #include "starboard/extension/demuxer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace cobalt {
 namespace media {
 
 // Represents an audio or video stream. Reads data via the demuxer Cobalt
 // Extension.
-class DemuxerExtensionStream : public ::media::DemuxerStream {
+class DemuxerExtensionStream : public DemuxerStream {
  public:
   // Represents a video stream.
   explicit DemuxerExtensionStream(
@@ -61,8 +60,8 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   ~DemuxerExtensionStream() = default;
 
   // Functions used by DemuxerExtensionWrapper.
-  ::media::Ranges<base::TimeDelta> GetBufferedRanges();
-  void EnqueueBuffer(scoped_refptr<::media::DecoderBuffer> buffer);
+  Ranges<base::TimeDelta> GetBufferedRanges();
+  void EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer);
   void FlushBuffers();
   void Stop();
   base::TimeDelta GetLastBufferTimestamp() const;
@@ -70,8 +69,8 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
 
   // DemuxerStream implementation:
   void Read(uint32_t count, ReadCB read_cb) override;
-  ::media::AudioDecoderConfig audio_decoder_config() override;
-  ::media::VideoDecoderConfig video_decoder_config() override;
+  AudioDecoderConfig audio_decoder_config() override;
+  VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
 
   void EnableBitstreamConverter() override { NOTIMPLEMENTED(); }
@@ -79,24 +78,25 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   bool SupportsConfigChanges() override { return false; }
 
  private:
-  typedef std::deque<scoped_refptr<::media::DecoderBuffer>> BufferQueue;
+  typedef std::deque<scoped_refptr<DecoderBuffer>> BufferQueue;
   typedef std::deque<ReadCB> ReadQueue;
 
   CobaltExtensionDemuxer* demuxer_ = nullptr;  // Not owned.
-  base::Optional<::media::VideoDecoderConfig> video_config_;
-  base::Optional<::media::AudioDecoderConfig> audio_config_;
+  std::optional<VideoDecoderConfig> video_config_;
+  std::optional<AudioDecoderConfig> audio_config_;
 
   // Protects everything below.
   mutable base::Lock lock_;
+  ReadCB read_cb_ GUARDED_BY(lock_);
   // Keeps track of all time ranges this object has seen since creation.
   // The demuxer uses these ranges to update the pipeline about what data
   // it has demuxed.
-  ::media::Ranges<base::TimeDelta> buffered_ranges_;
+  Ranges<base::TimeDelta> buffered_ranges_;
   // The last timestamp of buffer enqueued. This is used in two places:
   //   1. Used with the timestamp of the current frame to calculate the
   //      buffer range.
   //   2. Used by the demuxer to deteminate what type of frame to get next.
-  base::TimeDelta last_buffer_timestamp_ = ::media::kNoTimestamp;
+  base::TimeDelta last_buffer_timestamp_ = kNoTimestamp;
   bool stopped_ = false;
 
   BufferQueue buffer_queue_;
@@ -145,7 +145,7 @@ class PositionalDataSource {
 
 // Wraps the demuxer Cobalt Extension in the internal media::Demuxer API.
 // Instances should be created via the Create method.
-class DemuxerExtensionWrapper : public ::media::Demuxer {
+class DemuxerExtensionWrapper : public Demuxer {
  public:
   // Constructs a new DemuxerExtensionWrapper, returning null on failure. If
   // |data_source| or |task_runner| is null, or if a demuxer cannot be created,
@@ -163,34 +163,32 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   ~DemuxerExtensionWrapper() override;
 
   // Demuxer implementation:
-  std::vector<::media::DemuxerStream*> GetAllStreams() override;
+  std::vector<DemuxerStream*> GetAllStreams() override;
   std::string GetDisplayName() const override;
-  ::media::DemuxerType GetDemuxerType() const override {
+  DemuxerType GetDemuxerType() const override {
     // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
-    return ::media::DemuxerType::kFFmpegDemuxer;
+    return DemuxerType::kFFmpegDemuxer;
   }
-  void Initialize(::media::DemuxerHost* host,
-                  ::media::PipelineStatusCallback status_cb) override;
+  void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override;
   void StartWaitingForSeek(base::TimeDelta seek_time) override;
   void CancelPendingSeek(base::TimeDelta seek_time) override;
-  void Seek(base::TimeDelta time,
-            ::media::PipelineStatusCallback status_cb) override;
+  void Seek(base::TimeDelta time, PipelineStatusCallback status_cb) override;
   bool IsSeekable() const override { return true; }
   void Stop() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override;
   int64_t GetMemoryUsage() const override;
-  void OnEnabledAudioTracksChanged(
-      const std::vector<::media::MediaTrack::Id>& track_ids,
-      base::TimeDelta curr_time, TrackChangeCB change_completed_cb) override;
-  void OnSelectedVideoTrackChanged(
-      const std::vector<::media::MediaTrack::Id>& track_ids,
-      base::TimeDelta curr_time, TrackChangeCB change_completed_cb) override;
+  void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
+                                   base::TimeDelta curr_time,
+                                   TrackChangeCB change_completed_cb) override;
+  void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
+                                   base::TimeDelta curr_time,
+                                   TrackChangeCB change_completed_cb) override;
   void SetPlaybackRate(double rate) override { NOTREACHED(); }
 
-  absl::optional<::media::container_names::MediaContainerName>
-  GetContainerForMetrics() const override {
+  absl::optional<container_names::MediaContainerName> GetContainerForMetrics()
+      const override {
     NOTREACHED();
     return absl::nullopt;
   }
@@ -208,25 +206,24 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
       std::unique_ptr<CobaltExtensionDemuxerDataSource> c_data_source,
       scoped_refptr<base::SequencedTaskRunner> task_runner);
 
-  void OnInitializeDone(::media::PipelineStatusCallback status_cb,
+  void OnInitializeDone(PipelineStatusCallback status_cb,
                         CobaltExtensionDemuxerStatus status);
-  void Request(::media::DemuxerStream::Type type);
+  void Request(DemuxerStream::Type type);
   bool HasStopped();
   void IssueNextRequest();
-  void SeekTask(base::TimeDelta time,
-                ::media::PipelineStatusCallback status_cb);
+  void SeekTask(base::TimeDelta time, PipelineStatusCallback status_cb);
 
   // Returns the range of buffered data. If both audio and video streams are
   // present, this is the intersection of their buffered ranges; otherwise, it
   // is whatever range of data is buffered.
-  ::media::Ranges<base::TimeDelta> GetBufferedRanges();
+  Ranges<base::TimeDelta> GetBufferedRanges();
 
   const CobaltExtensionDemuxerApi* demuxer_api_ = nullptr;  // Not owned.
   // Owned by this class. Construction/destruction is done via demuxer_api_.
   CobaltExtensionDemuxer* impl_ = nullptr;
   std::unique_ptr<PositionalDataSource> data_source_;
   std::unique_ptr<CobaltExtensionDemuxerDataSource> c_data_source_;
-  ::media::DemuxerHost* host_ = nullptr;
+  DemuxerHost* host_ = nullptr;
   mutable base::Lock lock_for_stopped_;
   // Indicates whether Stop has been called.
   bool stopped_ = false;
@@ -234,8 +231,8 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   bool audio_reached_eos_ = false;
   bool flushing_ = false;
 
-  base::Optional<DemuxerExtensionStream> video_stream_;
-  base::Optional<DemuxerExtensionStream> audio_stream_;
+  absl::optional<DemuxerExtensionStream> video_stream_;
+  absl::optional<DemuxerExtensionStream> audio_stream_;
 
   std::unique_ptr<H264AnnexBConverter> h264_converter_;
 
@@ -249,6 +246,5 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_

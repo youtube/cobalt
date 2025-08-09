@@ -39,7 +39,7 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
              SbAudioSinkPrivate::ErrorFunc error_func,
              void* context) {
-            return SbAudioSinkPrivate::Create(
+            return audio_sink::SbAudioSinkImpl::Create(
                 channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers,
                 frame_buffers_size_in_frames, update_source_status_func,

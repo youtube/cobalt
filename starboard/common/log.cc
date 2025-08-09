@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iomanip>
+#include <map>
 #include <sstream>
 
 #include "starboard/common/string.h"
@@ -71,6 +72,21 @@ SbLogPriority StringToLogLevel(const std::string& log_level) {
   }
 
   return SB_LOG_INFO;
+}
+
+SbLogPriority ChromiumIntToStarboardLogLevel(const std::string& log_level) {
+  static const std::map<int, SbLogPriority> kLogLevelToSbLogPriority = {
+      {0, SB_LOG_INFO},
+      {1, SB_LOG_INFO},
+      {2, SB_LOG_WARNING},
+      {3, SB_LOG_ERROR},
+      {4, SB_LOG_FATAL}};
+
+  const auto log_level_as_int = std::stoi(log_level);
+  if (kLogLevelToSbLogPriority.count(log_level_as_int) == 0) {
+    return SB_LOG_INFO;  // Replicate StringToLogLevel() behaviour.
+  }
+  return kLogLevelToSbLogPriority.at(log_level_as_int);
 }
 
 void Break() {

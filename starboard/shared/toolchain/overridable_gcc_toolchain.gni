@@ -132,6 +132,7 @@ template("overridable_clang_toolchain") {
                              "default_shlib_subdir",
                              "enable_linker_map",
                              "use_unstripped_as_runtime_outputs",
+                             "propagates_configs",
                            ])
 
     toolchain_args = {

@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_AVC_PARSER_H_
-#define COBALT_MEDIA_PROGRESSIVE_AVC_PARSER_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_AVC_PARSER_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_AVC_PARSER_H_
 
 #include <vector>
 
-#include "cobalt/media/progressive/progressive_parser.h"
 #include "media/base/media_log.h"
+#include "media/starboard/progressive/progressive_parser.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
-namespace cobalt {
 namespace media {
 
 // Typical size of an annexB prepend will be around 60 bytes. We make more room
@@ -35,10 +34,6 @@ static const int kAnnexBPrependMaxSize = 1024;
 // ProgressiveParser while leaving the rest for its children.
 class AVCParser : public ProgressiveParser {
  public:
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::DemuxerStream DemuxerStream;
-  typedef ::media::MediaLog MediaLog;
-
   explicit AVCParser(scoped_refptr<DataSourceReader> reader,
                      MediaLog* media_log);
   virtual ~AVCParser();
@@ -47,9 +42,10 @@ class AVCParser : public ProgressiveParser {
     gfx::Size coded_size;
     gfx::Rect visible_rect;
     gfx::Size natural_size;
-    uint32 num_ref_frames;
+    uint32_t num_ref_frames;
   };
-  static bool ParseSPS(const uint8* sps, size_t sps_size,
+  static bool ParseSPS(const uint8_t* sps,
+                       size_t sps_size,
                        SPSRecord* record_out);
 
   // GetNextAU we must pass on to FLV or MP4 children.
@@ -59,28 +55,29 @@ class AVCParser : public ProgressiveParser {
                scoped_refptr<DecoderBuffer> buffer) override;
 
  protected:
-  virtual bool DownloadAndParseAVCConfigRecord(uint64 offset, uint32 size);
-  virtual bool ParseAVCConfigRecord(uint8* buffer, uint32 size);
+  virtual bool DownloadAndParseAVCConfigRecord(uint64_t offset, uint32_t size);
+  virtual bool ParseAVCConfigRecord(uint8_t* buffer, uint32_t size);
   // pps_size can be 0. Returns false on unable to construct.
-  virtual bool BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
-                                  uint32 pps_size);
-  virtual void ParseAudioSpecificConfig(uint8 b0, uint8 b1);
+  virtual bool BuildAnnexBPrepend(uint8_t* sps,
+                                  uint32_t sps_size,
+                                  uint8_t* pps,
+                                  uint32_t pps_size);
+  virtual void ParseAudioSpecificConfig(uint8_t b0, uint8_t b1);
   virtual size_t CalculatePrependSize(DemuxerStream::Type type,
                                       bool is_keyframe);
 
   MediaLog* media_log_;
-  uint8 nal_header_size_;
+  uint8_t nal_header_size_;
   // audio frames have a fixed-size small prepend that we attach to every
   // audio buffer created by DownloadBuffer()
-  std::vector<uint8> audio_prepend_;
+  std::vector<uint8_t> audio_prepend_;
   // video frames have a variable-size prepend that we limit to a reasonable
   // upper bound. We only need to attach it to keyframes, however, the rest
   // of the frames need only an AnnexB start code.
-  uint8 video_prepend_[kAnnexBPrependMaxSize];
-  uint32 video_prepend_size_;
+  uint8_t video_prepend_[kAnnexBPrependMaxSize];
+  uint32_t video_prepend_size_;
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_AVC_PARSER_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_AVC_PARSER_H_

@@ -448,6 +448,13 @@ void PipelineController::OnExternalVideoFrameRequest() {
   pipeline_->OnExternalVideoFrameRequest();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+Pipeline::SetBoundsCB PipelineController::GetSetBoundsCB() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return pipeline_->GetSetBoundsCB();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void PipelineController::FireOnTrackChangeCompleteForTesting(State set_to) {
   previous_track_change_state_ = set_to;
   OnTrackChangeComplete();

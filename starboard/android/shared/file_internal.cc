@@ -20,8 +20,7 @@
 #include <jni.h>
 #include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -35,60 +34,46 @@ const char* g_app_cache_dir = NULL;
 const char* g_app_lib_dir = NULL;
 
 namespace {
-jobject g_java_asset_manager;
+ScopedJavaGlobalRef<jobject> g_java_asset_manager;
 AAssetManager* g_asset_manager;
-
-// Copies the characters from a jstring and returns a newly allocated buffer
-// with the result.
-const char* DuplicateJavaString(JniEnvExt* env, jstring j_string) {
-  SB_DCHECK(j_string);
-  std::string utf_str = env->GetStringStandardUTFOrAbort(j_string);
-  const char* result = strdup(utf_str.c_str());
-  return result;
-}
-
 }  // namespace
 
 void SbFileAndroidInitialize() {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
 
-  SB_DCHECK(g_java_asset_manager == NULL);
+  SB_DCHECK(g_java_asset_manager.is_null());
   SB_DCHECK(g_asset_manager == NULL);
-  ScopedLocalJavaRef<jstring> j_app(env->CallStarboardObjectMethodOrAbort(
-      "getApplicationContext", "()Landroid/content/Context;"));
-  g_java_asset_manager =
-      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
-          j_app.Get(), "getAssets", "()Landroid/content/res/AssetManager;"));
-  g_asset_manager = AAssetManager_fromJava(env, g_java_asset_manager);
 
+  ScopedJavaLocalRef<jobject> context =
+      starbooard_bridge->GetApplicationContext(env);
+
+  g_java_asset_manager = starbooard_bridge->GetAssetsFromContext(env, context);
+  g_asset_manager = AAssetManager_fromJava(env, g_java_asset_manager.obj());
+
+  std::string app_files_dir = starbooard_bridge->GetFilesAbsolutePath(env);
   SB_DCHECK(g_app_files_dir == NULL);
-  ScopedLocalJavaRef<jstring> j_string(env->CallStarboardObjectMethodOrAbort(
-      "getFilesAbsolutePath", "()Ljava/lang/String;"));
-  g_app_files_dir = DuplicateJavaString(env, j_string.Get());
+  g_app_files_dir = strdup(app_files_dir.c_str());
+
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
+  std::string app_cache_dir = starbooard_bridge->GetCacheAbsolutePath(env);
   SB_DCHECK(g_app_cache_dir == NULL);
-  j_string.Reset(env->CallStarboardObjectMethodOrAbort("getCacheAbsolutePath",
-                                                       "()Ljava/lang/String;"));
-  g_app_cache_dir = DuplicateJavaString(env, j_string.Get());
+  g_app_cache_dir = strdup(app_cache_dir.c_str());
+
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 
+  std::string app_lib_dir =
+      starbooard_bridge->GetNativeLibraryDirFromContext(env, context);
   SB_DCHECK(g_app_lib_dir == NULL);
-  ScopedLocalJavaRef<jobject> j_app_info(
-      env->CallObjectMethodOrAbort(j_app.Get(), "getApplicationInfo",
-                                   "()Landroid/content/pm/ApplicationInfo;"));
-  j_string.Reset(
-      env->GetStringFieldOrAbort(j_app_info.Get(), "nativeLibraryDir"));
-  g_app_lib_dir = DuplicateJavaString(env, j_string.Get());
+  g_app_lib_dir = strdup(app_lib_dir.c_str());
+
   SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }
 
 void SbFileAndroidTeardown() {
-  JniEnvExt* env = JniEnvExt::Get();
-
   if (g_java_asset_manager) {
-    env->DeleteGlobalRef(g_java_asset_manager);
-    g_java_asset_manager = NULL;
+    g_java_asset_manager.Reset();
     g_asset_manager = NULL;
   }
 

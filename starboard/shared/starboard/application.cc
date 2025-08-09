@@ -14,9 +14,9 @@
 
 #include "starboard/shared/starboard/application.h"
 
+#include <atomic>
 #include <string>
 
-#include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -34,6 +34,10 @@ namespace {
 const char kPreloadSwitch[] = "preload";
 const char kLinkSwitch[] = "link";
 const char kMinLogLevel[] = "min_log_level";
+// Chromium's base/base_switches.h "--v". Positive numbers are equivalent to
+// debug (0), info, warning, error, fatal. Note that Starboard has no debug;
+// levels start at kSbLogPriorityInfo which is a 1.
+const char kV[] = "v";
 
 // Dispatches an event of |type| with |data| to the system event handler,
 // calling |destructor| on |data| when finished dispatching. Does all
@@ -59,9 +63,9 @@ void DeleteStartData(void* data) {
 }  // namespace
 
 // The next event ID to use for Schedule().
-volatile SbAtomic32 g_next_event_id = 0;
+volatile std::atomic<int32_t> g_next_event_id{0};
 
-Application* Application::g_instance = NULL;
+std::atomic<Application*> Application::g_instance{NULL};
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
@@ -71,20 +75,16 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       sb_event_handle_callback_(sb_event_handle_callback) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance =
-      reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
-          reinterpret_cast<SbAtomicPtr>(this)));
+  Application* old_instance = NULL;
+  g_instance.compare_exchange_weak(old_instance, this,
+                                   std::memory_order_acquire);
   SB_DCHECK(!old_instance);
 }
 
 Application::~Application() {
-  Application* old_instance =
-      reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
+  Application* old_instance = this;
+  g_instance.compare_exchange_weak(old_instance, NULL,
+                                   std::memory_order_acquire);
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   free(start_link_);
@@ -111,9 +111,14 @@ int Application::Run(CommandLine command_line) {
     }
   }
 
+  // kMinLogLevel should take priority over kV if both are defined.
   if (command_line_->HasSwitch(kMinLogLevel)) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
+  } else if (command_line_->HasSwitch(kV)) {
+    ::starboard::logging::SetMinLogLevel(
+        ::starboard::logging::ChromiumIntToStarboardLogLevel(
+            command_line_->GetSwitchValue(kV)));
   } else {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_FATAL);
@@ -184,7 +189,7 @@ void Application::WindowSizeChanged(void* context,
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
                                 int64_t delay) {
-  SbEventId id = SbAtomicNoBarrier_Increment(&g_next_event_id, 1);
+  SbEventId id = ++g_next_event_id;
   InjectTimedEvent(new TimedEvent(id, callback, context, delay));
   return id;
 }

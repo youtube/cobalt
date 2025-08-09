@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <limits>
+
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -166,15 +168,10 @@ TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
 
 TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   if (!IsPartialAudioSupported()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO)
-        << "The platform doesn't support partial audio. Skip the tests.";
-    return;
+    GTEST_SKIP() << "The platform doesn't support partial audio.";
   }
   if (IsAudioPassthroughUsed(GetParam())) {
-    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
-                    "the tests.";
-    return;
+    GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
 
   SbPlayerTestFixture player_fixture(GetParam(),
@@ -183,9 +180,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
     return;
   }
   if (!player_fixture.HasAudio()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO) << "Skip PartialAudio test for audioless content.";
-    return;
+    GTEST_SKIP() << "Skip PartialAudio test for audioless content.";
   }
 
   const int64_t kDurationToPlay = 1'000'000;  // 1 second
@@ -247,15 +242,11 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
 
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO)
-        << "The platform doesn't support partial audio. Skip the tests.";
+    GTEST_SKIP() << "The platform doesn't support partial audio.";
     return;
   }
   if (IsAudioPassthroughUsed(GetParam())) {
-    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
-                    "the tests.";
-    return;
+    GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
 
   SbPlayerTestFixture player_fixture(GetParam(),
@@ -264,9 +255,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
     return;
   }
   if (!player_fixture.HasAudio()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO) << "Skip PartialAudio test for audioless content.";
-    return;
+    GTEST_SKIP() << "Skip PartialAudio test for audioless content.";
   }
 
   const int64_t kDurationToPlay = 1'000'000;  // 1 second
@@ -287,7 +276,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   int count = 0;
   while (current_time_offset < kDurationToPlay) {
     const int64_t kDurationToDiscard =
-        count % 2 == 0 ? 1'000'000LL : kSbInt64Max;
+        count % 2 == 0 ? 1'000'000LL : std::numeric_limits<int64_t>::max();
     count++;
     // Discard from front.
     for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {

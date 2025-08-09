@@ -94,6 +94,10 @@
 #include "third_party/blink/renderer/platform/media/web_media_source_impl.h"
 #include "ui/gfx/geometry/size.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_renderer.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "third_party/blink/renderer/platform/media/hls_data_source_provider_impl.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -681,6 +685,13 @@ void WebMediaPlayerImpl::DisableOverlay() {
   else
     MaybeSendOverlayInfoToDecoder();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+WebMediaPlayer::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return pipeline_controller_->GetSetBoundsCB();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void WebMediaPlayerImpl::EnteredFullscreen() {
   overlay_info_.is_fullscreen = true;
@@ -2797,6 +2808,14 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
 
   media_metrics_provider_->SetRendererType(renderer_type_);
   media_log_->SetProperty<MediaLogProperty::kRendererName>(renderer_type_);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "Renderer Type is " << GetRendererName(renderer_type_) << ".";
+  if (renderer_type_ == media::RendererType::kStarboard) {
+    // StarboardRenderer always uses full screen with overlay video mode.
+    overlay_info_.is_fullscreen = true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),

@@ -56,12 +56,19 @@ struct SbAudioSinkPrivate {
   };
 
   virtual ~SbAudioSinkPrivate() {}
+
   virtual void SetPlaybackRate(double playback_rate) = 0;
-
   virtual void SetVolume(double volume) = 0;
-
   virtual bool IsType(Type* type) = 0;
+};
 
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace audio_sink {
+
+class SbAudioSinkImpl : public SbAudioSinkPrivate {
+ public:
   // The following two functions will be called during application startup and
   // termination.
   static void Initialize();
@@ -111,5 +118,10 @@ struct SbAudioSinkPrivate {
   static void PlatformInitialize();
   static void PlatformTearDown();
 };
+
+}  // namespace audio_sink
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_

@@ -14,6 +14,8 @@
 # every other file in the build. So variables declared here (that don't start
 # with an underscore) will be implicitly global.
 
+import("//cobalt/build/configs/cobalt.gni")
+
 # =============================================================================
 # PLATFORM SELECTION
 # =============================================================================
@@ -177,6 +179,11 @@ assert(!(is_debug && is_official_build), "Can't do official debug builds")
 assert(!(current_os == "ios" && is_component_build),
        "Can't use component build on iOS")
 
+if (is_cobalt) {
+  assert(!cobalt_is_release_build || is_official_build,
+         "Release builds are only available in official builds.")
+}
+
 # ==============================================================================
 # TOOLCHAIN SETUP
 # ==============================================================================
@@ -272,12 +279,26 @@ if (target_os == "android") {
   assert(false, "Unsupported target_os: $target_os")
 }
 
+# Create a separation between cobalt and host toolchain if needed.
+if (is_cobalt && _default_toolchain == host_toolchain) {
+  default_toolchain_path = string_split(_default_toolchain, "//")
+  _default_toolchain = "//cobalt/" + default_toolchain_path[1]
+}
+
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
 # set the default toolchain for the platform (if any).
 if (custom_toolchain != "") {
   set_default_toolchain(custom_toolchain)
 } else if (_default_toolchain != "") {
   set_default_toolchain(_default_toolchain)
+}
+
+if (is_cobalt) {
+  if (custom_toolchain != "") {
+    cobalt_toolchain = custom_toolchain
+  } else if (_default_toolchain != "") {
+    cobalt_toolchain = _default_toolchain
+  }
 }
 
 # =============================================================================
@@ -327,6 +348,12 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
+# TODO: b/374301613 - Consolidate these imports and remove variables where possible.
+if (is_cobalt) {
+  import("//cobalt/build/configs/initialize_variables.gni")
+  import("//cobalt/build/configs/variables.gni")
+}
+
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
   "//build/config:feature_flags",
@@ -353,6 +380,10 @@ default_compiler_configs = [
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
+
+if (is_cobalt) {
+  default_compiler_configs += [ "//cobalt/build/configs:cobalt_config" ]
+}
 
 if (is_win) {
   default_compiler_configs += [

@@ -125,8 +125,9 @@ static bool ElfClassBuildIDNoteIdentifier(const void* section,
   const void* section_end = reinterpret_cast<const char*>(section) + length;
   const Nhdr* note_header = reinterpret_cast<const Nhdr*>(section);
   while (reinterpret_cast<const void*>(note_header) < section_end) {
-    if (note_header->n_type == NT_GNU_BUILD_ID)
+    if (note_header->n_type == NT_GNU_BUILD_ID) {
       break;
+    }
     note_header = reinterpret_cast<const Nhdr*>(
         reinterpret_cast<const char*>(note_header) + sizeof(Nhdr) +
         NOTE_PADDING(note_header->n_namesz) +
@@ -181,9 +182,10 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     Addr file_page_start = PAGE_START(file_start);
     Addr file_length = file_end - file_page_start;
 
-    SB_DLOG(INFO) << "Mapping segment: " << " file_page_start="
-                  << file_page_start << " file_length=" << file_length
-                  << " seg_page_start=0x" << std::hex << seg_page_start;
+    SB_DLOG(INFO) << "Mapping segment: "
+                  << " file_page_start=" << file_page_start
+                  << " file_length=" << file_length << " seg_page_start=0x"
+                  << std::hex << seg_page_start;
 
     if (file_length != 0) {
       const int prot_flags = PFLAGS_TO_PROT(phdr->p_flags);
@@ -337,8 +339,9 @@ int ProgramTable::AdjustMemoryProtectionOfReadOnlySegments(
   const Phdr* phdr_limit = phdr + phdr_num_;
 
   for (; phdr < phdr_limit; phdr++) {
-    if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0)
+    if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0) {
       continue;
+    }
 
     Addr seg_page_start = PAGE_START(phdr->p_vaddr) + base_memory_address_;
     Addr seg_page_end =

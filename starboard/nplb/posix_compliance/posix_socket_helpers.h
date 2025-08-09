@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
@@ -33,12 +34,6 @@ namespace nplb {
 #if defined(SOMAXCONN)
 const int kMaxConn = SOMAXCONN;
 #else
-// Some posix platforms such as FreeBSD do not define SOMAXCONN.
-// In this case, set the value to an arbitrary number large enough to
-// satisfy most use-cases and tests, empirically we have found that 128
-// is sufficient.  All implementations of listen() specify that a backlog
-// parameter larger than the system max will be silently truncated to the
-// system's max.
 const int kMaxConn = 128;
 #endif
 
@@ -54,6 +49,13 @@ int PosixGetLocalAddressIPv6(sockaddr* address_ptr);
 
 int PosixSocketSetReceiveBufferSize(int socket_fd, int32_t size);
 int PosixSocketSetSendBufferSize(int socket_fd, int32_t size);
+
+// Returns a valid port number that can be bound to for use in nplb tests.
+// This will always return the same port number.
+int PosixGetPortNumberForTests();
+
+// Creates a TCP/IP socket listening on all interfaces on the given port.
+// int PosixCreateBoundListeningTcpSocket();
 
 #if defined(MSG_NOSIGNAL)
 const int kSendFlags = MSG_NOSIGNAL;

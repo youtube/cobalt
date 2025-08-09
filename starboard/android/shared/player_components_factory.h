@@ -30,7 +30,6 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
@@ -100,7 +99,8 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
               auto type = static_cast<AudioTrackAudioSinkType*>(
-                  SbAudioSinkPrivate::GetPreferredType());
+                  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
+                      GetPreferredType());
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
@@ -536,6 +536,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek = false;
+    // The default value of |force_reset_surface| would be true.
+    bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
@@ -551,6 +553,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       video_mime_type.ValidateBoolParameter("enableflushduringseek");
       enable_flush_during_seek =
           video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+
+      video_mime_type.ValidateBoolParameter("forceresetsurface");
+      force_reset_surface =
+          video_mime_type.GetParamBoolValue("forceresetsurface", true);
     }
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
       SB_LOG(INFO)
@@ -565,8 +571,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        kForceResetSurfaceUnderTunnelMode, force_big_endian_hdr_metadata,
-        max_video_input_size, enable_flush_during_seek, error_message));
+        force_reset_surface, kForceResetSurfaceUnderTunnelMode,
+        force_big_endian_hdr_metadata, max_video_input_size,
+        enable_flush_during_seek, error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder;

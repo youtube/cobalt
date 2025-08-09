@@ -14,6 +14,9 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 
 source_set("base") {
   # Do not expand the visibility here without double-checking with OWNERS, this
@@ -455,7 +458,9 @@ source_set("base") {
     ]
   }
 
-  if (is_android) {
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/demuxer_memory_limit_starboard.cc" ]
+  } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]
   } else if (is_castos) {
     sources += [ "demuxer_memory_limit_cast.cc" ]
@@ -472,6 +477,12 @@ source_set("base") {
       "media_drm_key_type.h",
       "media_drm_storage.cc",
       "media_drm_storage.h",
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [
+      "//starboard($starboard_toolchain)",
     ]
   }
 }

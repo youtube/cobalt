@@ -1,0 +1,101 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//testing/test.gni")
+
+group("gn_all") {
+  testonly = true
+
+  # TODO(b/371589344): Fix android build configs.
+  deps = [
+    "//starboard($starboard_toolchain)",
+    "//starboard/nplb",
+  ]
+  if (!is_android) {
+    deps += [ ":cobalt" ]
+  } else {
+    # TODO(cobalt): reuse build rules below to define Android target.
+    deps += [ "android:cobalt_apk" ]
+  }
+}
+
+if (!is_android) {
+  executable("cobalt") {
+    testonly = true
+
+    sources = [
+      "cobalt.cc",
+      "cobalt_browser_interface_binders.cc",
+      "cobalt_browser_interface_binders.h",
+      "cobalt_content_browser_client.cc",
+      "cobalt_content_browser_client.h",
+      "cobalt_main_delegate.cc",
+      "cobalt_main_delegate.h",
+      "cobalt_web_contents_observer.cc",
+      "cobalt_web_contents_observer.h",
+    ]
+
+    defines = []
+
+    deps = [
+      "//cobalt/renderer:renderer",
+      "//cobalt/services/crash_annotator",
+      "//cobalt/services/crash_annotator/public/mojom",
+      "//cobalt/user_agent",
+      "//content/public/app",
+      "//content/shell:content_shell_app",
+      "//content/shell:content_shell_lib",
+      "//content/shell:pak",
+      "//sandbox",
+      "//third_party/blink/public/common",
+    ]
+
+    data_deps = [
+      "//content/shell:pak",
+      "//tools/v8_context_snapshot:v8_context_snapshot",
+    ]
+
+    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
+}
+
+action("cobalt_build_info") {
+  script = "build/build_info.py"
+  outputs = [
+    "$root_gen_dir/cobalt/cobalt_build_id.h",
+    "$root_gen_dir/build_info.json",
+  ]
+  args = [
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path(outputs[1], root_build_dir),
+  ]
+}
+
+if (is_android) {
+  test("cobalt_unittests") {
+    testonly = true
+
+    sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
+
+    deps = [
+      "//base/test:run_all_unittests",
+      "//cobalt/user_agent",
+      "//starboard:starboard_group",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}

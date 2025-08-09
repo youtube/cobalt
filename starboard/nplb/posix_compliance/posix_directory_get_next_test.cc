@@ -19,6 +19,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
@@ -196,8 +197,9 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   DIR* directory = opendir(directory_name.c_str());
   EXPECT_TRUE(directory);
   std::vector<char> entry(kSbFileMaxName);
-  for (int i = 0; i < kSbFileMaxName; i++)
+  for (int i = 0; i < kSbFileMaxName; i++) {
     entry[i] = i;
+  }
   std::vector<char> entry_copy = entry;
 
   struct dirent dirent_buffer;
@@ -208,8 +210,9 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   EXPECT_TRUE(!result && dirent);
   starboard::strlcpy(entry.data(), dirent->d_name, 0);
   EXPECT_EQ(entry.size(), kSbFileMaxName);
-  for (int i = 0; i < kSbFileMaxName; i++)
+  for (int i = 0; i < kSbFileMaxName; i++) {
     EXPECT_EQ(entry[i], entry_copy[i]);
+  }
 
   EXPECT_TRUE(closedir(directory) == 0);
 }

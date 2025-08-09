@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_DECODER_BUFFER_MEMORY_INFO_H_
-#define COBALT_MEDIA_DECODER_BUFFER_MEMORY_INFO_H_
+#ifndef MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
+#define MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 
 #include "starboard/media.h"
 #include "starboard/types.h"
 
-namespace cobalt {
 namespace media {
 
 class DecoderBufferMemoryInfo {
@@ -40,6 +39,5 @@ class StubDecoderBufferMemoryInfo : public DecoderBufferMemoryInfo {
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_DECODER_BUFFER_MEMORY_INFO_H_
+#endif  // MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_

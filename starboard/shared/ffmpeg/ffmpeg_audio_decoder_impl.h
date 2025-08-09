@@ -78,7 +78,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   AVFrame* av_frame_;
 
   bool stream_ended_;
-  std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
+  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
 };
 

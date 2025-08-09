@@ -27,5 +27,18 @@ TEST(PlayerTest, GetPlayerOutputModeName) {
   ASSERT_STREQ(GetPlayerOutputModeName(kSbPlayerOutputModeInvalid), "invalid");
 }
 
+TEST(PlayerTest, GetPlayerStateName) {
+  ASSERT_STREQ(GetPlayerStateName(kSbPlayerStateInitialized),
+               "kSbPlayerStateInitialized");
+  ASSERT_STREQ(GetPlayerStateName(kSbPlayerStatePrerolling),
+               "kSbPlayerStatePrerolling");
+  ASSERT_STREQ(GetPlayerStateName(kSbPlayerStatePresenting),
+               "kSbPlayerStatePresenting");
+  ASSERT_STREQ(GetPlayerStateName(kSbPlayerStateEndOfStream),
+               "kSbPlayerStateEndOfStream");
+  ASSERT_STREQ(GetPlayerStateName(kSbPlayerStateDestroyed),
+               "kSbPlayerStateDestroyed");
+}
+
 }  // namespace
 }  // namespace starboard
