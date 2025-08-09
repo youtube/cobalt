@@ -33,10 +33,8 @@ _BUILD_TYPES = {
         'cobalt_debugging_enabled': 'true'
     },
     'devel': {
-        'symbol_level': 2,
-        'is_debug': 'false',
-        'cobalt_debugging_enabled': 'true',
-        'use_debug_fission': 'true'
+        'symbol_level': 1,
+        'is_debug': 'false'
     },
     'qa': {
         'symbol_level': 1,
