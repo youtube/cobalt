@@ -40,11 +40,27 @@ constexpr bool kTryAllocation = false;
 constexpr int kMaxFramesToTestAllocation = 800;
 constexpr bool kLogMaps = false;
 constexpr int k8kDecodedFrameBytes = 49'766'400;
+constexpr int kNumSmapsEntriesToLog = 10;
+constexpr bool kWriteSmapsToFile = false;
 
 struct MemoryInfo {
   long total_kb;
   long free_kb;
   long available_kb;
+};
+
+struct SmapsEntry {
+  std::string name;
+  int size = 0;
+  int rss = 0;
+  int pss = 0;
+  int shared_clean = 0;
+  int shared_dirty = 0;
+  int private_clean = 0;
+  int private_dirty = 0;
+  int referenced = 0;
+  int anonymous = 0;
+  int anon_huge_pages = 0;
 };
 
 // Returns the value associated with a key in /proc/meminfo, in kilobytes.
@@ -73,6 +89,141 @@ MemoryInfo GetMemoryInfo() {
     }
   }
   return mem_info;
+}
+
+std::string GetCurrentTimestampString() {
+  time_t now = time(0);
+  struct tm tstruct;
+  char buf[80];
+  tstruct = *localtime(&now);
+  strftime(buf, sizeof(buf), "%Y%m%d-%H%M%S", &tstruct);
+  return buf;
+}
+
+void LogSmaps() {
+  int64_t start_time_us = CurrentMonotonicTime();
+  std::ifstream smaps_file("/proc/self/smaps");
+  if (!smaps_file.is_open()) {
+    SB_LOG(ERROR) << "Failed to open /proc/self/smaps";
+    return;
+  }
+
+  std::string timestamp = GetCurrentTimestampString();
+  std::string output_filename;
+  std::ofstream out_file;
+  if (kWriteSmapsToFile) {
+    output_filename = "/sdcard/Download/smaps.coat." + timestamp + ".txt";
+    out_file.open(output_filename);
+    if (!out_file.is_open()) {
+      SB_LOG(ERROR) << "Failed to open " << output_filename << " for writing.";
+    }
+  }
+
+  std::map<std::string, SmapsEntry> entries;
+  std::string line;
+  std::string current_name;
+
+  while (std::getline(smaps_file, line)) {
+    if (kWriteSmapsToFile && out_file.is_open()) {
+      out_file << line << "\n";
+    }
+    if (line.find(" kB") == std::string::npos) {
+      // This is a header line, extract the name
+      std::stringstream line_ss(line);
+      std::string address, perms, offset, dev, inode, pathname;
+      line_ss >> address >> perms >> offset >> dev >> inode >> pathname;
+      current_name = pathname;
+      if (current_name.empty()) {
+        current_name = address;
+      }
+    } else {
+      // This is a value line
+      std::stringstream line_ss(line);
+      std::string key;
+      int value;
+      line_ss >> key >> value;
+      if (key == "Size:") {
+        entries[current_name].size += value;
+      } else if (key == "Rss:") {
+        entries[current_name].rss += value;
+      } else if (key == "Pss:") {
+        entries[current_name].pss += value;
+      } else if (key == "Shared_Clean:") {
+        entries[current_name].shared_clean += value;
+      } else if (key == "Shared_Dirty:") {
+        entries[current_name].shared_dirty += value;
+      } else if (key == "Private_Clean:") {
+        entries[current_name].private_clean += value;
+      } else if (key == "Private_Dirty:") {
+        entries[current_name].private_dirty += value;
+      } else if (key == "Referenced:") {
+        entries[current_name].referenced += value;
+      } else if (key == "Anonymous:") {
+        entries[current_name].anonymous += value;
+      } else if (key == "AnonHugePages:") {
+        entries[current_name].anon_huge_pages += value;
+      }
+    }
+  }
+  smaps_file.close();
+  if (kWriteSmapsToFile && out_file.is_open()) {
+    out_file.close();
+  }
+
+  std::vector<SmapsEntry> sorted_entries;
+  for (auto const& [name, entry] : entries) {
+    SmapsEntry new_entry = entry;
+    std::string new_name = name;
+    size_t pos = new_name.find("dev.cobalt.coat");
+    if (pos != std::string::npos) {
+      size_t first_slash = new_name.find('/', pos);
+      if (first_slash != std::string::npos) {
+        new_name = new_name.substr(first_slash + 1);
+      }
+    }
+    new_entry.name = new_name;
+    sorted_entries.push_back(new_entry);
+  }
+
+  std::sort(
+      sorted_entries.begin(), sorted_entries.end(),
+      [](const SmapsEntry& a, const SmapsEntry& b) { return a.rss > b.rss; });
+
+  std::stringstream table;
+  table << std::setw(50) << "name"
+        << "|" << std::setw(12) << "size"
+        << "|" << std::setw(12) << "rss"
+        << "|" << std::setw(12) << "pss"
+        << "|" << std::setw(12) << "shr_clean"
+        << "|" << std::setw(12) << "shr_dirty"
+        << "|" << std::setw(12) << "priv_clean"
+        << "|" << std::setw(12) << "priv_dirty"
+        << "|" << std::setw(12) << "referenced"
+        << "|" << std::setw(12) << "anonymous"
+        << "|" << std::setw(12) << "anonhuge"
+        << "\n";
+
+  for (int i = 0;
+       i < std::min((int)sorted_entries.size(), kNumSmapsEntriesToLog); ++i) {
+    const auto& entry = sorted_entries[i];
+    table << std::setw(50) << entry.name << "|" << std::setw(12) << entry.size
+          << "|" << std::setw(12) << entry.rss << "|" << std::setw(12)
+          << entry.pss << "|" << std::setw(12) << entry.shared_clean << "|"
+          << std::setw(12) << entry.shared_dirty << "|" << std::setw(12)
+          << entry.private_clean << "|" << std::setw(12) << entry.private_dirty
+          << "|" << std::setw(12) << entry.referenced << "|" << std::setw(12)
+          << entry.anonymous << "|" << std::setw(12) << entry.anon_huge_pages
+          << "\n";
+  }
+  SB_LOG(INFO) << table.str();
+  int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
+  if (kWriteSmapsToFile) {
+    SB_LOG(INFO) << "snapshot is written: location=" << output_filename
+                 << ", elapsed(msec)=" << elapsed_us / 1000;
+  } else {
+    SB_LOG(INFO) << "snapshot is not written, elapsed(msec)="
+                 << elapsed_us / 1000;
+  }
 }
 
 std::string FormatSize(size_t size_in_bytes) {
@@ -400,6 +551,7 @@ void ThrottlingDecoderFlowControl::LogStateAndReschedule(
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
   SB_LOG(INFO) << "DecoderFlowControl state: " << GetCurrentState();
+  LogSmaps();
 
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
