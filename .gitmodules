@@ -292,9 +292,6 @@
 [submodule "third_party/hunspell_dictionaries"]
 	path = third_party/hunspell_dictionaries
 	url = https://chromium.googlesource.com/chromium/deps/hunspell_dictionaries
-[submodule "third_party/icu"]
-	path = third_party/icu
-	url = https://chromium.googlesource.com/chromium/deps/icu
 [submodule "third_party/javalang/src"]
 	path = third_party/javalang/src
 	url = https://chromium.googlesource.com/external/github.com/c2nes/javalang
