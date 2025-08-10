@@ -17,6 +17,7 @@
 #include <pthread.h>
 
 #include <algorithm>
+#include <mutex>
 
 #include "starboard/configuration.h"
 
@@ -50,10 +51,7 @@ void InitializeOpenMax() {
 }  // namespace
 
 OpenMaxComponentBase::OpenMaxComponentBase(const char* name)
-    : event_condition_variable_(mutex_),
-      handle_(NULL),
-      input_port_(kInvalidPort),
-      output_port_(kInvalidPort) {
+    : handle_(NULL), input_port_(kInvalidPort), output_port_(kInvalidPort) {
   InitializeOpenMax();
 
   OMX_CALLBACKTYPE callbacks;
@@ -99,21 +97,23 @@ void OpenMaxComponentBase::SendCommand(OMX_COMMANDTYPE command, int param) {
 }
 
 void OpenMaxComponentBase::WaitForCommandCompletion() {
-  for (;;) {
-    ScopedLock scoped_lock(mutex_);
-    for (EventDescriptions::iterator iter = event_descriptions_.begin();
-         iter != event_descriptions_.end(); ++iter) {
-      if (iter->event == OMX_EventCmdComplete) {
-        event_descriptions_.erase(iter);
-        return;
-      }
-      // Special case for OMX_CommandStateSet.
-      if (iter->event == OMX_EventError && iter->data1 == OMX_ErrorSameState) {
-        event_descriptions_.erase(iter);
-        return;
+  std::unique_lock lock(mutex_);
+  event_condition_variable_.wait(lock, [this] {
+    for (const auto& desc : event_descriptions_) {
+      if (desc.event == OMX_EventCmdComplete ||
+          (desc.event == OMX_EventError && desc.data1 == OMX_ErrorSameState)) {
+        return true;
       }
     }
-    event_condition_variable_.Wait();
+    return false;
+  });
+  for (auto it = event_descriptions_.begin(); it != event_descriptions_.end();
+       ++it) {
+    if (it->event == OMX_EventCmdComplete ||
+        (it->event == OMX_EventError && it->data1 == OMX_ErrorSameState)) {
+      event_descriptions_.erase(it);
+      return;
+    }
   }
 }
 
@@ -138,14 +138,16 @@ OMX_ERRORTYPE OpenMaxComponentBase::OnEvent(OMX_EVENTTYPE event,
     return OMX_ErrorNone;
   }
 
-  ScopedLock scoped_lock(mutex_);
   EventDescription event_desc;
   event_desc.event = event;
   event_desc.data1 = data1;
   event_desc.data2 = data2;
   event_desc.event_data = event_data;
-  event_descriptions_.push_back(event_desc);
-  event_condition_variable_.Signal();
+  {
+    std::lock_guard lock(mutex_);
+    event_descriptions_.push_back(event_desc);
+  }
+  event_condition_variable_.notify_one();
 
   return OMX_ErrorNone;
 }
