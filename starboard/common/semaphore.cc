@@ -65,10 +65,8 @@ bool Semaphore::TakeWait(int64_t wait_us) {
       std::chrono::microseconds(std::min(wait_us, kOneYearUs));
   if (!permits_cv_.wait_for(lock, wait_duration,
                             [this] { return permits_ > 0; })) {
-    SB_LOG(INFO) << __func__ << " < false";
     return false;
   }
-  SB_LOG(INFO) << __func__ << " < true";
   --permits_;
   return true;
 }
