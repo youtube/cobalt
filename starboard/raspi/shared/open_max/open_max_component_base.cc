@@ -98,20 +98,18 @@ void OpenMaxComponentBase::SendCommand(OMX_COMMANDTYPE command, int param) {
 
 void OpenMaxComponentBase::WaitForCommandCompletion() {
   std::unique_lock lock(mutex_);
-  while (true) {
-    if (auto it =
-            std::find_if(event_descriptions_.begin(), event_descriptions_.end(),
-                         [](const EventDescription& desc) {
-                           return desc.event == OMX_EventCmdComplete ||
-                                  (desc.event == OMX_EventError &&
-                                   desc.data1 == OMX_ErrorSameState);
-                         });
-        it != event_descriptions_.end()) {
-      event_descriptions_.erase(it);
-      return;
-    }
-    event_condition_variable_.wait(lock);
-  }
+  EventDescriptions::iterator it;
+  event_condition_variable_.wait(lock, [this, &it] {
+    it = std::find_if(event_descriptions_.begin(), event_descriptions_.end(),
+                      [](const EventDescription& desc) {
+                        return desc.event == OMX_EventCmdComplete ||
+                               (desc.event == OMX_EventError &&
+                                desc.data1 == OMX_ErrorSameState);
+                      });
+    return it != event_descriptions_.end();
+  });
+
+  event_descriptions_.erase(it);
 }
 
 void OpenMaxComponentBase::SendCommandAndWaitForCompletion(
