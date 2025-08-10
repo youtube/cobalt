@@ -15,6 +15,9 @@
 #include "starboard/common/semaphore.h"
 
 #include <chrono>
+#include <limits>
+
+#include "starboard/common/check_op.h"
 
 namespace starboard {
 
@@ -28,6 +31,7 @@ Semaphore::~Semaphore() {}
 void Semaphore::Put() {
   {
     std::lock_guard lock(mutex_);
+    SB_CHECK_LT(permits_, std::numeric_limits<int>::max());
     ++permits_;
   }
   permits_cv_.notify_one();
