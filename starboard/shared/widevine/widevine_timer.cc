@@ -138,11 +138,13 @@ void WidevineTimer::CancelAllJobsOnClient(IClient* client,
   SB_DCHECK(wait_event);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  std::lock_guard lock(mutex_);
-  auto iter = active_clients_.find(client);
-  iter->second->CancelPendingJobs();
-  delete iter->second;
-  active_clients_.erase(iter);
+  {
+    std::lock_guard lock(mutex_);
+    auto iter = active_clients_.find(client);
+    iter->second->CancelPendingJobs();
+    delete iter->second;
+    active_clients_.erase(iter);
+  }
   wait_event->Signal();
 }
 
