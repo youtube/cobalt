@@ -98,7 +98,7 @@ void OpenMaxComponentBase::SendCommand(OMX_COMMANDTYPE command, int param) {
 
 void OpenMaxComponentBase::WaitForCommandCompletion() {
   std::unique_lock lock(mutex_);
-  while {
+  while (true) {
     if (auto it =
             std::find_if(event_descriptions_.begin(), event_descriptions_.end(),
                          [](const EventDescription& desc) {
