@@ -20,6 +20,9 @@
 #include "starboard/common/check_op.h"
 
 namespace starboard {
+namespace {
+const int64_t kOneYearUs = 365LL * 24 * 60 * 60 * 1000 * 1000;
+}
 
 Semaphore::Semaphore() : permits_(0) {}
 
@@ -56,11 +59,16 @@ bool Semaphore::TakeWait(int64_t wait_us) {
   if (wait_us <= 0) {
     return TakeTry();
   }
-  std::unique_lock lock(mutex_);
-  if (!permits_cv_.wait_for(lock, std::chrono::microseconds(wait_us),
+  std::unique_lock<std::mutex> lock(mutex_);
+  // To avoid wait time overflow, we limit wait time to one year.
+  const auto wait_duration =
+      std::chrono::microseconds(std::min(wait_us, kOneYearUs));
+  if (!permits_cv_.wait_for(lock, wait_duration,
                             [this] { return permits_ > 0; })) {
+    SB_LOG(INFO) << __func__ << " < false";
     return false;
   }
+  SB_LOG(INFO) << __func__ << " < true";
   --permits_;
   return true;
 }
