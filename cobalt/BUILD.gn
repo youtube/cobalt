@@ -23,11 +23,18 @@ if (!toolchain_for_rust_host_build_tools) {
          "Release builds are only available in official builds.")
 }
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 # This arg temporarily enables or disables the updater_sandbox target.
 # It's disabled on CI by default due to missing libcurl pkg. To enable it
 # locally, set it to true before building the target.
 declare_args() {
   build_updater_sandbox = false
+
+  # Cobalt app bundle identifier for tvOS.
+  cobalt_bundle_identifier = "foo.cobalt.cobalt"
 }
 
 group("gn_all") {
@@ -41,6 +48,8 @@ group("gn_all") {
   if (is_android) {
     # TODO(cobalt): reuse build rules below to define Android target.
     deps += [ "android:cobalt_apk" ]
+  } else if (is_ios && target_platform == "tvos") {
+    deps += [ ":cobalt" ]
   } else if (!is_cobalt_hermetic_build) {
     deps += [ ":strip_cobalt_binary" ]
   }
@@ -69,7 +78,40 @@ group("cobalt_browsertests") {
   deps = [ "testing:cobalt_browsertests" ]
 }
 
-if (!is_android) {
+if (is_ios && target_platform == "tvos") {
+  ios_app_bundle("cobalt") {
+    info_plist = "shell/app/ios-Info.plist"
+    testonly = true
+
+    sources = [ "app/main.mm" ]
+
+    deps = [
+      ":common",
+      "//base",
+      "//cobalt/shell:cobalt_shell_app",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//content/public/app",
+    ]
+    bundle_deps = [
+      ":cobalt_shell_framework_resources",
+      "shell/app/ios/resources",
+    ]
+
+    data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+
+    entitlements_path = "//build/config/ios/entitlements.plist"
+    bundle_identifier = cobalt_bundle_identifier
+  }
+
+  bundle_data("cobalt_shell_framework_resources") {
+    testonly = true
+    sources = [ "$root_out_dir/cobalt_shell.pak" ]
+
+    public_deps = [ "//cobalt/shell:pak" ]
+
+    outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+  }
+} else if (!is_android) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
   } else {
