@@ -320,6 +320,7 @@ ExportedSymbols::ExportedSymbols() {
     REGISTER_SYMBOL(__errno_location);
   }
   REGISTER_WRAPPER(eventfd);
+  REGISTER_WRAPPER(fchmod);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
