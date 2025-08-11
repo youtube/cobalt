@@ -489,12 +489,6 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // Check if the the overlay_info has stayed the same --> do not request
   // AndroidOverlay.
   bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
-  if (!overlay_changed) {
-    LOG(INFO)
-        << " Overlay info not changed, did not request AndroidOverlay. Token: "
-        << overlay_info.routing_token.value().ToString();
-    return;
-  }
 
   if (android_overlay_factory_cb_.is_null()) {
     LOG(ERROR) << " AndroidOverlayMojoFactoryCB is NULL.";
