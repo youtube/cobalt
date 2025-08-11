@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/features_extension.h"
-
-#include <any>
 #include <iterator>
 #include <variant>
 
@@ -23,10 +20,14 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::android::shared {
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/features_extension.h"
+#endif
+
+namespace starboard::shared::starboard {
 namespace {
-using starboard::features::FeatureList;
-using starboard::features::SbFeatureParamExt;
+using features::FeatureList;
+using features::SbFeatureParamExt;
 
 using ParamValue = std::variant<bool, int, double, std::string, int64_t>;
 
@@ -73,6 +74,12 @@ class FeatureExtensionTest : public ::testing::Test {
         static_cast<const StarboardExtensionFeaturesApi*>(
             SbSystemGetExtension(kStarboardExtensionFeaturesName));
 
+    // Ensure that that the extension_api is obtainable. If it is not available,
+    // we fail here to ensure that the test suite isn't ran.
+    ASSERT_NE(extension_api, nullptr)
+        << "Failed to receive Starboard Features API. This test suite will not "
+           "be ran.";
+
     extension_api->InitializeStarboardFeatures(features, std::size(features),
                                                params, std::size(params));
   }
@@ -83,7 +90,7 @@ TEST_F(FeatureExtensionTest, CanAccessFeatures) {
   EXPECT_FALSE(FeatureList::IsEnabled(FeatureTestBoolFalse));
 }
 
-class ParamExtensionTest : public ::testing::Test,
+class ParamExtensionTest : public FeatureExtensionTest,
                            public ::testing::WithParamInterface<ParamTestCase> {
 };
 
@@ -91,17 +98,14 @@ TEST_P(ParamExtensionTest, CanAccessParams) {
   const auto& test_case = GetParam();
   const auto& param_def = test_case.param_definition;
 
-  // std::visit will select the right code to run based on the
-  // type currently held in the 'expected_value' variant.
   std::visit(
       [&](const auto& expected_value) {
         // Get the type T from the expected_value (e.g., bool, int, ...)
         using T = std::decay_t<decltype(expected_value)>;
 
-        // The logic is now generic and uses the deduced type T
         auto key =
             SbFeatureParamExt<T>(FeatureTestBoolTrue, param_def.param_name);
-        auto actual_value = FeatureList::GetParam(key);
+        auto actual_value = key.Get();
 
         EXPECT_EQ(actual_value, expected_value);
       },
@@ -119,7 +123,6 @@ INSTANTIATE_TEST_SUITE_P(
         ParamTestCase{"String", ParamTestString,
                       ParamTestString.value.string_value},
         ParamTestCase{"Time", ParamTestTime, ParamTestTime.value.time_value}),
-    // This lambda tells gtest how to name each test case
     [](const auto& info) { return info.param.test_name; });
 
-}  // namespace starboard::android::shared
+}  // namespace starboard::shared::starboard
