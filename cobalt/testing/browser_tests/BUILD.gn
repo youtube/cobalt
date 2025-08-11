@@ -188,6 +188,7 @@ test("cobalt_browsertests") {
 
   sources = [
     "content_main_runner_impl_browsertest.cc",
+    "encrypted_media_browsertest.cc",
     "frame_tree_browsertest.cc",
     "media_browsertest.cc",
     "media_browsertest.h",
