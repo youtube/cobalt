@@ -1,6 +1,16 @@
-// Copyright 2012 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/shell/app/shell_main_delegate.h"
 
@@ -23,9 +33,14 @@
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
 #endif
+#include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_content_client.h"
+#include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/gpu/shell_content_gpu_client.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+#include "cobalt/shell/utility/shell_content_utility_client.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -34,11 +49,6 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/main_function_params.h"
 #include "content/public/common/url_constants.h"
-#include "content/shell/app/shell_crash_reporter_client.h"
-#include "content/shell/common/shell_content_client.h"
-#include "content/shell/common/shell_switches.h"
-#include "content/shell/gpu/shell_content_gpu_client.h"
-#include "content/shell/utility/shell_content_utility_client.h"
 #include "ipc/ipc_buildflags.h"
 #include "net/cookies/cookie_monster.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
@@ -60,8 +70,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/apk_assets.h"
 #include "base/posix/global_descriptors.h"
+#include "cobalt/shell/android/shell_descriptors.h"
 #include "content/public/browser/android/compositor.h"
-#include "content/shell/android/shell_descriptors.h"
 #endif
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -69,7 +79,7 @@
 #endif
 
 #if BUILDFLAG(IS_APPLE)
-#include "content/shell/app/paths_mac.h"
+#include "cobalt/shell/app/paths_mac.h"
 #endif
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
@@ -77,7 +87,7 @@
 #endif
 
 #if BUILDFLAG(IS_IOS)
-#include "content/shell/app/ios/shell_application_ios.h"
+#include "cobalt/shell/app/ios/shell_application_ios.h"
 #endif
 
 namespace {
@@ -96,7 +106,11 @@ void InitLogging(const base::CommandLine& command_line) {
 #else
     base::PathService::Get(base::DIR_EXE, &log_filename);
 #endif
+#if BUILDFLAG(IS_ANDROID)
+    log_filename = log_filename.AppendASCII("cobalt_shell.log");
+#else
     log_filename = log_filename.AppendASCII("content_shell.log");
+#endif
   }
 
   logging::LoggingSettings settings;
@@ -268,14 +282,14 @@ void ShellMainDelegate::InitializeResourceBundle() {
     pak_region = global_descriptors->GetRegion(kShellPakDescriptor);
   } else {
     pak_fd =
-        base::android::OpenApkAsset("assets/content_shell.pak", &pak_region);
+        base::android::OpenApkAsset("assets/cobalt_shell.pak", &pak_region);
     // Loaded from disk for browsertests.
     if (pak_fd < 0) {
       base::FilePath pak_file;
       bool r = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &pak_file);
       DCHECK(r);
       pak_file = pak_file.Append(FILE_PATH_LITERAL("paks"));
-      pak_file = pak_file.Append(FILE_PATH_LITERAL("content_shell.pak"));
+      pak_file = pak_file.Append(FILE_PATH_LITERAL("cobalt_shell.pak"));
       int flags = base::File::FLAG_OPEN | base::File::FLAG_READ;
       pak_fd = base::File(pak_file, flags).TakePlatformFile();
       pak_region = base::MemoryMappedFile::Region::kWholeFile;
@@ -297,7 +311,7 @@ void ShellMainDelegate::InitializeResourceBundle() {
   base::FilePath pak_file;
   bool r = base::PathService::Get(base::DIR_ASSETS, &pak_file);
   DCHECK(r);
-  pak_file = pak_file.Append(FILE_PATH_LITERAL("content_shell.pak"));
+  pak_file = pak_file.Append(FILE_PATH_LITERAL("cobalt_shell.pak"));
   ui::ResourceBundle::InitSharedInstanceWithPakPath(pak_file);
 #endif
 }

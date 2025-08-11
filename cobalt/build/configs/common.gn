@@ -45,3 +45,6 @@ v8_enable_concurrent_marking = false
 
 # This flag is also needed to disable concurrent marking.
 v8_enable_atomic_object_field_writes = false
+
+# This will force V8 to embed snapshot blob in binary.
+v8_use_external_startup_data = false

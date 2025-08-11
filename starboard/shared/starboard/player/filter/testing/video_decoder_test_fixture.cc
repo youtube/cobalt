@@ -60,10 +60,10 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
     SbPlayerOutputMode output_mode,
     bool using_stub_decoder)
     : job_queue_(job_queue),
-      fake_graphics_context_provider_(fake_graphics_context_provider),
       test_filename_(test_filename),
       output_mode_(output_mode),
       using_stub_decoder_(using_stub_decoder),
+      fake_graphics_context_provider_(fake_graphics_context_provider),
       dmp_reader_(test_filename, VideoDmpReader::kEnableReadOnDemand) {
   SB_DCHECK(job_queue_);
   SB_DCHECK(fake_graphics_context_provider_);
@@ -118,7 +118,7 @@ void VideoDecoderTestFixture::Initialize() {
 void VideoDecoderTestFixture::OnDecoderStatusUpdate(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   // TODO: Ensure that this is only called during dtor or Reset().
   if (status == VideoDecoder::kReleaseAllFrames) {
     SB_DCHECK(!frame);
@@ -136,7 +136,7 @@ void VideoDecoderTestFixture::OnDecoderStatusUpdate(
 }
 
 void VideoDecoderTestFixture::OnError() {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   event_queue_.push_back(Event(kError, NULL));
   SB_LOG(WARNING) << "Video decoder received error.";
 }
@@ -162,7 +162,7 @@ void VideoDecoderTestFixture::WaitForNextEvent(Event* event, int64_t timeout) {
     job_queue_->RunUntilIdle();
     GetDecodeTargetWhenSupported();
     {
-      std::scoped_lock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       if (!event_queue_.empty()) {
         *event = event_queue_.front();
         event_queue_.pop_front();
@@ -184,7 +184,7 @@ void VideoDecoderTestFixture::WaitForNextEvent(Event* event, int64_t timeout) {
 
 bool VideoDecoderTestFixture::HasPendingEvents() {
   usleep(5000);
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   return !event_queue_.empty();
 }
 
@@ -218,7 +218,7 @@ void VideoDecoderTestFixture::WriteSingleInput(size_t index) {
 
   auto input_buffer = GetVideoInputBuffer(index);
   {
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     need_more_input_ = false;
     outstanding_inputs_.insert(input_buffer->timestamp());
   }
@@ -227,7 +227,7 @@ void VideoDecoderTestFixture::WriteSingleInput(size_t index) {
 
 void VideoDecoderTestFixture::WriteEndOfStream() {
   {
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     end_of_stream_written_ = true;
   }
   video_decoder_->WriteEndOfStream();
@@ -340,7 +340,7 @@ void VideoDecoderTestFixture::DrainOutputs(bool* error_occurred,
 
 void VideoDecoderTestFixture::ResetDecoderAndClearPendingEvents() {
   video_decoder_->Reset();
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   event_queue_.clear();
   need_more_input_ = true;
   end_of_stream_written_ = false;

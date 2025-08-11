@@ -17,8 +17,8 @@
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
-#include "content/shell/common/shell_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -59,13 +59,19 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       switches::kNoZygote, sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory.
+      // Rasterize Tiles directly to GPU memory (ZeroCopyRasterBufferProvider).
       blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of the
       // known regressions is 4444 textures, which are then disabled explicitly.
       switches::kEnableLowEndDeviceMode,
       blink::switches::kDisableRGBA4444Textures,
+      // For Starboard the signal handlers are already setup. Disable the
+      // Chromium registrations to avoid overriding the Starboard ones.
+      switches::kDisableInProcessStackTraces,
+      // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
+      switches::kDisableAcceleratedVideoDecode,
+      switches::kDisableAcceleratedVideoEncode,
 });
 
 // Map of switches with parameters and their defaults.

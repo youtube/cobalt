@@ -4,6 +4,7 @@
 
 #include "base/test/launcher/test_launcher.h"
 
+#include <signal.h>
 #include <stdio.h>
 
 #include <algorithm>

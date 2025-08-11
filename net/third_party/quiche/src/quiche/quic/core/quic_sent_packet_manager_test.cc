@@ -2992,7 +2992,11 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
   EXPECT_EQ(frame.max_ack_delay,
             std::max(rtt_stats->min_rtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_EQ(frame.packet_tolerance, kMaxRetransmittablePacketsBeforeAck);
+#else
   EXPECT_EQ(frame.packet_tolerance, 10u);
+#endif
 }
 
 TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {

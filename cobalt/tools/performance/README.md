@@ -30,7 +30,8 @@ The monitoring script has various args that you can use to customize a few diffe
   * interval - Specify the polling interval frequency for collecting data
   * outdir   - Specify the output directory to place both the output
                data and the resulting graphs.
-  * flags    - Specify the command line & experiment flags to provide to Cobalt.
+  * flags    - Specify the command line & experiment flags to provide to Cobalt
+  * skip-restart - Do not restart the active Cobalt process
   * help     - Display a list of command options and the script's usage
 
 It defaults to a test YouTube video and sampling rate. So, you will

@@ -328,6 +328,12 @@ def _parse_cli_args() -> AppConfig:
       default='',
       help=f'Cobalt CLI & Experiment flags. {AppConfig.EXPECTED_FLAGS_FORMAT}',
   )
+  parser.add_argument(
+      '--skip-restart',
+      action='store_true',
+      default='',
+      help='Shortcut for --no-kill and --no-launch.',
+  )
   args = parser.parse_args()
 
   package_config = PackageConfig(
@@ -350,14 +356,16 @@ def _parse_cli_args() -> AppConfig:
   print(f'Output Dir: {config.output_directory}')
   print(f'Output Formats: {config.output_format}')
   print(f'Cobalt Flags: {config.cobalt_flags}')
+  if args.skip_restart:
+    print('Monitor Only: True (skipping kill and launch)')
   print('---------------------\n')
 
-  return config
+  return config, args.skip_restart
 
 
 def main():
   """Main function to parse arguments, run monitoring, and output results."""
-  config = _parse_cli_args()
+  config, skip_restart = _parse_cli_args()
   output_directory = config.output_directory
   poll_interval_milliseconds = config.poll_interval_ms
 
@@ -384,15 +392,18 @@ def main():
   if not device_monitor.check_adb_connection():
     return
 
-  if device_monitor.is_package_running(config.package_name):
-    print(f'\'{config.package_name}\' running. Stopping it first.')
-    device_monitor.stop_package(config.package_name)
+  if not skip_restart:
+    if device_monitor.is_package_running(config.package_name):
+      print(f'\'{config.package_name}\' running. Stopping it first.')
+      device_monitor.stop_package(config.package_name)
 
-  parsed_flags = config.parse_cobalt_cli_flags()
-  print(f'Attempting to launch Cobalt ({config.package_name}) ' +
-        f'with URL: {config.url}...')
-  device_monitor.launch_cobalt(config.package_name, config.activity_name,
-                               parsed_flags)
+    parsed_flags = config.parse_cobalt_cli_flags()
+    print(f'Attempting to launch Cobalt ({config.package_name}) ' +
+          f'with URL: {config.url}...')
+    device_monitor.launch_cobalt(config.package_name, config.activity_name,
+                                 parsed_flags)
+  else:
+    print('Skipping kill and launch process due to --skip-restart flag.')
 
   print(f'\nStarting data polling immediately for {config.package_name}...')
 

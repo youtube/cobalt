@@ -107,8 +107,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace aom
-
 }  // namespace starboard::shared::aom
 
 #endif  // STARBOARD_SHARED_LIBAOM_AOM_VIDEO_DECODER_H_

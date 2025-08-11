@@ -21,13 +21,12 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/media.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -133,17 +132,17 @@ class AudioDecoderTest
   }
 
   void OnOutput() {
-    ScopedLock scoped_lock(event_queue_mutex_);
+    std::lock_guard lock(event_queue_mutex_);
     event_queue_.push_back(kOutput);
   }
 
   void OnError() {
-    ScopedLock scoped_lock(event_queue_mutex_);
+    std::lock_guard lock(event_queue_mutex_);
     event_queue_.push_back(kError);
   }
 
   void OnConsumed() {
-    ScopedLock scoped_lock(event_queue_mutex_);
+    std::lock_guard lock(event_queue_mutex_);
     event_queue_.push_back(kConsumed);
   }
 
@@ -152,7 +151,7 @@ class AudioDecoderTest
     while (CurrentMonotonicTime() - start < kWaitForNextEventTimeOut) {
       job_queue_.RunUntilIdle();
       {
-        ScopedLock scoped_lock(event_queue_mutex_);
+        std::lock_guard lock(event_queue_mutex_);
         if (!event_queue_.empty()) {
           *event = event_queue_.front();
           event_queue_.pop_front();
@@ -344,7 +343,7 @@ class AudioDecoderTest
     decoded_audio_sample_rate_ = 0;
     first_output_received_ = false;
     {
-      ScopedLock scoped_lock(event_queue_mutex_);
+      std::lock_guard lock(event_queue_mutex_);
       event_queue_.clear();
     }
   }
@@ -468,7 +467,7 @@ class AudioDecoderTest
     ASSERT_LE(abs(expected_output_frames - GetTotalFrames(decoded_audios_)), 1);
   }
 
-  Mutex event_queue_mutex_;
+  std::mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
 
   // Test parameter for the filename to load with the VideoDmpReader.

@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
@@ -25,8 +26,8 @@ pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key, NULL);
-  SB_DCHECK(res == 0);
+  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
+  SB_DCHECK_EQ(res, 0);
 }
 
 void EnsureThreadLocalKeyInited() {

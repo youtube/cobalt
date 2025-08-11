@@ -215,6 +215,16 @@ component("chromium_sqlite3") {
     ]
   }
 
+  if (is_starboard) {
+    defines += [
+      # mremap is unsupported for Starboard platforms.
+      "HAVE_MREMAP=0",
+
+      # posix_fallocate is unsupported for Starboard platforms
+      "HAVE_POSIX_FALLOCATE=0",
+    ]
+  }
+
   include_dirs = [
     ".",  # sqlite3.h here must override the one in src/amalgamation/.
     "src/amalgamation",

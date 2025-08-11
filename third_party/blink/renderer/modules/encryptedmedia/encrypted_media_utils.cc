@@ -146,6 +146,10 @@ const char* EncryptedMediaUtils::GetInterfaceName(EmeApiType type) {
     case EmeApiType::kClose:
     case EmeApiType::kRemove:
       return "MediaKeySession";
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    case EmeApiType::kGetMetrics:
+      return "GetMetrics";
+#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 }
 
@@ -168,6 +172,10 @@ const char* EncryptedMediaUtils::GetPropertyName(EmeApiType type) {
       return "close";
     case EmeApiType::kRemove:
       return "remove";
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    case EmeApiType::kGetMetrics:
+      return "getMetrics";
+#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 }
 

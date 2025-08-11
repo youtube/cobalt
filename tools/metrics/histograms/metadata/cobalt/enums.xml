@@ -26,6 +26,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 <histogram-configuration>
 
 <enums>
+
+<enum name="BooleanHung">
+  <int value="0" label="Is not hung"/>
+  <int value="1" label="Is hung"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>

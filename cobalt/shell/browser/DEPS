@@ -12,4 +12,5 @@ include_rules = [
   # TODO(b/422209762): consider removing UIEvent.
   "+ui/linux",
   "+ui/ozone/public",
+  "-content/shell/browser",
 ]

@@ -28,6 +28,7 @@
 #include <ifaddrs.h>
 #include <malloc.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -50,20 +51,24 @@
 #include "starboard/log.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
+#include "starboard/shared/modular/starboard_layer_posix_auxv_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socketpair_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_statvfs_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uname_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
-#include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"
@@ -215,7 +220,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetPriority);
-  REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -228,6 +232,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(epoll_create);
@@ -244,9 +249,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
+  REGISTER_SYMBOL(mincore);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
   REGISTER_SYMBOL(mkostemp);
@@ -268,10 +275,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
+  REGISTER_SYMBOL(rename);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(select);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
@@ -279,6 +288,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(srand);
+  REGISTER_SYMBOL(symlink);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
@@ -297,7 +307,9 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
 
   REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
+  REGISTER_WRAPPER(chmod);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
   REGISTER_WRAPPER(clock_nanosleep);
@@ -307,10 +319,13 @@ ExportedSymbols::ExportedSymbols() {
   } else {
     REGISTER_SYMBOL(__errno_location);
   }
+  REGISTER_WRAPPER(eventfd);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
+  REGISTER_WRAPPER(gai_strerror);
   REGISTER_WRAPPER(getaddrinfo);
+  REGISTER_WRAPPER(getauxval);
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
@@ -327,6 +342,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
+  REGISTER_WRAPPER(poll);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
@@ -397,7 +413,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
   REGISTER_WRAPPER(stat);
+  REGISTER_WRAPPER(statvfs);
   REGISTER_WRAPPER(sysconf);
+  REGISTER_WRAPPER(uname);
   REGISTER_WRAPPER(writev);
 
 }  // NOLINT

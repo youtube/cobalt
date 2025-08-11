@@ -25,12 +25,6 @@
 
 namespace starboard::android::shared {
 
-// TODO(cobalt, b/372559388): Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
  public:
@@ -53,46 +47,49 @@ class AudioTrackBridge {
     return !j_audio_track_bridge_.is_null() && !j_audio_data_.is_null();
   }
 
-  void Play(JNIEnv* env = AttachCurrentThread());
-  void Pause(JNIEnv* env = AttachCurrentThread());
-  void Stop(JNIEnv* env = AttachCurrentThread());
-  void PauseAndFlush(JNIEnv* env = AttachCurrentThread());
+  void Play(JNIEnv* env = base::android::AttachCurrentThread());
+  void Pause(JNIEnv* env = base::android::AttachCurrentThread());
+  void Stop(JNIEnv* env = base::android::AttachCurrentThread());
+  void PauseAndFlush(JNIEnv* env = base::android::AttachCurrentThread());
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const float* samples,
                   int num_of_samples,
-                  JNIEnv* env = AttachCurrentThread());
+                  JNIEnv* env = base::android::AttachCurrentThread());
   int WriteSample(const uint16_t* samples,
                   int num_of_samples,
                   int64_t sync_time,
-                  JNIEnv* env = AttachCurrentThread());
+                  JNIEnv* env = base::android::AttachCurrentThread());
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const uint8_t* buffer,
                   int num_of_samples,
                   int64_t sync_time,
-                  JNIEnv* env = AttachCurrentThread());
+                  JNIEnv* env = base::android::AttachCurrentThread());
 
-  void SetVolume(double volume, JNIEnv* env = AttachCurrentThread());
+  void SetVolume(double volume,
+                 JNIEnv* env = base::android::AttachCurrentThread());
 
   // |updated_at| contains the timestamp when the audio timestamp is updated on
   // return.  It can be nullptr.
   int64_t GetAudioTimestamp(int64_t* updated_at,
-                            JNIEnv* env = AttachCurrentThread());
-  bool GetAndResetHasAudioDeviceChanged(JNIEnv* env = AttachCurrentThread());
-  int GetUnderrunCount(JNIEnv* env = AttachCurrentThread());
-  int GetStartThresholdInFrames(JNIEnv* env = AttachCurrentThread());
+                            JNIEnv* env = base::android::AttachCurrentThread());
+  bool GetAndResetHasAudioDeviceChanged(
+      JNIEnv* env = base::android::AttachCurrentThread());
+  int GetUnderrunCount(JNIEnv* env = base::android::AttachCurrentThread());
+  int GetStartThresholdInFrames(
+      JNIEnv* env = base::android::AttachCurrentThread());
 
  private:
   int max_samples_per_write_;
 
-  ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
   // The audio data has to be copied into a Java Array before writing into the
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  ScopedJavaGlobalRef<jobject> j_audio_data_;
+  base::android::ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
 }  // namespace starboard::android::shared

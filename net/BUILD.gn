@@ -1630,10 +1630,12 @@ component("net") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
-  if(is_starboard) {
+  # We use `is_cobalt` here because non-starboard configs builds Chromedriver
+  # which needs to use the Chrome Root Store only.
+  if (is_cobalt && (!chrome_root_store_optional || chrome_root_store_only)) {
     sources += [
       "cert/test_root_certs_builtin.cc",
-      "cert/internal/system_trust_store_starboard.cc"
+      "cert/internal/system_trust_store_cobalt.cc"
     ]
   }
   if (is_cobalt_hermetic_build) {
@@ -2833,6 +2835,10 @@ test("net_unittests") {
     "url_request/url_request_unittest.cc",
     "url_request/view_cache_helper_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/starboard/run_all_unittests.cc" ]
+    sources -= [ "test/run_all_unittests.cc" ]
+  }
 
   if (!is_cronet_build) {
     sources += [

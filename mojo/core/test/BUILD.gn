@@ -92,7 +92,11 @@ source_set("run_all_perftests") {
     "//mojo/public/c/test_support",
   ]
 
-  sources = [ "run_all_perftests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "starboard/run_all_perftests.cc" ]
+  } else {
+    sources = [ "run_all_perftests.cc" ]
+  }
 
   if ((is_linux || is_chromeos) && !is_component_build) {
     public_configs = [ "//build/config/gcc:rpath_for_built_shared_libraries" ]

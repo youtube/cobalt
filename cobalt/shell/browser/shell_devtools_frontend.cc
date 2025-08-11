@@ -26,7 +26,7 @@
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 #include "base/command_line.h"
-#include "content/shell/common/shell_switches.h"
+#include "cobalt/shell/common/shell_switches.h"
 #endif
 
 namespace content {

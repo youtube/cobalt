@@ -32,9 +32,6 @@ extern "C" {
 // For example: America/Los_Angeles is 480 minutes (28800 seconds, 8 hours).
 typedef int SbTimeZone;
 
-// Gets the system's current SbTimeZone in minutes.
-SB_EXPORT SbTimeZone SbTimeZoneGetCurrent();
-
 // Gets a string representation of the current timezone. The format should be
 // in the IANA format https://data.iana.org/time-zones/theory.html#naming .
 // Names normally have the form AREA/LOCATION, where AREA is a continent or

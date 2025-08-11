@@ -55,7 +55,7 @@ std::mutex mutex_;
 static std::map<int, AAssetDir*>* asset_map = nullptr;
 
 static int handle_db_put(AAssetDir* assetDir) {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (asset_map == nullptr) {
     asset_map = new std::map<int, AAssetDir*>();
   }
@@ -72,7 +72,7 @@ static int handle_db_put(AAssetDir* assetDir) {
 }
 
 static AAssetDir* handle_db_get(int fd, bool erase) {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (fd < 0) {
     return nullptr;
   }

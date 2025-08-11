@@ -19,11 +19,11 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -110,7 +110,7 @@ class AudioRendererPcm : public AudioRenderer,
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  Mutex mutex_;
+  mutable std::mutex mutex_;
 
   bool paused_ = true;
   bool consume_frames_called_ = false;

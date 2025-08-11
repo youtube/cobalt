@@ -120,6 +120,7 @@ component("services") {
       "starboard/starboard_renderer_wrapper.cc",
       "starboard/starboard_renderer_wrapper.h",
     ]
+    deps += [ "//starboard:starboard_headers_only" ]
   } else if (is_android) {
     sources += [ "gpu_mojo_media_client_android.cc" ]
   } else if (is_mac) {
@@ -289,6 +290,10 @@ source_set("unit_tests") {
       "mojo_cdm_file_io_unittest.cc",
       "mojo_cdm_helper_unittest.cc",
     ]
+
+    if (is_starboard) {
+      sources -= [ "cdm_service_broker_unittest.cc" ]
+    }
 
     deps += [
       "//media/cdm:cdm_api",

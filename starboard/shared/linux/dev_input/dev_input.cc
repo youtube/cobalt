@@ -185,7 +185,7 @@ ControllerTuning* DeviceMap::GetControllerTuning(
   return NULL;
 }
 
-SB_ONCE_INITIALIZE_FUNCTION(DeviceMap, GetDeviceMap);
+SB_ONCE_INITIALIZE_FUNCTION(DeviceMap, GetDeviceMap)
 
 DeviceMap* DeviceMap::Get() {
   DeviceMap* device_map = GetDeviceMap();

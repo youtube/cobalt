@@ -135,12 +135,12 @@ run_gn () {
   fi
 
   local out_dir=$1
-  local target_platform=$2
+  local starboard_target_platform=$2
   local gn_arguments=$3
 
   set +u
   echo 'Running GN...'
-  gn gen "${out_dir}" --args="target_platform=\"${target_platform}\" \
+  gn gen "${out_dir}" --args="starboard_target_platform=\"${starboard_target_platform}\" \
     ${SB_API_VERSION} \
     ${TARGET_OS} \
     ${TARGET_CPU} \
@@ -189,6 +189,18 @@ run_package_release_pipeline () {
     local package_platform="linux"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       package_platform="android"
+    fi
+
+    # IMPORTANT: chromedriver must be built without starboardizations. We ensure
+    # that the biary is built with the linux-x64x11-no-starboard config in a
+    # previous build step. Then copy the file into this out directory to
+    # simulate having built it in-situ (even though that's not possible). This
+    # simplifies the execution of the packaging scripts.
+    if [[ "${TARGET_PLATFORM}" =~ "linux" ]]; then
+      local src_platform="linux-x64x11-no-starboard"
+      local src_out="${WORKSPACE_COBALT}/out/${src_platform}_${CONFIG}"
+      local dst_out="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
+      cp "${src_out}/chromedriver" "${dst_out}/chromedriver"
     fi
 
     # NOTE: Name is required because the Json recipe is not platform and config

@@ -217,6 +217,10 @@ test("url_unittests") {
     "url_test_utils.h",
     "url_util_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/run_all_unittests.cc" ]
+    sources -= [ "run_all_unittests.cc" ]
+  }
 
   deps = [
     ":url",
@@ -271,6 +275,10 @@ test("url_perftests") {
     "url_parse_perftest.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/run_all_perftests.cc" ]
+    sources -= [ "run_all_perftests.cc" ]
+  }
   deps = [
     ":url",
     "//base",

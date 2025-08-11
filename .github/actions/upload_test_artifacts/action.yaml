@@ -10,26 +10,45 @@ inputs:
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
     required: true
-  test_targets_json:
-    description: "The test targets as a json list."
+  test_targets_json_file:
+    description: "The path to test targets json file."
     required: true
 runs:
   using: "composite"
   steps:
-    - name: Archive Test Artifacts
+    - name: Copy Runnables to Artifacts
+      if: inputs.upload_on_device_test_artifacts == 'true'
       env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        set -eux
+        cd src/
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+          cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+        done
+      shell: bash
+    - name: Archive Test Dependencies
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -x
-        mkdir ${GITHUB_WORKSPACE}/artifacts
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd src/
+
+        FLAGS=""
+        if [[ "${{ matrix.platform }}" == *android* ]]; then
+          FLAGS="--archive-per-target --use-android-deps-path --flatten-deps"
+        elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
+          FLAGS="--archive-per-target --flatten-deps"
+        fi
 
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --platform ${{ matrix.platform }} \
-          --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")')
+          --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
+          ${FLAGS}
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
@@ -49,11 +68,14 @@ runs:
         set -eux
         project_name=$(gcloud config get-value project)
 
+        # Upload cobalt.apk for smoke tests.
+        if [[ "${{ matrix.platform }}" == *android* ]]; then
+          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
+             "${GITHUB_WORKSPACE}/artifacts/"
+        fi
+
         # Upload gtest target artifacts.
         gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
 
-        # Upload cobalt.apk for smoke tests.
-        gsutil -m cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
-          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
       shell: bash

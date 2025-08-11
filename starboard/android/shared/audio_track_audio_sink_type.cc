@@ -22,11 +22,12 @@
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/thread.h"
 
 namespace {
 starboard::android::shared::AudioTrackAudioSinkType*
@@ -36,6 +37,7 @@ starboard::android::shared::AudioTrackAudioSinkType*
 namespace starboard::android::shared {
 namespace {
 
+using ::base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // Whether to use continuous audio track sync, which keep feeding audio frames
@@ -166,7 +168,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 
   pthread_create(&audio_out_thread_, nullptr,
                  &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
@@ -184,7 +186,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
                            "currently supported.";
     playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
   }
-  std::scoped_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -192,7 +194,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "audio_track_out");
   SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();
@@ -267,7 +269,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
     {
-      std::scoped_lock lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
@@ -398,7 +400,7 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK(samples_written % channels_ == 0);
+  SB_DCHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 
@@ -529,7 +531,7 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
                      << sample_rate << "hz, with "
                      << (has_remote_audio_output ? "remote" : "local")
                      << " audio output device.";
-        std::scoped_lock lock(min_required_frames_map_mutex_);
+        std::lock_guard lock(min_required_frames_map_mutex_);
         has_remote_audio_output_ = has_remote_audio_output;
         min_required_frames_map_[sample_rate] =
             std::min(min_required_frames, has_remote_audio_output_
@@ -563,7 +565,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
   bool has_remote_audio_output = HasRemoteAudioOutput();
-  std::scoped_lock lock(min_required_frames_map_mutex_);
+  std::lock_guard lock(min_required_frames_map_mutex_);
   if (has_remote_audio_output == has_remote_audio_output_) {
     // There's no audio output type change, we can use the numbers we got from
     // the tests at app launch.
@@ -601,7 +603,7 @@ void SbAudioSinkImpl::PlatformInitialize() {
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_DCHECK(audio_track_audio_sink_type_ == GetPrimaryType());
+  SB_DCHECK_EQ(audio_track_audio_sink_type_, GetPrimaryType());
   SetPrimaryType(NULL);
   delete audio_track_audio_sink_type_;
   audio_track_audio_sink_type_ = NULL;

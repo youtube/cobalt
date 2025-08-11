@@ -3,7 +3,7 @@ import("//cobalt/build/configs/linux-x64x11-modular/args.gn")
 use_asan = false
 target_os = "linux"
 target_cpu = "arm"
-target_platform = "raspi-2"
+starboard_target_platform = "raspi-2"
 use_evergreen = true
 
 # Avoid using the gold linker on raspi

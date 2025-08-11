@@ -34,9 +34,12 @@ namespace {
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaByteArrayToString;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
-const char kNoUrl[] = "";
+using DrmOperationResult = MediaDrmBridge::OperationResult;
 
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
@@ -90,10 +93,11 @@ SbDrmKeyStatus ToSbDrmKeyStatus(MediaDrmKeyStatus status_code) {
   }
 }
 
-std::string JavaByteArrayToString(JNIEnv* env,
-                                  const JavaRef<jbyteArray>& j_byte_array) {
+std::string JavaByteArrayToString(
+    JNIEnv* env,
+    const base::android::JavaRef<jbyteArray>& j_byte_array) {
   std::string out;
-  base::android::JavaByteArrayToString(env, j_byte_array, &out);
+  JavaByteArrayToString(env, j_byte_array, &out);
   return out;
 }
 
@@ -102,17 +106,46 @@ std::string JavaByteArrayToString(JNIEnv* env, jbyteArray j_byte_array) {
       env, ScopedJavaLocalRef<jbyteArray>(env, j_byte_array));
 }
 
+ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
+                                                     std::string_view data) {
+  return ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(data.data()),
+                         data.size());
+}
+
+DrmOperationResult ToOperationResult(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& result) {
+  auto status = static_cast<DrmOperationStatus>(
+      Java_OperationResult_getStatusCode(env, result));
+  // Sanitize status.
+  switch (status) {
+    case DRM_OPERATION_STATUS_SUCCESS:
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
+    case DRM_OPERATION_STATUS_NOT_PROVISIONED:
+      break;
+    default:
+      SB_NOTREACHED() << "Unknown status " << static_cast<int>(status);
+      status = DRM_OPERATION_STATUS_OPERATION_FAILED;
+  }
+  return {
+      status,
+      ConvertJavaStringToUTF8(
+          Java_OperationResult_getErrorMessage(env, result)),
+  };
+}
 }  // namespace
 
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                               const char* key_system)
+                               std::string_view key_system,
+                               bool enable_app_provisioning)
     : host_(host) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
-      env, j_key_system, reinterpret_cast<jlong>(this)));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
+      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
+                                 reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
@@ -140,47 +173,64 @@ MediaDrmBridge::~MediaDrmBridge() {
 }
 
 void MediaDrmBridge::CreateSession(int ticket,
-                                   const std::vector<const uint8_t>& init_data,
-                                   const std::string& mime) const {
+                                   std::string_view init_data,
+                                   std::string_view mime) const {
   JNIEnv* env = AttachCurrentThread();
 
   JniIntWrapper j_ticket = static_cast<jint>(ticket);
-  ScopedJavaLocalRef<jbyteArray> j_init_data = ScopedJavaLocalRef(
-      ToJavaByteArray(env, init_data.data(), init_data.size()));
-  ScopedJavaLocalRef<jstring> j_mime =
-      ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime.c_str()));
+  auto j_init_data = ToScopedJavaByteArray(env, init_data);
+  auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
   Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
                                     j_init_data, j_mime);
 }
 
-bool MediaDrmBridge::UpdateSession(int ticket,
-                                   const void* key,
-                                   int key_size,
-                                   const void* session_id,
-                                   int session_id_size,
-                                   std::string* error_msg) const {
+DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
+    int ticket,
+    std::string_view init_data,
+    std::string_view mime) const {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jbyteArray> j_session_id(ToJavaByteArray(
-      env, static_cast<const uint8_t*>(session_id), session_id_size));
-  ScopedJavaLocalRef<jbyteArray> j_response(
-      ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
+  jint j_ticket = static_cast<jint>(ticket);
+  auto j_init_data = ToScopedJavaByteArray(env, init_data);
+  auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
-  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
-      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
-  *error_msg = ConvertJavaStringToUTF8(
-      Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
-
-  return Java_UpdateSessionResult_isSuccess(env, j_update_result) == JNI_TRUE;
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_createSessionWithAppProvisioning(
+               env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
 }
 
-void MediaDrmBridge::CloseSession(const std::string& session_id) const {
+void MediaDrmBridge::GenerateProvisionRequest() const {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaDrmBridge_generateProvisionRequest(env, j_media_drm_bridge_);
+}
+
+DrmOperationResult MediaDrmBridge::ProvideProvisionResponse(
+    std::string_view response) const {
+  JNIEnv* env = AttachCurrentThread();
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_provideProvisionResponse(
+               env, j_media_drm_bridge_, ToScopedJavaByteArray(env, response)));
+}
+
+DrmOperationResult MediaDrmBridge::UpdateSession(
+    int ticket,
+    std::string_view key,
+    std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jbyteArray> j_session_id =
-      ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(session_id.data()),
-                      session_id.size());
+  auto j_session_id = ToScopedJavaByteArray(env, session_id);
+  auto j_response = ToScopedJavaByteArray(env, key);
+
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                             j_session_id, j_response));
+}
+
+void MediaDrmBridge::CloseSession(std::string_view session_id) const {
+  JNIEnv* env = AttachCurrentThread();
+
+  auto j_session_id = ToScopedJavaByteArray(env, session_id);
 
   Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, j_session_id);
 }
@@ -228,7 +278,13 @@ void MediaDrmBridge::OnSessionMessage(
   host_->OnSessionUpdate(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
-      JavaByteArrayToString(env, message), kNoUrl);
+      JavaByteArrayToString(env, message));
+}
+
+void MediaDrmBridge::OnProvisioningRequestMessage(
+    JNIEnv* env,
+    const JavaParamRef<jbyteArray>& message) {
+  host_->OnProvisioningRequest(JavaByteArrayToString(env, message));
 }
 
 void MediaDrmBridge::OnKeyStatusChange(
@@ -281,6 +337,29 @@ bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
 // static
 bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
+}
+
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus status) {
+  switch (status) {
+    case DRM_OPERATION_STATUS_SUCCESS:
+      return os << "success";
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
+      return os << "operation-failed";
+    case DRM_OPERATION_STATUS_NOT_PROVISIONED:
+      return os << "not-provisioned";
+    default:
+      SB_NOTREACHED();
+      return os << "unknown-status";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, const DrmOperationResult& result) {
+  os << "{status:" << result.status;
+  if (!result.ok()) {
+    os << ", error_message: "
+       << (result.error_message.empty() ? "(empty)" : result.error_message);
+  }
+  return os << "}";
 }
 
 }  // namespace starboard::android::shared

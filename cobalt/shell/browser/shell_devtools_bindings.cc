@@ -58,8 +58,8 @@
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 #include "base/command_line.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/devtools_frontend_host.h"
-#include "content/shell/common/shell_switches.h"
 #endif
 
 namespace content {

@@ -14,9 +14,10 @@
 
 #include "starboard/testing/fake_graphics_context_provider.h"
 
-#include "starboard/common/condition_variable.h"
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
@@ -112,20 +113,17 @@ namespace testing {
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
-      context_(EGL_NO_CONTEXT),
-      window_(kSbWindowInvalid) {
-  InitializeWindow();
+      context_(EGL_NO_CONTEXT) {
   InitializeEGL();
 }
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
-  functor_queue_.Put(
+  RunOnGlesContextThread(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
   pthread_join(decode_target_context_thread_, NULL);
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
-  SbWindowDestroy(window_);
 }
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
@@ -134,16 +132,17 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
     functor();
     return;
   }
-  Mutex mutex;
-  ConditionVariable condition_variable(mutex);
-  ScopedLock scoped_lock(mutex);
-
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  std::unique_lock lock(mutex);
+  bool functor_done = false;
   functor_queue_.Put(functor);
   functor_queue_.Put([&]() {
-    ScopedLock scoped_lock(mutex);
-    condition_variable.Signal();
+    std::lock_guard lock(mutex);
+    functor_done = true;
+    condition_variable.notify_one();
   });
-  condition_variable.Wait();
+  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
@@ -153,16 +152,18 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     return;
   }
 
-  Mutex mutex;
-  ConditionVariable condition_variable(mutex);
-  ScopedLock scoped_lock(mutex);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  std::unique_lock lock(mutex);
+  bool functor_done = false;
 
   functor_queue_.Put(std::bind(SbDecodeTargetRelease, decode_target));
   functor_queue_.Put([&]() {
-    ScopedLock scoped_lock(mutex);
-    condition_variable.Signal();
+    std::lock_guard lock(mutex);
+    functor_done = true;
+    condition_variable.notify_one();
   });
-  condition_variable.Wait();
+  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 // static
@@ -181,14 +182,6 @@ void FakeGraphicsContextProvider::RunLoop() {
     }
     functor();
   }
-}
-
-void FakeGraphicsContextProvider::InitializeWindow() {
-  SbWindowOptions window_options;
-  SbWindowSetDefaultOptions(&window_options);
-
-  window_ = SbWindowCreate(&window_options);
-  SB_CHECK(SbWindowIsValid(window_));
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
@@ -213,10 +206,13 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
       reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
           EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
-  SB_CHECK(eglGetPlatformDisplayEXT_func);
-  display_ = eglGetPlatformDisplayEXT_func(
-      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-      display_attribs.data());
+  if (eglGetPlatformDisplayEXT_func) {
+    display_ = eglGetPlatformDisplayEXT_func(
+        EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+        display_attribs.data());
+  } else {
+    display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+  }
 #else
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
@@ -323,16 +319,18 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     return;
   }
 
-  Mutex mutex;
-  ConditionVariable condition_variable(mutex);
-  ScopedLock scoped_lock(mutex);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  std::unique_lock lock(mutex);
+  bool functor_done = false;
 
   functor_queue_.Put(std::bind(target_function, target_function_context));
   functor_queue_.Put([&]() {
-    ScopedLock scoped_lock(mutex);
-    condition_variable.Signal();
+    std::lock_guard lock(mutex);
+    functor_done = true;
+    condition_variable.notify_one();
   });
-  condition_variable.Wait();
+  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {

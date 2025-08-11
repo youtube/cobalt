@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "lock.h"
-#include "fork_impl.h"
 
 /*
 this code uses the same lagged fibonacci generator as the
@@ -23,8 +22,15 @@ static int n = 31;
 static int i = 3;
 static int j = 0;
 static uint32_t *x = init+1;
+
+#if defined(STARBOARD)
+#include <pthread.h>
+static pthread_mutex_t __random_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t* const lock = &__random_mutex;
+#else
 static volatile int lock[1];
 volatile int *const __random_lockptr = lock;
+#endif
 
 static uint32_t lcg31(uint32_t x) {
 	return (1103515245*x + 12345) & 0x7fffffff;

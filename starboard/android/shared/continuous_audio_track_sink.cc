@@ -19,15 +19,17 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/thread.h"
 
 namespace starboard::android::shared {
 namespace {
 
+using ::base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // The maximum number of frames that can be written to android audio track per
@@ -95,7 +97,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
 
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
@@ -113,7 +115,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
                            "currently supported.";
     playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
   }
-  std::scoped_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -121,7 +123,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
 void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "continous_audio_track_sink");
   SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   ContinuousAudioTrackSink* sink =
       reinterpret_cast<ContinuousAudioTrackSink*>(context);
@@ -195,7 +197,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
     {
-      std::scoped_lock lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
@@ -317,7 +319,7 @@ int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK(samples_written % channels_ == 0);
+  SB_DCHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 

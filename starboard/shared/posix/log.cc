@@ -22,8 +22,7 @@
 
 void SbLog(SbLogPriority priority, const char* message) {
   FILE* stream = priority >= kSbLogPriorityError ? stderr : stdout;
-  starboard::shared::starboard::GetLoggingMutex()->Acquire();
+  std::lock_guard lock(*starboard::shared::starboard::GetLoggingMutex());
   fprintf(stream, "%s", message);
   fflush(stream);
-  starboard::shared::starboard::GetLoggingMutex()->Release();
 }

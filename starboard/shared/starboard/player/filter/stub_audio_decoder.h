@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_AUDIO_DECODER_H_
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <queue>
 
@@ -56,7 +57,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   ErrorCB error_cb_;
 
   std::unique_ptr<starboard::player::JobThread> decoder_thread_;
-  Mutex decoded_audios_mutex_;
+  std::mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;
   std::optional<int> frames_per_input_;

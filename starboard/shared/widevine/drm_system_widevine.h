@@ -189,7 +189,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
 
   volatile bool quitting_ = false;
 
-  Mutex unblock_key_retry_mutex_;
+  std::mutex unblock_key_retry_mutex_;
   std::optional<int64_t> unblock_key_retry_start_time_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)

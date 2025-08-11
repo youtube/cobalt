@@ -99,7 +99,7 @@ android_clang_toolchain("android_clang_arm") {
     toolchain_args = {
       current_cpu = "arm"
       starboard_toolchain = "//build/toolchain/android:android_clang_arm"
-      target_platform = "android-arm"
+      starboard_target_platform = "android-arm"
     }
   } else {
   toolchain_args = {
@@ -143,7 +143,7 @@ android_clang_toolchain("android_clang_arm64") {
     toolchain_args = {
       current_cpu = "arm64"
       starboard_toolchain = "//build/toolchain/android:android_clang_arm64"
-      target_platform = "android-arm64"
+      starboard_target_platform = "android-arm64"
     }
   } else {
   toolchain_args = {

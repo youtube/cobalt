@@ -16,7 +16,7 @@
 
 #include <unistd.h>
 
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace raspi {
@@ -46,7 +46,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
 VideoDecoder::~VideoDecoder() {
   if (thread_ != 0) {
     {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       request_thread_termination_ = true;
     }
     pthread_join(thread_, NULL);
@@ -114,7 +114,7 @@ void VideoDecoder::Update() {
 bool VideoDecoder::TryToDeliverOneFrame() {
   scoped_refptr<VideoFrame> frame;
   {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     if (filled_buffers_.empty()) {
       return false;
     }
@@ -135,7 +135,7 @@ bool VideoDecoder::TryToDeliverOneFrame() {
 // static
 void* VideoDecoder::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "omx_video_decoder");
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   VideoDecoder* decoder = reinterpret_cast<VideoDecoder*>(context);
   decoder->RunLoop();
   return NULL;
@@ -154,7 +154,7 @@ void VideoDecoder::RunLoop() {
   for (;;) {
     OMX_BUFFERHEADERTYPE* buffer = NULL;
     {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
 
       if (request_thread_termination_) {
         break;
@@ -169,7 +169,7 @@ void VideoDecoder::RunLoop() {
     }
 
     if (OMX_BUFFERHEADERTYPE* buffer = component.GetOutputBuffer()) {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       filled_buffers_.push(buffer);
     }
 
@@ -216,7 +216,7 @@ void VideoDecoder::RunLoop() {
       eos_written = component.WriteEOS();
       stream_ended = true;
     } else if (event->type == Event::kReset) {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
 
       while (!freed_buffers_.empty()) {
         component.DropOutputBuffer(freed_buffers_.front());
@@ -241,7 +241,7 @@ void VideoDecoder::RunLoop() {
     delete event;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   while (!freed_buffers_.empty()) {
     component.DropOutputBuffer(freed_buffers_.front());
     freed_buffers_.pop();

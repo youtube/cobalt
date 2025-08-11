@@ -143,6 +143,13 @@ source_set("utility") {
     deps += [ "//components/services/screen_ai:screen_ai_sandbox_hook" ]
   }
 
+  if (is_starboard) {
+    deps -= [ 
+      "//content/utility/speech:speech_recognition_sandbox_hook",
+      "//components/services/screen_ai:screen_ai_sandbox_hook",
+    ]
+  }
+
   if (enable_accessibility_service) {
     deps += [ "//services/accessibility:lib" ]
   }
@@ -158,6 +165,12 @@ source_set("utility") {
 # See comment at the top of //content/BUILD.gn for how this works.
 group("for_content_tests") {
   visibility = [ "//content/test/*" ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
   if (!is_component_build) {
     public_deps = [ ":utility" ]
   }

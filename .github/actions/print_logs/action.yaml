@@ -1,5 +1,5 @@
-name: Print Logs
-description: Processes test results to produce a test summary and upload results to DataDog.
+name: Print Logs and Test Summary
+description: Processes logs and test results to produce a test summary.
 inputs:
   log_glob:
     description: "Path (or glob) to test log files."
@@ -36,14 +36,14 @@ runs:
         gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
           "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
       shell: bash
-    - run: |
+    - name: Print Logs and Test Summary
+      run: |
         # Print logs and failing tests.
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
         log_files=(${{ inputs.log_glob }})
-
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
           exit 1
@@ -74,7 +74,6 @@ runs:
 
           results_files=(${{ inputs.results_glob }})
           if [ ${#results_files[@]} -eq 0 ]; then
-            # TODO: Figure out which test suite crashed via target list and # of shards.
             echo "::error::No test results were collected. A test probably crashed. See logs above."
           else
             python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}

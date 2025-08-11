@@ -18,6 +18,7 @@
 #include <X11/Xlib.h>
 
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <unordered_map>
 #include <vector>
@@ -119,11 +120,11 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   SbWindow FindWindow(Window window);
 
   Atom wake_up_atom_;
-  Atom wm_delete_atom_;
   Atom wm_change_state_atom_;
+  Atom wm_delete_atom_;
 
   SbEventId composite_event_id_;
-  Mutex frame_mutex_;
+  std::mutex frame_mutex_;
 
   // The latest frame for every active player.
   std::unordered_map<SbPlayer, scoped_refptr<VideoFrame>> next_video_frames_;

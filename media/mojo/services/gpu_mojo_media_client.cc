@@ -116,11 +116,14 @@ StarboardRendererTraits::StarboardRendererTraits(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+    const gfx::Size& viewport_size,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote,
-    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb)
+    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb,
+    AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+  )
     : task_runner(std::move(task_runner)),
       gpu_task_runner(std::move(gpu_task_runner)),
       media_log_remote(std::move(media_log_remote)),
@@ -128,10 +131,12 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
+      viewport_size(viewport_size),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
-          std::move(get_starboard_command_buffer_stub_cb)) {}
+          std::move(get_starboard_command_buffer_stub_cb)),
+      android_overlay_factory_cb(std::move(android_overlay_factory_cb)) {}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 GpuMojoMediaClient::GpuMojoMediaClient(
@@ -294,9 +299,10 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
       config.overlay_plane_id, config.audio_write_duration_local,
       config.audio_write_duration_remote, config.max_video_capabilities,
-      std::move(renderer_extension_receiver),
+      config.viewport_size, std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
-        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
+        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_),
+      android_overlay_factory_cb_);
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

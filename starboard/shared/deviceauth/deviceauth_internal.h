@@ -25,8 +25,6 @@ bool SignWithCertificationSecretKey(const char* secret_key,
                                     uint8_t* digest,
                                     size_t digest_size_in_bytes);
 
-}  // namespace deviceauth
-
 }  // namespace starboard::shared::deviceauth
 
 #endif  // STARBOARD_SHARED_DEVICEAUTH_DEVICEAUTH_INTERNAL_H_

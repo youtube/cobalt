@@ -19,13 +19,13 @@
 #include <unistd.h>
 
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/loader_app_metrics.h"
@@ -753,10 +753,10 @@ std::unique_ptr<
     g_installation_manager_;
 
 // Global Installation Manager Mutex.
-SB_ONCE_INITIALIZE_FUNCTION(starboard::Mutex, GetImMutex);
+SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetImMutex)
 
 int ImInitialize(int max_num_installations, const char* app_key) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   if (g_installation_manager_.get() == NULL) {
     g_installation_manager_.reset(
         new starboard::loader_app::installation_manager::InstallationManager(
@@ -766,86 +766,86 @@ int ImInitialize(int max_num_installations, const char* app_key) {
 }
 
 int ImGetAppKey(char* app_key, int app_key_length) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->GetAppKey(app_key, app_key_length);
 }
 
 int ImGetMaxNumberInstallations() {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->GetMaxNumberInstallations();
 }
 
 void ImUninitialize() {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   g_installation_manager_.reset(NULL);
 }
 
 int ImReset() {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->Reset();
 }
 
 int ImGetInstallationStatus(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->GetInstallationStatus(installation_index);
 }
 
 int ImGetInstallationNumTriesLeft(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->GetInstallationNumTriesLeft(
       installation_index);
 }
 
 int ImDecrementInstallationNumTries(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->DecrementInstallationNumTries(
       installation_index);
 }
 
 int ImGetCurrentInstallationIndex() {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->GetCurrentInstallationIndex();
 }
 
 int ImResetInstallation(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->ResetInstallation(installation_index);
 }
 
 int ImSelectNewInstallationIndex() {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->SelectNewInstallationIndex();
 }
 
 int ImGetInstallationPath(int installation_index, char* path, int path_length) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->GetInstallationPath(installation_index, path,
                                                       path_length);
 }
 
 int ImMarkInstallationSuccessful(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->MarkInstallationSuccessful(
       installation_index);
 }
 
 int ImRollForwardIfNeeded() {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->RollForwardIfNeeded();
 }
 
 int ImRollForward(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->RollForward(installation_index);
 }
 
 int ImRevertToSuccessfulInstallation(SlotSelectionStatus status) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->RevertToSuccessfulInstallation(status);
 }
 
 int ImRequestRollForwardToInstallation(int installation_index) {
-  starboard::ScopedLock lock(*GetImMutex());
+  std::lock_guard lock(*GetImMutex());
   return g_installation_manager_->RequestRollForwardToInstallation(
       installation_index);
 }

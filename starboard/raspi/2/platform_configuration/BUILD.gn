@@ -26,7 +26,4 @@ config("platform_configuration") {
       "-mtune=cortex-a8",
     ]
   }
-  if (sb_is_modular && !sb_is_evergreen) {
-    defines = [ "USE_COMMON_CONTENT_DIR" ]
-  }
 }

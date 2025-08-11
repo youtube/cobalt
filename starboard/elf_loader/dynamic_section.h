@@ -73,7 +73,6 @@ class DynamicSection {
 
   Dyn* dynamic_;
   size_t dynamic_count_;
-  Word dynamic_flags_;
   bool has_DT_SYMBOLIC_;
 
   Sym* symbol_table_;

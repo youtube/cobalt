@@ -20,6 +20,7 @@
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -37,6 +38,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentGpuClient* CreateContentGpuClient() override;
   content::ContentRendererClient* CreateContentRendererClient() override;
+  content::ContentUtilityClient* CreateContentUtilityClient() override;
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 
   // Override the RunProcess method to store the  reference to
@@ -56,6 +58,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
+  std::unique_ptr<CobaltContentUtilityClient> utility_client_;
 
   void InitializeHangWatcher();
 };

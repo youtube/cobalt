@@ -11,8 +11,6 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("BUILD.generated.gni")
 import("BUILD.generated_tests.gni")
 
-import("//cobalt/build/configs/hacks.gni")
-
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen.gni")
@@ -209,9 +207,6 @@ component("boringssl") {
       "//starboard/common",
     ]
   }
-  if (enable_cobalt_hermetic_hacks) {
-    sources += [ "src/crypto/thread_starboard.c" ]
-  }
 }
 
 if (build_with_chromium) {
@@ -247,6 +242,10 @@ if (build_with_chromium) {
       "gtest_main_chromium.cc",
       "test_data_chromium.cc",
     ]
+    if (is_cobalt_hermetic_build) {
+      sources += [ "starboard/gtest_main_chromium.cc" ]
+      sources -= [ "gtest_main_chromium.cc" ]
+    }
     deps += [ "//base/test:test_support" ]
 
     if (is_fuchsia) {
@@ -270,7 +269,11 @@ if (build_with_chromium) {
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
-    sources += [ "gtest_main_chromium.cc" ]
+    if (is_cobalt_hermetic_build) {
+      sources += [ "starboard/gtest_main_chromium.cc" ]
+    } else {
+      sources += [ "gtest_main_chromium.cc" ]
+    }
     deps += [ "//base/test:test_support" ]
   }
 

@@ -56,8 +56,6 @@ class MediaCodecBridgeBuilder {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
-            mime,
-            MediaCodecBridge.BitrateAdjustmentTypes.NO_ADJUSTMENT,
             -1);
 
     byte[][] csds = {};

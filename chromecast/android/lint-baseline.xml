@@ -24,14 +24,14 @@
     </issue>
 
     <issue
-        id="UnspecifiedRegisterReceiverFlag"
-        message="`mReceiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for an IntentFilter that cannot be inspected by lint"
-        errorLine1="        mContext.registerReceiver(mReceiver, filter);"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="SystemPermissionTypo"
+        message="Did you mean `android.permission.FOREGROUND_SERVICE`?"
+        errorLine1="  &lt;uses-permission android:name=&quot;android.permission.FOREGROUND_SERVICE_SPECIAL_USE&quot;/>"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="../../chromecast/browser/android/apk/src/org/chromium/chromecast/shell/BroadcastReceiverScope.java"
-            line="37"
-            column="9"/>
+            file="gen/chromecast/cast_shell_apk__lint/gen/cast_shell_manifest/AndroidManifest.xml"
+            line="16"
+            column="34"/>
     </issue>
 
     <issue

@@ -27,10 +27,13 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-
 namespace {
+
+using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
+
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
 constexpr int TYPE_AUX_LINE = 19;

@@ -29,10 +29,12 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/shell/android/shell_descriptors.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/embedder/performance_manager_lifetime.h"
 #include "content/public/browser/browser_thread.h"
@@ -42,8 +44,6 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/common/url_constants.h"
-#include "content/shell/android/shell_descriptors.h"
-#include "content/shell/common/shell_switches.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"
@@ -60,7 +60,7 @@
 #endif
 
 #if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
-#include "ui/base/ime/init/input_method_initializer.h"
+#include "ui/base/ime/init/input_method_initializer.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -134,11 +134,6 @@ int ShellBrowserMainParts::PreEarlyInitialization() {
 void ShellBrowserMainParts::InitializeBrowserContexts() {
   set_browser_context(new ShellBrowserContext(false));
   set_off_the_record_browser_context(new ShellBrowserContext(true));
-  // Persistent Origin Trials needs to be instantiated as soon as possible
-  // during browser startup, to ensure data is available prior to the first
-  // request.
-  browser_context_->GetOriginTrialsControllerDelegate();
-  off_the_record_browser_context_->GetOriginTrialsControllerDelegate();
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {

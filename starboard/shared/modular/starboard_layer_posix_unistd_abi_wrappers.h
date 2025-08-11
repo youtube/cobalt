@@ -206,6 +206,11 @@ extern "C" {
 #define MUSL_PC_SYMLINK_MAX 19
 #define MUSL_PC_2_SYMLINKS 20
 
+#define MUSL_F_OK 0
+#define MUSL_R_OK 4
+#define MUSL_W_OK 2
+#define MUSL_X_OK 1
+
 SB_EXPORT int __abi_wrap_ftruncate(int fildes, musl_off_t length);
 
 SB_EXPORT musl_off_t __abi_wrap_lseek(int fildes,
@@ -223,6 +228,8 @@ SB_EXPORT long __abi_wrap_pathconf(const char* path, int name);
 SB_EXPORT musl_uid_t __abi_wrap_geteuid();
 
 SB_EXPORT musl_pid_t __abi_wrap_getpid();
+
+SB_EXPORT int __abi_wrap_access(const char* path, int amode);
 
 #ifdef __cplusplus
 }  // extern "C"

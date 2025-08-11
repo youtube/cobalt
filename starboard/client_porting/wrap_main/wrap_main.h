@@ -25,7 +25,7 @@
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
     !defined(STARBOARD_IMPLEMENTATION_TEST)
-#include "third_party/musl/src/starboard/internal/hwcap_impl.h"
+#include <init_musl.h>
 #endif
 
 namespace starboard {
@@ -40,7 +40,7 @@ void SimpleEventHandler(const SbEvent* event) {
     case kSbEventTypeStart: {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
     !defined(STARBOARD_IMPLEMENTATION_TEST)
-      init_musl_hwcap();
+      init_musl();
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       SbSystemRequestStop(

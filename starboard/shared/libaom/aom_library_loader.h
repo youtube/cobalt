@@ -40,8 +40,6 @@ extern aom_codec_err_t (*aom_codec_decode)(aom_codec_ctx_t*,
 
 extern aom_image_t* (*aom_codec_get_frame)(aom_codec_ctx_t*, aom_codec_iter_t*);
 
-}  // namespace aom
-
 }  // namespace starboard::shared::aom
 
 #endif  // STARBOARD_SHARED_LIBAOM_AOM_LIBRARY_LOADER_H_

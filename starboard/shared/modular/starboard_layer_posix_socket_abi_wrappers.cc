@@ -73,6 +73,41 @@ int musl_shuts_to_platform_shuts(int how) {
   }
 }
 
+int musl_errcodes_to_platform_errcodes(int ecode) {
+  switch (ecode) {
+    case MUSL_EAI_BADFLAGS:
+      return EAI_BADFLAGS;
+    case MUSL_EAI_NONAME:
+      return EAI_NONAME;
+    case MUSL_EAI_AGAIN:
+      return EAI_AGAIN;
+    case MUSL_EAI_FAIL:
+      return EAI_FAIL;
+    case MUSL_EAI_NODATA:
+      return EAI_NODATA;
+    case MUSL_EAI_FAMILY:
+      return EAI_FAMILY;
+    case MUSL_EAI_SOCKTYPE:
+      return EAI_SOCKTYPE;
+    case MUSL_EAI_SERVICE:
+      return EAI_SERVICE;
+    case MUSL_EAI_MEMORY:
+      return EAI_MEMORY;
+    case MUSL_EAI_SYSTEM:
+      return EAI_SYSTEM;
+    case MUSL_EAI_OVERFLOW:
+      return EAI_OVERFLOW;
+    default:
+      // If the errcode cannot be converted, we can leave the ecode as is,
+      // as gai_strerror() will just return a string stating that an unknown
+      // ecode was given. A warning log is left to let the user know
+      // a conversion was not possible.
+      SB_LOG(WARNING) << "Unable to convert musl errcode to platform errcode, "
+                         "using value as-is.";
+      return ecode;
+  }
+}
+
 int musl_hints_to_platform_hints(const struct musl_addrinfo* hints,
                                  struct addrinfo* platform_hints) {
   int ai_left = hints->ai_flags;
@@ -158,6 +193,10 @@ SB_EXPORT int __abi_wrap_connect(int sockfd,
                                  socklen_t addrlen) {
   return connect(sockfd, reinterpret_cast<const struct sockaddr*>(addr),
                  addrlen);
+}
+
+SB_EXPORT const char* __abi_wrap_gai_strerror(int ecode) {
+  return gai_strerror(musl_errcodes_to_platform_errcodes(ecode));
 }
 
 SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,

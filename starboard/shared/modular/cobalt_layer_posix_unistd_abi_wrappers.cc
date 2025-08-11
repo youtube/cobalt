@@ -33,6 +33,7 @@ long __abi_wrap_sysconf(int name);
 long sysconf(int name) {
   return __abi_wrap_sysconf(name);
 }
+
 long __abi_wrap_pathconf(const char* path, int name);
 
 long pathconf(const char* path, int name) {
@@ -49,6 +50,12 @@ uid_t __abi_wrap_geteuid();
 
 uid_t geteuid() {
   return __abi_wrap_geteuid();
+}
+
+int __abi_wrap_access(const char* path, int amode);
+
+int access(const char* path, int amode) {
+  return __abi_wrap_access(path, amode);
 }
 
 }  // extern "C"

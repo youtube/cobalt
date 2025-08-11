@@ -4,80 +4,115 @@ inputs:
   docker_service:
     description: "Docker compose service."
     required: true
-
+  is_pr:
+    description: "True if the event is a pull request from a forked repository."
+    required: true
+  docker_content_sha:
+    description: "The git hash for the latest docker related changes."
+    required: true
+  github_token:
+    description: "The github token."
+    required: true
+outputs:
+  docker_tag:
+    description: "The full docker image tag."
+    value: ${{ steps.pull-cached-image.outputs.docker_tag }}
 runs:
   using: "composite"
   steps:
-    - name: Checkout files
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
-      with:
-        driver-opts: |
-          image=ghcr.io/youtube/cobalt/moby-buildkit-mirror:main
-    - name: Set env vars
-      run: |
-        set -x
-        tag=${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
-        tag=${tag//\//__}
-        tag="${tag%.1[+,-]}"
-        echo "FLOATING_TAG=${tag}" >> $GITHUB_ENV
-        full_git_sha=${{ github.sha }}
-        short_git_sha="${full_git_sha::7}"
-        echo "GIT_SHA=${short_git_sha}" >> $GITHUB_ENV
-      shell: bash
-    - name: Set Docker Tag
-      id: set-docker-tag-github
-      if: ${{ (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository) }}
-      run: |
-        set -x
-        echo "DOCKER_TAG=ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:${GIT_SHA}" >> $GITHUB_ENV
-        echo "DOCKER_FLOATING_TAG=ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:${FLOATING_TAG}" >> $GITHUB_ENV
-      shell: bash
-    # Handle Google Artifact Registry used for pull requests off forked repos.
     - name: Set up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Login to GAR and set tag
-      if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository) }}
+      if: ${{ inputs.is_pr == 'true' }}
+
+    - name: Set Docker Build Vars
+      env:
+        DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
-        # Need to login to GAR to be able to push images created by fork based PR workflows.
-        PROJECT_NAME=$(gcloud config get-value project)
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
-        SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
-        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
-        full_git_sha=${{ github.sha }}
-        echo "DOCKER_TAG=us-central1-docker.pkg.dev/${PROJECT_NAME}/github/${{ inputs.docker_service }}:${GIT_SHA}" >> $GITHUB_ENV
-        echo "DOCKER_FLOATING_TAG=us-central1-docker.pkg.dev/${PROJECT_NAME}/github/${{ inputs.docker_service }}:${FLOATING_TAG}" >> $GITHUB_ENV
+        # Set Docker Build Vars
+        set -x
+
+        # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
+        FLOATING_TAG="${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}"
+        # Replace slashes with double underscore.
+        FLOATING_TAG="${FLOATING_TAG//\//__}"
+        # Remove url unsafe suffix from LTS branches.
+        FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
+
+        echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> $GITHUB_ENV
       shell: bash
-    - name: Login to Marketplace GAR
+
+    - name: Login to GAR
       run: |
-        # Need to login to Marketplace to be able to pull image metadata.
-        PROJECT_NAME=$(gcloud config get-value project)
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
-        SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
+        # Login to GAR
+        TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
+
+        # Login to GAR to be able to push images created by fork based PR workflows.
+        if [[ "${{ inputs.is_pr }}" == "true" ]]; then
+          printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
+        fi
+
+        # Login to Marketplace GAR to be able to pull base images.
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
       shell: bash
-    # Proceed with docker pull, build, tag, and push.
-    - name: Docker Pull
+
+    - name: Login to GitHub Docker Registry
+      uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github_token }}
+
+    - name: Pull Existing Docker Image
+      id: pull-cached-image
+      env:
+        GITHUB_DOCKER_REGISTRY_URL: ghcr.io
+        PR_DOCKER_REGISTRY_URL: us-central1-docker.pkg.dev
+        DOCKER_SERVICE: ${{ inputs.docker_service }}
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        IS_PR: ${{ inputs.is_pr }}
       run: |
-        docker pull "${DOCKER_TAG}" || true
-        docker pull "${DOCKER_FLOATING_TAG}" || true
-        cat ${GITHUB_WORKSPACE}/cobalt/docker/unittest/Dockerfile
+        # Pull Existing Docker Image
+        set -x
+        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
+
+        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+          # A postsubmit image exists, use it.
+          echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
+
+        elif [[ "${IS_PR}" == "true" ]]; then
+          # No post-submit image was found. Check PR registry to see if there's an image there.
+          PROJECT_NAME=$(gcloud config get-value project)
+          DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
+
+          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+            echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
+            echo "build_image=true" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
+          echo "build_image=true" >> $GITHUB_OUTPUT
+        fi
+
+        # Tell builders which image tag to use.
+        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> $GITHUB_OUTPUT
+
+        # Make the compose image tag available to the build step below.
+        echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> $GITHUB_ENV
       shell: bash
-    - name: Docker Build
-      run: docker compose build ${{inputs.docker_service}}
-      shell: bash
-    - name: Docker Tag
+
+    - name: Build and Push Docker Image
+      if: steps.pull-cached-image.outputs.build_image == 'true'
+      env:
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
-        docker tag ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:latest ${DOCKER_TAG}
-        docker tag ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:latest ${DOCKER_FLOATING_TAG}
-      shell: bash
-    - name: Docker Push
-      run: |
-        docker push ${DOCKER_TAG}
-        docker push ${DOCKER_FLOATING_TAG}
+        # Build and Push Docker Image
+        set -x
+        docker compose build ${DOCKER_SERVICE}
+
+        # The compose build tags the built image with $DOCKER_COMPOSE_IMAGE. Add the Docker content sha and floating tag and push.
+        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
+        docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"
       shell: bash

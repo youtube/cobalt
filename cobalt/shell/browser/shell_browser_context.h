@@ -35,8 +35,6 @@ class DownloadManagerDelegate;
 class OriginTrialsControllerDelegate;
 class PermissionControllerDelegate;
 class ReduceAcceptLanguageControllerDelegate;
-class ShellDownloadManagerDelegate;
-class ShellFederatedPermissionContext;
 class ZoomLevelDelegate;
 
 class ShellBrowserContext : public BrowserContext {
@@ -100,16 +98,10 @@ class ShellBrowserContext : public BrowserContext {
   bool ignore_certificate_errors() const { return ignore_certificate_errors_; }
 
   std::unique_ptr<ShellResourceContext> resource_context_;
-  std::unique_ptr<ShellDownloadManagerDelegate> download_manager_delegate_;
-  std::unique_ptr<PermissionControllerDelegate> permission_manager_;
   std::unique_ptr<BackgroundSyncController> background_sync_controller_;
   std::unique_ptr<ContentIndexProvider> content_index_provider_;
-  std::unique_ptr<ShellFederatedPermissionContext>
-      federated_permission_context_;
   std::unique_ptr<ReduceAcceptLanguageControllerDelegate>
       reduce_accept_lang_controller_delegate_;
-  std::unique_ptr<OriginTrialsControllerDelegate>
-      origin_trials_controller_delegate_;
 
  private:
   // Performs initialization of the ShellBrowserContext while IO is still

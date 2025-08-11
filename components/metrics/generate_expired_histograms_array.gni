@@ -189,6 +189,10 @@ template("generate_expired_histograms_array") {
       "//tools/metrics/histograms/enums.xml",
     ]
 
+    if (is_cobalt) {
+      inputs += ["//tools/metrics/histograms/metadata/cobalt/histograms.xml"]
+    }
+
     major_branch_date_filepath = invoker.major_branch_date_filepath
     milestone_filepath = invoker.milestone_filepath
 

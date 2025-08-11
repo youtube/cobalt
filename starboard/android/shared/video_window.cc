@@ -55,7 +55,7 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     JNIEnv* env,
     jobject unused_this,
     jobject surface) {
-  std::scoped_lock lock(*GetViewSurfaceMutex());
+  std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder) {
     g_video_surface_holder->OnSurfaceDestroyed();
     g_video_surface_holder = NULL;
@@ -86,12 +86,12 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
   // surface and it is not held by any decoder, i.e.
   // g_video_surface_holder is NULL.
-  std::scoped_lock lock(*GetViewSurfaceMutex());
+  std::lock_guard lock(*GetViewSurfaceMutex());
   return !g_video_surface_holder && g_j_video_surface;
 }
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
-  std::scoped_lock lock(*GetViewSurfaceMutex());
+  std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder != NULL) {
     return NULL;
   }
@@ -103,14 +103,14 @@ jobject VideoSurfaceHolder::AcquireVideoSurface() {
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
-  std::scoped_lock lock(*GetViewSurfaceMutex());
+  std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder == this) {
     g_video_surface_holder = NULL;
   }
 }
 
 bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
-  std::scoped_lock lock(*GetViewSurfaceMutex());
+  std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_native_video_window == NULL) {
     return false;
   } else {
@@ -123,7 +123,7 @@ bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
 void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
-  std::scoped_lock lock(*GetViewSurfaceMutex());
+  std::lock_guard lock(*GetViewSurfaceMutex());
 
   if (!g_native_video_window) {
     SB_LOG(INFO) << "Tried to clear video window when it was null.";

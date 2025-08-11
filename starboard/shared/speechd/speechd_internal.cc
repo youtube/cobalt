@@ -119,6 +119,4 @@ void SpeechDispatcher::Destroy() {
   instance = NULL;
 }
 
-}  // namespace speechd
-
-}  // namespace starboard::shared::speechd::
+}  // namespace starboard::shared::speechd

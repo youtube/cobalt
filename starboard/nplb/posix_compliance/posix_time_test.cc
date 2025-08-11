@@ -23,15 +23,14 @@ namespace {
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
-const time_t kReasonableMinTimeUsec =
-    1'735'689'600'000'000;  // 2025-01-01 00:00:00 UTC
+const int64_t kReasonableMinTimeUsec =
+    1'735'689'600'000'000LL;  // 2025-01-01 00:00:00 UTC
 
-// kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
-// the current time is expected to fall. Note that this also implicitly tests
-// that the code handles timestamps past the Unix Epoch wraparound on 03:14:08
-// UTC on 19 January 2038.
-const time_t kReasonableMaxTimeUsec =
-    2'366'841'600'000'000;  // 2045-01-01 00:00:00 UTC
+// kReasonableMaxTimeUsec represents a time very far in the future and before
+// which the current time is expected to fall. Note that this also implicitly
+// tests that the code handles timestamps past the Unix Epoch wraparound on
+// 03:14:08 UTC on 19 January 2038.
+const time_t kReasonableMaxTimeUsec = std::numeric_limits<time_t>::max();
 
 TEST(PosixTimeTest, CurrentPosixTimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();

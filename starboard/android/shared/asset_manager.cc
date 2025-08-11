@@ -72,7 +72,7 @@ std::string FallbackPath(const std::string& path) {
 }  // namespace
 
 // static
-SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance);
+SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance)
 
 AssetManager::AssetManager() {
   const int kPathSize = PATH_MAX / 2;
@@ -86,7 +86,7 @@ AssetManager::AssetManager() {
 }
 
 uint64_t AssetManager::AcquireInternalFd() {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   do {
     ++internal_fd_;
   } while (in_use_internal_fd_set_.count(internal_fd_) == 1);
@@ -146,7 +146,7 @@ int AssetManager::Open(const char* path, int oflag) {
 }
 
 bool AssetManager::IsAssetFd(int fd) const {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   return fd_to_internal_fd_map_.count(fd) == 1;
 }
 

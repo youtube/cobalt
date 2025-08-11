@@ -21,13 +21,11 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/check_op.h"
+#include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::android::shared {
-
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
@@ -69,8 +67,7 @@ struct DequeueOutputResult {
 };
 
 struct FrameSize {
-  jint texture_width;
-  jint texture_height;
+  Size texture_size;
 
   // Crop values can be set to -1 when they are not provided by the platform
   jint crop_left = -1;
@@ -83,39 +80,34 @@ struct FrameSize {
            crop_bottom >= 0;
   }
 
-  jint display_width() const {
+  Size display_size() const {
     if (has_crop_values()) {
-      return crop_right - crop_left + 1;
+      return {crop_right - crop_left + 1, crop_bottom - crop_top + 1};
     }
 
-    return texture_width;
-  }
-
-  jint display_height() const {
-    if (has_crop_values()) {
-      return crop_bottom - crop_top + 1;
-    }
-
-    return texture_height;
+    return texture_size;
   }
 
   void DCheckValid() const {
-    SB_DCHECK(texture_width >= 0) << texture_width;
-    SB_DCHECK(texture_height >= 0) << texture_height;
+    SB_DCHECK_GE(texture_size.width, 0);
+    SB_DCHECK_GE(texture_size.height, 0);
 
     if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 ||
         crop_bottom >= 0) {
       // If there is at least one crop value set, all of them should be set.
-      SB_DCHECK(crop_left >= 0) << crop_left;
-      SB_DCHECK(crop_top >= 0) << crop_top;
-      SB_DCHECK(crop_right >= 0) << crop_right;
-      SB_DCHECK(crop_bottom >= 0) << crop_bottom;
+      SB_DCHECK_GE(crop_left, 0);
+      SB_DCHECK_GE(crop_top, 0);
+      SB_DCHECK_GE(crop_right, 0);
+      SB_DCHECK_GE(crop_bottom, 0);
       SB_DCHECK(has_crop_values());
-      SB_DCHECK(display_width() >= 0) << display_width();
-      SB_DCHECK(display_height() >= 0) << display_height();
+      [[maybe_unused]] const Size size = display_size();
+      SB_DCHECK_GE(size.width, 0);
+      SB_DCHECK_GE(size.height, 0);
     }
   }
 };
+
+std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
 struct AudioOutputFormatResult {
   jint status;
@@ -188,7 +180,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
+  base::android::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -201,7 +193,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
+  base::android::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
@@ -212,18 +204,23 @@ class MediaCodecBridge {
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
-  void OnMediaCodecError(bool is_recoverable,
-                         bool is_transient,
-                         const std::string& diagnostic_info);
-  void OnMediaCodecInputBufferAvailable(int buffer_index);
-  void OnMediaCodecOutputBufferAvailable(int buffer_index,
-                                         int flags,
-                                         int offset,
-                                         int64_t presentation_time_us,
-                                         int size);
-  void OnMediaCodecOutputFormatChanged();
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp);
-  void OnMediaCodecFirstTunnelFrameReady();
+  void OnMediaCodecError(
+      JNIEnv* env,
+      jboolean is_recoverable,
+      jboolean is_transient,
+      const base::android::JavaParamRef<jstring>& diagnostic_info);
+  void OnMediaCodecInputBufferAvailable(JNIEnv* env, jint buffer_index);
+  void OnMediaCodecOutputBufferAvailable(JNIEnv* env,
+                                         jint buffer_index,
+                                         jint flags,
+                                         jint offset,
+                                         jlong presentation_time_us,
+                                         jint size);
+  void OnMediaCodecOutputFormatChanged(JNIEnv* env);
+  void OnMediaCodecFrameRendered(JNIEnv* env,
+                                 jlong presentation_time_us,
+                                 jlong render_at_system_time_ns);
+  void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
 
   static jboolean IsFrameRenderedCallbackEnabled();
 
@@ -233,14 +230,15 @@ class MediaCodecBridge {
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  ScopedJavaGlobalRef<jobject> j_reused_get_output_format_result_ = NULL;
+  base::android::ScopedJavaGlobalRef<jobject>
+      j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

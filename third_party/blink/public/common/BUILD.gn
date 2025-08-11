@@ -129,6 +129,12 @@ source_set("headers") {
     "//storage/*",
     "//third_party/blink/*",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
 
   sources = [
     "action_after_pagehide.h",
