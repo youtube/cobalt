@@ -8,28 +8,30 @@
 
 namespace starboard::android::shared {
 
-pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-pthread_key_t s_thread_local_key = 0;
+pthread_once_t s_once_flag_for_video_surface_view = PTHREAD_ONCE_INIT;
+pthread_key_t s_thread_local_key_for_video_surface_view = 0;
 
-void InitThreadLocalKey() {
-  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
+void InitThreadLocalKeyForVideoSurfaceView() {
+  [[maybe_unused]] int res =
+      pthread_key_create(&s_thread_local_key_for_video_surface_view, NULL);
   SB_DCHECK_EQ(res, 0);
 }
 
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
+void EnsureThreadLocalKeyInitedForVideoSurfaceView() {
+  pthread_once(&s_once_flag_for_video_surface_view,
+               InitThreadLocalKeyForVideoSurfaceView);
 }
 
 void* GetSurfaceViewForCurrentThread() {
-  EnsureThreadLocalKeyInited();
+  EnsureThreadLocalKeyInitedForVideoSurfaceView();
   // If the key is not valid or there is no value associated
   // with the key, it returns 0.
-  return reinterpret_cast<uintptr_t>(pthread_getspecific(s_thread_local_key));
+  return pthread_getspecific(s_thread_local_key_for_video_surface_view);
 }
 
 void SetVideoSurfaceViewForCurrentThread(void* surface_view) {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key,
+  EnsureThreadLocalKeyInitedForVideoSurfaceView();
+  pthread_setspecific(s_thread_local_key_for_video_surface_view,
                       reinterpret_cast<void*>(surface_view));
 }
 

@@ -283,7 +283,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::unique_ptr<VideoDecoder> video_decoder =
           CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
                              kForceSecurePipelineUnderTunnelMode,
-                             max_video_input_size, error_message);
+                             max_video_input_size, surface_view, error_message);
       if (video_decoder) {
         using starboard::shared::starboard::player::filter::VideoRendererImpl;
 
@@ -488,6 +488,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
+      void* surface_view = creation_parameters.surface_view();
+
       if (tunnel_mode_audio_session_id == -1) {
         force_secure_pipeline_under_tunnel_mode = false;
       }
@@ -540,6 +542,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size,
+      void* surface_view,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek = false;
