@@ -12,6 +12,7 @@
     "ImageReaderGLOwnerSecureSurfaceControlTest.*",
     "KeySystemsTest.*",
     "MP4StreamParserTest.*",
+    "MediaCodecVideoDecoderTest*",
     "MediaCodecVideoDecoderAV1Test*",
     "MediaServiceTest.*",
     "MimeUtilTest.CommonMediaMimeType",
