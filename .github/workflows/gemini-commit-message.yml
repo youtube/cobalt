@@ -89,7 +89,7 @@ jobs:
 
           # Make the API call to the Gemini model using curl.
           api_response=$(curl -s -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${{ secrets.GEMINI_ACTIONS_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$json_payload")
 
