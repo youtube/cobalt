@@ -60,6 +60,7 @@ class MediaCodecBridge {
   private static final String KEY_CROP_BOTTOM = "crop-bottom";
   private static final String KEY_CROP_TOP = "crop-top";
 
+  /** Lock to synchronize state between the stop() method and MediaCodec callbacks. */
   private final Object mLock = new Object();
   private long mNativeMediaCodecBridge;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
