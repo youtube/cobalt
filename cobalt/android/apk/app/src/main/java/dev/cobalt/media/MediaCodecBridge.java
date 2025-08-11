@@ -302,7 +302,7 @@ class MediaCodecBridge {
         new MediaCodec.Callback() {
           @Override
           public void onError(MediaCodec codec, MediaCodec.CodecException e) {
-            synchronized (this) {
+            synchronized (MediaCodecBridge.this) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -317,7 +317,7 @@ class MediaCodecBridge {
 
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
-            synchronized (this) {
+            synchronized (MediaCodecBridge.this) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -329,7 +329,7 @@ class MediaCodecBridge {
           @Override
           public void onOutputBufferAvailable(
               MediaCodec codec, int index, MediaCodec.BufferInfo info) {
-            synchronized (this) {
+            synchronized (MediaCodecBridge.this) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -354,7 +354,7 @@ class MediaCodecBridge {
 
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
-            synchronized (this) {
+            synchronized (MediaCodecBridge.this) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -372,7 +372,7 @@ class MediaCodecBridge {
           new MediaCodec.OnFrameRenderedListener() {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
-              synchronized (this) {
+              synchronized (MediaCodecBridge.this) {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
@@ -977,7 +977,7 @@ class MediaCodecBridge {
           new MediaCodec.OnFirstTunnelFrameReadyListener() {
             @Override
             public void onFirstTunnelFrameReady(MediaCodec codec) {
-              synchronized (this) {
+              synchronized (MediaCodecBridge.this) {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
