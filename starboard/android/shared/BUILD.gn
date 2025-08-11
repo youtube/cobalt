@@ -247,6 +247,8 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
+    "player_set_video_surface_view.cc",
+    "player_set_video_surface_view.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
@@ -293,6 +295,8 @@ static_library("starboard_platform") {
     "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
+    "video_surface_view.cc",
+    "video_surface_view.h",
     "video_window.cc",
     "video_window.h",
 
