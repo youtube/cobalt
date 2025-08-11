@@ -15,6 +15,9 @@
 #include "starboard/shared/starboard/media/decoder_flow_control.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <fstream>
 #include <iomanip>
@@ -41,7 +44,7 @@ constexpr int kMaxFramesToTestAllocation = 800;
 constexpr bool kLogMaps = false;
 constexpr int k8kDecodedFrameBytes = 49'766'400;
 constexpr int kNumSmapsEntriesToLog = 10;
-constexpr bool kWriteSmapsToFile = false;
+constexpr bool kDumpSmapsToFile = false;
 
 struct MemoryInfo {
   long total_kb;
@@ -92,31 +95,63 @@ MemoryInfo GetMemoryInfo() {
 }
 
 std::string GetCurrentTimestampString() {
-  time_t now = time(0);
-  struct tm tstruct;
-  char buf[80];
-  tstruct = *localtime(&now);
-  strftime(buf, sizeof(buf), "%Y%m%d-%H%M%S", &tstruct);
-  return buf;
+  auto now = std::chrono::system_clock::now();
+  auto now_c = std::chrono::system_clock::to_time_t(now);
+  auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          now.time_since_epoch()) %
+                      1000;
+
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&now_c), "%Y%m%d-%H%M%S");
+  ss << '.' << std::setw(3) << std::setfill('0') << milliseconds.count();
+  return ss.str();
+}
+
+void DumpSmaps() {
+  std::string timestamp = GetCurrentTimestampString();
+  std::string output_filename =
+      "/sdcard/Download/smaps.coat." + timestamp + ".txt";
+  const auto start_time_us = CurrentMonotonicTime();
+  std::ifstream src("/proc/self/smaps", std::ios::binary);
+  if (!src) {
+    SB_LOG(ERROR) << __func__
+                  << ": Failed to open /proc/self/smaps for reading.";
+    return;
+  }
+
+  std::ofstream dst(output_filename, std::ios::binary);
+  if (!dst) {
+    SB_LOG(ERROR) << __func__ << ": Failed to open " << output_filename
+                  << " for writing.";
+    return;
+  }
+
+  dst << src.rdbuf();
+  if (!dst.good()) {
+    SB_LOG(ERROR) << __func__ << ": Failed to write to " << output_filename;
+    return;
+  }
+  dst.close();
+
+  // Re-open to get the size
+  std::ifstream written_file(output_filename, std::ios::ate | std::ios::binary);
+  if (!written_file) {
+    SB_LOG(ERROR) << __func__ << ": Failed to re-open " << output_filename
+                  << " to get size.";
+    return;
+  }
+
+  std::streamsize size = written_file.tellg();
+  int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
+  SB_LOG(INFO) << __func__ << ": location=" << output_filename
+               << ", size=" << size << ", elapsed(msec)=" << elapsed_us / 1'000;
 }
 
 void LogSmaps() {
-  int64_t start_time_us = CurrentMonotonicTime();
   std::ifstream smaps_file("/proc/self/smaps");
   if (!smaps_file.is_open()) {
     SB_LOG(ERROR) << "Failed to open /proc/self/smaps";
     return;
-  }
-
-  std::string timestamp = GetCurrentTimestampString();
-  std::string output_filename;
-  std::ofstream out_file;
-  if (kWriteSmapsToFile) {
-    output_filename = "/sdcard/Download/smaps.coat." + timestamp + ".txt";
-    out_file.open(output_filename);
-    if (!out_file.is_open()) {
-      SB_LOG(ERROR) << "Failed to open " << output_filename << " for writing.";
-    }
   }
 
   std::map<std::string, SmapsEntry> entries;
@@ -124,51 +159,81 @@ void LogSmaps() {
   std::string current_name;
 
   while (std::getline(smaps_file, line)) {
-    if (kWriteSmapsToFile && out_file.is_open()) {
-      out_file << line << "\n";
-    }
     if (line.find(" kB") == std::string::npos) {
       // This is a header line, extract the name
       std::stringstream line_ss(line);
-      std::string address, perms, offset, dev, inode, pathname;
-      line_ss >> address >> perms >> offset >> dev >> inode >> pathname;
+      std::string address, perms, offset, dev, inode;
+      line_ss >> address >> perms >> offset >> dev >> inode;
+
+      // The rest of the line is the pathname, which might contain spaces.
+      std::string pathname;
+      if (!line_ss.eof()) {
+        line_ss >> std::ws;
+        std::getline(line_ss, pathname);
+      }
+
       current_name = pathname;
       if (current_name.empty()) {
         current_name = address;
       }
     } else {
-      // This is a value line
-      std::stringstream line_ss(line);
-      std::string key;
-      int value;
-      line_ss >> key >> value;
-      if (key == "Size:") {
-        entries[current_name].size += value;
-      } else if (key == "Rss:") {
-        entries[current_name].rss += value;
-      } else if (key == "Pss:") {
-        entries[current_name].pss += value;
-      } else if (key == "Shared_Clean:") {
-        entries[current_name].shared_clean += value;
-      } else if (key == "Shared_Dirty:") {
-        entries[current_name].shared_dirty += value;
-      } else if (key == "Private_Clean:") {
-        entries[current_name].private_clean += value;
-      } else if (key == "Private_Dirty:") {
-        entries[current_name].private_dirty += value;
-      } else if (key == "Referenced:") {
-        entries[current_name].referenced += value;
-      } else if (key == "Anonymous:") {
-        entries[current_name].anonymous += value;
-      } else if (key == "AnonHugePages:") {
-        entries[current_name].anon_huge_pages += value;
+      // This is a value line. Use faster C-style parsing.
+      const char* c_line = line.c_str();
+      while (*c_line != '\0' && isspace(*c_line)) {
+        c_line++;
+      }
+
+      const char* colon = strchr(c_line, ':');
+      if (colon == nullptr) {
+        continue;
+      }
+
+      char* end_ptr;
+      long value = strtol(colon + 1, &end_ptr, 10);
+
+      if (end_ptr == colon + 1) {
+        // No digits were found.
+        continue;
+      }
+
+      switch (c_line[0]) {
+        case 'S':
+          if (strncmp(c_line, "Size:", 5) == 0) {
+            entries[current_name].size += value;
+          } else if (strncmp(c_line, "Shared_Clean:", 13) == 0) {
+            entries[current_name].shared_clean += value;
+          } else if (strncmp(c_line, "Shared_Dirty:", 13) == 0) {
+            entries[current_name].shared_dirty += value;
+          }
+          break;
+        case 'R':
+          if (strncmp(c_line, "Rss:", 4) == 0) {
+            entries[current_name].rss += value;
+          } else if (strncmp(c_line, "Referenced:", 11) == 0) {
+            entries[current_name].referenced += value;
+          }
+          break;
+        case 'P':
+          if (strncmp(c_line, "Pss:", 4) == 0) {
+            entries[current_name].pss += value;
+          } else if (strncmp(c_line, "Private_Clean:", 14) == 0) {
+            entries[current_name].private_clean += value;
+          } else if (strncmp(c_line, "Private_Dirty:", 14) == 0) {
+            entries[current_name].private_dirty += value;
+          }
+          break;
+        case 'A':
+          if (strncmp(c_line, "Anonymous:", 10) == 0) {
+            entries[current_name].anonymous += value;
+          } else if (strncmp(c_line, "AnonHugePages:", 14) == 0) {
+            entries[current_name].anon_huge_pages += value;
+          }
+          break;
       }
     }
   }
   smaps_file.close();
-  if (kWriteSmapsToFile && out_file.is_open()) {
-    out_file.close();
-  }
+  SB_LOG(INFO) << __func__ << " : file read complete";
 
   std::vector<SmapsEntry> sorted_entries;
   for (auto const& [name, entry] : entries) {
@@ -215,15 +280,7 @@ void LogSmaps() {
           << entry.anonymous << "|" << std::setw(12) << entry.anon_huge_pages
           << "\n";
   }
-  SB_LOG(INFO) << table.str();
-  int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
-  if (kWriteSmapsToFile) {
-    SB_LOG(INFO) << "snapshot is written: location=" << output_filename
-                 << ", elapsed(msec)=" << elapsed_us / 1000;
-  } else {
-    SB_LOG(INFO) << "snapshot is not written, elapsed(msec)="
-                 << elapsed_us / 1000;
-  }
+  SB_LOG(INFO) << "Parsed Smaps table\n" << table.str();
 }
 
 std::string FormatSize(size_t size_in_bytes) {
@@ -551,7 +608,16 @@ void ThrottlingDecoderFlowControl::LogStateAndReschedule(
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
   SB_LOG(INFO) << "DecoderFlowControl state: " << GetCurrentState();
-  LogSmaps();
+
+  if constexpr (kDumpSmapsToFile) {
+    DumpSmaps();
+  } else {
+    int64_t start_time_us = CurrentMonotonicTime();
+    LogSmaps();
+    int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
+    SB_LOG(INFO) << "snapshot is not written, elapsed(msec)="
+                 << elapsed_us / 1'000;
+  }
 
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
