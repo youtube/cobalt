@@ -68,12 +68,9 @@ class MediaCodecBridge {
   private static final String KEY_CROP_BOTTOM = "crop-bottom";
   private static final String KEY_CROP_TOP = "crop-top";
 
-<<<<<<< HEAD
   private static final int BITRATE_ADJUSTMENT_FPS = 30;
 
-=======
   private final Object mNativeBridgeLock = new Object();
->>>>>>> e0b24e9d56a (fix(media): Use correct lock in MediaCodec callbacks (#6786))
   private long mNativeMediaCodecBridge;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
@@ -824,18 +821,12 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-<<<<<<< HEAD
   // It is required to reset mNativeMediaCodecBridge when the native media_codec_bridge object is
   // destroyed.
   @SuppressWarnings("unused")
   @UsedByNative
   private void resetNativeMediaCodecBridge() {
-    synchronized (this) {
-=======
-  @CalledByNative
-  private void stop() {
     synchronized (mNativeBridgeLock) {
->>>>>>> e0b24e9d56a (fix(media): Use correct lock in MediaCodec callbacks (#6786))
       mNativeMediaCodecBridge = 0;
     }
   }
