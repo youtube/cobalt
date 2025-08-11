@@ -129,8 +129,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, decode_target_graphics_context_provider_,
-      drm_system_);
+      max_video_input_size_, surface_view_,
+      decode_target_graphics_context_provider_, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -546,6 +546,11 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
                << " to " << max_video_input_size;
   max_video_input_size_ = max_video_input_size;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
+  SB_LOG(INFO) << "Set surface_view to " << surface_view;
+  surface_view_ = surface_view;
 }
 
 }  // namespace starboard::shared::starboard::player::filter

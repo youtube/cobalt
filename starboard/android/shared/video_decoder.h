@@ -154,6 +154,9 @@ class VideoDecoder
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
+  // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
+  const void* surface_view_;
+
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
