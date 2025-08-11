@@ -189,7 +189,12 @@ test("cobalt_browsertests") {
 
   sources = [
     "content_main_runner_impl_browsertest.cc",
+    "frame_tree_browsertest.cc",
     "navigation_browsertest.cc",
+    "session_history_browsertest.cc",
+    "site_per_process_browsertest.cc",
+    "site_per_process_browsertest.h",
+    "web_contents_impl_browsertest.cc",
   ]
 
   if (is_android) {
@@ -210,6 +215,7 @@ test("cobalt_browsertests") {
     ":browsertest_support",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
+    "//build:chromeos_buildflags",
     "//cc/slim",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:content_browsertests_mojom",
