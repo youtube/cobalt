@@ -26,9 +26,9 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/linux/system_network_status.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
+#include "starboard/thread.h"
 
 namespace {
 
@@ -117,7 +117,7 @@ bool NetworkNotifier::Initialize() {
 
 void* NetworkNotifier::NotifierThreadEntry(void* context) {
   pthread_setname_np(pthread_self(), "NetworkNotifier");
-  starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLow);
+  SbThreadSetPriority(kSbThreadPriorityLow);
   auto* notifier = static_cast<NetworkNotifier*>(context);
   int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   bool is_online;

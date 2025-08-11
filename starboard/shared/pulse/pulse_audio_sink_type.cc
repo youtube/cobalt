@@ -28,7 +28,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/pulse/pulse_dynamic_load_dispatcher.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -553,7 +552,7 @@ void PulseAudioSinkType::StateCallback(pa_context* context, void* userdata) {
 void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "pulse_audio");
 
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);
   PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);

@@ -53,7 +53,7 @@ void CobaltRenderFrameObserver::DidMeaningfulLayout(
             SbSystemGetExtension(kCobaltExtensionGraphicsName));
     if (graphics_extension &&
         strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
-        graphics_extension->version >= 1) {
+        graphics_extension->version >= 6) {
       graphics_extension->ReportFullyDrawn();
     }
   }

@@ -47,7 +47,6 @@
 #include "mojo/public/cpp/bindings/service_factory.h"
 #include "mojo/public/cpp/system/buffer.h"
 #include "sandbox/policy/sandbox.h"
-#include "services/test/echo/echo_service.h"
 
 #if BUILDFLAG(IS_LINUX)
 #include "content/test/sandbox_status_service.h"
@@ -174,10 +173,6 @@ auto RunTestService(mojo::PendingReceiver<mojom::TestService> receiver) {
   return std::make_unique<TestUtilityServiceImpl>(std::move(receiver));
 }
 
-auto RunEchoService(mojo::PendingReceiver<echo::mojom::EchoService> receiver) {
-  return std::make_unique<echo::EchoService>(std::move(receiver));
-}
-
 }  // namespace
 
 ShellContentUtilityClient::ShellContentUtilityClient(bool is_browsertest) {
@@ -211,7 +206,6 @@ void ShellContentUtilityClient::ExposeInterfacesToBrowser(
 void ShellContentUtilityClient::RegisterIOThreadServices(
     mojo::ServiceFactory& services) {
   services.Add(RunTestService);
-  services.Add(RunEchoService);
 }
 
 }  // namespace content

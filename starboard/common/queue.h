@@ -22,13 +22,9 @@
 #define STARBOARD_COMMON_QUEUE_H_
 
 #include <algorithm>
+#include <condition_variable>
 #include <deque>
-
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/time.h"
-#include "starboard/export.h"
-#include "starboard/types.h"
+#include <mutex>
 
 namespace starboard {
 
@@ -41,12 +37,12 @@ namespace starboard {
 template <typename T>
 class Queue {
  public:
-  Queue() : condition_(mutex_), wake_(false) {}
+  Queue() : wake_(false) {}
   ~Queue() {}
 
   // Polls for an item, returning the default value of T if nothing is present.
   T Poll() {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     if (!queue_.empty()) {
       T entry = std::move(queue_.front());
       queue_.pop_front();
@@ -60,19 +56,18 @@ class Queue {
   // item, or the queue is woken up. If there are multiple waiters, this Queue
   // guarantees that only one waiter will receive any given queue item.
   T Get() {
-    ScopedLock lock(mutex_);
-    while (queue_.empty()) {
-      if (wake_) {
-        wake_ = false;
-        return T();
-      }
+    std::unique_lock lock(mutex_);
+    condition_.wait(lock, [this] { return !queue_.empty() || wake_; });
 
-      condition_.Wait();
+    if (!queue_.empty()) {
+      T entry = std::move(queue_.front());
+      queue_.pop_front();
+      return entry;
     }
 
-    T entry = queue_.front();
-    queue_.pop_front();
-    return entry;
+    // The queue is empty, so this must be a wake-up.
+    wake_ = false;
+    return T();
   }
 
   // Gets the item at the front of the queue, blocking until there is such an
@@ -80,39 +75,36 @@ class Queue {
   // is woken up. If there are multiple waiters, this Queue guarantees that only
   // one waiter will receive any given queue item.
   T GetTimed(int64_t duration) {
-    ScopedLock lock(mutex_);
-    int64_t start = CurrentMonotonicTime();
-    while (queue_.empty()) {
-      if (wake_) {
-        wake_ = false;
-        return T();
-      }
-
-      int64_t elapsed = CurrentMonotonicTime() - start;
-      if (elapsed >= duration) {
-        return T();
-      }
-      condition_.WaitTimed(duration - elapsed);
+    std::unique_lock lock(mutex_);
+    if (!condition_.wait_for(lock, std::chrono::microseconds(duration),
+                             [this] { return !queue_.empty() || wake_; })) {
+      return T();
     }
 
-    T entry = queue_.front();
-    queue_.pop_front();
-    return entry;
+    if (!queue_.empty()) {
+      T entry = std::move(queue_.front());
+      queue_.pop_front();
+      return entry;
+    }
+
+    // The queue is empty, so this must be a wake-up.
+    wake_ = false;
+    return T();
   }
 
   // Pushes |value| onto the back of the queue, waking up a single waiter, if
   // any exist.
   void Put(T value) {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     queue_.push_back(std::move(value));
-    condition_.Signal();
+    condition_.notify_one();
   }
 
   // Forces one waiter to wake up empty-handed.
   void Wake() {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     wake_ = true;
-    condition_.Signal();
+    condition_.notify_one();
   }
 
   // It is guaranteed that after this function returns there is no element in
@@ -124,24 +116,24 @@ class Queue {
   // this is properly coordinated with the free of resources.  Usually this can
   // be solved by calling Remove() on the same thread that calls Get().
   void Remove(T value) {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     queue_.erase(std::remove(queue_.begin(), queue_.end(), value),
                  queue_.end());
   }
 
   void Clear() {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     queue_.clear();
   }
 
   size_t Size() const {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     return queue_.size();
   }
 
  private:
-  Mutex mutex_;
-  ConditionVariable condition_;
+  mutable std::mutex mutex_;
+  std::condition_variable condition_;
   std::deque<T> queue_;
   bool wake_;
 };

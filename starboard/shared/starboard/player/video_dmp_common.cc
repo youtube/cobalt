@@ -195,8 +195,8 @@ void Read(const ReadCB& read_cb,
   Read(read_cb, reverse_byte_order, &video_stream_info->codec);
 
   Read(read_cb, reverse_byte_order, &video_sample_info->is_key_frame);
-  Read(read_cb, reverse_byte_order, &video_stream_info->frame_width);
-  Read(read_cb, reverse_byte_order, &video_stream_info->frame_height);
+  Read(read_cb, reverse_byte_order, &video_stream_info->frame_size.width);
+  Read(read_cb, reverse_byte_order, &video_stream_info->frame_size.height);
 
   auto& color_metadata = video_stream_info->color_metadata;
 
@@ -248,8 +248,8 @@ void Write(const WriteCB& write_cb,
 
   Write(write_cb, video_codec);
   Write(write_cb, video_sample_info.is_key_frame);
-  Write(write_cb, video_stream_info.frame_width);
-  Write(write_cb, video_stream_info.frame_height);
+  Write(write_cb, video_stream_info.frame_size.width);
+  Write(write_cb, video_stream_info.frame_size.height);
 
   const auto& color_metadata = video_stream_info.color_metadata;
 

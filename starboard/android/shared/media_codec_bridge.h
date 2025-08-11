@@ -100,12 +100,14 @@ struct FrameSize {
       SB_DCHECK_GE(crop_right, 0);
       SB_DCHECK_GE(crop_bottom, 0);
       SB_DCHECK(has_crop_values());
-      const auto size = display_size();
+      [[maybe_unused]] const Size size = display_size();
       SB_DCHECK_GE(size.width, 0);
       SB_DCHECK_GE(size.height, 0);
     }
   }
 };
+
+std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
 struct AudioOutputFormatResult {
   jint status;

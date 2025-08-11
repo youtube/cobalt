@@ -51,7 +51,7 @@ config("icu_config") {
     defines += [ "U_STATIC_IMPLEMENTATION" ]
   }
 
-  if (is_cobalt) {
+  if (is_cobalt_hermetic_build) {
     # We provide our own tzset() implementation that itself calls ICU.
     # To prevent re-entrant calls into tzset(), we must disable ICU's
     # internal call to tzset(). Defining U_HAVE_TZSET achieves this by
