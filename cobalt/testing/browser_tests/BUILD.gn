@@ -84,6 +84,8 @@ static_library("browsertest_support") {
     "content_test_launcher.cc",
     "resource_load_observer.cc",
     "resource_load_observer.h",
+    "webrtc_content_browsertest_base.cc",
+    "webrtc_content_browsertest_base.h",
   ]
 
   public_deps = [
@@ -199,6 +201,7 @@ test("cobalt_browsertests") {
     "site_per_process_browsertest.cc",
     "site_per_process_browsertest.h",
     "web_contents_impl_browsertest.cc",
+    "webrtc_getusermedia_browsertest.cc",
   ]
 
   if (is_android) {
