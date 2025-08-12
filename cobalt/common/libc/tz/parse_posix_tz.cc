@@ -31,6 +31,14 @@ namespace tz {
 
 namespace {
 
+bool IsValidDstContinuation(const std::string_view& view) {
+  if (view.empty()) {
+    return true;
+  }
+  char c = view.front();
+  return std::isdigit(c) || c == '+' || c == '-' || c == ',';
+}
+
 // Number of seconds in an hour.
 constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
@@ -246,8 +254,8 @@ std::optional<std::string> ExtractName(std::string_view& timezone_view) {
     name = std::string(timezone_view.substr(1, end_quote - 1));
     timezone_view.remove_prefix(end_quote + 1);
   } else {
-    auto it = std::find_if_not(timezone_view.begin(), timezone_view.end(),
-                               [](char c) { return std::isalpha(c); });
+    auto it = std::find_if(timezone_view.begin(), timezone_view.end(),
+                           [](char c) { return !std::isalpha(c); });
     size_t name_end = std::distance(timezone_view.begin(), it);
 
     if (name_end == 0) {
@@ -344,6 +352,9 @@ bool ParseDst(std::string_view& timezone_view, TimezoneData& result) {
   }
 
   if (dst_status == ZoneParseStatus::kSuccess) {
+    if (!IsValidDstContinuation(timezone_view)) {
+      return true;
+    }
     result.dst = dst_name;
     result.dst_offset = dst_offset.value_or(result.std_offset - kSecondsInHour);
   }
@@ -351,9 +362,6 @@ bool ParseDst(std::string_view& timezone_view, TimezoneData& result) {
   // After parsing DST, if the remaining string is not empty and doesn't
   // start with a comma, it's a malformed entry.
   if (!timezone_view.empty() && timezone_view.front() != ',') {
-    // The DST part was malformed. Discard it and reset the string view.
-    result.dst.reset();
-    result.dst_offset.reset();
     return false;
   }
   return true;
