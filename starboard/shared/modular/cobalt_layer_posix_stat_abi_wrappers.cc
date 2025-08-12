@@ -39,4 +39,10 @@ int __abi_wrap_chmod(const char* path, mode_t mode);
 int chmod(const char* path, mode_t mode) {
   return __abi_wrap_chmod(path, mode);
 }
+
+int __abi_wrap_fchmod(int fd, mode_t mode);
+
+int fchmod(int fd, mode_t mode) {
+  return __abi_wrap_fchmod(fd, mode);
+}
 }
