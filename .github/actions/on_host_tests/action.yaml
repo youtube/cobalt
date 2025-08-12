@@ -92,7 +92,8 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
-          if [ "${test_filter}" == "-*" ] || [ "${test_filter}" == "-" ]; then
+          # Use [[ ... ]] which is safer for string comparisons with special characters.
+          if [[ "${test_filter}" == "-*" || "${test_filter}" == "-" ]]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
