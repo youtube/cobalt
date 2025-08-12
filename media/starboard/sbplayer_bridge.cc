@@ -817,7 +817,6 @@ void SbPlayerBridge::CreatePlayer() {
     player_set_video_surface_view_extension
         ->SetVideoSurfaceViewForCurrentThread(surface_view_);
   }
-
 #endif  // BUILDFLAG(IS_ANDROID)
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
