@@ -565,6 +565,9 @@ void ConfigurePartitions(
   auto* current_root = g_root.Get();
   auto* current_aligned_root = g_aligned_root.Get();
 
+  LOG(INFO) << __func__ << "force-set use_alternate_bucket_distribution to kDenser";
+  use_alternate_bucket_distribution = AlternateBucketDistribution::kDenser;
+
   if (!split_main_partition) {
     switch (use_alternate_bucket_distribution) {
       case AlternateBucketDistribution::kDefault:

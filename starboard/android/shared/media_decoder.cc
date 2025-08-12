@@ -17,6 +17,7 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -747,6 +748,9 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
+
+  SB_LOG(INFO) << "Proactively reclaiming memory before output format change.";
+  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
 
   FrameSize frame_size = media_codec_bridge_->GetOutputSize();
   SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_size();
