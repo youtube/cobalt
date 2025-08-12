@@ -108,6 +108,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'epoll_ctl',
     'epoll_wait',
     'eventfd',
+    'fchmod',
     'fcntl',
     'free',
     'freeaddrinfo',
