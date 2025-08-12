@@ -22,6 +22,7 @@ import android.media.AudioManager;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
+import androidx.annotation.GuardedBy;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
@@ -41,6 +42,8 @@ public class AudioTrackBridge {
 
   private AudioTrack mAudioTrack;
   private AudioTimestamp mAudioTimestamp = new AudioTimestamp();
+  private final Object mPositionLock = new Object();
+  @GuardedBy("mPositionLock")
   private long mMaxFramePositionSoFar = 0;
 
   private final boolean mTunnelModeEnabled;
@@ -204,7 +207,7 @@ public class AudioTrackBridge {
         AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType));
   }
 
-  public Boolean isAudioTrackValid() {
+  public boolean isAudioTrackValid() {
     return mAudioTrack != null;
   }
 
@@ -279,7 +282,7 @@ public class AudioTrackBridge {
     // switch latency for passthrough playbacks.
     mAvSyncHeader = null;
     mAvSyncPacketBytesRemaining = 0;
-    synchronized (this) {
+    synchronized (mPositionLock) {
       mMaxFramePositionSoFar = 0;
     }
   }
@@ -380,7 +383,7 @@ public class AudioTrackBridge {
     }
     // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
-    synchronized (this) {
+    synchronized (mPositionLock) {
       if (mAudioTrack.getTimestamp(mAudioTimestamp)) {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
@@ -432,3 +435,4 @@ public class AudioTrackBridge {
     return mAudioTrack.getStartThresholdInFrames();
   }
 }
+
