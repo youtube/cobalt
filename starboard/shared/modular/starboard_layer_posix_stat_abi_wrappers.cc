@@ -131,3 +131,7 @@ int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
 int __abi_wrap_chmod(const char* path, musl_mode_t mode) {
   return chmod(path, musl_mode_to_platform_mode(mode));
 }
+
+int __abi_wrap_fchmod(int fd, musl_mode_t mode) {
+  return fchmod(fd, musl_mode_to_platform_mode(mode));
+}
