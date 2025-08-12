@@ -26,22 +26,23 @@
 #include <limits>
 #include <vector>
 
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard::nplb {
 namespace {
 
 TEST(PosixReallocTest, NullPtrIsLikeMalloc) {
-  void* mem = realloc(NULL, 128);
+  void* mem = realloc(NULL, kSbMemoryPageSize);
   ASSERT_NE(mem, nullptr);
   // Verify we can write to the allocated memory.
-  memset(mem, 0xAB, 128);
+  memset(mem, 0xAB, kSbMemoryPageSize);
   free(mem);
 }
 
 TEST(PosixReallocTest, GrowsAllocationAndPreservesData) {
-  const int kInitialSize = 128;
-  const int kNewSize = 256;
+  const int kInitialSize = kSbMemoryPageSize * 2;
+  const int kNewSize = kSbMemoryPageSize * 3;
   char* mem = static_cast<char*>(malloc(kInitialSize));
   ASSERT_NE(mem, nullptr);
 
@@ -65,8 +66,8 @@ TEST(PosixReallocTest, GrowsAllocationAndPreservesData) {
 }
 
 TEST(PosixReallocTest, ShrinksAllocationAndPreservesData) {
-  const int kInitialSize = 256;
-  const int kNewSize = 128;
+  const int kInitialSize = kSbMemoryPageSize * 3;
+  const int kNewSize = kSbMemoryPageSize * 2;
   char* mem = static_cast<char*>(malloc(kInitialSize));
   ASSERT_NE(mem, nullptr);
 
@@ -91,7 +92,7 @@ TEST(PosixReallocTest, ShrinksAllocationAndPreservesData) {
   2. Return a valid pointer that can be passed to free().
   This test safely handles both possibilities. */
 TEST(PosixReallocTest, HandlesZeroSize) {
-  void* mem = malloc(128);
+  void* mem = malloc(kSbMemoryPageSize);
   ASSERT_NE(mem, nullptr);
 
   void* new_mem = realloc(mem, 0);
@@ -100,6 +101,31 @@ TEST(PosixReallocTest, HandlesZeroSize) {
     free(new_mem);
   }
   // If new_mem is nullptr, the original memory 'mem' was freed by realloc.
+}
+
+TEST(PosixReallocTest, GrowsAcrossPageBoundary) {
+  const int kInitialSize = kSbMemoryPageSize - 16;
+  const int kNewSize = kSbMemoryPageSize + 16;
+  char* mem = static_cast<char*>(malloc(kInitialSize));
+  ASSERT_NE(mem, nullptr);
+
+  // Fill the initial block with data.
+  for (int i = 0; i < kInitialSize; ++i) {
+    mem[i] = static_cast<char>(i);
+  }
+
+  char* new_mem = static_cast<char*>(realloc(mem, kNewSize));
+  ASSERT_NE(new_mem, nullptr);
+
+  // Check that the original data is preserved.
+  for (int i = 0; i < kInitialSize; ++i) {
+    EXPECT_EQ(new_mem[i], static_cast<char>(i));
+  }
+
+  // Verify we can write to the newly allocated part.
+  memset(new_mem + kInitialSize, 0, kNewSize - kInitialSize);
+
+  free(new_mem);
 }
 
 }  // namespace
