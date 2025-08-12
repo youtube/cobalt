@@ -61,7 +61,9 @@ std::string FormatNumber(size_t n) {
 
 }  // namespace
 
-constexpr int kEnoughSize = 250 * 1024 * 1024;
+// Set to allocate the max memory in advance
+// starboard/android/shared/media_get_video_buffer_budget.cc
+constexpr int kEnoughSize = 200 * 1024 * 1024;
 
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
