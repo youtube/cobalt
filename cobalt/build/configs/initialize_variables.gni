@@ -30,6 +30,15 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = target_os != "android"
+<<<<<<< HEAD
+=======
+
+  use_evergreen = false
+
+  # TODO(b/428999732, b/437999182): Cobalt shell was started as a minial test shell.
+  # We use this param to define a MACRO that trims off all the test logics from the Cobalt shell.
+  run_browser_tests = false
+>>>>>>> 773d232cdef (Define browsertests preprocessor (#6764))
 }
 
 assert(!(is_starboard && is_native_target_build),
