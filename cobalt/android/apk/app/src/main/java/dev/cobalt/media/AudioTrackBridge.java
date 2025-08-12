@@ -435,4 +435,3 @@ public class AudioTrackBridge {
     return mAudioTrack.getStartThresholdInFrames();
   }
 }
-
