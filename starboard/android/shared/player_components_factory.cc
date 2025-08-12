@@ -66,16 +66,6 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 
-// By default, Cobalt recreates MediaCodec when Reset() during Seek().
-// Set the following variable to true to force it Flush() MediaCodec
-// during Seek().
-constexpr bool kForceFlushDecoderDuringReset = false;
-
-// By default, Cobalt teardowns AudioDecoder during Reset().
-// Set the following variable to true to force it reset audio decoder
-// during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
-constexpr bool kForceResetAudioDecoder = false;
-
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to > 0 to force it to
 // wait during Reset()/Flush().
@@ -230,22 +220,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       }
     }
 
-    bool enable_flush_during_seek = false;
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
-        !creation_parameters.video_mime().empty()) {
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
-    }
-
-    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
-      SB_LOG(INFO)
-          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-          << " audio passthrough decoder during Reset().";
-      enable_flush_during_seek = true;
-    }
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
+    SB_LOG_IF(INFO, enable_flush_during_seek)
+        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+        << " audio passthrough decoder during Reset().";
 
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
@@ -323,8 +302,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     MimeType video_mime_type(video_mime);
     if (!video_mime.empty()) {
       if (!video_mime_type.is_valid() ||
-          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+          !video_mime_type.ValidateBoolParameter("tunnelmode")) {
         *error_message =
             "Invalid video MIME: '" + std::string(video_mime) + "'";
         return false;
@@ -390,36 +368,17 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     bool enable_reset_audio_decoder =
-        video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
-    SB_LOG(INFO) << "Reset AudioDecoder during Reset(): "
-                 << (enable_reset_audio_decoder ? "enabled. " : "disabled. ")
-                 << "Video mime parameter \"enableresetaudiodecoder\" value: "
-                 << video_mime_type.GetParamStringValue(
-                        "enableresetaudiodecoder", "<not provided>")
-                 << ".";
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceResetAudioDecoder);
+    SB_LOG_IF(INFO, enable_reset_audio_decoder)
+        << "`kForceResetAudioDecoder` is set to true, force resetting"
+        << " audio decoder during Reset().";
 
-    if (kForceResetAudioDecoder && !enable_reset_audio_decoder) {
-      SB_LOG(INFO)
-          << "`kForceResetAudioDecoder` is set to true, force resetting"
-          << " audio decoder during Reset().";
-      enable_reset_audio_decoder = true;
-    }
-
-    bool enable_flush_during_seek =
-        video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-    SB_LOG(INFO) << "Flush MediaCodec during Reset(): "
-                 << (enable_flush_during_seek ? "enabled. " : "disabled. ")
-                 << "Video mime parameter \"enableflushduringseek\" value: "
-                 << video_mime_type.GetParamStringValue("enableflushduringseek",
-                                                        "<not provided>")
-                 << ".";
-
-    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
-      SB_LOG(INFO)
-          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-          << " audio decoder during Reset().";
-      enable_flush_during_seek = true;
-    }
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
+    SB_LOG_IF(INFO, enable_flush_during_seek)
+        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+        << " audio decoder during Reset().";
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       SB_DCHECK(audio_decoder);
@@ -536,7 +495,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek = false;
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
@@ -553,21 +513,15 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                 /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
       if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
         force_reset_surface =
             video_mime_type.GetParamBoolValue("forceresetsurface", true);
       }
     }
-    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
-      SB_LOG(INFO)
-          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-          << " video decoder during Reset().";
-      enable_flush_during_seek = true;
-    }
+
+    SB_LOG_IF(INFO, enable_flush_during_seek)
+        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+        << " video decoder during Reset().";
     if (kResetDelayUsecOverride > 0) {
       reset_delay_usec = kResetDelayUsecOverride;
       SB_LOG(INFO) << "`kResetDelayUsecOverride` is set to > 0, force a delay"
