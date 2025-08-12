@@ -41,11 +41,7 @@
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
-
-// #if BUILDFLAG(IS_ANDROID)
-#include "media/base/media_switches.h"
 #include "starboard/extension/player_set_video_surface_view.h"
-// #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 
@@ -227,11 +223,8 @@ SbPlayerBridge::SbPlayerBridge(
     DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
-    int max_video_input_size
-    // #if BUILDFLAG(IS_ANDROID)
-    ,
+    int max_video_input_size,
     void* surface_view
-// #endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
@@ -265,12 +258,8 @@ SbPlayerBridge::SbPlayerBridge(
 #if SB_HAS(PLAYER_WITH_URL)
       is_url_based_(false),
 #endif  // SB_HAS(PLAYER_WITH_URL
-      max_video_capabilities_(max_video_capabilities)
-      // #if BUILDFLAG(IS_ANDROID)
-      ,
-      surface_view_(surface_view)
-// #endif  // BUILDFLAG(IS_ANDROID)
-{
+      max_video_capabilities_(max_video_capabilities),
+      surface_view_(surface_view) {
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -807,7 +796,6 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
-        // #if BUILDFLAG(IS_ANDROID)
   const StarboardExtensionPlayerSetVideoSurfaceViewApi*
       player_set_video_surface_view_extension =
           static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
@@ -820,7 +808,6 @@ void SbPlayerBridge::CreatePlayer() {
     player_set_video_surface_view_extension
         ->SetVideoSurfaceViewForCurrentThread(surface_view_);
   }
-  // #endif  // BUILDFLAG(IS_ANDROID)
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
