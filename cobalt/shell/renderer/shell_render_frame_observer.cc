@@ -36,8 +36,8 @@ void ShellRenderFrameObserver::OnDestruct() {
 void ShellRenderFrameObserver::DidClearWindowObject() {
   auto& cmd = *base::CommandLine::ForCurrentProcess();
   if (cmd.HasSwitch(switches::kExposeInternalsForTesting)) {
-    blink::WebTestingSupport::InjectInternalsObject(
-        render_frame()->GetWebFrame());
+    // TODO:(b/428999732) This requires a test-only build dependency and cannot
+    // be called from a production target.
   }
 }
 
