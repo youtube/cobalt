@@ -42,7 +42,7 @@ public class AudioTrackBridge {
 
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
-  private Object positionLock = new Object();
+  private final Object positionLock = new Object();
   @GuardedBy("positionLock")
   private long maxFramePositionSoFar = 0;
 
