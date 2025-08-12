@@ -693,9 +693,14 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   jobject j_output_surface = NULL;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
-      j_output_surface = static_cast<jobject>(surface_view_);
-      if (j_output_surface) {
+      if (surface_view_) {
+        j_output_surface = static_cast<jobject>(surface_view_);
         owns_video_surface_ = true;
+      } else {
+        j_output_surface = AcquireVideoSurface();
+        if (j_output_surface) {
+          owns_video_surface_ = true;
+        }
       }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
