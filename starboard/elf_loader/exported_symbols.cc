@@ -271,6 +271,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rand);
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);

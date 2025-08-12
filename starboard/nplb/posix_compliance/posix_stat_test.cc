@@ -58,7 +58,7 @@ class PosixStatTest : public ::testing::Test {
 
   void TearDown() override {
     if (!test_dir_.empty()) {
-      RemoveDirectoryRecursively(test_dir_.c_str());
+      RemoveFileOrDirectoryRecursively(test_dir_.c_str());
     }
   }
 
