@@ -4583,6 +4583,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   ASSERT_EQ(url_a, web_contents->GetLastCommittedURL());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_FrameCount) {
   ASSERT_TRUE(embedded_test_server()->Start());
   base::HistogramTester histogram_tester;
