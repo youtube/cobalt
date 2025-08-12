@@ -35,14 +35,9 @@ namespace time {
 
 IcuTimeSupport* IcuTimeSupport::GetInstance() {
   static NoDestructor<IcuTimeSupport> instance;
+  cobalt::common::icu_init::EnsureInitialized();
   return instance.get();
 }
-
-IcuTimeSupport::IcuTimeSupport() {
-  cobalt::common::icu_init::EnsureInitialized();
-}
-
-IcuTimeSupport::~IcuTimeSupport() = default;
 
 void IcuTimeSupport::GetPosixTimezoneGlobals(long& out_timezone,
                                              int& out_daylight,

@@ -15,7 +15,6 @@
 #ifndef COBALT_COMMON_LIBC_TIME_ICU_TIME_SUPPORT_H_
 #define COBALT_COMMON_LIBC_TIME_ICU_TIME_SUPPORT_H_
 
-#include <time.h>
 #include "cobalt/common/libc/no_destructor.h"
 #include "cobalt/common/libc/time/time_zone_state.h"
 
@@ -27,16 +26,20 @@ namespace time {
 // Singleton class that provides all time conversion and timezone services.
 class IcuTimeSupport {
  public:
-  IcuTimeSupport();
-  ~IcuTimeSupport();
   static IcuTimeSupport* GetInstance();
 
-  // Provides the global variables needed by the C standard library.
+  ~IcuTimeSupport();
+
   void GetPosixTimezoneGlobals(long& out_timezone,
                                int& out_daylight,
                                char** out_tzname);
 
  private:
+  friend class cobalt::common::libc::NoDestructor<IcuTimeSupport>;
+  IcuTimeSupport() = default;
+  IcuTimeSupport(const IcuTimeSupport&) = delete;
+  void operator=(const IcuTimeSupport&) = delete;
+
   TimeZoneState state_;
 };
 
