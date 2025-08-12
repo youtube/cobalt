@@ -94,6 +94,8 @@ class MODULES_EXPORT H5vccMetrics final
 
   void CleanupPromise(ScriptPromiseResolver* resolver);
 
+  bool HasValidExecutionContext();
+
   HeapMojoRemote<h5vcc_metrics::mojom::blink::H5vccMetrics>
       remote_h5vcc_metrics_;
   HeapMojoReceiver<h5vcc_metrics::mojom::blink::MetricsListener, H5vccMetrics>
