@@ -66,22 +66,30 @@ class PosixMprotectTest : public ::testing::Test {
 TEST_F(PosixMprotectTest, SuccessSetsProtNone) {
   int result = mprotect(mapped_memory_, kSbMemoryPageSize, PROT_NONE);
   EXPECT_EQ(result, 0) << "mprotect failed: " << strerror(errno);
+  // Further access is tested in the death tests.
 }
 
 TEST_F(PosixMprotectTest, SuccessSetsProtRead) {
   int result = mprotect(mapped_memory_, kSbMemoryPageSize, PROT_READ);
   EXPECT_EQ(result, 0) << "mprotect failed: " << strerror(errno);
+  // Verify that we can read from the memory.
+  volatile char c = static_cast<char*>(mapped_memory_)[0];
+  (void)c;
 }
 
 TEST_F(PosixMprotectTest, SuccessSetsProtWrite) {
   int result = mprotect(mapped_memory_, kSbMemoryPageSize, PROT_WRITE);
   EXPECT_EQ(result, 0) << "mprotect failed: " << strerror(errno);
+  *static_cast<volatile char*>(mapped_memory_) = 'a';
 }
 
 TEST_F(PosixMprotectTest, SuccessSetsProtReadWrite) {
   int result =
       mprotect(mapped_memory_, kSbMemoryPageSize, PROT_READ | PROT_WRITE);
   EXPECT_EQ(result, 0) << "mprotect failed: " << strerror(errno);
+  *static_cast<volatile char*>(mapped_memory_) = 'b';
+  volatile char c = static_cast<char*>(mapped_memory_)[0];
+  EXPECT_EQ(c, 'b');
 }
 
 TEST_F(PosixMprotectTest, FailsWithUnmappedAddress) {
@@ -124,6 +132,26 @@ TEST_F(PosixMprotectTest, MayFailWithUnalignedAddress) {
     EXPECT_EQ(errno, EINVAL);
   }
 }
+#if GTEST_HAS_DEATH_TEST
+
+class PosixMprotectDeathTest : public PosixMprotectTest {};
+
+TEST_F(PosixMprotectDeathTest, WriteToReadOnlyMemoryCausesSigsegv) {
+  ASSERT_EQ(mprotect(mapped_memory_, kSbMemoryPageSize, PROT_READ), 0);
+  EXPECT_DEATH((void)(*static_cast<volatile char*>(mapped_memory_) = 'x'), "");
+}
+
+TEST_F(PosixMprotectDeathTest, ReadFromNoAccessMemoryCausesSigsegv) {
+  ASSERT_EQ(mprotect(mapped_memory_, kSbMemoryPageSize, PROT_NONE), 0);
+  EXPECT_DEATH((void)static_cast<volatile char*>(mapped_memory_)[0], "");
+}
+
+TEST_F(PosixMprotectDeathTest, WriteToNoAccessMemoryCausesSigsegv) {
+  ASSERT_EQ(mprotect(mapped_memory_, kSbMemoryPageSize, PROT_NONE), 0);
+  EXPECT_DEATH((void)(*static_cast<volatile char*>(mapped_memory_) = 'y'), "");
+}
+
+#endif  // GTEST_HAS_DEATH_TEST
 
 }  // namespace
 }  // namespace starboard::nplb
