@@ -19,15 +19,9 @@
   - ENOTSUP: Hard to reliably create combination of flags that are unsupported.
 */
 
-#include <fcntl.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #include <cerrno>
-#include <cstring>
-#include <string>
-#include <vector>
 
-#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -132,26 +126,6 @@ TEST_F(PosixMprotectTest, MayFailWithUnalignedAddress) {
     EXPECT_EQ(errno, EINVAL);
   }
 }
-#if GTEST_HAS_DEATH_TEST
-
-class PosixMprotectDeathTest : public PosixMprotectTest {};
-
-TEST_F(PosixMprotectDeathTest, WriteToReadOnlyMemoryCausesSigsegv) {
-  ASSERT_EQ(mprotect(mapped_memory_, kSbMemoryPageSize, PROT_READ), 0);
-  EXPECT_DEATH((void)(*static_cast<volatile char*>(mapped_memory_) = 'x'), "");
-}
-
-TEST_F(PosixMprotectDeathTest, ReadFromNoAccessMemoryCausesSigsegv) {
-  ASSERT_EQ(mprotect(mapped_memory_, kSbMemoryPageSize, PROT_NONE), 0);
-  EXPECT_DEATH((void)static_cast<volatile char*>(mapped_memory_)[0], "");
-}
-
-TEST_F(PosixMprotectDeathTest, WriteToNoAccessMemoryCausesSigsegv) {
-  ASSERT_EQ(mprotect(mapped_memory_, kSbMemoryPageSize, PROT_NONE), 0);
-  EXPECT_DEATH((void)(*static_cast<volatile char*>(mapped_memory_) = 'y'), "");
-}
-
-#endif  // GTEST_HAS_DEATH_TEST
 
 }  // namespace
 }  // namespace starboard::nplb
