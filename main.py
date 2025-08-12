@@ -2,32 +2,9 @@ import argparse
 import git
 import glob
 import json
-import re
-import sys
 import os
 import shutil
 import subprocess
-
-import common
-
-if os.path.isdir('./cobalt/tools'):
-    sys.path.append(os.path.abspath('./cobalt/tools'))
-    import convert_dep_to_squashed
-else:
-    raise ModuleNotFoundError('cobalt/tools is not found')
-
-COBALT_IMPORTED_MODULES = [
-    'net/third_party/quiche/src',
-    'third_party/angle',
-    'third_party/boringssl/src',
-    'third_party/cpuinfo/src',
-    'third_party/googletest/src',
-    'third_party/icu',
-    'third_party/libc++/src',
-    'third_party/perfetto',
-    'third_party/webrtc',
-    'v8',
-]
 
 
 def find_deepest_common_dir(paths):
@@ -71,41 +48,6 @@ def find_deepest_common_dir(paths):
                 break
 
         return '/'.join(common_path) if common_path else ''
-
-
-def import_subtree(repo, deps_file, module, git_source, git_rev):
-    start, end = common.get_field_def_pos(deps_file, 'src/' + module)
-    print('Commenting out the DEPS files for module %s' % module)
-    with open(deps_file, 'r+', encoding='utf-8') as f:
-        lines = f.readlines()
-        if module == 'third_party/libc++/src':
-            end = end + 2
-        for i in range(start, end):
-            lines[i] = '#' + lines[i]
-        lines.insert(start, '# Cobalt: imported\n')
-        # glmark2 needs to be at 6edcf02205fd1e8979dc3f3964257a81959b80c8 for m138
-        if module == 'third_party/angle':
-            lines.insert(end + 1,
-"""# Cobalt: Dependencies from angle's DEPS file.
-  'src/third_party/angle/third_party/rapidjson/src':
-    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
-  'src/third_party/angle/third_party/glmark2/src':
-    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + 'ca8de51fedb70bace5351c6b002eb952c747e889',
-""")
-        f.seek(0)
-        f.writelines(lines)
-    module_dir = os.path.join(repo.working_dir, module)
-    repo.index.remove([module_dir], working_tree=True)
-    repo.index.add([deps_file])
-    repo.index.commit('Roll up for module %s to rev %s.' %
-                        (module, git_rev))
-    repo.git.reset('--hard')
-    repo.git.clean('-fdx')
-    print('Attempting to add the subtree %s.' % module)
-    repo.git.subtree('add', '--squash', '--prefix', module,
-                        git_source, git_rev)
-    repo.git.reset('--hard')
-    repo.git.clean('-fdx')
 
 
 def linearize_history(repo, args):
@@ -495,13 +437,10 @@ def main():
                                type=str,
                                default=None,
                                help='The commit SHA or ref to resume from.')
-    rebase_parser.add_argument(
-        '--deps-file',
-        type=str,
-        default='',
-        help=
-        'Relative path to the DEPS file to parse. If provided will attempt to update the DEPS file via merge commit.'
-    )
+    rebase_parser.add_argument('--last-successful-commit-index',
+                               type=int,
+                               default='1',
+                               help='The commit index to resume from.')
     args = parser.parse_args()
 
     repo = git.Repo(args.repo_path)
@@ -536,31 +475,8 @@ def main():
             json.dump(commit_data, f, indent=2)
         print(f'Extracted {len(commit_data)} commits to {args.output_file}')
     elif args.command == 'rebase':
-        modules_to_update = {}
-        print('Checking out rebase_branch branch: %s...' % args.rebase_branch)
+        print('Checking out rebase_branch: %s...' % args.rebase_branch)
         repo.git.checkout(args.rebase_branch)
-
-        if args.deps_file:
-            deps_file = os.path.join(repo.working_dir, args.deps_file)
-            for module in COBALT_IMPORTED_MODULES:
-                try:
-                    modules_to_update[
-                        module] = convert_dep_to_squashed.parse_depfile(
-                            deps_file, module)
-                except ValueError:
-                    print(
-                        'Missing module %s in %s. Assuming module no longer used.'
-                        % (module, deps_file))
-                    continue
-                except RuntimeError as e:
-                    print('Error while locating module %s in %s: %s' %
-                          (module, deps_file, e))
-                    continue
-            for module in modules_to_update.keys():
-                git_source, git_rev = modules_to_update[module]
-                import_subtree(repo, deps_file, module, git_source, git_rev)
-            return
-
         with open(args.commits_file, 'r', encoding='utf-8') as f:
             commits = json.load(f)
         last_successful_commit = None
@@ -569,6 +485,9 @@ def main():
             if resume:
                 if commit['hexsha'] == args.last_successful_commit_ref:
                     resume = False
+                print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
+                continue
+            if i < args.last_successful_commit_index:
                 print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
                 continue
 
