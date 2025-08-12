@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/common/libc/time/time_zone_state.h"
+
 #include <gtest/gtest.h>
 #include <stdlib.h>
 #include <time.h>
@@ -21,21 +23,12 @@
 #include <string>
 #include <vector>
 
-#include "build/build_config.h"
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
 #include "unicode/simpletz.h"
 #include "unicode/timezone.h"
 #include "unicode/unistr.h"
 #include "unicode/utypes.h"
-
-// The tzset() implementation in this folder initializes the ICU default
-// timezone from the configured timezone name, so that it can be relied on for
-// querying the local time. This file contains the corresponding tests.
-
-// Note: The required POSIX functionality for tzset() which initializes
-// the globals tzname, timezone, and daylight is not tested here. That
-// functionality is tested in starboard/nplb/posix_compliance.
 
 namespace cobalt {
 namespace common {
@@ -93,89 +86,35 @@ std::string GetTestName(
     const ::testing::TestParamInfo<TimezoneTestData>& info) {
   return info.param.test_name;
 }
-
 }  // namespace
 
-// Basic tests.
-TEST(TzsetSimpleTest, SunnyDay) {
-  tzset();
-  ASSERT_NE(tzname[0], nullptr);
-  EXPECT_STRNE(tzname[0], "");
-}
-
-// TODO(b/436371274): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_EnvironmentChange DISABLED_EnvironmentChange
-#else
-#define MAYBE_EnvironmentChange EnvironmentChange
-#endif
-TEST(TzsetSimpleTest, MAYBE_EnvironmentChange) {
-  const char* original_tz = getenv("TZ");
-
-  setenv("TZ", "UTC", 1);
-  tzset();
-  EXPECT_EQ(timezone, 0);
-  EXPECT_EQ(daylight, 0);
-  ASSERT_NE(tzname[0], nullptr);
-  EXPECT_STREQ(tzname[0], "UTC");
-  ASSERT_NE(tzname[1], nullptr);
-  EXPECT_STREQ(tzname[1], "UTC");
-
-  setenv("TZ", "US/Pacific", 1);
-  tzset();
-  EXPECT_EQ(timezone, 8 * 3600);
-  EXPECT_EQ(daylight, 1);
-  ASSERT_NE(tzname[0], nullptr);
-  EXPECT_STREQ(tzname[0], "PST");
-  ASSERT_NE(tzname[1], nullptr);
-  EXPECT_STREQ(tzname[1], "PDT");
-
-  if (original_tz) {
-    setenv("TZ", original_tz, 1);
-  } else {
-    unsetenv("TZ");
-  }
-  tzset();
-}
-
-// A base test fixture to manage the TZ environment variable and ICU's default
-// timezone state. This ensures tests are isolated from each other.
-class TzsetTest : public ::testing::Test {
+class TimeZoneStateTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    original_icu_tz_.reset(icu::TimeZone::createDefault()->clone());
     const char* current_tz_env = getenv("TZ");
     if (current_tz_env != nullptr) {
-      original_tz_value_ = current_tz_env;  // Store the original TZ string
+      original_tz_value_ = current_tz_env;
     }
     unsetenv("TZ");
   }
 
   void TearDown() override {
-    if (original_icu_tz_) {
-      icu::TimeZone::setDefault(*original_icu_tz_);
-    }
     if (original_tz_value_) {
       setenv("TZ", original_tz_value_->c_str(), 1);
     } else {
       unsetenv("TZ");
     }
-    tzset();
   }
 
-  void SetTimezoneAndCallTzset(const char* tz) {
-    setenv("TZ", tz, 1);
-    tzset();
-  }
+  void SetTimezone(const char* tz) { setenv("TZ", tz, 1); }
 
-  std::unique_ptr<icu::TimeZone> original_icu_tz_;
   std::optional<std::string> original_tz_value_;
 };
 
-class Timezone : public TzsetTest,
-                 public ::testing::WithParamInterface<TimezoneTestData> {
+class TimezoneStateParamTest
+    : public TimeZoneStateTest,
+      public ::testing::WithParamInterface<TimezoneTestData> {
  protected:
-  // Verify the timezone offset at a specific date.
   void VerifyDateOffset(const icu::TimeZone& tz,
                         const YearMonthDay& date,
                         int32_t expected_offset,
@@ -183,8 +122,6 @@ class Timezone : public TzsetTest,
     UErrorCode status = U_ZERO_ERROR;
     icu::GregorianCalendar calendar(tz, status);
     ASSERT_TRUE(U_SUCCESS(status));
-    // Set the time to noon to avoid ambiguity around the default 2 AM
-    // transition time.
     calendar.set(date.year, date.month, date.day, 12, 0, 0);
     int32_t raw_offset, dst_offset;
     tz.getOffset(calendar.getTime(status), false, raw_offset, dst_offset,
@@ -195,8 +132,6 @@ class Timezone : public TzsetTest,
         << date.year << "/" << date.month + 1 << "/" << date.day;
   }
 
-  // Calculates the day before a given daylight savings transition
-  // date.
   YearMonthDay GetDayBefore(const icu::TimeZone& tz,
                             const YearMonthDay& transition_date) {
     UErrorCode status = U_ZERO_ERROR;
@@ -321,6 +256,60 @@ class Timezone : public TzsetTest,
        .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 27},
        .dst_start = std::make_optional<YearMonthDay>(
            {.year = kTestyear, .month = UCAL_APRIL, .day = 28})},
+      {.test_name = "AmericaAsuncion",
+       .tz = "America/Asuncion",
+       .id = "America/Asuncion",
+       .offset = -3 * kSecondsInHour,
+       .std_start = {.year = kTestyear, .month = UCAL_JANUARY, .day = 1}},
+      {.test_name = "AmericaMontreal",
+       .tz = "America/Montreal",
+       .id = "America/Montreal",
+       .offset = -5 * kSecondsInHour,
+       .std_start = {.year = kTestyear, .month = UCAL_NOVEMBER, .day = 5},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 12})},
+      {.test_name = "AsiaFamagusta",
+       .tz = "Asia/Famagusta",
+       .id = "Asia/Famagusta",
+       .offset = 2 * kSecondsInHour,
+       .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 29},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 26})},
+      {.test_name = "EuropeDublin",
+       .tz = "Europe/Dublin",
+       .id = "Europe/Dublin",
+       .offset = 0,
+       .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 29},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 26})},
+      {.test_name = "EuropeLondon",
+       .tz = "Europe/London",
+       .id = "Europe/London",
+       .offset = 0,
+       .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 29},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 26})},
+      {.test_name = "CET",
+       .tz = "CET",
+       .id = "CET",
+       .offset = 1 * kSecondsInHour,
+       .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 29},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 26})},
+      {.test_name = "EET",
+       .tz = "EET",
+       .id = "EET",
+       .offset = 2 * kSecondsInHour,
+       .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 29},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 26})},
+      {.test_name = "WET",
+       .tz = "WET",
+       .id = "WET",
+       .offset = 0,
+       .std_start = {.year = kTestyear, .month = UCAL_OCTOBER, .day = 29},
+       .dst_start = std::make_optional<YearMonthDay>(
+           {.year = kTestyear, .month = UCAL_MARCH, .day = 26})},
 
       // --- Non-IANA POSIX Test Cases ---
       {.test_name = "PosixFixedOffsetNoDst",
@@ -373,55 +362,61 @@ class Timezone : public TzsetTest,
   };
 };
 
-// TODO(b/436371274): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SetsIcuDefaultCorrectly DISABLED_SetsIcuDefaultCorrectly
-#else
-#define MAYBE_SetsIcuDefaultCorrectly SetsIcuDefaultCorrectly
-#endif
-TEST_P(Timezone, MAYBE_SetsIcuDefaultCorrectly) {
+TEST_P(TimezoneStateParamTest, TimeZoneIsCorrect) {
   const auto& param = GetParam();
-  SetTimezoneAndCallTzset(param.tz.c_str());
+  SetTimezone(param.tz.c_str());
 
-  const icu::TimeZone* default_tz = icu::TimeZone::createDefault();
+  TimeZoneState state;
+  const icu::TimeZone& tz = state.GetTimeZone();
 
-  EXPECT_EQ(param.offset * 1000, default_tz->getRawOffset());
-  EXPECT_EQ(param.dst_start.has_value(), default_tz->useDaylightTime());
+  EXPECT_EQ(param.offset * 1000, tz.getRawOffset());
+  EXPECT_EQ(param.dst_start.has_value(), tz.useDaylightTime());
 
   icu::UnicodeString id;
-  default_tz->getID(id);
+  tz.getID(id);
   EXPECT_EQ(param.id, ToString(id));
 
   if (param.dst_start) {
-    // Verify that the timezone offset changes on the expected day.
-    EXPECT_EQ(kSecondsInHour * 1000, default_tz->getDSTSavings());
+    EXPECT_EQ(kSecondsInHour * 1000, tz.getDSTSavings());
 
-    VerifyDateOffset(*default_tz, *param.dst_start,
-                     param.offset + kSecondsInHour, "on daylight time start");
+    VerifyDateOffset(tz, *param.dst_start, param.offset + kSecondsInHour,
+                     "on daylight time start");
 
-    VerifyDateOffset(*default_tz, GetDayBefore(*default_tz, *param.dst_start),
-                     param.offset, "before daylight time start");
+    VerifyDateOffset(tz, GetDayBefore(tz, *param.dst_start), param.offset,
+                     "before daylight time start");
 
-    VerifyDateOffset(*default_tz, param.std_start, param.offset,
+    VerifyDateOffset(tz, param.std_start, param.offset,
                      "on standard time start");
 
-    VerifyDateOffset(*default_tz, GetDayBefore(*default_tz, param.std_start),
+    VerifyDateOffset(tz, GetDayBefore(tz, param.std_start),
                      param.offset + kSecondsInHour,
                      "before standard time start");
 
   } else {
-    // Verify the expected timezone offset.
-    VerifyDateOffset(*default_tz, param.std_start, param.offset,
-                     "standard time");
+    VerifyDateOffset(tz, param.std_start, param.offset, "standard time");
   }
 }
 
-// Instantiates the test suite timezones, named
-// "Tzset/Timezone.SetsIcuDefaultCorrectly/LocationName"
-INSTANTIATE_TEST_SUITE_P(Tzset,
-                         Timezone,
-                         ::testing::ValuesIn(Timezone::kAllTestCases),
-                         GetTestName);
+TEST_P(TimezoneStateParamTest, PosixGlobalsAreCorrect) {
+  const auto& param = GetParam();
+  SetTimezone(param.tz.c_str());
+
+  TimeZoneState state;
+  long timezone_sec;
+  int daylight;
+  char* tzname[2];
+
+  state.GetPosixTimezoneGlobals(timezone_sec, daylight, tzname);
+
+  EXPECT_EQ(timezone_sec, -param.offset);
+  EXPECT_EQ(daylight, param.dst_start.has_value());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TimeZoneState,
+    TimezoneStateParamTest,
+    ::testing::ValuesIn(TimezoneStateParamTest::kAllTestCases),
+    GetTestName);
 
 }  // namespace time
 }  // namespace libc
