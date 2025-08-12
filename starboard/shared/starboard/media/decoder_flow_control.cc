@@ -45,6 +45,7 @@ constexpr bool kLogMaps = false;
 constexpr int k8kDecodedFrameBytes = 49'766'400;
 constexpr int kNumSmapsEntriesToLog = 10;
 constexpr bool kDumpSmapsToFile = false;
+constexpr bool kDisableSmapsLogging = true;
 
 struct MemoryInfo {
   long total_kb;
@@ -148,6 +149,7 @@ void DumpSmaps() {
 }
 
 void LogSmaps() {
+  const auto start_time_us = CurrentMonotonicTime();
   std::ifstream smaps_file("/proc/self/smaps");
   if (!smaps_file.is_open()) {
     SB_LOG(ERROR) << "Failed to open /proc/self/smaps";
@@ -281,6 +283,9 @@ void LogSmaps() {
           << "\n";
   }
   SB_LOG(INFO) << "Parsed Smaps table\n" << table.str();
+  int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
+  SB_LOG(INFO) << "snapshot is not written, elapsed(msec)="
+               << elapsed_us / 1'000;
 }
 
 std::string FormatSize(size_t size_in_bytes) {
@@ -468,6 +473,7 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
     return false;
   }
   state_.decoding_frames++;
+
   decoding_start_times_us_.push_back(CurrentMonotonicTime());
 
   UpdateState_Locked();
@@ -482,6 +488,7 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
                << ", mem(MB)={total=" << mem_info.total_kb / 1'024
                << ", free=" << mem_info.free_kb / 1'024
                << ", available=" << mem_info.available_kb / 1'024 << "}";
+
   if (kLogMaps) {
     LogMemoryMapSummary();
   }
@@ -609,14 +616,12 @@ void ThrottlingDecoderFlowControl::LogStateAndReschedule(
 
   SB_LOG(INFO) << "DecoderFlowControl state: " << GetCurrentState();
 
-  if constexpr (kDumpSmapsToFile) {
-    DumpSmaps();
-  } else {
-    int64_t start_time_us = CurrentMonotonicTime();
-    LogSmaps();
-    int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
-    SB_LOG(INFO) << "snapshot is not written, elapsed(msec)="
-                 << elapsed_us / 1'000;
+  if constexpr (!kDisableSmapsLogging) {
+    if constexpr (kDumpSmapsToFile) {
+      DumpSmaps();
+    } else {
+      LogSmaps();
+    }
   }
 
   task_runner_.Schedule(
