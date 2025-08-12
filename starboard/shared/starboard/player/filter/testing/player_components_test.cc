@@ -477,7 +477,7 @@ class PlayerComponentsTest
   const std::string video_filename_;
   const SbPlayerOutputMode output_mode_;
   const int max_video_input_size_;
-  const void* dummy_surface_view_ = nullptr;
+  void* dummy_surface_view_ = nullptr;
   JobQueue job_queue_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   unique_ptr<VideoDmpReader> audio_reader_;

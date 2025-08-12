@@ -535,10 +535,10 @@ void StarboardRenderer::CreatePlayerBridge() {
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
       -1
-#if BUILDFLAG(IS_ANDROID)
+      // #if BUILDFLAG(IS_ANDROID)
       ,
       nullptr  // overlay_ when #6582 merged
-#endif         // BUILDFLAG(IS_ANDROID)
+               // #endif         // BUILDFLAG(IS_ANDROID)
       ));
   if (player_bridge_->IsValid()) {
     // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`

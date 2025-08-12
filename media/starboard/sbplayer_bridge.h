@@ -115,10 +115,10 @@ class SbPlayerBridge {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size
-#if BUILDFLAG(IS_ANDROID)
+                 // #if BUILDFLAG(IS_ANDROID)
                  ,
                  void* surface_view
-#endif  // BUILDFLAG(IS_ANDROID)
+// #endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -359,9 +359,9 @@ class SbPlayerBridge {
   int max_video_input_size_;
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
+  // #if BUILDFLAG(IS_ANDROID)
   void* surface_view_;
-#endif  // BUILDFLAG(IS_ANDROID)
+  // #endif  // BUILDFLAG(IS_ANDROID)
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
