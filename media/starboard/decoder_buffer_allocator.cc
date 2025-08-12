@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/feature_list.h"
+#include "base/i18n/number_formatting.h"
 #include "base/logging.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
@@ -34,7 +35,7 @@ namespace media {
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
-                             SbMediaGetInitialBufferCapacity(),
+                             200 * 1024 * 1024,
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
@@ -46,6 +47,12 @@ DecoderBufferAllocator::DecoderBufferAllocator(
       is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
       initial_capacity_(initial_capacity),
       allocation_unit_(allocation_unit) {
+  LOG(INFO) << "DecoderBufferAllocator initialized with:"
+            << " type=" << (type_ == Type::kGlobal ? "Global" : "Other")
+            << ", on_demand="
+            << (is_memory_pool_allocated_on_demand_ ? "true" : "false")
+            << ", initial_capacity=" << base::FormatNumber(initial_capacity_)
+            << ", allocation_unit=" << base::FormatNumber(allocation_unit_);
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
