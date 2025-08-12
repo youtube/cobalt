@@ -45,7 +45,7 @@ constexpr bool kLogMaps = false;
 constexpr int k8kDecodedFrameBytes = 49'766'400;
 constexpr int kNumSmapsEntriesToLog = 10;
 constexpr bool kDumpSmapsToFile = false;
-constexpr bool kDisableSmapsLogging = true;
+constexpr bool kEnableSmapsLogging = false;
 
 struct MemoryInfo {
   long total_kb;
@@ -55,6 +55,7 @@ struct MemoryInfo {
 
 struct SmapsEntry {
   std::string name;
+  std::string full_name;
   int size = 0;
   int rss = 0;
   int pss = 0;
@@ -240,6 +241,7 @@ void LogSmaps() {
   std::vector<SmapsEntry> sorted_entries;
   for (auto const& [name, entry] : entries) {
     SmapsEntry new_entry = entry;
+    new_entry.full_name = name;
     std::string new_name = name;
     size_t pos = new_name.find("dev.cobalt.coat");
     if (pos != std::string::npos) {
@@ -268,6 +270,7 @@ void LogSmaps() {
         << "|" << std::setw(12) << "referenced"
         << "|" << std::setw(12) << "anonymous"
         << "|" << std::setw(12) << "anonhuge"
+        << "| full name"
         << "\n";
 
   for (int i = 0;
@@ -279,8 +282,8 @@ void LogSmaps() {
           << std::setw(12) << entry.shared_dirty << "|" << std::setw(12)
           << entry.private_clean << "|" << std::setw(12) << entry.private_dirty
           << "|" << std::setw(12) << entry.referenced << "|" << std::setw(12)
-          << entry.anonymous << "|" << std::setw(12) << entry.anon_huge_pages
-          << "\n";
+          << entry.anonymous << "| " << std::setw(12) << entry.anon_huge_pages
+          << "| " << entry.full_name << "\n";
   }
   SB_LOG(INFO) << "Parsed Smaps table\n" << table.str();
   int64_t elapsed_us = CurrentMonotonicTime() - start_time_us;
@@ -616,7 +619,7 @@ void ThrottlingDecoderFlowControl::LogStateAndReschedule(
 
   SB_LOG(INFO) << "DecoderFlowControl state: " << GetCurrentState();
 
-  if constexpr (!kDisableSmapsLogging) {
+  if constexpr (kEnableSmapsLogging) {
     if constexpr (kDumpSmapsToFile) {
       DumpSmaps();
     } else {
