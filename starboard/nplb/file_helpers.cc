@@ -125,7 +125,7 @@ bool RemoveFileOrDirectoryRecursively(const std::string& path) {
   struct stat st;
 
   if (lstat(path.c_str(), &st) != 0) {
-    return (errno == ENOENT);  // File doesn't exist, do nothing.
+    return errno == ENOENT;  // File doesn't exist, do nothing.
   }
 
   if (!S_ISDIR(st.st_mode)) {
@@ -154,7 +154,7 @@ bool RemoveFileOrDirectoryRecursively(const std::string& path) {
   closedir(dir);
 
   if (success) {
-    return (rmdir(path.c_str()) == 0);
+    return rmdir(path.c_str()) == 0;
   }
 
   return false;
