@@ -39,14 +39,14 @@ public class AudioTrackBridge {
   // Also used by AudioOutputManager.
   static final int AV_SYNC_HEADER_V1_SIZE = 16;
 
-  private AudioTrack audioTrack;
-  private AudioTimestamp audioTimestamp = new AudioTimestamp();
-  private long maxFramePositionSoFar = 0;
+  private AudioTrack mAudioTrack;
+  private AudioTimestamp mAudioTimestamp = new AudioTimestamp();
+  private long mMaxFramePositionSoFar = 0;
 
-  private final boolean tunnelModeEnabled;
+  private final boolean mTunnelModeEnabled;
   // The following variables are used only when |tunnelModeEnabled| is true.
-  private ByteBuffer avSyncHeader;
-  private int avSyncPacketBytesRemaining;
+  private ByteBuffer mAvSyncHeader;
+  private int mAvSyncPacketBytesRemaining;
 
   private static int getBytesPerSample(int audioFormat) {
     switch (audioFormat) {
@@ -69,7 +69,7 @@ public class AudioTrackBridge {
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
 
-    tunnelModeEnabled = tunnelModeAudioSessionId != -1;
+    mTunnelModeEnabled = tunnelModeAudioSessionId != -1;
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -86,7 +86,7 @@ public class AudioTrackBridge {
     }
 
     AudioAttributes attributes;
-    if (tunnelModeEnabled) {
+    if (mTunnelModeEnabled) {
       // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that aligns sync header
       // with audio frame size. V1 sync header has alignment issues for multi-channel audio.
       if (Build.VERSION.SDK_INT < 28) {
@@ -94,7 +94,7 @@ public class AudioTrackBridge {
         // This shouldn't happen as it should have been checked in
         // AudioOutputManager.generateTunnelModeAudioSessionId().
         if (AV_SYNC_HEADER_V1_SIZE % frameSize != 0) {
-          audioTrack = null;
+          mAudioTrack = null;
           String errorMessage =
               String.format(
                   Locale.US,
@@ -143,25 +143,25 @@ public class AudioTrackBridge {
     // not support tunnel mode and then it is not helpful to retry.
     while (audioTrackBufferSize > 0) {
       try {
-        audioTrack =
+        mAudioTrack =
             new AudioTrack(
                 attributes,
                 format,
                 audioTrackBufferSize,
                 AudioTrack.MODE_STREAM,
-                tunnelModeEnabled
+                mTunnelModeEnabled
                     ? tunnelModeAudioSessionId
                     : AudioManager.AUDIO_SESSION_ID_GENERATE);
       } catch (Exception e) {
-        audioTrack = null;
+        mAudioTrack = null;
       }
       // AudioTrack ctor can fail in multiple, platform specific ways, so do a thorough check
       // before proceed.
-      if (audioTrack != null) {
-        if (audioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
+      if (mAudioTrack != null) {
+        if (mAudioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
           break;
         }
-        audioTrack = null;
+        mAudioTrack = null;
       }
       audioTrackBufferSize /= 2;
     }
@@ -173,7 +173,7 @@ public class AudioTrackBridge {
       // is the size of the AudioTrack buffer in bytes.
       // In such cases, audioTrackBufferSize does not have to be
       // multiplied with bytes per sample and channel count below.
-      audioTrackBufferSize = audioTrack.getBufferSizeInFrames();
+      audioTrackBufferSize = mAudioTrack.getBufferSizeInFrames();
       switch (sampleType) {
         case AudioFormat.ENCODING_PCM_16BIT:
           sampleTypeString = "ENCODING_PCM_16BIT";
@@ -205,36 +205,36 @@ public class AudioTrackBridge {
   }
 
   public Boolean isAudioTrackValid() {
-    return audioTrack != null;
+    return mAudioTrack != null;
   }
 
   public void release() {
-    if (audioTrack != null) {
-      audioTrack.release();
+    if (mAudioTrack != null) {
+      mAudioTrack.release();
     }
-    audioTrack = null;
-    avSyncHeader = null;
-    avSyncPacketBytesRemaining = 0;
+    mAudioTrack = null;
+    mAvSyncHeader = null;
+    mAvSyncPacketBytesRemaining = 0;
   }
 
   @CalledByNative
   public int setVolume(float gain) {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to setVolume with NULL audio track.");
       return 0;
     }
-    return audioTrack.setVolume(gain);
+    return mAudioTrack.setVolume(gain);
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @CalledByNative
   private void play() {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to play with NULL audio track.");
       return;
     }
     try {
-      audioTrack.play();
+      mAudioTrack.play();
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format(Locale.US, "Unable to play audio track, error: %s", e.toString()));
     }
@@ -243,12 +243,12 @@ public class AudioTrackBridge {
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @CalledByNative
   private void pause() {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to pause with NULL audio track.");
       return;
     }
     try {
-      audioTrack.pause();
+      mAudioTrack.pause();
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format(Locale.US, "Unable to pause audio track, error: %s", e.toString()));
     }
@@ -257,12 +257,12 @@ public class AudioTrackBridge {
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @CalledByNative
   private void stop() {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to stop with NULL audio track.");
       return;
     }
     try {
-      audioTrack.stop();
+      mAudioTrack.stop();
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format(Locale.US, "Unable to stop audio track, error: %s", e.toString()));
     }
@@ -270,41 +270,41 @@ public class AudioTrackBridge {
 
   @CalledByNative
   private void flush() {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to flush with NULL audio track.");
       return;
     }
-    audioTrack.flush();
+    mAudioTrack.flush();
     // Reset the states to allow reuse of |audioTrack| after flush() is called. This can reduce
     // switch latency for passthrough playbacks.
-    avSyncHeader = null;
-    avSyncPacketBytesRemaining = 0;
+    mAvSyncHeader = null;
+    mAvSyncPacketBytesRemaining = 0;
     synchronized (this) {
-      maxFramePositionSoFar = 0;
+      mMaxFramePositionSoFar = 0;
     }
   }
 
   @CalledByNative
   private int writeWithPresentationTime(byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
     }
 
-    if (tunnelModeEnabled) {
+    if (mTunnelModeEnabled) {
       return writeWithAvSync(audioData, sizeInBytes, presentationTimeInMicroseconds);
     }
 
-    return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
+    return mAudioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
   }
 
   private int writeWithAvSync(
       byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       throw new RuntimeException("writeWithAvSync() is called when audioTrack is null.");
     }
 
-    if (!tunnelModeEnabled) {
+    if (!mTunnelModeEnabled) {
       throw new RuntimeException("writeWithAvSync() is called when tunnelModeEnabled is false.");
     }
 
@@ -318,101 +318,101 @@ public class AudioTrackBridge {
     final boolean useAutoSyncHeaderWrite = true;
     if (useAutoSyncHeaderWrite) {
       ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
-      return audioTrack.write(
+      return mAudioTrack.write(
           byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING, presentationTimeInNanoseconds);
     }
 
-    if (avSyncHeader == null) {
-      avSyncHeader = ByteBuffer.allocate(AV_SYNC_HEADER_V1_SIZE);
-      avSyncHeader.order(ByteOrder.BIG_ENDIAN);
-      avSyncHeader.putInt(0x55550001);
+    if (mAvSyncHeader == null) {
+      mAvSyncHeader = ByteBuffer.allocate(AV_SYNC_HEADER_V1_SIZE);
+      mAvSyncHeader.order(ByteOrder.BIG_ENDIAN);
+      mAvSyncHeader.putInt(0x55550001);
     }
 
-    if (avSyncPacketBytesRemaining == 0) {
-      avSyncHeader.putInt(4, sizeInBytes);
-      avSyncHeader.putLong(8, presentationTimeInNanoseconds);
-      avSyncHeader.position(0);
-      avSyncPacketBytesRemaining = sizeInBytes;
+    if (mAvSyncPacketBytesRemaining == 0) {
+      mAvSyncHeader.putInt(4, sizeInBytes);
+      mAvSyncHeader.putLong(8, presentationTimeInNanoseconds);
+      mAvSyncHeader.position(0);
+      mAvSyncPacketBytesRemaining = sizeInBytes;
     }
 
-    if (avSyncHeader.remaining() > 0) {
+    if (mAvSyncHeader.remaining() > 0) {
       int ret =
-          audioTrack.write(avSyncHeader, avSyncHeader.remaining(), AudioTrack.WRITE_NON_BLOCKING);
+          mAudioTrack.write(mAvSyncHeader, mAvSyncHeader.remaining(), AudioTrack.WRITE_NON_BLOCKING);
       if (ret < 0) {
-        avSyncPacketBytesRemaining = 0;
+        mAvSyncPacketBytesRemaining = 0;
         return ret;
       }
-      if (avSyncHeader.remaining() > 0) {
+      if (mAvSyncHeader.remaining() > 0) {
         return 0;
       }
     }
 
-    int sizeToWrite = Math.min(avSyncPacketBytesRemaining, sizeInBytes);
+    int sizeToWrite = Math.min(mAvSyncPacketBytesRemaining, sizeInBytes);
     ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
-    int ret = audioTrack.write(byteBuffer, sizeToWrite, AudioTrack.WRITE_NON_BLOCKING);
+    int ret = mAudioTrack.write(byteBuffer, sizeToWrite, AudioTrack.WRITE_NON_BLOCKING);
     if (ret < 0) {
-      avSyncPacketBytesRemaining = 0;
+      mAvSyncPacketBytesRemaining = 0;
       return ret;
     }
-    avSyncPacketBytesRemaining -= ret;
+    mAvSyncPacketBytesRemaining -= ret;
     return ret;
   }
 
   @CalledByNative
   private int write(float[] audioData, int sizeInFloats) {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
     }
-    if (tunnelModeEnabled) {
+    if (mTunnelModeEnabled) {
       throw new RuntimeException("Float sample is not supported under tunnel mode.");
     }
-    return audioTrack.write(audioData, 0, sizeInFloats, AudioTrack.WRITE_NON_BLOCKING);
+    return mAudioTrack.write(audioData, 0, sizeInFloats, AudioTrack.WRITE_NON_BLOCKING);
   }
 
   @CalledByNative
   private AudioTimestamp getAudioTimestamp() {
     // TODO: Consider calling with TIMEBASE_MONOTONIC and returning that
     // information to the starboard audio sink.
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
-      return audioTimestamp;
+      return mAudioTimestamp;
     }
     // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (this) {
-      if (audioTrack.getTimestamp(audioTimestamp)) {
+      if (mAudioTrack.getTimestamp(mAudioTimestamp)) {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        audioTimestamp.framePosition &= 0x7FFFFFFF;
+        mAudioTimestamp.framePosition &= 0x7FFFFFFF;
       } else {
         // Time stamps haven't been updated yet, assume playback hasn't started.
-        audioTimestamp.framePosition = 0;
-        audioTimestamp.nanoTime = System.nanoTime();
+        mAudioTimestamp.framePosition = 0;
+        mAudioTimestamp.nanoTime = System.nanoTime();
       }
 
-      if (audioTimestamp.framePosition > maxFramePositionSoFar) {
-        maxFramePositionSoFar = audioTimestamp.framePosition;
+      if (mAudioTimestamp.framePosition > mMaxFramePositionSoFar) {
+        mMaxFramePositionSoFar = mAudioTimestamp.framePosition;
       } else {
         // The returned |audioTimestamp.framePosition| is not monotonically
         // increasing, and a monotonically increastion frame position is
         // required to calculate the playback time correctly, because otherwise
         // we would be going back in time.
-        audioTimestamp.framePosition = maxFramePositionSoFar;
+        mAudioTimestamp.framePosition = mMaxFramePositionSoFar;
       }
     }
 
-    return audioTimestamp;
+    return mAudioTimestamp;
   }
 
   @CalledByNative
   private int getUnderrunCount() {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
       return 0;
     }
-    return audioTrack.getUnderrunCount();
+    return mAudioTrack.getUnderrunCount();
   }
 
   @CalledByNative
@@ -425,10 +425,10 @@ public class AudioTrackBridge {
 
   @RequiresApi(31)
   private int getStartThresholdInFramesV31() {
-    if (audioTrack == null) {
+    if (mAudioTrack == null) {
       Log.e(TAG, "Unable to call getStartThresholdInFrames() with NULL audio track.");
       return 0;
     }
-    return audioTrack.getStartThresholdInFrames();
+    return mAudioTrack.getStartThresholdInFrames();
   }
 }
