@@ -129,7 +129,7 @@ bool RemoveFileOrDirectoryRecursively(const std::string& path) {
   }
 
   if (!S_ISDIR(st.st_mode)) {
-    return (unlink(path.c_str()) == 0);  // Remove file or symlink.
+    return unlink(path.c_str()) == 0;  // Remove file or symlink.
   }
 
   DIR* dir = opendir(path.c_str());
