@@ -96,9 +96,6 @@ struct musl_flock {
   musl_pid_t l_pid;
 };
 
-int fcntl_no_arg(int fildes, int cmd);
-int fcntl_int_arg(int fildes, int cmd, int arg);
-int fcntl_ptr_arg(int fildes, int cmd, void* arg);
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
 
 #ifdef __cplusplus

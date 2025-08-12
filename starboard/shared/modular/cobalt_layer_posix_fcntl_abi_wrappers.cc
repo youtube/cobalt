@@ -17,9 +17,7 @@
 
 extern "C" {
 
-int fcntl_no_arg(int fildes, int cmd);
-int fcntl_int_arg(int fildes, int cmd, int arg);
-int fcntl_ptr_arg(int fildes, int cmd, void* arg);
+int __abi_wrap_fcntl(int fildes, int cmd, ...);
 
 int fcntl(int fildes, int cmd, ...) {
   int result;
@@ -31,21 +29,22 @@ int fcntl(int fildes, int cmd, ...) {
     case F_DUPFD_CLOEXEC:
     case F_SETFD:
     case F_SETFL:
-    case F_SETOWN: {
-      int arg_int = va_arg(ap, int);
-      result = fcntl_int_arg(fildes, cmd, arg_int);
+    case F_SETOWN:
+    case F_SETOWN_EX: {
+      result = __abi_wrap_fcntl(fildes, cmd, va_arg(ap, int));
       break;
     }
     // The following commands have a pointer third argument.
     case F_GETLK:
     case F_SETLK:
-    case F_SETLKW: {
-      void* arg_ptr;
-      arg_ptr = va_arg(ap, void*);
-      result = fcntl_ptr_arg(fildes, cmd, arg_ptr);
+    case F_SETLKW:
+    case F_OFD_GETLK:
+    case F_OFD_SETLK:
+    case F_OFD_SETLKW: {
+      result = __abi_wrap_fcntl(fildes, cmd, va_arg(ap, void*));
     } break;
     default:
-      result = fcntl_no_arg(fildes, cmd);
+      result = __abi_wrap_fcntl(fildes, cmd);
       break;
   }
 

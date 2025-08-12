@@ -149,54 +149,20 @@ int convert_platform_flags_to_musl_flags(int flags) {
   return musl_flags;
 }
 
-int fcntl_no_arg(int fildes, int cmd) {
-  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
-  if (platform_cmd == -1) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  int result = fcntl(fildes, platform_cmd);
-  if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
-    int musl_flags = convert_platform_flags_to_musl_flags(result);
-
-    return musl_flags;
-  }
-
-  return result;
-}
-
-int fcntl_int_arg(int fildes, int cmd, int arg) {
-  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
-  if (platform_cmd == -1) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  if (platform_cmd == F_SETFD || platform_cmd == F_SETFL) {
-    return fcntl(fildes, platform_cmd,
-                 convert_musl_flags_to_platform_flags(arg));
-  }
-
-  return fcntl(fildes, platform_cmd, arg);
-}
-
-int fcntl_ptr_arg(int fildes, int cmd, void* arg) {
+int fcntl_ptr(int fildes, int cmd, void* arg) {
   SB_CHECK(arg);
-  SB_CHECK(cmd == MUSL_F_GETLK || cmd == MUSL_F_SETLK || cmd == MUSL_F_SETLKW);
-
-  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
-  if (platform_cmd == -1) {
-    errno = EINVAL;
-    return -1;
-  }
+  SB_CHECK(cmd == F_GETLK || cmd == F_SETLK || cmd == F_SETLKW ||
+           cmd == F_OFD_GETLK || cmd == F_OFD_SETLK ||
+           cmd == MUSL_F_OFD_SETLKW);
 
   struct musl_flock* musl_flock = reinterpret_cast<struct musl_flock*>(arg);
   struct flock platform_flock;
   int retval;
-  if (platform_cmd == F_GETLK) {
-    retval =
-        fcntl(fildes, platform_cmd, reinterpret_cast<void*>(&platform_flock));
+  // During a GETLK operation, map the returned platform flock to the input
+  // flock. For all other operations, map the input flock to the platform flock
+  // before calling fcntl.
+  if (cmd == F_GETLK || cmd == F_OFD_GETLK) {
+    retval = fcntl(fildes, cmd, reinterpret_cast<void*>(&platform_flock));
     musl_flock->l_type = platform_flock.l_type;
     musl_flock->l_whence = platform_flock.l_whence;
     musl_flock->l_start = platform_flock.l_start;
@@ -208,38 +174,58 @@ int fcntl_ptr_arg(int fildes, int cmd, void* arg) {
     platform_flock.l_start = musl_flock->l_start;
     platform_flock.l_len = musl_flock->l_len;
     platform_flock.l_pid = musl_flock->l_pid;
-    retval = fcntl(fildes, platform_cmd, &platform_flock);
+    retval = fcntl(fildes, cmd, &platform_flock);
   }
 
   return retval;
 }
 
-SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
+SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...) {
+  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
+  if (platform_cmd == -1) {
+    errno = EINVAL;
+    return -1;
+  }
+
   int result;
   va_list ap;
   va_start(ap, cmd);
-  switch (cmd) {
+  switch (platform_cmd) {
     // The following commands have an int third argument.
-    case MUSL_F_DUPFD:
-    case MUSL_F_DUPFD_CLOEXEC:
-    case MUSL_F_SETFD:
-    case MUSL_F_SETFL:
-    case MUSL_F_SETOWN: {
-      int arg_int = va_arg(ap, int);
-      result = fcntl_int_arg(fd, cmd, arg_int);
+    case F_DUPFD:
+    case F_DUPFD_CLOEXEC:
+    case F_SETFD:
+    case F_SETFL:
+    case F_SETOWN:
+    case F_SETOWN_EX: {
+      int arg = va_arg(ap, int);
+      if (cmd == F_SETFD || cmd == F_SETFL) {
+        result = fcntl(fildes, cmd, convert_musl_flags_to_platform_flags(arg));
+      } else {
+        result = fcntl(fildes, cmd, arg);
+      }
       break;
     }
     // The following commands have a pointer third argument.
-    case MUSL_F_GETLK:
-    case MUSL_F_SETLK:
-    case MUSL_F_SETLKW: {
-      void* arg_ptr;
-      arg_ptr = va_arg(ap, void*);
-      SB_CHECK(arg_ptr);
-      result = fcntl_ptr_arg(fd, cmd, arg_ptr);
+    case F_GETLK:
+    case F_SETLK:
+    case F_SETLKW:
+    case F_OFD_GETLK:
+    case F_OFD_SETLK:
+    case F_OFD_SETLKW: {
+      void* arg = va_arg(ap, void*);
+      SB_CHECK(arg);
+      result = fcntl_ptr(fildes, platform_cmd, arg);
     } break;
     default:
-      result = fcntl_no_arg(fd, cmd);
+      SB_CHECK(cmd == F_GETFD || cmd == F_GETFL || cmd == F_GETOWN ||
+               cmd == F_SETFL || cmd == F_SETOWN);
+      result = fcntl(fildes, cmd);
+      if (cmd == F_GETFD || cmd == F_GETFL) {
+        int musl_flags = convert_platform_flags_to_musl_flags(result);
+
+        result = musl_flags;
+      }
       break;
   }
 
