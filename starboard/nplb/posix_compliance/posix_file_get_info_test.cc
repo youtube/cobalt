@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include <iostream>
-#include <string>
 
 #include "starboard/common/time.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
@@ -89,6 +85,73 @@ TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
   }
 }
 
+TEST(PosixFileGetInfoTest, WorksOnADirectory) {
+  char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
+  char* dir_path = mkdtemp(dir_template);
+  ASSERT_TRUE(dir_path != nullptr);
+
+  int fd = open(dir_path, O_RDONLY);
+  ASSERT_NE(fd, -1);
+
+  struct stat info;
+  EXPECT_EQ(fstat(fd, &info), 0);
+  EXPECT_TRUE(S_ISDIR(info.st_mode));
+
+  close(fd);
+  rmdir(dir_path);
+}
+
+TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
+  ScopedRandomFile target_file(128);
+  std::string target_path = target_file.filename();
+
+  char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
+  char* dir_path = mkdtemp(dir_template);
+  ASSERT_TRUE(dir_path != nullptr);
+
+  std::string link_path = std::string(dir_path) + "/symlink";
+  ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
+
+  // Open the symbolic link.
+  int fd = open(link_path.c_str(), O_RDONLY);
+  ASSERT_NE(fd, -1);
+
+  // fstat should report info about the target file, not the link.
+  struct stat info;
+  EXPECT_EQ(fstat(fd, &info), 0);
+  EXPECT_EQ(info.st_size, 128);        // Size should be target's size.
+  EXPECT_TRUE(S_ISREG(info.st_mode));  // Should be a regular file.
+
+  close(fd);
+  unlink(link_path.c_str());
+  rmdir(dir_path);
+}
+
+TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
+  ScopedRandomFile file;
+  std::string path1 = file.filename();
+
+  char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
+  char* dir_path = mkdtemp(dir_template);
+  ASSERT_TRUE(dir_path != nullptr);
+
+  std::string path2 = std::string(dir_path) + "/hardlink";
+
+  // Create a hard link.
+  ASSERT_EQ(link(path1.c_str(), path2.c_str()), 0);
+
+  // fstat the original file.
+  int fd = open(path1.c_str(), O_RDONLY);
+  ASSERT_NE(fd, -1);
+
+  struct stat info;
+  EXPECT_EQ(fstat(fd, &info), 0);
+  EXPECT_EQ(info.st_nlink, 2u);
+
+  close(fd);
+  unlink(path2.c_str());
+  rmdir(dir_path);
+}
+
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
