@@ -60,13 +60,11 @@ class PosixMprotectTest : public ::testing::Test {
 TEST_F(PosixMprotectTest, SuccessSetsProtNone) {
   int result = mprotect(mapped_memory_, kSbMemoryPageSize, PROT_NONE);
   EXPECT_EQ(result, 0) << "mprotect failed: " << strerror(errno);
-  // Further access is tested in the death tests.
 }
 
 TEST_F(PosixMprotectTest, SuccessSetsProtRead) {
   int result = mprotect(mapped_memory_, kSbMemoryPageSize, PROT_READ);
   EXPECT_EQ(result, 0) << "mprotect failed: " << strerror(errno);
-  // Verify that we can read from the memory.
   volatile char c = static_cast<char*>(mapped_memory_)[0];
   (void)c;
 }
