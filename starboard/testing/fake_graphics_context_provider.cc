@@ -118,7 +118,7 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider()
 }
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
-  functor_queue_.Put(
+  RunOnGlesContextThread(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
   pthread_join(decode_target_context_thread_, NULL);
