@@ -761,7 +761,7 @@ void SourceBufferStream::OnMemoryPressure(
     base::TimeDelta media_time,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
     bool force_instant_gc) {
-  LOG(INFO) << __func__ << " level=" << memory_pressure_level;
+  LOG(INFO) << __func__ << " level=" << memory_pressure_level << ", force_instance_gc=" << (force_instant_gc ? "true" : "false");
   // TODO(sebmarchand): Check if MEMORY_PRESSURE_LEVEL_MODERATE should also be
   // ignored.
   if (memory_pressure_level ==
@@ -773,10 +773,13 @@ void SourceBufferStream::OnMemoryPressure(
 
   if (force_instant_gc)
     GarbageCollectIfNeeded(media_time, 0);
+
+  LOG(INFO) << __func__ << " > completed";
 }
 
 bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
                                                 size_t newDataSize) {
+  LOG(INFO) << __func__ << " >";
   DCHECK(media_time != kNoTimestamp);
   // Garbage collection should only happen before/during appending new data,
   // which should not happen in end-of-stream state. Unless we also allow GC to
@@ -784,6 +787,7 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   // state.
   if (!base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC))
     DCHECK(!end_of_stream_);
+
   // Compute size of |ranges_|.
   size_t ranges_size = GetMemoryUsage();
 
@@ -796,6 +800,7 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
         << "new append of newDataSize=" << newDataSize
         << " bytes exceeds memory_limit_=" << memory_limit_
         << ", currently buffered ranges_size=" << ranges_size;
+    LOG(INFO) << __func__ << " < 2";
     return false;
   }
 
@@ -803,19 +808,24 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {
     switch (memory_pressure_level_) {
       case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+        LOG(INFO) << __func__ << " : memory_pressure: moderate";
         effective_memory_limit = memory_limit_ / 2;
         break;
       case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+        LOG(INFO) << __func__ << " : memory_pressure: critical";
         effective_memory_limit = 0;
         break;
       case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+        LOG(INFO) << __func__ << " : memory_pressure: none";
         break;
     }
   }
 
   // Return if we're under or at the memory limit.
-  if (ranges_size + newDataSize <= effective_memory_limit)
+  if (ranges_size + newDataSize <= effective_memory_limit) {
+    LOG(INFO) << __func__ << " < return with no op: ranges_size=" << ranges_size << ", newDataSize=" << newDataSize << ", effective_memory_limit=" << effective_memory_limit;
     return true;
+  }
 
   size_t bytes_over_hard_memory_limit = 0;
   if (ranges_size + newDataSize > memory_limit_)
@@ -941,7 +951,7 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
     bytes_freed += back;
   }
 
-  DVLOG(2) << __func__ << " " << GetStreamTypeName()
+  LOG(INFO) << __func__ << " " << GetStreamTypeName()
            << ": After GC bytes_to_free=" << bytes_to_free
            << " bytes_freed=" << bytes_freed
            << " bytes_over_hard_memory_limit=" << bytes_over_hard_memory_limit

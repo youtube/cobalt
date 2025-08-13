@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
 namespace media {
@@ -31,6 +32,8 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
   void* Allocate(std::size_t size) override { return Allocate(size, 1); }
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
+    SB_LOG(INFO) << "StarboardMemoryAllocator::Allocate size=" << size
+                 << ", alignment=" << alignment;
     void* p = nullptr;
     std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
     return p;
@@ -40,7 +43,10 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
                              std::size_t alignment) override {
     return Allocate(*size, alignment);
   }
-  void Free(void* memory) override { free(memory); }
+  void Free(void* memory) override {
+    SB_LOG(INFO) << "StarboardMemoryAllocator::Free";
+    free(memory);
+  }
   std::size_t GetCapacity() const override {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;

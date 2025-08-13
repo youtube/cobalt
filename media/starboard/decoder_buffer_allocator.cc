@@ -35,7 +35,8 @@ namespace media {
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
-                             200 * 1024 * 1024,
+                             SbMediaGetInitialBufferCapacity(),
+                             // 150 * 1024 * 1024,
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
@@ -125,6 +126,11 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
     TryFlushAllocationLog_Locked();
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  int allocated_mb = strategy_->GetAllocated() / 1'024 / 1'024;
+  if (allocated_mb != last_allocated_mb_) {
+    SB_LOG(INFO) << __func__ << ": allocated(MB)=" << allocated_mb;
+    last_allocated_mb_ = allocated_mb;
+  }
 
   return p;
 }

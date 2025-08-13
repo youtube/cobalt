@@ -563,11 +563,10 @@ bool DemuxerManager::PassedDataSourceTimingAllowOriginCheck() const {
 
 std::unique_ptr<Demuxer> DemuxerManager::CreateChunkDemuxer() {
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {
-    LOG(INFO) << __func__ << " > IsEnabled";
-  } 
     memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
         FROM_HERE, base::BindRepeating(&DemuxerManager::OnMemoryPressure,
                                        base::Unretained(this)));
+  }
 
   return std::make_unique<ChunkDemuxer>(
       base::BindPostTaskToCurrentDefault(base::BindOnce(
