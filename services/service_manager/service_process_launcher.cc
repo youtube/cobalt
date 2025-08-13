@@ -40,7 +40,7 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#include "sandbox/linux/services/namespace_sandbox.h"
+#include "sandbox/linux/services/namespace_sandbox.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_WIN)
