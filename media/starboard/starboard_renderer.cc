@@ -535,7 +535,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
       -1,
-      nullptr  // overlay_ when #6582 merged
+      nullptr  // surface_view_ when #6582 merged
       ));
   if (player_bridge_->IsValid()) {
     // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`

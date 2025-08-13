@@ -115,7 +115,7 @@ class SbPlayerBridge {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size,
-                 void* surface_view
+                 jobject surface_view
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -357,7 +357,7 @@ class SbPlayerBridge {
 #endif
 
   // Set the surface to Android Overlay's surface view.
-  void* surface_view_;
+  jobject surface_view_;
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;

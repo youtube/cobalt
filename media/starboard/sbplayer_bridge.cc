@@ -223,7 +223,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
     int max_video_input_size,
-    void* surface_view
+    jobject surface_view
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
