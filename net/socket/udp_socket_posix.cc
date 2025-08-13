@@ -34,6 +34,7 @@
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "net/base/cronet_buildflags.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
@@ -915,6 +916,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
  
   int rv = recvmmsg(socket_, msgs, kNumPacketsPerReadMmsgCall,
                     MSG_DONTWAIT, nullptr);
+  const int recvmmsg_errno = errno;
 
   if (rv > 0) {
     results->result = rv;
@@ -937,8 +939,13 @@ int UDPSocketPosix::InternalReadMultiplePackets(
   }
 
   // This block handles errors (when rv is less than or equal to 0).
-  if (errno != EAGAIN && errno != EWOULDBLOCK) {
-    LOG(ERROR) << "recvmmsg failed, errno = " << errno;
+  if (recvmmsg_errno != EAGAIN && recvmmsg_errno != EWOULDBLOCK) {
+    static base::TimeTicks last_log_time;
+    base::TimeTicks now = base::TimeTicks::Now();
+    if (last_log_time.is_null() || (now - last_log_time) > base::Seconds(5)) {
+      LOG(ERROR) << "recvmmsg failed, errno = " << recvmmsg_errno;
+      last_log_time = now;
+    }
   }
 
   if (!socket_) {
@@ -946,7 +953,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
     return net::ERR_UNEXPECTED;
   }
 
-  results->result = MapSystemError(errno);
+  results->result = MapSystemError(recvmmsg_errno);
   return results->result;
 }
 #endif
