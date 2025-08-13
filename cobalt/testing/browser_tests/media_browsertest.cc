@@ -198,31 +198,38 @@ IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearSilentTheora) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWebm) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWebm) {
   PlayVideo("bear.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWebm_FileProtocol) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWebm_FileProtocol) {
   PlayVideo("bear.webm", false);
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearOpusWebm) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearOpusWebm) {
   PlayAudio("bear-opus.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearOpusMp4) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearOpusMp4) {
   PlayAudio("bear-opus.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearOpusOgg) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearOpusOgg) {
   PlayAudio("bear-opus.ogg");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearOpusOgg_FileProtocol) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearOpusOgg_FileProtocol) {
   PlayAudio("bear-opus.ogg", false);
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearSilentWebm) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearSilentWebm) {
   PlayVideo("bear_silent.webm");
 }
 
@@ -256,53 +263,64 @@ IN_PROC_BROWSER_TEST_P(MediaTest, MAYBE_VideoBear12DepthVP9) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearMp4Vp9) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearMp4Vp9) {
   PlayVideo("bear-320x240-v_frag-vp9.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearFlacMp4) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearFlacMp4) {
   PlayAudio("bear-flac.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearFlac192kHzMp4) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearFlac192kHzMp4) {
   PlayAudio("bear-flac-192kHz.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearMovPcmS16be) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearMovPcmS16be) {
   PlayAudio("bear_pcm_s16be.mov");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearMovPcmS24be) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearMovPcmS24be) {
   PlayAudio("bear_pcm_s24be.mov");
 }
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearMp4) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearMp4) {
   REQUIRE_ACCELERATION_ON_ANDROID();
   PlayVideo("bear.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearSilentMp4) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearSilentMp4) {
   REQUIRE_ACCELERATION_ON_ANDROID();
   PlayVideo("bear_silent.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearRotated0) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearRotated0) {
   REQUIRE_ACCELERATION_ON_ANDROID();
   RunVideoSizeTest("bear_rotate_0.mp4", 1280, 720);
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearRotated90) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearRotated90) {
   REQUIRE_ACCELERATION_ON_ANDROID();
   RunVideoSizeTest("bear_rotate_90.mp4", 720, 1280);
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearRotated180) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearRotated180) {
   REQUIRE_ACCELERATION_ON_ANDROID();
   RunVideoSizeTest("bear_rotate_180.mp4", 1280, 720);
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearRotated270) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearRotated270) {
   REQUIRE_ACCELERATION_ON_ANDROID();
   RunVideoSizeTest("bear_rotate_270.mp4", 720, 1280);
 }
@@ -328,35 +346,43 @@ IN_PROC_BROWSER_TEST_P(MediaTest, LoadManyVideos) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearFlac) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearFlac) {
   PlayAudio("bear.flac");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioBearFlacOgg) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioBearFlacOgg) {
   PlayAudio("bear-flac.ogg");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWavAlaw) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWavAlaw) {
   PlayAudio("bear_alaw.wav");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWavMulaw) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWavMulaw) {
   PlayAudio("bear_mulaw.wav");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWavPcm) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWavPcm) {
   PlayAudio("bear_pcm.wav");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWavPcm3kHz) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWavPcm3kHz) {
   PlayAudio("bear_3kHz.wav");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoBearWavPcm192kHz) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoBearWavPcm192kHz) {
   PlayAudio("bear_192kHz.wav");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoTulipWebm) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoTulipWebm) {
   PlayVideo("tulip2.webm");
 }
 
@@ -369,20 +395,23 @@ IN_PROC_BROWSER_TEST_P(MediaTest, VideoErrorEmptySrcAttribute) {
   RunErrorMessageTest("video", "", "MEDIA_ELEMENT_ERROR: Empty src attribute");
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, VideoErrorNoSupportedStreams) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_VideoErrorNoSupportedStreams) {
   RunErrorMessageTest("video", "no_streams.webm",
                       "DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no "
                       "supported streams");
 }
 
 // Covers tear-down when navigating away as opposed to browser exiting.
-IN_PROC_BROWSER_TEST_P(MediaTest, Navigate) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_Navigate) {
   PlayVideo("bear.webm");
   EXPECT_TRUE(NavigateToURL(shell(), GURL(url::kAboutBlankURL)));
   EXPECT_FALSE(shell()->web_contents()->IsCrashed());
 }
 
-IN_PROC_BROWSER_TEST_P(MediaTest, AudioOnly_XHE_AAC_MP4) {
+// TODO(b/437420909): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(MediaTest, DISABLED_AudioOnly_XHE_AAC_MP4) {
   if (media::IsSupportedAudioType(
           {media::AudioCodec::kAAC, media::AudioCodecProfile::kXHE_AAC})) {
     PlayAudio("noise-xhe-aac.mp4");

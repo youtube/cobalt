@@ -40,7 +40,9 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/gpu/shell_content_gpu_client.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
-#include "cobalt/shell/utility/shell_content_utility_client.h"
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/utility/shell_content_utility_client.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -387,11 +389,12 @@ ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
   renderer_client_ = std::make_unique<ShellContentRendererClient>();
   return renderer_client_.get();
 }
-
+#if defined(RUN_BROWSER_TESTS)
 ContentUtilityClient* ShellMainDelegate::CreateContentUtilityClient() {
   utility_client_ =
       std::make_unique<ShellContentUtilityClient>(is_content_browsertests_);
   return utility_client_.get();
 }
+#endif  // defined(RUN_BROWSER_TESTS)
 
 }  // namespace content

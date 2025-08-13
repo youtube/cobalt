@@ -113,6 +113,8 @@ SB_EXPORT int __abi_wrap_stat(const char* path, struct musl_stat* info);
 
 SB_EXPORT int __abi_wrap_chmod(const char* path, musl_mode_t mode);
 
+SB_EXPORT int __abi_wrap_fchmod(int fd, musl_mode_t mode);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

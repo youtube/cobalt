@@ -165,9 +165,9 @@ void QuicChromiumPacketReader::StartReading() {
       // to attempt single packet reading.
       return;
     } else {
-      if (rv == ERR_NOT_IMPLEMENTED) {
+      if (rv == ERR_NOT_IMPLEMENTED || rv == ERR_MSG_TOO_BIG) {
         // Remember that the platform reported that ReadMultiplePackets is not
-        // implemented.
+        // implemented or is returning datagrams that are too large.
         try_reading_multiple_packets_ = false;
         read_results_.clear();
       }
