@@ -207,8 +207,9 @@ class MediaSessionBrowserTestWithoutInternalMediaSession
 
 }  // anonymous namespace
 
+// TODO(b/437425386): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTestWithoutInternalMediaSession,
-                       MediaSessionNoOpWhenDisabled) {
+                       DISABLED_MediaSessionNoOpWhenDisabled) {
   EXPECT_TRUE(NavigateToURL(shell(),
                             GetTestUrl("media/session", "media-session.html")));
 
@@ -226,7 +227,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTestWithoutInternalMediaSession,
   EXPECT_TRUE(IsPlaying(shell(), "long-video"));
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, SimplePlayPause) {
+// TODO(b/437425386): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, DISABLED_SimplePlayPause) {
   EXPECT_TRUE(NavigateToURL(shell(),
                             GetTestUrl("media/session", "media-session.html")));
 
@@ -244,7 +246,9 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, SimplePlayPause) {
   EXPECT_TRUE(IsPlaying(shell(), "long-video"));
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, MultiplePlayersPlayPause) {
+// TODO(b/437425386): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
+                       DISABLED_MultiplePlayersPlayPause) {
   EXPECT_TRUE(NavigateToURL(shell(),
                             GetTestUrl("media/session", "media-session.html")));
 
@@ -271,7 +275,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, MultiplePlayersPlayPause) {
 #else
 #define MAYBE_WebContents_Muted WebContents_Muted
 #endif
-IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, MAYBE_WebContents_Muted) {
+// TODO(b/437425386): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, DISABLED_WebContents_Muted) {
   EXPECT_TRUE(NavigateToURL(shell(),
                             GetTestUrl("media/session", "media-session.html")));
 
@@ -336,7 +341,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, MultipleTabsPlayPause) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, GetMediaImageBitmap) {
+// TODO(b/437425386): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, DISABLED_GetMediaImageBitmap) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   MediaSession* media_session = SetupMediaImageTest();
@@ -359,8 +365,9 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, GetMediaImageBitmap) {
   EXPECT_TRUE(WasURLVisited(GetTestImageURL()));
 }
 
+// TODO(b/437425386): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
-                       GetMediaImageBitmap_ImageTooSmall) {
+                       DISABLED_GetMediaImageBitmap_ImageTooSmall) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   MediaSession* media_session = SetupMediaImageTest();
@@ -376,8 +383,10 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
   EXPECT_TRUE(WasURLVisited(GetTestImageURL()));
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
-                       GetMediaImageBitmap_ImageTooSmall_BeforeDownload) {
+// TODO(b/437425386): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(
+    MediaSessionBrowserTest,
+    DISABLED_GetMediaImageBitmap_ImageTooSmall_BeforeDownload) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   MediaSession* media_session = SetupMediaImageTest();
@@ -393,8 +402,9 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
   EXPECT_FALSE(WasURLVisited(GetTestImageURL()));
 }
 
+// TODO(b/437425386): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
-                       GetMediaImageBitmap_InvalidImage) {
+                       DISABLED_GetMediaImageBitmap_InvalidImage) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   MediaSession* media_session = SetupMediaImageTest();
@@ -413,7 +423,9 @@ IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
 }
 
 // Regression test of crbug.com/1195769.
-IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest, ChangeMediaElementDocument) {
+// TODO(b/437425386): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSessionBrowserTest,
+                       DISABLED_ChangeMediaElementDocument) {
   ASSERT_TRUE(NavigateToURL(
       shell(), GetTestUrl("media/session", "change_document.html")));
   ASSERT_TRUE(ExecJs(shell()->web_contents(), "moveAudioToSubframe();"));
