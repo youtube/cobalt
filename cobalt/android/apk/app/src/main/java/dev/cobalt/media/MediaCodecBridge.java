@@ -32,6 +32,7 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
+import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
@@ -61,6 +62,7 @@ class MediaCodecBridge {
   private static final String KEY_CROP_TOP = "crop-top";
 
   private final Object mNativeBridgeLock = new Object();
+  @GuardedBy("mNativeBridgeLock")
   private long mNativeMediaCodecBridge;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
