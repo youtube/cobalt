@@ -497,8 +497,9 @@ def main():
             try:
                 repo.git.cherry_pick(commit['hexsha'])
                 last_successful_commit = commit['hexsha']
+                commit_id = repo.git.rev_parse('HEAD')
                 print(
-                    f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]}'
+                    f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]} as {repo.commit(commit_id).hexsha}'
                 )
             except git.exc.GitCommandError as e:
                 if 'The previous cherry-pick is now empty' in e.stderr:
@@ -507,8 +508,9 @@ def main():
                     continue
                 print(f'❌ Failed to cherry-pick: {commit["hexsha"]}')
                 record_conflict(repo, args.conflicts_dir)
+                commit_id = repo.git.rev_parse('HEAD')
                 print(
-                    f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]}\n'
+                    f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]} as {repo.commit(commit_id).hexsha}\n'
                 )
         print('\n🎉 SUCCESS: rebase created successfully!')
 
