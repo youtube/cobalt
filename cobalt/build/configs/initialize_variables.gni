@@ -30,8 +30,6 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = target_os != "android"
-
-  use_evergreen = false
 }
 
 assert(!(is_starboard && is_native_target_build),
