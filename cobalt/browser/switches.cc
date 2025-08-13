@@ -197,7 +197,7 @@ const char kUserAgentClientHintsHelp[] =
     "--user_agent_client_hints=\"device_type=GAME;"
     "os_name_and_version=Linux armeabi-v7a\\; Android 7.1.2;evergreen_type=\" "
     "The 18 supported UA fields for overriding are: aux_field, brand, "
-    "build_configuration, chipset_model_number, cobalt_build_version_number, "
+    "build_configuration, chipset_model_number, "
     "cobalt_build_version_number, connection_type, device_type, "
     "evergreen_type,evergreen_version, firmware_version, "
     "javascript_engine_version, model, model_year, "
