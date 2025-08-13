@@ -8,11 +8,11 @@
 #define HIGHS (ONES * (UCHAR_MAX/2+1))
 #define HASZERO(x) ((x)-ONES & ~(x) & HIGHS)
 
-#if defined(USE_COBALT_CUSTOMIZATIONS)
+#if defined(STARBOARD)
 #ifdef __GNUC__
 __attribute__((no_sanitize("address")))
 #endif  // __GNUC__
-#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
+#endif  // defined(STARBOARD)
 size_t strlcpy(char *d, const char *s, size_t n)
 {
 	char *d0 = d;
