@@ -437,7 +437,7 @@ def main():
                                type=str,
                                default=None,
                                help='The commit SHA or ref to resume from.')
-    rebase_parser.add_argument('--start-resume-commit-index',
+    rebase_parser.add_argument('--resume-commit-index',
                                type=int,
                                default='1',
                                help='The commit index to resume from.')
@@ -487,7 +487,7 @@ def main():
                     resume = False
                 print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
                 continue
-            if i < args.last_successful_commit_index:
+            if i < args.resume_commit_index:
                 print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
                 continue
 
