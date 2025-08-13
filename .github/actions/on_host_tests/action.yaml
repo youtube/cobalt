@@ -61,11 +61,8 @@ runs:
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
 
-          # Attempt to list tests and check the exit code.
-          all_tests=$($ENTRYPOINT --gtest_list_tests 2> /dev/null)
-          gtest_list_exit_code=$?
-
-          if [ ${gtest_list_exit_code} -eq 0 ]; then
+          # This one command both checks the exit code AND captures the output. If the test suite is not a gtest suite, it will error out and proceed to the else.
+          if all_tests=$($ENTRYPOINT --gtest_list_tests 2> /dev/null); then
             # Gtest-compliant, shardable test binary.
             echo "Test binary is gtest-compliant. Sharding tests..."
 
@@ -110,6 +107,7 @@ runs:
             fi
           else
             # Not a gtest-compliant binary. Run only on the first shard.
+            gtest_list_exit_code=$?
             echo "Test binary is not gtest-compliant (exit code: ${gtest_list_exit_code}). Running only on shard 0."
             if [ ${{ matrix.shard }} -eq 0 ]; then
                 /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
