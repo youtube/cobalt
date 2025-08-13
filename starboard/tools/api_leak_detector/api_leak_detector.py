@@ -130,6 +130,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'gmtime_r',
     'isatty',
     'kill',
+    'link',
     'listen',
     'lseek',
     'lstat',

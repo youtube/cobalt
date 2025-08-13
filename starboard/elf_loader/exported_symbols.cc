@@ -248,6 +248,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
+  REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
