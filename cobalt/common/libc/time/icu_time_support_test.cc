@@ -42,49 +42,66 @@ class IcuTimeSupportTest : public ::testing::Test {
 
 TEST_F(IcuTimeSupportTest, GmTimeConversion) {
   IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
-  // The timestamp being tested is:
-  // $ date -u --date='@1678886400'
+  // The time being tested is:
   // Wed Mar 15 01:20:00 PM UTC 2023
-  time_t t = 1678886400;
+  struct tm start_tm = {
+      .tm_sec = 0,
+      .tm_min = 20,
+      .tm_hour = 13,
+      .tm_mday = 15,
+      .tm_mon = 2,     // March
+      .tm_year = 123,  // 2023 - 1900 = 123
+  };
+
+  time_t imploded = time_support->ImplodeGmtTime(&start_tm);
+
+  // date -u --date="Wed Mar 15 01:20:00 PM UTC 2023" +%s
+  EXPECT_EQ(imploded, 1678886400);
 
   struct tm exploded;
-  ASSERT_TRUE(time_support->ExplodeGmtTime(&t, &exploded));
+  ASSERT_TRUE(time_support->ExplodeGmtTime(&imploded, &exploded));
 
-  EXPECT_EQ(exploded.tm_year, 123);
-  EXPECT_EQ(exploded.tm_mon, 2);
-  EXPECT_EQ(exploded.tm_mday, 15);
-  EXPECT_EQ(exploded.tm_hour, 13);
-  EXPECT_EQ(exploded.tm_min, 20);
-  EXPECT_EQ(exploded.tm_sec, 0);
-  EXPECT_EQ(exploded.tm_wday, 3);
-
-  time_t imploded = time_support->ImplodeGmtTime(&exploded);
-  EXPECT_EQ(t, imploded);
+  EXPECT_EQ(exploded.tm_year, start_tm.tm_year);
+  EXPECT_EQ(exploded.tm_mon, start_tm.tm_mon);
+  EXPECT_EQ(exploded.tm_mday, start_tm.tm_mday);
+  EXPECT_EQ(exploded.tm_hour, start_tm.tm_hour);
+  EXPECT_EQ(exploded.tm_min, start_tm.tm_min);
+  EXPECT_EQ(exploded.tm_sec, start_tm.tm_sec);
+  EXPECT_EQ(exploded.tm_wday, 3);  // Wednesday
 }
 
 TEST_F(IcuTimeSupportTest, LocalTimeConversion) {
   setenv("TZ", "America/New_York", 1);
   IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
 
-  // The timestamp being tested is:
-  // $ TZ="America/New_York" date --date='@1678886400'
+  // The time being tested is:
   // Wed Mar 15 09:20:00 AM EDT 2023
-  time_t t = 1678886400;
+  struct tm start_tm = {
+      .tm_sec = 0,
+      .tm_min = 20,
+      .tm_hour = 9,
+      .tm_mday = 15,
+      .tm_mon = 2,     // March
+      .tm_year = 123,  // 2023 - 1900 = 123
+      .tm_isdst = 1,
+  };
+
+  time_t imploded = time_support->ImplodeLocalTime(&start_tm);
+
+  // TZ="America/New_York" date --date="Wed Mar 15 09:20:00 AM EDT 2023" +%s
+  EXPECT_EQ(imploded, 1678886400);
 
   struct tm exploded;
-  ASSERT_TRUE(time_support->ExplodeLocalTime(&t, &exploded));
+  ASSERT_TRUE(time_support->ExplodeLocalTime(&imploded, &exploded));
 
-  EXPECT_EQ(exploded.tm_year, 123);
-  EXPECT_EQ(exploded.tm_mon, 2);
-  EXPECT_EQ(exploded.tm_mday, 15);
-  EXPECT_EQ(exploded.tm_hour, 9);
-  EXPECT_EQ(exploded.tm_min, 20);
-  EXPECT_EQ(exploded.tm_sec, 0);
-  EXPECT_EQ(exploded.tm_wday, 3);
-  EXPECT_EQ(exploded.tm_isdst, 1);
-
-  time_t imploded = time_support->ImplodeLocalTime(&exploded);
-  EXPECT_EQ(t, imploded);
+  EXPECT_EQ(exploded.tm_year, start_tm.tm_year);
+  EXPECT_EQ(exploded.tm_mon, start_tm.tm_mon);
+  EXPECT_EQ(exploded.tm_mday, start_tm.tm_mday);
+  EXPECT_EQ(exploded.tm_hour, start_tm.tm_hour);
+  EXPECT_EQ(exploded.tm_min, start_tm.tm_min);
+  EXPECT_EQ(exploded.tm_sec, start_tm.tm_sec);
+  EXPECT_EQ(exploded.tm_wday, 3);  // Wednesday
+  EXPECT_EQ(exploded.tm_isdst, start_tm.tm_isdst);
 }
 
 TEST_F(IcuTimeSupportTest, UpdateFromEnvironment) {
