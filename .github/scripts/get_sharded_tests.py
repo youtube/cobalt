@@ -49,18 +49,28 @@ def main():
   all_tests = []
   current_suite = ''
   for line in test_list_output.splitlines():
+    # Keep the original line to check for indentation.
+    original_line = line
     line = line.strip()
+
     if not line:
       continue
-    # Test suites end with a period.
-    if line.endswith('.'):
-      current_suite = line
-    # Other lines are test names.
-    else:
-      # Strip comments, which start with '#', and remove trailing whitespace.
+
+    # A line is a test case if it's indented. Otherwise, it's a new suite
+    # or a full test name on a single line.
+    if original_line.startswith('  '):
+      # This is a test case, so prepend the current suite.
       test_name = line.split('#')[0].strip()
-      # Prepend the suite name to the test name.
       all_tests.append(f'{current_suite}{test_name}')
+    else:
+      # This is not indented. It's either a suite or a full test name.
+      if line.endswith('.'):
+        # It's a suite name.
+        current_suite = line
+      else:
+        # It's a full test name. Don't prepend any suite.
+        test_name = line.split('#')[0].strip()
+        all_tests.append(test_name)
 
   # Distribute tests to the current shard using round-robin.
   shard_tests = [
