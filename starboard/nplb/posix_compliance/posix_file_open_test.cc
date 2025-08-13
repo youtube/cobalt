@@ -24,11 +24,6 @@
   - [EILSEQ]: Filename is not portable, which is difficult to create reliably.
 */
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
@@ -36,26 +31,6 @@
 
 namespace starboard::nplb {
 namespace {
-
-// Helper function to recursively delete a directory and its contents.
-void RemoveFileOrDirectoryRecursively(const std::string& path) {
-  DIR* dir = opendir(path.c_str());
-  if (!dir) {
-    unlink(path.c_str());
-    return;
-  }
-
-  struct dirent* entry;
-  while ((entry = readdir(dir)) != nullptr) {
-    std::string name = entry->d_name;
-    if (name == "." || name == "..") {
-      continue;
-    }
-    RemoveFileOrDirectoryRecursively(path + kSbFileSepChar + name);
-  }
-  closedir(dir);
-  rmdir(path.c_str());
-}
 
 class PosixOpenTest : public ::testing::Test {
  protected:
