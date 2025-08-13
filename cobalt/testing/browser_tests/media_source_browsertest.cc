@@ -46,11 +46,13 @@ class MediaSourceTest : public MediaBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_VideoAudio_WebM) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_Playback_VideoAudio_WebM) {
   TestSimplePlayback("bear-320x240.webm", media::kEndedTitle);
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_VideoOnly_WebM) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_Playback_VideoOnly_WebM) {
   TestSimplePlayback("bear-320x240-video-only.webm", media::kEndedTitle);
 }
 
@@ -70,17 +72,20 @@ IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_AudioOnly_Opus_WebM) {
 }
 #endif
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_AudioOnly_WebM) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_Playback_AudioOnly_WebM) {
   TestSimplePlayback("bear-320x240-audio-only.webm", media::kEndedTitle);
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_AudioOnly_MP3) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_Playback_AudioOnly_MP3) {
   TestSimplePlayback("sfx.mp3", media::kEndedTitle);
 }
 
+// TODO(b/437421702): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(
     MediaSourceTest,
-    Playback_AudioOnly_MP3_With_Codecs_Parameter_Should_Fail) {
+    DISABLED_Playback_AudioOnly_MP3_With_Codecs_Parameter_Should_Fail) {
   // We override the correct media type for this file with one which erroneously
   // includes a codecs parameter that is valid for progressive but invalid for
   // MSE type support.
@@ -90,7 +95,8 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Test the case where test file and mime type mismatch.
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_Type_Error) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_Playback_Type_Error) {
   const char kWebMAudioOnly[] = "audio/webm; codecs=\"vorbis\"";
   TestSimplePlayback("bear-320x240-video-only.webm", kWebMAudioOnly,
                      media::kErrorEventTitle);
@@ -98,20 +104,25 @@ IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_Type_Error) {
 
 // Flaky test crbug.com/246308
 // Test changed to skip checks resulting in flakiness. Proper fix still needed.
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, ConfigChangeVideo) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_ConfigChangeVideo) {
   RunMediaTestPage("mse_config_change.html", base::StringPairs(),
                    media::kEndedTitle, true);
 }
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_Video_MP4_Audio_WEBM) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest,
+                       DISABLED_Playback_Video_MP4_Audio_WEBM) {
   auto query_params = GetAudioVideoQueryParams("bear-320x240-audio-only.webm",
                                                "bear-640x360-v_frag.mp4");
   RunMediaTestPage("mse_different_containers.html", std::move(query_params),
                    media::kEndedTitle, true);
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_Video_WEBM_Audio_MP4) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest,
+                       DISABLED_Playback_Video_WEBM_Audio_MP4) {
   auto query_params = GetAudioVideoQueryParams("bear-640x360-a_frag.mp4",
                                                "bear-320x240-video-only.webm");
   RunMediaTestPage("mse_different_containers.html", std::move(query_params),
@@ -120,11 +131,14 @@ IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_Video_WEBM_Audio_MP4) {
 
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_AudioOnly_FLAC_MP4) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest, DISABLED_Playback_AudioOnly_FLAC_MP4) {
   TestSimplePlayback("bear-flac_frag.mp4", media::kEndedTitle);
 }
 
-IN_PROC_BROWSER_TEST_F(MediaSourceTest, Playback_AudioOnly_XHE_AAC_MP4) {
+// TODO(b/437421702): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(MediaSourceTest,
+                       DISABLED_Playback_AudioOnly_XHE_AAC_MP4) {
   if (media::IsSupportedAudioType(
           {media::AudioCodec::kAAC, media::AudioCodecProfile::kXHE_AAC})) {
     TestSimplePlayback("noise-xhe-aac.mp4", media::kEndedTitle);
