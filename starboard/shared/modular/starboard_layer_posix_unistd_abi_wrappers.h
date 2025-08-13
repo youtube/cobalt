@@ -231,6 +231,8 @@ SB_EXPORT musl_pid_t __abi_wrap_getpid();
 
 SB_EXPORT int __abi_wrap_access(const char* path, int amode);
 
+SB_EXPORT int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
