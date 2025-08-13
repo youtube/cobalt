@@ -153,7 +153,7 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
                  bool use_job_objects,
                  RepeatingClosure timeout_callback,
                  OnceClosure gtest_init) {
-  bool force_single_process = false;
+  //bool force_single_process = false;
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kTestLauncherDebugLauncher)) {
     fprintf(stdout, "Forcing test launcher debugging mode.\n");
@@ -165,7 +165,7 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
               "Pass --test-launcher-debug-launcher to debug the launcher "
               "itself.\n");
       fflush(stdout);
-      force_single_process = true;
+      //force_single_process = true;
     }
   }
 /*
