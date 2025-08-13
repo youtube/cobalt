@@ -248,6 +248,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
+  REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
@@ -271,6 +272,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rand);
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
@@ -320,6 +322,8 @@ ExportedSymbols::ExportedSymbols() {
     REGISTER_SYMBOL(__errno_location);
   }
   REGISTER_WRAPPER(eventfd);
+  REGISTER_WRAPPER(fchmod);
+  REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);

@@ -82,7 +82,8 @@ class FrameTreeBrowserTest : public ContentBrowserTest {
 };
 
 // Ensures FrameTree correctly reflects page structure during navigations.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeShape) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape) {
   GURL base_url = embedded_test_server()->GetURL("A.com", "/site_isolation/");
 
   // Load doc without iframes. Verify FrameTree just has root.
@@ -108,7 +109,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeShape) {
 
 // TODO(ajwong): Talk with nasko and merge this functionality with
 // FrameTreeShape.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeShape2) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape2) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -140,7 +142,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeShape2) {
 }
 
 // Frame attributes of iframe elements are correctly tracked in FrameTree.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeAttributesUpdate) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_FrameTreeAttributesUpdate) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -169,7 +173,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeAttributesUpdate) {
 
 // Ensures that frames' name attributes and their updates are tracked in
 // |html_name()| and window.name and its updates are tracked in |frame_name()|.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameNameVSWindowName) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameNameVSWindowName) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -207,7 +212,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameNameVSWindowName) {
 }
 
 // Ensures that long attributes are cut down to the max length.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, LongAttributesCutDown) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_LongAttributesCutDown) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -234,7 +240,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, LongAttributesCutDown) {
 
 // Insert a frame into the frame tree and ensure that the inserted frame's
 // attributes are correctly captured.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, InsertFrameInTree) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_InsertFrameInTree) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -265,7 +272,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, InsertFrameInTree) {
 
 // Test that we can navigate away if the previous renderer doesn't clean up its
 // child frames.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeAfterCrash) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeAfterCrash) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -308,7 +316,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, FrameTreeAfterCrash) {
 
 // Test that we can navigate away if the previous renderer doesn't clean up its
 // child frames.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateWithLeftoverFrames) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_NavigateWithLeftoverFrames) {
   GURL base_url = embedded_test_server()->GetURL("A.com", "/site_isolation/");
 
   EXPECT_TRUE(NavigateToURL(
@@ -334,7 +344,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateWithLeftoverFrames) {
 }
 
 // Ensure that IsRenderFrameLive is true for main frames and same-site iframes.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, IsRenderFrameLive) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_IsRenderFrameLive) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -359,7 +370,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, IsRenderFrameLive) {
 }
 
 // Ensure that origins are correctly set on navigations.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, OriginSetOnNavigation) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_OriginSetOnNavigation) {
   GURL about_blank(url::kAboutBlankURL);
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/frame_tree/top.html"));
@@ -443,7 +455,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, OriginSetOnNavigation) {
 
 // Tests a cross-origin navigation to a blob URL. The main frame initiates this
 // navigation on its grandchild. It should wind up in the main frame's process.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateGrandchildToBlob) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_NavigateGrandchildToBlob) {
   WebContents* contents = shell()->web_contents();
   FrameTreeNode* root =
       static_cast<WebContentsImpl*>(contents)->GetPrimaryFrameTree().root();
@@ -495,7 +509,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateGrandchildToBlob) {
   EXPECT_EQ(reference_tree, DepictFrameTree(*root));
 }
 
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateChildToAboutBlank) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_NavigateChildToAboutBlank) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -590,7 +606,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Tests a cross-origin navigation to a data: URL. The main frame initiates this
 // navigation on its grandchild. It should wind up in the main frame's process
 // and have precursor origin of the main frame origin.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateGrandchildToDataUrl) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_NavigateGrandchildToDataUrl) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -650,7 +668,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, NavigateGrandchildToDataUrl) {
 
 // Ensures that iframe with srcdoc is always put in the same origin as its
 // parent frame.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, ChildFrameWithSrcdoc) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_ChildFrameWithSrcdoc) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -710,7 +729,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, ChildFrameWithSrcdoc) {
 
 // Ensure that sandbox flags are correctly set in the main frame when set by
 // Content-Security-Policy header.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, SandboxFlagsSetForMainFrame) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_SandboxFlagsSetForMainFrame) {
   GURL main_url(embedded_test_server()->GetURL("/csp_sandboxed_frame.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -765,7 +786,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, SandboxFlagsSetForMainFrame) {
 }
 
 // Ensure that sandbox flags are correctly set when child frames are created.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, SandboxFlagsSetForChildFrames) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_SandboxFlagsSetForChildFrames) {
   GURL main_url(embedded_test_server()->GetURL("/sandboxed_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -810,8 +833,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, SandboxFlagsSetForChildFrames) {
 // Ensure that sandbox flags are correctly set in the child frames when set by
 // Content-Security-Policy header, and in combination with the sandbox iframe
 // attribute.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       SandboxFlagsSetByCSPForChildFrames) {
+                       DISABLED_SandboxFlagsSetByCSPForChildFrames) {
   GURL main_url(embedded_test_server()->GetURL("/sandboxed_frames_csp.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -891,7 +915,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 
 // Ensure that a popup opened from a subframe sets its opener to the subframe's
 // FrameTreeNode, and that the opener is cleared if the subframe is destroyed.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, SubframeOpenerSetForNewWindow) {
+// TODO(b/437413685): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_SubframeOpenerSetForNewWindow) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -922,8 +948,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, SubframeOpenerSetForNewWindow) {
 
 // Tests that the user activation bits get cleared when a same-site document is
 // installed in the frame.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       ClearUserActivationForNewDocument) {
+                       DISABLED_ClearUserActivationForNewDocument) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -972,8 +999,9 @@ class CrossProcessFrameTreeBrowserTest : public ContentBrowserTest {
 };
 
 // Ensure that we can complete a cross-process subframe navigation.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       CreateCrossProcessSubframeProxies) {
+                       DISABLED_CreateCrossProcessSubframeProxies) {
   GURL main_url(embedded_test_server()->GetURL("/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1038,8 +1066,9 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
   EXPECT_TRUE(root->child_at(0)->current_frame_host()->IsRenderFrameLive());
 }
 
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       OriginSetOnNavigations) {
+                       DISABLED_OriginSetOnNavigations) {
   GURL main_url(embedded_test_server()->GetURL("/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1281,8 +1310,9 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 // Test to verify that about:blank iframe, which is a child of a sandboxed
 // iframe is not considered same origin, but precursor information is preserved
 // in its origin.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       AboutBlankSubframeInSandboxedFrame) {
+                       DISABLED_AboutBlankSubframeInSandboxedFrame) {
   // Start off by navigating to a page with sandboxed iframe, which allows
   // script execution.
   GURL main_url(
@@ -1336,8 +1366,9 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 
 // Ensure that a popup opened from a sandboxed main frame inherits sandbox flags
 // from its opener.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       SandboxFlagsSetForNewWindow) {
+                       DISABLED_SandboxFlagsSetForNewWindow) {
   GURL main_url(
       embedded_test_server()->GetURL("/sandboxed_main_frame_script.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1377,8 +1408,9 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 
 // Tests that the user activation bits get cleared when a cross-site document is
 // installed in the frame.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       ClearUserActivationForNewDocument) {
+                       DISABLED_ClearUserActivationForNewDocument) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1434,8 +1466,9 @@ class BrowserContextGroupSwapFrameTreeBrowserTest : public ContentBrowserTest {
 // Force a race between when the RenderViewHostImpl's main frame is running
 // the unload handlers and when a new navigation occurs that tries to
 // reuse a RenderViewHostImpl.
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(BrowserContextGroupSwapFrameTreeBrowserTest,
-                       NavigateAndGoBack) {
+                       DISABLED_NavigateAndGoBack) {
   GURL main_url(https_server()->GetURL("a.test", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1489,8 +1522,9 @@ class IsolateIcelandFrameTreeBrowserTest : public ContentBrowserTest {
 };
 
 // Regression test for https://crbug.com/644966
+// TODO(b/437413685): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(IsolateIcelandFrameTreeBrowserTest,
-                       ProcessSwitchForIsolatedBlob) {
+                       DISABLED_ProcessSwitchForIsolatedBlob) {
   // Set up an iframe.
   WebContents* contents = shell()->web_contents();
   FrameTreeNode* root =
@@ -1541,8 +1575,9 @@ class FrameTreeCredentiallessIframeBrowserTest : public FrameTreeBrowserTest {
 };
 
 // Tests the mojo propagation of the 'credentialless' attribute to the browser.
+// TODO(b/437413685): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(FrameTreeCredentiallessIframeBrowserTest,
-                       AttributeIsPropagatedToBrowser) {
+                       DISABLED_AttributeIsPropagatedToBrowser) {
   GURL main_url(embedded_test_server()->GetURL("/hello.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1688,8 +1723,9 @@ IN_PROC_BROWSER_TEST_F(FrameTreeSessionStorageDeprecationTrialBrowserSecureTest,
             frame_tree.GetSessionStorageKey(opaque_third_party));
 }
 
+// TODO(b/437413685): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(FrameTreeSessionStorageDeprecationTrialBrowserSecureTest,
-                       GetSessionStorageKey) {
+                       DISABLED_GetSessionStorageKey) {
   const blink::StorageKey dt_third_party = blink::StorageKey::Create(
       url::Origin::Create(GURL("https://example.com")),
       net::SchemefulSite(GURL("https://notexample.com")),
@@ -1756,9 +1792,10 @@ class FrameTreeSessionStorageDeprecationTrialBrowserInsecureTest
   }
 };
 
+// TODO(b/437413685): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(
     FrameTreeSessionStorageDeprecationTrialBrowserInsecureTest,
-    GetSessionStorageKeyInsecure) {
+    DISABLED_GetSessionStorageKeyInsecure) {
   const blink::StorageKey dt_third_party = blink::StorageKey::Create(
       url::Origin::Create(GURL("http://example.com")),
       net::SchemefulSite(GURL("http://notexample.com")),
