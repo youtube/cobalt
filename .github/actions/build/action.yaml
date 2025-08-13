@@ -43,7 +43,8 @@ runs:
         run: |
           set -x
           cd src
-          git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > ${CHANGED_FILES_LIST}
+          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
         if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
