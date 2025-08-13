@@ -221,6 +221,7 @@ class HttpStreamFactory::Job {
 
   void SetPriority(RequestPriority priority);
 
+  const GURL& origin_url() const { return origin_url_; }
   RequestPriority priority() const { return priority_; }
   bool was_alpn_negotiated() const;
   NextProto negotiated_protocol() const;
