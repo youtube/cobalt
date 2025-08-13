@@ -50,6 +50,7 @@ runs:
         mkdir -p ${test_output}
 
         failed_suites=""
+        non_gtest_counter=0
         cd unit_test/
 
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
@@ -106,27 +107,33 @@ runs:
               fi
             fi
           else
-            # Not a gtest-compliant binary. Run only on the first shard.
+            # Not a gtest-compliant binary. Distribute these suites round-robin across shards.
             gtest_list_exit_code=$?
-            echo "Test binary is not gtest-compliant (exit code: ${gtest_list_exit_code}). Running only on shard 0."
-            if [ ${{ matrix.shard }} -eq 0 ]; then
-                /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                  stdbuf -i0 -o0 -e0 $ENTRYPOINT \
-                  --single-process-tests \
-                  --gtest_output="xml:${xml_path}" 2>&1 | tee ${log_path} || {
+            echo "Test binary is not gtest-compliant (exit code: ${gtest_list_exit_code}). Distributing..."
+            
+            # Assign this suite to a shard based on the counter
+            if [ $((non_gtest_counter % ${{ inputs.num_gtest_shards }})) -eq ${{ matrix.shard }} ]; then
+              echo "This shard (${{ matrix.shard }}) will run non-gtest suite: ${test_binary}"
+              /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                --single-process-tests \
+                --gtest_output="xml:${xml_path}" 2>&1 | tee ${log_path} || {
                 failed_suites="${failed_suites} ${test_binary}"
               }
               if [[ ! -f ${xml_path} ]]; then
                 python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
               fi
             else
-              # For other shards, create an empty XML file.
-              echo "Not shard 0, generating empty XML." > ${log_path}
+              # This shard is not assigned this suite. Create an empty XML for consistency.
+              echo "This shard (${{ matrix.shard }}) is skipping non-gtest suite: ${test_binary}" > ${log_path}
               echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
               echo '<testsuites name="AllTests" tests="0" failures="0" errors="0" time="0">' >> "${xml_path}"
               echo "  <testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" />" >> "${xml_path}"
               echo '</testsuites>' >> "${xml_path}"
             fi
+
+            # Increment the counter for the next non-gtest suite
+            non_gtest_counter=$((non_gtest_counter + 1))
           fi
         done
         echo "Finished running tests..."
