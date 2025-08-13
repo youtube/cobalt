@@ -30,6 +30,11 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = target_os != "android"
+<<<<<<< HEAD
+=======
+
+  use_evergreen = false
+>>>>>>> 156009d0ead (Default run_browser_tests to devel/debug build (#6814))
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -74,4 +79,10 @@ if (starboard_toolchain == "") {
   } else {
     starboard_toolchain = cobalt_toolchain
   }
+}
+
+declare_args() {
+  # TODO(b/428999732, b/437999182): Cobalt shell was started as a minimal test shell.
+  # We use this param to separate all test logics from the Cobalt shell.
+  run_browser_tests = !is_official_build
 }
