@@ -42,6 +42,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+<<<<<<< HEAD
+=======
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+>>>>>>> e895b2f11ac (Speed up git checkout in CI (#6819))
       - name: Cache CI Essentials
         uses: actions/upload-artifact@v4
         with:
@@ -170,6 +176,17 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+<<<<<<< HEAD
+=======
+      - name: Set git hash for Docker changes
+        id: set-docker-hash
+        shell: bash
+        run: |
+          set -x
+          docker_content_sha=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
+          git show --no-patch ${docker_content_sha}
+          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+>>>>>>> e895b2f11ac (Speed up git checkout in CI (#6819))
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -279,8 +296,10 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
-          # Use fetch depth of 0 to get full history for a valid build id.
-          fetch-depth: 0
+          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
+          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
+          # to properly calculate build id.
+          fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
       - name: Build Cobalt
