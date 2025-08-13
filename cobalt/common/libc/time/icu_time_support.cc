@@ -16,6 +16,8 @@
 
 #include <stdio.h>
 #include <time.h>
+
+#include <cmath>
 #include <memory>
 #include <optional>
 
@@ -53,8 +55,9 @@ bool ExplodeTime(const time_t* time,
   }
 
   UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::TimeZone> cloned_zone(zone.clone());
   std::unique_ptr<icu::Calendar> calendar(
-      new icu::GregorianCalendar(zone.clone(), status));
+      new icu::GregorianCalendar(*cloned_zone, status));
   if (!calendar || U_FAILURE(status)) {
     return false;
   }
@@ -69,6 +72,12 @@ bool ExplodeTime(const time_t* time,
   out_exploded->tm_sec = calendar->get(UCAL_SECOND, status);
   out_exploded->tm_wday = calendar->get(UCAL_DAY_OF_WEEK, status) - UCAL_SUNDAY;
   out_exploded->tm_yday = calendar->get(UCAL_DAY_OF_YEAR, status) - 1;
+  if (U_FAILURE(status)) {
+    // If either of the above calls have set the status to failure, the
+    // conversion has failed. Note: ICU will not reset a failing status back
+    // to succesful, so we only need to check it here.
+    return false;
+  }
   out_exploded->tm_isdst = calendar->inDaylightTime(status) ? 1 : 0;
   if (U_FAILURE(status)) {
     status = U_ZERO_ERROR;
@@ -100,8 +109,9 @@ time_t ImplodeTime(struct tm* exploded, const icu::TimeZone& zone) {
   }
 
   UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::TimeZone> cloned_zone(zone.clone());
   std::unique_ptr<icu::Calendar> calendar(
-      new icu::GregorianCalendar(zone.clone(), status));
+      new icu::GregorianCalendar(*cloned_zone, status));
   if (!calendar || U_FAILURE(status)) {
     return -1;
   }
@@ -124,7 +134,7 @@ time_t ImplodeTime(struct tm* exploded, const icu::TimeZone& zone) {
   UDate udate = calendar->getTime(status);
 
   if (status <= U_ZERO_ERROR) {
-    return udate / 1000;
+    return llround(udate / 1000.0);
   }
 
   return -1;
