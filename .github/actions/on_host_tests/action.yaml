@@ -58,55 +58,76 @@ runs:
           echo "Running tests for suite: ${test_binary}"
 
           ENTRYPOINT=./"${test_binary_path}"
-
-          # Combine the shard filter with the exclusion filter from the JSON file.
-          # First, get the exclusion filter.
-          test_filter_from_file="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
-          if [ -f ${test_filter_json_dir} ]; then
-            test_filter_from_file=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
-          fi
-
-          # Second, get the inclusion filter for this specific shard.
-          # Get the full list of tests from the binary.
-          all_tests=$($ENTRYPOINT --gtest_list_tests)
-          # Use the helper script to get the specific filter for this shard.
-          shard_filter=$(echo "${all_tests}" | python3 ${GITHUB_WORKSPACE}/.github/scripts/get_sharded_tests.py ${{ inputs.num_gtest_shards }} ${{ matrix.shard }})
-
-          # Third, combine them.
-          if [ "${test_filter_from_file}" == "-*" ]; then
-            # If all tests are excluded by the file, that takes precedence.
-            test_filter="${test_filter_from_file}"
-          elif [ -z "${shard_filter}" ]; then
-            # If the shard filter is empty, it means this shard has no tests to run.
-            # We can use a filter that matches nothing.
-            test_filter="-"
-          else
-            # Prepend the shard's tests to the exclusion list.
-            # e.g. "Test.A:Test.B:-Failing.Test:Failing.Test2"
-            test_filter="${shard_filter}${test_filter_from_file}"
-          fi
-
-          echo "Test filter evaluated to: ${test_filter}"
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
-          # TODO: Investigate test_runner.py
 
-          # Use [[ ... ]] which is safer for string comparisons with special characters.
-          if [[ "${test_filter}" == "-*" || "${test_filter}" == "-" ]]; then
-            echo "Skipped due to test filter." >  ${log_path}
+          # Attempt to list tests and check the exit code.
+          all_tests=$($ENTRYPOINT --gtest_list_tests 2> /dev/null)
+          gtest_list_exit_code=$?
+
+          if [ ${gtest_list_exit_code} -eq 0 ]; then
+            # Gtest-compliant, shardable test binary.
+            echo "Test binary is gtest-compliant. Sharding tests..."
+
+            # Combine the shard filter with the exclusion filter from the JSON file.
+            test_filter_from_file="*"
+            test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
+            if [ -f ${test_filter_json_dir} ]; then
+              test_filter_from_file=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
+            fi
+
+            shard_filter=$(echo "${all_tests}" | python3 ${GITHUB_WORKSPACE}/.github/scripts/get_sharded_tests.py ${{ inputs.num_gtest_shards }} ${{ matrix.shard }})
+
+            if [ "${test_filter_from_file}" == "-*" ]; then
+              test_filter="${test_filter_from_file}"
+            elif [ -z "${shard_filter}" ]; then
+              test_filter="-"
+            else
+              test_filter="${shard_filter}${test_filter_from_file}"
+            fi
+
+            echo "Test filter evaluated to: ${test_filter}"
+
+            if [[ "${test_filter}" == "-*" || "${test_filter}" == "-" ]]; then
+              echo "Skipped due to test filter." >  ${log_path}
+              # Generate a dummy XML for shards with no tests.
+              echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
+              echo '<testsuites name="AllTests" tests="0" failures="0" errors="0" time="0">' >> "${xml_path}"
+              echo "  <testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" />" >> "${xml_path}"
+              echo '</testsuites>' >> "${xml_path}"
+            else
+              /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                  stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                  --single-process-tests \
+                  --gtest_output="xml:${xml_path}" \
+                  --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
+                failed_suites="${failed_suites} ${test_binary}"
+              }
+
+              if [[ ! -f ${xml_path} ]]; then
+                python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              fi
+            fi
           else
-            /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
-                --single-process-tests \
-                --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_binary}"
-            }
-
-            if [[ ! -f ${xml_path} ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+            # Not a gtest-compliant binary. Run only on the first shard.
+            echo "Test binary is not gtest-compliant (exit code: ${gtest_list_exit_code}). Running only on shard 0."
+            if [ ${{ matrix.shard }} -eq 0 ]; then
+                /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                  stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                  --single-process-tests \
+                  --gtest_output="xml:${xml_path}" 2>&1 | tee ${log_path} || {
+                failed_suites="${failed_suites} ${test_binary}"
+              }
+              if [[ ! -f ${xml_path} ]]; then
+                python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              fi
+            else
+              # For other shards, create an empty XML file.
+              echo "Not shard 0, generating empty XML." > ${log_path}
+              echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
+              echo '<testsuites name="AllTests" tests="0" failures="0" errors="0" time="0">' >> "${xml_path}"
+              echo "  <testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" />" >> "${xml_path}"
+              echo '</testsuites>' >> "${xml_path}"
             fi
           fi
         done
