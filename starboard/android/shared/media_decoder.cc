@@ -504,17 +504,17 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  static bool kFake8K = true;
+  static bool kFake8K = false;  // true;
   static bool last_is_playing_8k = false;
   if (media_type_ == kSbMediaTypeVideo && size > 0) {
     const auto height =
-        input_buffer->video_sample_info().stream_info.frame_height;
+        input_buffer->video_sample_info().stream_info.frame_size.height;
     const auto width =
-        input_buffer->video_sample_info().stream_info.frame_width;
-    bool is_playing_8k = kFake8K || width > 6000;
+        input_buffer->video_sample_info().stream_info.frame_size.width;
+    bool is_playing_8k = kFake8K || width > 6'000;
     if (is_playing_8k != last_is_playing_8k) {
-      SB_LOG(INFO) << __func__ << " > Now we are playing resolution=" << width
-                   << "x" << height;
+      SB_LOG(INFO) << __func__ << " > Now we are playing resolution="
+                   << input_buffer->video_sample_info().stream_info.frame_size;
       if (is_playing_8k) {
         SB_LOG(INFO) << __func__ << "Notifyin memory pressure.";
         base::MemoryPressureListener::NotifyMemoryPressure(
