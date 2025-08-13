@@ -57,8 +57,10 @@ def main():
       current_suite = line
     # Other lines are test names.
     else:
+      # Strip comments, which start with '#', and remove trailing whitespace.
+      test_name = line.split('#')[0].strip()
       # Prepend the suite name to the test name.
-      all_tests.append(f'{current_suite}{line}')
+      all_tests.append(f'{current_suite}{test_name}')
 
   # Distribute tests to the current shard using round-robin.
   shard_tests = [
