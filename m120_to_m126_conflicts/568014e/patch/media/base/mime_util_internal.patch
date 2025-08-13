@@ -1,0 +1,21 @@
+--- media/base/mime_util_internal.cc
++++ media/base/mime_util_internal.cc
+@@ -440,10 +440,7 @@
+   media_format_map_.insert_or_assign(std::move(mime_type), std::move(codecs));
+ }
+ 
+-<<<<<<< HEAD
+ bool MimeUtil::IsSupportedMediaMimeType(std::string_view mime_type) const {
+-=======
+-bool MimeUtil::IsSupportedMediaMimeType(base::StringPiece mime_type) const {
+ #if BUILDFLAG(IS_COBALT)
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   SbMediaSupportType support_type =
+@@ -454,7 +451,6 @@
+   return result;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+ #else   // BUILDFLAG(IS_COBALT)
+->>>>>>> 568014eea89c ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+   return media_format_map_.contains(base::ToLowerASCII(mime_type));
+ #endif  // BUILDFLAG(IS_COBALT)
+ }

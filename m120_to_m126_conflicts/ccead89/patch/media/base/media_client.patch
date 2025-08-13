@@ -1,0 +1,23 @@
+--- media/base/media_client.h
++++ media/base/media_client.h
+@@ -66,19 +66,17 @@
+   virtual std::optional<::media::AudioRendererAlgorithmParameters>
+   GetAudioRendererAlgorithmParameters(AudioParameters audio_parameters) = 0;
+ 
+-<<<<<<< HEAD
+   // Returns custom allocator if embedder has provided one, else nullptr.
+   // When an allocator is provided, the MSE pipeline will use the provided
+   // allocator during StreamParserBuffer creation. The SRC playback pipeline
+   // does not currently use the allocator, but could be updated to do so.
+   virtual ExternalMemoryAllocator* GetMediaAllocator() = 0;
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  private:
+   // TODO(b/326497953): Support Suspend() and Resume().
+   DecoderBufferAllocator decoder_buffer_allocator_;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+ };
+ 
+ }  // namespace media

@@ -1,0 +1,23 @@
+--- .gitignore
++++ .gitignore
+@@ -313,7 +313,6 @@
+ # Ignore the default results output directory for tools/run-swarmed.py
+ /results
+ 
+-<<<<<<< HEAD
+ # ignore rust build files
+ third_party/rust/target/
+ 
+@@ -323,11 +322,10 @@
+ # These files are created by first class GCS deps.
+ **/*_hash
+ **/*_content_names
+-=======
++
+ 
+ 
+ #  ---- Cobalt ignores below this line ----
+ 
+ # Intermediate Gradle outputs from builds
+ starboard/android/apk/.gradle/
+->>>>>>> 9fff641ded4c (Add .gitignore section for Cobalt (#4360))

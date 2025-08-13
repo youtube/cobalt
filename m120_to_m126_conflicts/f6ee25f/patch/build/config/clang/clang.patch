@@ -1,0 +1,17 @@
+--- build/config/clang/clang.gni
++++ build/config/clang/clang.gni
+@@ -24,13 +24,8 @@
+   # checks are activated on the same set of platforms.
+   enable_check_raw_ref_fields =
+       build_with_chromium && !is_official_build &&
+-<<<<<<< HEAD
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win ||
+-       is_mac || is_chromeos_lacros || is_chromeos_ash)
+-=======
+-      ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win)
+-       && !chrobalt
+->>>>>>> f6ee25fa618a (Add starboard build to android (#4259))
++       is_mac || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+ 
+   clang_base_path = default_clang_base_path
+ 

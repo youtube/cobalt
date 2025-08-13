@@ -1,0 +1,84 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -80,10 +80,6 @@
+     DiscardPadding discard_padding;
+   };
+ 
+-<<<<<<< HEAD
+-  // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
+-  // If size is 0, no buffer will be allocated.
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   class Allocator {
+    public:
+@@ -114,8 +110,8 @@
+   };
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-  // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
++  // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
++  // If size is 0, no buffer will be allocated.
+   explicit DecoderBuffer(size_t size);
+ 
+   DecoderBuffer(const DecoderBuffer&) = delete;
+@@ -209,12 +205,8 @@
+       return writable_mapping_.GetMemoryAs<const uint8_t>();
+     if (external_memory_)
+       return external_memory_->span().data();
+-<<<<<<< HEAD
+     return data_.data();
+-=======
+-    return data_.get();
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+   }
+ 
+   // The number of bytes in the buffer.
+@@ -234,12 +226,8 @@
+     DCHECK(!read_only_mapping_.IsValid());
+     DCHECK(!writable_mapping_.IsValid());
+     DCHECK(!external_memory_);
+-<<<<<<< HEAD
+     return const_cast<uint8_t*>(data_.data());
+-=======
+-    return data_.get();
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+   }
+ 
+   // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
+@@ -275,19 +263,11 @@
+     decrypt_config_ = std::move(decrypt_config);
+   }
+ 
+-<<<<<<< HEAD
+-  bool end_of_stream() const { return is_end_of_stream_; }
+-=======
+-  // If there's no data in this buffer, it represents end of stream.
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   bool end_of_stream() const { return !data_; }
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  bool end_of_stream() const {
+-    return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
+-           !external_memory_ && !data_;
+-  }
++  bool end_of_stream() const { return is_end_of_stream_; }
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+ 
+   bool is_key_frame() const {
+     DCHECK(!end_of_stream());
+@@ -357,12 +337,8 @@
+   size_t allocated_size_ = 0;
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Encoded data, if it is stored on the heap.
+-<<<<<<< HEAD
+   base::HeapArray<uint8_t> data_;
+-=======
+-  std::unique_ptr<uint8_t[]> data_;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+ 
+  private:
+   // Constructor helper method for memory allocations.
