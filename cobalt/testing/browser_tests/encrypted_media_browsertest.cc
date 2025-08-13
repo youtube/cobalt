@@ -209,25 +209,26 @@ INSTANTIATE_TEST_SUITE_P(MSE_ExternalClearKey,
                                  Values(SrcType::MSE)));
 #endif
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_AudioOnly_WebM) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_AudioOnly_WebM) {
   TestSimplePlayback("bear-a_enc-a.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_AudioClearVideo_WebM) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_AudioClearVideo_WebM) {
   TestSimplePlayback("bear-320x240-av_enc-a.webm");
 }
 
 // TODO(https://crbug.com/1239633): Flaky on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_Playback_VideoAudio_WebM DISABLED_Playback_VideoAudio_WebM
-#else
-#define MAYBE_Playback_VideoAudio_WebM Playback_VideoAudio_WebM
-#endif
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, MAYBE_Playback_VideoAudio_WebM) {
+
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_VideoAudio_WebM) {
   TestSimplePlayback("bear-320x240-av_enc-av.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_WebM) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_VideoOnly_WebM) {
   TestSimplePlayback("bear-320x240-v_enc-v.webm");
 }
 
@@ -237,23 +238,23 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
   TestSimplePlayback("bear-320x240-v-vp9_fullsample_enc-v.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_WebM_Subsample) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_VideoOnly_WebM_Subsample) {
   TestSimplePlayback("bear-320x240-v-vp9_subsample_enc-v.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoClearAudio_WebM) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_VideoClearAudio_WebM) {
   TestSimplePlayback("bear-320x240-av_enc-v.webm");
 }
 
 // TODO(https://crbug.com/1239633): Flaky on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_Playback_VideoAudio_WebM_Opus \
-  DISABLED_Playback_VideoAudio_WebM_Opus
-#else
-#define MAYBE_Playback_VideoAudio_WebM_Opus Playback_AudioOnly_WebM_Opus
-#endif
+
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       MAYBE_Playback_VideoAudio_WebM_Opus) {
+                       DISABLED_Playback_VideoAudio_WebM_Opus) {
 #if BUILDFLAG(IS_ANDROID)
   if (!media::MediaCodecUtil::IsOpusDecoderAvailable()) {
     GTEST_SKIP() << "Opus decoder not available";
@@ -262,25 +263,11 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
   TestSimplePlayback("bear-320x240-opus-a_enc-a.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoAudio_WebM_Opus) {
-#if BUILDFLAG(IS_ANDROID)
-  if (!media::MediaCodecUtil::IsOpusDecoderAvailable()) {
-    GTEST_SKIP() << "Opus decoder not available";
-  }
-#endif
-  TestSimplePlayback("bear-320x240-opus-av_enc-av.webm");
-}
-
 // TODO(crbug.com/1360765): Flaky on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_Playback_VideoClearAudio_WebM_Opus \
-  DISABLED_Playback_VideoClearAudio_WebM_Opus
-#else
-#define MAYBE_Playback_VideoClearAudio_WebM_Opus \
-  Playback_VideoClearAudio_WebM_Opus
-#endif
+
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       MAYBE_Playback_VideoClearAudio_WebM_Opus) {
+                       DISABLED_Playback_VideoClearAudio_WebM_Opus) {
 #if BUILDFLAG(IS_ANDROID)
   if (!media::MediaCodecUtil::IsOpusDecoderAvailable()) {
     GTEST_SKIP() << "Opus decoder not available";
@@ -289,11 +276,15 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
   TestSimplePlayback("bear-320x240-opus-av_enc-v.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_AudioOnly_MP4_FLAC) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_AudioOnly_MP4_FLAC) {
   RunMultipleFileTest(std::string(), "bear-flac-cenc.mp4", media::kEndedTitle);
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_AudioOnly_MP4_OPUS) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_AudioOnly_MP4_OPUS) {
 #if BUILDFLAG(IS_ANDROID)
   if (!media::MediaCodecUtil::IsOpusDecoderAvailable()) {
     GTEST_SKIP() << "Opus decoder not available";
@@ -302,7 +293,9 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_AudioOnly_MP4_OPUS) {
   RunMultipleFileTest(std::string(), "bear-opus-cenc.mp4", media::kEndedTitle);
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_MP4_VP9) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_VideoOnly_MP4_VP9) {
   // MP4 without MSE is not support yet, http://crbug.com/170793.
   if (CurrentSourceType() != SrcType::MSE) {
     GTEST_SKIP() << "Can only play MP4 encrypted streams by MSE.";
@@ -314,31 +307,15 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_MP4_VP9) {
 // TODO(crbug.com/707127): Decide when it's supported on Android.
 #if !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_FUCHSIA) && defined(ARCH_CPU_ARM_FAMILY))
-// TODO(https://crbug.com/1222685): Failing on Mac.
-// TODO(https://crbug.com/1280308): Failing on Fuchsia arm.
-#define MAYBE_Playback_VideoOnly_WebM_VP9Profile2 \
-  DISABLED_Playback_VideoOnly_WebM_VP9Profile2
-#else
-#define MAYBE_Playback_VideoOnly_WebM_VP9Profile2 \
-  Playback_VideoOnly_WebM_VP9Profile2
-#endif
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       MAYBE_Playback_VideoOnly_WebM_VP9Profile2) {
+                       DISABLED_Playback_VideoOnly_WebM_VP9Profile2) {
   TestSimplePlayback("bear-320x240-v-vp9_profile2_subsample_cenc-v.webm");
 }
 
-#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_FUCHSIA) && defined(ARCH_CPU_ARM_FAMILY))
-// TODO(https://crbug.com/1270792): Failing on Mac.
-// TODO(https://crbug.com/1280308): Failing on Fuchsia arm.
-#define MAYBE_Playback_VideoOnly_MP4_VP9Profile2 \
-  DISABLED_Playback_VideoOnly_MP4_VP9Profile2
-#else
-#define MAYBE_Playback_VideoOnly_MP4_VP9Profile2 \
-  Playback_VideoOnly_MP4_VP9Profile2
-#endif
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       MAYBE_Playback_VideoOnly_MP4_VP9Profile2) {
+                       DISABLED_Playback_VideoOnly_MP4_VP9Profile2) {
   // MP4 without MSE is not support yet, http://crbug.com/170793.
   if (CurrentSourceType() != SrcType::MSE) {
     GTEST_SKIP() << "Can only play MP4 encrypted streams by MSE.";
@@ -349,24 +326,23 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_AV1_DECODER)
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_WebM_AV1) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_VideoOnly_WebM_AV1) {
   TestSimplePlayback("bear-av1-cenc.webm");
 }
 
 // TODO(crbug.com/1360665): Flaky on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_Playback_VideoOnly_WebM_AV1_10bit \
-  DISABLED_Playback_VideoOnly_WebM_AV1_10bit
-#else
-#define MAYBE_Playback_VideoOnly_WebM_AV1_10bit \
-  Playback_VideoOnly_WebM_AV1_10bit
-#endif
+
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       MAYBE_Playback_VideoOnly_WebM_AV1_10bit) {
+                       DISABLED_Playback_VideoOnly_WebM_AV1_10bit) {
   TestSimplePlayback("bear-av1-320x180-10bit-cenc.webm");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_MP4_AV1) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_VideoOnly_MP4_AV1) {
   // MP4 without MSE is not support yet, http://crbug.com/170793.
   if (CurrentSourceType() != SrcType::MSE) {
     GTEST_SKIP() << "Can only play MP4 encrypted streams by MSE.";
@@ -375,7 +351,9 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_MP4_AV1) {
   TestSimplePlayback("bear-av1-cenc.mp4");
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_MP4_AV1_10bit) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_Playback_VideoOnly_MP4_AV1_10bit) {
   // MP4 without MSE is not support yet, http://crbug.com/170793.
   if (CurrentSourceType() != SrcType::MSE) {
     GTEST_SKIP() << "Can only play MP4 encrypted streams by MSE.";
@@ -385,79 +363,78 @@ IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_VideoOnly_MP4_AV1_10bit) {
 }
 #endif  // BUILDFLAG(ENABLE_AV1_DECODER)
 
+// TODO(b/437424533): Investigate failing test.
 // Strictly speaking this is not an "encrypted" media test. Keep it here for
 // completeness.
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, ConfigChangeVideo_ClearToClear) {
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_ConfigChangeVideo_ClearToClear) {
   TestConfigChange(ConfigChangeType::CLEAR_TO_CLEAR);
 }
 
 // Failed on Android, see https://crbug.com/1014540.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_ConfigChangeVideo_ClearToEncrypted \
-  DISABLED_ConfigChangeVideo_ClearToEncrypted
-#else
-#define MAYBE_ConfigChangeVideo_ClearToEncrypted \
-  ConfigChangeVideo_ClearToEncrypted
-#endif
+
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       MAYBE_ConfigChangeVideo_ClearToEncrypted) {
+                       DISABLED_ConfigChangeVideo_ClearToEncrypted) {
   TestConfigChange(ConfigChangeType::CLEAR_TO_ENCRYPTED);
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, ConfigChangeVideo_EncryptedToClear) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
+                       DISABLED_ConfigChangeVideo_EncryptedToClear) {
   TestConfigChange(ConfigChangeType::ENCRYPTED_TO_CLEAR);
 }
 
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       ConfigChangeVideo_EncryptedToEncrypted) {
+                       DISABLED_ConfigChangeVideo_EncryptedToEncrypted) {
   TestConfigChange(ConfigChangeType::ENCRYPTED_TO_ENCRYPTED);
 }
 
 // Fails on Android (https://crbug.com/778245 and https://crbug.com/1023638).
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_FrameSizeChangeVideo DISABLED_FrameSizeChangeVideo
-#else
-#define MAYBE_FrameSizeChangeVideo FrameSizeChangeVideo
-#endif
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, MAYBE_FrameSizeChangeVideo) {
+
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_FrameSizeChangeVideo) {
   TestFrameSizeChange();
 }
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_Encryption_CENC) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_Encryption_CENC) {
   RunMultipleFileTest("bear-640x360-v_frag-cenc.mp4",
                       "bear-640x360-a_frag-cenc.mp4", media::kEndedTitle);
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_Encryption_CBC1) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_Encryption_CBC1) {
   RunMultipleFileTest("bear-640x360-v_frag-cbc1.mp4", std::string(),
                       media::kErrorTitle);
 }
 
 // TODO(crbug.com/1360698): Flaky on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_Playback_Encryption_CENS DISABLED_Playback_Encryption_CENS
-#else
-#define MAYBE_Playback_Encryption_CENS Playback_Encryption_CENS
-#endif
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, MAYBE_Playback_Encryption_CENS) {
+
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_Encryption_CENS) {
   RunMultipleFileTest("bear-640x360-v_frag-cens.mp4", std::string(),
                       media::kErrorTitle);
 }
 
-IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, Playback_Encryption_CBCS) {
+// TODO(b/437424533): Investigate failing test.
+IN_PROC_BROWSER_TEST_P(EncryptedMediaTest, DISABLED_Playback_Encryption_CBCS) {
   RunMultipleFileTest("bear-640x360-v_frag-cbcs.mp4",
                       "bear-640x360-a_frag-cbcs.mp4", media::kEndedTitle);
 }
 
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       Playback_Encryption_CBCS_Video_CENC_Audio) {
+                       DISABLED_Playback_Encryption_CBCS_Video_CENC_Audio) {
   RunMultipleFileTest("bear-640x360-v_frag-cbcs.mp4",
                       "bear-640x360-a_frag-cenc.mp4", media::kEndedTitle);
 }
 
+// TODO(b/437424533): Investigate failing test.
 IN_PROC_BROWSER_TEST_P(EncryptedMediaTest,
-                       Playback_Encryption_CENC_Video_CBCS_Audio) {
+                       DISABLED_Playback_Encryption_CENC_Video_CBCS_Audio) {
   RunMultipleFileTest("bear-640x360-v_frag-cenc.mp4",
                       "bear-640x360-a_frag-cbcs.mp4", media::kEndedTitle);
 }

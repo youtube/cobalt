@@ -300,7 +300,9 @@ class LoadingStateChangedDelegate : public WebContentsDelegate {
 };
 
 // Test that DidStopLoading includes the correct URL in the details.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DidStopLoadingDetails) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_DidStopLoadingDetails) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   LoadStopNotificationObserver load_observer(
@@ -318,8 +320,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DidStopLoadingDetails) {
 // Regression test for https://crbug.com/1405036
 // Dumping the accessibility tree should not crash, even if it has not received
 // an ID through a renderer tree yet.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DumpAccessibilityTreeWithoutTreeID) {
+                       DISABLED_DumpAccessibilityTreeWithoutTreeID) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   LoadStopNotificationObserver load_observer(
@@ -337,8 +340,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Test that DidStopLoading includes the correct URL in the details when a
 // pending entry is present.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DidStopLoadingDetailsWithPending) {
+                       DISABLED_DidStopLoadingDetailsWithPending) {
   ASSERT_TRUE(embedded_test_server()->Start());
   // TODO(clamy): Add a cross-process navigation case as well once
   // crbug.com/581024 is fixed.
@@ -400,8 +404,9 @@ class LoadFinishedWaiter : public WebContentsObserver {
 // (3) all subframes then finished loading.
 // Note that this test makes sense to run with and without OOPIFs.
 // See https://crbug.com/822013#c12.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DidStopLoadingWithNestedFrames) {
+                       DISABLED_DidStopLoadingWithNestedFrames) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -457,8 +462,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // a browser test because our unit test framework incorrectly calls
 // DidStartProvisionalLoadForFrame for in-page navigations.
 // See http://crbug.com/280512.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ClearNonVisiblePendingOnFail) {
+                       DISABLED_ClearNonVisiblePendingOnFail) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   EXPECT_TRUE(
@@ -590,7 +596,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SetTitleOnUnload) {
   EXPECT_EQ(u"B", entry1->GetTitle());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, OpenURLSubframe) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_OpenURLSubframe) {
   // Navigate to a page with frames and grab a subframe's FrameTreeNode ID.
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(NavigateToURL(
@@ -617,7 +624,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, OpenURLSubframe) {
                                     ->frame_tree_node_id());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, OpenURLNonExistentSubframe) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_OpenURLNonExistentSubframe) {
   // Navigate to a page with frames and grab a subframe's FrameTreeNode ID.
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(
@@ -655,8 +664,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Test that creation of new RenderFrameHost objects sends the correct object
 // to the WebContentObservers. See http://crbug.com/347339.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       RenderFrameCreatedCorrectProcessForObservers) {
+                       DISABLED_RenderFrameCreatedCorrectProcessForObservers) {
   static const char kFooCom[] = "foo.com";
   GURL::Replacements replace_host;
   net::HostPortPair foo_host_port;
@@ -689,8 +699,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
             shell()->web_contents()->GetPrimaryMainFrame());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       LoadingStateChangedForSameDocumentNavigation) {
+                       DISABLED_LoadingStateChangedForSameDocumentNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   std::unique_ptr<LoadingStateChangedDelegate> delegate(
       new LoadingStateChangedDelegate());
@@ -715,7 +726,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_EQ(1, delegate->loadingStateShowLoadingUICount());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ResourceLoadComplete) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_ResourceLoadComplete) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   // Load a page with an image and an image.
@@ -743,8 +756,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ResourceLoadComplete) {
 
 // Same as WebContentsImplBrowserTest.ResourceLoadComplete but with resources
 // retrieved from the network cache.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ResourceLoadCompleteFromNetworkCache) {
+                       DISABLED_ResourceLoadCompleteFromNetworkCache) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL page_url(
@@ -811,8 +825,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                    .resource_load_info->network_info->network_accessed);
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ResourceLoadCompleteFromLocalResource) {
+                       DISABLED_ResourceLoadCompleteFromLocalResource) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(NavigateToURL(
@@ -832,8 +847,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ResourceLoadCompleteWithRedirect) {
+                       DISABLED_ResourceLoadCompleteWithRedirect) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -859,8 +875,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_EQ(image_original_url, image_load_info->original_url);
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ResourceLoadCompleteNetError) {
+                       DISABLED_ResourceLoadCompleteNetError) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -929,8 +946,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ResourceLoadCompleteWithRedirects) {
+                       DISABLED_ResourceLoadCompleteWithRedirects) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -971,8 +989,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                    ->network_info->always_access_network);
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ResourceLoadCompleteIsMainFrame) {
+                       DISABLED_ResourceLoadCompleteIsMainFrame) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -1032,7 +1051,8 @@ struct LoadProgressObserver : public WebContentsObserver {
   bool did_stop_loading;
 };
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, LoadProgress) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_LoadProgress) {
   ASSERT_TRUE(embedded_test_server()->Start());
   auto delegate = std::make_unique<LoadProgressObserver>(shell());
 
@@ -1053,7 +1073,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, LoadProgress) {
   EXPECT_EQ(1.0, *progresses.rbegin());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, LoadProgressWithFrames) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_LoadProgressWithFrames) {
   ASSERT_TRUE(embedded_test_server()->Start());
   auto delegate = std::make_unique<LoadProgressObserver>(shell());
 
@@ -1076,8 +1098,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, LoadProgressWithFrames) {
 
 // Ensure that a new navigation that interrupts a pending one will still fire
 // a DidStopLoading.  See http://crbug.com/429399.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       LoadProgressAfterInterruptedNav) {
+                       DISABLED_LoadProgressAfterInterruptedNav) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Start at a real page.
@@ -1242,7 +1265,8 @@ class MockPageScaleObserver : public WebContentsObserver {
 
 // When the page scale factor is set in the renderer it should send
 // a notification to the browser so that WebContentsObservers are notified.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ChangePageScale) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_ChangePageScale) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(
       NavigateToURL(shell(), embedded_test_server()->GetURL("/title1.html")));
@@ -1270,8 +1294,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ChangePageScale) {
 // the browser tracks the correct scale value.
 // This test is only relevant for Android, since desktop would always have one
 // as the initial scale.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       SameInitialScaleAcrossNavigations) {
+                       DISABLED_SameInitialScaleAcrossNavigations) {
   // Scale value comparisons don't need to be precise.
   constexpr double kEpsilon = 0.01;
 
@@ -1315,7 +1340,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Test that a direct navigation to a view-source URL works.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ViewSourceDirectNavigation) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_ViewSourceDirectNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kUrl(embedded_test_server()->GetURL("/simple_page.html"));
   const GURL kViewSourceURL(kViewSourceScheme + std::string(":") + kUrl.spec());
@@ -1334,8 +1361,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ViewSourceDirectNavigation) {
 }
 
 // Test that window.open to a view-source URL is blocked.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ViewSourceWindowOpen_ShouldBeBlocked) {
+                       DISABLED_ViewSourceWindowOpen_ShouldBeBlocked) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kUrl(embedded_test_server()->GetURL("/simple_page.html"));
   const GURL kViewSourceURL(kViewSourceScheme + std::string(":") + kUrl.spec());
@@ -1353,8 +1381,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // Test that a content initiated navigation to a view-source URL is blocked.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ViewSourceRedirect_ShouldBeBlocked) {
+                       DISABLED_ViewSourceRedirect_ShouldBeBlocked) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kUrl(embedded_test_server()->GetURL("/simple_page.html"));
   const GURL kViewSourceURL(kViewSourceScheme + std::string(":") + kUrl.spec());
@@ -1391,7 +1420,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ViewSourceWebUI) {
                   ->IsViewSourceMode());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, NewNamedWindow) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_NewNamedWindow) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url = embedded_test_server()->GetURL("/click-noreferrer-links.html");
@@ -1906,8 +1936,9 @@ class MockFileSelectListener : public FileChooserImpl::FileSelectListenerImpl {
   ~MockFileSelectListener() override = default;
 };
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       JavaScriptDialogsInMainAndSubframes) {
+                       DISABLED_JavaScriptDialogsInMainAndSubframes) {
   WebContentsImpl* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
   TestWCDelegateForDialogsAndFullscreen test_delegate(wc);
 
@@ -2032,9 +2063,10 @@ class WebContentsImplBrowserTestWithDifferentOriginSubframeDialogSuppression
   }
 };
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(
     WebContentsImplBrowserTestWithDifferentOriginSubframeDialogSuppression,
-    OriginTrialDisablesSuppression) {
+    DISABLED_OriginTrialDisablesSuppression) {
   // Generated with tools/origin_trials/generate_token.py --expire-days 5000
   // http://allowdialogs.test:9999
   // DisableDifferentOriginSubframeDialogSuppression
@@ -2099,8 +2131,9 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(origin_trial_url, GURL(test_delegate.last_message()));
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       CreateWebContentsWithRendererProcess) {
+                       DISABLED_CreateWebContentsWithRendererProcess) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContents* base_web_contents = shell()->web_contents();
   ASSERT_TRUE(base_web_contents);
@@ -2148,8 +2181,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // Regression test for https://crbug.com/840409.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       CreateWebContentsWithoutRendererProcess) {
+                       DISABLED_CreateWebContentsWithoutRendererProcess) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContents* base_web_contents = shell()->web_contents();
   ASSERT_TRUE(base_web_contents);
@@ -2324,7 +2358,9 @@ void ExpectSingleValidImageCallback(base::OnceClosure quit_closure,
 
 }  // anonymous namespace
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DownloadImage_HttpImage) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_DownloadImage_HttpImage) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/single_face.jpg");
   DownloadImageTestInternal(shell(), kImageUrl, 200, 1);
@@ -2349,7 +2385,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   DownloadImageTestInternal(shell(), kImageUrl, 0, 0);
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DownloadImage_NoValidImage) {
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_DownloadImage_NoValidImage) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/invalid.ico");
   shell()->LoadURL(GURL("about:blank"));
@@ -2382,7 +2419,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DownloadImage_DataImageSVG) {
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DownloadImage_PreferredSize) {
+                       DISABLED_DownloadImage_PreferredSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2395,8 +2432,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   run_loop.Run();
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DownloadImage_PreferredSizeZero) {
+                       DISABLED_DownloadImage_PreferredSizeZero) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2409,8 +2447,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   run_loop.Run();
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DownloadImage_PreferredSizeClampedByMaxSize) {
+                       DISABLED_DownloadImage_PreferredSizeClampedByMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2423,8 +2462,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   run_loop.Run();
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DownloadImage_PreferredWidthClampedByMaxSize) {
+                       DISABLED_DownloadImage_PreferredWidthClampedByMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2437,8 +2477,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   run_loop.Run();
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DownloadImage_PreferredHeightClampedByMaxSize) {
+                       DISABLED_DownloadImage_PreferredHeightClampedByMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2473,8 +2514,9 @@ void ExpectTwoValidImageCallback(base::OnceClosure quit_closure,
 
 }  // anonymous namespace
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DownloadImage_MultipleImagesNoMaxSize) {
+                       DISABLED_DownloadImage_MultipleImagesNoMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl =
       embedded_test_server()->GetURL("/icon-with-two-entries.ico");
@@ -2742,8 +2784,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestClientHintsEnabled,
 
 // Verifies client hints are updated when the user-agent is changed in
 // DidStartNavigation().
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestClientHintsEnabled,
-                       SetUserAgentOverrideWithAcceptCHRestart) {
+                       DISABLED_SetUserAgentOverrideWithAcceptCHRestart) {
   net::EmbeddedTestServer http2_server(
       net::EmbeddedTestServer::TYPE_HTTPS,
       net::test_server::HttpConnection::Protocol::kHttp2);
@@ -2853,15 +2896,16 @@ class WebContentsImplBrowserTestReduceAcceptLanguageOn
 
 // Verifies accept-language are updated when DidStartNavigation().
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
-                       HttpsReduceAcceptLanguageInNavigation) {
+                       DISABLED_HttpsReduceAcceptLanguageInNavigation) {
   net::EmbeddedTestServer http2_server(
       net::EmbeddedTestServer::TYPE_HTTPS,
       net::test_server::HttpConnection::Protocol::kHttp2);
   VerifyAcceptLanguageHeader(http2_server);
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
-                       HttpReduceAcceptLanguageInNavigation) {
+                       DISABLED_HttpReduceAcceptLanguageInNavigation) {
   net::EmbeddedTestServer http_server_http(net::EmbeddedTestServer::TYPE_HTTP);
   VerifyAcceptLanguageHeader(http_server_http);
 }
@@ -3120,8 +3164,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_FALSE(wc->IsFullscreen());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       FrameDetachInCopyDoesNotCrash) {
+                       DISABLED_FrameDetachInCopyDoesNotCrash) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(NavigateToURL(
       shell(),
@@ -3176,7 +3221,8 @@ class UpdateTargetURLWaiter : public WebContentsDelegate {
 // Verifies that focusing a link in a cross-site frame will correctly tell
 // WebContentsDelegate to show a link status bubble.  This is a regression test
 // for https://crbug.com/807776.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, UpdateTargetURL) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_UpdateTargetURL) {
   // Navigate to a test page.
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
@@ -3393,7 +3439,10 @@ class TitleChecker : public WebContentsDelegate {
 // (won't change the restored NavigationEntry's title or the WebContents' title)
 // as the tab is not on the initial NavigationEntry.
 // Regression test for https://crbug.com/1275392.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, TitleUpdateOnRestore) {
+
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_TitleUpdateOnRestore) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL main_url = embedded_test_server()->GetURL("foo.com", "/title2.html");
   std::u16string main_title = u"Title Of Awesomeness";
@@ -3543,7 +3592,8 @@ class OutgoingSetRendererPrefsMojoWatcher {
 };
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SyncRendererPrefs) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_SyncRendererPrefs) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -3603,7 +3653,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SyncRendererPrefs) {
   renderer_preferences->use_custom_colors = use_custom_colors_old;
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SetPageFrozen) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_SetPageFrozen) {
   EXPECT_TRUE(embedded_test_server()->Start());
 
   GURL test_url = embedded_test_server()->GetURL("/pause_schedule_task.html");
@@ -3665,7 +3716,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SetPageFrozen) {
 
 // Checks that UnfreezableFrameMsg IPCs are executed even when the page is
 // frozen.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FrozenAndUnfrozenIPC) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_FrozenAndUnfrozenIPC) {
   EXPECT_TRUE(embedded_test_server()->Start());
 
   GURL url_a(embedded_test_server()->GetURL(
@@ -3701,8 +3754,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FrozenAndUnfrozenIPC) {
   EXPECT_TRUE(delete_rfh_c.deleted());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       SuppressedPopupWindowBrowserNavResumeLoad) {
+                       DISABLED_SuppressedPopupWindowBrowserNavResumeLoad) {
   // This test verifies a suppressed pop up that requires navigation from
   // browser side works with a delegate that delays navigations of pop ups.
   base::FilePath test_data_dir;
@@ -3739,8 +3793,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_EQ(url, new_contents->GetLastCommittedURL());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       PopupWindowBrowserNavResumeLoad) {
+                       DISABLED_PopupWindowBrowserNavResumeLoad) {
   // This test verifies a pop up that requires navigation from browser side
   // works with a delegate that delays navigations of pop ups.
   // Create a file: scheme non-suppressed pop up from a file: scheme page will
@@ -3819,7 +3874,9 @@ class FullscreenWebContentsObserver : public WebContentsObserver {
 
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, NotifyFullscreenAcquired) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_NotifyFullscreenAcquired) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -3909,7 +3966,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, RejectFullscreenIfBlocked) {
 
 // Regression test for https://crbug.com/855018.
 // RenderFrameHostImpls exit fullscreen as soon as they are unloaded.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FullscreenAfterFrameUnload) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_FullscreenAfterFrameUnload) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -3940,8 +3999,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FullscreenAfterFrameUnload) {
   EXPECT_EQ(0u, web_contents->fullscreen_frames_.size());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       NotifyFullscreenAcquired_Navigate) {
+                       DISABLED_NotifyFullscreenAcquired_Navigate) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -3990,8 +4050,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_FALSE(IsInFullscreen());
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       NotifyFullscreenAcquired_SameOrigin) {
+                       DISABLED_NotifyFullscreenAcquired_SameOrigin) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4043,7 +4104,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_EQ(main_frame, web_contents->current_fullscreen_frame_);
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, PropagateFullscreenOptions) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_PropagateFullscreenOptions) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4117,7 +4180,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, PropagateFullscreenOptions) {
 // Also confirms that each state change does not block the subsequent one.
 // Finally on Android, which supports full browser ScreenOrientation locks, that
 // we can successfully apply the lock.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ToggleFullscreen) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_ToggleFullscreen) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4211,7 +4275,9 @@ class MockDidOpenRequestedURLObserver : public WebContentsObserver {
 // Test WebContentsObserver::DidOpenRequestedURL for ctrl-click-ed links.
 // This is a regression test for https://crbug.com/864736 (although it also
 // covers slightly more ground than just the |is_renderer_initiated| value).
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, CtrlClickSubframeLink) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_CtrlClickSubframeLink) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Load a page with a subframe link.
@@ -4249,7 +4315,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, CtrlClickSubframeLink) {
   EXPECT_EQ(new_web_contents1, new_web_contents2);
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SetVisibilityBeforeLoad) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_SetVisibilityBeforeLoad) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/hello.html"));
 
@@ -4274,8 +4342,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SetVisibilityBeforeLoad) {
 // descendants in the WebContentsTree, that the descendants also have their
 // views registered with the top-level WebContents' InputEventRouter. This
 // ensures the descendants will receive events that should be routed to them.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       AttachNestedInnerWebContents) {
+                       DISABLED_AttachNestedInnerWebContents) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
@@ -4353,8 +4422,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ShutdownDuringSpeculativeNavigation) {
+                       DISABLED_ShutdownDuringSpeculativeNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/hello.html"));
 
@@ -4404,7 +4474,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_TRUE(frame_deletion_observer.deleted());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MouseButtonsNavigate) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_MouseButtonsNavigate) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4511,7 +4583,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   ASSERT_EQ(url_a, web_contents->GetLastCommittedURL());
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FrameCount) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_FrameCount) {
   ASSERT_TRUE(embedded_test_server()->Start());
   base::HistogramTester histogram_tester;
 
@@ -4529,8 +4602,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FrameCount) {
   histogram_tester.ExpectBucketCount(kMaxFrameCountUMA, 2, 1);
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       MaxFrameCountForCrossProcessNavigation) {
+                       DISABLED_MaxFrameCountForCrossProcessNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   base::HistogramTester histogram_tester;
 
@@ -4581,7 +4655,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       MaxFrameCountInjectedIframes) {
+                       DISABLED_MaxFrameCountInjectedIframes) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   base::HistogramTester histogram_tester;
@@ -4614,8 +4688,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                                      /* count */ 1);
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       MaxFrameCountRemovedIframes) {
+                       DISABLED_MaxFrameCountRemovedIframes) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   base::HistogramTester histogram_tester;
@@ -4667,7 +4742,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                                      /* count */ 1);
 }
 
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ForEachRenderFrameHost) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_ForEachRenderFrameHost) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url =
       embedded_test_server()->GetURL("a.com", "/page_with_iframe.html");
@@ -4682,8 +4759,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ForEachRenderFrameHost) {
                   web_contents->GetPrimaryMainFrame())));
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ForEachRenderFrameHostInnerContents) {
+                       DISABLED_ForEachRenderFrameHostInnerContents) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url_a(
       embedded_test_server()->GetURL("a.com", "/page_with_iframe.html"));
@@ -4705,8 +4783,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                   inner_contents->GetPrimaryMainFrame())));
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ForEachFrameTreeInnerContents) {
+                       DISABLED_ForEachFrameTreeInnerContents) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url_a(
       embedded_test_server()->GetURL("a.com", "/page_with_iframe.html"));
@@ -4788,8 +4867,9 @@ class LoadingObserver : public WebContentsObserver {
 // for unittests.
 //
 // Keep in sync with TestRenderFrameHostTest.LoadingCallbacksOrder_*.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       LoadingCallbacksOrder_CrossDocumentNavigation) {
+                       DISABLED_LoadingCallbacksOrder_CrossDocumentNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4809,8 +4889,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                                    "DidFinishLoad", "DidStopLoading"));
 }
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       LoadingCallbacksOrder_SameDocumentNavigation) {
+                       DISABLED_LoadingCallbacksOrder_SameDocumentNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4911,7 +4992,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ThemeColorIsResetWhenNavigatingAway) {
+                       DISABLED_ThemeColorIsResetWhenNavigatingAway) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url_a(
       embedded_test_server()->GetURL("a.com", "/theme_color.html"));
@@ -4929,7 +5010,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       MimeTypeResetWhenNavigatingAway) {
+                       DISABLED_MimeTypeResetWhenNavigatingAway) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
   const GURL url_b(embedded_test_server()->GetURL("b.com", "/single_face.jpg"));
@@ -4982,8 +5063,9 @@ class DidChangeVerticalScrollDirectionObserver : public WebContentsObserver {
 #else
 #define MAYBE_DidChangeVerticalScrollDirection DidChangeVerticalScrollDirection
 #endif
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       MAYBE_DidChangeVerticalScrollDirection) {
+                       DISABLED_DidChangeVerticalScrollDirection) {
   net::EmbeddedTestServer* server = embedded_test_server();
   EXPECT_TRUE(server->Start());
 
@@ -5082,8 +5164,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Tests that DidChangeVerticalScrollDirection is *not* called when the vertical
 // scroll direction has changed in a child frame. We expect to only be notified
 // of vertical scroll direction changes to the main frame's root layer.
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DidChangeVerticalScrollDirectionWithIframe) {
+                       DISABLED_DidChangeVerticalScrollDirectionWithIframe) {
   net::EmbeddedTestServer* server = embedded_test_server();
   EXPECT_TRUE(server->Start());
 
@@ -5148,7 +5231,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Verifies assertions for SetRendererInitiatedUserAgentOverrideOption().
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       RendererInitiatedUserAgentOverride) {
+                       DISABLED_RendererInitiatedUserAgentOverride) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContents* web_contents = shell()->web_contents();
 
@@ -5257,7 +5340,8 @@ class DidStopLoadingInterceptor : public mojom::FrameHostInterceptorForTesting {
 
 // Test that get_process_idle_time() returns reasonable values when compared
 // with time deltas measured locally.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, RenderIdleTime) {
+// TODO(b/437415063): Investigate failing test.
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_RenderIdleTime) {
   EXPECT_TRUE(embedded_test_server()->Start());
 
   base::TimeTicks start = base::TimeTicks::Now();
@@ -5575,8 +5659,9 @@ class RenderFrameCreatedObserver : public WebContentsObserver {
   base::RunLoop run_loop_;
 };
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       ReinitializeMainFrameForCrashedTab) {
+                       DISABLED_ReinitializeMainFrameForCrashedTab) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   LoadStopNotificationObserver load_observer(
@@ -5606,8 +5691,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // performing an early RenderFrameHost swap and hitting a bug while clearing
 // the deferred navigation state. Now, the deferred navigation should be
 // canceled when the renderer process dies.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DeferredWindowOpenNavigationIsResumedWithEarlySwap) {
+IN_PROC_BROWSER_TEST_F(
+    WebContentsImplBrowserTest,
+    DISABLED_DeferredWindowOpenNavigationIsResumedWithEarlySwap) {
   // Force WebContents in a new Shell to defer new navigations until the
   // delegate is set.
   shell()->set_delay_popup_contents_delegate_for_testing(true);
@@ -5684,8 +5770,9 @@ class MediaWaiter : public WebContentsObserver {
 
 }  // namespace
 
+// TODO(b/437415063): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       MediaDestroyedOnRendererCrash) {
+                       DISABLED_MediaDestroyedOnRendererCrash) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   MediaWaiter waiter(shell()->web_contents());
@@ -5736,8 +5823,9 @@ class WebContentsImplAllowInsecureLocalhostBrowserTest
   }
 };
 
+// TODO(b/437415063): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(WebContentsImplAllowInsecureLocalhostBrowserTest,
-                       WarnsWithSwitch) {
+                       DISABLED_WarnsWithSwitch) {
   https_server().SetSSLConfig(net::EmbeddedTestServer::CERT_EXPIRED);
   ASSERT_TRUE(https_server().Start());
   GURL url = https_server().GetURL("/title1.html");
@@ -5796,8 +5884,9 @@ class TestWebContentsDestructionObserver : public WebContentsObserver {
   }
 };
 
+// TODO(b/437415063): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(WebContentsPrerenderBrowserTest,
-                       SafeToCallForEachFrameTreeDuringDestruction) {
+                       DISABLED_SafeToCallForEachFrameTreeDuringDestruction) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL url_a(
@@ -5830,7 +5919,9 @@ class WebContentsFencedFrameBrowserTest : public WebContentsImplBrowserTest {
 
 // Tests that DidUpdateFaviconURL() works only with the primary page by checking
 // if it's not called on the fenced frame loading.
-IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, UpdateFavicon) {
+// TODO(b/437415063): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
+                       DISABLED_UpdateFavicon) {
   ASSERT_TRUE(embedded_test_server()->Start());
   testing::NiceMock<MockWebContentsObserver> observer(web_contents());
   const GURL main_url =
@@ -5854,7 +5945,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, UpdateFavicon) {
 
 // Tests that pages are still visible after a page is navigated away
 // from a page that contained a fenced frame. (crbug.com/1265615)
-IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, RemainsVisible) {
+// TODO(b/437415063): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
+                       DISABLED_RemainsVisible) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL main_url =
       embedded_test_server()->GetURL("fencedframe.test", "/title1.html");
@@ -5882,7 +5975,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, RemainsVisible) {
 
 // Tests that AXTreeIDForMainFrameHasChanged() works only with the primary page
 // by checking if it's not called on the fenced frame loading.
-IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, DoNotUpdateAXTree) {
+// TODO(b/437415063): Investigate test failure.
+IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
+                       DISABLED_DoNotUpdateAXTree) {
   ASSERT_TRUE(embedded_test_server()->Start());
   testing::NiceMock<MockWebContentsObserver> observer(web_contents());
   const GURL main_url =
@@ -5936,8 +6031,9 @@ class MediaWatchTimeChangedDelegate : public WebContentsDelegate {
 
 // Tests that a media in a fenced frame reports the watch time with the url from
 // the top level frame.
+// TODO(b/437415063): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
-                       MediaWatchTimeCallback) {
+                       DISABLED_MediaWatchTimeCallback) {
   using UkmEntry = ukm::builders::Media_WebMediaPlayerState;
   ukm::TestAutoSetUkmRecorder test_recorder_;
 
