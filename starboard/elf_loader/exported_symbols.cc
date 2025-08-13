@@ -322,6 +322,7 @@ ExportedSymbols::ExportedSymbols() {
   }
   REGISTER_WRAPPER(eventfd);
   REGISTER_WRAPPER(fchmod);
+  REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
