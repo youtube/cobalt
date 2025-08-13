@@ -48,14 +48,16 @@
    }
  
    // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
-@@ -275,19 +263,11 @@
+@@ -274,20 +262,12 @@
+     DCHECK(!end_of_stream());
      decrypt_config_ = std::move(decrypt_config);
    }
- 
+-
 -<<<<<<< HEAD
 -  bool end_of_stream() const { return is_end_of_stream_; }
 -=======
 -  // If there's no data in this buffer, it represents end of stream.
++  
  #if BUILDFLAG(USE_STARBOARD_MEDIA)
    bool end_of_stream() const { return !data_; }
  #else // BUILDFLAG(USE_STARBOARD_MEDIA)

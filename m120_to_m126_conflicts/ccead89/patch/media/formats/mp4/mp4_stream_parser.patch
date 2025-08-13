@@ -1,6 +1,6 @@
 --- media/formats/mp4/mp4_stream_parser.cc
 +++ media/formats/mp4/mp4_stream_parser.cc
-@@ -1107,9 +1107,16 @@
+@@ -1107,9 +1107,13 @@
    StreamParserBuffer::Type buffer_type = audio ? DemuxerStream::AUDIO :
        DemuxerStream::VIDEO;
  
@@ -8,17 +8,14 @@
    scoped_refptr<StreamParserBuffer> stream_buf;
  
 +#if BUILDFLAG(USE_STARBOARD_MEDIA)
-+  stream_buf = StreamParserBuffer::CopyFrom(
-+      &frame_buf[0],
-+      frame_buf.size(),
-+      is_keyframe,
-+      buffer_type,
-+      runs_->track_id());
++  stream_buf =
++      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
++                                   buffer_type, runs_->track_id());
 +#else // BUILDFLAG(USE_STARBOARD_MEDIA)
    if (auto* media_client = GetMediaClient()) {
      if (auto* alloc = media_client->GetMediaAllocator()) {
        stream_buf = StreamParserBuffer::FromExternalMemory(
-@@ -1122,17 +1129,7 @@
+@@ -1122,17 +1126,7 @@
          std::make_unique<ExternalMemoryAdapter>(std::move(frame_buf)),
          is_keyframe, buffer_type, runs_->track_id());
    }

@@ -262,7 +262,7 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK(!end_of_stream());
     decrypt_config_ = std::move(decrypt_config);
   }
-
+  
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return !data_; }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)

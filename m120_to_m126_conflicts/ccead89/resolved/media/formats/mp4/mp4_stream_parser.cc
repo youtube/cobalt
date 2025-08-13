@@ -1110,12 +1110,9 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   scoped_refptr<StreamParserBuffer> stream_buf;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  stream_buf = StreamParserBuffer::CopyFrom(
-      &frame_buf[0],
-      frame_buf.size(),
-      is_keyframe,
-      buffer_type,
-      runs_->track_id());
+  stream_buf =
+      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
+                                   buffer_type, runs_->track_id());
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
