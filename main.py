@@ -437,7 +437,7 @@ def main():
                                type=str,
                                default=None,
                                help='The commit SHA or ref to resume from.')
-    rebase_parser.add_argument('--last-successful-commit-index',
+    rebase_parser.add_argument('--start-resume-commit-index',
                                type=int,
                                default='1',
                                help='The commit index to resume from.')
