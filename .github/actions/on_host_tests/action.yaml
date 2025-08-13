@@ -62,26 +62,25 @@ runs:
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
 
+          # Get the exclusion filter for all suites, as both GTest and non-GTest
+          # suites might support it.
+          test_filter_from_file="*"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
+          if [ -f ${test_filter_json_dir} ]; then
+            test_filter_from_file=$(jq -r '"-" + (.failing_tests | join(":"))' "${test_filter_json_dir}")
+          fi
+
           # This one command both checks the exit code AND captures the output. If the test suite is not a gtest suite, it will error out and proceed to the else.
           if all_tests=$($ENTRYPOINT --gtest_list_tests 2> /dev/null); then
             # Gtest-compliant, shardable test binary.
             echo "Test binary is gtest-compliant. Sharding tests..."
-
-            # Combine the shard filter with the exclusion filter from the JSON file.
-            test_filter_from_file="*"
-            test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
-            if [ -f ${test_filter_json_dir} ]; then
-              test_filter_from_file=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
-            fi
-
             shard_filter=$(echo "${all_tests}" | python3 ${GITHUB_WORKSPACE}/.github/scripts/get_sharded_tests.py ${{ inputs.num_gtest_shards }} ${{ matrix.shard }})
 
-            if [ "${test_filter_from_file}" == "-*" ]; then
-              test_filter="${test_filter_from_file}"
-            elif [ -z "${shard_filter}" ]; then
+            # Combine the shard filter with the exclusion filter.
+            if [ -z "${shard_filter}" ]; then
               test_filter="-"
             else
-              test_filter="${shard_filter}${test_filter_from_file}"
+              test_filter="${shard_filter}:${test_filter_from_file}"
             fi
 
             echo "Test filter evaluated to: ${test_filter}"
@@ -89,10 +88,7 @@ runs:
             if [[ "${test_filter}" == "-*" || "${test_filter}" == "-" ]]; then
               echo "Skipped due to test filter." >  ${log_path}
               # Generate a dummy XML for shards with no tests.
-              echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
-              echo '<testsuites name="AllTests" tests="0" failures="0" errors="0" time="0">' >> "${xml_path}"
-              echo "  <testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" />" >> "${xml_path}"
-              echo '</testsuites>' >> "${xml_path}"
+              echo '<?xml version="1.0" encoding="UTF-8"?><testsuites name="AllTests" tests="0" failures="0" errors="0" time="0"><testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" /></testsuites>' > "${xml_path}"
             else
               filter_length=${#test_filter}
               echo "---"
@@ -102,7 +98,7 @@ runs:
               echo "Filter starts with: ${test_filter:0:200}..."
               echo "...Filter ends with: ${test_filter: -200}"
               echo "---"
-
+              
               /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                   stdbuf -i0 -o0 -e0 $ENTRYPOINT \
                   --single-process-tests \
@@ -123,10 +119,13 @@ runs:
             # Assign this suite to a shard based on the counter
             if [ $((non_gtest_counter % ${{ inputs.num_gtest_shards }})) -eq ${{ matrix.shard }} ]; then
               echo "This shard (${{ matrix.shard }}) will run non-gtest suite: ${test_binary}"
+              echo "Applying filter: ${test_filter_from_file}"
+
               /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
                 --single-process-tests \
-                --gtest_output="xml:${xml_path}" 2>&1 | tee ${log_path} || {
+                --gtest_output="xml:${xml_path}" \
+                --gtest_filter="${test_filter_from_file}" 2>&1 | tee ${log_path} || {
                 failed_suites="${failed_suites} ${test_binary}"
               }
               if [[ ! -f ${xml_path} ]]; then
@@ -135,10 +134,7 @@ runs:
             else
               # This shard is not assigned this suite. Create an empty XML for consistency.
               echo "This shard (${{ matrix.shard }}) is skipping non-gtest suite: ${test_binary}" > ${log_path}
-              echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
-              echo '<testsuites name="AllTests" tests="0" failures="0" errors="0" time="0">' >> "${xml_path}"
-              echo "  <testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" />" >> "${xml_path}"
-              echo '</testsuites>' >> "${xml_path}"
+              echo '<?xml version="1.0" encoding="UTF-8"?><testsuites name="AllTests" tests="0" failures="0" errors="0" time="0"><testsuite name=\"${test_binary}\" tests=\"0\" failures=\"0\" errors=\"0\" time=\"0\" /></testsuites>' > "${xml_path}"
             fi
 
             # Increment the counter for the next non-gtest suite
