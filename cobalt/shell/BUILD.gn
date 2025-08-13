@@ -43,7 +43,6 @@ source_set("android_shell_descriptors") {
   }
 }
 
-# TODO(b/384748332): Remove dependency on content shell
 group("cobalt_shell_lib_deps") {
   visibility = [
     "//cobalt/shell:*",
@@ -54,7 +53,7 @@ group("cobalt_shell_lib_deps") {
     ":android_shell_descriptors",
 
     # cobalt_shell_lib also exposes all public content APIs.
-    ":content_browsertests_mojom",
+    ":browsertests_mojom",
     ":resources",
     ":shell_controller_mojom",
     "//base",
@@ -182,9 +181,27 @@ group("cobalt_shell_lib_deps") {
   }
 }
 
-# TODO(b/422171398): Refactor source set to not depend on content shell
+source_set("browsertests_sources") {
+  testonly = true
+  sources = [
+    "common/power_monitor_test_impl.cc",
+    "common/power_monitor_test_impl.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
+  ]
+  public_deps = [
+    ":browsertests_mojom",
+    "//components/services/storage/test_api",
+    "//content/public/child",
+    "//content/public/utility",
+    "//content/test:content_test_mojo_bindings",
+    "//content/test:test_support",
+  ]
+}
+
 static_library("cobalt_shell_lib") {
   testonly = true
+
   public_deps = [ ":cobalt_shell_lib_deps" ]
   sources = [
     "browser/shell.cc",
@@ -216,8 +233,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_web_contents_view_delegate_creator.h",
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",
@@ -232,8 +247,6 @@ static_library("cobalt_shell_lib") {
     "renderer/shell_content_renderer_client.h",
     "renderer/shell_render_frame_observer.cc",
     "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
   ]
 
   if (is_android) {
@@ -269,6 +282,7 @@ static_library("cobalt_shell_lib") {
 
   if (run_browser_tests) {
     defines += [ "RUN_BROWSER_TESTS=1" ]
+    public_deps += [ ":browsertests_sources" ]
   }
 
   if (shell_use_toolkit_views) {
@@ -465,7 +479,7 @@ group("resources") {
   public_deps = [ ":copy_shell_resources" ]
 }
 
-mojom("content_browsertests_mojom") {
+mojom("browsertests_mojom") {
   sources = [
     "common/main_frame_counter_test.mojom",
     "common/power_monitor_test.mojom",

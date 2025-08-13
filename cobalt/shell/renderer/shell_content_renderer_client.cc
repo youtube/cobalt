@@ -26,7 +26,9 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
 #include "cobalt/shell/common/main_frame_counter_test_impl.h"
-#include "cobalt/shell/common/power_monitor_test_impl.h"
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/renderer/shell_render_frame_observer.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
@@ -241,9 +243,11 @@ void ShellContentRendererClient::ExposeInterfacesToBrowser(
   binders->Add<mojom::TestService>(
       base::BindRepeating(&CreateRendererTestService),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+#if defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::PowerMonitorTest>(
       base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+#endif  // defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::MainFrameCounterTest>(
       base::BindRepeating(&MainFrameCounterTestImpl::Bind),
       base::SingleThreadTaskRunner::GetCurrentDefault());
