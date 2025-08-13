@@ -168,7 +168,7 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
       force_single_process = true;
     }
   }
-
+/*
   if (CommandLine::ForCurrentProcess()->HasSwitch(kGTestHelpFlag) ||
       CommandLine::ForCurrentProcess()->HasSwitch(kGTestListTestsFlag) ||
       CommandLine::ForCurrentProcess()->HasSwitch(
@@ -178,6 +178,7 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
       force_single_process) {
     return std::move(run_test_suite).Run();
   }
+  */
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kHelpFlag)) {
     PrintUsage();
