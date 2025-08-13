@@ -31,6 +31,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # GitHub's actions/checkout action, by default, checks out the merge commit when
+          # a pull request event triggers a workflow. This merge commit represents the state
+          # of the code as if the pull request had been merged into the base branch.
+          # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
+          # HEAD commit from the base branch (i.e. HEAD~1).
           fetch-depth: 2
       - name: Run pre-commit
         run: |
