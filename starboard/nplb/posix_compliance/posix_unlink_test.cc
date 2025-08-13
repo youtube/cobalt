@@ -99,7 +99,8 @@ TEST_F(PosixUnlinkTest, FailsOnDirectory) {
   errno = 0;
   int result = unlink(dir_path.c_str());
   EXPECT_EQ(result, -1);
-  EXPECT_TRUE(errno == EPERM);
+  // posix expects eperm, linux expects eisdir
+  EXPECT_TRUE(errno == EPERM || errno == EISDIR);
 }
 
 TEST_F(PosixUnlinkTest, FailsWithNoEntry) {
