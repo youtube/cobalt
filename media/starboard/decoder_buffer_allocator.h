@@ -27,6 +27,10 @@
 #include "media/starboard/decoder_buffer_memory_info.h"
 #include "starboard/media.h"
 
+namespace base {
+class Thread;
+}  // namespace base
+
 namespace media {
 
 class DecoderBufferAllocator : public DecoderBuffer::Allocator,
@@ -75,6 +79,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
  private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void LogMemoryUsageAndReschedule();
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -86,6 +91,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
+  std::unique_ptr<base::Thread> logging_thread_ GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
@@ -94,6 +100,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+  int last_allocated_mb_ = 0;
 };
 
 }  // namespace media
