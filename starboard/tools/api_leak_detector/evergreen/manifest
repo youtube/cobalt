@@ -7,8 +7,6 @@ OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
 closelog
-fchmod
-fchown
 fclose
 fdopen
 feof
@@ -33,7 +31,6 @@ getcwd
 getrlimit
 initstate
 ioctl
-link
 localeconv
 localtime
 localtime_r
@@ -44,7 +41,6 @@ prctl
 printf
 puts
 random
-readlink
 realpath
 rewind
 sched_getaffinity
@@ -57,7 +53,6 @@ setvbuf
 stderr
 stdin
 stdout
-syscall
 syslog
 timegm
 tmpfile

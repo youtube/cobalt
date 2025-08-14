@@ -87,6 +87,7 @@ def main():
       - Add a comment above the original entry: # Cobalt: imported
       - Comment out the original entry for '{args.package}'
       - commit --amend this into the squash commit
+    NB: If necessary, comment out the directory's entry in .gitignore too
     """)
 
 

@@ -26,7 +26,7 @@
 /androidx/additional_readme_paths.json
 /androidx/libs/
 /androidx_javascriptengine/src/
-/angle
+# /angle Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /angle_dx11
 /aosp_dalvik/lib/*
 /apache-linux/LICENSE
@@ -52,7 +52,7 @@
 /asan
 /barhopper
 /bison
-/boringssl/src
+# /boringssl/src Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /bouncycastle/lib/
 /breakpad/breakpad
 /byte_buddy/android_sdk_build_tools_25_0_2
@@ -75,7 +75,7 @@
 /cld_3/src
 /colorama/src
 /content_analysis_sdk/src
-/cpuinfo/src
+# /cpuinfo/src Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /crc32c/src
 /cros
 /cros-components/src
@@ -218,7 +218,7 @@
 /pdfium
 /pdfsqueeze
 /pefile
-/perfetto
+# /perfetto Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /perl
 /ppapi
 /proguard/lib/

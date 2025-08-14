@@ -84,6 +84,8 @@ static_library("browsertest_support") {
     "content_test_launcher.cc",
     "resource_load_observer.cc",
     "resource_load_observer.h",
+    "webrtc_content_browsertest_base.cc",
+    "webrtc_content_browsertest_base.h",
   ]
 
   public_deps = [
@@ -188,7 +190,18 @@ test("cobalt_browsertests") {
 
   sources = [
     "content_main_runner_impl_browsertest.cc",
+    "encrypted_media_browsertest.cc",
+    "frame_tree_browsertest.cc",
+    "media_browsertest.cc",
+    "media_browsertest.h",
+    "media_session_browsertest.cc",
+    "media_source_browsertest.cc",
     "navigation_browsertest.cc",
+    "session_history_browsertest.cc",
+    "site_per_process_browsertest.cc",
+    "site_per_process_browsertest.h",
+    "web_contents_impl_browsertest.cc",
+    "webrtc_getusermedia_browsertest.cc",
   ]
 
   if (is_android) {
@@ -211,8 +224,8 @@ test("cobalt_browsertests") {
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//cc/slim",
+    "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:cobalt_shell_lib",
-    "//cobalt/shell:content_browsertests_mojom",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
