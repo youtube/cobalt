@@ -74,8 +74,8 @@ extern "C" {
 #define MUSL_FD_CLOEXEC 1
 
 #define MUSL_F_RDLCK 0
-#define MUSL_F_UNLCK 1
-#define MUSL_F_WRLCK 2
+#define MUSL_F_WRLCK 1
+#define MUSL_F_UNLCK 2
 
 #define MUSL_O_APPEND 02000
 #define MUSL_O_DSYNC 010000
@@ -87,6 +87,10 @@ extern "C" {
 #define MUSL_O_RDONLY 00
 #define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
+
+#define MUSL_SEEK_SET 0
+#define MUSL_SEEK_CUR 1
+#define MUSL_SEEK_END 2
 
 struct musl_flock {
   short l_type;

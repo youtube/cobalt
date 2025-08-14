@@ -149,32 +149,95 @@ int convert_platform_flags_to_musl_flags(int flags) {
   return musl_flags;
 }
 
+short convert_musl_flock_type_to_platform(short musl_type) {
+  switch (musl_type) {
+    case MUSL_F_RDLCK:
+      return F_RDLCK;
+    case MUSL_F_WRLCK:
+      return F_WRLCK;
+    case MUSL_F_UNLCK:
+      return F_UNLCK;
+    default:
+      SB_LOG(WARNING) << "Unknown musl flock type: " << musl_type;
+      return -1;
+  }
+}
+
+short convert_platform_flock_type_to_musl(short platform_type) {
+  switch (platform_type) {
+    case F_RDLCK:
+      return MUSL_F_RDLCK;
+    case F_WRLCK:
+      return MUSL_F_WRLCK;
+    case F_UNLCK:
+      return MUSL_F_UNLCK;
+    default:
+      SB_LOG(WARNING) << "Unknown platform flock type: " << platform_type;
+      return -1;
+  }
+}
+
+short convert_musl_flock_whence_to_platform(short musl_whence) {
+  switch (musl_whence) {
+    case MUSL_SEEK_SET:
+      return SEEK_SET;
+    case MUSL_SEEK_CUR:
+      return SEEK_CUR;
+    case MUSL_SEEK_END:
+      return SEEK_END;
+    default:
+      SB_LOG(WARNING) << "Unknown musl flock whence: " << musl_whence;
+      return -1;
+  }
+}
+
+short convert_platform_flock_whence_to_musl(short platform_whence) {
+  switch (platform_whence) {
+    case SEEK_SET:
+      return MUSL_SEEK_SET;
+    case SEEK_CUR:
+      return MUSL_SEEK_CUR;
+    case SEEK_END:
+      return MUSL_SEEK_END;
+    default:
+      SB_LOG(WARNING) << "Unknown platform flock whence: " << platform_whence;
+      return -1;
+  }
+}
+
 int fcntl_ptr(int fildes, int cmd, void* arg) {
   SB_CHECK(arg);
   SB_CHECK(cmd == F_GETLK || cmd == F_SETLK || cmd == F_SETLKW ||
-           cmd == F_OFD_GETLK || cmd == F_OFD_SETLK ||
-           cmd == MUSL_F_OFD_SETLKW);
+           cmd == F_OFD_GETLK || cmd == F_OFD_SETLK || cmd == F_OFD_SETLKW);
 
-  struct musl_flock* musl_flock = reinterpret_cast<struct musl_flock*>(arg);
+  struct musl_flock* musl_flock_ptr = reinterpret_cast<struct musl_flock*>(arg);
   struct flock platform_flock;
-  int retval;
-  // During a GETLK operation, map the returned platform flock to the input
-  // flock. For all other operations, map the input flock to the platform flock
-  // before calling fcntl.
-  if (cmd == F_GETLK || cmd == F_OFD_GETLK) {
-    retval = fcntl(fildes, cmd, reinterpret_cast<void*>(&platform_flock));
-    musl_flock->l_type = platform_flock.l_type;
-    musl_flock->l_whence = platform_flock.l_whence;
-    musl_flock->l_start = platform_flock.l_start;
-    musl_flock->l_len = platform_flock.l_len;
-    musl_flock->l_pid = platform_flock.l_pid;
-  } else {
-    platform_flock.l_type = musl_flock->l_type;
-    platform_flock.l_whence = musl_flock->l_whence;
-    platform_flock.l_start = musl_flock->l_start;
-    platform_flock.l_len = musl_flock->l_len;
-    platform_flock.l_pid = musl_flock->l_pid;
-    retval = fcntl(fildes, cmd, &platform_flock);
+
+  // Translate from musl_flock to platform_flock.
+  platform_flock.l_type =
+      convert_musl_flock_type_to_platform(musl_flock_ptr->l_type);
+  platform_flock.l_whence =
+      convert_musl_flock_whence_to_platform(musl_flock_ptr->l_whence);
+  platform_flock.l_start = musl_flock_ptr->l_start;
+  platform_flock.l_len = musl_flock_ptr->l_len;
+  platform_flock.l_pid = musl_flock_ptr->l_pid;
+
+  if (platform_flock.l_type == -1 || platform_flock.l_whence == -1) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  int retval = fcntl(fildes, cmd, &platform_flock);
+
+  // For GETLK commands, translate the result back.
+  if ((cmd == F_GETLK || cmd == F_OFD_GETLK) && retval != -1) {
+    musl_flock_ptr->l_type =
+        convert_platform_flock_type_to_musl(platform_flock.l_type);
+    musl_flock_ptr->l_whence =
+        convert_platform_flock_whence_to_musl(platform_flock.l_whence);
+    musl_flock_ptr->l_start = platform_flock.l_start;
+    musl_flock_ptr->l_len = platform_flock.l_len;
+    musl_flock_ptr->l_pid = platform_flock.l_pid;
   }
 
   return retval;
@@ -199,10 +262,11 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...) {
     case F_SETOWN:
     case F_SETOWN_EX: {
       int arg = va_arg(ap, int);
-      if (cmd == F_SETFD || cmd == F_SETFL) {
-        result = fcntl(fildes, cmd, convert_musl_flags_to_platform_flags(arg));
+      if (platform_cmd == F_SETFD || platform_cmd == F_SETFL) {
+        result = fcntl(fildes, platform_cmd,
+                       convert_musl_flags_to_platform_flags(arg));
       } else {
-        result = fcntl(fildes, cmd, arg);
+        result = fcntl(fildes, platform_cmd, arg);
       }
       break;
     }
@@ -218,10 +282,11 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...) {
       result = fcntl_ptr(fildes, platform_cmd, arg);
     } break;
     default:
-      SB_CHECK(cmd == F_GETFD || cmd == F_GETFL || cmd == F_GETOWN ||
-               cmd == F_SETFL || cmd == F_SETOWN);
-      result = fcntl(fildes, cmd);
-      if (cmd == F_GETFD || cmd == F_GETFL) {
+      SB_CHECK(platform_cmd == F_GETFD || platform_cmd == F_GETFL ||
+               platform_cmd == F_GETOWN || platform_cmd == F_SETFL ||
+               platform_cmd == F_SETOWN);
+      result = fcntl(fildes, platform_cmd);
+      if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
         int musl_flags = convert_platform_flags_to_musl_flags(result);
 
         result = musl_flags;
