@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "base/debug/alias.h"
+#include "base/logging.h"
 #include "media/base/subsample_entry.h"
 
 namespace media {
@@ -18,12 +19,14 @@ DecoderBuffer::Allocator* s_allocator = nullptr;
 
 // static
 DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  LOG(FATAL) << __func__;
   DCHECK(s_allocator);
   return s_allocator;
 }
 
 // static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  LOG(FATAL) << __func__;
   // One of them has to be nullptr, i.e. either setting a valid allocator, or
   // resetting an existing allocator.  Setting an allocator while another
   // allocator is in place will fail.
@@ -56,11 +59,11 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 
   Initialize();
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   memcpy(data_, data, size_);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // 0
   memcpy(data_.get(), data, size_);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -71,7 +74,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   memcpy(side_data_.get(), side_data, side_data_size_);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
                              size_t size,
@@ -96,16 +99,16 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   DCHECK_GT(side_data_size_, 0u);
   memcpy(side_data_.get(), side_data, side_data_size_);
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   : DecoderBuffer(data.get(), size, nullptr, 0) {
   // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
 }
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // 0
     : data_(std::move(data)), size_(size) {}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 
 DecoderBuffer::DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping,
                              size_t size)
@@ -120,27 +123,27 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
       external_memory_(std::move(external_memory)) {}
 
 DecoderBuffer::~DecoderBuffer() {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   DCHECK(s_allocator);
   s_allocator->Free(data_, allocated_size_);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // 0
   data_.reset();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
   side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   // This is used by Mojo.
   Initialize(DemuxerStream::UNKNOWN);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // 0
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   DCHECK(s_allocator);
   DCHECK(!data_);
@@ -156,7 +159,7 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
