@@ -67,7 +67,9 @@ def main():
     if len(elems) == 4 and elems[0] == "projects":
       project = elems[1]
       rbe_instance = elems[-1]
+  print(f"DEBUGDEBUG: rbe_instance ${rbe_instance}")
 
+  print(f"DEBUGDEBUG: SISO_ENV: ${SISO_ENV}")
   with open(SISO_ENV, "w") as f:
     if project:
       f.write("%s=%s\n" % (SISO_PROJECT_CFG, project))
@@ -77,6 +79,7 @@ def main():
     if os.path.exists(_BACKEND_STAR):
       os.remove(_BACKEND_STAR)
     shutil.copy2(_GOOGLE_STAR, _BACKEND_STAR)
+  print(f"DEBUGDEBUG: backend star: {_BACKEND_STAR}")
   if not os.path.exists(_BACKEND_STAR):
     print('Need to provide {} for your backend {}'.format(
         _BACKEND_STAR, args.rbe_instance),
