@@ -100,14 +100,6 @@ config("runtime_library") {
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
         "-femulated-tls",
       ]
-      if (enable_cobalt_hermetic_hacks) {
-        cflags_cc += [ "-isystem" +
-                       rebase_path("//third_party/musl/src/starboard/hacks",
-                                   root_build_dir) ]
-        cflags_c +=
-            [ "-isystem" + rebase_path("//third_party/musl/src/starboard/hacks",
-                                       root_build_dir) ]
-      }
     }
 
     cflags_objcc = cflags_cc
