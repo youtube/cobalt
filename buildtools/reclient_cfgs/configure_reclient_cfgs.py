@@ -271,6 +271,10 @@ def main():
         if not GenerateReproxyCfg(args.reproxy_cfg_template, args.rbe_instance,
                                   rbe_project, args.use_luci_auth_credshelper):
             return 1
+# COBALT Disables CIPD fetch of rewrapper configs in favor of local rewrapper configs.
+        return 0
+    return 1
+# COBALT END
 
     if args.skip_remoteexec_cfg_fetch:
         return 0
