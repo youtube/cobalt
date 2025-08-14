@@ -346,7 +346,7 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "data/",
+    "//content/test/data/",
     "//media/test/data/",
   ]
 
