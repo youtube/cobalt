@@ -8,7 +8,7 @@ runs:
           cd src
           # cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
           gn gen \
-            --args='use_remoteexec=true use_siso=false rbe_cfg_dir="//.github/reclient_cfgs"' \
+            --args='use_remoteexec=true use_siso=false v8_enable_concurrent_mksnapshot=false rbe_cfg_dir="//.github/reclient_cfgs"' \
             out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
       - name: List GN args
