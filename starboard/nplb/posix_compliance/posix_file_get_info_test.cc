@@ -28,7 +28,7 @@ namespace {
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
   struct stat info;
   int result = fstat(-1, &info);
-  EXPECT_FALSE(result == 0);
+  EXPECT_EQ(result, 0);
 }
 
 constexpr int64_t kMicrosecond = 1'000'000;
@@ -65,7 +65,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
     }
 
     int result = close(file);
-    EXPECT_TRUE(result == 0);
+    EXPECT_EQ(result, 0);
   }
 }
 
@@ -75,20 +75,20 @@ TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
     ASSERT_TRUE(file >= 0);
 
     struct stat info;
-    EXPECT_TRUE(fstat(file, &info) == 0);
+    EXPECT_EQ(fstat(file, &info), 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
     EXPECT_EQ(static_cast<long>(content_length), info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
 
-    EXPECT_TRUE(close(file) == 0);
+    EXPECT_EQ(close(file), 0);
   }
 }
 
 TEST(PosixFileGetInfoTest, WorksOnADirectory) {
   char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
   char* dir_path = mkdtemp(dir_template);
-  ASSERT_TRUE(dir_path != nullptr);
+  ASSERT_NE(dir_path, nullptr);
 
   int fd = open(dir_path, O_RDONLY);
   ASSERT_NE(fd, -1);
@@ -97,8 +97,8 @@ TEST(PosixFileGetInfoTest, WorksOnADirectory) {
   EXPECT_EQ(fstat(fd, &info), 0);
   EXPECT_TRUE(S_ISDIR(info.st_mode));
 
-  close(fd);
-  rmdir(dir_path);
+  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(dir_path, 0);
 }
 
 TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
@@ -107,7 +107,7 @@ TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
 
   char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
   char* dir_path = mkdtemp(dir_template);
-  ASSERT_TRUE(dir_path != nullptr);
+  ASSERT_NE(dir_path, nullptr);
 
   std::string link_path = std::string(dir_path) + "/symlink";
   ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
@@ -122,9 +122,9 @@ TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
   EXPECT_EQ(info.st_size, 128);        // Size should be target's size.
   EXPECT_TRUE(S_ISREG(info.st_mode));  // Should be a regular file.
 
-  close(fd);
-  unlink(link_path.c_str());
-  rmdir(dir_path);
+  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(unlink(link_path.c_str()), 0);
+  EXPECT_EQ(rmdir(dir_path), 0);
 }
 
 TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
@@ -133,7 +133,7 @@ TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
 
   char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
   char* dir_path = mkdtemp(dir_template);
-  ASSERT_TRUE(dir_path != nullptr);
+  ASSERT_NE(dir_path, nullptr);
 
   std::string path2 = std::string(dir_path) + "/hardlink";
 
@@ -148,9 +148,9 @@ TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
   EXPECT_EQ(fstat(fd, &info), 0);
   EXPECT_EQ(info.st_nlink, 2u);
 
-  close(fd);
-  unlink(path2.c_str());
-  rmdir(dir_path);
+  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(unlink(path2.c_str()), 0);
+  EXPECT_EQ(rmdir(dir_path), 0);
 }
 
 }  // namespace
