@@ -55,6 +55,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
@@ -239,7 +240,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(epoll_create1);
   REGISTER_SYMBOL(epoll_ctl);
   REGISTER_SYMBOL(epoll_wait);
-  REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
@@ -324,6 +324,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(eventfd);
   REGISTER_WRAPPER(fchmod);
   REGISTER_WRAPPER(fchown);
+  REGISTER_WRAPPER(fcntl);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
