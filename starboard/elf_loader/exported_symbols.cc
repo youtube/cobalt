@@ -248,6 +248,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
+  REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
@@ -322,6 +323,7 @@ ExportedSymbols::ExportedSymbols() {
   }
   REGISTER_WRAPPER(eventfd);
   REGISTER_WRAPPER(fchmod);
+  REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);

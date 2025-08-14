@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
+#include "syscall.h"
 
-void* SbMemoryAllocateUnchecked(size_t size) {
-  return malloc(size);
+#include "starboard/common/log.h"
+#include "starboard/thread.h"
+
+#undef syscall
+
+long syscall(long n, ...) {
+  switch (n) {
+    case __NR_gettid: {
+      return SbThreadGetId();
+    }
+    default: {
+      SB_NOTIMPLEMENTED();
+      errno = ENOSYS;
+      return -1;
+    }
+  }
 }

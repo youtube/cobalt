@@ -48,7 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Cache CI Essentials
         uses: actions/upload-artifact@v4
@@ -201,7 +201,7 @@ jobs:
         run: |
           set -x
           docker_content_sha=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
-          git show ${docker_content_sha}
+          git show --no-patch ${docker_content_sha}
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
@@ -315,8 +315,10 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
-          # Use fetch depth of 0 to get full history for a valid build id.
-          fetch-depth: 0
+          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
+          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
+          # to properly calculate build id.
+          fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
       - name: Build Cobalt

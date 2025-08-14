@@ -7,7 +7,6 @@ OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
 closelog
-fchown
 fclose
 fdopen
 feof
@@ -31,8 +30,6 @@ getc
 getcwd
 getrlimit
 initstate
-ioctl
-link
 localeconv
 localtime
 localtime_r
@@ -55,7 +52,6 @@ setvbuf
 stderr
 stdin
 stdout
-syscall
 syslog
 timegm
 tmpfile
