@@ -27,6 +27,11 @@ runs:
           echo "target_os=['android']" >> .gclient
           gclient validate
         shell: bash
+      - name: Inject siso env file [ hack ]
+        shell: bash
+        run: |
+          echo "SISO_PROJECT=cobalt-actions-prod" > src/build/config/siso/.sisoenv
+          echo "SISO_REAPI_INSTANCE=default_instance" >> src/build/config/siso/.sisoenv
       - name: gclient sync
         if: inputs.run_sync == 'true'
         run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
