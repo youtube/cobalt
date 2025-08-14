@@ -92,7 +92,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     '__errno_location',
     'accept',
     'access',
-    'aligned_alloc',
     'bind',
     'calloc',
     'chmod',
