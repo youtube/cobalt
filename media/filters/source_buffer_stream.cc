@@ -763,7 +763,9 @@ void SourceBufferStream::OnMemoryPressure(
     base::TimeDelta media_time,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
     bool force_instant_gc) {
-  DVLOG(4) << __func__ << " level=" << memory_pressure_level;
+  LOG(INFO) << __func__ << " level=" << memory_pressure_level
+      << ", force_instant_gc=" << (force_instant_gc ? "true" : "false")
+      << ", kMemoryPressureBasedSourceBufferGC=" << (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC) ? "true" : "false");
   // TODO(sebmarchand): Check if MEMORY_PRESSURE_LEVEL_MODERATE should also be
   // ignored.
   if (memory_pressure_level ==

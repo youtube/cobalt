@@ -422,7 +422,7 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
   bool enable_instant_source_buffer_gc =
       base::GetFieldTrialParamByFeatureAsBool(
           media::kMemoryPressureBasedSourceBufferGC,
-          "enable_instant_source_buffer_gc", false);
+          "enable_instant_source_buffer_gc", true);
 
   media::MediaPlayerLoggingID player_id = media::GetNextMediaPlayerLoggingID();
   std::vector<std::unique_ptr<BatchingMediaLog::EventHandler>> handlers;
