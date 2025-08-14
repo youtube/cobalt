@@ -23,5 +23,8 @@ runs:
           set -ex
           cd src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          time autoninja \
+                -v \
+                -C out/${{ matrix.platform }}_${{ matrix.config }} \
+                ${TARGETS}
         shell: bash
