@@ -1,0 +1,21 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -263,7 +263,6 @@
+     return memory_usage;
+   }
+ 
+-<<<<<<< HEAD
+   memory_usage += size();
+ 
+   // Side data and decrypt config would not change after construction.
+@@ -273,10 +272,6 @@
+     memory_usage += sizeof(decltype(side_data_->alpha_data)::value_type) *
+                     side_data_->alpha_data.capacity();
+   }
+-=======
+-  memory_usage += data_size();
+-
+->>>>>>> 01623e5a28ba (Refine Demuxer GC for low resolution videos (#4483))
+   if (decrypt_config_) {
+     memory_usage += sizeof(DecryptConfig);
+     memory_usage += decrypt_config_->key_id().capacity();

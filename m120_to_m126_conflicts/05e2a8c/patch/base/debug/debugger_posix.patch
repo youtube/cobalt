@@ -1,0 +1,13 @@
+--- base/debug/debugger_posix.cc
++++ base/debug/debugger_posix.cc
+@@ -57,10 +57,6 @@
+ #include "base/strings/string_number_conversions.h"
+ 
+ #if defined(USE_SYMBOLIZE)
+-<<<<<<< HEAD
+-=======
+-// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+->>>>>>> 05e2a8c24b59 (Fix/disable errors and enable gn check (#4518))
+ #include "base/third_party/symbolize/symbolize.h"  // nogncheck
+ #endif
+ 

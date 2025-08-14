@@ -1,0 +1,36 @@
+--- third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.cc
++++ third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.cc
+@@ -186,7 +186,6 @@
+ #else
+   // This calculation will increase the tile memory size. It should apply to
+   // the other plateforms if no regression on Mac.
+-<<<<<<< HEAD
+   //
+   // For large monitors with high resolution, increase the tile memory to
+   // avoid frequent out of memory problems. With Mac M1 on
+@@ -204,25 +203,6 @@
+   size_t mb_limit_when_visible =
+       large_resolution_memory_mb * (display_size * 1.0 / kLargeResolution);
+ 
+-=======
+-
+-  // For large monitors with high resolution, increase the tile memory to
+-  // avoid frequent out of memory problems. With Mac M1 on
+-  // https://www.334-28th.com/, it seems 512 MB works fine on 1920x1080 * 2
+-  // (scale) and 1152 MB on 2056x1329 * 2 (scale). Use this ratio for the
+-  // formula to increase |bytes_limit_when_visible| proportionally.
+-  // For mobile platforms with small display (roughly less than 3k x 1.6k),
+-  // mb_limit will still be 512 MB.
+-  constexpr size_t kLargeResolution = 2056 * 1329 * 2 * 2;
+-  size_t display_size =
+-      std::round(initial_screen_size.width() * initial_device_scale_factor *
+-                 initial_screen_size.height() * initial_device_scale_factor);
+-
+-  size_t large_resolution_memory_mb = GetLargeResolutionMemoryMB();
+-  size_t mb_limit_when_visible =
+-      large_resolution_memory_mb * (display_size * 1.0 / kLargeResolution);
+-
+->>>>>>> 7f1b6eaa301a ([cc] Use simple compositor memory limits on Android (#4637))
+   // Cap the memory size to one fourth of the total system memory so it won't
+   // consume too much of the system memory. Still keep the minimum to the
+   // default of 512MB.

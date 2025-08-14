@@ -1,0 +1,25 @@
+--- media/filters/chunk_demuxer.h
++++ media/filters/chunk_demuxer.h
+@@ -283,7 +283,6 @@
+   [[nodiscard]] Status AddId(const std::string& id,
+                              std::unique_ptr<VideoDecoderConfig> video_config);
+ 
+-<<<<<<< HEAD
+   // `AddAutoDetectedCodecsId` operates similarly to the `AddId` methods, except
+   // that it creates parsers which are capable of auto-detecting the codecs
+   // present. It is used internally by the HLS demuxer.
+@@ -292,13 +291,12 @@
+       const std::string& id,
+       RelaxedParserSupportedType mime_type);
+ #endif
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Special version of AddId() that retains the |mime_type| from the web app.
+   [[nodiscard]] Status AddId(const std::string& id,
+                              const std::string& mime_type);
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 4ad91d6ad7e5 ([media] Pass full mime type to SbPlayer (#4378))
+ 
+   // Notifies a caller via `tracks_updated_cb` that the set of media tracks
+   // for a given `id` has changed. This callback must be set before any calls to

@@ -1,0 +1,64 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -206,13 +206,8 @@
+       return writable_mapping_.GetMemoryAs<const uint8_t>();
+     if (external_memory_)
+       return external_memory_->span().data();
+-<<<<<<< HEAD
+     return data_.data();
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-    return data_.get();
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+   }
+ 
+   // The number of bytes in the buffer.
+@@ -232,13 +227,8 @@
+     DCHECK(!read_only_mapping_.IsValid());
+     DCHECK(!writable_mapping_.IsValid());
+     DCHECK(!external_memory_);
+-<<<<<<< HEAD
+     return const_cast<uint8_t*>(data_.data());
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-    return data_.get();
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+   }
+ 
+   // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
+@@ -280,18 +270,9 @@
+     DCHECK_LE(size, size_);
+     size_ = size;
+   }
+-<<<<<<< HEAD
+-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  bool end_of_stream() const { return is_end_of_stream_; }
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+ #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  bool end_of_stream() const {
+-    return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
+-           !external_memory_ && !data_;
+-  }
++  bool end_of_stream() const { return is_end_of_stream_; }
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+ 
+   bool is_key_frame() const {
+     DCHECK(!end_of_stream());
+@@ -361,13 +342,8 @@
+   size_t allocated_size_ = 0;
+ #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Encoded data, if it is stored on the heap.
+-<<<<<<< HEAD
+   base::HeapArray<uint8_t> data_;
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-  std::unique_ptr<uint8_t[]> data_;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+ 
+  private:
+   // Constructor helper method for memory allocations.
