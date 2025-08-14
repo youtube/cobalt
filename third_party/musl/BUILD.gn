@@ -920,8 +920,6 @@ source_set("headers") {
     "src/process/fdop.h",
     "src/regex/tre.h",
     "src/search/tsearch.h",
-    "src/starboard/hacks/linux/types.h",
-    "src/starboard/hacks/sys/cdefs.h",
     "src/starboard/include/init_musl.h",
     "src/starboard/include/pthread.h",
     "src/starboard/include/syscall.h",
