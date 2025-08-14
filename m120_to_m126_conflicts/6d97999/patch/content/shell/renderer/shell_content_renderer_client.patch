@@ -1,0 +1,23 @@
+--- content/shell/renderer/shell_content_renderer_client.cc
++++ content/shell/renderer/shell_content_renderer_client.cc
+@@ -59,7 +59,6 @@
+ #include "media/base/media_switches.h"
+ #endif
+ 
+-<<<<<<< HEAD
+ #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
+     (defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARM64))
+ #define ENABLE_WEB_ASSEMBLY_TRAP_HANDLER_LINUX
+@@ -67,12 +66,6 @@
+ #include "v8/include/v8-wasm-trap-handler-posix.h"
+ #endif
+ 
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-#include "starboard/media.h"
+-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+-
+-=======
+->>>>>>> 6d979993fcb8 (Implement media::ContentDecryptionModule interface for Starboard (#4368))
+ namespace content {
+ 
+ namespace {
