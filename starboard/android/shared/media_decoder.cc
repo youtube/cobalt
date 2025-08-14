@@ -569,12 +569,12 @@ bool MediaDecoder::ProcessOneInputBuffer(
       SB_LOG(INFO) << __func__
                    << " > memory_alloc: resolution changed:" << last_resolution_
                    << " -> " << resolution;
-      SB_LOG(INFO) << __func__ << " > memory_alloc: ReclaimAll";
-      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
-
       SB_LOG(INFO) << __func__ << " > memory_alloc: Notifying memory pressure.";
       base::MemoryPressureListener::NotifyMemoryPressure(
           base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+      SB_LOG(INFO) << __func__ << " > memory_alloc: ReclaimAll";
+      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
 
       last_resolution_ = resolution;
     }
