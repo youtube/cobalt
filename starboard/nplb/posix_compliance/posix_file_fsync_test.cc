@@ -49,7 +49,7 @@ TEST(PosixFileSyncTest, SuccessOnValidFile) {
   int result = fsync(fd);
   EXPECT_EQ(result, 0) << "fsync failed on a valid file: " << strerror(errno);
 
-  close(fd);
+  EXPECT_EQ(close(fd), 0);
 }
 
 TEST(PosixFileSyncTest, FailsOnUnsupportedFileType) {
@@ -65,8 +65,8 @@ TEST(PosixFileSyncTest, FailsOnUnsupportedFileType) {
       << "Expected EINVAL or EBADF, but got " << errno << " ("
       << strerror(errno) << ")";
 
-  close(sockets[0]);
-  close(sockets[1]);
+  EXPECT_EQ(close(sockets[0]), 0);
+  EXPECT_EQ(close(sockets[1]), 0);
 }
 
 }  // namespace
