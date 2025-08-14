@@ -4,11 +4,12 @@ runs:
   using: "composite"
   steps:
       - name: GN gen
+        env:
+          GN_ARGS: ${{ inputs.gn_args }}
         run: |
           cd src
-          # cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
           gn gen \
-            --args='use_remoteexec=true use_siso=false rbe_cfg_dir="//.github/reclient_cfgs"' \
+            --args='use_remoteexec=true use_siso=false rbe_cfg_dir="//.github/reclient_cfgs" ${{ env.GN_ARGS }}' \
             out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
       - name: List GN args
