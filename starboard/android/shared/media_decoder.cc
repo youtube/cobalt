@@ -20,6 +20,7 @@
 #include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -549,11 +550,13 @@ bool MediaDecoder::ProcessOneInputBuffer(
       SB_LOG(INFO) << __func__
                    << " > memory_alloc: resolution changed:" << last_resolution_
                    << " -> " << resolution;
-      // SB_LOG(INFO) << __func__ << " > memory_alloc: Notifyin memory
-      // pressure."; base::MemoryPressureListener::NotifyMemoryPressure(
-      //     base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
       SB_LOG(INFO) << __func__ << " > memory_alloc: ReclaimAll";
       ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+
+      SB_LOG(INFO) << __func__ << " > memory_alloc: Notifying memory pressure.";
+      base::MemoryPressureListener::NotifyMemoryPressure(
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
       last_resolution_ = resolution;
     }
   }
