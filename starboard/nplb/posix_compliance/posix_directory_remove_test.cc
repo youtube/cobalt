@@ -53,7 +53,7 @@ class PosixRmdirTest : public ::testing::Test {
     }
   }
 
-  bool DirExists(const std::string& path) {
+  bool DirectoryExists(const std::string& path) {
     struct stat st;
     return stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
   }
@@ -65,19 +65,21 @@ TEST_F(PosixRmdirTest, SuccessRemovesEmptyDirectory) {
   std::string dir_path = test_dir_ + "/empty_dir";
   ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
 
-  ASSERT_TRUE(DirExists(dir_path));
-  ASSERT_EQ(rmdir(dir_path.c_str()), 0);
-  EXPECT_FALSE(DirExists(dir_path));
+  ASSERT_TRUE(DirectoryExists(dir_path));
+  ASSERT_EQ(rmdir(dir_path.c_str()), 0)
+      << "rmdir failed with error: " << strerror(errno);
+  EXPECT_FALSE(DirectoryExists(dir_path));
 }
 
 TEST_F(PosixRmdirTest, FailsOnNonEmptyDirectory) {
   std::string dir_path = test_dir_ + "/non_empty_dir";
-  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
+  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0)
+      << "mkdir failed with error: " << strerror(errno);
 
   std::string file_path = dir_path + "/file.txt";
   int fd = open(file_path.c_str(), O_CREAT, kUserRw);
   ASSERT_NE(fd, -1);
-  close(fd);
+  EXPECT_EQ(close(fd), 0) << "close failed with error: " << strerror(errno);
 
   errno = 0;
   int result = rmdir(dir_path.c_str());
@@ -89,7 +91,7 @@ TEST_F(PosixRmdirTest, FailsOnRegularFile) {
   std::string file_path = test_dir_ + "/file.txt";
   int fd = open(file_path.c_str(), O_CREAT, kUserRw);
   ASSERT_NE(fd, -1);
-  close(fd);
+  EXPECT_EQ(close(fd), 0) << "close failed with error: " << strerror(errno);
 
   errno = 0;
   EXPECT_EQ(rmdir(file_path.c_str()), -1);
@@ -125,7 +127,7 @@ TEST_F(PosixRmdirTest, FailsOnDot) {
 TEST_F(PosixRmdirTest, FailsOnDotDot) {
   errno = 0;
   EXPECT_EQ(rmdir(".."), -1);
-  // POSIX does not specify the error but it should fail
+  // POSIX doesn't specify the error but it should fail
   EXPECT_NE(errno, 0);
 }
 
@@ -137,17 +139,20 @@ TEST_F(PosixRmdirTest, FailsWithPermissionDenied) {
   }
 
   std::string dir_path = test_dir_ + "/subdir";
-  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
+  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0)
+      << "rmkdirmdir failed with error: " << strerror(errno);
 
   // Remove write permission from the parent directory.
-  ASSERT_EQ(chmod(test_dir_.c_str(), S_IRUSR | S_IXUSR), 0);
+  ASSERT_EQ(chmod(test_dir_.c_str(), S_IRUSR | S_IXUSR), 0)
+      << "chmod failed with error: " << strerror(errno);
 
   errno = 0;
   EXPECT_EQ(rmdir(dir_path.c_str()), -1);
   EXPECT_EQ(errno, EACCES);
 
   // Restore permissions for cleanup.
-  chmod(test_dir_.c_str(), kUserRwx);
+  ASSERT_EQ(chmod(test_dir_.c_str(), kUserRwx), 0)
+      << "chmod failed with error: " << strerror(errno);
 }
 
 TEST_F(PosixRmdirTest, FailsWithNameTooLong) {
@@ -162,8 +167,10 @@ TEST_F(PosixRmdirTest, FailsWithNameTooLong) {
 TEST_F(PosixRmdirTest, FailsWithSymbolicLinkLoop) {
   std::string link_a_path = test_dir_ + "/link_a";
   std::string link_b_path = test_dir_ + "/link_b";
-  ASSERT_EQ(symlink(link_b_path.c_str(), link_a_path.c_str()), 0);
-  ASSERT_EQ(symlink(link_a_path.c_str(), link_b_path.c_str()), 0);
+  ASSERT_EQ(symlink(link_b_path.c_str(), link_a_path.c_str()), 0)
+      << "symlink failed with error: " << strerror(errno);
+  ASSERT_EQ(symlink(link_a_path.c_str(), link_b_path.c_str()), 0)
+      << "symlink failed with error: " << strerror(errno);
 
   std::string looping_path = link_a_path + "/some_dir";
   errno = 0;
