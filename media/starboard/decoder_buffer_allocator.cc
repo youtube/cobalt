@@ -63,12 +63,13 @@ std::string FormatNumber(size_t n) {
 
 // Set to allocate the max memory in advance
 // starboard/android/shared/media_get_video_buffer_budget.cc
-constexpr int kEnoughSize = 200 * 1024 * 1024;
+// constexpr int kEnoughSize = 200 * 1024 * 1024;
 
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
-                             kEnoughSize,
+                             55 * 1024 * 1024,
+                             // SbMediaGetInitialBufferCapacity(),
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
@@ -129,17 +130,14 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::LogMemoryUsageAndReschedule() {
-  size_t tracked_allocated_size;
-  {
-    base::AutoLock scoped_lock(mutex_);
-    tracked_allocated_size = allocated_size_;
+  int allocated_mb = GetAllocatedMemory() / 1024 / 1024;
+  if (allocated_mb != last_allocated_mb_) {
+    SB_LOG(INFO) << "Media memory usage: "
+                 << "allocated(MB)=" << FormatNumber(allocated_mb)
+                 << ", capacity(MB)="
+                 << FormatNumber(GetCurrentMemoryCapacity() / 1024 / 1024);
+    last_allocated_mb_ = allocated_mb;
   }
-  SB_LOG(INFO) << "Media memory usage: "
-               << "allocated(KB)=" << FormatNumber(GetAllocatedMemory() / 1024)
-               << ", capacity(KB)="
-               << FormatNumber(GetCurrentMemoryCapacity() / 1024)
-               << ", allocated_size(KB)="
-               << FormatNumber(tracked_allocated_size / 1024);
 
   base::AutoLock scoped_lock(mutex_);
   logging_thread_->task_runner()->PostDelayedTask(
