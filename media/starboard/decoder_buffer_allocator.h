@@ -118,6 +118,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   std::atomic<int> allocated_size_ = 0;
+
+  int last_allocated_mb_ = 0;
 };
 
 }  // namespace media
