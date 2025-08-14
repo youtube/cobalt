@@ -28,7 +28,7 @@ namespace {
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
   struct stat info;
   int result = fstat(-1, &info);
-  EXPECT_EQ(result, 0);
+  EXPECT_NE(result, 0);
 }
 
 constexpr int64_t kMicrosecond = 1'000'000;
@@ -98,11 +98,12 @@ TEST(PosixFileGetInfoTest, WorksOnADirectory) {
   EXPECT_TRUE(S_ISDIR(info.st_mode));
 
   EXPECT_EQ(close(fd), 0);
-  EXPECT_EQ(dir_path, 0);
+  EXPECT_EQ(rmdir(dir_path), 0);
 }
 
 TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
-  ScopedRandomFile target_file(128);
+  int file_size = 128;
+  ScopedRandomFile target_file(file_size);
   std::string target_path = target_file.filename();
 
   char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
@@ -119,7 +120,7 @@ TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
   // fstat should report info about the target file, not the link.
   struct stat info;
   EXPECT_EQ(fstat(fd, &info), 0);
-  EXPECT_EQ(info.st_size, 128);        // Size should be target's size.
+  EXPECT_EQ(info.st_size, file_size);  // Size should be target's size.
   EXPECT_TRUE(S_ISREG(info.st_mode));  // Should be a regular file.
 
   EXPECT_EQ(close(fd), 0);
