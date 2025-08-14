@@ -3,6 +3,12 @@
   "platforms": [
     "chromium_android-arm64"
   ],
+  "gn_args": [
+    {
+      "target_os": "android",
+      "target_cpu": "arm64"
+    }
+  ],
   "targets": [
     "content_shell",
     "system_webview_apk",
