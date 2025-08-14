@@ -168,7 +168,7 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       memory_limit_(GetDemuxerStreamAudioMemoryLimit(&audio_config)) {
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
-  DVLOG(2) << __func__ << ": audio_buffer_size= " << memory_limit_;
+  DVLOG(2) << __func__ << ": audio_buffer_limit(MB)= " << (memory_limit_ / 1024 /1024);
 }
 
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
@@ -185,7 +185,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                            &video_config)) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
-  DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
+  DVLOG(2) << __func__ << ": video_buffer_size(MB)= " << (memory_limit_ / 1024 / 1024);
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,

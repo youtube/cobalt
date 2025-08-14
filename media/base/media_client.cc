@@ -47,15 +47,15 @@ uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
 }
 
 uint64_t MediaClient::GetMaximumMemoryCapacity() const {
-  return decoder_buffer_allocator_.GetMaximumMemoryCapacity();
+  return 0;
 }
 
 uint64_t MediaClient::GetCurrentMemoryCapacity() const {
-  return decoder_buffer_allocator_.GetCurrentMemoryCapacity();
+  return 0;
 }
 
 uint64_t MediaClient::GetAllocatedMemory() const {
-  return decoder_buffer_allocator_.GetAllocatedMemory();
+  return 0;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
