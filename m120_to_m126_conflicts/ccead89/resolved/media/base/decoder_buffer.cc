@@ -43,7 +43,7 @@ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : size_(data.size()) {
   Initialize();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  memcpy(data_, data, size_);
+  memcpy(data_, data.data(), size_);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.copy_from(data);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
