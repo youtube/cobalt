@@ -123,6 +123,74 @@ TEST_F(IcuTimeSupportTest, UpdateFromEnvironment) {
   EXPECT_EQ(daylight, 0);
 }
 
+TEST_F(IcuTimeSupportTest, HandlesNormalization) {
+  IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
+
+  // The time being tested is:
+  // Dec+1 33 27:64:66 UTC 2023
+  // All members except year overflow and have to be normalized.
+  struct tm start_tm = {.tm_sec = 66,
+                        .tm_min = 64,
+                        .tm_hour = 27,
+                        .tm_mday = 33,   // 33nd day
+                        .tm_mon = 12,    // December + 1
+                        .tm_year = 123,  // 2023 - 1900 = 123
+                        .tm_isdst = 1};
+  struct tm tm(start_tm);
+
+  time_t imploded = time_support->ImplodeGmtTime(&tm);
+
+  // date -u -d "2024-02-03 04:05:06 UTC" +%s
+  EXPECT_EQ(imploded, 1706933106);
+
+  // All members have to be normalized.
+  // $ date -u --date='@1706933106'
+  // Sat Feb  3 04:05:06 AM UTC 2024
+  EXPECT_EQ(tm.tm_year, 2024 - 1900);
+  EXPECT_EQ(tm.tm_mon, 1);    // February (December + 1 + overflow)
+  EXPECT_EQ(tm.tm_mday, 3);   // 33 - 31 + overflow = 3
+  EXPECT_EQ(tm.tm_hour, 4);   // 27 - 24 + overflow = 4
+  EXPECT_EQ(tm.tm_min, 5);    // 64 - 60 + overflow = 5
+  EXPECT_EQ(tm.tm_sec, 6);    // 66 - 60 = 6
+  EXPECT_EQ(tm.tm_wday, 6);   // Saturday
+  EXPECT_EQ(tm.tm_yday, 33);  // 31 + 2 = 33nd day starting at day 0.
+  EXPECT_EQ(tm.tm_isdst, 0);  // UTC is never daylight savings time.
+}
+
+TEST_F(IcuTimeSupportTest, HandlesNegativeNormalization) {
+  IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
+
+  // The time being tested is:
+  // Jan-1 -4 -3:-2:-1 UTC 2023
+  // All members except year overflow and have to be normalized.
+  struct tm start_tm = {.tm_sec = -1,
+                        .tm_min = -2,
+                        .tm_hour = -3,
+                        .tm_mday = -4,
+                        .tm_mon = -1,    // January - 1
+                        .tm_year = 123,  // 2023 - 1900 = 123
+                        .tm_isdst = 1};
+  struct tm tm(start_tm);
+
+  time_t imploded = time_support->ImplodeGmtTime(&tm);
+
+  // date -u -d "2022-11-25 20:57:59 UTC" +%s
+  EXPECT_EQ(imploded, 1669409879);
+
+  // All members have to be normalized.
+  // $ date -u --date='@1669409879'
+  // Fri Nov 25 08:57:59 PM UTC 2022
+  EXPECT_EQ(tm.tm_year, 2022 - 1900);
+  EXPECT_EQ(tm.tm_mon, 10);    // November (January - 1 - overflow)
+  EXPECT_EQ(tm.tm_mday, 25);   // -4 + 30 - overflow = 25
+  EXPECT_EQ(tm.tm_hour, 20);   // -3 + 24 - overflow = 20
+  EXPECT_EQ(tm.tm_min, 57);    // -2 + 60 - overflow = 57
+  EXPECT_EQ(tm.tm_sec, 59);    // -1 + 60 = 59
+  EXPECT_EQ(tm.tm_wday, 5);    // Friday
+  EXPECT_EQ(tm.tm_yday, 328);  // 6*31 + 3*30 + 28 + 24 = 328nd day.
+  EXPECT_EQ(tm.tm_isdst, 0);   // UTC is never daylight savings time.
+}
+
 }  // namespace time
 }  // namespace libc
 }  // namespace common

@@ -37,10 +37,10 @@ namespace time {
 
 namespace {
 // The maximum time_t value that doesn't overflow 'struct tm'.
-const time_t kMaxTimeValForStructTm =
+constexpr time_t kMaxTimeValForStructTm =
     67767976233521999;  // Tue Dec 31 23:59:59 2147483647
 
-const time_t kMinTimeValForStructTm =
+constexpr time_t kMinTimeValForStructTm =
     -67768040609712422;  // Thu Jan  1 00:00:00 -2147481748
 
 bool ExplodeTime(const time_t* time,
@@ -164,6 +164,7 @@ bool IcuTimeSupport::ExplodeGmtTime(const time_t* time,
   bool result = ExplodeTime(time, *icu::TimeZone::getGMT(), out_exploded);
   if (result) {
     out_exploded->tm_zone = "UTC";
+    out_exploded->tm_isdst = 0;  // UTC is never daylight savings time.
   }
   return result;
 }
@@ -173,6 +174,9 @@ time_t IcuTimeSupport::ImplodeLocalTime(struct tm* exploded) {
 }
 
 time_t IcuTimeSupport::ImplodeGmtTime(struct tm* exploded) {
+  if (exploded) {
+    exploded->tm_isdst = 0;  // UTC is never daylight savings time.
+  }
   return ImplodeTime(exploded, *icu::TimeZone::getGMT());
 }
 
