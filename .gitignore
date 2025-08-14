@@ -341,7 +341,7 @@ vs-chromium-project.txt
 /ui/surface/surface.xml
 /ui/surface/surface_gpu_tests.xml
 /ui/webui/internal
-/v8
+# /v8 Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /webkit/data
 /webpagereplay_logs/
 /x86-generic_out/

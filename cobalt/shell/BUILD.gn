@@ -27,7 +27,7 @@ shell_use_toolkit_views = toolkit_views && !is_castos
 support_web_tests = !is_android && !is_starboard
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
-config("content_shell_lib_warnings") {
+config("cobalt_shell_lib_warnings") {
   if (is_clang) {
     # TODO(thakis): Remove this once http://crbug.com/383820 is figured out
     cflags = [ "-Wno-nonnull" ]
@@ -43,8 +43,7 @@ source_set("android_shell_descriptors") {
   }
 }
 
-# TODO(b/384748332): Remove dependency on content shell
-group("content_shell_lib_deps") {
+group("cobalt_shell_lib_deps") {
   visibility = [
     "//cobalt/shell:*",
     "//cobalt/testing:*",
@@ -53,8 +52,8 @@ group("content_shell_lib_deps") {
   public_deps = [
     ":android_shell_descriptors",
 
-    # content_shell_lib also exposes all public content APIs.
-    ":content_browsertests_mojom",
+    # cobalt_shell_lib also exposes all public content APIs.
+    ":browsertests_mojom",
     ":resources",
     ":shell_controller_mojom",
     "//base",
@@ -73,8 +72,6 @@ group("content_shell_lib_deps") {
     "//components/network_hints/browser:browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
-    "//components/origin_trials:browser",
-    "//components/origin_trials:common",
     "//components/performance_manager",
     "//components/prefs",
     "//components/services/storage/test_api",
@@ -99,16 +96,15 @@ group("content_shell_lib_deps") {
     "//net",
     "//net:net_resources",
     "//ppapi/buildflags",
-    "//services/device/public/cpp:test_support",
     "//services/network:network_service",
     "//services/network/public/cpp",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
     "//third_party/blink/public:blink",
     "//third_party/blink/public:image_resources",
     "//third_party/blink/public:resources",
     "//third_party/blink/public/strings",
     "//third_party/blink/public/strings:accessibility_strings",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
     "//url",
     "//v8",
   ]
@@ -118,8 +114,6 @@ group("content_shell_lib_deps") {
       "//ui/base",
       "//ui/base/clipboard",
       "//ui/base/ime/init",
-      "//ui/gfx",
-      "//ui/gfx/geometry",
       "//ui/platform_window",
     ]
   }
@@ -142,8 +136,8 @@ group("content_shell_lib_deps") {
 
   if (is_android) {
     public_deps += [
+      "//cc/slim",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
-      "//components/embedder_support/android:view",
       "//ui/android",
     ]
   }
@@ -188,10 +182,28 @@ group("content_shell_lib_deps") {
   }
 }
 
-# TODO(b/422171398): Refactor source set to not depend on content shell
-static_library("content_shell_lib") {
+source_set("browsertests_sources") {
   testonly = true
-  public_deps = [ ":content_shell_lib_deps" ]
+  sources = [
+    "common/power_monitor_test_impl.cc",
+    "common/power_monitor_test_impl.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
+  ]
+  public_deps = [
+    ":browsertests_mojom",
+    "//components/services/storage/test_api",
+    "//content/public/child",
+    "//content/public/utility",
+    "//content/test:content_test_mojo_bindings",
+    "//content/test:test_support",
+  ]
+}
+
+static_library("cobalt_shell_lib") {
+  testonly = true
+
+  public_deps = [ ":cobalt_shell_lib_deps" ]
   sources = [
     "browser/shell.cc",
     "browser/shell.h",
@@ -224,12 +236,8 @@ static_library("content_shell_lib") {
     "browser/shell_web_contents_view_delegate_creator.h",
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
-    "common/shell_origin_trial_policy.cc",
-    "common/shell_origin_trial_policy.h",
     "common/shell_switches.cc",
     "common/shell_switches.h",
     "gpu/shell_content_gpu_client.cc",
@@ -240,12 +248,12 @@ static_library("content_shell_lib") {
     "renderer/shell_content_renderer_client.h",
     "renderer/shell_render_frame_observer.cc",
     "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
   ]
 
   if (is_android) {
     sources += [
+      "android/content_view_render_view.cc",
+      "android/content_view_render_view.h",
       "android/shell_manager.cc",
       "android/shell_manager.h",
       "browser/shell_platform_delegate_android.cc",
@@ -264,7 +272,7 @@ static_library("content_shell_lib") {
   }
 
   configs += [
-    ":content_shell_lib_warnings",
+    ":cobalt_shell_lib_warnings",
     "//build/config:precompiled_headers",
   ]
 
@@ -273,10 +281,15 @@ static_library("content_shell_lib") {
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
   ]
 
+  if (run_browser_tests) {
+    defines += [ "RUN_BROWSER_TESTS=1" ]
+    public_deps += [ ":browsertests_sources" ]
+  }
+
   if (shell_use_toolkit_views) {
-    # All content_shell code should use this define instead of TOOLKIT_VIEWS,
+    # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
     # since any transitive dependency on //ui/views from another component will
-    # cause TOOLKIT_VIEWS to be defined, even when content_shell does not want
+    # cause TOOLKIT_VIEWS to be defined, even when cobalt_shell does not want
     # to use it internally. See https://crbug.com/1218907.
     defines += [ "SHELL_USE_TOOLKIT_VIEWS=1" ]
   }
@@ -318,9 +331,9 @@ static_library("content_shell_lib") {
 # application that wants to use ShellMainDelegate.
 #
 # TODO(danakj): This component will depend on {renderer,browser}/web_test. The
-# content_shell_lib component will not, to avoid circular deps, as web_test
-# inherits from things in content_shell_lib.
-static_library("content_shell_app") {
+# cobalt_shell_lib component will not, to avoid circular deps, as web_test
+# inherits from things in cobalt_shell_lib.
+static_library("cobalt_shell_app") {
   testonly = true
   sources = [
     "app/shell_crash_reporter_client.cc",
@@ -328,7 +341,7 @@ static_library("content_shell_app") {
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]
-  public_deps = [ ":content_shell_app_deps" ]
+  public_deps = [ ":cobalt_shell_app_deps" ]
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
@@ -341,14 +354,14 @@ static_library("content_shell_app") {
   ]
 }
 
-group("content_shell_app_deps") {
+group("cobalt_shell_app_deps") {
   visibility = [
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
   testonly = true
   public_deps = [
-    ":content_shell_lib",
+    ":cobalt_shell_lib",
     "//components/crash/core/app",
     "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
@@ -434,7 +447,7 @@ repack("pak") {
   output = "$root_out_dir/cobalt_shell.pak"
 }
 
-grit("content_shell_resources_grit") {
+grit("cobalt_shell_resources_grit") {
   testonly = true
 
   # External code should depend on ":resources" instead.
@@ -452,7 +465,7 @@ copy("copy_shell_resources") {
   sources = [ "$target_gen_dir/cobalt_shell_resources.pak" ]
   outputs = [ "$root_out_dir/cobalt_shell_resources.pak" ]
 
-  public_deps = [ ":content_shell_resources_grit" ]
+  public_deps = [ ":cobalt_shell_resources_grit" ]
 }
 
 group("resources") {
@@ -461,7 +474,7 @@ group("resources") {
   public_deps = [ ":copy_shell_resources" ]
 }
 
-mojom("content_browsertests_mojom") {
+mojom("browsertests_mojom") {
   sources = [
     "common/main_frame_counter_test.mojom",
     "common/power_monitor_test.mojom",

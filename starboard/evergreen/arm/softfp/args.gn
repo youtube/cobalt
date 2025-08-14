@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_platform = "evergreen-arm-softfp"
+starboard_target_platform = "evergreen-arm-softfp"
 target_cpu = "arm"
 target_os = "linux"

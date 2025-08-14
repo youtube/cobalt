@@ -53,16 +53,16 @@ public class VideoDecoderCache {
 
   private static final int DEFAULT_CACHE_TTL_MILLIS = 1000;
 
-  private static Map<String, List<CachedDecoder>> cache = new HashMap<>();
-  private static long lastCacheUpdateAt = 0;
+  private static Map<String, List<CachedDecoder>> sCache = new HashMap<>();
+  private static long sLastCacheUpdateAt = 0;
 
   private static synchronized boolean isExpired(int cacheTtlOverride) {
     long cacheTtl = cacheTtlOverride >= 0 ? cacheTtlOverride : DEFAULT_CACHE_TTL_MILLIS;
-    return System.currentTimeMillis() - lastCacheUpdateAt >= cacheTtl;
+    return System.currentTimeMillis() - sLastCacheUpdateAt >= cacheTtl;
   }
 
   private static void refreshDecoders() {
-    cache.clear();
+    sCache.clear();
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     // This order is maintained in the cache.
     for (MediaCodecInfo codecInfo : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -76,15 +76,15 @@ public class VideoDecoderCache {
         if (codecCapabilities.getVideoCapabilities() == null) {
           continue;
         }
-        List<CachedDecoder> decoders = cache.get(mimeType);
+        List<CachedDecoder> decoders = sCache.get(mimeType);
         if (decoders == null) {
           decoders = new ArrayList<>();
-          cache.put(mimeType, decoders);
+          sCache.put(mimeType, decoders);
         }
         decoders.add(new CachedDecoder(codecInfo, codecCapabilities, mimeType));
       }
     }
-    lastCacheUpdateAt = System.currentTimeMillis();
+    sLastCacheUpdateAt = System.currentTimeMillis();
   }
 
   /**
@@ -96,12 +96,12 @@ public class VideoDecoderCache {
    * @return A list of decoders.
    */
   static List<CachedDecoder> getCachedDecoders(String mimeType, int cacheTtlOverride) {
-    synchronized (cache) {
+    synchronized (sCache) {
       if (isExpired(cacheTtlOverride)) {
         refreshDecoders();
       }
-      return cache.containsKey(mimeType)
-          ? cache.get(mimeType)
+      return sCache.containsKey(mimeType)
+          ? sCache.get(mimeType)
           : Collections.<CachedDecoder>emptyList();
     }
   }

@@ -173,6 +173,8 @@ void SbEventHandle(const SbEvent* event) {
   }
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
+#endif

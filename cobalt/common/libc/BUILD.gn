@@ -17,9 +17,13 @@ static_library("libc") {
     "no_destructor.h",
     "syslog/syslog.cc",
   ]
-  if (!is_android) {
+  if (is_cobalt_hermetic_build) {
     sources += [
       "stdlib/environment.cc",
+      "time/icu_time_support.cc",
+      "time/icu_time_support.h",
+      "time/time_zone_state.cc",
+      "time/time_zone_state.h",
       "time/tzset.cc",
     ]
   }
@@ -38,7 +42,13 @@ static_library("libc") {
 source_set("libc_test") {
   testonly = true
 
-  sources = [ "time/tzset_test.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [
+      "time/icu_time_support_test.cc",
+      "time/time_zone_state_test.cc",
+      "time/tzset_test.cc",
+    ]
+  }
 
   deps = [
     ":libc",

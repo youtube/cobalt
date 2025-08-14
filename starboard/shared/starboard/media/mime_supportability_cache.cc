@@ -229,7 +229,7 @@ void MimeSupportabilityCache::DumpCache() {
     const ParsedMimeInfo& mime_info = entry_iter.second.mime_info;
     ss << "\nMime: " << entry_iter.first;
     ss << "\n  ParsedMimeInfo:";
-    ss << "\n    MimeType : " << mime_info.mime_type().ToString();
+    ss << "\n    MimeType : " << mime_info.mime_type();
     if (mime_info.is_valid()) {
       if (mime_info.has_audio_info()) {
         const ParsedMimeInfo::AudioCodecInfo& audio_info =

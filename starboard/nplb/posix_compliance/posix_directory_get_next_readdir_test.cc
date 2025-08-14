@@ -18,39 +18,14 @@
 #include <algorithm>
 #include <string>
 
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
-
-// Helper function to clean up a directory and its contents
-void RemoveDirectoryRecursively(const std::string& path) {
-  DIR* dir = opendir(path.c_str());
-  if (dir == nullptr) {
-    return;  // Directory might not exist or already cleaned up
-  }
-
-  struct dirent* entry;
-  while ((entry = readdir(dir)) != nullptr) {
-    if (std::string(entry->d_name) == "." ||
-        std::string(entry->d_name) == "..") {
-      continue;
-    }
-    std::string entry_path = path + "/" + entry->d_name;
-    if (entry->d_type == DT_DIR) {
-      RemoveDirectoryRecursively(entry_path);
-    } else {
-      unlink(entry_path.c_str());
-    }
-  }
-  closedir(dir);
-  rmdir(path.c_str());
-}
 
 /*
 Scenarios that aren't tested:
@@ -78,7 +53,7 @@ class PosixReaddirTests : public ::testing::Test {
                 stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
   }
 
-  void TearDown() override { RemoveDirectoryRecursively(test_dir_); }
+  void TearDown() override { RemoveFileOrDirectoryRecursively(test_dir_); }
 
   std::string test_dir_;
   int flags_ = O_CREAT | O_WRONLY | O_TRUNC;
@@ -287,8 +262,8 @@ TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
       << "Contents of dir2 do not match expected.";
 
   // Clean up the additional directories
-  RemoveDirectoryRecursively(dir1_path);
-  RemoveDirectoryRecursively(dir2_path);
+  RemoveFileOrDirectoryRecursively(dir1_path);
+  RemoveFileOrDirectoryRecursively(dir2_path);
 }
 
 }  // namespace

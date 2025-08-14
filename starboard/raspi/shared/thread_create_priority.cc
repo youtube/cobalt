@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 #include <sched.h>
 #include <sys/resource.h>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 
-namespace starboard {
-namespace shared {
-namespace pthread {
+namespace {
 
 // This is the maximum priority that will be passed to SetRoundRobinScheduler().
 const int kMaxRoundRobinPriority = 2;
@@ -98,9 +97,11 @@ void SetRoundRobinScheduler(int priority) {
   SB_CHECK(result == 0) << kSchedulerErrorMessage;
 }
 
-void ThreadSetPriority(SbThreadPriority priority) {
+}  // namespace
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
   if (!kSbHasThreadPrioritySupport) {
-    return;
+    return false;
   }
 
   // Use different schedulers according to priority. This is preferred over
@@ -128,14 +129,6 @@ void ThreadSetPriority(SbThreadPriority priority) {
       SB_NOTREACHED();
       break;
   }
-}
-
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
-
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  ::starboard::shared::pthread::ThreadSetPriority(priority);
   return true;
 }
 

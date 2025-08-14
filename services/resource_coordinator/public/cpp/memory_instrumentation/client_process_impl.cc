@@ -170,6 +170,7 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
   NOTREACHED() << "PerformOSMemoryDump was called, but Starboard does not "
                << "support dladdr, which this function's library depends on. "
                << "This call will fail.";
+  std::move(args.callback).Run(false, {});
 #else
   bool global_success = true;
   base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;

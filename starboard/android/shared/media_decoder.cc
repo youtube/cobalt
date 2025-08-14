@@ -25,7 +25,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::android::shared {
 namespace {
@@ -237,9 +237,9 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
   if (decoder->media_type_ == kSbMediaTypeAudio) {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
+    SbThreadSetPriority(kSbThreadPriorityNormal);
   } else {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    SbThreadSetPriority(kSbThreadPriorityHigh);
   }
 
   decoder->DecoderThreadFunc();
@@ -633,7 +633,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    SbThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
   ScopedLock scoped_lock(mutex_);
@@ -673,6 +673,9 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
+
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+  SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_size();
 
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;

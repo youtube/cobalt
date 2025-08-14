@@ -121,7 +121,7 @@ def create_archive(
           _make_tar(output_path, [(target_deps, out_dir),
                                   (target_src_root_deps, source_dir)])
         else:
-          _make_tar(output_path, [(target_deps, source_dir)])
+          raise ValueError('Unsupported configuration.')
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
@@ -165,6 +165,9 @@ def main():
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
   args = parser.parse_args()
+
+  if args.flatten_deps != args.archive_per_target:
+    raise ValueError('Unsupported configuration.')
 
   create_archive(
       targets=args.targets,

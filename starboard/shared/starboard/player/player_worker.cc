@@ -16,15 +16,15 @@
 
 #include <pthread.h>
 
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/instance_counter.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/player.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
 
@@ -55,9 +55,9 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
 struct ThreadParam {
   explicit ThreadParam(PlayerWorker* player_worker)
-      : condition_variable(mutex), player_worker(player_worker) {}
-  Mutex mutex;
-  ConditionVariable condition_variable;
+      : player_worker(player_worker) {}
+  std::mutex mutex;
+  std::condition_variable condition_variable;
   PlayerWorker* player_worker;
 };
 
@@ -138,10 +138,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
     SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
     return;
   }
-  ScopedLock scoped_lock(thread_param.mutex);
-  while (!job_queue_) {
-    thread_param.condition_variable.Wait();
-  }
+  std::unique_lock lock(thread_param.mutex);
+  thread_param.condition_variable.wait(
+      lock, [this] { return job_queue_ != nullptr; });
   SB_DCHECK(job_queue_);
 }
 
@@ -191,15 +190,15 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "player_worker");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param != NULL);
   PlayerWorker* player_worker = param->player_worker;
   {
-    ScopedLock scoped_lock(param->mutex);
-    player_worker->job_queue_.reset(new JobQueue);
-    param->condition_variable.Signal();
+    std::lock_guard lock(param->mutex);
+    player_worker->job_queue_ = std::make_unique<JobQueue>();
   }
+  param->condition_variable.notify_one();
   player_worker->RunLoop();
   return NULL;
 }
