@@ -161,6 +161,17 @@ size_t SyncSocket::ReceiveWithTimeout(span<uint8_t> buffer, TimeDelta timeout) {
   return bytes_read_total;
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+size_t SyncSocket::Peek() {
+  DCHECK(IsValid());
+  ssize_t number_chars = recv(handle_.get(), nullptr, 0, MSG_PEEK | MSG_TRUNC);
+  if (number_chars == -1) {
+    // An error occurred (e.g., connection closed).
+    return 0;
+  }
+  return checked_cast<size_t>(number_chars);
+}
+#else
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
   int number_chars = 0;
@@ -170,6 +181,7 @@ size_t SyncSocket::Peek() {
   }
   return checked_cast<size_t>(number_chars);
 }
+#endif
 
 bool SyncSocket::IsValid() const {
   return handle_.is_valid();
