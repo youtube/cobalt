@@ -561,6 +561,22 @@ bool MediaDecoder::ProcessOneInputBuffer(
     SB_LOG(WARNING) << __func__ << " > size=" << size;
   }
 
+  if (media_type_ == kSbMediaTypeVideo) {
+    const auto resolution =
+        input_buffer->video_sample_info().stream_info.frame_size;
+    if (resolution != last_resolution_) {
+      SB_LOG(INFO) << __func__
+                   << " > memory_alloc: resolution changed:" << last_resolution_
+                   << " -> " << resolution;
+      // SB_LOG(INFO) << __func__ << " > memory_alloc: Notifyin memory
+      // pressure."; base::MemoryPressureListener::NotifyMemoryPressure(
+      //     base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      SB_LOG(INFO) << __func__ << " > memory_alloc: ReclaimAll";
+      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+      last_resolution_ = resolution;
+    }
+  }
+
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
     SB_NOTREACHED();
@@ -748,9 +764,6 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
-
-  SB_LOG(INFO) << "Proactively reclaiming memory before output format change.";
-  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
 
   FrameSize frame_size = media_codec_bridge_->GetOutputSize();
   SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_size();

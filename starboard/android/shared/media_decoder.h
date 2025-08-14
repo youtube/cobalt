@@ -245,6 +245,8 @@ class MediaDecoder final
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+
+  Size last_resolution_;
 };
 
 }  // namespace starboard::android::shared
