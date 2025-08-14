@@ -22,3 +22,10 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_linux
+  chromium_linux-x64-lightweight:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: chromium_linux-lightweight

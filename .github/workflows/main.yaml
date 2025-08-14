@@ -64,7 +64,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          gn_args=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.gn_args | .[] | to_entries | .[] | "\(.key)=\"\(.value)\""' | tr '\n' ' ')
+          gn_args=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.gn_args | .[] | to_entries | .[] | if .value | type == "string" then "\(.key)=\"\(.value)\"" else "\(.key)=\(.value)" end' | tr '\n' ' ')
           echo "gn_args=${gn_args}" >> $GITHUB_OUTPUT
       - name: Set build configs
         id: set-build-configs
