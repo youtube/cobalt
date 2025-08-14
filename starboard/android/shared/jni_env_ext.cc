@@ -17,11 +17,13 @@
 #include <android/native_activity.h>
 #include <jni.h>
 
+#include <stdlib.h>
 #include <sys/prctl.h>
 #include <algorithm>
 #include <string>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 
 #include "jni_state.h"
@@ -44,6 +46,15 @@ namespace starboard::android::shared {
 
 // static
 void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
+  const char* scudo_options =
+      "svelte decommit_on_free=1 free_decommit_delay_ms=0 quarantine_size_kb=0";
+  if (setenv("LIBC_DEBUG_MALLOC_OPTIONS", scudo_options, 1) == 0) {
+    SB_LOG(INFO) << "[memory_alloc] Successfully set Scudo malloc options: "
+                 << scudo_options;
+  } else {
+    SB_LOG(ERROR) << "[memory_alloc] Failed to set Scudo malloc options.";
+  }
+
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
