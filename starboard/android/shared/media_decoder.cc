@@ -542,7 +542,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     SB_LOG(WARNING) << __func__ << " > size=" << size;
   }
 
-  if (media_type_ == kSbMediaTypeVideo) {
+  if (media_type_ == kSbMediaTypeVideo && size > 0) {
     const auto resolution =
         input_buffer->video_sample_info().stream_info.frame_size;
     if (resolution != last_resolution_) {
