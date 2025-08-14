@@ -66,7 +66,7 @@ TEST_F(PosixUnlinkTest, SuccessRemovesFile) {
   std::string file_path = test_dir_ + "/test_file.txt";
   int fd = open(file_path.c_str(), O_CREAT, kUserRw);
   ASSERT_NE(fd, -1);
-  close(fd);
+  EXPECT_EQ(close(fd), 0);
 
   ASSERT_TRUE(FileExists(file_path));
   ASSERT_EQ(unlink(file_path.c_str()), 0)
@@ -78,7 +78,7 @@ TEST_F(PosixUnlinkTest, SuccessRemovesSymbolicLinkNotTarget) {
   std::string target_path = test_dir_ + "/target.txt";
   int fd = open(target_path.c_str(), O_CREAT, kUserRw);
   ASSERT_NE(fd, -1);
-  close(fd);
+  EXPECT_EQ(close(fd), 0);
 
   std::string link_path = test_dir_ + "/link.txt";
   ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0)
@@ -97,8 +97,7 @@ TEST_F(PosixUnlinkTest, FailsOnDirectory) {
       << "mkdir failed with error " << strerror(errno);
 
   errno = 0;
-  int result = unlink(dir_path.c_str());
-  EXPECT_EQ(result, -1);
+  EXPECT_EQ(unlink(dir_path.c_str()), -1);
   // posix expects eperm, linux expects eisdir
   EXPECT_TRUE(errno == EPERM || errno == EISDIR);
 }
@@ -114,7 +113,7 @@ TEST_F(PosixUnlinkTest, FailsWithPathComponentNotDirectory) {
   std::string file_path = test_dir_ + "/file.txt";
   int fd = open(file_path.c_str(), O_CREAT, kUserRw);
   ASSERT_NE(fd, -1);
-  close(fd);
+  EXPECT_EQ(close(fd), 0);
 
   std::string invalid_path = file_path + "/another_file";
   errno = 0;
@@ -132,7 +131,7 @@ TEST_F(PosixUnlinkTest, FailsWithPermissionDenied) {
   std::string file_path = test_dir_ + "/test_file.txt";
   int fd = open(file_path.c_str(), O_CREAT, kUserRw);
   ASSERT_NE(fd, -1);
-  close(fd);
+  EXPECT_EQ(close(fd), 0);
 
   // Remove write permission from the parent directory.
   ASSERT_EQ(chmod(test_dir_.c_str(), S_IRUSR | S_IXUSR), 0);
