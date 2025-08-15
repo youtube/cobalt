@@ -60,10 +60,6 @@ using base::android::AttachCurrentThread;
 // mode on all playbacks.
 constexpr bool kForceTunnelMode = false;
 
-// By default, the platform Opus decoder is only enabled for encrypted playback.
-// Set the following variable to true to force it for clear playback.
-constexpr bool kForcePlatformOpusDecoder = false;
-
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -388,9 +384,15 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           [enable_flush_during_seek](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoderBase> {
+        const bool enable_platform_opus_decoder =
+            starboard::features::FeatureList::IsEnabled(
+                starboard::features::kForcePlatformOpusDecoder);
+        SB_LOG_IF(INFO, enable_platform_opus_decoder)
+            << "kForcePlatformOpusDecoder is set to true, using platform"
+            << "opus decoder instead of libopus to decode Opus.";
         bool use_libopus_decoder =
             audio_stream_info.codec == kSbMediaAudioCodecOpus &&
-            !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
+            !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
         if (use_libopus_decoder) {
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(audio_stream_info);
