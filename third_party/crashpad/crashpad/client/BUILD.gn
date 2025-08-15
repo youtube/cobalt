@@ -72,8 +72,7 @@ crashpad_static_library("client") {
     sources += [ "crashpad_client_fuchsia.cc" ]
   }
 
-  if (defined(cobalt_toolchain) && current_toolchain == cobalt_toolchain &&
-        enable_cobalt_hermetic_hacks) {
+  if (current_toolchain == default_toolchain && enable_cobalt_hermetic_hacks) {
     sources += [
       "cobalt/crashpad_client_hermetic_stub.cc",
       "cobalt/simulate_crash_hermetic_stub.h",
