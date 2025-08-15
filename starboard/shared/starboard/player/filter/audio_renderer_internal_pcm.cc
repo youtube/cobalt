@@ -638,7 +638,7 @@ void AudioRendererPcm::ProcessAudioData() {
             kSbMediaAudioSampleTypeFloat32,
             kSbMediaAudioFrameStorageTypeInterleaved);
       }
-      time_stretcher_.EnqueueBuffer(resampled_audio);
+      time_stretcher_.EnqueueBuffer(*resampled_audio);
     }
 
     // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns

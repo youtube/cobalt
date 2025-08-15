@@ -161,20 +161,19 @@ const float kFivePointOneToQuadMatrix[] = {
 // return |aux_buffer| instead.  Note that |aux_buffer| should be large enough
 // to hold samples from all channels of the frame.
 template <typename SampleType>
-const SampleType* GetInterleavedSamplesOfFrame(
-    const scoped_refptr<DecodedAudio>& input,
-    int frame_index,
-    SampleType* aux_buffer) {
+const SampleType* GetInterleavedSamplesOfFrame(const DecodedAudio& input,
+                                               int frame_index,
+                                               SampleType* aux_buffer) {
   const SampleType* input_buffer =
-      reinterpret_cast<const SampleType*>(input->data());
-  if (input->storage_type() == kSbMediaAudioFrameStorageTypeInterleaved) {
-    return input_buffer + frame_index * input->channels();
+      reinterpret_cast<const SampleType*>(input.data());
+  if (input.storage_type() == kSbMediaAudioFrameStorageTypeInterleaved) {
+    return input_buffer + frame_index * input.channels();
   }
-  SB_DCHECK(input->storage_type() == kSbMediaAudioFrameStorageTypePlanar);
-  for (int channel_index = 0; channel_index < input->channels();
+  SB_DCHECK(input.storage_type() == kSbMediaAudioFrameStorageTypePlanar);
+  for (int channel_index = 0; channel_index < input.channels();
        channel_index++) {
     aux_buffer[channel_index] =
-        input_buffer[channel_index * input->frames() + frame_index];
+        input_buffer[channel_index * input.frames() + frame_index];
   }
   return aux_buffer;
 }
@@ -246,16 +245,15 @@ class AudioChannelLayoutMixerImpl : public AudioChannelLayoutMixer {
                               SbMediaAudioFrameStorageType storage_type,
                               int output_channels);
 
-  scoped_refptr<DecodedAudio> Mix(
-      const scoped_refptr<DecodedAudio>& input) override;
+  scoped_refptr<DecodedAudio> Mix(const DecodedAudio& input) override;
 
  private:
   template <typename SampleType>
-  scoped_refptr<DecodedAudio> Mix(const scoped_refptr<DecodedAudio>& input,
+  scoped_refptr<DecodedAudio> Mix(const DecodedAudio& input,
                                   const float* matrix);
 
   scoped_refptr<DecodedAudio> MixMonoToStereoOptimized(
-      const scoped_refptr<DecodedAudio>& input);
+      const DecodedAudio& input);
 
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
@@ -271,20 +269,20 @@ AudioChannelLayoutMixerImpl::AudioChannelLayoutMixerImpl(
       output_channels_(output_channels) {}
 
 scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
-    const scoped_refptr<DecodedAudio>& input) {
-  SB_DCHECK(input->sample_type() == sample_type_);
-  SB_DCHECK(input->storage_type() == storage_type_);
+    const DecodedAudio& input) {
+  SB_DCHECK(input.sample_type() == sample_type_);
+  SB_DCHECK(input.storage_type() == storage_type_);
 
-  if (input->channels() == output_channels_) {
-    return input;
+  if (input.channels() == output_channels_) {
+    return input.Clone();
   }
 
-  if (input->channels() == 1 && output_channels_ == 2) {
+  if (input.channels() == 1 && output_channels_ == 2) {
     return MixMonoToStereoOptimized(input);
   }
 
   const float* matrix = nullptr;
-  if (input->channels() == 1) {
+  if (input.channels() == 1) {
     if (output_channels_ == 2) {
       matrix = kMonoToStereoMatrix;
     } else if (output_channels_ == 4) {
@@ -292,7 +290,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
     } else if (output_channels_ == 6) {
       matrix = kMonoToFivePointOneMatrix;
     }
-  } else if (input->channels() == 2) {
+  } else if (input.channels() == 2) {
     if (output_channels_ == 1) {
       matrix = kStereoToMonoMatrix;
     } else if (output_channels_ == 4) {
@@ -300,7 +298,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
     } else if (output_channels_ == 6) {
       matrix = kStereoToFivePointOneMatrix;
     }
-  } else if (input->channels() == 4) {
+  } else if (input.channels() == 4) {
     if (output_channels_ == 1) {
       matrix = kQuadToMonoMatrix;
     } else if (output_channels_ == 2) {
@@ -308,7 +306,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
     } else if (output_channels_ == 6) {
       matrix = kQuadToFivePointOneMatrix;
     }
-  } else if (input->channels() == 6) {
+  } else if (input.channels() == 6) {
     if (output_channels_ == 1) {
       matrix = kFivePointOneToMonoMatrix;
     } else if (output_channels_ == 2) {
@@ -319,7 +317,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
   }
 
   if (!matrix) {
-    SB_NOTREACHED() << "Mixing " << input->channels() << " channels to "
+    SB_NOTREACHED() << "Mixing " << input.channels() << " channels to "
                     << output_channels_ << " channels is not supported.";
     return scoped_refptr<DecodedAudio>();
   }
@@ -333,18 +331,18 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
 
 template <typename SampleType>
 scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
-    const scoped_refptr<DecodedAudio>& input,
+    const DecodedAudio& input,
     const float* matrix) {
-  size_t frames = input->frames();
+  size_t frames = input.frames();
   scoped_refptr<DecodedAudio> output(new DecodedAudio(
-      output_channels_, sample_type_, storage_type_, input->timestamp(),
+      output_channels_, sample_type_, storage_type_, input.timestamp(),
       frames * output_channels_ * GetBytesPerSample(sample_type_)));
   SampleType aux_buffer[8];
   SampleType output_buffer[8];
   for (size_t frame_index = 0; frame_index < frames; frame_index++) {
     const SampleType* interleavedSamplesOfFrame =
         GetInterleavedSamplesOfFrame(input, frame_index, aux_buffer);
-    MixFrameWithMatrix(interleavedSamplesOfFrame, input->channels(), matrix,
+    MixFrameWithMatrix(interleavedSamplesOfFrame, input.channels(), matrix,
                        output_buffer, output_channels_);
     StoreInterleavedSamplesOfFrame(output_buffer, &output, frame_index);
   }
@@ -353,17 +351,17 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
 
 scoped_refptr<DecodedAudio>
 AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
-    const scoped_refptr<DecodedAudio>& input) {
+    const DecodedAudio& input) {
   SB_DCHECK(output_channels_ == 2);
-  SB_DCHECK(input->channels() == 1);
+  SB_DCHECK(input.channels() == 1);
 
   scoped_refptr<DecodedAudio> output(
       new DecodedAudio(output_channels_, sample_type_, storage_type_,
-                       input->timestamp(), input->size_in_bytes() * 2));
+                       input.timestamp(), input.size_in_bytes() * 2));
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
-    size_t frames_left = input->frames();
+    size_t frames_left = input.frames();
     size_t bytes_per_sample = GetBytesPerSample(sample_type_);
-    const uint8_t* src_buffer_ptr = input->data();
+    const uint8_t* src_buffer_ptr = input.data();
     uint8_t* dest_buffer_ptr = output->data();
     while (frames_left > 0) {
       memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
@@ -375,9 +373,9 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
     }
   } else {
     SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
-    memcpy(output->data(), input->data(), input->size_in_bytes());
-    memcpy(output->data() + input->size_in_bytes(), input->data(),
-           input->size_in_bytes());
+    memcpy(output->data(), input.data(), input.size_in_bytes());
+    memcpy(output->data() + input.size_in_bytes(), input.data(),
+           input.size_in_bytes());
   }
   return output;
 }

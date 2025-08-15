@@ -37,18 +37,17 @@ void DecodedAudioQueue::Clear() {
   frames_ = 0;
 }
 
-void DecodedAudioQueue::Append(
-    const scoped_refptr<DecodedAudio>& decoded_audio) {
-  SB_DCHECK(decoded_audio->storage_type() ==
+void DecodedAudioQueue::Append(const DecodedAudio& decoded_audio) {
+  SB_DCHECK(decoded_audio.storage_type() ==
             kSbMediaAudioFrameStorageTypeInterleaved)
-      << decoded_audio->storage_type();
+      << decoded_audio.storage_type();
   // Add the buffer to the queue. Inserting into deque invalidates all
   // iterators, so point to the first buffer.
-  buffers_.push_back(decoded_audio);
+  buffers_.push_back(decoded_audio.Clone());
   current_buffer_ = buffers_.begin();
 
   // Update the |frames_| counter since we have added frames.
-  frames_ += decoded_audio->frames();
+  frames_ += decoded_audio.frames();
   SB_CHECK(frames_ > 0);  // make sure it doesn't overflow.
 }
 

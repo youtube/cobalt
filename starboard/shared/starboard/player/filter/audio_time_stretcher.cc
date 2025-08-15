@@ -247,9 +247,8 @@ void AudioTimeStretcher::FlushBuffers() {
   capacity_ = initial_capacity_;
 }
 
-void AudioTimeStretcher::EnqueueBuffer(
-    const scoped_refptr<DecodedAudio>& audio_data) {
-  SB_DCHECK(!audio_data->is_end_of_stream());
+void AudioTimeStretcher::EnqueueBuffer(const DecodedAudio& audio_data) {
+  SB_DCHECK(!audio_data.is_end_of_stream());
   audio_buffer_.Append(audio_data);
 }
 
