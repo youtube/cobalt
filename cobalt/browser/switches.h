@@ -83,7 +83,7 @@ extern const char kSuspendFuzzerHelp[];
 extern const char kTimedTrace[];
 extern const char kTimedTraceHelp[];
 extern const char kUserAgentClientHints[];
-extern const char kUserAgentClienthintsHelp[];
+extern const char kUserAgentClientHintsHelp[];
 extern const char kUserAgentOsNameVersion[];
 extern const char kUserAgentOsNameVersionHelp[];
 extern const char kUseTTS[];
