@@ -38,6 +38,7 @@
 #include "content/public/child/child_thread.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/pseudonymization_util.h"
+#include "content/public/test/test_service.mojom.h"
 #include "content/public/utility/utility_thread.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -47,10 +48,6 @@
 #include "mojo/public/cpp/system/buffer.h"
 #include "sandbox/policy/sandbox.h"
 #include "services/test/echo/echo_service.h"
-
-#if defined(RUN_BROWSER_TESTS)
-#include "content/public/test/test_service.mojom.h"
-#endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(IS_LINUX)
 #include "content/test/sandbox_status_service.h"
@@ -62,7 +59,6 @@
 
 namespace content {
 
-#if defined(RUN_BROWSER_TESTS)
 namespace {
 
 class TestUtilityServiceImpl : public mojom::TestService {
@@ -183,7 +179,6 @@ auto RunEchoService(mojo::PendingReceiver<echo::mojom::EchoService> receiver) {
 }
 
 }  // namespace
-#endif  // defined(RUN_BROWSER_TESTS)
 
 ShellContentUtilityClient::ShellContentUtilityClient(bool is_browsertest) {
   if (is_browsertest &&
@@ -215,7 +210,6 @@ void ShellContentUtilityClient::ExposeInterfacesToBrowser(
 
 void ShellContentUtilityClient::RegisterIOThreadServices(
     mojo::ServiceFactory& services) {
-#if defined(RUN_BROWSER_TESTS)
   services.Add(RunTestService);
   services.Add(RunEchoService);
 }
