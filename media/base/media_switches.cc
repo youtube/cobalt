@@ -566,7 +566,7 @@ BASE_FEATURE(kCrOSDspBasedAgcAllowed,
 // releasing stale data from MSE buffers.
 BASE_FEATURE(kMemoryPressureBasedSourceBufferGC,
              "MemoryPressureBasedSourceBufferGC",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables creating single shared image and mailbox for multi-planar formats for
 // hardware video decoders.

@@ -32,23 +32,25 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
       : birectional_fit_allocator_(&fallback_allocator_,
                                    initial_capacity,
                                    kSmallAllocationThreshold,
-                                   allocation_increment) {}
+                                   allocation_increment) {
+    LOG(INFO) << "Fallback allocator is used.";
+  }
 
   void* Allocate(DemuxerStream::Type type,
                  size_t size,
                  size_t alignment) override {
-    return birectional_fit_allocator_.Allocate(size, alignment);
+    return fallback_allocator_.Allocate(size, alignment);
   }
   void Free(DemuxerStream::Type type, void* p) override {
-    birectional_fit_allocator_.Free(p);
+    fallback_allocator_.Free(p);
   }
 
   size_t GetCapacity() const override {
-    return birectional_fit_allocator_.GetCapacity();
+    return fallback_allocator_.GetCapacity();
   }
 
   size_t GetAllocated() const override {
-    return birectional_fit_allocator_.GetAllocated();
+    return fallback_allocator_.GetAllocated();
   }
 
  private:
