@@ -1,0 +1,72 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -42,27 +42,19 @@
+ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
+     : size_(data.size()) {
+   Initialize();
+-<<<<<<< HEAD
+-  data_.copy_from(data);
+-}
+-
+-DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
+-=======
+-
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-  memcpy(data_, data, size_);
++  memcpy(data_, data.data(), size_);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  memcpy(data_.get(), data, size_);
++  data_.copy_from(data);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ }
+ 
+-DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
++DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+     : size_(size) {
+       // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+     }
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+     : data_(std::move(data)), size_(size) {}
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+@@ -78,24 +70,18 @@
+     : size_(external_memory->span().size()),
+       external_memory_(std::move(external_memory)) {}
+ 
+-<<<<<<< HEAD
+ DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type)
+     : is_end_of_stream_(decoder_buffer_type ==
+                         DecoderBufferType::kEndOfStream) {}
+ 
+-DecoderBuffer::~DecoderBuffer() = default;
+-
+-void DecoderBuffer::Initialize() {
+-  data_ = base::HeapArray<uint8_t>::Uninit(size_);
+-=======
+-DecoderBuffer::~DecoderBuffer() {
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
++DecoderBuffer::~DecoderBuffer() {
+   DCHECK(s_allocator);
+   s_allocator->Free(data_, allocated_size_);
++}
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  data_.reset();
++DecoderBuffer::~DecoderBuffer() = default;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-}
+ 
+ void DecoderBuffer::Initialize() {
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+@@ -109,9 +95,8 @@
+                                                       alignment));
+   memset(data_ + size_, 0, padding);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  data_.reset(new uint8_t[size_]);
++  data_ = base::HeapArray<uint8_t>::Uninit(size_);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+ }
+ 
+ // static

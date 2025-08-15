@@ -1,0 +1,27 @@
+--- media/filters/chunk_demuxer.cc
++++ media/filters/chunk_demuxer.cc
+@@ -794,7 +794,6 @@
+                        ExpectedCodecs(content_type, codecs));
+ }
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(ENABLE_HLS_DEMUXER)
+ ChunkDemuxer::Status ChunkDemuxer::AddAutoDetectedCodecsId(
+     const std::string& id,
+@@ -819,7 +818,7 @@
+   return AddIdInternal(id, std::move(stream_parser), std::nullopt);
+ }
+ #endif
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
+                                          const std::string& mime_type) {
+@@ -832,7 +831,6 @@
+   return AddId(id, type, codecs);
+ }
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 4ad91d6ad7e5 ([media] Pass full mime type to SbPlayer (#4378))
+ 
+ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
+     const std::string& id,

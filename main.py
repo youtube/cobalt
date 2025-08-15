@@ -312,8 +312,14 @@ def record_conflict(repo, commit_record_dir):
         for file_path in conflicted_files:
             conflict_path = os.path.join(conflict_dir, file_path)
             resolved_path = os.path.join(resolved_dir, file_path)
-            patch_path = os.path.join(patch_dir,
-                                      f'{file_path.split(".")[0]}.patch')
+
+            file_name, file_ext = file_path.split('.')
+            same_names = [x for x in conflicted_files if x.startswith(file_name)]
+            if len(same_names) > 1:
+                patch_path = os.path.join(patch_dir, f'{file_name}_{file_ext}.patch')
+            else:
+                patch_path = os.path.join(patch_dir, f'{file_name}.patch')
+
             os.makedirs(os.path.dirname(patch_path), exist_ok=True)
             with open(patch_path, 'w', encoding='utf-8') as f:
                 subprocess.run([
