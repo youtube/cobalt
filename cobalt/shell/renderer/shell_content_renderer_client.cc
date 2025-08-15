@@ -24,9 +24,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cobalt/shell/common/main_frame_counter_test_impl.h"
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/renderer/shell_render_frame_observer.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
@@ -36,7 +33,6 @@
 #include "content/public/common/web_identity.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-#include "content/public/test/test_service.mojom.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -52,6 +48,11 @@
 #include "third_party/blink/public/web/web_view.h"
 #include "v8/include/v8.h"
 
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
+#include "content/public/test/test_service.mojom.h"
+#endif  // defined(RUN_BROWSER_TESTS)
+
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
 #endif
@@ -65,6 +66,7 @@ namespace content {
 
 namespace {
 
+#if defined(RUN_BROWSER_TESTS)
 // A test service which can be driven by browser tests for various reasons.
 class TestRendererServiceImpl : public mojom::TestService {
  public:
@@ -159,6 +161,13 @@ class TestRendererServiceImpl : public mojom::TestService {
   mojo::Receiver<mojom::TestService> receiver_;
 };
 
+void CreateRendererTestService(
+    mojo::PendingReceiver<mojom::TestService> receiver) {
+  // Owns itself.
+  new TestRendererServiceImpl(std::move(receiver));
+}
+#endif  // defined(RUN_BROWSER_TESTS)
+
 class ShellContentRendererUrlLoaderThrottleProvider
     : public blink::URLLoaderThrottleProvider {
  public:
@@ -191,12 +200,6 @@ class ShellContentRendererUrlLoaderThrottleProvider
   void SetOnline(bool is_online) override {}
 };
 
-void CreateRendererTestService(
-    mojo::PendingReceiver<mojom::TestService> receiver) {
-  // Owns itself.
-  new TestRendererServiceImpl(std::move(receiver));
-}
-
 }  // namespace
 
 ShellContentRendererClient::ShellContentRendererClient() {}
@@ -209,10 +212,10 @@ void ShellContentRendererClient::RenderThreadStarted() {
 
 void ShellContentRendererClient::ExposeInterfacesToBrowser(
     mojo::BinderMap* binders) {
+#if defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::TestService>(
       base::BindRepeating(&CreateRendererTestService),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-#if defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::PowerMonitorTest>(
       base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
       base::SingleThreadTaskRunner::GetCurrentDefault());
