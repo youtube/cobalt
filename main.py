@@ -432,11 +432,16 @@ def main():
                 f'{args.start_commit_ref}..{args.end_commit_ref}'))
         commit_data = []
         for commit in commits:
+            commit_trailers = commit.trailers_dict
+            if 'original-hexsha' in commit_trailers:
+                original_hexsha = commit.trailers_dict['original-hexsha'][0]
+            else:
+                original_hexsha = commit.hexsha
             stats = commit.stats
             is_linear = len(commit.parents) == 1
             commit_data.append({
                 'hexsha': commit.hexsha,
-                'original_hexsha': commit.trailers_dict['original-hexsha'][0],
+                'original_hexsha':original_hexsha,
                 'author': commit.author.name,
                 'datetime': commit.authored_datetime.isoformat(),
                 'summary': commit.summary,
@@ -467,7 +472,7 @@ def main():
                 print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
                 continue
 
-            if commit['is_merge']:
+            if not commit['is_linear']:
                 print(f'❌ Non-linear commits are not allowed: {commit["hexsha"]}')
                 return
             try:

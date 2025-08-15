@@ -26,10 +26,10 @@ this step.
 
 To generate commits.json...
 
-python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/src --source-branch=origin/feature/linear_main --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=48f6c4861a2455800aa40b9ba2e9858505dc5981 --output-file=commits_m114.json
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/src --source-branch=origin/feature/linear_main --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=7bc907d8b6f1f969869a58a02c8e02b36f0c54da --output-file=commits_m114.json
 
 `commits_m114.json` is currently provided up to
-48f6c4861a2455800aa40b9ba2e9858505dc5981 which is the linearized equivalent of
+7bc907d8b6f1f969869a58a02c8e02b36f0c54da which is the linearized equivalent of
 9a69c6a6b1364e6f7b69d475fda5030a4bf738c4 and can be used to skip this step.
 
 
