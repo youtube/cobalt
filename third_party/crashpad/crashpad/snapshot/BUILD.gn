@@ -20,6 +20,14 @@ if (crashpad_is_in_chromium) {
 }
 
 crashpad_static_library("snapshot") {
+  # TODO: b/406511608 - figure out how to remove the is_starboard condition
+  # here; we should only need to depend on this target from the native_target
+  # toolchain.
+  if ((defined(is_native_target_build) && is_native_target_build) ||
+        is_starboard) {
+    check_includes = false
+  }
+
   sources = [
     "annotation_snapshot.cc",
     "annotation_snapshot.h",
@@ -64,6 +72,13 @@ crashpad_static_library("snapshot") {
     "unloaded_module_snapshot.cc",
     "unloaded_module_snapshot.h",
   ]
+
+  if (defined(is_native_target_build) && is_native_target_build) {
+    sources += [
+      "module_snapshot_evergreen.cc",
+      "module_snapshot_evergreen.h",
+    ]
+  }
 
   if (crashpad_is_posix || crashpad_is_fuchsia) {
     sources += [
