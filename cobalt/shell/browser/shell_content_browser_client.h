@@ -165,8 +165,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       content::BrowserContext* browser_context,
       const url::Origin& app_origin) override;
 
-  void CreateFeatureListAndFieldTrials();
-
+  virtual void CreateFeatureListAndFieldTrials();
   ShellBrowserContext* browser_context();
   ShellBrowserContext* off_the_record_browser_context();
   ShellBrowserMainParts* shell_browser_main_parts();
@@ -226,7 +225,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   friend class ContentBrowserTestContentBrowserClient;
 
   // Needed so that content_shell can use fieldtrial_testing_config.
-  void SetUpFieldTrials();
+  virtual void SetUpFieldTrials();
 
   // Returns the list of ShellContentBrowserClients ordered by time created.
   // If a test overrides ContentBrowserClient, this list will have more than
