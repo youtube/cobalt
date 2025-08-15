@@ -100,12 +100,17 @@ template("pkg_config") {
     if (defined(invoker.extra_args)) {
       args += invoker.extra_args
     }
+    if (defined(invoker.supports_isystem)) {
+      supports_isystem = invoker.supports_isystem
+    } else {
+      supports_isystem = true
+    }
 
     pkgresult = exec_script(pkg_config_script, args, "value")
     cflags = pkgresult[1]
 
     foreach(include, pkgresult[0]) {
-      if (use_sysroot) {
+      if (use_sysroot && supports_isystem) {
         # We want the system include paths to use -isystem instead of -I to
         # suppress warnings in those headers.
         include_relativized = rebase_path(include, root_build_dir)
