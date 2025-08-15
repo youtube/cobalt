@@ -115,7 +115,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
+    if (!sb_is_evergreen_compatible) {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper" ]
@@ -123,6 +123,9 @@ if (current_toolchain == starboard_toolchain) {
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
     }
+
+    data_deps += [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
+    data_deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)" ]
   }
 }
 
