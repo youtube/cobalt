@@ -832,7 +832,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   return AddId(id, type, codecs);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 4ad91d6ad7e5 ([media] Pass full mime type to SbPlayer (#4378))
+>>>>>>> 92a4edd02655 ([media] Pass full mime type to SbPlayer (#4378))
 
 ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
     const std::string& id,

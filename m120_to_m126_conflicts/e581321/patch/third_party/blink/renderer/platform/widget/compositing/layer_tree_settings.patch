@@ -30,7 +30,7 @@
 -  size_t mb_limit_when_visible =
 -      large_resolution_memory_mb * (display_size * 1.0 / kLargeResolution);
 -
-->>>>>>> 7f1b6eaa301a ([cc] Use simple compositor memory limits on Android (#4637))
+->>>>>>> a790d545d85b ([cc] Use simple compositor memory limits on Android (#4637))
    // Cap the memory size to one fourth of the total system memory so it won't
    // consume too much of the system memory. Still keep the minimum to the
    // default of 512MB.

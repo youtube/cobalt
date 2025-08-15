@@ -17,7 +17,7 @@
    // TODO(b/326497953): Support Suspend() and Resume().
    DecoderBufferAllocator decoder_buffer_allocator_;
  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+->>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
  };
  
  }  // namespace media

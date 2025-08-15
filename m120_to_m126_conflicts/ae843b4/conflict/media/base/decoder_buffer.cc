@@ -62,7 +62,7 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
       // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
     }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+>>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
     : data_(std::move(data)), size_(size) {}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -111,7 +111,7 @@ void DecoderBuffer::Initialize() {
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+>>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
 }
 
 // static

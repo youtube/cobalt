@@ -10,7 +10,7 @@
 -=======
 -    return data_.get();
  #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+->>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
    }
  
    // The number of bytes in the buffer.
@@ -24,7 +24,7 @@
 -=======
 -    return data_.get();
  #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+->>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
    }
  
    // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
@@ -44,7 +44,7 @@
 -  }
 +  bool end_of_stream() const { return is_end_of_stream_; }
  #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+->>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
  
    bool is_key_frame() const {
      DCHECK(!end_of_stream());
@@ -58,7 +58,7 @@
 -=======
 -  std::unique_ptr<uint8_t[]> data_;
  #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+->>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
  
   private:
    // Constructor helper method for memory allocations.

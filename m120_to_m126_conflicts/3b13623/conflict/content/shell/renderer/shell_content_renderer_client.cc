@@ -72,7 +72,7 @@
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 =======
->>>>>>> 6d979993fcb8 (Implement media::ContentDecryptionModule interface for Starboard (#4368))
+>>>>>>> bc02ca914ae7 (Implement media::ContentDecryptionModule interface for Starboard (#4368))
 namespace content {
 
 namespace {

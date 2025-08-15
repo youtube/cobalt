@@ -30,7 +30,7 @@ declare_args() {
 =======
       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win)
        && !is_cobalt
->>>>>>> 5d0f3ad07780 (Rename Chrobalt to Cobalt. (#4276))
+>>>>>>> 8facb4fded3c (Rename Chrobalt to Cobalt. (#4276))
 
   clang_base_path = default_clang_base_path
 

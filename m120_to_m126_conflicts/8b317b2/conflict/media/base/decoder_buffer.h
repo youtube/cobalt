@@ -212,7 +212,7 @@ class MEDIA_EXPORT DecoderBuffer
 =======
     return data_.get();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+>>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
   }
 
   // The number of bytes in the buffer.
@@ -238,7 +238,7 @@ class MEDIA_EXPORT DecoderBuffer
 =======
     return data_.get();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+>>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
   }
 
   // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
@@ -291,7 +291,7 @@ class MEDIA_EXPORT DecoderBuffer
            !external_memory_ && !data_;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+>>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -367,7 +367,7 @@ class MEDIA_EXPORT DecoderBuffer
 =======
   std::unique_ptr<uint8_t[]> data_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 0b4932ac00d4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+>>>>>>> 1d453b583c3c ([media] Refine DecoderBufferAllocator memory budget (#4674))
 
  private:
   // Constructor helper method for memory allocations.

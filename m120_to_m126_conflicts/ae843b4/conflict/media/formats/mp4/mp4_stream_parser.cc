@@ -1132,7 +1132,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       std::make_unique<ExternalMemoryAdapter>(std::move(frame_buf)),
       is_keyframe, buffer_type, runs_->track_id());
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+>>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));

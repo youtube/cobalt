@@ -454,7 +454,7 @@ bool MimeUtil::IsSupportedMediaMimeType(base::StringPiece mime_type) const {
   return result;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #else   // BUILDFLAG(IS_COBALT)
->>>>>>> 568014eea89c ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+>>>>>>> f33a6e4c1ddc ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
   return media_format_map_.contains(base::ToLowerASCII(mime_type));
 #endif  // BUILDFLAG(IS_COBALT)
 }

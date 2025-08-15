@@ -443,7 +443,7 @@ bool MimeUtil::IsSupportedMediaMimeType(std::string_view mime_type) const {
 #if BUILDFLAG(IS_COBALT)
 =======
 bool MimeUtil::IsSupportedMediaMimeType(base::StringPiece mime_type) const {
->>>>>>> c13213fb8c5a (Clean up existing media buildflags (#4393))
+>>>>>>> e533f0911b42 (Clean up existing media buildflags (#4393))
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.data(), "");

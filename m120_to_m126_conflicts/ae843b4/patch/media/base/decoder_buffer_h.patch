@@ -16,7 +16,7 @@
  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
  
 -  // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
-->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+->>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
 +  // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
 +  // If size is 0, no buffer will be allocated.
    explicit DecoderBuffer(size_t size);
@@ -31,7 +31,7 @@
 -=======
 -    return data_.get();
  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+->>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
    }
  
    // The number of bytes in the buffer.
@@ -44,7 +44,7 @@
 -=======
 -    return data_.get();
  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+->>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
    }
  
    // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
@@ -67,7 +67,7 @@
 -  }
 +  bool end_of_stream() const { return is_end_of_stream_; }
  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+->>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
  
    bool is_key_frame() const {
      DCHECK(!end_of_stream());
@@ -80,7 +80,7 @@
 -=======
 -  std::unique_ptr<uint8_t[]> data_;
  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> ccead89e9981 ([media] Support DecoderBufferAllocator (#4348))
+->>>>>>> 100f046a9245 ([media] Support DecoderBufferAllocator (#4348))
  
   private:
    // Constructor helper method for memory allocations.

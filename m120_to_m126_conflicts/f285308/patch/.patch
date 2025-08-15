@@ -20,4 +20,4 @@
  
  # Intermediate Gradle outputs from builds
  starboard/android/apk/.gradle/
-->>>>>>> 9fff641ded4c (Add .gitignore section for Cobalt (#4360))
+->>>>>>> 5a78b8bf2448 (Add .gitignore section for Cobalt (#4360))

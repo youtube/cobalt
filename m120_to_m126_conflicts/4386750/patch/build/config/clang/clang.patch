@@ -10,7 +10,7 @@
 -=======
 -      ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win)
 -       && !chrobalt
-->>>>>>> f6ee25fa618a (Add starboard build to android (#4259))
+->>>>>>> 4d7aef1ec764 (Add starboard build to android (#4259))
 +       is_mac || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
  
    clang_base_path = default_clang_base_path

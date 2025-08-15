@@ -30,7 +30,7 @@
 #include "base/memory/raw_ptr.h"
 // TODO(cobalt, b/377295011): remove the nogncheck annotation.
 #include "base/third_party/symbolize/symbolize.h"  // nogncheck
->>>>>>> 05e2a8c24b59 (Fix/disable errors and enable gn check (#4518))
+>>>>>>> 5c97a1227a94 (Fix/disable errors and enable gn check (#4518))
 
 namespace base {
 namespace debug {

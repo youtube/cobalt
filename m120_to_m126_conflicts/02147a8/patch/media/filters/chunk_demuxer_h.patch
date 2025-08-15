@@ -19,7 +19,7 @@
    [[nodiscard]] Status AddId(const std::string& id,
                               const std::string& mime_type);
  #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-->>>>>>> 4ad91d6ad7e5 ([media] Pass full mime type to SbPlayer (#4378))
+->>>>>>> 92a4edd02655 ([media] Pass full mime type to SbPlayer (#4378))
  
    // Notifies a caller via `tracks_updated_cb` that the set of media tracks
    // for a given `id` has changed. This callback must be set before any calls to

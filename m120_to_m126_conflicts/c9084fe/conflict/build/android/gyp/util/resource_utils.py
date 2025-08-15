@@ -51,7 +51,7 @@ ALL_RESOURCE_TYPES = {
 =======
     'menu', 'mipmap', 'plurals', 'raw', 'string', 'style', 'styleable',
     'transition', 'xml', 'overlayable'
->>>>>>> bcbb108230ed (`cobalt_apk` to build dev.cobalt.coat (#4304))
+>>>>>>> f327732c5665 (`cobalt_apk` to build dev.cobalt.coat (#4304))
 }
 
 AAPT_IGNORE_PATTERN = ':'.join([

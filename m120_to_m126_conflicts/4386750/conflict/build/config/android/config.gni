@@ -132,7 +132,7 @@ if (is_android || is_chromeos) {
 =======
     default_android_ndk_version = "r26"
     default_android_ndk_major_version = 26
->>>>>>> f6ee25fa618a (Add starboard build to android (#4259))
+>>>>>>> 4d7aef1ec764 (Add starboard build to android (#4259))
   } else {
     assert(defined(default_android_ndk_version))
   }

@@ -13,7 +13,7 @@
        default_min_sdk_version = 26
      } else {
        default_min_sdk_version = 24
-->>>>>>> 90b744d19bfc (Fix chromium android builds (#4303))
+->>>>>>> e5d57b1c7561 (Fix chromium android builds (#4303))
 +      if (is_asan) {
 +        default_min_sdk_version = 27
 +      }

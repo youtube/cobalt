@@ -918,7 +918,7 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
       std::make_unique<media::MojoFuchsiaCdmProvider>(interface_broker_));
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
   cdm_factory_ = std::make_unique<media::StarboardCdmFactory>();
->>>>>>> 6d979993fcb8 (Implement media::ContentDecryptionModule interface for Starboard (#4368))
+>>>>>>> bc02ca914ae7 (Implement media::ContentDecryptionModule interface for Starboard (#4368))
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
   cdm_factory_ = std::make_unique<media::MojoCdmFactory>(
       GetMediaInterfaceFactory(), GetKeySystems());
