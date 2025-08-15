@@ -25,7 +25,7 @@
 -      ]
 -      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
 -    }
-->>>>>>> 064f5702402 (Remove unnecessary comment (#4730))
+->>>>>>> 54254f40eb5 (Remove unnecessary comment (#4730))
      if (is_apple) {
        sources += [ "allocator/early_zone_registration_apple.h" ]
      }

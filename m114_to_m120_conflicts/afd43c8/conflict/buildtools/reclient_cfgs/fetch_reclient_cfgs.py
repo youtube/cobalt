@@ -180,7 +180,7 @@ def main():
                   shutil.copy(cfg, fname)
 
     return 0
->>>>>>> 2bfb5e84a92 (Set up Cobalt build acceleration with RBE (#4604))
+>>>>>>> e6f66946481 (Set up Cobalt build acceleration with RBE (#4604))
 
 if __name__ == '__main__':
     sys.exit(configure_reclient_cfgs.main())

@@ -11,7 +11,7 @@
  if (is_cobalt) {
    import("//cobalt/build/configs/modular_variables.gni")
  }
-->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+->>>>>>> 34a8ccd38d8 (Build nplb hermetically (#4587))
  
  source_set("libc++abi") {
    if (export_libcxxabi_from_executables) {
