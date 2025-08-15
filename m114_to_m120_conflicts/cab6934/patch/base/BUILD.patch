@@ -1,6 +1,6 @@
 --- base/BUILD.gn
 +++ base/BUILD.gn
-@@ -92,20 +92,9 @@
+@@ -92,20 +92,10 @@
  assert(!is_win || is_clang,
         "only clang-cl is supported on Windows, see https://crbug.com/988071")
  
@@ -17,11 +17,12 @@
  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
  # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
  # #include <sys/queue.h>
-->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
++
  # Determines whether libevent should be dep.
  if (is_cobalt && is_cobalt_hermetic_build) {
    dep_libevent = false
-@@ -1133,31 +1122,6 @@
+@@ -1133,31 +1123,6 @@
    }
  
    if (use_allocator_shim) {
@@ -49,7 +50,7 @@
 -      ]
 -      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
 -    }
-->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
      if (is_apple) {
        sources += [ "allocator/early_zone_registration_apple.h" ]
      }

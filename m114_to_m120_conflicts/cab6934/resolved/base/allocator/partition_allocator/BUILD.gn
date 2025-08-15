@@ -10,10 +10,10 @@ group("partition_alloc") {
   public_deps = [ "src/partition_alloc:partition_alloc" ]
 }
 
-# if (is_cobalt) {
-#   import("//cobalt/build/configs/modular_variables.gni")
-# }
-
 group("buildflags") {
   public_deps = [ "src/partition_alloc:buildflags" ]
+}
+
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
 }

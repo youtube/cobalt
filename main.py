@@ -250,7 +250,14 @@ def record_conflict(repo, commit_record_dir):
     for file_path in conflicted_files:
         dst_path = os.path.join(conflict_dir, file_path)
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
+        source_path = os.path.join(repo.working_dir, file_path)
+        if os.path.exists(source_path):
+            shutil.copy2(source_path, dst_path)
+        else:
+            print(
+                f'   ℹ️ {file_path} - Not found in working tree (delete conflict), recording empty file.'
+            )
+            open(dst_path, 'a').close()
 
         file_name, file_ext = file_path.split('.')
         same_names = [x for x in conflicted_files if x.startswith(file_name)]
@@ -291,7 +298,14 @@ def record_conflict(repo, commit_record_dir):
     for file_path in conflicted_files:
         dst_path = os.path.join(resolved_dir, file_path)
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
+        source_path = os.path.join(repo.working_dir, file_path)
+        if os.path.exists(source_path):
+            shutil.copy2(source_path, dst_path)
+        else:
+            # If the file doesn't exist after resolution, it means the user
+            # resolved the conflict by deleting the file. We record this
+            # by creating an empty file in the resolved directory.
+            open(dst_path, 'a').close()
 
     if not resolved_conflict:
         print('   📄 Creating conflict resolution patches...')

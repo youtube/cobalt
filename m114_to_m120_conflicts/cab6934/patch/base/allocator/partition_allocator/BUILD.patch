@@ -1,6 +1,6 @@
 --- base/allocator/partition_allocator/BUILD.gn
 +++ base/allocator/partition_allocator/BUILD.gn
-@@ -2,519 +2,17 @@
+@@ -2,520 +2,18 @@
  # Use of this source code is governed by a BSD-style license that can be
  # found in the LICENSE file.
  
@@ -494,8 +494,8 @@
 -  header = "chromeos_buildflags.h"
 -
 -  flags = [ "PA_IS_CHROMEOS_ASH=$is_chromeos_ash" ]
- }
- 
+-}
+-
 -buildflag_header("logging_buildflags") {
 -  header = "logging_buildflags.h"
 -
@@ -515,11 +515,13 @@
 -    "PA_EXPENSIVE_DCHECKS_ARE_ON=$enable_expensive_dchecks",
 -    "PA_DCHECK_IS_CONFIGURABLE=$dcheck_is_configurable",
 -  ]
-->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
--}
-+# if (is_cobalt) {
-+#   import("//cobalt/build/configs/modular_variables.gni")
-+# }
+->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
+ }
  
  group("buildflags") {
    public_deps = [ "src/partition_alloc:buildflags" ]
+ }
++
++if (is_cobalt) {
++  import("//cobalt/build/configs/modular_variables.gni")
++}

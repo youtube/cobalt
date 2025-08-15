@@ -163,7 +163,7 @@ if (is_msan) {
     } else {
       include_dirs = [ "src/include" ]
     }
->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+>>>>>>> cab69340e13a (Build nplb hermetically (#4587))
 
     sources = crypto_sources_asm
     include_dirs = [ "src/include" ]

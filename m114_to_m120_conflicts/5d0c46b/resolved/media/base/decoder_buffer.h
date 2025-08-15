@@ -28,7 +28,6 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/media.h"
 #include "media/base/video_codecs.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

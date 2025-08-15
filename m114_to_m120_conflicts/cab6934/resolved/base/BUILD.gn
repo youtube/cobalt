@@ -95,6 +95,7 @@ assert(!is_win || is_clang,
 # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
 # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
 # #include <sys/queue.h>
+
 # Determines whether libevent should be dep.
 if (is_cobalt && is_cobalt_hermetic_build) {
   dep_libevent = false
@@ -2298,6 +2299,7 @@ component("base") {
       ]
     }
   }
+
 
   if (is_cobalt) {
     sources += [
