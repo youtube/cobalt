@@ -106,6 +106,10 @@ STARBOARD_FEATURE(kForceFlushDecoderDuringReset,
                   "ForceFlushDecoderDuringReset",
                   false)
 
+// By default, the platform Opus decoder is only enabled for encrypted playback.
+// Set the following variable to true to force it for clear playback.
+STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
+
 // By default, Cobalt teardowns AudioDecoder during Reset().
 // Set the following variable to true to force it reset audio decoder
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
