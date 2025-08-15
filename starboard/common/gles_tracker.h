@@ -19,9 +19,18 @@
 #include <GLES2/gl2ext.h>
 
 #include <map>
+#include <string>
 #include <tuple>
+#include <utility>
 #include "starboard/common/log.h"
 #include "starboard/gles.h"
+#include "starboard/shared/environment.h"
+
+#if defined(COBALT_BUILD_TYPE_GOLD)
+#define GL_MEM_TRACE_I(x) x
+#else
+#define GL_MEM_TRACE_I(x) starboard::common::gles_tracker::trace_##x
+#endif
 
 namespace starboard {
 namespace common {
@@ -61,6 +70,15 @@ inline TrackedMemObject* getObjects() {
   return objects;
 }
 
+inline bool verbose_reporting() {
+  static const bool is_verbose = []() {
+    std::string env_val =
+        starboard::GetEnvironment("COBALT_GLES_VERBOSE_ALLOCATION_REPORTING");
+    return !env_val.empty();
+  }();
+  return is_verbose;
+}
+
 inline void genObjects(Objects type, GLsizei n, GLuint* objects) {
   TrackedMemObject& tracked_object = getObjects()[type];
   MemObjects& map = tracked_object.objects;
@@ -69,8 +87,10 @@ inline void genObjects(Objects type, GLsizei n, GLuint* objects) {
     auto existing = map.find(object_id);
     SB_CHECK(existing == map.end());
     map.insert(std::make_pair(object_id, 0));
-    SB_LOG(ERROR) << "GLTRACE: added type:" << type2str(type)
-                  << " object:" << object_id << " p:" << &tracked_object;
+    if (verbose_reporting()) {
+      SB_LOG(INFO) << "GLTRACE: added type:" << type2str(type)
+                   << " object:" << object_id << " p:" << &tracked_object;
+    }
   }
 }
 inline void deleteObjects(Objects type, GLsizei n, const GLuint* objects) {
@@ -81,10 +101,13 @@ inline void deleteObjects(Objects type, GLsizei n, const GLuint* objects) {
     auto existing = map.find(object_id);
     SB_CHECK(existing != map.end());
     if (existing->second != 0) {
-      SB_LOG(ERROR) << "GLTRACE: Released alloc for type:" << type2str(type)
-                    << " size: " << existing->second
-                    << " total:" << tracked_object.total_allocation << " (MB:"
-                    << (tracked_object.total_allocation / (1024 * 1024)) << ")";
+      if (verbose_reporting()) {
+        SB_LOG(ERROR) << "GLTRACE: Released alloc for type:" << type2str(type)
+                      << " size: " << existing->second
+                      << " total:" << tracked_object.total_allocation << " (MB:"
+                      << (tracked_object.total_allocation / (1024 * 1024))
+                      << ")";
+      }
     }
     tracked_object.total_allocation -= existing->second;
     map.erase(existing);
@@ -116,11 +139,34 @@ inline void reportAllocation(Objects type, size_t estimated_allocation) {
   tracked_object.total_allocation += existing->second;
   auto mb_alloc = (tracked_object.total_allocation / (1024 * 1024));
   if (mb_alloc > 0 && previous != tracked_object.total_allocation) {
-    SB_LOG(ERROR) << "GLTRACE: Alloc for type:" << type2str(type)
-                  << " size: " << estimated_allocation
-                  << " total:" << tracked_object.total_allocation << " (MB:"
-                  << (tracked_object.total_allocation / (1024 * 1024)) << ")";
+    if (verbose_reporting()) {
+      SB_LOG(INFO) << "GLTRACE: Alloc for type:" << type2str(type)
+                   << " size: " << estimated_allocation
+                   << " total:" << tracked_object.total_allocation << " (MB:"
+                   << (tracked_object.total_allocation / (1024 * 1024)) << ")";
+    }
   }
+}
+
+inline void GetTotalGpuMem(size_t* buffers,
+                           size_t* textures,
+                           size_t* render_buffers) {
+  TrackedMemObject* tracked_objects = getObjects();
+  *buffers = tracked_objects[Buffers].total_allocation;
+  *textures = tracked_objects[Textures].total_allocation;
+  *render_buffers = tracked_objects[Renderbuffers].total_allocation;
+}
+
+inline void DumpTotalGpuMem() {
+  size_t buffers, textures, render_buffers;
+  GetTotalGpuMem(&buffers, &textures, &render_buffers);
+  SB_LOG(INFO) << "GLTRACE: Total GPU Memory Usage:";
+  SB_LOG(INFO) << "GLTRACE:   Buffers: " << buffers << " bytes ("
+               << (buffers / (1024 * 1024)) << " MB)";
+  SB_LOG(INFO) << "GLTRACE:   Textures: " << textures << " bytes ("
+               << (textures / (1024 * 1024)) << " MB)";
+  SB_LOG(INFO) << "GLTRACE:   Renderbuffers: " << render_buffers << " bytes ("
+               << (render_buffers / (1024 * 1024)) << " MB)";
 }
 
 // Buffers
@@ -225,10 +271,19 @@ inline void GL_MEM_TRACE(glRenderbufferStorage)(GLenum target,
 // Disable all extensions
 inline const GLubyte* patch_glGetString(GLenum name) {
   if (name == GL_EXTENSIONS) {
-    static const unsigned char dummy[1] = {'\0'};
-    return dummy;
+    std::string env_val =
+        starboard::GetEnvironment("COBALT_EGL_DISABLE_EXTENSIONS");
+    // If any value is passed, we disable extensions
+    if (!env_val.empty()) {
+      static const unsigned char dummy[1] = {'\0'};
+      return dummy;
+    }
   }
   return glGetString(name);
+}
+
+inline const GLubyte* GL_MEM_TRACE(glGetString)(GLenum name) {
+  return patch_glGetString(name);
 }
 
 }  // namespace gles_tracker

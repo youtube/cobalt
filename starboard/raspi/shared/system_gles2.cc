@@ -16,15 +16,13 @@
 
 namespace {
 
-using starboard::common::gles_tracker::GL_MEM_TRACE;
-using starboard::common::gles_tracker::patch_glGetString;
-
 void SbGlShaderSource(SbGlUInt32 shader,
                       SbGlSizeI32 count,
-                      const SbGlChar* const* string,  // NOLINT
+                      const SbGlChar* const* input_string,  // NOLINT
                       const SbGlInt32* length) {
-  // Begone, const!
-  glShaderSource(shader, count, const_cast<const GLchar**>(string), length);
+  // Cast away const, it's a mismatch in headers
+  glShaderSource(shader, count, const_cast<const GLchar**>(input_string),
+                 length);
 }
 
 const SbGlesInterface g_sb_gles_interface = {
@@ -99,7 +97,7 @@ const SbGlesInterface g_sb_gles_interface = {
     &glGetShaderInfoLog,
     &glGetShaderPrecisionFormat,
     &glGetShaderSource,
-    &patch_glGetString,
+    &GL_MEM_TRACE_I(glGetString),
     &glGetTexParameterfv,
     &glGetTexParameteriv,
     &glGetUniformfv,
