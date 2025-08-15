@@ -69,6 +69,7 @@ if (disable_xr) {
     "//third_party/blink/renderer/modules/xr/xr_transient_input_hit_test_options_init.idl",
     "//third_party/blink/renderer/modules/xr/xr_transient_input_hit_test_result.idl",
     "//third_party/blink/renderer/modules/xr/xr_transient_input_hit_test_source.idl",
+    "//third_party/blink/renderer/modules/xr/xr_view_geometry.idl",
     "//third_party/blink/renderer/modules/xr/xr_view.idl",
     "//third_party/blink/renderer/modules/xr/xr_viewer_pose.idl",
     "//third_party/blink/renderer/modules/xr/xr_viewport.idl",
