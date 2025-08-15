@@ -55,7 +55,9 @@
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
+#if defined(RUN_BROWSER_TESTS)
 #include "components/metrics/test/test_enabled_state_provider.h"
+#endif  // defined(RUN_BROWSER_TESTS)
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
 #include "components/performance_manager/embedder/binders.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
@@ -261,6 +263,7 @@ SharedState& GetSharedState() {
   return *g_shared_state;
 }
 
+#if defined(RUN_BROWSER_TESTS)
 std::unique_ptr<PrefService> CreateLocalState() {
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
 
@@ -277,6 +280,7 @@ std::unique_ptr<PrefService> CreateLocalState() {
 
   return pref_service_factory.Create(pref_registry);
 }
+#endif  // defined(RUN_BROWSER_TESTS)
 
 }  // namespace
 
@@ -745,14 +749,17 @@ bool ShellContentBrowserClient::HasErrorPage(int http_status_code) {
 }
 
 void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {
+#if defined(RUN_BROWSER_TESTS)
   GetSharedState().local_state = CreateLocalState();
   SetUpFieldTrials();
   // Schedule a Local State write since the above function resulted in some
   // prefs being updated.
   GetSharedState().local_state->CommitPendingWrite();
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 void ShellContentBrowserClient::SetUpFieldTrials() {
+#if defined(RUN_BROWSER_TESTS)
   metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
                                                            /*enabled=*/false);
   base::FilePath path;
@@ -836,6 +843,7 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
       /*add_entropy_source_to_variations_ids=*/false,
       *metrics_state_manager->CreateEntropyProviders(
           /*enable_limited_entropy_mode=*/false));
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 std::optional<network::ParsedPermissionsPolicy>

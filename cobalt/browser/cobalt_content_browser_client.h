@@ -100,7 +100,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
-  void CreateFeatureListAndFieldTrials();
+  void CreateFeatureListAndFieldTrials() override;
 
   // Read from the experiment config, override features, and associate feature
   // params for Cobalt experiments.

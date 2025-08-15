@@ -40,7 +40,6 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -402,8 +401,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
