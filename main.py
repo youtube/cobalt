@@ -244,6 +244,7 @@ def record_conflict(repo, commit_record_dir):
 
     print(f'\n💾 Recording conflict to: {commit_record_dir}')
     conflicted_files = get_conflicted_files(repo)
+    attempt_patching = True
     patches_to_apply = {}
 
     for file_path in conflicted_files:
@@ -251,16 +252,22 @@ def record_conflict(repo, commit_record_dir):
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
 
-        patch_path = f'{file_path.split(".")[0]}.patch'
+        file_name, file_ext = file_path.split('.')
+        same_names = [x for x in conflicted_files if x.startswith(file_name)]
+        if len(same_names) > 1:
+            patch_path = f'{file_name}_{file_ext}.patch'
+        else:
+            patch_path = f'{file_name}.patch'
         full_patch_path = os.path.join(os.getcwd(), patch_dir, patch_path)
         if os.path.exists(full_patch_path):
             print(f'   ✅ {file_path} - Patch found')
             patches_to_apply[file_path] = full_patch_path
         else:
             print(f'   ❌ {file_path} - No patch found')
+            attempt_patching = False
 
     resolved_conflict = False
-    if patches_to_apply:
+    if attempt_patching:
         for file_path, patch_path in patches_to_apply.items():
             print(f'   🔨 {file_path} - Patching')
             result = subprocess.run(
