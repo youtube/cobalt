@@ -1,0 +1,31 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -1123,28 +1123,6 @@
+   }
+ 
+   if (use_allocator_shim) {
+-<<<<<<< HEAD
+-=======
+-    sources += [
+-      "allocator/partition_allocator/shim/allocator_shim.cc",
+-      "allocator/partition_allocator/shim/allocator_shim.h",
+-      "allocator/partition_allocator/shim/allocator_shim_internals.h",
+-    ]
+-
+-    if (use_partition_alloc) {
+-      sources += [
+-        "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
+-        "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
+-      ]
+-    }
+-    if (is_android) {
+-      sources += [
+-        "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
+-        "allocator/partition_allocator/shim/allocator_shim_override_linker_wrapped_symbols.h",
+-      ]
+-      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
+-    }
+->>>>>>> 064f5702402 (Remove unnecessary comment (#4730))
+     if (is_apple) {
+       sources += [ "allocator/early_zone_registration_apple.h" ]
+     }
