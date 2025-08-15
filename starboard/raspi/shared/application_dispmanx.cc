@@ -96,13 +96,13 @@ void ApplicationDispmanx::OnResume() {
 }
 
 void ApplicationDispmanx::AcceptFrame(SbPlayer player,
-                                      const scoped_refptr<VideoFrame>& frame,
+                                      scoped_refptr<VideoFrame> frame,
                                       int z_index,
                                       int x,
                                       int y,
                                       int width,
                                       int height) {
-  video_renderer_->Update(frame);
+  video_renderer_->Update(std::move(frame));
 }
 
 bool ApplicationDispmanx::MayHaveSystemEvents() {

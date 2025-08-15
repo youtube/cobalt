@@ -278,7 +278,7 @@ class SB_EXPORT_ANDROID Application {
   // used when the application needs to composite video frames with punch-out
   // video manually (should be rare). Will be called from an external thread.
   void HandleFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
+                   scoped_refptr<VideoFrame> frame,
                    int z_index,
                    int x,
                    int y,
@@ -314,7 +314,7 @@ class SB_EXPORT_ANDROID Application {
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
   virtual void AcceptFrame(SbPlayer player,
-                           const scoped_refptr<VideoFrame>& frame,
+                           scoped_refptr<VideoFrame> frame,
                            int z_index,
                            int x,
                            int y,
