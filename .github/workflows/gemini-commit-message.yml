@@ -9,8 +9,8 @@ on:
 jobs:
   generate_commit_message:
     # This condition ensures the workflow only runs if the comment is on a PR
-    # and the comment body is exactly '/gemini-commit-message'.
-    if: github.event.issue.pull_request && github.event.comment.body == '/gemini-commit-message'
+    # and the comment body is exactly '/generate-commit-message'.
+    if: github.event.issue.pull_request && github.event.comment.body == '/generate-commit-message'
 
     # The workflow will run on the latest version of Ubuntu.
     runs-on: ubuntu-latest
