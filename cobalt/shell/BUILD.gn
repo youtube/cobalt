@@ -98,8 +98,6 @@ group("cobalt_shell_lib_deps") {
     "//ppapi/buildflags",
     "//services/network:network_service",
     "//services/network/public/cpp",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
     "//third_party/blink/public:blink",
     "//third_party/blink/public:image_resources",
     "//third_party/blink/public:resources",
@@ -199,6 +197,8 @@ source_set("browsertests_sources") {
     "//content/public/utility",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
   ]
 }
 
