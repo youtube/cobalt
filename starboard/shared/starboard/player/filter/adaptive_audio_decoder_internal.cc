@@ -255,9 +255,10 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
       scoped_refptr<DecodedAudio> resampler_output =
           resampler_->WriteEndOfStream();
       if (resampler_output && resampler_output->size_in_bytes() > 0) {
-        decoded_audios_.push(
-            channel_mixer_ ? channel_mixer_->Mix(std::move(resampler_output))
-                           : std::move(resampler_output));
+        if (channel_mixer_) {
+          resampler_output = channel_mixer_->Mix(std::move(resampler_output));
+        }
+        decoded_audios_.push(std::move(resampler_output));
         Schedule(output_cb_);
       }
     }
@@ -305,9 +306,10 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     SB_DCHECK(output_samples_per_second_ == decoded_sample_rate);
   }
   if (decoded_audio && decoded_audio->size_in_bytes() > 0) {
-    decoded_audios_.push(channel_mixer_
-                             ? channel_mixer_->Mix(std::move(decoded_audio))
-                             : std::move(decoded_audio));
+    if (channel_mixer_) {
+      decoded_audio = channel_mixer_->Mix(std::move(decoded_audio));
+    }
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
 }
