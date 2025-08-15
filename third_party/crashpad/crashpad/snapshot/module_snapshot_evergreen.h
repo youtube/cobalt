@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "client/crashpad_info.h"
 #include "snapshot/crashpad_info_client_options.h"
 #include "snapshot/crashpad_types/crashpad_info_reader.h"
@@ -50,6 +49,9 @@ class ModuleSnapshotEvergreen final : public ModuleSnapshot {
                           uint64_t address,
                           uint64_t size,
                           std::vector<uint8_t> build_id);
+  // ModuleSnapshotEvergreen is neither copyable nor movable.
+  ModuleSnapshotEvergreen(const ModuleSnapshotEvergreen&) = delete;
+  ModuleSnapshotEvergreen& operator=(const ModuleSnapshotEvergreen&) = delete;
   ~ModuleSnapshotEvergreen() override;
 
   //! \brief Initializes the object.
@@ -100,8 +102,6 @@ class ModuleSnapshotEvergreen final : public ModuleSnapshot {
 
   // Too const-y: https://crashpad.chromium.org/bug/9.
   mutable std::vector<std::unique_ptr<const UserMinidumpStream>> streams_;
-
-  DISALLOW_COPY_AND_ASSIGN(ModuleSnapshotEvergreen);
 };
 
 }  // namespace internal

@@ -89,7 +89,6 @@ if (!is_android) {
 
     data_deps = [
       "//cobalt/shell:pak",
-      "//components/crash/core/app:chrome_crashpad_handler",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
   }
