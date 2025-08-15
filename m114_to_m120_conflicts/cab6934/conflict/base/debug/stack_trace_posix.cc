@@ -307,7 +307,7 @@ void PrintToStderr(const char* output) {
 =======
 #if !defined(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_LINUX)
->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
+>>>>>>> cab69340e13 (Build nplb hermetically (#4587))
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
   // either does not run or a thread (Probably an AMD driver thread) prevents
@@ -332,7 +332,7 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
 =======
 #endif  // BUILDFLAG(IS_LINUX)
 #endif // !defined(IS_COBALT_HERMETIC_BUILD)
->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
+>>>>>>> cab69340e13 (Build nplb hermetically (#4587))
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
@@ -560,7 +560,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // After leaving this handler control flow returns to the point where the
   // signal was raised, raising the current signal once again but executing the
   // default handler instead of this one.
->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
+>>>>>>> cab69340e13 (Build nplb hermetically (#4587))
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   // Set an alarm to trigger in case the default handler does not terminate

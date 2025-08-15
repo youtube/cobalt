@@ -17,7 +17,7 @@
  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
  # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
  # #include <sys/queue.h>
-->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
 +
  # Determines whether libevent should be dep.
  if (is_cobalt && is_cobalt_hermetic_build) {
@@ -50,7 +50,7 @@
 -      ]
 -      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
 -    }
-->>>>>>> cab69340e13a (Build nplb hermetically (#4587))
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
      if (is_apple) {
        sources += [ "allocator/early_zone_registration_apple.h" ]
      }

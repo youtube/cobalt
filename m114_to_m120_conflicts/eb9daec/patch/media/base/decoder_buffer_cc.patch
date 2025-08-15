@@ -1,0 +1,40 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -260,20 +260,6 @@
+   time_info_.timestamp = timestamp;
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-void DecoderBuffer::CopySideDataFrom(const uint8_t* side_data,
+-                                     size_t side_data_size) {
+-  if (side_data_size > 0) {
+-    side_data_size_ = side_data_size;
+-    side_data_.reset(new uint8_t[side_data_size_]);
+-    memcpy(side_data_.get(), side_data, side_data_size_);
+-  } else {
+-    side_data_.reset();
+-    side_data_size_ = 0;
+-  }
+-}
+-
+ size_t DecoderBuffer::GetMemoryUsage() const {
+   size_t memory_usage = sizeof(DecoderBuffer);
+ 
+@@ -283,10 +269,6 @@
+ 
+   memory_usage += data_size();
+ 
+-  // Side data and decrypt config would not change after construction.
+-  if (side_data_size_ > 0) {
+-    memory_usage += side_data_size_;
+-  }
+   if (decrypt_config_) {
+     memory_usage += sizeof(DecryptConfig);
+     memory_usage += decrypt_config_->key_id().capacity();
+@@ -298,5 +280,4 @@
+   return memory_usage;
+ }
+ 
+->>>>>>> eb9daec563f (Refine Demuxer GC for low resolution videos (#4483))
+ }  // namespace media
