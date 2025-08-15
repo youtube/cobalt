@@ -89,7 +89,6 @@ group("cobalt_shell_lib_deps") {
     "//content/public/gpu",
     "//content/public/renderer",
     "//content/public/utility",
-    "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
     "//media",
     "//media/mojo:buildflags",
