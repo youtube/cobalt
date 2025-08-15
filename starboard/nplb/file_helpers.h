@@ -44,6 +44,10 @@ std::string GetTestFileExpectedContent(const std::string& path);
 
 bool RemoveFileOrDirectoryRecursively(const std::string& path);
 
+bool FileExists(const char* path);
+
+bool DirectoryExists(const char* path);
+
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.
 class ScopedRandomFile {
