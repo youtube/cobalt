@@ -1,7 +1,5 @@
 gitdb==4.0.12
 GitPython==3.1.44
-httplib2==0.22.0
 pyparsing==3.2.3
 setuptools==80.9.0
-six==1.17.0
 smmap==5.0.2
