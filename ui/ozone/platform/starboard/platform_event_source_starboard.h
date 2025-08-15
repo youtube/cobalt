@@ -31,6 +31,8 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
       delete;
 
   void HandleEvent(const SbEvent* event);
+  void HandleFocusEvent(const SbEvent* event);
+  void DispatchFocusEvent(bool is_focused);
 
   ~PlatformEventSourceStarboard() override;
 

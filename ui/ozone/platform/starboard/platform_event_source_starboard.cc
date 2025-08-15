@@ -308,6 +308,29 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
       FROM_HERE, base::BindOnce(&DeliverEventHandler, std::move(ui_event)));
 }
 
+void DispatchFocusEventHandler(bool is_focused) {
+  CHECK(ui::PlatformEventSource::GetInstance());
+  static_cast<PlatformEventSourceStarboard*>(
+      ui::PlatformEventSource::GetInstance())
+      ->DispatchFocusEvent(is_focused);
+}
+
+void PlatformEventSourceStarboard::HandleFocusEvent(const SbEvent* event) {
+  if (event->type == kSbEventTypeFocus) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DispatchFocusEventHandler, true));
+  } else if (event->type == kSbEventTypeBlur) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DispatchFocusEventHandler, false));
+  }
+}
+
+void PlatformEventSourceStarboard::DispatchFocusEvent(bool is_focused) {
+  for (PlatformEventObserverStarboard& observer : sb_observers_) {
+    observer.ProcessFocusEvent(is_focused);
+  }
+}
+
 PlatformEventSourceStarboard::PlatformEventSourceStarboard() {}
 
 uint32_t PlatformEventSourceStarboard::DeliverEvent(

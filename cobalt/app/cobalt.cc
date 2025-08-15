@@ -147,6 +147,10 @@ void SbEventHandle(const SbEvent* event) {
     }
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
+      if (g_platform_event_source) {
+        g_platform_event_source->HandleFocusEvent(event);
+      }
+      break;
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
     case kSbEventTypeFreeze:
