@@ -35,3 +35,10 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-x86
+  chromium_android-arm-lightweight:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: chromium_android-arm-lightweight
