@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 
 namespace third_party {
@@ -41,14 +42,20 @@ extern const char kCrashpadCertScopeKey[];
 // Cobalt's trusted Certificate Authority (CA) root certificates, and must be
 // passed so that the certificates can be accessed by the handler process during
 // upload.
-void InstallCrashpadHandler(const std::string& ca_certificates_path);
+void InstallCrashpadHandler(
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    const std::string& ca_certificates_path
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+);
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
 // Associates the given value with the given key in Crashpad's map of
 // annotations, updating the existing value if the map already contains the
 // key. Returns true on success and false on failure.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 bool InsertCrashpadAnnotation(const char* key, const char* value);
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 }  // namespace wrapper
 }  // namespace crashpad

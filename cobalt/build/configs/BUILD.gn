@@ -90,6 +90,14 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_IS_COBALT_HERMETIC_BUILD" ]
   }
 
+  # Use is_native_target_build and BUILDFLAG(IS_NATIVE_TARGET_BUILD) for code
+  # that should only be built using the platform's "native_target" toolchain.
+  # This is for binaries that should run natively on the system, without
+  # Starboard.
+  if (is_native_target_build) {
+    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
+  }
+
   # use_starboard_media and BUILDFLAG(USE_STARBOARD_MEDIA) should be used to
   # wrap the use of Starboard media functionality in Chromium code. The
   # Starboard media functionality replace the existing Chromium media

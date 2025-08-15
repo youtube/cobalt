@@ -53,9 +53,11 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   }
 
 #if !SB_IS(MODULAR)
-  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path)
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #endif  // !SB_IS(MODULAR)
-#endif
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)
   // Call backtrace() once to work around potential
