@@ -1,53 +1,9 @@
 import argparse
 import git
-import glob
 import json
 import os
 import shutil
 import subprocess
-
-
-def find_deepest_common_dir(paths):
-    if not paths:
-        return '/'
-
-    # Obtain directory paths for each file path
-    dir_paths = [os.path.dirname(p) for p in paths]
-    # Split directory paths into components
-    split_paths = [p.split('/') for p in dir_paths]
-
-    # Handle absolute paths correctly
-    if split_paths and split_paths[0] and split_paths[0][0] == '':
-        # For absolute paths, the first element is an empty string.
-        # We need to preserve this to correctly join the path later.
-        for p in split_paths:
-            if not p or p[0] != '':
-                # Mixed absolute and relative paths, no common dir
-                return ''
-
-        min_len = min(len(p) for p in split_paths)
-        common_path = ['']  # Start with root
-        for i in range(1, min_len):
-            if all(split_paths[j][i] == split_paths[0][i]
-                   for j in range(len(split_paths))):
-                common_path.append(split_paths[0][i])
-            else:
-                break
-
-        return os.path.join(*common_path) if len(common_path) > 1 else '/'
-
-    else:  # Handle relative paths
-        min_len = min(len(p) for p in split_paths)
-
-        common_path = []
-        for i in range(min_len):
-            if all(split_paths[j][i] == split_paths[0][i]
-                   for j in range(len(split_paths))):
-                common_path.append(split_paths[0][i])
-            else:
-                break
-
-        return '/'.join(common_path) if common_path else ''
 
 
 def linearize_history(repo, args):
@@ -127,7 +83,7 @@ def linearize_history(repo, args):
             git.objects.commit.Commit.create_from_tree(
                 repo=repo,
                 tree=new_tree_hexsha,
-                message=commit.message + f'\noriginal-hexsha: {commit.hexsha}',
+                message=commit.message + f'\n\noriginal-hexsha: {commit.hexsha}',
                 parent_commits=[repo.head.commit],
                 head=True,
                 author=commit.author,
@@ -156,7 +112,7 @@ def linearize_history(repo, args):
                             commit.authored_datetime.isoformat(),
                             '--message',
                             commit.message +
-                            f'\noriginal-hexsha: {commit.hexsha}',
+                            f'\n\noriginal-hexsha: {commit.hexsha}',
                             env={
                                 'GIT_COMMITTER_NAME':
                                 commit.committer.name,
@@ -274,16 +230,11 @@ def get_conflicted_files(repo):
     return conflicted_files
 
 
-def record_conflict(repo, conflicts_dir):
+def record_conflict(repo, commit_record_dir):
     """
     Records the conflicted files, prompts the user to resolve, then records
     the resolved files along with a corresponding patch.
     """
-    os.makedirs(conflicts_dir, exist_ok=True)
-    commit_id = repo.git.rev_parse('CHERRY_PICK_HEAD')
-
-    commit_record_dir = os.path.join(conflicts_dir,
-                                     repo.commit(commit_id).hexsha[:7])
     conflict_dir = os.path.join(commit_record_dir, 'conflict')
     resolved_dir = os.path.join(commit_record_dir, 'resolved')
     patch_dir = os.path.join(commit_record_dir, 'patch')
@@ -455,11 +406,10 @@ def main():
         commit_data = []
         for commit in commits:
             stats = commit.stats
-            files = list(stats.files.keys())
-            common_dir = find_deepest_common_dir(files)
-            is_merge = len(commit.parents) > 1
+            is_linear = len(commit.parents) == 1
             commit_data.append({
                 'hexsha': commit.hexsha,
+                'original_hexsha': commit.trailers_dict['original-hexsha'][0],
                 'author': commit.author.name,
                 'datetime': commit.authored_datetime.isoformat(),
                 'summary': commit.summary,
@@ -468,8 +418,7 @@ def main():
                     'insertions': stats.total['insertions'],
                     'deletions': stats.total['deletions'],
                 },
-                'common_dir': common_dir,
-                'is_merge': is_merge
+                'is_linear': is_linear
             })
         with open(args.output_file, 'w', encoding='utf-8') as f:
             json.dump(commit_data, f, indent=2)
@@ -491,8 +440,8 @@ def main():
                 print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
                 continue
 
-            if commit['is_merge']:
-                print(f'❌ Merge commits are not allowed: {commit["hexsha"]}')
+            if not commit['is_linear']:
+                print(f'❌ Non-linear commits are not allowed: {commit["hexsha"]}')
                 return
             try:
                 repo.git.cherry_pick(commit['hexsha'])
@@ -507,7 +456,7 @@ def main():
                     repo.git.cherry_pick('--skip')
                     continue
                 print(f'❌ Failed to cherry-pick: {commit["hexsha"]}')
-                record_conflict(repo, args.conflicts_dir)
+                record_conflict(repo, os.path.join(args.conflict_dir, commit['hexsha'][:7]))
                 commit_id = repo.git.rev_parse('HEAD')
                 print(
                     f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]} as {repo.commit(commit_id).hexsha}\n'

@@ -1,0 +1,202 @@
+To Cherry-Pick: (in experimental/updated_root_m114 ontop of 38a06fe8674ad2140ff85c87b5b3a817304e369a)
+	git cherry-pick -m 1 $commit
+
+	50263aca0147e377e02fad6f488c4d5c680fe1e7
+	d72700d6a2538f7199b1d85036279118993452dd
+	fbe3fb9903a41f3b61afe9c3ff61c1d9ad8eeaf8
+	f5a167d01d9c734e10275855610be368af36843c
+	c215442893d1f4a855d434d2105a0e2b44a31077
+	e382bc6c013ee3de19affe2df71e2585e48ed879
+	7d3401a783d887856cb595710e53db20fab6a9a3
+	f0d6090dd3c019d1163d9b02a51d9cf5ed2b6d19
+	c73c40adc21a960e1305b3e4d099593f7ae75bc1
+	467a2b395c2f5c753680e7098430888f506b8836
+
+To Linearize: (in feature/derp_m114 ontop of m114)
+	git checkout experimental/updated_root_m114 .
+	git commit --no-verify
+
+
+
+To Merge: (in feature/rebase_m114 ontop of 96e82a5598c63a1fdb42f9b31028c18baaa5722f)
+	git merge ac02e200288bef9c817fad9b06763463e4e9493d --allow-unrelated-histories
+	git rm -rf .
+	git clean -fdx
+	git checkout feature/derp_m114 .
+	git commit --no-verify
+
+To Cherry-Pick: (in feature/derp_m120 ontop of m120)
+	git cherry-pick 3e8e73ba3efd73369c253343e1068cebffe6f9e5
+	git commit --no-verify
+
+
+
+To Subtree:
+	# modify DEPS
+	# modify .gitmodules
+	rm -rf -net/third_party/quiche/src
+	git commit -a
+	Roll up for module net/third_party/quiche/src to rev ee237e96f18ef123af9992f74645a8a0ce9ef6ef
+	git subtree add --squash --prefix net/third_party/quiche/src https://quiche.googlesource.com/quiche.git ee237e96f18ef123af9992f74645a8a0ce9ef6ef
+
+
+
+m126
+
+Roll up for module net/third_party/quiche/src to rev ee237e96f18ef123af9992f74645a8a0ce9ef6ef
+git subtree add --squash --prefix net/third_party/quiche/src https://quiche.googlesource.com/quiche.git ee237e96f18ef123af9992f74645a8a0ce9ef6ef
+
+# Cobalt: Dependencies from angle's DEPS file.
+  'src/third_party/angle/third_party/rapidjson/src':
+    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
+  'src/third_party/angle/third_party/glmark2/src':
+    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + 'ca8de51fedb70bace5351c6b002eb952c747e889',
+
+Roll up for module third_party/angle to rev 1eb6afe32f70b37247e0a676103236e9428dcf8d
+git subtree add --squash --prefix third_party/angle https://chromium.googlesource.com/angle/angle.git 1eb6afe32f70b37247e0a676103236e9428dcf8d
+
+Roll up for module third_party/boringssl/src to rev 2db0eb3f96a5756298dcd7f9319e56a98585bd10
+git subtree add --squash --prefix third_party/boringssl/src https://boringssl.googlesource.com/boringssl.git 2db0eb3f96a5756298dcd7f9319e56a98585bd10
+
+Roll up for module third_party/cpuinfo/src to rev 3c8b1533ac03dd6531ab6e7b9245d488f13a82a5
+git subtree add --squash --prefix third_party/cpuinfo/src https://chromium.googlesource.com/external/github.com/pytorch/cpuinfo.git 3c8b1533ac03dd6531ab6e7b9245d488f13a82a5
+
+Roll up for module third_party/googletest/src to rev 33af80a883ddc33d9c0fac0a5b4578301efb18de
+git subtree add --squash --prefix third_party/googletest/src https://chromium.googlesource.com/external/github.com/google/googletest.git 33af80a883ddc33d9c0fac0a5b4578301efb18de
+
+Roll up for module third_party/icu to rev 98f2494518c2dbb9c488e83e507b070ea5910e95
+git subtree add --squash --prefix third_party/icu https://chromium.googlesource.com/chromium/deps/icu.git 98f2494518c2dbb9c488e83e507b070ea5910e95
+
+Roll up for module third_party/libc++/src to rev e3b94d0e5b86883fd77696bf10dc33ba250ba99b
+git subtree add --squash --prefix third_party/libc++/src https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git e3b94d0e5b86883fd77696bf10dc33ba250ba99b
+
+Roll up for module third_party/perfetto to rev 6aaa8a1fb15659d1b68179e20993e969d9f500f8
+git subtree add --squash --prefix third_party/perfetto https://android.googlesource.com/platform/external/perfetto.git 6aaa8a1fb15659d1b68179e20993e969d9f500f8
+
+Roll up for module third_party/webrtc to rev a18e38fed2307edd6382760213fa3ddf199fa181
+git subtree add --squash --prefix third_party/webrtc https://webrtc.googlesource.com/src.git a18e38fed2307edd6382760213fa3ddf199fa181
+
+Roll up for module v8 to rev 0b23496f527bdb038dfba257a2c0587f26303ad5
+git subtree add --squash --prefix v8 https://chromium.googlesource.com/v8/v8.git 0b23496f527bdb038dfba257a2c0587f26303ad5
+
+
+
+m132
+
+Roll up for module net/third_party/quiche/src to rev 9616efc903b7469161996006c8cf963238e26503
+git subtree add --squash --prefix net/third_party/quiche/src https://quiche.googlesource.com/quiche.git 9616efc903b7469161996006c8cf963238e26503
+
+# Cobalt: Dependencies from angle's DEPS file.
+  'src/third_party/angle/third_party/rapidjson/src':
+    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
+  'src/third_party/angle/third_party/glmark2/src':
+    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + 'ca8de51fedb70bace5351c6b002eb952c747e889',
+
+Roll up for module third_party/angle to rev f0a78b0de48ee4d1d0f5a30d0f33defa0365f130
+git subtree add --squash --prefix third_party/angle https://chromium.googlesource.com/angle/angle.git f0a78b0de48ee4d1d0f5a30d0f33defa0365f130
+
+Roll up for module third_party/boringssl/src to rev 571c76e919c0c48219ced35bef83e1fc83b00eed
+git subtree add --squash --prefix third_party/boringssl/src https://boringssl.googlesource.com/boringssl.git 571c76e919c0c48219ced35bef83e1fc83b00eed
+
+Roll up for module third_party/cpuinfo/src to rev 8df44962d437a0477f07ba6b8843d0b6a48646a4
+git subtree add --squash --prefix third_party/cpuinfo/src https://chromium.googlesource.com/external/github.com/pytorch/cpuinfo.git 8df44962d437a0477f07ba6b8843d0b6a48646a4
+
+Roll up for module third_party/googletest/src to rev d144031940543e15423a25ae5a8a74141044862f
+git subtree add --squash --prefix third_party/googletest/src https://chromium.googlesource.com/external/github.com/google/googletest.git d144031940543e15423a25ae5a8a74141044862f
+
+Roll up for module third_party/icu to rev c9fb4b3a6fb54aa8c20a03bbcaa0a4a985ffd34b
+git subtree add --squash --prefix third_party/icu https://chromium.googlesource.com/chromium/deps/icu.git c9fb4b3a6fb54aa8c20a03bbcaa0a4a985ffd34b
+
+Roll up for module third_party/libc++/src to rev 8e31ad42561900383e10dbefc1d3e8f38cedfbe9
+git subtree add --squash --prefix third_party/libc++/src https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git 8e31ad42561900383e10dbefc1d3e8f38cedfbe9
+
+Roll up for module third_party/perfetto to rev ea011a2c2d3aecdc4f1674887e107a56d2905edd
+git subtree add --squash --prefix third_party/perfetto https://android.googlesource.com/platform/external/perfetto.git ea011a2c2d3aecdc4f1674887e107a56d2905edd
+
+Roll up for module third_party/webrtc to rev afaf497805cbb502da89991c2dcd783201efdd08
+git subtree add --squash --prefix third_party/webrtc https://webrtc.googlesource.com/src.git afaf497805cbb502da89991c2dcd783201efdd08
+
+Roll up for module v8 to rev a4e1b9a47f4f04f5e33590049f41c55a4f6edf10
+git subtree add --squash --prefix v8 https://chromium.googlesource.com/v8/v8.git a4e1b9a47f4f04f5e33590049f41c55a4f6edf10
+
+
+
+m138
+
+Roll up for module net/third_party/quiche/src to rev 3b42119c3e4be5d4720c3c1b384106fa43e9b5e3
+git subtree add --squash --prefix net/third_party/quiche/src https://quiche.googlesource.com/quiche.git 3b42119c3e4be5d4720c3c1b384106fa43e9b5e3
+
+# Cobalt: Dependencies from angle's DEPS file.
+  'src/third_party/angle/third_party/rapidjson/src':
+    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
+  'src/third_party/angle/third_party/glmark2/src':
+    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + '6edcf02205fd1e8979dc3f3964257a81959b80c8',
+
+Roll up for module third_party/angle to rev e1dc0a7ab5d1f1f2edaa7e41447d873895e083bf
+git subtree add --squash --prefix third_party/angle https://chromium.googlesource.com/angle/angle.git e1dc0a7ab5d1f1f2edaa7e41447d873895e083bf
+
+Roll up for module third_party/boringssl/src to rev 9295969e1dad2c31d0d99481734c1c68dcbc6403
+git subtree add --squash --prefix third_party/boringssl/src https://boringssl.googlesource.com/boringssl.git 9295969e1dad2c31d0d99481734c1c68dcbc6403
+
+Roll up for module third_party/cpuinfo/src to rev 39ea79a3c132f4e678695c579ea9353d2bd29968
+git subtree add --squash --prefix third_party/cpuinfo/src https://chromium.googlesource.com/external/github.com/pytorch/cpuinfo.git 39ea79a3c132f4e678695c579ea9353d2bd29968
+
+Roll up for module third_party/googletest/src to rev 09ffd0015395354774c059a17d9f5bee36177ff9
+git subtree add --squash --prefix third_party/googletest/src https://chromium.googlesource.com/external/github.com/google/googletest.git 09ffd0015395354774c059a17d9f5bee36177ff9
+
+Roll up for module third_party/icu to rev b929596baebf0ab4ac7ec07f38365db4c50a559d
+git subtree add --squash --prefix third_party/icu https://chromium.googlesource.com/chromium/deps/icu.git b929596baebf0ab4ac7ec07f38365db4c50a559d
+
+Roll up for module third_party/libc++/src to rev a01c02c9d4acbdae3b7e8a2f3ee58579a9c29f96
+git subtree add --squash --prefix third_party/libc++/src https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git a01c02c9d4acbdae3b7e8a2f3ee58579a9c29f96
+
+Roll up for module third_party/perfetto to rev dd35b295cd359ba094404218414955f961a0d6ae
+git subtree add --squash --prefix third_party/perfetto https://chromium.googlesource.com/external/github.com/google/perfetto.git dd35b295cd359ba094404218414955f961a0d6ae
+
+Roll up for module third_party/webrtc to rev e4445e46a910eb407571ec0b0b8b7043562678cf
+git subtree add --squash --prefix third_party/webrtc https://webrtc.googlesource.com/src.git e4445e46a910eb407571ec0b0b8b7043562678cf
+
+Roll up for module v8 to rev 82ea130494ea43ed0e1bba1ccf97e5db06668ba1
+git subtree add --squash --prefix v8 https://chromium.googlesource.com/v8/v8.git 82ea130494ea43ed0e1bba1ccf97e5db06668ba1
+
+
+
+To Rebase:
+
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/rebase_tools/src --source-branch=feature/thor --start-commit-ref=6efed4fac7f146e2206f37e8f65eceb176f7c641 --end-commit-ref=3094ba2b4213f1b18920eebc3fc99b96adc4b82a --output-file=m126_commits.json
+
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/rebase_tools/src --rebase-branch=feature/rebase_m126 --conflicts-dir=m120_to_m126_conflicts --commits-file=m126_commits.json --resume-commit-index=250
+
+gclient config --name=src --custom-var=download_remoteexec_cfg=True git@github.com:youtube/cobalt.git
+gclient sync --no-history -r $(git rev-parse @)
+build_telemetry opt-out
+siso login
+gn gen out/Default
+gn args out/Default (use_remoteexec=true)
+time autoninja -C out/Default content_shell
+
+conflicts up to CP-51 (inclusive / 59568943355dc7633f1f4b68562a8f52e4390103) - builds content_shell
+m120_to_m126_conflicts/f6ee25f
+m120_to_m126_conflicts/5d0f3ad
+m120_to_m126_conflicts/90b744d
+m120_to_m126_conflicts/bcbb108
+
+conflicts up to CP-120 (inclusive / c4aa60257b6ed4f1b11d83bc398a7e122c2266d4) - requires is_cobalt=false gn flag to build content_shell
+m120_to_m126_conflicts/9fff641
+m120_to_m126_conflicts/568014e
+m120_to_m126_conflicts/c13213f
+m120_to_m126_conflicts/ccead89
+m120_to_m126_conflicts/6d97999
+
+conflicts up to CP-249 (inclusive / 0a73a9eaac479b823756155dd7aa2cbaa9d81ffe) - builds content_shell
+m120_to_m126_conflicts/4ad91d6
+m120_to_m126_conflicts/01623e5
+m120_to_m126_conflicts/81af463
+m120_to_m126_conflicts/05e2a8c
+m120_to_m126_conflicts/d9ec2ba
+m120_to_m126_conflicts/7f1b6ea
+m120_to_m126_conflicts/0b4932a
+
+m120_to_m126_conflicts/8e96e41
+
+
