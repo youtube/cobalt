@@ -86,6 +86,11 @@ declare_args() {
   # Used to indicate that the player is filter based.
   sb_filter_based_player = true
 
+  # TODO(b/435468447): the current player_filter_tests depend on some shared player
+  # sources which may not be build depending on the platform (e.g. RDK), for now let's add
+  # a flag to disable them depending on the platform.
+  enable_shared_player_filter_tests = true
+
   # Used to enable benchmarks.
   sb_enable_benchmark = false
 

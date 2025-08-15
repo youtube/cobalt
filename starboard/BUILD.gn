@@ -242,8 +242,13 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/linux/shared:starboard_platform_tests",
         "//starboard/loader_app:installation_manager_test",
         "//starboard/loader_app:memory_tracker_thread",
-        "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
       ]
+      # TODO(b/435468447): the current player_filter_tests depend on some shared player
+      # sources which may not be build depending on the platform (e.g. RDK), for now only build them
+      # if the `enable_shared_player_filter_tests` flag is enabled.
+      if (enable_shared_player_filter_tests) {
+        deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests", ]
+      }
     }
     if (sb_is_evergreen_compatible) {
       deps += [
