@@ -33,9 +33,6 @@
 #include "content/public/common/web_identity.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-#if defined(RUN_BROWSER_TESTS)
-#include "content/public/test/test_service.mojom.h"
-#endif  // defined(RUN_BROWSER_TESTS)
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
