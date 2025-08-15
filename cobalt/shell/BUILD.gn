@@ -196,6 +196,8 @@ source_set("browsertests_sources") {
     "//content/public/utility",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
   ]
 }
 
