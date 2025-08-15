@@ -941,18 +941,26 @@ bool WebGLRenderingContextBase::IsXRCompatible() const {
 
 bool WebGLRenderingContextBase::IsXrCompatibleFromResult(
     device::mojom::blink::XrCompatibleResult result) {
+#if !BUILDFLAG(DISABLE_XR)
   return result ==
              device::mojom::blink::XrCompatibleResult::kAlreadyCompatible ||
          result ==
              device::mojom::blink::XrCompatibleResult::kCompatibleAfterRestart;
+#else
+   return false;
+#endif
 }
 
 bool WebGLRenderingContextBase::DidGpuRestart(
     device::mojom::blink::XrCompatibleResult result) {
+#if !BUILDFLAG(DISABLE_XR)
   return result == device::mojom::blink::XrCompatibleResult::
                        kCompatibleAfterRestart ||
          result == device::mojom::blink::XrCompatibleResult::
                        kNotCompatibleAfterRestart;
+#else
+  return false;
+#endif
 }
 
 #if !BUILDFLAG(DISABLE_XR)
@@ -979,18 +987,19 @@ XRSystem* WebGLRenderingContextBase::GetXrSystemFromHost(
 
 bool WebGLRenderingContextBase::MakeXrCompatibleSync(
     CanvasRenderingContextHost* host) {
+#if !BUILDFLAG(DISABLE_XR)
   device::mojom::blink::XrCompatibleResult xr_compatible_result =
       device::mojom::blink::XrCompatibleResult::kNoDeviceAvailable;
 
-#if !BUILDFLAG(DISABLE_XR)
   if constexpr (BUILDFLAG(ENABLE_VR)) {
     if (XRSystem* xr = GetXrSystemFromHost(host)) {
       xr->MakeXrCompatibleSync(&xr_compatible_result);
     }
   }
-#endif
-
   return IsXrCompatibleFromResult(xr_compatible_result);
+#else
+  return false;
+#endif
 }
 
 void WebGLRenderingContextBase::MakeXrCompatibleAsync() {
@@ -1012,6 +1021,7 @@ void WebGLRenderingContextBase::MakeXrCompatibleAsync() {
 
 void WebGLRenderingContextBase::OnMakeXrCompatibleFinished(
     device::mojom::blink::XrCompatibleResult xr_compatible_result) {
+#if !BUILDFLAG(DISABLE_XR)
   xr_compatible_ = IsXrCompatibleFromResult(xr_compatible_result);
 
   // If the gpu process is restarted, MaybeRestoreContext will resolve the
@@ -1035,6 +1045,10 @@ void WebGLRenderingContextBase::OnMakeXrCompatibleFinished(
     }
     CompleteXrCompatiblePromiseIfPending(exception_code);
   }
+#else
+  // Act as no device was available
+  CompleteXrCompatiblePromiseIfPending(DOMExceptionCode::kInvalidStateError);
+#endif
 }
 
 void WebGLRenderingContextBase::CompleteXrCompatiblePromiseIfPending(
