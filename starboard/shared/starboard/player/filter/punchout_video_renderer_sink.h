@@ -37,7 +37,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
   void SetBounds(int z_index, int x, int y, int width, int height) override;
   void RunLoop();
 
-  DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
+  DrawFrameStatus DrawFrame(scoped_refptr<VideoFrame> frame,
                             int64_t release_time_in_nanoseconds);
 
   static void* ThreadEntryPoint(void* context);

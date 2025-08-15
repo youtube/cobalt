@@ -61,7 +61,7 @@ class VideoDecoderTestFixture {
 
     Event() : status(kNeedMoreInput) {}
     Event(Status status, scoped_refptr<VideoFrame> frame)
-        : status(status), frame(frame) {}
+        : status(status), frame(std::move(frame)) {}
   };
 
   // This function is called inside WriteMultipleInputs() whenever an event has
@@ -89,7 +89,7 @@ class VideoDecoderTestFixture {
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {}
 
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
-                             const scoped_refptr<VideoFrame>& frame);
+                             scoped_refptr<VideoFrame> frame);
 
   void OnError();
 

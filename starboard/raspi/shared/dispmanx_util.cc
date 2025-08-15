@@ -144,8 +144,7 @@ DispmanxVideoRenderer::DispmanxVideoRenderer(const DispmanxDisplay& display,
                                      black_frame_, DispmanxRect()));
 }
 
-void DispmanxVideoRenderer::Update(
-    const scoped_refptr<VideoFrame>& video_frame) {
+void DispmanxVideoRenderer::Update(scoped_refptr<VideoFrame> video_frame) {
   SB_DCHECK(video_frame);
 
   if (frame_ == video_frame) {
@@ -154,14 +153,14 @@ void DispmanxVideoRenderer::Update(
 
   if (video_frame->is_end_of_stream()) {
     element_->ChangeSource(black_frame_);
-    frame_ = video_frame;
+    frame_ = std::move(video_frame);
     return;
   }
 
   DispmanxYUV420Resource* resource =
       static_cast<DispmanxVideoFrame*>(video_frame.get())->resource();
   element_->ChangeSource(*resource);
-  frame_ = video_frame;
+  frame_ = std::move(video_frame);
 }
 
 void DispmanxVideoRenderer::HideElement() {

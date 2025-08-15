@@ -53,7 +53,7 @@ class ApplicationDispmanx
   void OnSuspend() override;
   void OnResume() override;
   void AcceptFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
+                   scoped_refptr<VideoFrame> frame,
                    int z_index,
                    int x,
                    int y,

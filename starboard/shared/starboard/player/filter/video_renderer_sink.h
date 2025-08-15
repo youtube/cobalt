@@ -39,7 +39,7 @@ class VideoRendererSink : public RefCountedThreadSafe<VideoRendererSink> {
   // This function can only be called inside |RenderCB| to render individual
   // frame.  The user of VideoRendererSink shouldn't store a copy of this
   // function.
-  typedef std::function<DrawFrameStatus(const scoped_refptr<VideoFrame>& frame,
+  typedef std::function<DrawFrameStatus(scoped_refptr<VideoFrame> frame,
                                         int64_t release_time_in_nanoseconds)>
       DrawFrameCB;
   typedef std::function<void(DrawFrameCB)> RenderCB;
