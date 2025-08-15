@@ -56,6 +56,8 @@ if (disable_xr) {
   generated_enumeration_sources_in_modules_excluded += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_depth_data_format.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_depth_data_format.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_depth_type.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_depth_type.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_depth_usage.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_depth_usage.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_dom_overlay_type.cc",
