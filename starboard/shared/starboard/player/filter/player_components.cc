@@ -90,6 +90,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
@@ -97,6 +98,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
@@ -111,6 +113,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
@@ -119,6 +122,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
@@ -133,6 +137,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->player_ = that.player_;
   this->output_mode_ = that.output_mode_;
   this->max_video_input_size_ = that.max_video_input_size_;
+  this->surface_view_ = that.surface_view_;
   this->decode_target_graphics_context_provider_ =
       that.decode_target_graphics_context_provider_;
   this->drm_system_ = that.drm_system_;

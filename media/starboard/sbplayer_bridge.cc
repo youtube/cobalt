@@ -40,6 +40,7 @@
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#include "starboard/extension/player_set_video_surface_view.h"
 
 namespace media {
 
@@ -221,7 +222,8 @@ SbPlayerBridge::SbPlayerBridge(
     DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
-    int max_video_input_size
+    int max_video_input_size,
+    void* surface_view
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
@@ -253,9 +255,10 @@ SbPlayerBridge::SbPlayerBridge(
       pipeline_identifier_(pipeline_identifier),
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 #if SB_HAS(PLAYER_WITH_URL)
-      is_url_based_(false)
+      is_url_based_(false),
 #endif  // SB_HAS(PLAYER_WITH_URL
-          max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      surface_view_(surface_view) {
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -792,6 +795,18 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
+      player_set_video_surface_view_extension =
+          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
+  if (player_set_video_surface_view_extension &&
+      strcmp(player_set_video_surface_view_extension->name,
+             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
+      player_set_video_surface_view_extension->version >= 1) {
+    player_set_video_surface_view_extension
+        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
+  }
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
