@@ -32,7 +32,7 @@ class AudioChannelLayoutMixer {
   virtual ~AudioChannelLayoutMixer() {}
 
   virtual scoped_refptr<DecodedAudio> Mix(
-      const scoped_refptr<DecodedAudio>& audio_data) = 0;
+      scoped_refptr<DecodedAudio> audio_data) = 0;
 
   static std::unique_ptr<AudioChannelLayoutMixer> Create(
       SbMediaAudioSampleType sample_type,

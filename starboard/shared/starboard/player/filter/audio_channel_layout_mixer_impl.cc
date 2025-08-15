@@ -246,12 +246,11 @@ class AudioChannelLayoutMixerImpl : public AudioChannelLayoutMixer {
                               SbMediaAudioFrameStorageType storage_type,
                               int output_channels);
 
-  scoped_refptr<DecodedAudio> Mix(
-      const scoped_refptr<DecodedAudio>& input) override;
+  scoped_refptr<DecodedAudio> Mix(scoped_refptr<DecodedAudio> input) override;
 
  private:
   template <typename SampleType>
-  scoped_refptr<DecodedAudio> Mix(const scoped_refptr<DecodedAudio>& input,
+  scoped_refptr<DecodedAudio> Mix(scoped_refptr<DecodedAudio> input,
                                   const float* matrix);
 
   scoped_refptr<DecodedAudio> MixMonoToStereoOptimized(
@@ -271,7 +270,7 @@ AudioChannelLayoutMixerImpl::AudioChannelLayoutMixerImpl(
       output_channels_(output_channels) {}
 
 scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
-    const scoped_refptr<DecodedAudio>& input) {
+    scoped_refptr<DecodedAudio> input) {
   SB_DCHECK(input->sample_type() == sample_type_);
   SB_DCHECK(input->storage_type() == storage_type_);
 
@@ -325,15 +324,15 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
   }
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    return Mix<int16_t>(input, matrix);
+    return Mix<int16_t>(std::move(input), matrix);
   }
   SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeFloat32);
-  return Mix<float>(input, matrix);
+  return Mix<float>(std::move(input), matrix);
 }
 
 template <typename SampleType>
 scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
-    const scoped_refptr<DecodedAudio>& input,
+    scoped_refptr<DecodedAudio> input,
     const float* matrix) {
   size_t frames = input->frames();
   scoped_refptr<DecodedAudio> output(new DecodedAudio(
