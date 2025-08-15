@@ -163,9 +163,11 @@ git subtree add --squash --prefix v8 https://chromium.googlesource.com/v8/v8.git
 
 To Rebase:
 
-python3 main.py commits --repo-path=/usr/local/google/home/brianting/rebase_tools/src --source-branch=feature/thor --start-commit-ref=6efed4fac7f146e2206f37e8f65eceb176f7c641 --end-commit-ref=3094ba2b4213f1b18920eebc3fc99b96adc4b82a --output-file=m126_commits.json
+git cherry-pick 649ffa1f9b0f970ea628ccd307ec382d287c8319
 
-python3 main.py rebase --repo-path=/usr/local/google/home/brianting/rebase_tools/src --rebase-branch=feature/rebase_m126 --conflicts-dir=m120_to_m126_conflicts --commits-file=m126_commits.json --resume-commit-index=250
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/thor/src --source-branch=feature/rebase_m120 --start-commit-ref=da0cf2796bd79744c2c611a9544e864bc34ca08c --end-commit-ref=34a91959b67e91c0d6bcb5312e4b768eab8a092c --output-file=commits_m120.json
+
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/rebase_tools/src --rebase-branch=feature/rebase_m126 --conflicts-dir=m120_to_m126_conflicts --commits-file=commits_m120.json --resume-commit-index=1
 
 gclient config --name=src --custom-var=download_remoteexec_cfg=True git@github.com:youtube/cobalt.git
 gclient sync --no-history -r $(git rev-parse @)
