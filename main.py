@@ -440,7 +440,7 @@ def main():
                 print(f'💤 {i}/{len(commits)} Skipped: {commit["hexsha"]}')
                 continue
 
-            if not commit['is_linear']:
+            if commit['is_merge']:
                 print(f'❌ Non-linear commits are not allowed: {commit["hexsha"]}')
                 return
             try:
@@ -456,7 +456,7 @@ def main():
                     repo.git.cherry_pick('--skip')
                     continue
                 print(f'❌ Failed to cherry-pick: {commit["hexsha"]}')
-                record_conflict(repo, os.path.join(args.conflict_dir, commit['hexsha'][:7]))
+                record_conflict(repo, os.path.join(args.conflicts_dir, commit['hexsha'][:7]))
                 commit_id = repo.git.rev_parse('HEAD')
                 print(
                     f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]} as {repo.commit(commit_id).hexsha}\n'
