@@ -201,7 +201,6 @@ class ShellContentRendererUrlLoaderThrottleProvider
 };
 
 }  // namespace
-#endif  // defined(RUN_BROWSER_TESTS)
 
 ShellContentRendererClient::ShellContentRendererClient() {}
 
