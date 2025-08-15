@@ -110,6 +110,15 @@ STARBOARD_FEATURE(kForceFlushDecoderDuringReset,
 // Set the following variable to true to force it reset audio decoder
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
 STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
+
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to true with parameters
+// kResetDelayUsec and kFlushDelayUsec to force it to wait during
+// Reset()/Flush(). For example, with args
+// '--enable-features=VideoDecoderDelayUsecOverride:ResetDelayUsec/10ms'.
+STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
+                  "VideoDecoderDelayUsecOverride",
+                  false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
@@ -172,4 +181,20 @@ FEATURE_PARAM_LIST_START
 //                           "CobaltDebugSetting",
 //                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to > 0 to force it to
+// wait during Reset()/Flush().
+STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
+                        kFlushDelayUsec,
+                        kVideoDecoderDelayUsecOverride,
+                        "FlushDelayUsec",
+                        base::Microseconds(0))
+STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
+                        kResetDelayUsec,
+                        kVideoDecoderDelayUsecOverride,
+                        "ResetDelayUsec",
+                        base::Microseconds(0))
+#endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END
