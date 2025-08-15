@@ -25,16 +25,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-bool FileExists(const char* path) {
-  struct stat info {};
-  return stat(path, &info) == 0;
-}
-
-bool DirectoryExists(const char* path) {
-  struct stat info {};
-  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
-}
-
 TEST(PosixFileDeleteTest, SunnyDayDeleteExistingFile) {
   ScopedRandomFile file;
 

@@ -34,11 +34,6 @@ namespace {
 
 typedef std::set<std::string> StringSet;
 
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
 TEST(PosixDirectoryGetNextTest, SunnyDay) {
   const int kNumFiles = 65;
   ScopedRandomFile files[kNumFiles];

@@ -46,11 +46,6 @@ bool CompareFileContentsToString(const char* filename,
   return strncmp(str, result, kTestContentsLength) == 0;
 }
 
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
 TEST(SbFileAtomicReplaceTest, ReplacesValidFile) {
   ScopedRandomFile random_file(ScopedRandomFile::kDefaultLength,
                                ScopedRandomFile::kCreate);
