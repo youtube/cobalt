@@ -50,7 +50,7 @@
 
 #if defined(RUN_BROWSER_TESTS)
 #include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
-#include "content/public/test/test_service.mojom.h"
+#include "content/public/test/test_service.mojom.h"       // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
