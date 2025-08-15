@@ -79,6 +79,7 @@ runs:
                 --test-launcher-shard-index=${{ matrix.shard }} \
                 --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
                 --gtest_output="xml:${xml_path}" \
+                --test-launcher-jobs=1 \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"
             }
