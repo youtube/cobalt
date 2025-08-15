@@ -286,7 +286,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
     seek_to_time_ = seek_to_time;
   }
   paused_ = true;
-  decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear it
+  decoded_audios_ = std::queue<std::unique_ptr<DecodedAudio>>();  // clear it
   decoded_audio_writing_in_progress_ = nullptr;
   decoded_audio_writing_offset_ = 0;
   total_frames_written_on_audio_track_thread_ = 0;
@@ -473,7 +473,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
     current_state.playback_rate = playback_rate_;
 
     if (!decoded_audio_writing_in_progress_ && !decoded_audios_.empty()) {
-      decoded_audio_writing_in_progress_ = decoded_audios_.front();
+      decoded_audio_writing_in_progress_ = std::move(decoded_audios_.front());
       decoded_audios_.pop();
       decoded_audio_writing_offset_ = 0;
     }
@@ -625,7 +625,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
-  decoded_audios_.push(decoded_audio);
+  decoded_audios_.push(std::move(decoded_audio));
 }
 
 }  // namespace starboard::android::shared

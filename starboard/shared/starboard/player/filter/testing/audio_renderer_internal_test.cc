@@ -71,7 +71,7 @@ class AudioRendererTest : public ::testing::Test {
     ON_CALL(*audio_decoder_, Read(_))
         .WillByDefault(
             DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
-                  Return(scoped_refptr<DecodedAudio>(new DecodedAudio()))));
+                  Return(std::unique_ptr<DecodedAudio>(new DecodedAudio()))));
     ON_CALL(*audio_renderer_sink_, Start(_, _, _, _, _, _, _, _))
         .WillByDefault(DoAll(InvokeWithoutArgs([this]() {
                                audio_renderer_sink_->SetHasStarted(true);
@@ -134,7 +134,7 @@ class AudioRendererTest : public ::testing::Test {
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
-      scoped_refptr<DecodedAudio> decoded_audio =
+      std::unique_ptr<DecodedAudio> decoded_audio =
           CreateDecodedAudio(timestamp, kFramesPerBuffer);
       SendDecoderOutput(decoded_audio);
       frames_written += kFramesPerBuffer;
@@ -180,7 +180,7 @@ class AudioRendererTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
 
-  void SendDecoderOutput(const scoped_refptr<DecodedAudio>& decoded_audio) {
+  void SendDecoderOutput(const std::unique_ptr<DecodedAudio>& decoded_audio) {
     ASSERT_TRUE(output_cb_);
 
     EXPECT_CALL(*audio_decoder_, Read(_))
@@ -202,9 +202,9 @@ class AudioRendererTest : public ::testing::Test {
     return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
   }
 
-  scoped_refptr<DecodedAudio> CreateDecodedAudio(int64_t timestamp,
-                                                 int frames) {
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+  std::unique_ptr<DecodedAudio> CreateDecodedAudio(int64_t timestamp,
+                                                   int frames) {
+    auto decoded_audio = std::make_unique<DecodedAudio>(
         kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
         frames * kDefaultNumberOfChannels *
             media::GetBytesPerSample(sample_type_));

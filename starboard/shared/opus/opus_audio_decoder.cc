@@ -125,7 +125,7 @@ bool OpusAudioDecoder::DecodeInternal(
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+  auto decoded_audio = std::make_unique<DecodedAudio>(
       audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
       audio_stream_info_.number_of_channels * frames_per_au_ *
@@ -166,7 +166,7 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.samples_per_second,
       sample_info.discarded_duration_from_front,
       sample_info.discarded_duration_from_back);
-  decoded_audios_.push(decoded_audio);
+  decoded_audios_.push(std::move(decoded_audio));
   output_cb_();
   return true;
 }
@@ -183,7 +183,8 @@ void OpusAudioDecoder::WriteEndOfStream() {
   }
 
   // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
+  decoded_audios_.push(std::make_unique<DecodedAudio>());
+  ;
 
   Schedule(output_cb_);
 }
@@ -217,15 +218,15 @@ void OpusAudioDecoder::TeardownCodec() {
   }
 }
 
-scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
+std::unique_ptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
     int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
-  scoped_refptr<DecodedAudio> result;
+  std::unique_ptr<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
+    result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
   *samples_per_second = audio_stream_info_.samples_per_second;
