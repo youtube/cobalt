@@ -257,8 +257,7 @@ void InstallCrashpadHandler(
 #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
                                    ca_certificates_path,
 #endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-                                   default_annotations,
-                                   default_arguments)) {
+                                   default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
 #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     RecordStatus(

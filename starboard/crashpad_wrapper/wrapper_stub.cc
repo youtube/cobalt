@@ -29,7 +29,8 @@ void InstallCrashpadHandler(
 #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     const std::string& ca_certificates_path
 #endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-) {}
+) {
+}
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
   return false;
