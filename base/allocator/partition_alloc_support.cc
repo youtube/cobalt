@@ -1247,11 +1247,9 @@ void PartitionAllocSupport::ReconfigureAfterTaskRunnerInit(
       base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif
 
-  if (base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocSortActiveSlotSpans)) {
-    partition_alloc::PartitionRoot<
-        partition_alloc::internal::ThreadSafe>::EnableSortActiveSlotSpans();
-  }
+  LOG(INFO) << "PartitionAlloc: Enabling sorting of active slot spans.";
+  partition_alloc::PartitionRoot<
+      partition_alloc::internal::ThreadSafe>::EnableSortActiveSlotSpans();
 }
 
 void PartitionAllocSupport::OnForegrounded(bool has_main_frame) {

@@ -201,9 +201,9 @@ class MEDIA_EXPORT DecoderBuffer
 
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
     return data_;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // 0
     if (read_only_mapping_.IsValid())
       return read_only_mapping_.GetMemoryAs<const uint8_t>();
     if (writable_mapping_.IsValid())
@@ -211,20 +211,20 @@ class MEDIA_EXPORT DecoderBuffer
     if (external_memory_)
       return external_memory_->span().data();
     return data_.get();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // 0
   }
 
   // TODO(sandersd): Remove writable_data(). https://crbug.com/834088
   uint8_t* writable_data() const {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
     return data_;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // 0
     DCHECK(!end_of_stream());
     DCHECK(!read_only_mapping_.IsValid());
     DCHECK(!writable_mapping_.IsValid());
     DCHECK(!external_memory_);
     return data_.get();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // 0
   }
 
   size_t data_size() const {
@@ -265,18 +265,18 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   // If there's no data in this buffer, it represents end of stream.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   bool end_of_stream() const { return !data_; }
   void shrink_to(size_t size) {
     DCHECK_LE(size, size_);
     size_ = size;
   }
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // 0
   bool end_of_stream() const {
     return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
            !external_memory_ && !data_;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // 0
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -315,13 +315,13 @@ class MEDIA_EXPORT DecoderBuffer
                 size_t size,
                 const uint8_t* side_data,
                 size_t side_data_size);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   DecoderBuffer(DemuxerStream::Type type,
                 const uint8_t* data,
                 size_t size,
                 const uint8_t* side_data,
                 size_t side_data_size);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 
   DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size);
 
@@ -333,14 +333,14 @@ class MEDIA_EXPORT DecoderBuffer
 
   virtual ~DecoderBuffer();
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   // Encoded data, allocated from DecoderBuffer::Allocator.
   uint8_t* data_ = nullptr;
   size_t allocated_size_ = 0;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // 0
   // Encoded data, if it is stored on the heap.
   std::unique_ptr<uint8_t[]> data_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // 0
 
  private:
   TimeInfo time_info_;
@@ -368,9 +368,9 @@ class MEDIA_EXPORT DecoderBuffer
 
   // Constructor helper method for memory allocations.
   void Initialize();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if 0
   void Initialize(DemuxerStream::Type type);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // 0
 };
 
 }  // namespace media

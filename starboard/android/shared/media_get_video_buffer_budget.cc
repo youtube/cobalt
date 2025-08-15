@@ -34,7 +34,7 @@ namespace {
 // https://github.com/youtube/cobalt/blob/a3c966f929aabea1d71813c31d404e1b319c2fcd/media/base/demuxer_memory_limit.h#L44
 // TODO: b/416039556 - Allow starboard::feature to override this value, once
 // b/416039556 is completed.
-constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
+constexpr int kMaxVideoBufferBudget = 50 * 1024 * 1024;
 
 }  // namespace
 

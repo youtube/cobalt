@@ -168,7 +168,8 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       memory_limit_(GetDemuxerStreamAudioMemoryLimit(&audio_config)) {
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
-  DVLOG(2) << __func__ << ": audio_buffer_size= " << memory_limit_;
+  LOG(INFO) << __func__ << "starboard:decoder:allocator: audio_buffer_limit(MB)= "
+            << (memory_limit_ / 1024 /1024);
 }
 
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
@@ -185,7 +186,8 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                            &video_config)) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
-  DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
+  LOG(INFO) << __func__ << ":starboard:decoder:allocator: video_buffer_size(MB)= "
+            << (memory_limit_ / 1024 / 1024) << ", config=" << video_config.AsHumanReadableString();
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
@@ -761,7 +763,9 @@ void SourceBufferStream::OnMemoryPressure(
     base::TimeDelta media_time,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
     bool force_instant_gc) {
-  DVLOG(4) << __func__ << " level=" << memory_pressure_level;
+  LOG(INFO) << __func__ << " level=" << memory_pressure_level
+      << ", force_instant_gc=" << (force_instant_gc ? "true" : "false")
+      << ", kMemoryPressureBasedSourceBufferGC=" << (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC) ? "true" : "false");
   // TODO(sebmarchand): Check if MEMORY_PRESSURE_LEVEL_MODERATE should also be
   // ignored.
   if (memory_pressure_level ==
