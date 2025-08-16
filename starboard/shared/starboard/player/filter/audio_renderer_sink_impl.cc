@@ -14,11 +14,16 @@
 
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 
+#include <algorithm>
 #include <string>
 
+#include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/shared/starboard/thread_checker.h"
+#include "starboard/memory.h"
+#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/string.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player::filter {
 

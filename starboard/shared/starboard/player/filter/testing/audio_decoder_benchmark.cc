@@ -54,7 +54,7 @@ class AudioDecoderHelper {
   size_t number_of_inputs() const { return number_of_inputs_; }
 
   void DecodeAll() {
-    SB_CHECK(current_input_buffer_index_ == 0);
+    SB_CHECK_EQ(current_input_buffer_index_, 0);
     OnConsumed();  // Kick off the first Decode() call
     // Note that we deliberately don't add any time out to the loop, to ensure
     // that the benchmark is accurate.

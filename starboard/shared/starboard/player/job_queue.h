@@ -21,10 +21,11 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/common/check_op.h"
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/time.h"
-#include "starboard/shared/internal_only.h"
-#include "starboard/thread.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/optional.h"
 
 #ifndef __cplusplus
 #error "Only C++ files can include this header."
@@ -110,7 +111,7 @@ class JobQueue {
     // accesses job_queue_. To avoid making calls on a destroyed object
     // job_queue_ must be detached before the subclass is destroyed.
     void DetachFromCurrentThread() {
-      SB_DCHECK(job_queue_ != nullptr);
+      SB_DCHECK(job_queue_);
       SB_DCHECK(BelongsToCurrentThread());
       CancelPendingJobs();
       job_queue_ = nullptr;

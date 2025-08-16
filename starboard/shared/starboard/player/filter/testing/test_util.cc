@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -43,7 +44,7 @@ void StubDeallocateSampleFunc(SbPlayer player,
 
 std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
                                          const char* mime_attributes) {
-  SB_DCHECK(audio_codec != kSbMediaAudioCodecNone);
+  SB_DCHECK_NE(audio_codec, kSbMediaAudioCodecNone);
 
   std::string content_type;
   switch (audio_codec) {

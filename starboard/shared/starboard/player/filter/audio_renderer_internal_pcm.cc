@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -84,8 +85,8 @@ AudioRendererPcm::AudioRendererPcm(
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
-  SB_DCHECK(decoder_ != NULL);
-  SB_DCHECK(min_frames_per_append_ > 0);
+  SB_DCHECK(decoder_);
+  SB_DCHECK_GT(min_frames_per_append_, 0);
   SB_DCHECK(max_cached_frames_ >= min_frames_per_append_ * 2);
 
   frame_buffers_[0] = &frame_buffer_[0];
@@ -608,7 +609,7 @@ void AudioRendererPcm::ProcessAudioData() {
     }
 
     if (decoded_audio->is_end_of_stream()) {
-      SB_DCHECK(eos_state_ == kEOSWrittenToDecoder) << eos_state_;
+      SB_DCHECK_EQ(eos_state_, kEOSWrittenToDecoder) << eos_state_;
       {
         std::lock_guard lock(mutex_);
         eos_state_ = kEOSDecoded;

@@ -276,8 +276,8 @@ class AudioDecoderTest
   // The start_index will be updated to the new position.
   void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
-    SB_DCHECK(*start_index >= 0);
-    SB_DCHECK(*start_index < dmp_reader_.number_of_audio_buffers());
+    SB_DCHECK_GE(*start_index, 0);
+    SB_DCHECK_LT(*start_index, dmp_reader_.number_of_audio_buffers());
     ASSERT_NO_FATAL_FAILURE(
         WriteSingleInput(static_cast<size_t>(*start_index)));
     SB_DCHECK(last_input_buffer_);

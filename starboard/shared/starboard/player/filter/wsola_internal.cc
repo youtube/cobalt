@@ -23,13 +23,14 @@
 
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
+#include <math.h>
 #include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <limits>
-#include <memory>
+#include <numeric>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/memory.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1

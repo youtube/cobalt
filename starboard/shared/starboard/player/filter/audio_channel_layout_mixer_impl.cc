@@ -17,6 +17,7 @@
 #include <limits>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -374,7 +375,7 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
       frames_left--;
     }
   } else {
-    SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
+    SB_DCHECK_EQ(storage_type_, kSbMediaAudioFrameStorageTypePlanar);
     memcpy(output->data(), input->data(), input->size_in_bytes());
     memcpy(output->data() + input->size_in_bytes(), input->data(),
            input->size_in_bytes());

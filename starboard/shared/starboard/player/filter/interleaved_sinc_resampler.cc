@@ -50,6 +50,8 @@
 #include <string.h>
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
+
 namespace starboard::shared::starboard::player::filter {
 
 InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
@@ -68,7 +70,7 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
   // input_buffer_ being 16-byte aligned.
   SB_DCHECK(kKernelSize % 32 == 0) << "kKernelSize must be a multiple of 32!";
-  SB_DCHECK(kBlockSize > kKernelSize)
+  SB_DCHECK_GT(kBlockSize, kKernelSize)
       << "kBlockSize must be greater than kKernelSize!";
   // Basic sanity checks to ensure buffer regions are laid out correctly:
   // r0_ and r2_ should always be the same position.
@@ -281,7 +283,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
 
   // Read should always be satisfied as otherwise Resample should return false
   // to the caller directly.
-  SB_DCHECK(frames == 0);
+  SB_DCHECK_EQ(frames, 0);
 }
 
 float InterleavedSincResampler::Convolve(const float* input_ptr,

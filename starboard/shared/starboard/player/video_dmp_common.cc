@@ -14,9 +14,13 @@
 
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
-#include <limits>
+#include <algorithm>
+#include <vector>
 
-namespace starboard::shared::starboard::player::video_dmp {
+#include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
+#include "starboard/memory.h"
+#include "starboard/shared/starboard/player/video_dmp_reader.h"
 
 #define DEFINE_READ_AS_INT32_FUNCTION(Type)                                \
   void Read(const ReadCB& read_cb, bool reverse_byte_order, Type* value) { \

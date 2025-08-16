@@ -14,9 +14,11 @@
 
 #include "starboard/shared/starboard/player/filter/video_frame_rate_estimator.h"
 
-#include <cmath>
+#include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/time.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -72,7 +74,7 @@ void VideoFrameRateEstimator::CalculateInitialFrameRate(
 
     auto current_frame_duration =
         (*next)->timestamp() - (*current)->timestamp();
-    SB_DCHECK(current_frame_duration > 0);
+    SB_DCHECK_GT(current_frame_duration, 0);
 
     if (number_of_frame_durations_accumulated_ == 0) {
       accumulated_frame_durations_ = current_frame_duration;
@@ -109,7 +111,7 @@ void VideoFrameRateEstimator::CalculateInitialFrameRate(
 }
 
 void VideoFrameRateEstimator::RefineFrameRate(const Frames& frames) {
-  SB_DCHECK(frame_rate_ != kInvalidFrameRate);
+  SB_DCHECK_NE(frame_rate_, kInvalidFrameRate);
   SB_DCHECK(!frames.empty());
 
   if (frames.front()->is_end_of_stream()) {

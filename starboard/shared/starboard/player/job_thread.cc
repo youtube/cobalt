@@ -14,10 +14,12 @@
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
-#include <condition_variable>
-#include <mutex>
-#include <string>
+#include <pthread.h>
 
+#include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
+#include "starboard/configuration.h"
+#include "starboard/memory.h"
 #include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
@@ -73,7 +75,7 @@ JobThread::~JobThread() {
 // static
 void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != nullptr);
+  SB_DCHECK(param);
 
   pthread_setname_np(pthread_self(), param->thread_name.c_str());
   SbThreadSetPriority(param->thread_priority);

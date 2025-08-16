@@ -21,6 +21,7 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
@@ -47,8 +48,8 @@ JobQueue* GetCurrentThreadJobQueue() {
 }
 
 void SetCurrentThreadJobQueue(JobQueue* job_queue) {
-  SB_DCHECK(job_queue != NULL);
-  SB_DCHECK(GetCurrentThreadJobQueue() == NULL);
+  SB_DCHECK(job_queue);
+  SB_DCHECK_EQ(GetCurrentThreadJobQueue(), NULL);
 
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, job_queue);
@@ -176,7 +177,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
   SB_DCHECK(job);
-  SB_DCHECK(delay_usec >= 0) << delay_usec;
+  SB_DCHECK_GE(delay_usec, 0) << delay_usec;
 
   std::lock_guard lock(mutex_);
   if (stopped_) {

@@ -14,7 +14,11 @@
 
 #include "starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.h"
 
+#include <numeric>
+
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/time.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -34,7 +38,7 @@ void VideoFrameCadencePatternGenerator::UpdateRefreshRateAndMaybeReset(
 }
 
 void VideoFrameCadencePatternGenerator::UpdateFrameRate(double frame_rate) {
-  SB_DCHECK(frame_rate > 0);
+  SB_DCHECK_GT(frame_rate, 0);
 
   frame_rate_ = frame_rate;
 }

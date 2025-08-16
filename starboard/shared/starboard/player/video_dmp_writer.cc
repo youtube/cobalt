@@ -22,6 +22,7 @@
 #include <sstream>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -49,14 +50,14 @@ class PlayerToWriterMap {
   void Unregister(SbPlayer player) {
     std::lock_guard scoped_lock(mutex_);
     auto iter = map_.find(player);
-    SB_DCHECK(iter != map_.end());
+    SB_DCHECK_NE(iter, map_.end());
     delete iter->second;
     map_.erase(iter);
   }
   VideoDmpWriter* Get(SbPlayer player) {
     std::lock_guard scoped_lock(mutex_);
     auto iter = map_.find(player);
-    SB_DCHECK(iter != map_.end());
+    SB_DCHECK_NE(iter, map_.end());
     return iter->second;
   }
 

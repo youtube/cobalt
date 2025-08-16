@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
@@ -100,7 +101,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
-  SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+  SB_DCHECK_NE(video_stream_info_.codec, kSbMediaAudioCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(output_mode_ != kSbPlayerOutputModeInvalid);
 }

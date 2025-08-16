@@ -14,11 +14,9 @@
 
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
-#include <stdlib.h>
-#include <string.h>
-
-#include "starboard/common/log.h"
-#include "starboard/configuration_constants.h"
+#include "starboard/common/check_op.h"
+#include "starboard/memory.h"
+#include "third_party/libyuv/include/libyuv.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -101,14 +99,14 @@ void CopyPlane(int bit_depth,
 
 int CpuVideoFrame::GetPlaneCount() const {
   SB_DCHECK(format_ != kInvalid);
-  SB_DCHECK(format_ != kNativeTexture);
+  SB_DCHECK_NE(format_, kNativeTexture);
 
   return static_cast<int>(planes_.size());
 }
 
 const CpuVideoFrame::Plane& CpuVideoFrame::GetPlane(int index) const {
   SB_DCHECK(format_ != kInvalid);
-  SB_DCHECK(format_ != kNativeTexture);
+  SB_DCHECK_NE(format_, kNativeTexture);
   SB_DCHECK(index >= 0 && index < GetPlaneCount())
       << "Invalid index: " << index;
   return planes_[index];

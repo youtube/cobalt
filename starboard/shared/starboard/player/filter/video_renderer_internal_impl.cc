@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 
-#include <algorithm>
-#include <functional>
-#include <limits>
-#include <memory>
-#include <mutex>
-#include <utility>
+#include <string>
 
-#include "starboard/common/time.h"
+#include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
+#include "starboard/memory.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -43,9 +41,9 @@ VideoRendererImpl::VideoRendererImpl(
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)) {
-  SB_DCHECK(decoder_ != NULL);
-  SB_DCHECK(algorithm_ != NULL);
-  SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
+  SB_DCHECK(decoder_);
+  SB_DCHECK(algorithm_);
+  SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1);
   SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
       << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."
@@ -148,7 +146,7 @@ void VideoRendererImpl::WriteEndOfStream() {
 
 void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(seek_to_time >= 0);
+  SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
     decoder_->Reset();

@@ -290,7 +290,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(pending_audio_buffers_.empty());
   } else {
-    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+    SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     SB_DCHECK(pending_video_buffers_.empty());
   }
   int samples_written;
@@ -314,7 +314,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
       SB_DCHECK(pending_audio_buffers_.size() == num_of_pending_buffers);
     } else {
       pending_video_buffers_ = std::move(input_buffers);
-      SB_DCHECK(pending_video_buffers_.size() == num_of_pending_buffers);
+      SB_DCHECK_EQ(pending_video_buffers_.size(), num_of_pending_buffers);
     }
     if (!write_pending_sample_job_token_.is_valid()) {
       write_pending_sample_job_token_ = job_queue_->Schedule(
@@ -334,7 +334,7 @@ void PlayerWorker::DoWritePendingSamples() {
     DoWriteSamples(std::move(pending_audio_buffers_));
   }
   if (!pending_video_buffers_.empty()) {
-    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+    SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     InputBuffers input_buffers = std::move(pending_video_buffers_);
     DoWriteSamples(input_buffers);
   }
@@ -360,7 +360,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(pending_audio_buffers_.empty());
   } else {
-    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+    SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     SB_DCHECK(pending_video_buffers_.empty());
   }
 

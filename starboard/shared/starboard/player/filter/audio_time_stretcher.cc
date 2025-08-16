@@ -272,7 +272,7 @@ int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
 }
 
 bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
-  SB_DCHECK(bytes_per_frame_ > 0);
+  SB_DCHECK_GT(bytes_per_frame_, 0);
 
   if (!CanPerformWsola()) {
     return false;
@@ -337,7 +337,7 @@ void AudioTimeStretcher::RemoveOldInputFrames(double playback_rate) {
 int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
                                                int dest_offset,
                                                DecodedAudio* dest) {
-  SB_DCHECK(bytes_per_frame_ > 0);
+  SB_DCHECK_GT(bytes_per_frame_, 0);
 
   int rendered_frames = std::min(num_complete_frames_, requested_frames);
 
@@ -421,7 +421,7 @@ void AudioTimeStretcher::GetOptimalBlock() {
 
 void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
                                                   DecodedAudio* dest) {
-  SB_DCHECK(bytes_per_frame_ > 0);
+  SB_DCHECK_GT(bytes_per_frame_, 0);
   SB_CHECK_LE(read_offset_frames + dest->frames(), audio_buffer_.frames());
 
   int write_offset = 0;
