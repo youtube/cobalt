@@ -26,6 +26,7 @@
 #include <mutex>
 
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
@@ -79,7 +80,7 @@ AssetManager::AssetManager() {
   char path[kPathSize] = {0};
   SB_CHECK(SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize))
       << "Unable to get system temp path for AssetManager.";
-  SB_CHECK(starboard::strlcat(path, "/asset_tmp", kPathSize) < kPathSize)
+  SB_CHECK_LT(starboard::strlcat(path, "/asset_tmp", kPathSize), kPathSize)
       << "Unable to construct temp path for AssetManager.";
   tmp_root_ = path;
   ClearTempDir();

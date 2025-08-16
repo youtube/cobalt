@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -236,9 +237,9 @@ SbPlayer CallSbPlayerCreate(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* context_provider) {
   if (audio_stream_info) {
-    SB_CHECK(audio_stream_info->codec == audio_codec);
+    SB_CHECK_EQ(audio_stream_info->codec, audio_codec);
   } else {
-    SB_CHECK(audio_codec == kSbMediaAudioCodecNone);
+    SB_CHECK_EQ(audio_codec, kSbMediaAudioCodecNone);
   }
 
   // TODO: pass real audio/video info to SbPlayerGetPreferredOutputMode.

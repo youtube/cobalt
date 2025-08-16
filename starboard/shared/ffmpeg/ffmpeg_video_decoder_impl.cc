@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
@@ -36,7 +37,7 @@ namespace {
 static const int kAlignment = 32;
 
 size_t AlignUp(size_t size, int alignment) {
-  SB_DCHECK((alignment & (alignment - 1)) == 0);
+  SB_DCHECK_EQ(alignment & (alignment - 1), 0);
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
@@ -269,7 +270,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
 }
 
 bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
-  SB_DCHECK(packet != NULL);
+  SB_DCHECK(packet);
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
     ffmpeg_->av_frame_unref(av_frame_);

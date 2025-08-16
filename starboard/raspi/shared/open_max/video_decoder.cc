@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -38,7 +39,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
       eos_written_(false),
       thread_(0),
       request_thread_termination_(false) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);
   update_job_ = std::bind(&VideoDecoder::Update, this);
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
@@ -66,7 +67,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
   SB_DCHECK(thread_ == 0);
   pthread_create(&thread_, nullptr, &VideoDecoder::ThreadEntryPoint, this);
-  SB_DCHECK(thread_ != 0);
+  SB_DCHECK_NE(thread_, 0);
 }
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
