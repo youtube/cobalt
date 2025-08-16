@@ -30,7 +30,6 @@
     "CaseConversionTest.TurkishLocaleConversion",
     "CaseConversionTest.UpperLower",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
-    "ContentSecurityPolicyTest.RequestsAllowedWhenBypassingCSP",
     "FilePathTest.FromUTF8Unsafe_And_AsUTF8Unsafe",
     "FileUtilTest.ChangeDirectoryPermissionsAndEnumerate",
     "FileUtilTest.ChangeFilePermissionsAndRead",

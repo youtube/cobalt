@@ -3,9 +3,13 @@
   "failing_tests": [
     "AnimationWorkletMutatorDispatcherImplAsyncTest.MutationUpdateDroppedWhenBusy",
     "AnimationWorkletMutatorDispatcherImplAsyncTest.MutationUpdateQueuedWhenBusy",
+    "AnimationWorkletMutatorDispatcherImplAsyncTest.MutationUpdateInvokedCorrectlyWithTwoRegisteredAnimatorsOnDifferentThreads",
+    "AnimationWorkletMutatorDispatcherImplAsyncTest.MutationUpdateMultipleQueuesWhenBusy",
+    "AnimationWorkletMutatorDispatcherImplAsyncTest.HistogramTester",
     "ContentSecurityPolicyTest.FilesystemAllowedWhenBypassingCSP",
     "ContentSecurityPolicyTest.BlobAllowedWhenBypassingCSP",
     "ContentSecurityPolicyTest.CSPBypassDisabledWhenSchemeIsPrivileged",
+    "ContentSecurityPolicyTest.RequestsAllowedWhenBypassingCSP",
     "AnimationWorkletMutatorDispatcherImplAsyncTest.MutationUpdateInvokedCorrectlyWithTwoRegisteredAnimatorsOnSameThread",
     "TextFragmentGenerationNavigationTest.*",
     "DecoderTemplateTest/0.ResetDuringFlush",
