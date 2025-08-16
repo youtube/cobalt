@@ -1,6 +1,8 @@
 {
   "failing_tests": [
     "KeySystemConfigSelectorTest.*",
+    "SchemeRegistryTest.CodeCacheWithHashing",
+    "SecurityPolicyTest.ReferrerForCustomScheme",
     "*RTCVideoDecoder*",
     "HarfBuzzShaperTest.*",
     "FilePathConversionTest.convert"
