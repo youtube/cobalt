@@ -122,7 +122,7 @@ void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
                        error_cb);
 }
 
-void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
+void AudioRendererPcm::WriteSamples(InputBuffers input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_);
@@ -135,7 +135,7 @@ void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
   }
 
   can_accept_more_data_ = false;
-  decoder_->Decode(input_buffers,
+  decoder_->Decode(std::move(input_buffers),
                    std::bind(&AudioRendererPcm::OnDecoderConsumed, this));
   first_input_written_ = true;
 }

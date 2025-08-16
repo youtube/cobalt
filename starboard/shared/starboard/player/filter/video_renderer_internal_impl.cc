@@ -99,7 +99,7 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
   }
 }
 
-void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
+void VideoRendererImpl::WriteSamples(InputBuffers input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   for (const auto& input_buffer : input_buffers) {

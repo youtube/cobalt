@@ -294,7 +294,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   }
   int samples_written;
   HandlerResult result =
-      handler_->WriteSamples(input_buffers, &samples_written);
+      handler_->WriteSamples(std::move(input_buffers), &samples_written);
   if (!result.success) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to write sample.");
     return;
