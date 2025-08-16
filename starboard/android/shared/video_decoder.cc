@@ -848,7 +848,7 @@ void VideoDecoder::WriteInputBuffersInternal(InputBuffers input_buffers) {
     }
   }
 
-  media_decoder_->WriteInputBuffers(input_buffers);
+  media_decoder_->WriteInputBuffers(std::move(input_buffers));
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
