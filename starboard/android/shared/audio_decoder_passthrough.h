@@ -49,7 +49,7 @@ class AudioDecoderPassthrough
     output_cb_ = output_cb;
   }
 
-  void Decode(const InputBuffers& input_buffers,
+  void Decode(InputBuffers input_buffers,
               const ConsumedCB& consumed_cb) override {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!input_buffers.empty());

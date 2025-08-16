@@ -54,7 +54,7 @@ class AudioDecoder {
   // |consumed_cb|.
   // Note that |consumed_cb| is always called asynchronously on the calling job
   // queue.
-  virtual void Decode(const InputBuffers& input_buffer,
+  virtual void Decode(InputBuffers input_buffer,
                       const ConsumedCB& consumed_cb) = 0;
 
   // Notice the object that there is no more input data unless Reset() is
