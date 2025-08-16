@@ -126,7 +126,7 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void VideoDecoder::WriteInputBuffers(InputBuffers input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffers.size() == 1);
   SB_DCHECK(input_buffers[0]);

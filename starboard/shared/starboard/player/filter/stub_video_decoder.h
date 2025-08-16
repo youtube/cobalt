@@ -37,7 +37,7 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   int64_t GetPrerollTimeout() const override;
   size_t GetMaxNumberOfCachedFrames() const override;
 
-  void WriteInputBuffers(const InputBuffers& input_buffers) override;
+  void WriteInputBuffers(InputBuffers input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
 

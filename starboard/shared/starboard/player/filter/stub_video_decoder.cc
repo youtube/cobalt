@@ -42,7 +42,7 @@ size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {
   return 12;
 }
 
-void StubVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void StubVideoDecoder::WriteInputBuffers(InputBuffers input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
 

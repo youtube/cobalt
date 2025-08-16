@@ -91,7 +91,7 @@ class VideoDecoder
   // buffer.
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
-  void WriteInputBuffers(const InputBuffers& input_buffers) override;
+  void WriteInputBuffers(InputBuffers input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
@@ -110,7 +110,7 @@ class VideoDecoder
                        std::string* error_message);
   void TeardownCodec();
 
-  void WriteInputBuffersInternal(const InputBuffers& input_buffers);
+  void WriteInputBuffersInternal(InputBuffers input_buffers);
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
   void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) override;
