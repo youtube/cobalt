@@ -63,7 +63,7 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
 
     SB_CHECK_GT(strlen(feature.name), static_cast<size_t>(0))
         << "Features are not allowed to have empty strings as names.";
-    SB_CHECK(feature_map.find(feature.name) == feature_map.end())
+    SB_CHECK((feature_map.find(feature.name)) == (feature_map.end()))
         << "Duplicate Features are not allowed.";
     feature_map[feature.name] = feature.is_enabled;
   }
