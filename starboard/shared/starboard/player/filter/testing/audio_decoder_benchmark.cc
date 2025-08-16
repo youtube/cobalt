@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
