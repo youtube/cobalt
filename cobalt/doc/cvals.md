@@ -304,6 +304,9 @@ query):
     many platforms, GPU memory information is unavailable.
 *   **Memory.GPU.Used** - The total physical CPU memory (in bytes) used by this
     application. NOTE: On many platforms, GPU memory information is unavailable.
+*   **Memory.GPU.BufferBytes** - Currently allocated GPU memory estimate, allocated to buffer objects.
+*   **Memory.GPU.TextureBytes** - Currently allocated GPU memory estimate, allocated to texture objects.
+*   **Memory.GPU.RenderBufferBytes** - Currently allocated GPU memory estimate, allocated to renderbuffer objects.
 *   **Memory.JS** - The total memory being used by JavaScript.
 *   **Memory.Font.LocalTypefaceCache.Capacity** - The capacity in bytes of the
     font cache for use with local typefaces. This is a hard cap that can never
