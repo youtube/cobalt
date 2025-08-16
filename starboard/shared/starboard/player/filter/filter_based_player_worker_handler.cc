@@ -212,7 +212,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
 }
 
 HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
-    const InputBuffers& input_buffers,
+    InputBuffers input_buffers,
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
@@ -256,7 +256,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         DumpInputHash(input_buffer);
         ++*samples_written;
       }
-      audio_renderer_->WriteSamples(input_buffers);
+      audio_renderer_->WriteSamples(std::move(input_buffers));
     }
   } else {
     SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
@@ -294,7 +294,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         DumpInputHash(input_buffer);
         ++*samples_written;
       }
-      video_renderer_->WriteSamples(input_buffers);
+      video_renderer_->WriteSamples(std::move(input_buffers));
     }
   }
 

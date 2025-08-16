@@ -122,7 +122,7 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
       std::bind(&AudioRendererPassthrough::OnDecoderOutput, this), error_cb);
 }
 
-void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
+void AudioRendererPassthrough::WriteSamples(InputBuffers input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_.load());
@@ -137,7 +137,7 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   can_accept_more_data_.store(false);
 
   decoder_->Decode(
-      input_buffers,
+      std::move(input_buffers),
       std::bind(&AudioRendererPassthrough::OnDecoderConsumed, this));
 }
 

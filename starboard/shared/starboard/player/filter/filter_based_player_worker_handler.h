@@ -50,7 +50,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                      UpdatePlayerStateCB update_player_state_cb,
                      UpdatePlayerErrorCB update_player_error_cb) override;
   HandlerResult Seek(int64_t seek_to_time, int ticket) override;
-  HandlerResult WriteSamples(const InputBuffers& input_buffers,
+  HandlerResult WriteSamples(InputBuffers input_buffers,
                              int* samples_written) override;
   HandlerResult WriteEndOfStream(SbMediaType sample_type) override;
   HandlerResult SetPause(bool pause) override;

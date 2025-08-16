@@ -34,7 +34,7 @@ class AudioRenderer {
   virtual void Initialize(const ErrorCB& error_cb,
                           const PrerolledCB& prerolled_cb,
                           const EndedCB& ended_cb) = 0;
-  virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
+  virtual void WriteSamples(InputBuffers input_buffers) = 0;
   virtual void WriteEndOfStream() = 0;
 
   virtual void SetVolume(double volume) = 0;
