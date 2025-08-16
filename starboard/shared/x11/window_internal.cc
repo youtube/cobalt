@@ -23,6 +23,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/player.h"
@@ -205,7 +206,7 @@ void SbWindowPrivate::CompositeVideoFrame(
           display, video_pixmap,
           XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
     }
-    SB_CHECK(video_picture != None);
+    SB_CHECK_NE(video_picture, None);
 
     XImage image = {0};
     image.width = frame->width();

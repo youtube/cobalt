@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -78,5 +79,5 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
     buffer += result;
   } while (remaining);
 
-  SB_CHECK(remaining == 0);
+  SB_CHECK_EQ(remaining, 0);
 }

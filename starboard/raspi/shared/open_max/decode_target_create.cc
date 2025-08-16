@@ -71,8 +71,8 @@ void CreateWithContextRunner(void* context) {
   target->images[0] = eglCreateImageKHR(
       params->egl_display, params->egl_context, EGL_GL_TEXTURE_2D_KHR,
       (EGLClientBuffer)target->info.planes[0].texture, NULL);
-  SB_DCHECK(eglGetError() == EGL_SUCCESS);
-  SB_DCHECK(target->images[0] != EGL_NO_IMAGE_KHR);
+  SB_DCHECK_EQ(eglGetError(), EGL_SUCCESS);
+  SB_DCHECK_NE(target->images[0], EGL_NO_IMAGE_KHR);
 
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 

@@ -20,6 +20,7 @@
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
@@ -325,7 +326,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = CurrentMonotonicTime();
-    SB_DCHECK(now >= stopped_at_);
+    SB_DCHECK_GE(now, stopped_at_);
     auto time_elapsed = now - stopped_at_;
     int64_t frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
@@ -618,9 +619,9 @@ void AudioRendererPassthrough::OnDecoderOutput() {
       SB_LOG(INFO) << "Got frames per input buffer "
                    << frames_per_input_buffer_;
     } else {
-      SB_DCHECK(frames_per_input_buffer_ ==
-                ParseAc3SyncframeAudioSampleCount(
-                    decoded_audio->data(), decoded_audio->size_in_bytes()));
+      SB_DCHECK_EQ(frames_per_input_buffer_,
+                   ParseAc3SyncframeAudioSampleCount(
+                       decoded_audio->data(), decoded_audio->size_in_bytes()));
     }
   }
 

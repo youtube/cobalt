@@ -16,6 +16,8 @@
 
 #include <utility>
 
+#include "starboard/common/check_op.h"
+
 namespace starboard {
 namespace raspi {
 namespace shared {
@@ -86,7 +88,7 @@ void DispmanxYUV420Resource::WriteData(const void* data) {
   DispmanxRect dst_rect(0, 0, width(), height() * 3 / 2);
   int32_t result = vc_dispmanx_resource_write_data(
       handle(), VC_IMAGE_YUV420, width(), const_cast<void*>(data), &dst_rect);
-  SB_DCHECK(result == 0);
+  SB_DCHECK_EQ(result, 0);
 }
 
 void DispmanxYUV420Resource::ClearWithBlack() {
@@ -103,7 +105,7 @@ void DispmanxRGB565Resource::WriteData(const void* data) {
   int32_t result =
       vc_dispmanx_resource_write_data(handle(), VC_IMAGE_RGB565, width() * 2,
                                       const_cast<void*>(data), &dst_rect);
-  SB_DCHECK(result == 0);
+  SB_DCHECK_EQ(result, 0);
 }
 
 void DispmanxRGB565Resource::ClearWithBlack() {

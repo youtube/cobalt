@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -37,7 +38,7 @@ pthread_once_t s_open_max_initialization_once = PTHREAD_ONCE_INIT;
 
 void DoInitializeOpenMax() {
   OMX_ERRORTYPE error = OMX_Init();
-  SB_DCHECK(error == OMX_ErrorNone)
+  SB_DCHECK_EQ(error, OMX_ErrorNone)
       << "OMX_Init() failed with error code: 0x" << std::hex << error << ".";
 }
 
@@ -63,7 +64,7 @@ OpenMaxComponentBase::OpenMaxComponentBase(const char* name)
 
   OMX_ERRORTYPE error =
       OMX_GetHandle(&handle_, const_cast<char*>(name), this, &callbacks);
-  SB_DCHECK(error == OMX_ErrorNone);
+  SB_DCHECK_EQ(error, OMX_ErrorNone);
 
   for (size_t i = 0; i < SB_ARRAY_SIZE(kPortTypes); ++i) {
     OMX_PORT_PARAM_TYPE port;
@@ -79,8 +80,8 @@ OpenMaxComponentBase::OpenMaxComponentBase(const char* name)
       break;
     }
   }
-  SB_CHECK(input_port_ != kInvalidPort);
-  SB_CHECK(output_port_ != kInvalidPort);
+  SB_CHECK_NE(input_port_, kInvalidPort);
+  SB_CHECK_NE(output_port_, kInvalidPort);
   SB_DLOG(INFO) << "Opened \"" << name << "\" with port " << input_port_
                 << " and " << output_port_;
 }
@@ -95,7 +96,7 @@ OpenMaxComponentBase::~OpenMaxComponentBase() {
 
 void OpenMaxComponentBase::SendCommand(OMX_COMMANDTYPE command, int param) {
   OMX_ERRORTYPE error = OMX_SendCommand(handle_, command, param, NULL);
-  SB_DCHECK(error == OMX_ErrorNone);
+  SB_DCHECK_EQ(error, OMX_ErrorNone);
 }
 
 void OpenMaxComponentBase::WaitForCommandCompletion() {
@@ -157,10 +158,10 @@ OMX_ERRORTYPE OpenMaxComponentBase::EventHandler(OMX_HANDLETYPE handle,
                                                  OMX_U32 data1,
                                                  OMX_U32 data2,
                                                  OMX_PTR event_data) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
-  SB_DCHECK(handle == component->handle_);
+  SB_DCHECK_EQ(handle, component->handle_);
 
   return component->OnEvent(event, data1, data2, event_data);
 }
@@ -170,10 +171,10 @@ OMX_ERRORTYPE OpenMaxComponentBase::EmptyBufferDone(
     OMX_HANDLETYPE handle,
     OMX_PTR app_data,
     OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
-  SB_DCHECK(handle == component->handle_);
+  SB_DCHECK_EQ(handle, component->handle_);
 
   return component->OnEmptyBufferDone(buffer);
 }
@@ -183,10 +184,10 @@ OMX_ERRORTYPE OpenMaxComponentBase::FillBufferDone(
     OMX_HANDLETYPE handle,
     OMX_PTR app_data,
     OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
-  SB_DCHECK(handle == component->handle_);
+  SB_DCHECK_EQ(handle, component->handle_);
 
   component->OnFillBufferDone(buffer);
 

@@ -17,6 +17,7 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 #if defined(ADDRESS_SANITIZER)
@@ -263,7 +264,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // "If configs is not NULL, up to config_size configs will be returned in the
   // array pointed to by configs. The number of configs actually returned will
   // be returned in *num_config." Assert that and resize if needed.
-  SB_CHECK(static_cast<size_t>(num_configs) <= configs.size());
+  SB_CHECK_LE(static_cast<size_t>(num_configs), configs.size());
   configs.resize(num_configs);
 
   // Find the first config that successfully allows a pBuffer surface (i.e. an
@@ -293,8 +294,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
     context_ = EGL_CALL_SIMPLE(eglCreateContext(
         display_, config, EGL_NO_CONTEXT, context_attrib_list));
   }
-  SB_CHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK(context_ != EGL_NO_CONTEXT);
+  SB_CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK_NE(context_, EGL_NO_CONTEXT);
 
   MakeContextCurrent();
 
@@ -337,7 +338,7 @@ void FakeGraphicsContextProvider::MakeContextCurrent() {
   SB_CHECK(EGL_NO_DISPLAY != display_);
   EGL_CALL_SIMPLE(eglMakeCurrent(display_, surface_, surface_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK_EQ(EGL_SUCCESS, error) << " eglGetError " << error;
 }
 
 void FakeGraphicsContextProvider::MakeNoContextCurrent() {
@@ -354,7 +355,7 @@ void FakeGraphicsContextProvider::DestroyContext() {
   MakeNoContextCurrent();
   EGL_CALL_SIMPLE(eglDestroyContext(display_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK_EQ(EGL_SUCCESS, error) << " eglGetError " << error;
 }
 
 // static

@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -91,8 +92,8 @@ AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
       stream_ended_(false),
       audio_stream_info_(audio_stream_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
-  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_stream_info_) !=
-            AV_CODEC_ID_NONE)
+  SB_DCHECK_NE(GetFfmpegCodecIdByMediaCodec(audio_stream_info_),
+               AV_CODEC_ID_NONE)
       << "Unsupported audio codec " << audio_stream_info_.codec;
   ffmpeg_ = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg_);
@@ -129,7 +130,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(input_buffers.size() == 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
-  SB_CHECK(codec_context_ != NULL);
+  SB_CHECK(codec_context_);
 
   Schedule(consumed_cb);
 
