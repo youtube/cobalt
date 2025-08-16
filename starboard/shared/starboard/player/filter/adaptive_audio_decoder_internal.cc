@@ -266,8 +266,8 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
       SB_DCHECK(audio_decoder_);
       TeardownAudioDecoder();
       flushing_ = false;
-      Decode(std::move(pending_input_buffers_),
-             ResetAndReturn(&pending_consumed_cb_));
+      InputBuffers input_buffers = std::move(pending_input_buffers_);
+      Decode(input_buffers, ResetAndReturn(&pending_consumed_cb_));
     } else {
       SB_DCHECK(stream_ended_);
       decoded_audios_.push(std::move(decoded_audio));
