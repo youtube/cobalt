@@ -56,7 +56,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
-  void WriteInputBuffers(const InputBuffers& input_buffers) override;
+  void WriteInputBuffers(InputBuffers input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
 

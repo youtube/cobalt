@@ -86,7 +86,7 @@ class VideoDecoder {
   virtual size_t GetMaxNumberOfCachedFrames() const = 0;
 
   // Send encoded video frames stored in |input_buffers| to decode.
-  virtual void WriteInputBuffers(const InputBuffers& input_buffers) = 0;
+  virtual void WriteInputBuffers(InputBuffers input_buffers) = 0;
 
   // Note that there won't be more input data unless Reset() is called.
   // |decoder_status_cb| can still be called multiple times afterwards to

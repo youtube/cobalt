@@ -494,7 +494,7 @@ int64_t VideoDecoder::GetPrerollTimeout() const {
   return kInitialPrerollTimeout;
 }
 
-void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void VideoDecoder::WriteInputBuffers(InputBuffers input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
@@ -561,7 +561,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
-  WriteInputBuffersInternal(input_buffers);
+  WriteInputBuffersInternal(std::move(input_buffers));
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -763,7 +763,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       SB_DCHECK(pending_input_buffers_.empty());
     }
     if (!pending_input_buffers_.empty()) {
-      WriteInputBuffersInternal(pending_input_buffers_);
+      WriteInputBuffersInternal(std::move(pending_input_buffers_));
       pending_input_buffers_.clear();
     }
     return true;
@@ -828,8 +828,7 @@ void VideoDecoder::OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) {
   sink_->Render();
 }
 
-void VideoDecoder::WriteInputBuffersInternal(
-    const InputBuffers& input_buffers) {
+void VideoDecoder::WriteInputBuffersInternal(InputBuffers input_buffers) {
   SB_DCHECK(!input_buffers.empty());
 
   // There's a race condition when suspending the app. If surface view is
@@ -849,7 +848,7 @@ void VideoDecoder::WriteInputBuffersInternal(
     }
   }
 
-  media_decoder_->WriteInputBuffers(input_buffers);
+  media_decoder_->WriteInputBuffers(std::move(input_buffers));
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {

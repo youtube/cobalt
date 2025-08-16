@@ -128,7 +128,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
 
-  decoder_->WriteInputBuffers(input_buffers);
+  decoder_->WriteInputBuffers(std::move(input_buffers));
 }
 
 void VideoRendererImpl::WriteEndOfStream() {

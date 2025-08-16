@@ -119,7 +119,7 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
 #endif
 
   if (media_decoder_) {
-    media_decoder_->WriteInputBuffers(input_buffers);
+    media_decoder_->WriteInputBuffers(std::move(input_buffers));
   }
 
   std::lock_guard lock(decoded_audios_mutex_);

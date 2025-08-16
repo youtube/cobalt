@@ -149,8 +149,7 @@ void VideoDecoderImpl<FFMPEG>::Initialize(
   error_cb_ = error_cb;
 }
 
-void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
-    const InputBuffers& input_buffers) {
+void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(InputBuffers input_buffers) {
   SB_DCHECK(input_buffers.size() == 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(queue_.Poll().type == kInvalid);

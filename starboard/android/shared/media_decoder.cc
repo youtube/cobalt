@@ -184,7 +184,7 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
   }
 }
 
-void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void MediaDecoder::WriteInputBuffers(InputBuffers input_buffers) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";

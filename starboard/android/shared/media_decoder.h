@@ -104,7 +104,7 @@ class MediaDecoder final
   ~MediaDecoder();
 
   void Initialize(const ErrorCB& error_cb);
-  void WriteInputBuffers(const InputBuffers& input_buffers);
+  void WriteInputBuffers(InputBuffers input_buffers);
   void WriteEndOfStream();
 
   void SetPlaybackRate(double playback_rate);
