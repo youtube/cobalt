@@ -103,7 +103,7 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   }
 }
 
-void AudioDecoder::Decode(const InputBuffers& input_buffers,
+void AudioDecoder::Decode(InputBuffers input_buffers,
                           const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());

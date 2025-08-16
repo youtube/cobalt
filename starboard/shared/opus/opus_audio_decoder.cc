@@ -67,7 +67,7 @@ void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
+void OpusAudioDecoder::Decode(InputBuffers input_buffers,
                               const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
