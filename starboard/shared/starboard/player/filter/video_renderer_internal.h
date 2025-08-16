@@ -33,7 +33,7 @@ class VideoRenderer {
                           const EndedCB& ended_cb) = 0;
   virtual int GetDroppedFrames() const = 0;
 
-  virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
+  virtual void WriteSamples(InputBuffers input_buffers) = 0;
 
   virtual void WriteEndOfStream() = 0;
 

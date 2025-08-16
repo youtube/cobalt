@@ -60,7 +60,7 @@ class AudioRendererPassthrough
   void Initialize(const ErrorCB& error_cb,
                   const PrerolledCB& prerolled_cb,
                   const EndedCB& ended_cb) override;
-  void WriteSamples(const InputBuffers& input_buffers) override;
+  void WriteSamples(InputBuffers input_buffers) override;
   void WriteEndOfStream() override;
 
   void SetVolume(double volume) override;

@@ -91,7 +91,7 @@ class PlayerWorker {
                                UpdatePlayerStateCB update_player_state_cb,
                                UpdatePlayerErrorCB update_player_error_cb) = 0;
     virtual HandlerResult Seek(int64_t seek_to_time, int ticket) = 0;
-    virtual HandlerResult WriteSamples(const InputBuffers& input_buffers,
+    virtual HandlerResult WriteSamples(InputBuffers input_buffers,
                                        int* samples_written) = 0;
     virtual HandlerResult WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual HandlerResult SetPause(bool pause) = 0;
