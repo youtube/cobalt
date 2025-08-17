@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 
-#include <string>
+#include <algorithm>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <mutex>
+#include <utility>
 
 #include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
-#include "starboard/memory.h"
+#include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {
 

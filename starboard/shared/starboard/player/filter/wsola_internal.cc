@@ -23,14 +23,14 @@
 
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
-#include <math.h>
 #include <algorithm>
-#include <numeric>
+#include <cmath>
+#include <cstring>
+#include <limits>
+#include <memory>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
-#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1
@@ -67,11 +67,11 @@ void MultiChannelDotProduct(const DecodedAudio* a,
                             int frame_offset_b,
                             int num_frames,
                             float* dot_product) {
-  SB_DCHECK(a->channels() == b->channels());
-  SB_DCHECK(frame_offset_a >= 0) << frame_offset_a;
-  SB_DCHECK(frame_offset_b >= 0) << frame_offset_b;
-  SB_DCHECK(frame_offset_a + num_frames <= a->frames());
-  SB_DCHECK(frame_offset_b + num_frames <= b->frames());
+  SB_DCHECK_EQ(a->channels(), b->channels());
+  SB_DCHECK_GE(frame_offset_a, 0) << frame_offset_a;
+  SB_DCHECK_GE(frame_offset_b, 0) << frame_offset_b;
+  SB_DCHECK_LE(frame_offset_a + num_frames, a->frames());
+  SB_DCHECK_LE(frame_offset_b + num_frames, b->frames());
 
   const float* a_frames = reinterpret_cast<const float*>(a->data());
   const float* b_frames = reinterpret_cast<const float*>(b->data());
@@ -302,8 +302,8 @@ int OptimalIndex(const DecodedAudio* search_block,
                  SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval) {
   int channels = search_block->channels();
-  SB_DCHECK(channels == target_block->channels());
-  SB_DCHECK(storage_type == kSbMediaAudioFrameStorageTypeInterleaved);
+  SB_DCHECK_EQ(channels, target_block->channels());
+  SB_DCHECK_EQ(storage_type, kSbMediaAudioFrameStorageTypeInterleaved);
 
   int target_size = target_block->frames();
   int num_candidate_blocks = search_block->frames() - (target_size - 1);

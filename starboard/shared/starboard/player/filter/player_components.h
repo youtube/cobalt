@@ -88,14 +88,14 @@ class PlayerComponents {
       SbMediaAudioCodec audio_codec() const { return audio_stream_info_.codec; }
 
       const media::AudioStreamInfo& audio_stream_info() const {
-        SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+        SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
         return audio_stream_info_;
       }
 
       SbMediaVideoCodec video_codec() const { return video_stream_info_.codec; }
 
       const std::string& audio_mime() const {
-        SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+        SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
         return audio_stream_info_.mime;
       }
 

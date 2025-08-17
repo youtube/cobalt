@@ -14,11 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.h"
 
-#include <numeric>
-
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/time.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -45,8 +42,8 @@ void VideoFrameCadencePatternGenerator::UpdateFrameRate(double frame_rate) {
 
 int VideoFrameCadencePatternGenerator::GetNumberOfTimesCurrentFrameDisplays()
     const {
-  SB_DCHECK(refresh_rate_ != kInvalidRefreshRate);
-  SB_DCHECK(frame_rate_ != kInvalidFrameRate);
+  SB_DCHECK_NE(refresh_rate_, kInvalidRefreshRate);
+  SB_DCHECK_NE(frame_rate_, kInvalidFrameRate);
 
   int current_frame_display_times = 0;
 

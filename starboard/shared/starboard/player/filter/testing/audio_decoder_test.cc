@@ -66,8 +66,8 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
   auto sample_type = decoded_audios.front()->sample_type();
 
   for (auto decoded_audio : decoded_audios) {
-    SB_DCHECK(decoded_audio->channels() == channels);
-    SB_DCHECK(decoded_audio->sample_type() == sample_type);
+    SB_DCHECK_EQ(decoded_audio->channels(), channels);
+    SB_DCHECK_EQ(decoded_audio->sample_type(), sample_type);
     SB_DCHECK(decoded_audio->storage_type() ==
               kSbMediaAudioFrameStorageTypeInterleaved);
     total_size_in_bytes += decoded_audio->size_in_bytes();

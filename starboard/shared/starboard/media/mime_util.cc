@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/log.h"
@@ -274,7 +275,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   if (mime_supportability == kSupportabilitySupported) {
     return kSbMediaSupportTypeProbably;
   }
-  SB_DCHECK(mime_supportability == kSupportabilityUnknown);
+  SB_DCHECK_EQ(mime_supportability, kSupportabilityUnknown);
 
   // Call platform functions to check if it's supported.
   if (mime_info.has_audio_info() && !IsSupportedAudioCodec(mime_info)) {

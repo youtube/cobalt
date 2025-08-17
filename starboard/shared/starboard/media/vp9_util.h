@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_VP9_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_VP9_UTIL_H_
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
@@ -38,11 +39,11 @@ class Vp9FrameParser {
     return number_of_subframes_;
   }
   const uint8_t* address_of_subframe(size_t index) const {
-    SB_DCHECK(index < number_of_subframes_);
+    SB_DCHECK_LT(index, number_of_subframes_);
     return subframes_[index].address;
   }
   size_t size_of_subframe(size_t index) const {
-    SB_DCHECK(index < number_of_subframes_);
+    SB_DCHECK_LT(index, number_of_subframes_);
     return subframes_[index].size;
   }
 
