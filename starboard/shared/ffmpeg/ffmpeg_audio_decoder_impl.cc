@@ -129,7 +129,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(input_buffers.size() == 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
-  SB_CHECK(codec_context_ != NULL);
+  SB_CHECK(codec_context_);
 
   Schedule(consumed_cb);
 

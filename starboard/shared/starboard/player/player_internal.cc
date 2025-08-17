@@ -144,7 +144,7 @@ void SbPlayerPrivateImpl::SetBounds(int z_index,
 }
 
 void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
-  SB_DCHECK(out_player_info != NULL);
+  SB_DCHECK(out_player_info);
 
   std::lock_guard lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;

@@ -84,7 +84,7 @@ AudioRendererPcm::AudioRendererPcm(
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
   SB_DCHECK(min_frames_per_append_ > 0);
   SB_DCHECK(max_cached_frames_ >= min_frames_per_append_ * 2);
 

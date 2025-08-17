@@ -47,7 +47,7 @@ JobQueue* GetCurrentThreadJobQueue() {
 }
 
 void SetCurrentThreadJobQueue(JobQueue* job_queue) {
-  SB_DCHECK(job_queue != NULL);
+  SB_DCHECK(job_queue);
   SB_DCHECK(GetCurrentThreadJobQueue() == NULL);
 
   EnsureThreadLocalKeyInited();

@@ -33,7 +33,7 @@ OpenMaxComponent::OpenMaxComponent(const char* name)
       output_component_(NULL) {}
 
 void OpenMaxComponent::SetOutputComponent(OpenMaxComponent* component) {
-  SB_DCHECK(component != NULL);
+  SB_DCHECK(component);
   SB_DCHECK(component->input_buffers_.empty());
   SB_DCHECK(output_component_ == NULL);
   SB_DCHECK(output_buffers_.empty());
