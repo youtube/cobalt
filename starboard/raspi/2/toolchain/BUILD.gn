@@ -50,6 +50,7 @@ gcc_toolchain("native_target") {
     is_clang = false
     current_cpu = "arm"
     current_os = "linux"
+    sysroot = "$raspi_home/busterroot"
     use_cxx17 = true
   }
 }
