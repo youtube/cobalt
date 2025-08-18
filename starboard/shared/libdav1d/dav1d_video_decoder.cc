@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
@@ -44,7 +45,7 @@ void ReleaseInputBuffer(const uint8_t* buf, void* context) {
   SB_DCHECK(buf);
 
   InputBuffer* input_buffer = static_cast<InputBuffer*>(context);
-  SB_DCHECK(input_buffer->data() == buf);
+  SB_DCHECK_EQ(input_buffer->data(), buf);
 
   input_buffer->Release();
 }
@@ -61,7 +62,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecAv1);
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -84,7 +85,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
 
@@ -167,7 +168,7 @@ void VideoDecoder::ReportError(const std::string& error_message) {
 
 void VideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-  SB_DCHECK(dav1d_context_ == NULL);
+  SB_DCHECK_EQ(dav1d_context_, nullptr);
 
   Dav1dSettings dav1d_settings{0};
   dav1d_default_settings(&dav1d_settings);
@@ -253,7 +254,7 @@ void VideoDecoder::DecodeOneBuffer(
       break;
     }
     if (result == kDav1dSuccess) {
-      SB_DCHECK(dav1d_data.sz == 0);  // Check if all data has been consumed.
+      SB_DCHECK_EQ(dav1d_data.sz, 0);  // Check if all data has been consumed.
       ++frames_being_decoded_;
     }
     if (!TryToOutputFrames()) {
@@ -351,7 +352,7 @@ bool VideoDecoder::TryToOutputFrames() {
 
   auto frame = get_frame_from_dav1d();
   while (frame && !error_occurred) {
-    SB_DCHECK(frames_being_decoded_ > 0);
+    SB_DCHECK_GT(frames_being_decoded_, 0);
     --frames_being_decoded_;
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
       std::lock_guard lock(decode_target_mutex_);
@@ -365,7 +366,7 @@ bool VideoDecoder::TryToOutputFrames() {
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.

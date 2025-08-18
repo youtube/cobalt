@@ -18,6 +18,7 @@
 #include <optional>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -45,7 +46,7 @@ class VideoConfig {
 
   const AvcParameterSets& avc_parameter_sets() const {
     SB_DCHECK(is_valid());
-    SB_DCHECK(video_codec_ == kSbMediaVideoCodecH264);
+    SB_DCHECK_EQ(video_codec_, kSbMediaVideoCodecH264);
     SB_DCHECK(avc_parameter_sets_);
     return avc_parameter_sets_.value();
   }
