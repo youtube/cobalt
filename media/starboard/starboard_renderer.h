@@ -191,6 +191,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID)
+  jobject surface_view_ = nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
+
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
   // TODO(b/375274109): Investigate whether we should call

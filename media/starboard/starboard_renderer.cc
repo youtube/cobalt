@@ -534,8 +534,11 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1,
-      nullptr  // surface_view_ when #6582 merged
+      -1
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      surface_view_
+#endif  // BUILDFLAG(IS_ANDROID)
       ));
   if (player_bridge_->IsValid()) {
     // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`

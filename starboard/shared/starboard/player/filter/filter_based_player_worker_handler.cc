@@ -549,7 +549,6 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
-  SB_LOG(INFO) << __func__ << "Set surface_view to " << surface_view;
   surface_view_ = surface_view;
 }
 

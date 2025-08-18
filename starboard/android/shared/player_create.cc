@@ -193,7 +193,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     // player, and sub players are in decode to texture mode on Android, a
     // single video window should be enough.
     if (!starboard::android::shared::VideoSurfaceHolder::
-            IsVideoSurfaceAvailable()) {
+            IsVideoSurfaceAvailable() &&
+        !starboard::android::shared::GetSurfaceViewForCurrentThread()) {
       SB_LOG(ERROR) << "Video surface is not available now.";
       player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
                         "Video surface is not available now");

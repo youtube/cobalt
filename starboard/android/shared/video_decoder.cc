@@ -695,9 +695,6 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
         j_output_surface = static_cast<jobject>(surface_view_);
-
-        SB_LOG(INFO) << __func__ << " Received surface_view_.";
-
         owns_video_surface_ = true;
       } else {
         j_output_surface = AcquireVideoSurface();
