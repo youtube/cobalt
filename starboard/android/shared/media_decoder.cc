@@ -210,8 +210,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     ++number_of_pending_inputs_;
   }
   if (need_signal) {
-    has_pending_data_ = true;
-    has_pending_data_cv_.notify_one();
+    condition_variable_.notify_one();
   }
 }
 
@@ -223,8 +222,7 @@ void MediaDecoder::WriteEndOfStream() {
   pending_inputs_.emplace_back(PendingInput::kWriteEndOfStream);
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
-    has_pending_data_ = true;
-    has_pending_data_cv_.notify_one();
+    condition_variable_.notify_one();
   }
 }
 
@@ -268,14 +266,21 @@ void MediaDecoder::DecoderThreadFunc() {
             pending_input_to_retry_ ||
             (has_pending_input && has_input_buffer_indices);
         if (dequeue_output_results_.empty() && !can_process_input) {
-          if (!has_pending_data_cv_.wait_for(
-                  lock, std::chrono::microseconds(5'000'000),
-                  [this] { return has_pending_data_ || destroying_.load(); })) {
+          if (!condition_variable_.wait_for(
+                  lock, std::chrono::microseconds(5'000'000), [this] {
+                    bool has_pending_input = !pending_inputs_.empty();
+                    bool has_input_buffer_indices =
+                        !input_buffer_indices_.empty();
+                    bool can_process_input =
+                        pending_input_to_retry_ ||
+                        (has_pending_input && has_input_buffer_indices);
+                    return !dequeue_output_results_.empty() ||
+                           can_process_input || destroying_.load();
+                  })) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
           }
         }
-        has_pending_data_ = false;
         SB_DCHECK(dequeue_output_results.empty());
         if (destroying_.load()) {
           break;
@@ -376,11 +381,17 @@ void MediaDecoder::DecoderThreadFunc() {
         can_process_input =
             !pending_inputs.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
-          has_pending_data_cv_.wait_for(
-              lock, std::chrono::microseconds(1000),
-              [this] { return has_pending_data_ || destroying_.load(); });
+          condition_variable_.wait_for(
+              lock, std::chrono::microseconds(1000), [this] {
+                bool has_pending_input = !pending_inputs_.empty();
+                bool has_input_buffer_indices = !input_buffer_indices_.empty();
+                bool can_process_input =
+                    pending_input_to_retry_ ||
+                    (has_pending_input && has_input_buffer_indices);
+                return !dequeue_output_results_.empty() || can_process_input ||
+                       destroying_.load();
+              });
         }
-        has_pending_data_ = false;
       }
     }
   }
@@ -393,7 +404,7 @@ void MediaDecoder::TerminateDecoderThread() {
 
   destroying_.store(true);
 
-  has_pending_data_cv_.notify_one();
+  condition_variable_.notify_one();
 
   if (decoder_thread_ != 0) {
     pthread_join(decoder_thread_, nullptr);
@@ -645,8 +656,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   std::lock_guard<std::mutex> lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
-    has_pending_data_ = true;
-    has_pending_data_cv_.notify_one();
+    condition_variable_.notify_one();
   }
 }
 
@@ -675,8 +685,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
   std::lock_guard<std::mutex> lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
-  has_pending_data_ = true;
-  has_pending_data_cv_.notify_one();
+  condition_variable_.notify_one();
 }
 
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
@@ -690,8 +699,7 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
   std::lock_guard<std::mutex> lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
-  has_pending_data_ = true;
-  has_pending_data_cv_.notify_one();
+  condition_variable_.notify_one();
 }
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
