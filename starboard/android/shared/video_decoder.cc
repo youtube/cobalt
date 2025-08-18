@@ -417,6 +417,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           "Failed to initialize video decoder with error: " + *error_message;
       SB_LOG(ERROR) << *error_message;
       TeardownCodec();
+      return;
     }
   }
 
