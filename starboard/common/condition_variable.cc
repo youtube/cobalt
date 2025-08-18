@@ -36,7 +36,7 @@ ConditionVariable::ConditionVariable(const Mutex& mutex)
 
   pthread_condattr_destroy(&attribute);
 #else
-  int result = pthread_cond_init(&condition_, nullptr);
+  [[maybe_unused]] int result = pthread_cond_init(&condition_, nullptr);
   SB_DCHECK_EQ(result, 0);
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 }
