@@ -72,8 +72,6 @@ ApplicationAndroid::ApplicationAndroid(
   // class.
   RuntimeResourceOverlay::GetInstance();
 
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
-
   JNIEnv* jni_env = base::android::AttachCurrentThread();
   app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp(jni_env);
 
