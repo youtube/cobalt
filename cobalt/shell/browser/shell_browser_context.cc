@@ -34,12 +34,16 @@
 #include "components/keyed_service/core/simple_factory_key.h"
 #include "components/keyed_service/core/simple_key_map.h"
 #include "components/network_session_configurator/common/network_switches.h"
+#include "content/public/browser/background_sync_controller.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/reduce_accept_language_controller_delegate.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_switches.h"
-#include "content/test/mock_background_sync_controller.h"
-#include "content/test/mock_reduce_accept_language_controller_delegate.h"
+#if defined(RUN_BROWSER_TESTS)
+#include "content/test/mock_background_sync_controller.h"  // nogncheck
+#include "content/test/mock_reduce_accept_language_controller_delegate.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 
@@ -144,11 +148,15 @@ BackgroundFetchDelegate* ShellBrowserContext::GetBackgroundFetchDelegate() {
 }
 
 BackgroundSyncController* ShellBrowserContext::GetBackgroundSyncController() {
+#if defined(RUN_BROWSER_TESTS)
   if (!background_sync_controller_) {
     background_sync_controller_ =
         std::make_unique<MockBackgroundSyncController>();
   }
   return background_sync_controller_.get();
+#else
+  return nullptr;
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 BrowsingDataRemoverDelegate*
@@ -165,12 +173,16 @@ ContentIndexProvider* ShellBrowserContext::GetContentIndexProvider() {
 
 ReduceAcceptLanguageControllerDelegate*
 ShellBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
+#if defined(RUN_BROWSER_TESTS)
   if (!reduce_accept_lang_controller_delegate_) {
     reduce_accept_lang_controller_delegate_ =
         std::make_unique<MockReduceAcceptLanguageControllerDelegate>(
             GetShellLanguage());
   }
   return reduce_accept_lang_controller_delegate_.get();
+#else
+  return nullptr;
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 OriginTrialsControllerDelegate*

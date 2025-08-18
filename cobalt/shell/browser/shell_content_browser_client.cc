@@ -49,7 +49,9 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+#if defined(RUN_BROWSER_TESTS)
+#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 #include "components/embedder_support/switches.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/client_info.h"
@@ -335,11 +337,13 @@ ShellContentBrowserClient::CreateBrowserMainParts(
 bool ShellContentBrowserClient::HasCustomSchemeHandler(
     content::BrowserContext* browser_context,
     const std::string& scheme) {
+#if defined(RUN_BROWSER_TESTS)
   if (custom_handlers::ProtocolHandlerRegistry* protocol_handler_registry =
           custom_handlers::SimpleProtocolHandlerRegistryFactory::
               GetForBrowserContext(browser_context)) {
     return protocol_handler_registry->IsHandledProtocol(scheme);
   }
+#endif  // defined(RUN_BROWSER_TESTS)
   return false;
 }
 
@@ -353,6 +357,7 @@ ShellContentBrowserClient::CreateURLLoaderThrottles(
     std::optional<int64_t> navigation_id) {
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>> result;
 
+#if defined(RUN_BROWSER_TESTS)
   auto* factory = custom_handlers::SimpleProtocolHandlerRegistryFactory::
       GetForBrowserContext(browser_context);
   // null in unit tests.
@@ -360,6 +365,7 @@ ShellContentBrowserClient::CreateURLLoaderThrottles(
     result.push_back(
         std::make_unique<custom_handlers::ProtocolHandlerThrottle>(*factory));
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
   return result;
 }

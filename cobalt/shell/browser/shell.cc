@@ -37,7 +37,9 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+#if defined(RUN_BROWSER_TESTS)
+#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
@@ -550,6 +552,7 @@ void Shell::RegisterProtocolHandler(RenderFrameHost* requesting_frame,
   // https://html.spec.whatwg.org/multipage/system-state.html#normalize-protocol-handler-parameters
   DCHECK(handler.IsValid());
 
+#if defined(RUN_BROWSER_TESTS)
   custom_handlers::ProtocolHandlerRegistry* registry = custom_handlers::
       SimpleProtocolHandlerRegistryFactory::GetForBrowserContext(context, true);
   DCHECK(registry);
@@ -579,6 +582,7 @@ void Shell::RegisterProtocolHandler(RenderFrameHost* requesting_frame,
       custom_handlers::RphRegistrationMode::kAutoAccept) {
     registry->OnAcceptRegisterProtocolHandler(handler);
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 void Shell::UnregisterProtocolHandler(RenderFrameHost* requesting_frame,
