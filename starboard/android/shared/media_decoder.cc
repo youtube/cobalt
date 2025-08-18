@@ -377,7 +377,8 @@ void MediaDecoder::DecoderThreadFunc() {
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
         can_process_input =
-            !pending_inputs.empty() && !input_buffer_indices.empty();
+            pending_input_to_retry_ ||
+            (!pending_inputs.empty() && !input_buffer_indices.empty());
         if (!can_process_input && dequeue_output_results.empty()) {
           condition_variable_.wait_for(
               lock, std::chrono::microseconds(1000), [this] {
