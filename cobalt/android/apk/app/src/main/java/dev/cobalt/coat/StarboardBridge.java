@@ -40,9 +40,11 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -99,8 +101,8 @@ public class StarboardBridge {
   private long mAppStartTimestamp = 0;
   private long mAppStartDuration = 0;
 
-  private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
-  private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
+  private final Map<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
+  private final Map<String, CobaltService> cobaltServices = new ConcurrentHashMap<>();
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
