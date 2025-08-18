@@ -110,22 +110,22 @@ AudioSinkTestEnvironment::~AudioSinkTestEnvironment() {
 }
 
 void AudioSinkTestEnvironment::SetIsPlaying(bool is_playing) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   is_playing_ = is_playing;
 }
 
 void AudioSinkTestEnvironment::AppendFrame(int frames_to_append) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   AppendFrame_Locked(frames_to_append);
 }
 
 int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames() const {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   return GetFrameBufferFreeSpaceInFrames_Locked();
 }
 
 bool AudioSinkTestEnvironment::WaitUntilUpdateStatusCalled() {
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   int update_source_status_call_count = update_source_status_call_count_;
   return condition_variable_.wait_for(
       lock, std::chrono::microseconds(kTimeToTry),
@@ -136,7 +136,7 @@ bool AudioSinkTestEnvironment::WaitUntilUpdateStatusCalled() {
 }
 
 bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   int frames_consumed = frames_consumed_;
   return condition_variable_.wait_for(
       lock, std::chrono::microseconds(kTimeToTry),
@@ -146,7 +146,7 @@ bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
 bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
   const int kMaximumFramesPerAppend = 1024;
 
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   is_eos_reached_ = true;
   int frames_appended_before_eos = frames_appended_;
   int64_t start = CurrentMonotonicTime();
@@ -186,7 +186,7 @@ void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,
                                                     int* offset_in_frames,
                                                     bool* is_playing,
                                                     bool* is_eos_reached) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   *frames_in_buffer = frames_appended_ - frames_consumed_;
   *offset_in_frames = frames_consumed_ % frame_buffers_.frames_per_channel();
   *is_playing = is_playing_;
@@ -196,7 +196,7 @@ void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,
 }
 
 void AudioSinkTestEnvironment::OnConsumeFrames(int frames_consumed) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   frames_consumed_ += frames_consumed;
   condition_variable_.notify_one();
 }
