@@ -9,6 +9,7 @@
 #include <atomic>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard {

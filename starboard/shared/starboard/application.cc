@@ -17,6 +17,7 @@
 #include <atomic>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
@@ -70,7 +71,7 @@ Application::~Application() {
   g_instance.compare_exchange_weak(old_instance, NULL,
                                    std::memory_order_acquire);
   SB_DCHECK(old_instance);
-  SB_DCHECK(old_instance == this);
+  SB_DCHECK_EQ(old_instance, this);
   free(start_link_);
 }
 
@@ -204,13 +205,13 @@ void Application::SetStartLink(const char* start_link) {
 
 void Application::DispatchStart(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
-  SB_DCHECK(state_ == kStateUnstarted);
+  SB_DCHECK_EQ(state_, kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
 }
 
 void Application::DispatchPreload(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
-  SB_DCHECK(state_ == kStateUnstarted);
+  SB_DCHECK_EQ(state_, kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
 }
 
@@ -400,46 +401,46 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
 
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
-      SB_DCHECK(state() == kStateUnstarted);
+      SB_DCHECK_EQ(state(), kStateUnstarted);
       state_ = kStateConcealed;
       break;
     case kSbEventTypeStart:
-      SB_DCHECK(state() == kStateUnstarted);
+      SB_DCHECK_EQ(state(), kStateUnstarted);
       state_ = kStateStarted;
       break;
     case kSbEventTypeBlur:
-      SB_DCHECK(state() == kStateStarted);
+      SB_DCHECK_EQ(state(), kStateStarted);
       state_ = kStateBlurred;
       break;
     case kSbEventTypeFocus:
-      SB_DCHECK(state() == kStateBlurred);
+      SB_DCHECK_EQ(state(), kStateBlurred);
       state_ = kStateStarted;
       break;
     case kSbEventTypeConceal:
-      SB_DCHECK(state() == kStateBlurred);
+      SB_DCHECK_EQ(state(), kStateBlurred);
       state_ = kStateConcealed;
       break;
     case kSbEventTypeReveal:
-      SB_DCHECK(state() == kStateConcealed);
+      SB_DCHECK_EQ(state(), kStateConcealed);
       state_ = kStateBlurred;
       break;
     case kSbEventTypeFreeze:
-      SB_DCHECK(state() == kStateConcealed);
+      SB_DCHECK_EQ(state(), kStateConcealed);
       state_ = kStateFrozen;
       break;
     case kSbEventTypeUnfreeze:
-      SB_DCHECK(state() == kStateFrozen);
+      SB_DCHECK_EQ(state(), kStateFrozen);
       state_ = kStateConcealed;
       break;
     case kSbEventTypeStop:
-      SB_DCHECK(state() == kStateFrozen);
+      SB_DCHECK_EQ(state(), kStateFrozen);
       state_ = kStateStopped;
       return false;
     default:
       break;
   }
   // Should not be unstarted after the first event.
-  SB_DCHECK(state() != kStateUnstarted);
+  SB_DCHECK_NE(state(), kStateUnstarted);
   return true;
 }
 

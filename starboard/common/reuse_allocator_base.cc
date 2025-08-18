@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 
@@ -30,7 +31,7 @@ namespace {
 const size_t kMinBlockSizeBytes = 16;
 
 int ceil_power_2(int i) {
-  SB_DCHECK(i >= 0);
+  SB_DCHECK_GE(i, 0);
 
   for (size_t power = 0; power < sizeof(i) * 8 - 1; ++power) {
     if ((1 << power) >= i) {
@@ -45,17 +46,17 @@ int ceil_power_2(int i) {
 }  // namespace
 
 bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
-  SB_DCHECK(fallback_allocation_index_ >= 0);
-  SB_DCHECK(other.fallback_allocation_index_ >= 0);
+  SB_DCHECK_GE(fallback_allocation_index_, 0);
+  SB_DCHECK_GE(other.fallback_allocation_index_, 0);
 
   if (AsInteger(address_) + size_ == AsInteger(other.address_)) {
-    SB_DCHECK(fallback_allocation_index_ <= other.fallback_allocation_index_);
+    SB_DCHECK_LE(fallback_allocation_index_, other.fallback_allocation_index_);
 
     size_ += other.size_;
     return true;
   }
   if (AsInteger(other.address_) + other.size_ == AsInteger(address_)) {
-    SB_DCHECK(fallback_allocation_index_ >= other.fallback_allocation_index_);
+    SB_DCHECK_GE(fallback_allocation_index_, other.fallback_allocation_index_);
 
     fallback_allocation_index_ = other.fallback_allocation_index_;
     address_ = other.address_;
@@ -67,7 +68,7 @@ bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
 
 bool ReuseAllocatorBase::MemoryBlock::CanFulfill(size_t request_size,
                                                  size_t alignment) const {
-  SB_DCHECK(fallback_allocation_index_ >= 0);
+  SB_DCHECK_GE(fallback_allocation_index_, 0);
 
   const size_t extra_bytes_for_alignment =
       AlignUp(AsInteger(address_), alignment) - AsInteger(address_);
@@ -80,7 +81,7 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(size_t request_size,
                                                bool allocate_from_front,
                                                MemoryBlock* allocated,
                                                MemoryBlock* free) const {
-  SB_DCHECK(fallback_allocation_index_ >= 0);
+  SB_DCHECK_GE(fallback_allocation_index_, 0);
   SB_DCHECK(allocated);
   SB_DCHECK(free);
   SB_DCHECK(CanFulfill(request_size, alignment));
@@ -278,7 +279,7 @@ bool ReuseAllocatorBase::TryFree(void* memory) {
   const MemoryBlock& block = (*it).second;
   AddFreeBlock(block);
 
-  SB_DCHECK(block.size() <= total_allocated_);
+  SB_DCHECK_LE(block.size(), total_allocated_);
   total_allocated_ -= block.size();
 
   allocated_blocks_.erase(it);
@@ -418,7 +419,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }
-  SB_DCHECK(size_to_allocate > 0);
+  SB_DCHECK_GT(size_to_allocate, 0U);
   ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
   if (ptr == NULL) {
     return free_blocks_.end();

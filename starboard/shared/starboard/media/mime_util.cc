@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/log.h"
@@ -54,7 +55,7 @@ bool IsSupportedKeySystem(SbMediaAudioCodec codec, const char* key_system) {
   SB_DCHECK(key_system);
   // KeySystemSupportabilityCache() should always return supported for empty
   // |key_system|, so here it should always be non empty.
-  SB_DCHECK(strlen(key_system) > 0);
+  SB_DCHECK_GT(strlen(key_system), 0U);
 
   return MediaIsSupported(kSbMediaVideoCodecNone, codec, key_system);
 }
@@ -63,7 +64,7 @@ bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
   SB_DCHECK(key_system);
   // KeySystemSupportabilityCache() should always return supported for empty
   // |key_system|, so here it should always be non empty.
-  SB_DCHECK(strlen(key_system) > 0);
+  SB_DCHECK_GT(strlen(key_system), 0U);
 
   return MediaIsSupported(codec, kSbMediaAudioCodecNone, key_system);
 }
@@ -274,7 +275,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   if (mime_supportability == kSupportabilitySupported) {
     return kSbMediaSupportTypeProbably;
   }
-  SB_DCHECK(mime_supportability == kSupportabilityUnknown);
+  SB_DCHECK_EQ(mime_supportability, kSupportabilityUnknown);
 
   // Call platform functions to check if it's supported.
   if (mime_info.has_audio_info() && !IsSupportedAudioCodec(mime_info)) {

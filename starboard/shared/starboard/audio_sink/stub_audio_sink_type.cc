@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
@@ -73,7 +74,7 @@ StubAudioSink::StubAudioSink(
       destroying_(false) {
   pthread_create(&audio_out_thread_, nullptr, &StubAudioSink::ThreadEntryPoint,
                  this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 StubAudioSink::~StubAudioSink() {

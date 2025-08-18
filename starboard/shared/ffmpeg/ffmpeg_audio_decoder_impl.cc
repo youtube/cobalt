@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -126,7 +127,7 @@ void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
 void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
                                       const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
   SB_CHECK(codec_context_ != NULL);
@@ -171,7 +172,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
 
     if (frame_decoded != 1) {
       // TODO: Adjust timestamp accordingly when decoding result is shifted.
-      SB_DCHECK(frame_decoded == 0);
+      SB_DCHECK_EQ(frame_decoded, 0);
       SB_DLOG(WARNING) << "avcodec_decode_audio4()/avcodec_receive_frame() "
                           "returns with 0 frames decoded";
       return;
@@ -241,7 +242,7 @@ void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     memcpy(decoded_audio->data(), *av_frame.extended_data,
            decoded_audio->size_in_bytes());
   } else {
-    SB_DCHECK(GetStorageType() == kSbMediaAudioFrameStorageTypePlanar);
+    SB_DCHECK_EQ(GetStorageType(), kSbMediaAudioFrameStorageTypePlanar);
     const int per_channel_size_in_bytes =
         decoded_audio->size_in_bytes() / decoded_audio->channels();
     for (int i = 0; i < decoded_audio->channels(); ++i) {

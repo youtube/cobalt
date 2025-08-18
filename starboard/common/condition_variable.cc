@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
@@ -30,13 +31,13 @@ ConditionVariable::ConditionVariable(const Mutex& mutex)
   pthread_condattr_init(&attribute);
   pthread_condattr_setclock(&attribute, CLOCK_MONOTONIC);
 
-  int result = pthread_cond_init(&condition_, &attribute);
-  SB_DCHECK(result == 0);
+  [[maybe_unused]] int result = pthread_cond_init(&condition_, &attribute);
+  SB_DCHECK_EQ(result, 0);
 
   pthread_condattr_destroy(&attribute);
 #else
-  int result = pthread_cond_init(&condition_, nullptr);
-  SB_DCHECK(result == 0);
+  [[maybe_unused]] int result = pthread_cond_init(&condition_, nullptr);
+  SB_DCHECK_EQ(result, 0);
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 }
 

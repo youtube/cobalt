@@ -107,7 +107,7 @@ void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
 void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
                                        int number_of_sample_infos) {
   SB_DCHECK(sample_infos);
-  SB_DCHECK(number_of_sample_infos > 0);
+  SB_DCHECK_GT(number_of_sample_infos, 0);
 
   InputBuffers input_buffers;
   input_buffers.reserve(number_of_sample_infos);
@@ -201,7 +201,7 @@ SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
 bool SbPlayerPrivateImpl::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
-  SB_DCHECK(index >= 0);
+  SB_DCHECK_GE(index, 0);
   SB_DCHECK(out_audio_configuration);
 
   std::lock_guard lock(audio_configurations_mutex_);

@@ -18,18 +18,19 @@
 #include "EGL/egl.h"
 #include "GLES2/gl2.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-#define GL_CALL(x)                          \
-  do {                                      \
-    x;                                      \
-    SB_DCHECK(glGetError() == GL_NO_ERROR); \
+#define GL_CALL(x)                                                \
+  do {                                                            \
+    x;                                                            \
+    SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR)); \
   } while (false)
 
-#define EGL_CALL(x)                          \
-  do {                                       \
-    x;                                       \
-    SB_DCHECK(eglGetError() == EGL_SUCCESS); \
+#define EGL_CALL(x)                           \
+  do {                                        \
+    x;                                        \
+    SB_DCHECK_EQ(eglGetError(), EGL_SUCCESS); \
   } while (false)
 
 #endif  // STARBOARD_SHARED_GLES_GL_CALL_H_

@@ -14,6 +14,7 @@
 
 #include "starboard/player.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/player_internal.h"
@@ -23,7 +24,7 @@ bool SbPlayerGetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
   SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(index >= 0);
+  SB_DCHECK_GE(index, 0);
   SB_DCHECK(out_audio_configuration);
 
   return player->GetAudioConfiguration(index, out_audio_configuration);

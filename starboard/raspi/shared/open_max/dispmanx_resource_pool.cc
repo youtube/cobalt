@@ -14,6 +14,7 @@
 
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {

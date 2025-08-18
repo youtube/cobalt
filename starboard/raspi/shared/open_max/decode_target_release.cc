@@ -17,12 +17,13 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget target) {
   if (SbDecodeTargetIsValid(target)) {
-    SB_DCHECK(target->info.format == kSbDecodeTargetFormat1PlaneRGBA);
+    SB_DCHECK_EQ(target->info.format, kSbDecodeTargetFormat1PlaneRGBA);
     // This may need to change if we support more than just
     // kSbDecodeTargetFormat1PlaneRGBA.
     const int kNumPlanes = 1;
@@ -30,10 +31,10 @@ void SbDecodeTargetRelease(SbDecodeTarget target) {
     for (int plane = 0; plane < kNumPlanes; ++plane) {
       if (target->images[plane] != EGL_NO_IMAGE_KHR) {
         eglDestroyImageKHR(target->display, target->images[plane]);
-        SB_DCHECK(eglGetError() == EGL_SUCCESS);
+        SB_DCHECK_EQ(eglGetError(), EGL_SUCCESS);
 
         glDeleteTextures(1, &target->info.planes[0].texture);
-        SB_DCHECK(glGetError() == GL_NO_ERROR);
+        SB_DCHECK_EQ(glGetError(), GL_NO_ERROR);
       }
     }
     delete target;

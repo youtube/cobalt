@@ -20,6 +20,7 @@
 #include <functional>
 #include <memory>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
@@ -43,11 +44,11 @@ class DispmanxDisplay {
   DispmanxDisplay() {
     bcm_host_init();
     handle_ = vc_dispmanx_display_open(0);
-    SB_DCHECK(handle_ != DISPMANX_NO_HANDLE);
+    SB_DCHECK_NE(handle_, DISPMANX_NO_HANDLE);
   }
   ~DispmanxDisplay() {
     int result = vc_dispmanx_display_close(handle_);
-    SB_DCHECK(result == 0);
+    SB_DCHECK_EQ(result, 0);
     bcm_host_deinit();
   }
 

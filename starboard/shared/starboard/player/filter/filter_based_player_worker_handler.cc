@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"
@@ -90,7 +91,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
-  SB_DCHECK(update_media_info_cb_ == NULL);
+  SB_DCHECK(!update_media_info_cb_);
 
   // All parameters have to be valid.
   SB_DCHECK(SbPlayerIsValid(player));
@@ -259,7 +260,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
       audio_renderer_->WriteSamples(input_buffers);
     }
   } else {
-    SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
 
     if (!video_renderer_) {
       return HandlerResult{false, "Invalid video renderer."};

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
@@ -87,29 +88,29 @@ class PlayerComponents {
       SbMediaAudioCodec audio_codec() const { return audio_stream_info_.codec; }
 
       const media::AudioStreamInfo& audio_stream_info() const {
-        SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+        SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
         return audio_stream_info_;
       }
 
       SbMediaVideoCodec video_codec() const { return video_stream_info_.codec; }
 
       const std::string& audio_mime() const {
-        SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+        SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
         return audio_stream_info_.mime;
       }
 
       const media::VideoStreamInfo& video_stream_info() const {
-        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return video_stream_info_;
       }
 
       const std::string& video_mime() const {
-        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return video_stream_info_.mime;
       }
 
       const std::string& max_video_capabilities() const {
-        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return video_stream_info_.max_video_capabilities;
       }
 
@@ -118,7 +119,7 @@ class PlayerComponents {
       int max_video_input_size() const { return max_video_input_size_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
-        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
 

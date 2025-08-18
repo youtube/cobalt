@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -38,7 +39,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
       eos_written_(false),
       thread_(0),
       request_thread_termination_(false) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);
   update_job_ = std::bind(&VideoDecoder::Update, this);
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
@@ -64,13 +65,13 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 
-  SB_DCHECK(thread_ == 0);
+  SB_DCHECK_EQ(thread_, 0);
   pthread_create(&thread_, nullptr, &VideoDecoder::ThreadEntryPoint, this);
-  SB_DCHECK(thread_ != 0);
+  SB_DCHECK_NE(thread_, 0);
 }
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK(!eos_written_);
@@ -179,7 +180,7 @@ void VideoDecoder::RunLoop() {
         int written = component.WriteData(
             current_buffer->data() + offset, size - offset,
             OpenMaxComponent::kDataNonEOS, current_buffer->timestamp());
-        SB_DCHECK(written >= 0);
+        SB_DCHECK_GE(written, 0);
         offset += written;
         if (written == 0) {
           break;

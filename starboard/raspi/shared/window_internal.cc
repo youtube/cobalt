@@ -14,6 +14,7 @@
 
 #include "starboard/raspi/shared/window_internal.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace {
@@ -36,7 +37,7 @@ SbWindowPrivate::SbWindowPrivate(const DispmanxDisplay& display,
     // Default is the full screen.
     int32_t result =
         graphics_get_display_size(0, &window_width, &window_height);
-    SB_DCHECK(result >= 0);
+    SB_DCHECK_GE(result, 0);
   }
 
   DispmanxRect destination_rect(0, 0, window_width, window_height);
