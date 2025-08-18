@@ -36,7 +36,7 @@ OpenMaxComponent::OpenMaxComponent(const char* name)
 void OpenMaxComponent::SetOutputComponent(OpenMaxComponent* component) {
   SB_DCHECK(component);
   SB_DCHECK(component->input_buffers_.empty());
-  SB_DCHECK_EQ(output_component_, NULL);
+  SB_DCHECK_EQ(output_component_, nullptr);
   SB_DCHECK(output_buffers_.empty());
   output_component_ = component;
 }
@@ -164,7 +164,7 @@ OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetOutputBuffer() {
     return NULL;
   }
 
-  SB_DCHECK_EQ(output_component_, NULL);
+  SB_DCHECK_EQ(output_component_, nullptr);
   OMX_BUFFERHEADERTYPE* buffer = filled_output_buffers_.front();
   filled_output_buffers_.pop();
   ++outstanding_output_buffers_;

@@ -71,7 +71,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
     SbDecodeTargetFormat output_format,
     const void* data,
     int data_size) {
-  SB_DCHECK_EQ(target_, NULL);
+  SB_DCHECK_EQ(target_, nullptr);
 
   graphics_context_provider_ = provider;
   SetInputFormat(mime_type, output_format);
