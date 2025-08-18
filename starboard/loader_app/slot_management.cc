@@ -37,6 +37,11 @@
 
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
+<<<<<<< HEAD
+=======
+
+#include "starboard/common/check_op.h"
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "third_party/jsoncpp/source/include/json/reader.h"
 #include "third_party/jsoncpp/source/include/json/value.h"
 
@@ -176,7 +181,7 @@ int RevertBack(int current_installation,
                bool mark_bad,
                SlotSelectionStatus status) {
   SB_LOG(INFO) << "RevertBack current_installation=" << current_installation;
-  SB_DCHECK(current_installation != 0);
+  SB_DCHECK_NE(current_installation, 0);
   if (mark_bad) {
     std::vector<char> installation_path(kSbFileMaxPath);
     if (ImGetInstallationPath(current_installation, installation_path.data(),

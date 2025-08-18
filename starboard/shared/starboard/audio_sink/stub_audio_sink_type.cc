@@ -19,7 +19,11 @@
 
 #include <algorithm>
 
+<<<<<<< HEAD
 #include "starboard/common/mutex.h"
+=======
+#include "starboard/common/check_op.h"
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
@@ -73,7 +77,7 @@ StubAudioSink::StubAudioSink(
       destroying_(false) {
   pthread_create(&audio_out_thread_, nullptr, &StubAudioSink::ThreadEntryPoint,
                  this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 StubAudioSink::~StubAudioSink() {

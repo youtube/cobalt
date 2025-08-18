@@ -16,8 +16,13 @@
 
 #include <string>
 
+<<<<<<< HEAD
 #include "starboard/common/condition_variable.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
+=======
+#include "starboard/common/check_op.h"
+#include "starboard/thread.h"
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 
 namespace starboard::shared::starboard::player {
 
@@ -55,11 +60,18 @@ JobThread::JobThread(const char* thread_name,
                  &thread_param);
   pthread_attr_destroy(&attributes);
 
+<<<<<<< HEAD
   SB_DCHECK(thread_ != 0);
   ScopedLock scoped_lock(thread_param.mutex);
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
   }
+=======
+  SB_DCHECK_NE(thread_, 0);
+  std::unique_lock lock(thread_param.mutex);
+  thread_param.condition_variable.wait(
+      lock, [this] { return job_queue_ != nullptr; });
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
   SB_DCHECK(job_queue_);
 }
 

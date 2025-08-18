@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 
@@ -26,7 +27,7 @@ namespace common {
 namespace {
 
 int ceil_power_2(int i) {
-  SB_DCHECK(i >= 0);
+  SB_DCHECK_GE(i, 0);
 
   for (int power = 0; power < sizeof(i) * 8 - 1; ++power) {
     if ((1 << power) >= i) {
@@ -40,17 +41,17 @@ int ceil_power_2(int i) {
 }  // namespace
 
 bool InPlaceReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
-  SB_DCHECK(fallback_allocation_index_ >= 0);
-  SB_DCHECK(other.fallback_allocation_index_ >= 0);
+  SB_DCHECK_GE(fallback_allocation_index_, 0);
+  SB_DCHECK_GE(other.fallback_allocation_index_, 0);
 
   if (AsInteger(address_) + size_ == AsInteger(other.address_)) {
-    SB_DCHECK(fallback_allocation_index_ <= other.fallback_allocation_index_);
+    SB_DCHECK_LE(fallback_allocation_index_, other.fallback_allocation_index_);
 
     size_ += other.size_;
     return true;
   }
   if (AsInteger(other.address_) + other.size_ == AsInteger(address_)) {
-    SB_DCHECK(fallback_allocation_index_ >= other.fallback_allocation_index_);
+    SB_DCHECK_GE(fallback_allocation_index_, other.fallback_allocation_index_);
 
     fallback_allocation_index_ = other.fallback_allocation_index_;
     address_ = other.address_;
@@ -63,7 +64,7 @@ bool InPlaceReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
 bool InPlaceReuseAllocatorBase::MemoryBlock::CanFulfill(
     size_t request_size,
     size_t alignment) const {
-  SB_DCHECK(fallback_allocation_index_ >= 0);
+  SB_DCHECK_GE(fallback_allocation_index_, 0);
 
   const size_t extra_bytes_for_alignment =
       AlignUp(AsInteger(address_), alignment) - AsInteger(address_);
@@ -76,7 +77,7 @@ void InPlaceReuseAllocatorBase::MemoryBlock::Allocate(size_t request_size,
                                                       bool allocate_from_front,
                                                       MemoryBlock* allocated,
                                                       MemoryBlock* free) const {
-  SB_DCHECK(fallback_allocation_index_ >= 0);
+  SB_DCHECK_GE(fallback_allocation_index_, 0);
   SB_DCHECK(allocated);
   SB_DCHECK(free);
   SB_DCHECK(CanFulfill(request_size, alignment));
@@ -137,7 +138,7 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size) {
 }
 
 void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
-  SB_DCHECK(sizeof(BlockMetadata) % alignment == 0);
+  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
   if (!pending_frees_.empty()) {
     for (auto address_to_free : pending_frees_) {
@@ -181,7 +182,7 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
 
   SB_DCHECK(reinterpret_cast<intptr_t>(allocated_block.address()) % alignment ==
             0);
-  SB_DCHECK(sizeof(BlockMetadata) % alignment == 0);
+  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
   void* user_address =
       static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
@@ -333,23 +334,23 @@ bool InPlaceReuseAllocatorBase::TryFree(void* memory) {
 
   // Detach the node from the linked list
   if (metadata->previous != nullptr) {
-    SB_DCHECK(metadata->previous->next == metadata);
+    SB_DCHECK_EQ(metadata->previous->next, metadata);
     metadata->previous->next = metadata->next;
   }
   if (metadata->next != nullptr) {
-    SB_DCHECK(metadata->next->previous == metadata);
+    SB_DCHECK_EQ(metadata->next->previous, metadata);
     metadata->next->previous = metadata->previous;
   }
 
   // Update the head, if the node is the head.
   if (metadata->previous == nullptr) {
-    SB_DCHECK(metadata == allocated_block_head_);
+    SB_DCHECK_EQ(metadata, allocated_block_head_);
 
     allocated_block_head_ = metadata->next;
 
     if (metadata->next) {
       // It should have been updated during detaching above.
-      SB_DCHECK(metadata->next->previous == nullptr);
+      SB_DCHECK_EQ(metadata->next->previous, nullptr);
     }
   }
 
@@ -357,7 +358,7 @@ bool InPlaceReuseAllocatorBase::TryFree(void* memory) {
   MemoryBlock block(metadata->fallback_index, metadata, metadata->size);
   AddFreeBlock(block);
 
-  SB_DCHECK(block.size() <= total_allocated_in_bytes_);
+  SB_DCHECK_LE(block.size(), total_allocated_in_bytes_);
   total_allocated_in_bytes_ -= block.size();
   --total_allocated_blocks_;
 
@@ -500,7 +501,7 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }
-  SB_DCHECK(size_to_allocate > 0);
+  SB_DCHECK_GT(size_to_allocate, 0U);
   ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
   if (ptr == NULL) {
     return free_blocks_.end();
@@ -547,7 +548,7 @@ void InPlaceReuseAllocatorBase::AddAllocatedBlock(const MemoryBlock& block) {
 
   // The node will be the new head, so let the existing head be its next node.
   if (allocated_block_head_) {
-    SB_DCHECK(allocated_block_head_->previous == nullptr);
+    SB_DCHECK_EQ(allocated_block_head_->previous, nullptr);
 
     allocated_block_head_->previous = metadata;
     metadata->next = allocated_block_head_;

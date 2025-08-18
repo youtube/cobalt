@@ -16,6 +16,11 @@
 
 #include <string>
 
+<<<<<<< HEAD
+=======
+#include "starboard/common/check_op.h"
+#include "starboard/common/command_line.h"
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/crashpad_wrapper/annotations.h"
@@ -103,7 +108,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
 void SbEventHandle(const SbEvent* event) {
   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-  SB_CHECK(pthread_mutex_lock(&mutex) == 0);
+  SB_CHECK_EQ(pthread_mutex_lock(&mutex), 0);
 
   if (!g_sb_event_func) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
@@ -117,5 +122,5 @@ void SbEventHandle(const SbEvent* event) {
 
   g_sb_event_func(event);
 
-  SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
+  SB_CHECK_EQ(pthread_mutex_unlock(&mutex), 0);
 }

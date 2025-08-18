@@ -22,6 +22,13 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
+<<<<<<< HEAD
+=======
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
+#include "starboard/common/check_op.h"
+
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 namespace starboard::android::shared {
 
 namespace {
@@ -179,7 +186,7 @@ int AudioTrackBridge::WriteSample(const float* samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
   env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_), kNoOffset,
@@ -194,7 +201,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
@@ -218,7 +225,7 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 

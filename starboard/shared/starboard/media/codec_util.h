@@ -18,6 +18,11 @@
 #include <optional>
 #include <vector>
 
+<<<<<<< HEAD
+=======
+#include "starboard/common/check_op.h"
+#include "starboard/common/size.h"
+>>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"
@@ -45,7 +50,7 @@ class VideoConfig {
 
   const AvcParameterSets& avc_parameter_sets() const {
     SB_DCHECK(is_valid());
-    SB_DCHECK(video_codec_ == kSbMediaVideoCodecH264);
+    SB_DCHECK_EQ(video_codec_, kSbMediaVideoCodecH264);
     SB_DCHECK(avc_parameter_sets_);
     return avc_parameter_sets_.value();
   }

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
@@ -66,20 +67,20 @@ class ReuseAllocatorBase : public Allocator {
         : fallback_allocation_index_(fallback_allocation_index),
           address_(address),
           size_(size) {}
-    ~MemoryBlock() { SB_DCHECK(fallback_allocation_index_ >= 0); }
+    ~MemoryBlock() { SB_DCHECK_GE(fallback_allocation_index_, 0); }
 
     void* address() const {
-      SB_DCHECK(fallback_allocation_index_ >= 0);
+      SB_DCHECK_GE(fallback_allocation_index_, 0);
       return address_;
     }
     size_t size() const {
-      SB_DCHECK(fallback_allocation_index_ >= 0);
+      SB_DCHECK_GE(fallback_allocation_index_, 0);
       return size_;
     }
 
     bool operator<(const MemoryBlock& other) const {
-      SB_DCHECK(fallback_allocation_index_ >= 0);
-      SB_DCHECK(other.fallback_allocation_index_ >= 0);
+      SB_DCHECK_GE(fallback_allocation_index_, 0);
+      SB_DCHECK_GE(other.fallback_allocation_index_, 0);
 
       if (fallback_allocation_index_ < other.fallback_allocation_index_) {
         return true;
