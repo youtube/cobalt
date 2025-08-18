@@ -158,7 +158,7 @@ OMX_ERRORTYPE OpenMaxComponentBase::EventHandler(OMX_HANDLETYPE handle,
                                                  OMX_U32 data1,
                                                  OMX_U32 data2,
                                                  OMX_PTR event_data) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
   SB_DCHECK_EQ(handle, component->handle_);
@@ -171,7 +171,7 @@ OMX_ERRORTYPE OpenMaxComponentBase::EmptyBufferDone(
     OMX_HANDLETYPE handle,
     OMX_PTR app_data,
     OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
   SB_DCHECK_EQ(handle, component->handle_);
@@ -184,7 +184,7 @@ OMX_ERRORTYPE OpenMaxComponentBase::FillBufferDone(
     OMX_HANDLETYPE handle,
     OMX_PTR app_data,
     OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
   SB_DCHECK_EQ(handle, component->handle_);

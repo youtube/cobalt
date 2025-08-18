@@ -208,7 +208,7 @@ void OpusAudioDecoder::InitializeCodec() {
     decoder_ = NULL;
     return;
   }
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
 }
 
 void OpusAudioDecoder::TeardownCodec() {
