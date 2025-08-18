@@ -116,10 +116,30 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+<<<<<<< HEAD
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
+=======
+// By default, the platform Opus decoder is only enabled for encrypted playback.
+// Set the following variable to true to force it for clear playback.
+STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
+
+// By default, Cobalt teardowns AudioDecoder during Reset().
+// Set the following variable to true to force it reset audio decoder
+// during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
+STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
+
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to true with parameters
+// kResetDelayUsec and kFlushDelayUsec to force it to wait during
+// Reset()/Flush(). For example, with args
+// '--enable-features=VideoDecoderDelayUsecOverride:ResetDelayUsec/10ms'.
+STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
+                  "VideoDecoderDelayUsecOverride",
+                  false)
+>>>>>>> 84c6bf793bf (android: Add starboard experiment to Opus codec (#6859))
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
