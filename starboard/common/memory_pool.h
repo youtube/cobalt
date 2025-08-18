@@ -19,7 +19,6 @@
 #define STARBOARD_COMMON_MEMORY_POOL_H_
 
 #include "starboard/common/allocator.h"
-#include "starboard/common/check_op.h"
 #include "starboard/common/fixed_no_free_allocator.h"
 #include "starboard/common/log.h"
 
@@ -36,7 +35,7 @@ class MemoryPool : public Allocator {
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size) {
     SB_DCHECK(buffer);
-    SB_DCHECK_GT(size, 0U);
+    SB_DCHECK(size > 0U);
   }
 
   template <typename ParameterType>
@@ -44,7 +43,7 @@ class MemoryPool : public Allocator {
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size, parameter1) {
     SB_DCHECK(buffer);
-    SB_DCHECK_GT(size, 0U);
+    SB_DCHECK(size > 0U);
   }
 
   void* Allocate(size_t size) { return reuse_allocator_.Allocate(size); }
