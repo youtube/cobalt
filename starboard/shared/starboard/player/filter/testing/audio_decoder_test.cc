@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
@@ -66,8 +67,8 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
   auto sample_type = decoded_audios.front()->sample_type();
 
   for (auto decoded_audio : decoded_audios) {
-    SB_DCHECK(decoded_audio->channels() == channels);
-    SB_DCHECK(decoded_audio->sample_type() == sample_type);
+    SB_DCHECK_EQ(decoded_audio->channels(), channels);
+    SB_DCHECK_EQ(decoded_audio->sample_type(), sample_type);
     SB_DCHECK(decoded_audio->storage_type() ==
               kSbMediaAudioFrameStorageTypeInterleaved);
     total_size_in_bytes += decoded_audio->size_in_bytes();
@@ -276,8 +277,8 @@ class AudioDecoderTest
   // The start_index will be updated to the new position.
   void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
-    SB_DCHECK(*start_index >= 0);
-    SB_DCHECK(*start_index < dmp_reader_.number_of_audio_buffers());
+    SB_DCHECK_GE(*start_index, 0);
+    SB_DCHECK_LT(*start_index, dmp_reader_.number_of_audio_buffers());
     ASSERT_NO_FATAL_FAILURE(
         WriteSingleInput(static_cast<size_t>(*start_index)));
     SB_DCHECK(last_input_buffer_);
