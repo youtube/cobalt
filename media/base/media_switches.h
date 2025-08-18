@@ -225,10 +225,9 @@ MEDIA_EXPORT extern const base::FeatureParam<bool>
     kEnforceSystemEchoCancellationAllowNsInTandem;
 #endif
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDurationLocal);
-MEDIA_EXPORT extern const base::FeatureParam<int> kAudioWriteDurationLocal;
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDurationRemote);
-MEDIA_EXPORT extern const base::FeatureParam<int> kAudioWriteDurationRemote;
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDuration);
+MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal;
+MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltReportBufferingStateDuringFlush);
