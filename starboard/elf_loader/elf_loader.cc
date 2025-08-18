@@ -17,6 +17,7 @@
 #include <string.h>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/time.h"
@@ -47,7 +48,7 @@ ElfLoader::~ElfLoader() {
   g_instance.compare_exchange_weak(old_instance, NULL,
                                    std::memory_order_acquire);
   SB_DCHECK(old_instance);
-  SB_DCHECK(old_instance == this);
+  SB_DCHECK_EQ(old_instance, this);
 }
 
 ElfLoader* ElfLoader::Get() {

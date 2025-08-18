@@ -18,6 +18,7 @@
 #include <mutex>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
@@ -53,7 +54,7 @@ JobThread::JobThread(const char* thread_name,
                  &thread_param);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK(thread_ != 0);
+  SB_DCHECK_NE(thread_, 0);
   std::unique_lock lock(thread_param.mutex);
   thread_param.condition_variable.wait(
       lock, [this] { return job_queue_ != nullptr; });
@@ -73,7 +74,7 @@ JobThread::~JobThread() {
 // static
 void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != nullptr);
+  SB_DCHECK(param);
 
   pthread_setname_np(pthread_self(), param->thread_name.c_str());
   SbThreadSetPriority(param->thread_priority);

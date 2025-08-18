@@ -53,7 +53,7 @@ static_library("app") {
     "crashpad.h",
   ]
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  if (is_linux || is_chromeos) {
     sources += [ "crashpad_linux.cc" ]
   }
 
