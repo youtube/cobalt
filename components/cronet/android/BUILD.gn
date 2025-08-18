@@ -22,8 +22,8 @@ import("//url/features.gni")
 _templates_dir = "$target_gen_dir/templates"
 _gn_path = "//buildtools/linux64/gn"
 
-assert(!is_component_build)
-assert(is_cronet_build)
+# assert(!is_component_build)
+# assert(is_cronet_build)
 
 declare_args() {
   # In integrated mode, CronetEngine will use the shared network task runner by

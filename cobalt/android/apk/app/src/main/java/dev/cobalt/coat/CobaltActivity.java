@@ -62,6 +62,28 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
+// import org.chromium.net.CronetEngine;
+// import org.chromium.net.CronetProvider;
+// import org.chromium.net.ExperimentalCronetEngine;
+// import org.chromium.net.RequestFinishedInfo;
+// import org.chromium.net.CallbackException;
+// import org.chromium.net.NetworkException;
+// import org.chromium.net.QuicException;
+// import org.chromium.net.RequestFinishedInfo;
+// import org.chromium.net.UrlResponseInfo;
+// import org.chromium.net.UrlRequest;
+// import org.chromium.net.CronetException;
+// import org.chromium.net.UrlRequest;
+// import org.chromium.net.UrlResponseInfo;
+// import org.chromium.net.UploadDataProviders;
+// import org.chromium.net.UploadDataProvider;
+// import org.chromium.net.UploadDataSink;
+// import org.chromium.net.NetworkException;
+// import org.chromium.net.UrlRequest;
+
+import org.chromium.net.CronetEngine;
+import org.chromium.net.impl.CronetLibraryLoader;
+
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
@@ -97,6 +119,21 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
 
+  private CronetEngine mCronetEngine;
+
+  private void initializeCronetEngine() {
+    // 1. Create and configure the builder FIRST.
+    CronetEngine.Builder builder = new CronetEngine.Builder(this);
+    builder.enableHttp2(true)
+           .enableQuic(true);
+           // Add any other configuration here (e.g., caching, user-agent)
+
+    mCronetEngine = builder.build();
+  }
+
+  public CronetEngine getCronetEngine() {
+      return mCronetEngine;
+  }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -189,6 +226,7 @@ public abstract class CobaltActivity extends Activity {
               @Override
               public void onSuccess() {
                 Log.i(TAG, "Browser process init succeeded");
+                initializeCronetEngine();
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }

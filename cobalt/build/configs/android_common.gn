@@ -10,3 +10,8 @@ media_use_ffmpeg = false
 
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
+
+# is_cronet_build = true
+
+# Enable Cronet's integrated mode
+integrated_mode = true

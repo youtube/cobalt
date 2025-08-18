@@ -80,7 +80,9 @@ if (is_official_build) {
 group("gn_all") {
   testonly = true
 
-  if (is_cronet_build) {
+  if (is_cobalt) {
+    deps = [ "//cobalt:gn_all" ]
+  } else if (is_cronet_build) {
     if (is_android) {
       deps = [ "//components/cronet/android:cronet_package_android" ]
     } else if (is_ios) {
@@ -837,9 +839,6 @@ group("gn_all") {
     if (!is_android && !is_ios) {
       deps += [ "//components/cronet:cronet_tests" ]
     }
-  }
-  if (is_cobalt) {
-    deps += [ "//cobalt:gn_all" ]
   }
 }
 
