@@ -31,7 +31,7 @@ const size_t kAppKeyMax = kSbFileMaxName - 24;
 }  // namespace
 
 std::string GetAppKey(const std::string& url) {
-  SB_DCHECK(kAppKeyMax > 0);
+  SB_DCHECK_GT(kAppKeyMax, 0);
 
   const std::string app_key = EncodeAppKey(ExtractAppKey(url));
 

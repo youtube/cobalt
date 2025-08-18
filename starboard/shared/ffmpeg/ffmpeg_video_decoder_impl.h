@@ -93,7 +93,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
     scoped_refptr<InputBuffer> input_buffer;
 
     explicit Event(EventType type = kInvalid) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
 
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)

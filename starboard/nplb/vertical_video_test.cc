@@ -60,7 +60,7 @@ std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
   for (auto video_filename : kVideoFilenames) {
     VideoDmpReader video_dmp_reader(video_filename,
                                     VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(video_dmp_reader.number_of_video_buffers() > 0);
+    SB_DCHECK_GT(video_dmp_reader.number_of_video_buffers(), 0);
     if (SbMediaCanPlayMimeAndKeySystem(
             video_dmp_reader.video_mime_type().c_str(), "")) {
       video_files.push_back(video_filename);

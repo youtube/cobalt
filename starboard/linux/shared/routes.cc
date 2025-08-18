@@ -123,7 +123,7 @@ void Routes::GetRouteFromNetlinkMessage(struct nlmsghdr* message,
         if (route.family == AF_INET6) {
           memcpy(&route.dst_addr6, data, sizeof(route.dst_addr6));
         } else {
-          SB_DCHECK(route.family == AF_INET);
+          SB_DCHECK_EQ(route.family, AF_INET);
           memcpy(&route.dst_addr, data, sizeof(route.dst_addr));
         }
         break;

@@ -47,7 +47,7 @@ ElfLoader::~ElfLoader() {
   g_instance.compare_exchange_weak(old_instance, NULL,
                                    std::memory_order_acquire);
   SB_DCHECK(old_instance);
-  SB_DCHECK(old_instance == this);
+  SB_DCHECK_EQ(old_instance, this);
 }
 
 ElfLoader* ElfLoader::Get() {

@@ -64,7 +64,7 @@ class VideoDecoder
   struct Event {
     enum Type { kWriteInputBuffer, kWriteEOS, kReset };
     explicit Event(const Type type) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}

@@ -44,7 +44,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
   sa.nl_groups = RTMGRP_IPV4_IFADDR;
   sa.nl_pid = getpid();
   int bind_result = bind(netlink_fd, (struct sockaddr*)&sa, sizeof(sa));
-  SB_DCHECK(bind_result == 0);
+  SB_DCHECK_EQ(bind_result, 0);
 
   char buf[8192];
   struct iovec iov;
@@ -63,7 +63,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
   status = recvmsg(netlink_fd, &msg, MSG_DONTWAIT);
   bool has_message = false;
   while (status >= 0) {
-    SB_DCHECK(msg.msg_namelen == sizeof(sa));
+    SB_DCHECK_EQ(msg.msg_namelen, sizeof(sa));
 
     struct nlmsghdr* header;
 
@@ -71,8 +71,8 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
       int len = header->nlmsg_len;
       int l = len - sizeof(*header);
 
-      SB_DCHECK(l >= 0);
-      SB_DCHECK(len <= status);
+      SB_DCHECK_GE(l, 0);
+      SB_DCHECK_LE(len, status);
 
       switch (header->nlmsg_type) {
         case RTM_DELADDR:
@@ -98,7 +98,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 }  // namespace
 
 bool NetworkNotifier::Initialize() {
-  SB_DCHECK(notifier_thread_ == 0);
+  SB_DCHECK_EQ(notifier_thread_, 0);
 
   pthread_attr_t attributes;
   int result = pthread_attr_init(&attributes);
@@ -111,7 +111,7 @@ bool NetworkNotifier::Initialize() {
                  &NetworkNotifier::NotifierThreadEntry, this);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK(notifier_thread_ != 0);
+  SB_DCHECK_NE(notifier_thread_, 0);
   return true;
 }
 

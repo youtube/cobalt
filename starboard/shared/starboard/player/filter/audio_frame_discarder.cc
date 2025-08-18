@@ -22,7 +22,7 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
   std::lock_guard lock(mutex_);
   for (auto&& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
-    SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeAudio);
+    SB_DCHECK_EQ(input_buffer->sample_type(), kSbMediaTypeAudio);
 
     input_buffer_infos_.push({
         input_buffer->timestamp(),
@@ -33,7 +33,7 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
 
   // Add a DCheck here to ensure that |input_buffer_infos_| won't grow
   // without bound, which can lead to OOM.
-  SB_DCHECK(input_buffer_infos_.size() < kMaxNumberOfPendingInputBufferInfos);
+  SB_DCHECK_LT(input_buffer_infos_.size(), kMaxNumberOfPendingInputBufferInfos);
 }
 
 void AudioFrameDiscarder::AdjustForDiscardedDurations(

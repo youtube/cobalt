@@ -211,7 +211,7 @@ void AudioDecoder::ProcessOutputBuffer(
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
-  SB_DCHECK(dequeue_output_result.index >= 0);
+  SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   if (dequeue_output_result.num_bytes > 0) {
     ScopedJavaLocalRef<jobject> byte_buffer(

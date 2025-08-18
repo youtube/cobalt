@@ -29,7 +29,7 @@ void AudioFrameTracker::Reset() {
 }
 
 void AudioFrameTracker::AddFrames(int number_of_frames, double playback_rate) {
-  SB_DCHECK(playback_rate > 0);
+  SB_DCHECK_GT(playback_rate, 0);
 
   last_playback_rate_ = playback_rate;
 

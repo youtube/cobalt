@@ -73,7 +73,7 @@ StubAudioSink::StubAudioSink(
       destroying_(false) {
   pthread_create(&audio_out_thread_, nullptr, &StubAudioSink::ThreadEntryPoint,
                  this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 StubAudioSink::~StubAudioSink() {

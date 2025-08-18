@@ -164,7 +164,7 @@ int AudioTrackBridge::WriteSample(const float* samples,
                                   JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
@@ -187,7 +187,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
@@ -219,7 +219,7 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 

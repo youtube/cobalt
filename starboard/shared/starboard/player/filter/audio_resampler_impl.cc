@@ -111,7 +111,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
     scoped_refptr<DecodedAudio> audio_input) {
-  SB_DCHECK(audio_input->channels() == interleaved_resampler_.channels());
+  SB_DCHECK_EQ(audio_input->channels(), interleaved_resampler_.channels());
 
   // It does nothing if source sample type is float and source storage type is
   // interleaved.

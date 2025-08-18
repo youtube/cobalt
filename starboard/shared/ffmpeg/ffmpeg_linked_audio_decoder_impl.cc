@@ -29,7 +29,7 @@ namespace starboard::shared::ffmpeg {
 AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg && ffmpeg->is_valid());
-  SB_DCHECK(FFMPEG == ffmpeg->specialization_version());
+  SB_DCHECK_EQ(FFMPEG, ffmpeg->specialization_version());
 
   return AudioDecoderImpl<FFMPEG>::Create(audio_stream_info);
 }

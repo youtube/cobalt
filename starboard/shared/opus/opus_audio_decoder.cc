@@ -146,7 +146,7 @@ bool OpusAudioDecoder::DecodeInternal(
     // When the following check fails, it indicates that |frames_per_au_| is
     // greater than or equal to |kMaxOpusFramesPerAU|, which should never happen
     // for Opus.
-    SB_DCHECK(decoded_frames != OPUS_BUFFER_TOO_SMALL);
+    SB_DCHECK_NE(decoded_frames, OPUS_BUFFER_TOO_SMALL);
 
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << kDecodeFunctionName

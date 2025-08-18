@@ -70,7 +70,7 @@ void VideoRendererSinkImpl::Update() {
 VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
     const scoped_refptr<VideoFrame>& frame,
     int64_t release_time_in_nanoseconds) {
-  SB_DCHECK(release_time_in_nanoseconds == 0);
+  SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
   ::starboard::shared::starboard::Application::Get()->HandleFrame(

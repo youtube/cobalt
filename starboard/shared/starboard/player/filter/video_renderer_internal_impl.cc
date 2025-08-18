@@ -45,7 +45,7 @@ VideoRendererImpl::VideoRendererImpl(
       decoder_(std::move(decoder)) {
   SB_DCHECK(decoder_);
   SB_DCHECK(algorithm_);
-  SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
+  SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1);
   SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
       << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."
@@ -148,7 +148,7 @@ void VideoRendererImpl::WriteEndOfStream() {
 
 void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(seek_to_time >= 0);
+  SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
     decoder_->Reset();

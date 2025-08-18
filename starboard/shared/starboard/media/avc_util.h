@@ -58,11 +58,11 @@ class AvcParameterSets {
   }
 
   const std::vector<uint8_t>& first_sps() const {
-    SB_DCHECK(first_sps_index_ != -1);
+    SB_DCHECK_NE(first_sps_index_, -1);
     return parameter_sets_[first_sps_index_];
   }
   const std::vector<uint8_t>& first_pps() const {
-    SB_DCHECK(first_pps_index_ != -1);
+    SB_DCHECK_NE(first_pps_index_, -1);
     return parameter_sets_[first_pps_index_];
   }
 

@@ -158,7 +158,7 @@ void VideoDmpWriter::DumpAccessUnit(
   if (sample_type == kSbMediaTypeAudio) {
     Write(write_cb_, kRecordTypeAudioAccessUnit);
   } else {
-    SB_DCHECK(sample_type == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type, kSbMediaTypeVideo);
     Write(write_cb_, kRecordTypeVideoAccessUnit);
   }
 
@@ -179,7 +179,7 @@ void VideoDmpWriter::DumpAccessUnit(
     Write(write_cb_, input_buffer->audio_stream_info().codec,
           input_buffer->audio_stream_info());
   } else {
-    SB_DCHECK(sample_type == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type, kSbMediaTypeVideo);
     Write(write_cb_, input_buffer->video_stream_info().codec,
           input_buffer->video_sample_info());
   }

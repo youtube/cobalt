@@ -347,7 +347,7 @@ struct JniEnvExt : public JNIEnv {
 #define X(_jtype, _jname)                                                   \
   _jtype##Array New##_jname##ArrayFromRaw(const _jtype* data, jsize size) { \
     SB_DCHECK(data);                                                        \
-    SB_DCHECK(size >= 0);                                                   \
+    SB_DCHECK_GE(size, 0);                                                  \
     _jtype##Array j_array = New##_jname##Array(size);                       \
     SB_CHECK(j_array) << "Out of memory making new array";                  \
     Set##_jname##ArrayRegion(j_array, 0, size, data);                       \

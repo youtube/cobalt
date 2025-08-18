@@ -22,7 +22,7 @@
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
-  SB_DCHECK(output_index >= 0);
+  SB_DCHECK_GE(output_index, 0);
   SB_DCHECK(out_configuration);
 
   if (output_index != 0) {

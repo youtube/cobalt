@@ -105,7 +105,7 @@ InstallationManager::InstallationManager(int max_num_installations,
       max_num_installations_(max_num_installations),
       lowest_priority_(max_num_installations_ - 1),
       highest_priority_(0) {
-  SB_CHECK(max_num_installations_ >= 2);
+  SB_CHECK_GE(max_num_installations_, 2);
   SB_CHECK(!app_key.empty());
   SB_LOG(INFO) << "InstallationManager: app_key=" << app_key_;
 }
@@ -653,7 +653,7 @@ void InstallationManager::ValidatePriorities() {
   for (int i = 0; i < max_num_installations_; i++) {
     SB_DCHECK(priorities.find(i) != priorities.end());
   }
-  SB_DCHECK(priorities.size() == max_num_installations_);
+  SB_DCHECK_EQ(priorities.size(), max_num_installations_);
 }
 
 bool InstallationManager::LoadInstallationStore() {

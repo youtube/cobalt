@@ -51,7 +51,7 @@ pthread_once_t g_urandom_file_once = PTHREAD_ONCE_INIT;
 
 // Lazily initialize g_urandom_file.
 void InitializeRandom() {
-  SB_DCHECK(g_urandom_file == NULL);
+  SB_DCHECK_EQ(g_urandom_file, NULL);
   g_urandom_file = new URandomFile();
 }
 
@@ -62,7 +62,7 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
   char* buffer = reinterpret_cast<char*>(out_buffer);
   int remaining = buffer_size;
   int once_result = pthread_once(&g_urandom_file_once, &InitializeRandom);
-  SB_DCHECK(once_result == 0);
+  SB_DCHECK_EQ(once_result, 0);
 
   int file = g_urandom_file->file();
   do {
@@ -78,5 +78,5 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
     buffer += result;
   } while (remaining);
 
-  SB_CHECK(remaining == 0);
+  SB_CHECK_EQ(remaining, 0);
 }

@@ -53,7 +53,7 @@ std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer) {
        << buffer.audio_stream_info().mime << "'\n";
     os << buffer.audio_stream_info().samples_per_second << '\n';
   } else {
-    SB_DCHECK(buffer.sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(buffer.sample_type(), kSbMediaTypeVideo);
 
     os << "codec: " << buffer.video_stream_info().codec << ", mime: '"
        << buffer.video_stream_info().mime << "'"
@@ -94,7 +94,7 @@ void InputBuffer::TryToAssignDrmSampleInfo(
     return;
   }
 
-  SB_DCHECK(sample_drm_info->subsample_count > 0);
+  SB_DCHECK_GT(sample_drm_info->subsample_count, 0);
 
   subsamples_.assign(
       sample_drm_info->subsample_mapping,

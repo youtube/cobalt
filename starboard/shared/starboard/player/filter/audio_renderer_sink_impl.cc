@@ -85,12 +85,12 @@ void AudioRendererSinkImpl::Start(
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
   SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
-  SB_DCHECK(sampling_frequency_hz > 0);
+  SB_DCHECK_GT(sampling_frequency_hz, 0);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
   SB_DCHECK(
       SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type));
   SB_DCHECK(frame_buffers);
-  SB_DCHECK(frames_per_channel > 0);
+  SB_DCHECK_GT(frames_per_channel, 0);
 
   Stop();
   render_callback_ = render_callback;

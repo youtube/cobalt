@@ -317,7 +317,7 @@ void MediaDrmBridge::OnKeyStatusChange(
         env->CallObjectMethod(j_key_status, getKeyIdMethod));
     std::string key_id = JavaByteArrayToString(env, j_key_id);
 
-    SB_DCHECK(key_id.size() <= sizeof(drm_key_ids[i].identifier));
+    SB_DCHECK_LE(key_id.size(), sizeof(drm_key_ids[i].identifier));
     memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
     drm_key_ids[i].identifier_size = key_id.size();
 

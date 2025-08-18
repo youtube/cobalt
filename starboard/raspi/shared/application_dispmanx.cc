@@ -60,7 +60,7 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
 
   SB_DCHECK(IsDispmanxInitialized());
 
-  SB_DCHECK(window_ == window);
+  SB_DCHECK_EQ(window_, window);
   delete window;
   window_ = kSbWindowInvalid;
   ShutdownDispmanx();
