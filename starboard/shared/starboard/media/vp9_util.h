@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_VP9_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_VP9_UTIL_H_
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 

@@ -14,6 +14,7 @@
 
 #include "starboard/player.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/player_internal.h"

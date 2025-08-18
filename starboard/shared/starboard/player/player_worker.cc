@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
 #include "starboard/thread.h"

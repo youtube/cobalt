@@ -49,6 +49,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include "starboard/common/check_op.h"
 
 namespace starboard::shared::starboard::player::filter {
 

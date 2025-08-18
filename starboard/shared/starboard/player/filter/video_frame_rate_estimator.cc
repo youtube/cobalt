@@ -16,6 +16,7 @@
 
 #include <cmath>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard::shared::starboard::player::filter {

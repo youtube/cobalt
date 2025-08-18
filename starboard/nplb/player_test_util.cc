@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"

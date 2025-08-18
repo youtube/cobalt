@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 

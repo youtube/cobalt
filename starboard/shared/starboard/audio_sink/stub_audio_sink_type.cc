@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"

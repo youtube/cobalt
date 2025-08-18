@@ -44,6 +44,7 @@
 
 #if HAS_LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
+#include "starboard/common/check_op.h"
 #endif  // HAS_LEAK_SANITIZER
 
 namespace starboard::shared::pulse {

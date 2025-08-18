@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 

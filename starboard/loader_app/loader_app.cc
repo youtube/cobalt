@@ -37,6 +37,7 @@
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 

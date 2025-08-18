@@ -34,6 +34,7 @@
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#include "starboard/common/check_op.h"
 #include "starboard/common/once.h"
 #include "starboard/loader_app/record_loader_app_status.h"
 

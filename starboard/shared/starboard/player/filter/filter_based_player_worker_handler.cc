@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"

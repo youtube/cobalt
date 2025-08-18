@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"

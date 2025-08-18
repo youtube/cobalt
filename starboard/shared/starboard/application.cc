@@ -17,6 +17,7 @@
 #include <atomic>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"

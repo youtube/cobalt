@@ -20,6 +20,7 @@
 #include <mutex>
 #include <queue>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"

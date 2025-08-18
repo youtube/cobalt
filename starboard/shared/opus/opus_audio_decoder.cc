@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 

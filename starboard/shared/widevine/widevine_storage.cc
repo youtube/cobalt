@@ -14,6 +14,7 @@
 
 #include "starboard/shared/widevine/widevine_storage.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/widevine/widevine_keybox_hash.h"

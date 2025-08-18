@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"

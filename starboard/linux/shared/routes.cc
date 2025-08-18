@@ -26,6 +26,7 @@
 
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/linux/shared/netlink.h"
 

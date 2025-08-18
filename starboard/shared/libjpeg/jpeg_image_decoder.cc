@@ -28,6 +28,7 @@ extern "C" {
 // clang-format off
 #include "third_party/libjpeg_turbo/jpeglib.h"
 #include "third_party/libjpeg_turbo/jpegint.h"
+#include "starboard/common/check_op.h"
 // clang-format on
 }
 

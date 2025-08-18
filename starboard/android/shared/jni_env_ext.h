@@ -22,6 +22,7 @@
 #include <cstring>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 

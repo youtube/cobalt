@@ -19,6 +19,7 @@
 #define STARBOARD_COMMON_MEMORY_POOL_H_
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/fixed_no_free_allocator.h"
 #include "starboard/common/log.h"
 

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"

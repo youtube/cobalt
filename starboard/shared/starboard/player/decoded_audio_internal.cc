@@ -18,6 +18,7 @@
 #include <cstring>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/media/media_util.h"

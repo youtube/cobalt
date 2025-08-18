@@ -16,6 +16,7 @@
 #include <tuple>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"

@@ -23,6 +23,7 @@
 #include <cstring>
 
 #include "build/build_config.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/linux/system_network_status.h"

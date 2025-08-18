@@ -21,6 +21,7 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"

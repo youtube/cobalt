@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"

@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 

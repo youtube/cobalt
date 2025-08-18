@@ -22,6 +22,7 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/check_op.h"
 #include "starboard/key.h"
 
 namespace starboard::android::shared {

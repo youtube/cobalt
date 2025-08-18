@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"

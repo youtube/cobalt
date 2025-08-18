@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/input.h"
 #include "starboard/key.h"

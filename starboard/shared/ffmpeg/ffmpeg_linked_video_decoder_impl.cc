@@ -17,6 +17,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"

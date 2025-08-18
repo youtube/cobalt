@@ -24,6 +24,7 @@
 #include <queue>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"

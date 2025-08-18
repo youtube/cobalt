@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"

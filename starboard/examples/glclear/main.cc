@@ -22,6 +22,7 @@
 #include "starboard/system.h"
 #include "starboard/window.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 

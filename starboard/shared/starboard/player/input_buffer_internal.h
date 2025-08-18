@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
 #include "starboard/extension/enhanced_audio.h"

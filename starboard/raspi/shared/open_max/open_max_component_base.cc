@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 

@@ -18,6 +18,7 @@
 #include <mutex>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {

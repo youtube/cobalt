@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 

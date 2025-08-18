@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"

@@ -17,6 +17,7 @@
 #include "starboard/media.h"
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 bool SbMediaGetAudioConfiguration(

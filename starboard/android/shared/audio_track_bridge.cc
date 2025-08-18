@@ -26,6 +26,7 @@
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
+#include "starboard/common/check_op.h"
 
 namespace starboard::android::shared {
 

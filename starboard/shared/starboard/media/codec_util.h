@@ -18,6 +18,7 @@
 #include <optional>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"

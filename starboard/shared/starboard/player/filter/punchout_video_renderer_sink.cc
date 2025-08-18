@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"

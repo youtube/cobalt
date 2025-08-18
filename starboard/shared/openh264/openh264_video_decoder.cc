@@ -14,6 +14,7 @@
 
 #include "starboard/shared/openh264/openh264_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"

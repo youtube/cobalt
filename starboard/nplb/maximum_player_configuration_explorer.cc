@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_test_util.h"

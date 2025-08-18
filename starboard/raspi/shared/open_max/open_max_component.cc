@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"

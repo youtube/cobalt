@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/app_key.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/app_key_internal.h"

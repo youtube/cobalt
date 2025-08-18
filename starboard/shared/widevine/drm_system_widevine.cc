@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"

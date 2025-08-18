@@ -17,6 +17,7 @@
 #include <string.h>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/time.h"

@@ -21,6 +21,7 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {

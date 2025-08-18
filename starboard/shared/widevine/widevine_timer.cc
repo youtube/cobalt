@@ -17,6 +17,7 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard::shared::widevine {

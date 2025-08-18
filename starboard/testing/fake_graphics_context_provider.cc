@@ -32,6 +32,7 @@
 #include <sanitizer/lsan_interface.h>
 #endif  // HAS_LEAK_SANITIZER
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 #define EGL_CALL_PREFIX SbGetEglInterface()->

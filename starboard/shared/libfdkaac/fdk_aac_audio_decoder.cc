@@ -14,6 +14,7 @@
 
 #include "starboard/shared/libfdkaac/fdk_aac_audio_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"

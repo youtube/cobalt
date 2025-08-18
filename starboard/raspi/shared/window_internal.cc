@@ -14,6 +14,7 @@
 
 #include "starboard/raspi/shared/window_internal.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace {

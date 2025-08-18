@@ -20,6 +20,7 @@
 
 #include "starboard/shared/gles/gl_call.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/decode_target.h"
 
 SbDecodeTargetPrivate::Data::~Data() {
