@@ -43,7 +43,7 @@ void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
+void FdkAacAudioDecoder::Decode(InputBuffers input_buffers,
                                 const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);

@@ -80,7 +80,7 @@ void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
+void AdaptiveAudioDecoder::Decode(InputBuffers input_buffers,
                                   const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!stream_ended_);
@@ -100,7 +100,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   if (!audio_decoder_) {
     InitializeAudioDecoder(input_buffers.front()->audio_stream_info());
     if (audio_decoder_) {
-      audio_decoder_->Decode(input_buffers, consumed_cb);
+      audio_decoder_->Decode(std::move(input_buffers), consumed_cb);
     }
     return;
   }
@@ -123,7 +123,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
     }
   }
 #endif
-  audio_decoder_->Decode(input_buffers, consumed_cb);
+  audio_decoder_->Decode(std::move(input_buffers), consumed_cb);
 }
 
 void AdaptiveAudioDecoder::WriteEndOfStream() {
