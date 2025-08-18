@@ -27,6 +27,8 @@ namespace nplb {
 
 namespace {
 
+constexpr int64_t kTimeToTry = 1'000'000;  // 1 second
+
 SbMediaAudioSampleType GetAnySupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(
           kSbMediaAudioSampleTypeInt16Deprecated)) {

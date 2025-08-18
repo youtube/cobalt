@@ -67,7 +67,6 @@ class AudioSinkTestFrameBuffers {
 class AudioSinkTestEnvironment {
  public:
   static const int kSampleRateCD = 44100;
-  static const int64_t kTimeToTry = 1'000'000;  // 1 second
 
   explicit AudioSinkTestEnvironment(
       const AudioSinkTestFrameBuffers& frame_buffers);
