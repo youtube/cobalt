@@ -205,8 +205,8 @@ class MediaDecoder final
 
   std::atomic<int32_t> number_of_pending_inputs_{0};
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
