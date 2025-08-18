@@ -121,7 +121,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       player_state_(kSbPlayerStateInitialized) {
-  SB_DCHECK(handler_ != NULL);
+  SB_DCHECK(handler_);
   SB_DCHECK(update_media_info_cb_);
 
   ON_INSTANCE_CREATED(PlayerWorker);
@@ -193,7 +193,7 @@ void* PlayerWorker::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "player_worker");
   SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != NULL);
+  SB_DCHECK(param);
   PlayerWorker* player_worker = param->player_worker;
   {
     std::lock_guard lock(param->mutex);

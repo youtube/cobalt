@@ -270,7 +270,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
 }
 
 bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
-  SB_DCHECK(packet != NULL);
+  SB_DCHECK(packet);
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
     ffmpeg_->av_frame_unref(av_frame_);

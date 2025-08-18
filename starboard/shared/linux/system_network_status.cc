@@ -37,7 +37,7 @@ namespace {
 // Cobalt application is kill. This function checks kernel message for IP
 // address changes.
 bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
-  SB_DCHECK(is_online_ptr != NULL);
+  SB_DCHECK(is_online_ptr);
 
   struct sockaddr_nl sa;
   memset(&sa, 0, sizeof(sa));

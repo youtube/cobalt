@@ -85,8 +85,8 @@ void DispmanxResourcePool::Free(DispmanxYUV420Resource* resource) {
 void DispmanxResourcePool::DisposeDispmanxYUV420Resource(
     void* context,
     void* dispmanx_resource) {
-  SB_DCHECK(context != NULL);
-  SB_DCHECK(dispmanx_resource != NULL);
+  SB_DCHECK(context);
+  SB_DCHECK(dispmanx_resource);
   DispmanxResourcePool* pool = reinterpret_cast<DispmanxResourcePool*>(context);
   pool->Free(reinterpret_cast<DispmanxYUV420Resource*>(dispmanx_resource));
   pool->Release();

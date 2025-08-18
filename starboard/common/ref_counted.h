@@ -254,12 +254,12 @@ class scoped_refptr {
   T* get() const { return ptr_; }
   operator T*() const { return ptr_; }
   T* operator->() const {
-    SB_DCHECK(ptr_ != NULL);
+    SB_DCHECK(ptr_);
     return ptr_;
   }
 
   T& operator*() const {
-    SB_DCHECK(ptr_ != NULL);
+    SB_DCHECK(ptr_);
     return *ptr_;
   }
 

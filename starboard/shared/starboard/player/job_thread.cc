@@ -74,7 +74,7 @@ JobThread::~JobThread() {
 // static
 void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != nullptr);
+  SB_DCHECK(param);
 
   pthread_setname_np(pthread_self(), param->thread_name.c_str());
   SbThreadSetPriority(param->thread_priority);
