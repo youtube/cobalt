@@ -53,7 +53,9 @@
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
+#if defined(RUN_BROWSER_TESTS)
 #include "components/metrics/test/test_enabled_state_provider.h"
+#endif  // defined(RUN_BROWSER_TESTS)
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/prefs/json_pref_store.h"
@@ -85,7 +87,6 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/ssl/client_cert_identity.h"
-#include "services/device/public/cpp/geolocation/location_system_permission_status.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -272,6 +273,7 @@ SharedState& GetSharedState() {
   return *g_shared_state;
 }
 
+#if defined(RUN_BROWSER_TESTS)
 std::unique_ptr<PrefService> CreateLocalState() {
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
 
@@ -288,6 +290,7 @@ std::unique_ptr<PrefService> CreateLocalState() {
 
   return pref_service_factory.Create(pref_registry);
 }
+#endif  // defined(RUN_BROWSER_TESTS)
 
 }  // namespace
 
@@ -745,14 +748,17 @@ bool ShellContentBrowserClient::HasErrorPage(int http_status_code) {
 }
 
 void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {
+#if defined(RUN_BROWSER_TESTS)
   GetSharedState().local_state = CreateLocalState();
   SetUpFieldTrials();
   // Schedule a Local State write since the above function resulted in some
   // prefs being updated.
   GetSharedState().local_state->CommitPendingWrite();
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 void ShellContentBrowserClient::SetUpFieldTrials() {
+#if defined(RUN_BROWSER_TESTS)
   metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
                                                            /*enabled=*/false);
   base::FilePath path;
@@ -823,6 +829,7 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
       feature_overrides, std::move(feature_list), metrics_state_manager.get(),
       &platform_field_trials, &safe_seed_manager,
       /*add_entropy_source_to_variations_ids=*/false);
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 absl::optional<blink::ParsedPermissionsPolicy>

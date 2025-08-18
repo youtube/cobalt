@@ -20,6 +20,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 // Can be locally set to |1| for verbose audio decoding.  Verbose audio
@@ -211,7 +212,7 @@ void AudioDecoder::ProcessOutputBuffer(
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
-  SB_DCHECK(dequeue_output_result.index >= 0);
+  SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   if (dequeue_output_result.num_bytes > 0) {
     ScopedJavaLocalRef<jobject> byte_buffer(

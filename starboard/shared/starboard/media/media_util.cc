@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -73,8 +74,7 @@ void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
 
   dest->mime = source.mime;
   dest->max_video_capabilities = source.max_video_capabilities;
-  dest->frame_width = source.frame_width;
-  dest->frame_height = source.frame_height;
+  dest->frame_size = {source.frame_width, source.frame_height};
   dest->color_metadata = source.color_metadata;
 }
 
@@ -105,8 +105,8 @@ void Assign(const VideoStreamInfo& source, StreamInfo* dest) {
   dest->codec = source.codec;
   dest->mime = source.mime.c_str();
   dest->max_video_capabilities = source.max_video_capabilities.c_str();
-  dest->frame_width = source.frame_width;
-  dest->frame_height = source.frame_height;
+  dest->frame_width = source.frame_size.width;
+  dest->frame_height = source.frame_size.height;
   dest->color_metadata = source.color_metadata;
 }
 
@@ -222,8 +222,7 @@ bool operator==(const VideoStreamInfo& left, const VideoStreamInfo& right) {
 
   return left.codec == right.codec && left.mime == right.mime &&
          left.max_video_capabilities == right.max_video_capabilities &&
-         left.frame_width == right.frame_width &&
-         left.frame_height == right.frame_height &&
+         left.frame_size == right.frame_size &&
          left.color_metadata == right.color_metadata;
 }
 
@@ -279,7 +278,7 @@ std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& sample_info) {
     os << "key frame, ";
   }
 
-  os << stream_info.frame_width << 'x' << stream_info.frame_height << ' ';
+  os << stream_info.frame_size << ' ';
   os << '(' << stream_info.color_metadata << ')';
 
   return os;
@@ -355,7 +354,7 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
+  SB_DCHECK_NE(video_codec, kSbMediaVideoCodecNone);
   // TODO: Consider to consolidate the two IsSDRVideo() implementations by
   //       calling IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id).
   return bit_depth == 8;

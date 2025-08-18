@@ -25,9 +25,9 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/thread.h"
 
 namespace {
 starboard::android::shared::AudioTrackAudioSinkType*
@@ -180,7 +180,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(playback_rate >= 0.0);
+  SB_DCHECK_GE(playback_rate, 0.0);
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
                            "currently supported.";
@@ -194,7 +194,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "audio_track_out");
   SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();
@@ -230,7 +230,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+      SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -256,7 +256,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {
-        SB_DCHECK(frames_consumed >= 0);
+        SB_DCHECK_GE(frames_consumed, 0);
         consume_frames_func_(frames_consumed, frames_consumed_at, context_);
         frames_in_audio_track -= frames_consumed;
       }
@@ -329,7 +329,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       usleep(10'000);
       continue;
     }
-    SB_DCHECK(expected_written_frames > 0);
+    SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
         start_time_ + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
@@ -484,7 +484,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
-  SB_DCHECK(frames_per_channel >= min_required_frames);
+  SB_DCHECK_GE(frames_per_channel, min_required_frames);
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
   if (kUseContinuousAudioTrackSink) {

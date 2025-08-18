@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
 #define STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
 
+#include <mutex>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -22,7 +23,6 @@
 #include <utility>
 #include <variant>
 
-#include "starboard/common/mutex.h"
 #include "starboard/extension/features.h"
 
 namespace starboard::features {
@@ -82,12 +82,12 @@ class FeatureList {
   // Mutex to ensure that in the rare chance that the FeatureList is
   // being accessed while it is initializing, we can let the instance
   // fully initialize before being accessed.
-  Mutex mutex_;
+  std::mutex mutex_;
 
   // Starboard features will be stored in an std::unordered_map, where the keys
   // are the string representations of the features, and the values are the
   // associated boolean value of the feature.
-  std::unordered_map<std::string, bool> features_;
+  std::unordered_map<std::string, bool> features_;  // Guarded by |mutex_|.
 
   // Starboard feature parameters will be stored in a 2D std::unordered_map,
   // where the outer map's keys will be the string of the feature associated

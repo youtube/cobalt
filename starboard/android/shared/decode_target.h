@@ -19,6 +19,7 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include "starboard/common/size.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
@@ -33,11 +34,11 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   jobject surface_texture() const { return surface_texture_; }
   jobject surface() const { return surface_; }
 
-  void set_dimension(int width, int height) {
-    info_.planes[0].width = width;
-    info_.planes[0].height = height;
-    info_.width = width;
-    info_.height = height;
+  void set_dimension(const Size& size) {
+    info_.planes[0].width = size.width;
+    info_.planes[0].height = size.height;
+    info_.width = size.width;
+    info_.height = size.height;
   }
 
   void set_content_region(

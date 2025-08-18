@@ -193,8 +193,15 @@ TEST(ElfReaderTestWithCurrentElfImage, ReadElfBuildId) {
     EXPECT_FALSE(IsAsciiLower(c));
   }
 }
+// ReadElfBuildId is disabled on Starboard configurations due to its
+// reliance on dladdr, which Starboard does not support.
+#if BUILDFLAG(IS_STARBOARD)
+#define MAYBE_ReadElfBuildId DISABLED_ReadElfBuildId
+#else
+#define MAYBE_ReadElfBuildId ReadElfBuildId
+#endif
 
-TEST(ElfReaderTestWithCurrentImage, ReadElfBuildId) {
+TEST(ElfReaderTestWithCurrentImage, MAYBE_ReadElfBuildId) {
 #if BUILDFLAG(IS_ANDROID)
   // On Android the library loader memory maps the full so file.
   const char kLibraryName[] = "libbase_unittests__library";

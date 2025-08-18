@@ -15,6 +15,7 @@
 #include <list>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_test_fixture.h"
@@ -49,7 +50,7 @@ class PlayerThread : public posix::AbstractTestThread {
 
 std::string GetMultipleSbPlayerTestConfigDescription(
     SbPlayerMultiplePlayerTestConfig multiplayer_test_config) {
-  SB_DCHECK(multiplayer_test_config.size() > 0);
+  SB_DCHECK_GT(multiplayer_test_config.size(), static_cast<size_t>(0));
   const SbPlayerOutputMode output_mode = multiplayer_test_config[0].output_mode;
   const char* key_system = multiplayer_test_config[0].key_system;
 
@@ -98,7 +99,8 @@ class MultiplePlayerTest : public ::testing::Test {
       for (auto video_filename : video_test_files) {
         VideoDmpReader dmp_reader(video_filename,
                                   VideoDmpReader::kEnableReadOnDemand);
-        SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+        SB_DCHECK_GT(dmp_reader.number_of_video_buffers(),
+                     static_cast<size_t>(0));
         if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
                                            key_system)) {
           supported_configs.push_back({nullptr, video_filename,
@@ -114,7 +116,8 @@ class MultiplePlayerTest : public ::testing::Test {
       for (auto audio_filename : audio_test_files) {
         VideoDmpReader dmp_reader(audio_filename,
                                   VideoDmpReader::kEnableReadOnDemand);
-        SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+        SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(),
+                     static_cast<size_t>(0));
         if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
                                            key_system)) {
           supported_audio_files.push_back(audio_filename);

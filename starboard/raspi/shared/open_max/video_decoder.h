@@ -20,6 +20,7 @@
 #include <mutex>
 #include <queue>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
@@ -64,7 +65,7 @@ class VideoDecoder
   struct Event {
     enum Type { kWriteInputBuffer, kWriteEOS, kReset };
     explicit Event(const Type type) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}

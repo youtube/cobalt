@@ -16,7 +16,9 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -28,7 +30,6 @@
 #include "starboard/android/shared/media_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
@@ -181,7 +182,7 @@ class VideoDecoder
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
-  Mutex decode_target_mutex_;
+  std::mutex decode_target_mutex_;
 
   // If decode-to-texture is enabled, then we store the decode target texture
   // inside of this |decode_target_| member.
@@ -214,8 +215,9 @@ class VideoDecoder
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
-  Mutex surface_destroy_mutex_;
-  ConditionVariable surface_condition_variable_;
+  std::mutex surface_destroy_mutex_;
+  std::condition_variable surface_condition_variable_;
+  bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;

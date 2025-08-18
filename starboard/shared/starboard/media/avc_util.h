@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -58,11 +59,11 @@ class AvcParameterSets {
   }
 
   const std::vector<uint8_t>& first_sps() const {
-    SB_DCHECK(first_sps_index_ != -1);
+    SB_DCHECK_NE(first_sps_index_, -1);
     return parameter_sets_[first_sps_index_];
   }
   const std::vector<uint8_t>& first_pps() const {
-    SB_DCHECK(first_pps_index_ != -1);
+    SB_DCHECK_NE(first_pps_index_, -1);
     return parameter_sets_[first_pps_index_];
   }
 

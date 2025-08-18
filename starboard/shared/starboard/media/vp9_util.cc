@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/starboard/media/vp9_util.h"
+#include "starboard/common/check_op.h"
 
 namespace starboard::shared::starboard::media {
 
@@ -66,7 +67,7 @@ bool Vp9FrameParser::ParseSuperFrame(const uint8_t* frame,
   size_t total_bytes_of_superframe_index =
       2 + number_of_subframes_ * bytes_of_size;
 
-  SB_DCHECK(number_of_subframes_ <= kMaxNumberOfSubFrames);
+  SB_DCHECK_LE(number_of_subframes_, kMaxNumberOfSubFrames);
 
   if (total_bytes_of_superframe_index > size_of_superframe) {
     SB_LOG(WARNING) << "Size of vp9 superframe index is less than the frame"

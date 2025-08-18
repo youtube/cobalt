@@ -23,6 +23,7 @@
 #include <cstring>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
@@ -101,7 +102,7 @@ AudioTimeStretcher::~AudioTimeStretcher() {}
 void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
                                     int channels,
                                     int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0);
+  SB_DCHECK_GT(samples_per_second, 0);
 
   sample_type_ = sample_type;
   channels_ = channels;
@@ -168,8 +169,8 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
 
 scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
                                                      double playback_rate) {
-  SB_DCHECK(bytes_per_frame_ > 0);
-  SB_DCHECK(playback_rate >= 0);
+  SB_DCHECK_GT(bytes_per_frame_, 0);
+  SB_DCHECK_GE(playback_rate, 0);
 
   scoped_refptr<DecodedAudio> dest = new DecodedAudio(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
@@ -218,7 +219,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
     const int frames_to_copy =
         std::min(audio_buffer_.frames(), requested_frames);
     const int frames_read = audio_buffer_.ReadFrames(frames_to_copy, 0, dest);
-    SB_DCHECK(frames_read == frames_to_copy);
+    SB_DCHECK_EQ(frames_read, frames_to_copy);
     dest->ShrinkTo(frames_read * bytes_per_frame_);
     return dest;
   }
@@ -271,7 +272,7 @@ int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
 }
 
 bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
-  SB_DCHECK(bytes_per_frame_ > 0);
+  SB_DCHECK_GT(bytes_per_frame_, 0);
 
   if (!CanPerformWsola()) {
     return false;
@@ -329,14 +330,14 @@ void AudioTimeStretcher::RemoveOldInputFrames(double playback_rate) {
   // Adjust output index.
   double output_time_change =
       static_cast<double>(earliest_used_index) / playback_rate;
-  SB_CHECK(output_time_ >= output_time_change);
+  SB_CHECK_GE(output_time_, output_time_change);
   UpdateOutputTime(playback_rate, -output_time_change);
 }
 
 int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
                                                int dest_offset,
                                                DecodedAudio* dest) {
-  SB_DCHECK(bytes_per_frame_ > 0);
+  SB_DCHECK_GT(bytes_per_frame_, 0);
 
   int rendered_frames = std::min(num_complete_frames_, requested_frames);
 
@@ -420,8 +421,8 @@ void AudioTimeStretcher::GetOptimalBlock() {
 
 void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
                                                   DecodedAudio* dest) {
-  SB_DCHECK(bytes_per_frame_ > 0);
-  SB_CHECK(read_offset_frames + dest->frames() <= audio_buffer_.frames());
+  SB_DCHECK_GT(bytes_per_frame_, 0);
+  SB_CHECK_LE(read_offset_frames + dest->frames(), audio_buffer_.frames());
 
   int write_offset = 0;
   int num_frames_to_read = dest->frames();

@@ -75,7 +75,31 @@ typedef void* SockOptArg;
 
 #endif  // WEBRTC_POSIX
 
-#if defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC) && !defined(__native_client__)
+#if defined(STARBOARD)
+
+int64_t GetSocketRecvTimestamp(int socket) {
+  char data_buf[1];
+  struct iovec iov = { .iov_base = data_buf, .iov_len = sizeof(data_buf) };
+  char ctrl_buf[CMSG_SPACE(sizeof(struct timeval))];
+  struct msghdr msg = {.msg_iov = &iov, .msg_iovlen = 1, .msg_control = ctrl_buf, .msg_controllen = sizeof(ctrl_buf)};
+
+  if (recvmsg(socket, &msg, MSG_PEEK) < 0) {
+    return -1;
+  }
+
+  for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+    if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP) {
+      struct timeval* tv = reinterpret_cast<struct timeval*>(CMSG_DATA(cmsg));
+      int64_t timestamp =
+          rtc::kNumMicrosecsPerSec * static_cast<int64_t>(tv->tv_sec) +
+          static_cast<int64_t>(tv->tv_usec);
+      return timestamp;
+    }
+  }
+  return -1;
+}
+
+#elif defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC) && !defined(__native_client__)
 
 int64_t GetSocketRecvTimestamp(int socket) {
   struct timeval tv_ioctl;

@@ -13,33 +13,41 @@
 // limitations under the License.
 
 #include "starboard/common/semaphore.h"
-#include "starboard/common/time.h"
+
+#include <chrono>
+#include <limits>
+
+#include "starboard/common/check_op.h"
 
 namespace starboard {
+namespace {
+const int64_t kOneYearUs = 365LL * 24 * 60 * 60 * 1000 * 1000;
+}
 
-Semaphore::Semaphore() : mutex_(), condition_(mutex_), permits_(0) {}
+Semaphore::Semaphore() : permits_(0) {}
 
 Semaphore::Semaphore(int initial_thread_permits)
-    : mutex_(), condition_(mutex_), permits_(initial_thread_permits) {}
+    : permits_(initial_thread_permits) {}
 
 Semaphore::~Semaphore() {}
 
 void Semaphore::Put() {
-  ScopedLock lock(mutex_);
-  ++permits_;
-  condition_.Signal();
+  {
+    std::lock_guard lock(mutex_);
+    SB_CHECK_LT(permits_, std::numeric_limits<int>::max());
+    ++permits_;
+  }
+  permits_cv_.notify_one();
 }
 
 void Semaphore::Take() {
-  ScopedLock lock(mutex_);
-  while (permits_ <= 0) {
-    condition_.Wait();
-  }
+  std::unique_lock lock(mutex_);
+  permits_cv_.wait(lock, [this] { return permits_ > 0; });
   --permits_;
 }
 
 bool Semaphore::TakeTry() {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   if (permits_ <= 0) {
     return false;
   }
@@ -51,17 +59,13 @@ bool Semaphore::TakeWait(int64_t wait_us) {
   if (wait_us <= 0) {
     return TakeTry();
   }
-  int64_t expire_time = CurrentMonotonicTime() + wait_us;
-  ScopedLock lock(mutex_);
-  while (permits_ <= 0) {
-    int64_t remaining_wait_time = expire_time - CurrentMonotonicTime();
-    if (remaining_wait_time <= 0) {
-      return false;  // Timed out.
-    }
-    bool was_signaled = condition_.WaitTimed(remaining_wait_time);
-    if (!was_signaled) {
-      return false;  // Timed out.
-    }
+  std::unique_lock<std::mutex> lock(mutex_);
+  // To avoid wait time overflow, we limit wait time to one year.
+  const auto wait_duration =
+      std::chrono::microseconds(std::min(wait_us, kOneYearUs));
+  if (!permits_cv_.wait_for(lock, wait_duration,
+                            [this] { return permits_ > 0; })) {
+    return false;
   }
   --permits_;
   return true;

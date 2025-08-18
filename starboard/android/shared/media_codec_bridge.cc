@@ -96,6 +96,19 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
+  os << "{texture_size=" << size.texture_size;
+  if (size.has_crop_values()) {
+    os << ", crop={left=" << size.crop_left << ", top=" << size.crop_top
+       << ", right=" << size.crop_right << ", bottom=" << size.crop_bottom
+       << "}";
+  } else {
+    os << ", crop=(not set)";
+  }
+  os << "}";
+  return os;
+}
+
 // static
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
@@ -421,8 +434,8 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   jint cropBottom = Java_GetOutputFormatResult_cropBottom(
       env, j_reused_get_output_format_result_);
 
-  FrameSize size = {textureWidth, textureHeight, cropLeft,
-                    cropTop,      cropRight,     cropBottom};
+  FrameSize size = {
+      {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
 
   size.DCheckValid();
   return size;

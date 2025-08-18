@@ -16,15 +16,16 @@
 
 #include <pthread.h>
 
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
-#include "starboard/common/condition_variable.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/player.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
 
@@ -55,9 +56,9 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
 struct ThreadParam {
   explicit ThreadParam(PlayerWorker* player_worker)
-      : condition_variable(mutex), player_worker(player_worker) {}
-  Mutex mutex;
-  ConditionVariable condition_variable;
+      : player_worker(player_worker) {}
+  std::mutex mutex;
+  std::condition_variable condition_variable;
   PlayerWorker* player_worker;
 };
 
@@ -120,7 +121,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       player_state_(kSbPlayerStateInitialized) {
-  SB_DCHECK(handler_ != NULL);
+  SB_DCHECK(handler_);
   SB_DCHECK(update_media_info_cb_);
 
   ON_INSTANCE_CREATED(PlayerWorker);
@@ -138,10 +139,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
     SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
     return;
   }
-  ScopedLock scoped_lock(thread_param.mutex);
-  while (!job_queue_) {
-    thread_param.condition_variable.Wait();
-  }
+  std::unique_lock lock(thread_param.mutex);
+  thread_param.condition_variable.wait(
+      lock, [this] { return job_queue_ != nullptr; });
   SB_DCHECK(job_queue_);
 }
 
@@ -191,15 +191,15 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "player_worker");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != NULL);
+  SB_DCHECK(param);
   PlayerWorker* player_worker = param->player_worker;
   {
-    ScopedLock scoped_lock(param->mutex);
-    player_worker->job_queue_.reset(new JobQueue);
-    param->condition_variable.Signal();
+    std::lock_guard lock(param->mutex);
+    player_worker->job_queue_ = std::make_unique<JobQueue>();
   }
+  param->condition_variable.notify_one();
   player_worker->RunLoop();
   return NULL;
 }
@@ -234,8 +234,8 @@ void PlayerWorker::DoInit() {
 void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
-  SB_DCHECK(ticket_ != ticket);
+  SB_DCHECK_NE(player_state_, kSbPlayerStateDestroyed);
+  SB_DCHECK_NE(ticket_, ticket);
 
   if (error_occurred_) {
     SB_LOG(ERROR) << "Tried to seek after error occurred.";
@@ -287,10 +287,10 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
   SbMediaType media_type = input_buffers.front()->sample_type();
   if (media_type == kSbMediaTypeAudio) {
-    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+    SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);
     SB_DCHECK(pending_audio_buffers_.empty());
   } else {
-    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+    SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     SB_DCHECK(pending_video_buffers_.empty());
   }
   int samples_written;
@@ -306,15 +306,16 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     SB_DCHECK(samples_written >= 0 &&
               static_cast<size_t>(samples_written) <= input_buffers.size());
 
-    size_t num_of_pending_buffers = input_buffers.size() - samples_written;
+    [[maybe_unused]] size_t num_of_pending_buffers =
+        input_buffers.size() - samples_written;
     input_buffers.erase(input_buffers.begin(),
                         input_buffers.begin() + samples_written);
     if (media_type == kSbMediaTypeAudio) {
       pending_audio_buffers_ = std::move(input_buffers);
-      SB_DCHECK(pending_audio_buffers_.size() == num_of_pending_buffers);
+      SB_DCHECK_EQ(pending_audio_buffers_.size(), num_of_pending_buffers);
     } else {
       pending_video_buffers_ = std::move(input_buffers);
-      SB_DCHECK(pending_video_buffers_.size() == num_of_pending_buffers);
+      SB_DCHECK_EQ(pending_video_buffers_.size(), num_of_pending_buffers);
     }
     if (!write_pending_sample_job_token_.is_valid()) {
       write_pending_sample_job_token_ = job_queue_->Schedule(
@@ -330,11 +331,11 @@ void PlayerWorker::DoWritePendingSamples() {
   write_pending_sample_job_token_.ResetToInvalid();
 
   if (!pending_audio_buffers_.empty()) {
-    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+    SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);
     DoWriteSamples(std::move(pending_audio_buffers_));
   }
   if (!pending_video_buffers_.empty()) {
-    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+    SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     InputBuffers input_buffers = std::move(pending_video_buffers_);
     DoWriteSamples(input_buffers);
   }
@@ -342,7 +343,7 @@ void PlayerWorker::DoWritePendingSamples() {
 
 void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
+  SB_DCHECK_NE(player_state_, kSbPlayerStateDestroyed);
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream) {
@@ -357,10 +358,10 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 
   if (sample_type == kSbMediaTypeAudio) {
-    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+    SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);
     SB_DCHECK(pending_audio_buffers_.empty());
   } else {
-    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+    SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     SB_DCHECK(pending_video_buffers_.empty());
   }
 

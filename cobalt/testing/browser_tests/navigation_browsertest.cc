@@ -310,15 +310,6 @@ class NavigationBaseBrowserTest : public ContentBrowserTest {
     test_ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
   }
 
-  // Currently, Cobalt runs in single-process as a way to save memory during
-  // runtime. However, comments in //content/public/test/content_browser_test.h
-  // strongly discourage the use of single-process. For testing purposes, it
-  // should be okay to parallelize these tests as cobalt does not require
-  // running in single-process.
-  void SetUpCommandLine(base::CommandLine* command_line) {
-    command_line->RemoveSwitch("single-process");
-  }
-
   const ukm::TestAutoSetUkmRecorder& test_ukm_recorder() const {
     return *test_ukm_recorder_;
   }
@@ -401,8 +392,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Ensure that browser initiated basic navigations work.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BrowserInitiatedNavigations BrowserInitiatedNavigations
+#else
+#define MAYBE_BrowserInitiatedNavigations DISABLED_BrowserInitiatedNavigations
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_BrowserInitiatedNavigations) {
+                       MAYBE_BrowserInitiatedNavigations) {
   // Perform a navigation with no live renderer.
   {
     TestNavigationObserver observer(web_contents());
@@ -465,8 +461,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that renderer initiated same-site navigations work.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererInitiatedSameSiteNavigation \
+  RendererInitiatedSameSiteNavigation
+#else
+#define MAYBE_RendererInitiatedSameSiteNavigation \
+  DISABLED_RendererInitiatedSameSiteNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererInitiatedSameSiteNavigation) {
+                       MAYBE_RendererInitiatedSameSiteNavigation) {
   // Perform a navigation with no live renderer.
   {
     TestNavigationObserver observer(web_contents());
@@ -528,8 +531,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that renderer initiated cross-site navigations work.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererInitiatedCrossSiteNavigation \
+  RendererInitiatedCrossSiteNavigation
+#else
+#define MAYBE_RendererInitiatedCrossSiteNavigation \
+  DISABLED_RendererInitiatedCrossSiteNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererInitiatedCrossSiteNavigation) {
+                       MAYBE_RendererInitiatedCrossSiteNavigation) {
   // Perform a navigation with no live renderer.
   {
     TestNavigationObserver observer(web_contents());
@@ -575,7 +585,12 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure navigation failures are handled.
 // TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_FailedNavigation) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FailedNavigation FailedNavigation
+#else
+#define MAYBE_FailedNavigation DISABLED_FailedNavigation
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_FailedNavigation) {
   // Perform a navigation with no live renderer.
   {
     TestNavigationObserver observer(web_contents());
@@ -610,8 +625,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_FailedNavigation) {
 
 // Ensure that browser initiated navigations to view-source URLs works.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ViewSourceNavigation_BrowserInitiated \
+  ViewSourceNavigation_BrowserInitiated
+#else
+#define MAYBE_ViewSourceNavigation_BrowserInitiated \
+  DISABLED_ViewSourceNavigation_BrowserInitiated
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_ViewSourceNavigation_BrowserInitiated) {
+                       MAYBE_ViewSourceNavigation_BrowserInitiated) {
   TestNavigationObserver observer(web_contents());
   GURL url(embedded_test_server()->GetURL("/title1.html"));
   GURL view_source_url(content::kViewSourceScheme + std::string(":") +
@@ -623,8 +645,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that content initiated navigations to view-sources URLs are blocked.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ViewSourceNavigation_RendererInitiated \
+  ViewSourceNavigation_RendererInitiated
+#else
+#define MAYBE_ViewSourceNavigation_RendererInitiated \
+  DISABLED_ViewSourceNavigation_RendererInitiated
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_ViewSourceNavigation_RendererInitiated) {
+                       MAYBE_ViewSourceNavigation_RendererInitiated) {
   TestNavigationObserver observer(web_contents());
   GURL kUrl(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), kUrl));
@@ -648,8 +677,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that content initiated navigations to googlechrome: URLs are blocked.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GoogleChromeNavigation_RendererInitiated \
+  GoogleChromeNavigation_RendererInitiated
+#else
+#define MAYBE_GoogleChromeNavigation_RendererInitiated \
+  DISABLED_GoogleChromeNavigation_RendererInitiated
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_GoogleChromeNavigation_RendererInitiated) {
+                       MAYBE_GoogleChromeNavigation_RendererInitiated) {
   TestNavigationObserver observer(web_contents());
   GURL kUrl(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), kUrl));
@@ -680,7 +716,12 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, UnloadDuringNavigation) {
 
 // Ensure that the referrer of a navigation is properly sanitized.
 // TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SanitizeReferrer) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SanitizeReferrer SanitizeReferrer
+#else
+#define MAYBE_SanitizeReferrer DISABLED_SanitizeReferrer
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_SanitizeReferrer) {
   const GURL kInsecureUrl(embedded_test_server()->GetURL("/title1.html"));
   const Referrer kSecureReferrer(
       GURL("https://secure-url.com"),
@@ -707,8 +748,13 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SanitizeReferrer) {
 // Ensure the correctness of a navigation request's referrer. This is a
 // regression test for https://crbug.com/1004083.
 // TODO: b/432530025 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReferrerPolicy ReferrerPolicy
+#else
+#define MAYBE_ReferrerPolicy DISABLED_ReferrerPolicy
+#endif
 IN_PROC_BROWSER_TEST_P(NavigationBrowserTestReferrerPolicy,
-                       DISABLED_ReferrerPolicy) {
+                       MAYBE_ReferrerPolicy) {
   const GURL kDestination(embedded_test_server()->GetURL("/title1.html"));
   const GURL kReferrerURL(embedded_test_server()->GetURL("/referrer-page"));
   const url::Origin kReferrerOrigin = url::Origin::Create(kReferrerURL);
@@ -757,8 +803,12 @@ IN_PROC_BROWSER_TEST_P(NavigationBrowserTestReferrerPolicy,
 // Test to verify that an exploited renderer process trying to upload a file
 // it hasn't been explicitly granted permissions to is correctly terminated.
 // TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_PostUploadIllegalFilePath) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PostUploadIllegalFilePath PostUploadIllegalFilePath
+#else
+#define MAYBE_PostUploadIllegalFilePath DISABLED_PostUploadIllegalFilePath
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_PostUploadIllegalFilePath) {
   GURL form_url(
       embedded_test_server()->GetURL("/form_that_posts_to_echoall.html"));
   EXPECT_TRUE(NavigateToURL(shell(), form_url));
@@ -811,8 +861,14 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // even when invoked through a reload.
 // See https://crbug.com/723796.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_VerifyBlockedErrorPageURL_Reload VerifyBlockedErrorPageURL_Reload
+#else
+#define MAYBE_VerifyBlockedErrorPageURL_Reload \
+  DISABLED_VerifyBlockedErrorPageURL_Reload
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_VerifyBlockedErrorPageURL_Reload) {
+                       MAYBE_VerifyBlockedErrorPageURL_Reload) {
   NavigationControllerImpl& controller = web_contents()->GetController();
 
   GURL start_url(embedded_test_server()->GetURL("/title1.html"));
@@ -843,7 +899,12 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_BackFollowedByReload) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BackFollowedByReload BackFollowedByReload
+#else
+#define MAYBE_BackFollowedByReload DISABLED_BackFollowedByReload
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_BackFollowedByReload) {
   // First, make two history entries.
   GURL url1(embedded_test_server()->GetURL("/title1.html"));
   GURL url2(embedded_test_server()->GetURL("/title2.html"));
@@ -906,8 +967,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 }
 
 // TODO: b/432529457 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BrowserNavigationNetworkIsolationKey \
+  BrowserNavigationNetworkIsolationKey
+#else
+#define MAYBE_BrowserNavigationNetworkIsolationKey \
+  DISABLED_BrowserNavigationNetworkIsolationKey
+#endif
 IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
-                       DISABLED_BrowserNavigationNetworkIsolationKey) {
+                       MAYBE_BrowserNavigationNetworkIsolationKey) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
   url::Origin origin = url::Origin::Create(url);
   URLLoaderMonitor monitor({url});
@@ -925,8 +993,14 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
 }
 
 // TODO: b/432529457 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderNavigationIsolationInfo RenderNavigationIsolationInfo
+#else
+#define MAYBE_RenderNavigationIsolationInfo \
+  DISABLED_RenderNavigationIsolationInfo
+#endif
 IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
-                       DISABLED_RenderNavigationIsolationInfo) {
+                       MAYBE_RenderNavigationIsolationInfo) {
   GURL url(embedded_test_server()->GetURL("/title2.html"));
   url::Origin origin = url::Origin::Create(url);
   EXPECT_TRUE(NavigateToURL(shell(), GURL("about:blank")));
@@ -945,8 +1019,13 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
 }
 
 // TODO: b/432529457 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeIsolationInfo SubframeIsolationInfo
+#else
+#define MAYBE_SubframeIsolationInfo DISABLED_SubframeIsolationInfo
+#endif
 IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
-                       DISABLED_SubframeIsolationInfo) {
+                       MAYBE_SubframeIsolationInfo) {
   GURL url(embedded_test_server()->GetURL("/page_with_iframe.html"));
   GURL iframe_document = embedded_test_server()->GetURL("/title1.html");
   url::Origin origin = url::Origin::Create(url);
@@ -980,8 +1059,13 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
 // Tests that the initiator is not set for a browser initiated top frame
 // navigation.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BrowserNavigationInitiator BrowserNavigationInitiator
+#else
+#define MAYBE_BrowserNavigationInitiator DISABLED_BrowserNavigationInitiator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_BrowserNavigationInitiator) {
+                       MAYBE_BrowserNavigationInitiator) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
 
   URLLoaderMonitor monitor;
@@ -998,8 +1082,13 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Test that the initiator is set to the starting page when a renderer initiated
 // navigation goes from the starting page to another page.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererNavigationInitiator RendererNavigationInitiator
+#else
+#define MAYBE_RendererNavigationInitiator DISABLED_RendererNavigationInitiator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererNavigationInitiator) {
+                       MAYBE_RendererNavigationInitiator) {
   GURL starting_page(embedded_test_server()->GetURL("a.com", "/title1.html"));
   url::Origin starting_page_origin;
   starting_page_origin = starting_page_origin.Create(starting_page);
@@ -1022,8 +1111,14 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Test that the initiator is set to the starting page when a sub frame is
 // navigated by Javascript from some starting page to another page.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubFrameJsNavigationInitiator SubFrameJsNavigationInitiator
+#else
+#define MAYBE_SubFrameJsNavigationInitiator \
+  DISABLED_SubFrameJsNavigationInitiator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_SubFrameJsNavigationInitiator) {
+                       MAYBE_SubFrameJsNavigationInitiator) {
   GURL starting_page(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), starting_page));
 
@@ -1065,8 +1160,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // selected by Id, is navigated by Javascript from some starting page to another
 // page.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeNavigationByTopFrameInitiator \
+  SubframeNavigationByTopFrameInitiator
+#else
+#define MAYBE_SubframeNavigationByTopFrameInitiator \
+  DISABLED_SubframeNavigationByTopFrameInitiator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_SubframeNavigationByTopFrameInitiator) {
+                       MAYBE_SubframeNavigationByTopFrameInitiator) {
   // Go to a page on a.com with an iframe that is on b.com
   GURL starting_page(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
@@ -1106,8 +1208,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererInitiatedCrossSiteNewWindowInitator \
+  RendererInitiatedCrossSiteNewWindowInitator
+#else
+#define MAYBE_RendererInitiatedCrossSiteNewWindowInitator \
+  DISABLED_RendererInitiatedCrossSiteNewWindowInitator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererInitiatedCrossSiteNewWindowInitator) {
+                       MAYBE_RendererInitiatedCrossSiteNewWindowInitator) {
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -1140,8 +1249,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Ensure that renderer initiated navigations which have the opener suppressed
 // work.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererInitiatedNewWindowNoOpenerNavigation \
+  RendererInitiatedNewWindowNoOpenerNavigation
+#else
+#define MAYBE_RendererInitiatedNewWindowNoOpenerNavigation \
+  DISABLED_RendererInitiatedNewWindowNoOpenerNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererInitiatedNewWindowNoOpenerNavigation) {
+                       MAYBE_RendererInitiatedNewWindowNoOpenerNavigation) {
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -1175,8 +1291,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererInitiatedWithSubframeInitator \
+  RendererInitiatedWithSubframeInitator
+#else
+#define MAYBE_RendererInitiatedWithSubframeInitator \
+  DISABLED_RendererInitiatedWithSubframeInitator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererInitiatedWithSubframeInitator) {
+                       MAYBE_RendererInitiatedWithSubframeInitator) {
   GURL url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a())"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -1214,9 +1337,16 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_InitiatorFrameStateConsistentAtDidStartNavigation \
+  InitiatorFrameStateConsistentAtDidStartNavigation
+#else
+#define MAYBE_InitiatorFrameStateConsistentAtDidStartNavigation \
+  DISABLED_InitiatorFrameStateConsistentAtDidStartNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_InitiatorFrameStateConsistentAtDidStartNavigation) {
+    MAYBE_InitiatorFrameStateConsistentAtDidStartNavigation) {
   GURL form_page_url(embedded_test_server()->GetURL(
       "a.com", "/form_that_posts_to_echoall.html"));
   EXPECT_TRUE(NavigateToURL(shell(), form_page_url));
@@ -1259,8 +1389,15 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RendererInitiatedMiddleClickInitator \
+  RendererInitiatedMiddleClickInitator
+#else
+#define MAYBE_RendererInitiatedMiddleClickInitator \
+  DISABLED_RendererInitiatedMiddleClickInitator
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_RendererInitiatedMiddleClickInitator) {
+                       MAYBE_RendererInitiatedMiddleClickInitator) {
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -1309,8 +1446,14 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DataURLWithReferenceFragment) {
 // 2) Create an iframe and call history.pushState at the same time.
 // 3) history.back() must work.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IframeAndPushStateSimultaneously IframeAndPushStateSimultaneously
+#else
+#define MAYBE_IframeAndPushStateSimultaneously \
+  DISABLED_IframeAndPushStateSimultaneously
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_IframeAndPushStateSimultaneously) {
+                       MAYBE_IframeAndPushStateSimultaneously) {
   GURL main_url = embedded_test_server()->GetURL("/simple_page.html");
   GURL iframe_url = embedded_test_server()->GetURL("/hello.html");
 
@@ -1351,8 +1494,14 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Regression test for https://crbug.com/260144
 // Back/Forward navigation in an iframe must not stop ongoing XHR.
 // TODO: b/432532766 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IframeNavigationsDoNotStopXHR IframeNavigationsDoNotStopXHR
+#else
+#define MAYBE_IframeNavigationsDoNotStopXHR \
+  DISABLED_IframeNavigationsDoNotStopXHR
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
-                       DISABLED_IframeNavigationsDoNotStopXHR) {
+                       MAYBE_IframeNavigationsDoNotStopXHR) {
   // A response for the XHR request. It will be delayed until the end of all the
   // navigations.
   net::test_server::ControllableHttpResponse xhr_response(
@@ -1506,8 +1655,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 // handler and thus avoid basic navigation circumventions.
 // Regression test for: https://crbug.com/879965.
 // TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_HistoryBackInBeforeUnloadAfterSetTimeout \
+  HistoryBackInBeforeUnloadAfterSetTimeout
+#else
+#define MAYBE_HistoryBackInBeforeUnloadAfterSetTimeout \
+  DISABLED_HistoryBackInBeforeUnloadAfterSetTimeout
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationGoToEntryAtOffsetBrowserTest,
-                       DISABLED_HistoryBackInBeforeUnloadAfterSetTimeout) {
+                       MAYBE_HistoryBackInBeforeUnloadAfterSetTimeout) {
   GURL url_1(embedded_test_server()->GetURL("/title1.html"));
   GURL url_2(embedded_test_server()->GetURL("/title2.html"));
 
@@ -1533,9 +1689,15 @@ IN_PROC_BROWSER_TEST_F(NavigationGoToEntryAtOffsetBrowserTest,
 // Renderer initiated back/forward navigation can't cancel an ongoing browser
 // initiated navigation if it is not user initiated.
 // TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_HistoryBackCancelPendingNavigationNoUserGesture) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_HistoryBackCancelPendingNavigationNoUserGesture \
+  HistoryBackCancelPendingNavigationNoUserGesture
+#else
+#define MAYBE_HistoryBackCancelPendingNavigationNoUserGesture \
+  DISABLED_HistoryBackCancelPendingNavigationNoUserGesture
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       MAYBE_HistoryBackCancelPendingNavigationNoUserGesture) {
   GURL url_1(embedded_test_server()->GetURL("/title1.html"));
   GURL url_2(embedded_test_server()->GetURL("/title2.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url_1));
@@ -1559,8 +1721,15 @@ IN_PROC_BROWSER_TEST_F(
 // Renderer initiated back/forward navigation can cancel an ongoing browser
 // initiated navigation if it is user initiated.
 // TODO: b/432503432 - Investigate test failure
+#if !BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_HistoryBackCancelPendingNavigationUserGesture \
+  DISABLED_HistoryBackCancelPendingNavigationUserGesture
+#else
+#define MAYBE_HistoryBackCancelPendingNavigationUserGesture \
+  HistoryBackCancelPendingNavigationUserGesture
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_HistoryBackCancelPendingNavigationUserGesture) {
+                       MAYBE_HistoryBackCancelPendingNavigationUserGesture) {
   GURL url_1(embedded_test_server()->GetURL("/title1.html"));
   GURL url_2(embedded_test_server()->GetURL("/title2.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url_1));
@@ -1585,8 +1754,13 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Failing to do so causes the browser to become unresponsive.
 // See https://crbug.com/882238
 // TODO: b/432503432 - Investigate test failure
+#if !BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IPCFlood_GoToEntryAtOffset DISABLED_IPCFlood_GoToEntryAtOffset
+#else
+#define MAYBE_IPCFlood_GoToEntryAtOffset IPCFlood_GoToEntryAtOffset
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_IPCFlood_GoToEntryAtOffset) {
+                       MAYBE_IPCFlood_GoToEntryAtOffset) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -1614,7 +1788,12 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // requested from a remote frame.
 // See https://crbug.com/882238
 // TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_IPCFlood_Navigation) {
+#if !BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IPCFlood_Navigation DISABLED_IPCFlood_Navigation
+#else
+#define MAYBE_IPCFlood_Navigation IPCFlood_Navigation
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_IPCFlood_Navigation) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -1926,8 +2105,14 @@ class CreateWebContentsOnCrashObserver : public NotificationObserver {
 
 // Test NavigationRequest::CheckAboutSrcDoc()
 // TODO: b/432503432 - Investigate test failure
+#if !BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BlockedSrcDocBrowserInitiated \
+  DISABLED_BlockedSrcDocBrowserInitiated
+#else
+#define MAYBE_BlockedSrcDocBrowserInitiated BlockedSrcDocBrowserInitiated
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_BlockedSrcDocBrowserInitiated) {
+                       MAYBE_BlockedSrcDocBrowserInitiated) {
   const char* about_srcdoc_urls[] = {"about:srcdoc", "about:srcdoc?foo",
                                      "about:srcdoc#foo"};
   // 1. Main frame navigations to about:srcdoc and its variations are blocked.

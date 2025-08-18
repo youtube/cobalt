@@ -20,11 +20,12 @@
 
 #include "starboard/shared/gles/gl_call.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/decode_target.h"
 
 SbDecodeTargetPrivate::Data::~Data() {
   glDeleteTextures(1, &info.planes[0].texture);
-  SB_DCHECK(glGetError() == GL_NO_ERROR);
+  SB_DCHECK_EQ(glGetError(), GL_NO_ERROR);
 }
 
 namespace starboard {
@@ -52,7 +53,7 @@ void CreateTargetFromVideoFrameWithContextRunner(void* context) {
       static_cast<CreateParamsForVideoFrame*>(context);
 
   SB_DCHECK(params->frame);
-  SB_DCHECK(params->frame->format() == CpuVideoFrame::kYV12);
+  SB_DCHECK_EQ(params->frame->format(), CpuVideoFrame::kYV12);
   static const SbDecodeTargetFormat format = kSbDecodeTargetFormat3PlaneYUVI420;
   static const int plane_count = 3;
 

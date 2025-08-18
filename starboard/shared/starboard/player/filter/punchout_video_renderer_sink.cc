@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
@@ -82,7 +83,7 @@ void PunchoutVideoRendererSink::RunLoop() {
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
     const scoped_refptr<VideoFrame>& frame,
     int64_t release_time_in_nanoseconds) {
-  SB_DCHECK(release_time_in_nanoseconds == 0);
+  SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(player_, frame, z_index_,

@@ -2439,11 +2439,19 @@ source_set("browser") {
   }
 
   if (is_linux) {
+    if (is_starboard) {
+      sources += [ "speech/tts_starboard.cc" ]
+      deps += [
+        "//ui/linux:linux_ui",
+      ]
+    }
+    else {
     sources += [ "speech/tts_linux.cc" ]
     deps += [
       "//third_party/speech-dispatcher",
       "//ui/linux:linux_ui",
     ]
+    }
   }
 
   # ChromeOS also defines linux but their memory-monitors conflict.

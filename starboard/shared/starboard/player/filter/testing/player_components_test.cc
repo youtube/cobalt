@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
@@ -285,7 +286,7 @@ class PlayerComponentsTest
   // allow to write buffers of timestamp greater than |timestamp|.
   void WriteDataUntil(int64_t timestamp,
                       int64_t timeout = kDefaultWriteTimeOut) {
-    SB_CHECK(playback_rate_ != 0);
+    SB_CHECK_NE(playback_rate_, 0);
 
     int64_t last_input_filled_time = CurrentMonotonicTime();
     while (
@@ -313,7 +314,7 @@ class PlayerComponentsTest
   // |eos_timestamp| are written into the player.
   void WriteDataAndEOS(int64_t eos_timestamp,
                        int64_t timeout = kDefaultWriteTimeOut) {
-    SB_CHECK(playback_rate_ != 0);
+    SB_CHECK_NE(playback_rate_, 0);
     bool audio_eos_written = !GetAudioRenderer();
     bool video_eos_written = !GetVideoRenderer();
 
@@ -356,7 +357,7 @@ class PlayerComponentsTest
   }
 
   void WaitUntilPlaybackEnded() {
-    SB_CHECK(playback_rate_ != 0);
+    SB_CHECK_NE(playback_rate_, 0);
 
     int64_t duration = std::max(GetCurrentAudioBufferTimestamp(),
                                 GetCurrentVideoBufferTimestamp());

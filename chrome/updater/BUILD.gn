@@ -339,8 +339,21 @@ if (is_win || is_mac || is_linux) {
         "//components/named_mojo_ipc_server",
       ]
     }
-
-    if (is_linux) {
+    if (is_cobalt_hermetic_build) {
+      # TODO: b/434794270, Cobalt - prototype an updater_sandbox target for evergreen-x64. Will iterate on the list of source files.
+      sources += [
+        "activity_impl_util_linux.cc",
+        "app/server/posix/app_server_posix_linux.cc",
+        "device_management/dm_storage_linux.cc",
+        "installer_linux.cc",
+        "ipc/ipc_security_linux.cc",
+        "linux/setup/setup.cc",
+        "linux/systemd_util.h",
+        "setup_linux.cc",
+        "update_service_internal_impl_qualifying_linux.cc",
+        "update_usage_stats_task_linux.cc",
+      ]
+    } else if (is_linux) {
       sources += [
         "activity_impl_util_linux.cc",
         "app/server/posix/app_server_posix_linux.cc",

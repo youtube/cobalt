@@ -12,15 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+  The following mmap error conditions are not tested due to the difficulty of
+  reliably triggering them in a portable unit testing environment:
+
+  - EAGAIN: Could not lock the mapping in memory due to a lack of resources.
+  - EMFILE: The number of mapped regions would exceed a process or system limit.
+  - ENOMEM: Not enough memory, or the address space is full.
+  - ENOTSUP: The implementation does not support a requested feature.
+  - EOVERFLOW: The values of `off` plus `len` exceed the maximum file size.
+*/
+
 #include <sys/mman.h>
-#include <algorithm>
 
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
@@ -32,10 +42,11 @@ TEST(PosixMemoryMapTest, AllocatesNormally) {
   EXPECT_EQ(munmap(memory, kSize), 0);
 }
 
-TEST(PosixMemoryMapTest, AllocatesZero) {
+TEST(PosixMemoryMapTest, FailsWithZeroLength) {
+  errno = 0;
   void* memory = mmap(nullptr, 0, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
-  ASSERT_EQ(kFailed, memory);
-  EXPECT_NE(munmap(memory, 0), 0);
+  EXPECT_EQ(kFailed, memory);
+  EXPECT_EQ(EINVAL, errno);
 }
 
 TEST(PosixMemoryMapTest, AllocatesOne) {
@@ -226,6 +237,125 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
   }
 }
 
+TEST(PosixMemoryMapTest, FailsWithNonMappableFileType) {
+  int fds[2];
+  ASSERT_EQ(pipe(fds), 0);
+  errno = 0;
+  void* mem = mmap(NULL, kSize, PROT_READ, MAP_SHARED, fds[0], 0);
+  EXPECT_EQ(mem, MAP_FAILED);
+  EXPECT_EQ(errno, ENODEV);
+  close(fds[0]);
+  close(fds[1]);
+}
+
+class PosixMemoryMapFileTest : public ::testing::Test {
+ protected:
+  PosixMemoryMapFileTest() : scoped_file_(kSize) {}
+
+  void SetUp() override {
+    fd_ = open(scoped_file_.filename().c_str(), O_RDWR);
+    ASSERT_NE(fd_, -1);
+  }
+
+  void TearDown() override {
+    if (fd_ != -1) {
+      close(fd_);
+    }
+  }
+
+  int fd_ = -1;
+  ScopedRandomFile scoped_file_;
+};
+
+TEST_F(PosixMemoryMapFileTest, SharedMappingWritesThrough) {
+  void* mem = mmap(NULL, kSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
+  ASSERT_NE(mem, MAP_FAILED);
+  static_cast<char*>(mem)[0] = 'X';
+  ASSERT_EQ(munmap(mem, kSize), 0)
+      << "munmap failed with error " << strerror(errno);
+  std::vector<char> buffer(kSize);
+  int new_fd = open(scoped_file_.filename().c_str(), O_RDONLY);
+  ASSERT_NE(new_fd, -1);
+  ASSERT_EQ(read(new_fd, buffer.data(), 1), 1);
+  close(new_fd);
+  EXPECT_EQ(buffer[0], 'X');
+}
+
+TEST_F(PosixMemoryMapFileTest, PrivateMappingIsPrivate) {
+  void* mem = mmap(NULL, kSize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd_, 0);
+  ASSERT_NE(mem, MAP_FAILED);
+  static_cast<char*>(mem)[0] = 'Y';
+  ASSERT_EQ(munmap(mem, kSize), 0)
+      << "munmap failed with error " << strerror(errno);
+  std::vector<char> buffer(kSize);
+  int new_fd = open(scoped_file_.filename().c_str(), O_RDONLY);
+  ASSERT_NE(new_fd, -1);
+  ASSERT_EQ(read(new_fd, buffer.data(), 1), 1);
+  close(new_fd);
+  EXPECT_NE(buffer[0], 'Y');
+}
+
+TEST_F(PosixMemoryMapFileTest, FailsWithBadFileDescriptor) {
+  errno = 0;
+  void* mem = mmap(NULL, kSize, PROT_READ, MAP_SHARED, -2, 0);
+  EXPECT_EQ(mem, MAP_FAILED);
+  EXPECT_EQ(errno, EBADF);
+}
+
+TEST_F(PosixMemoryMapFileTest, FailsWithIncorrectPermissions) {
+  int ro_fd = open(scoped_file_.filename().c_str(), O_RDONLY);
+  ASSERT_NE(ro_fd, -1);
+  errno = 0;
+  void* mem = mmap(NULL, kSize, PROT_READ | PROT_WRITE, MAP_SHARED, ro_fd, 0);
+  EXPECT_EQ(mem, MAP_FAILED);
+  EXPECT_EQ(errno, EACCES);
+  close(ro_fd);
+}
+
+TEST_F(PosixMemoryMapFileTest, MayFailWithUnalignedOffset) {
+  if (kSbMemoryPageSize > 1) {
+    errno = 0;
+    void* mem = mmap(NULL, kSize - 1, PROT_READ, MAP_SHARED, fd_, 1);
+    if (mem == MAP_FAILED) {
+      EXPECT_EQ(errno, EINVAL);
+    } else {
+      munmap(mem, kSize - 1);
+    }
+  }
+}
+
+TEST_F(PosixMemoryMapFileTest, FailsWithInvalidFlags) {
+  errno = 0;
+  void* mem = mmap(NULL, kSize, PROT_READ, 0, fd_, 0);
+  EXPECT_EQ(mem, MAP_FAILED);
+  EXPECT_EQ(errno, EINVAL);
+}
+
+TEST_F(PosixMemoryMapFileTest, SuccessWithMapFixed) {
+  void* placeholder =
+      mmap(NULL, kSize, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_NE(placeholder, MAP_FAILED);
+  ASSERT_EQ(munmap(placeholder, kSize), 0)
+      << "munmap failed with error " << strerror(errno);
+  void* mem =
+      mmap(placeholder, kSize, PROT_READ, MAP_SHARED | MAP_FIXED, fd_, 0);
+  ASSERT_NE(mem, MAP_FAILED);
+  EXPECT_EQ(mem, placeholder);
+  EXPECT_EQ(munmap(mem, kSize), 0)
+      << "munmap failed with error " << strerror(errno);
+}
+
+TEST_F(PosixMemoryMapFileTest, AnonymousMappingIsZeroed) {
+  void* mem = mmap(NULL, kSize, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_NE(mem, MAP_FAILED);
+  char* data = static_cast<char*>(mem);
+  for (size_t i = 0; i < kSize; ++i) {
+    ASSERT_EQ(data[i], 0);
+  }
+  ASSERT_EQ(munmap(mem, kSize), 0)
+      << "munmap failed with error " << strerror(errno);
+}
+
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

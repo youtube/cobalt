@@ -23,6 +23,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
   ]
 
@@ -45,7 +46,6 @@ android_library("cobalt_main_java") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
-    "//components/embedder_support/android:view_java",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
@@ -179,8 +179,8 @@ shared_library("libchrobalt") {
     "//gpu/command_buffer/service",
 
     # TODO: what can be removed in the dependencies?
-    "//cobalt/shell:content_shell_app",
-    "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:cobalt_shell_app",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/crash/content/browser",
     "//components/memory_system",

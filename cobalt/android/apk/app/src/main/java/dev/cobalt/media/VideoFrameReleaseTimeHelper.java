@@ -49,20 +49,20 @@ public final class VideoFrameReleaseTimeHelper {
   private static final int MIN_FRAMES_FOR_ADJUSTMENT = 6;
   private static final long NANOS_PER_SECOND = 1000000000L;
 
-  private final VSyncSampler vsyncSampler;
-  private final boolean useDefaultDisplayVsync;
-  private final long vsyncDurationNs;
-  private final long vsyncOffsetNs;
+  private final VSyncSampler mVsyncSampler;
+  private final boolean mUseDefaultDisplayVsync;
+  private final long mVsyncDurationNs;
+  private final long mVsyncOffsetNs;
 
-  private long lastFramePresentationTimeUs;
-  private long adjustedLastFrameTimeNs;
-  private long pendingAdjustedFrameTimeNs;
-  private double lastPlaybackRate;
+  private long mLastFramePresentationTimeUs;
+  private long mAdjustedLastFrameTimeNs;
+  private long mPendingAdjustedFrameTimeNs;
+  private double mLastPlaybackRate;
 
-  private boolean haveSync;
-  private long syncUnadjustedReleaseTimeNs;
-  private long syncFramePresentationTimeNs;
-  private long frameCount;
+  private boolean mHaveSync;
+  private long mSyncUnadjustedReleaseTimeNs;
+  private long mSyncFramePresentationTimeNs;
+  private long mFrameCount;
 
   /**
    * Constructs an instance that smooths frame release timestamps but does not align them with the
@@ -75,15 +75,15 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   private VideoFrameReleaseTimeHelper(double defaultDisplayRefreshRate) {
-    useDefaultDisplayVsync = defaultDisplayRefreshRate != DisplayUtil.DISPLAY_REFRESH_RATE_UNKNOWN;
-    if (useDefaultDisplayVsync) {
-      vsyncSampler = VSyncSampler.getInstance();
-      vsyncDurationNs = (long) (NANOS_PER_SECOND / defaultDisplayRefreshRate);
-      vsyncOffsetNs = (vsyncDurationNs * VSYNC_OFFSET_PERCENTAGE) / 100;
+    mUseDefaultDisplayVsync = defaultDisplayRefreshRate != DisplayUtil.DISPLAY_REFRESH_RATE_UNKNOWN;
+    if (mUseDefaultDisplayVsync) {
+      mVsyncSampler = VSyncSampler.getInstance();
+      mVsyncDurationNs = (long) (NANOS_PER_SECOND / defaultDisplayRefreshRate);
+      mVsyncOffsetNs = (mVsyncDurationNs * VSYNC_OFFSET_PERCENTAGE) / 100;
     } else {
-      vsyncSampler = null;
-      vsyncDurationNs = -1; // Value unused.
-      vsyncOffsetNs = -1; // Value unused.
+      mVsyncSampler = null;
+      mVsyncDurationNs = -1; // Value unused.
+      mVsyncOffsetNs = -1; // Value unused.
     }
   }
 
@@ -91,10 +91,10 @@ public final class VideoFrameReleaseTimeHelper {
   @SuppressWarnings("unused")
   @UsedByNative
   public void enable() {
-    haveSync = false;
-    lastPlaybackRate = -1;
-    if (useDefaultDisplayVsync) {
-      vsyncSampler.addObserver();
+    mHaveSync = false;
+    mLastPlaybackRate = -1;
+    if (mUseDefaultDisplayVsync) {
+      mVsyncSampler.addObserver();
     }
   }
 
@@ -102,8 +102,8 @@ public final class VideoFrameReleaseTimeHelper {
   @SuppressWarnings("unused")
   @UsedByNative
   public void disable() {
-    if (useDefaultDisplayVsync) {
-      vsyncSampler.removeObserver();
+    if (mUseDefaultDisplayVsync) {
+      mVsyncSampler.removeObserver();
     }
   }
 
@@ -123,10 +123,10 @@ public final class VideoFrameReleaseTimeHelper {
     if (playbackRate == 0) {
       return unadjustedReleaseTimeNs;
     }
-    if (playbackRate != lastPlaybackRate) {
+    if (playbackRate != mLastPlaybackRate) {
       // Resync if playback rate has changed.
-      haveSync = false;
-      lastPlaybackRate = playbackRate;
+      mHaveSync = false;
+      mLastPlaybackRate = playbackRate;
     }
 
     long framePresentationTimeNs = framePresentationTimeUs * 1000;
@@ -135,59 +135,59 @@ public final class VideoFrameReleaseTimeHelper {
     long adjustedFrameTimeNs = framePresentationTimeNs;
     long adjustedReleaseTimeNs = unadjustedReleaseTimeNs;
 
-    if (haveSync) {
+    if (mHaveSync) {
       // See if we've advanced to the next frame.
-      if (framePresentationTimeUs != lastFramePresentationTimeUs) {
-        frameCount++;
-        adjustedLastFrameTimeNs = pendingAdjustedFrameTimeNs;
+      if (framePresentationTimeUs != mLastFramePresentationTimeUs) {
+        mFrameCount++;
+        mAdjustedLastFrameTimeNs = mPendingAdjustedFrameTimeNs;
       }
-      if (frameCount >= MIN_FRAMES_FOR_ADJUSTMENT) {
+      if (mFrameCount >= MIN_FRAMES_FOR_ADJUSTMENT) {
         // We're synced and have waited the required number of frames to apply an adjustment.
         // Calculate the average frame time across all the frames we've seen since the last sync.
         // This will typically give us a frame rate at a finer granularity than the frame times
         // themselves (which often only have millisecond granularity).
         long averageFrameDurationNs =
-            (framePresentationTimeNs - syncFramePresentationTimeNs) / frameCount;
+            (framePresentationTimeNs - mSyncFramePresentationTimeNs) / mFrameCount;
         // Project the adjusted frame time forward using the average.
-        long candidateAdjustedFrameTimeNs = adjustedLastFrameTimeNs + averageFrameDurationNs;
+        long candidateAdjustedFrameTimeNs = mAdjustedLastFrameTimeNs + averageFrameDurationNs;
         if (isDriftTooLarge(candidateAdjustedFrameTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
-          haveSync = false;
+          mHaveSync = false;
         } else {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
           adjustedReleaseTimeNs =
-              syncUnadjustedReleaseTimeNs
-                  + (long) ((adjustedFrameTimeNs - syncFramePresentationTimeNs) / playbackRate);
+              mSyncUnadjustedReleaseTimeNs
+                  + (long) ((adjustedFrameTimeNs - mSyncFramePresentationTimeNs) / playbackRate);
         }
       } else {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
         // Check drift anyway.
         if (isDriftTooLarge(framePresentationTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
-          haveSync = false;
+          mHaveSync = false;
         }
       }
     }
 
     // If we need to sync, do so now.
-    if (!haveSync) {
-      syncFramePresentationTimeNs = framePresentationTimeNs;
-      syncUnadjustedReleaseTimeNs = unadjustedReleaseTimeNs;
-      frameCount = 0;
-      haveSync = true;
+    if (!mHaveSync) {
+      mSyncFramePresentationTimeNs = framePresentationTimeNs;
+      mSyncUnadjustedReleaseTimeNs = unadjustedReleaseTimeNs;
+      mFrameCount = 0;
+      mHaveSync = true;
       onSynced();
     }
 
-    lastFramePresentationTimeUs = framePresentationTimeUs;
-    pendingAdjustedFrameTimeNs = adjustedFrameTimeNs;
+    mLastFramePresentationTimeUs = framePresentationTimeUs;
+    mPendingAdjustedFrameTimeNs = adjustedFrameTimeNs;
 
-    if (vsyncSampler == null || vsyncSampler.sampledVsyncTimeNs == 0) {
+    if (mVsyncSampler == null || mVsyncSampler.sampledVsyncTimeNs == 0) {
       return adjustedReleaseTimeNs;
     }
 
     // Find the timestamp of the closest vsync. This is the vsync that we're targeting.
     long snappedTimeNs =
-        closestVsync(adjustedReleaseTimeNs, vsyncSampler.sampledVsyncTimeNs, vsyncDurationNs);
+        closestVsync(adjustedReleaseTimeNs, mVsyncSampler.sampledVsyncTimeNs, mVsyncDurationNs);
     // Apply an offset so that we release before the target vsync, but after the previous one.
-    return snappedTimeNs - vsyncOffsetNs;
+    return snappedTimeNs - mVsyncOffsetNs;
   }
 
   protected void onSynced() {
@@ -195,8 +195,8 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
-    long elapsedFrameTimeNs = frameTimeNs - syncFramePresentationTimeNs;
-    long elapsedReleaseTimeNs = releaseTimeNs - syncUnadjustedReleaseTimeNs;
+    long elapsedFrameTimeNs = frameTimeNs - mSyncFramePresentationTimeNs;
+    long elapsedReleaseTimeNs = releaseTimeNs - mSyncUnadjustedReleaseTimeNs;
     return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs / playbackRate)
         > MAX_ALLOWED_DRIFT_NS;
   }

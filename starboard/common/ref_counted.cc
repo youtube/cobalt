@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
@@ -80,7 +81,7 @@ void RefCountedThreadSafeBase::AddRef() const {
 bool RefCountedThreadSafeBase::Release() const {
 #ifndef NDEBUG
   SB_DCHECK(!in_dtor_);
-  SB_DCHECK(!(ref_count_.load(std::memory_order_relaxed) == 0));
+  SB_DCHECK_NE(ref_count_.load(std::memory_order_relaxed), 0);
 #endif
   if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
 #ifndef NDEBUG

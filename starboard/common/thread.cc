@@ -21,6 +21,7 @@
 #include <atomic>
 #include <optional>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
@@ -51,7 +52,7 @@ void Thread::Start() {
   pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
 
   // pthread_create() above produced an invalid thread handle.
-  SB_DCHECK(d_->thread_ != 0);
+  SB_DCHECK_NE(d_->thread_, static_cast<pthread_t>(0));
 }
 
 void Thread::Sleep(int64_t microseconds) {
@@ -86,7 +87,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 }
 
 void Thread::Join() {
-  SB_DCHECK(d_->join_called_.load() == false);
+  SB_DCHECK_EQ(d_->join_called_.load(), false);
 
   d_->join_called_.store(true);
   d_->join_sema_.Put();

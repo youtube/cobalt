@@ -19,9 +19,12 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "starboard/thread.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {

@@ -78,7 +78,7 @@ gfx::Image& ShellContentClient::GetNativeImageNamed(int resource_id) {
 }
 
 blink::OriginTrialPolicy* ShellContentClient::GetOriginTrialPolicy() {
-  return &origin_trial_policy_;
+  return nullptr;
 }
 
 void ShellContentClient::AddAdditionalSchemes(Schemes* schemes) {

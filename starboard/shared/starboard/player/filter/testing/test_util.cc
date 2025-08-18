@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -43,7 +44,7 @@ void StubDeallocateSampleFunc(SbPlayer player,
 
 std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
                                          const char* mime_attributes) {
-  SB_DCHECK(audio_codec != kSbMediaAudioCodecNone);
+  SB_DCHECK_NE(audio_codec, kSbMediaAudioCodecNone);
 
   std::string content_type;
   switch (audio_codec) {
@@ -114,7 +115,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     audio_file_info_cache.reserve(SB_ARRAY_SIZE_INT(kFilenames));
     for (auto filename : kFilenames) {
       VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
-      SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+      SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(), 0);
 
       audio_file_info_cache.push_back(
           {filename, dmp_reader.audio_codec(),
@@ -170,7 +171,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
   for (auto filename : kFilenames) {
     VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), 0);
 
     for (auto output_mode : kOutputModes) {
       if (!PlayerComponents::Factory::OutputModeSupported(
@@ -195,8 +196,9 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
                 video_codec, video_mime.size() > 0 ? &video_mime_type : nullptr,
                 -1, -1, 8, kSbMediaPrimaryIdUnspecified,
                 kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-                video_stream_info.frame_width, video_stream_info.frame_height,
-                dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
+                video_stream_info.frame_size.width,
+                video_stream_info.frame_size.height, dmp_reader.video_bitrate(),
+                dmp_reader.video_fps(), false)) {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
         } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
@@ -270,8 +272,7 @@ media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
   video_stream_info.color_metadata.range = kSbMediaRangeIdLimited;
 
-  video_stream_info.frame_width = 1920;
-  video_stream_info.frame_height = 1080;
+  video_stream_info.frame_size = {1920, 1080};
 
   return video_stream_info;
 }

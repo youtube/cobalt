@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/feature_list.h"
 
 #include <cstring>
+#include <mutex>
 
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -52,7 +53,7 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
   SB_CHECK(instance)
       << "Starboard FeatureList Instance has not been initialized.";
 
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
 
   // Store the updated features inside of our instance's feature map.
   for (size_t i = 0; i < number_of_features; i++) {
@@ -146,7 +147,7 @@ void FeatureList::ValidateParam(const std::string& feature_name,
 // static
 bool FeatureList::IsEnabled(const SbFeature& feature) {
   FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
 
   // IsEnabled can only be called after the FeatureList has been initialized.
   SB_CHECK(instance->IsInitialized())
@@ -164,7 +165,7 @@ bool FeatureList::IsEnabled(const SbFeature& feature) {
 template <>
 bool FeatureList::GetParam(const SbFeatureParamExt<bool>& param) {
   FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeBool);
   return std::get<bool>(
@@ -174,7 +175,7 @@ bool FeatureList::GetParam(const SbFeatureParamExt<bool>& param) {
 template <>
 int FeatureList::GetParam(const SbFeatureParamExt<int>& param) {
   FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeInt);
   return std::get<int>(
@@ -184,7 +185,7 @@ int FeatureList::GetParam(const SbFeatureParamExt<int>& param) {
 template <>
 double FeatureList::GetParam(const SbFeatureParamExt<double>& param) {
   FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeDouble);
   return std::get<double>(
@@ -194,7 +195,7 @@ double FeatureList::GetParam(const SbFeatureParamExt<double>& param) {
 template <>
 std::string FeatureList::GetParam(const SbFeatureParamExt<std::string>& param) {
   FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeString);
   return std::get<std::string>(
@@ -204,7 +205,7 @@ std::string FeatureList::GetParam(const SbFeatureParamExt<std::string>& param) {
 template <>
 int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param) {
   FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
+  std::lock_guard lock(instance->mutex_);
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeTime);
   return std::get<int64_t>(

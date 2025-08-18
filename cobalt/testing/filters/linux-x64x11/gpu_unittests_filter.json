@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "GpuFenceManagerTest.Basic",
     "GpuMemoryBufferFactoryNativePixmap/GpuMemoryBufferFactoryTest/0.CreateGpuMemoryBuffer",
     "GpuMemoryBufferImplNativePixmap/GpuMemoryBufferImplTest/0.CreateFromHandle",
     "GpuMemoryBufferImplNativePixmap/GpuMemoryBufferImplTest/0.CreateFromHandleSmallBuffer",

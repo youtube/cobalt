@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/storage.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/nplb/storage_helpers.h"
+#include "starboard/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
