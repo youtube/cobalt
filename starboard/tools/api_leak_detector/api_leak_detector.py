@@ -524,9 +524,9 @@ def ProcessNmOutput(nm_output, collect_files=False):
   """
   for line in nm_output.decode('utf-8').splitlines():
     line = line.lstrip()
-    contents = line.split(' ')
-    if len(contents) != 2:
-      if len(contents) == 1 and collect_files:
+    contents = line.split(' ', 1)
+    if len(contents) == 1:
+      if collect_files:
         yield contents[0]
       continue
     results = _RE_SYMBOL_AND_ANY_VERSION_INFO.match(contents[1]).groups()
