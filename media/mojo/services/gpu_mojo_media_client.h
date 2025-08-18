@@ -176,8 +176,7 @@ struct StarboardRendererTraits {
           client_extension_remote,
       GetStarboardCommandBufferStubCB
           get_starboard_command_buffer_stub_cb,
-      AndroidOverlayMojoFactoryCB android_overlay_factory_cb
-    );
+      AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };
