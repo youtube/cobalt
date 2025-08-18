@@ -117,7 +117,7 @@ void VideoDecoderTestFixture::Initialize() {
 
 void VideoDecoderTestFixture::OnDecoderStatusUpdate(
     VideoDecoder::Status status,
-    const scoped_refptr<VideoFrame>& frame) {
+    scoped_refptr<VideoFrame> frame) {
   std::lock_guard scoped_lock(mutex_);
   // TODO: Ensure that this is only called during dtor or Reset().
   if (status == VideoDecoder::kReleaseAllFrames) {
@@ -126,11 +126,11 @@ void VideoDecoderTestFixture::OnDecoderStatusUpdate(
     decoded_frames_.clear();
     return;
   } else if (status == VideoDecoder::kNeedMoreInput) {
-    event_queue_.push_back(Event(kNeedMoreInput, frame));
+    event_queue_.push_back(Event(kNeedMoreInput, std::move(frame)));
   } else if (status == VideoDecoder::kBufferFull) {
-    event_queue_.push_back(Event(kBufferFull, frame));
+    event_queue_.push_back(Event(kBufferFull, std::move(frame)));
   } else {
-    event_queue_.push_back(Event(kError, frame));
+    event_queue_.push_back(Event(kError, std::move(frame)));
     SB_LOG(WARNING) << "OnDecoderStatusUpdate received unknown state.";
   }
 }

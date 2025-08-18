@@ -172,7 +172,7 @@ class DispmanxVideoRenderer {
 
   DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer);
 
-  void Update(const scoped_refptr<VideoFrame>& video_frame);
+  void Update(scoped_refptr<VideoFrame> video_frame);
 
   void HideElement();
   void ShowElement();

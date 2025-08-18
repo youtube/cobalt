@@ -340,7 +340,7 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   void SetBounds(int z_index, int x, int y, int width, int height) override {}
 
-  DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
+  DrawFrameStatus DrawFrame(scoped_refptr<VideoFrame> frame,
                             int64_t release_time_in_nanoseconds) {
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
