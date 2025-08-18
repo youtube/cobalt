@@ -17,9 +17,10 @@
 
 #include <vector>
 
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/audio_sink.h"
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 
 namespace starboard {
@@ -107,8 +108,8 @@ class AudioSinkTestEnvironment {
 
   AudioSinkTestFrameBuffers frame_buffers_;
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
 
   int update_source_status_call_count_ = 0;
   int frames_appended_ = 0;
