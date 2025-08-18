@@ -18,6 +18,7 @@
 #include <cstring>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -62,8 +63,8 @@ DecodedAudio::DecodedAudio(int channels,
       storage_(size_in_bytes),
       offset_in_bytes_(0),
       size_in_bytes_(size_in_bytes) {
-  SB_DCHECK(channels_ > 0);
-  SB_DCHECK(size_in_bytes_ >= 0);
+  SB_DCHECK_GT(channels_, 0);
+  SB_DCHECK_GE(size_in_bytes_, 0);
   // TODO(b/275199195): Enable the SB_DCHECK below.
   // SB_DCHECK(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_) ==
   //           0);
@@ -82,15 +83,15 @@ DecodedAudio::DecodedAudio(int channels,
       storage_(std::move(storage)),
       offset_in_bytes_(0),
       size_in_bytes_(size_in_bytes) {
-  SB_DCHECK(channels_ > 0);
-  SB_DCHECK(size_in_bytes_ >= 0);
+  SB_DCHECK_GT(channels_, 0);
+  SB_DCHECK_GE(size_in_bytes_, 0);
   SB_DCHECK(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_) ==
             0);
 }
 
 int DecodedAudio::frames() const {
   int bytes_per_sample = GetBytesPerSample(sample_type_);
-  SB_DCHECK(size_in_bytes_ % (bytes_per_sample * channels_) == 0);
+  SB_DCHECK_EQ(size_in_bytes_ % (bytes_per_sample * channels_), 0);
   return static_cast<int>(size_in_bytes_ / bytes_per_sample / channels_);
 }
 
@@ -100,13 +101,13 @@ bool DecodedAudio::IsFormat(SbMediaAudioSampleType sample_type,
 }
 
 void DecodedAudio::ShrinkTo(int new_size_in_bytes) {
-  SB_DCHECK(new_size_in_bytes <= size_in_bytes_);
+  SB_DCHECK_LE(new_size_in_bytes, size_in_bytes_);
   size_in_bytes_ = new_size_in_bytes;
 }
 
 void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   SB_DCHECK(!is_end_of_stream());
-  SB_DCHECK(sample_rate != 0);
+  SB_DCHECK_NE(sample_rate, 0);
 
   int frames_to_skip =
       media::AudioDurationToFrames(seeking_to_time - timestamp(), sample_rate);
@@ -129,7 +130,7 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
     return;
   }
 
-  SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
+  SB_DCHECK_EQ(storage_type_, kSbMediaAudioFrameStorageTypePlanar);
 
   Buffer new_storage(size_in_bytes_ - frames_to_skip * bytes_per_frame);
   const auto new_frames = frames() - frames_to_skip;
@@ -153,9 +154,9 @@ void DecodedAudio::AdjustForDiscardedDurations(
     int sample_rate,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
-  SB_DCHECK(discarded_duration_from_front >= 0);
-  SB_DCHECK(discarded_duration_from_back >= 0);
-  SB_DCHECK(storage_type() == kSbMediaAudioFrameStorageTypeInterleaved);
+  SB_DCHECK_GE(discarded_duration_from_front, 0);
+  SB_DCHECK_GE(discarded_duration_from_back, 0);
+  SB_DCHECK_EQ(storage_type(), kSbMediaAudioFrameStorageTypeInterleaved);
 
   if (discarded_duration_from_front == 0 && discarded_duration_from_back == 0) {
     return;

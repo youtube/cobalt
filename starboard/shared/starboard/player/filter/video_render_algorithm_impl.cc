@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
@@ -155,7 +156,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   }
 
   auto refresh_rate = get_refresh_rate_fn_();
-  SB_DCHECK(refresh_rate >= 1);
+  SB_DCHECK_GE(refresh_rate, 1);
   if (refresh_rate < 1) {
     refresh_rate = 60;
   }
@@ -178,7 +179,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
     frame_rate_estimate_.Update(*frames);
     auto frame_rate = frame_rate_estimate_.frame_rate();
-    SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
+    SB_DCHECK_NE(frame_rate, VideoFrameRateEstimator::kInvalidFrameRate);
     cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
     if (playback_rate == 0) {
       playback_rate = 1.0;

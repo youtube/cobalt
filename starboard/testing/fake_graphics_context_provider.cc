@@ -32,6 +32,7 @@
 #include <sanitizer/lsan_interface.h>
 #endif  // HAS_LEAK_SANITIZER
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 #define EGL_CALL_PREFIX SbGetEglInterface()->
@@ -93,18 +94,19 @@ typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
     const EGLint* attrib_list);
 #endif  // !defined(EGL_VERSION_1_5)
 
-#define EGL_CALL(x)                                          \
-  do {                                                       \
-    EGL_CALL_PREFIX x;                                       \
-    SB_DCHECK(EGL_CALL_PREFIX eglGetError() == EGL_SUCCESS); \
+#define EGL_CALL(x)                                           \
+  do {                                                        \
+    EGL_CALL_PREFIX x;                                        \
+    SB_DCHECK_EQ(EGL_CALL_PREFIX eglGetError(), EGL_SUCCESS); \
   } while (false)
 
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 
-#define GL_CALL(x)                                                     \
-  do {                                                                 \
-    SbGetGlesInterface()->x;                                           \
-    SB_DCHECK((SbGetGlesInterface()->glGetError()) == SB_GL_NO_ERROR); \
+#define GL_CALL(x)                                       \
+  do {                                                   \
+    SbGetGlesInterface()->x;                             \
+    SB_DCHECK_EQ((SbGetGlesInterface()->glGetError()),   \
+                 static_cast<SbGlEnum>(SB_GL_NO_ERROR)); \
   } while (false)
 
 namespace starboard {
@@ -220,8 +222,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 #endif  // !defined(EGL_VERSION_1_5)
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK(EGL_NO_DISPLAY != display_);
+  SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK_NE(EGL_NO_DISPLAY, display_);
 
 #if HAS_LEAK_SANITIZER
   __lsan_disable();
@@ -230,7 +232,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 #if HAS_LEAK_SANITIZER
   __lsan_enable();
 #endif  // HAS_LEAK_SANITIZER
-  SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
 
   // Some EGL drivers can return a first config that doesn't allow
   // eglCreateWindowSurface(), with no differences in EGLConfig attribute values
@@ -254,7 +256,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // First, query how many configs match the given attribute list.
   EGLint num_configs = 0;
   EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
-  SB_CHECK(0 != num_configs);
+  SB_CHECK_NE(0, num_configs);
 
   // Allocate space to receive the matching configs and retrieve them.
   std::vector<EGLConfig> configs(num_configs);
@@ -279,7 +281,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
       break;
     }
   }
-  SB_DCHECK(surface_ != EGL_NO_SURFACE);
+  SB_DCHECK_NE(surface_, EGL_NO_SURFACE);
 
   // Create the GLES2 or GLES3 Context.
   EGLint context_attrib_list[] = {
@@ -293,8 +295,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
     context_ = EGL_CALL_SIMPLE(eglCreateContext(
         display_, config, EGL_NO_CONTEXT, context_attrib_list));
   }
-  SB_CHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK(context_ != EGL_NO_CONTEXT);
+  SB_CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK_NE(context_, EGL_NO_CONTEXT);
 
   MakeContextCurrent();
 
@@ -334,7 +336,7 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {
-  SB_CHECK(EGL_NO_DISPLAY != display_);
+  SB_CHECK_NE(EGL_NO_DISPLAY, display_);
   EGL_CALL_SIMPLE(eglMakeCurrent(display_, surface_, surface_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
   SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
