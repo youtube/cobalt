@@ -120,6 +120,11 @@ extern "C" SB_EXPORT_PLATFORM jlong JNI_StarboardBridge_StartNativeStarboard(
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
+extern "C" SB_EXPORT_PLATFORM void
+JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+}
+
 extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     JNIEnv* env,
     const JavaParamRef<jstring>& jurl,
