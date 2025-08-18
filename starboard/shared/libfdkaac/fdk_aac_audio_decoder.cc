@@ -49,7 +49,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
 
   if (input_buffers.empty() || !input_buffers[0]) {
     SB_LOG(ERROR) << "No input buffer to decode.";
@@ -85,7 +85,7 @@ scoped_refptr<FdkAacAudioDecoder::DecodedAudio> FdkAacAudioDecoder::Read(
 }
 
 void FdkAacAudioDecoder::Reset() {
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
   SB_DCHECK(BelongsToCurrentThread());
 
   TeardownCodec();
@@ -106,7 +106,7 @@ void FdkAacAudioDecoder::Reset() {
 }
 
 void FdkAacAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
@@ -124,7 +124,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
 void FdkAacAudioDecoder::InitializeCodec() {
   SB_DCHECK_EQ(decoder_, nullptr);
   decoder_ = aacDecoder_Open(TT_MP4_ADTS, 1);
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
 
   // Set AAC_PCM_MAX_OUTPUT_CHANNELS to 0 to disable downmixing feature.
   // It makes the decoder output contain the same number of channels as the
