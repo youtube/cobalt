@@ -183,6 +183,12 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
+
+    // Initialize the platform's AudioSinkImpl. This is called here as this must come after the
+    // browser client's feature list and field trials are initialized. The feature list and field
+    // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
+    getStarboardBridge().initializePlatformAudioSink();
+
     // Load an empty page to let shell create WebContents.
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
