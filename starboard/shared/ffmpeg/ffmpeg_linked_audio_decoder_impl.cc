@@ -17,6 +17,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
@@ -29,7 +30,7 @@ namespace starboard::shared::ffmpeg {
 AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg && ffmpeg->is_valid());
-  SB_DCHECK(FFMPEG == ffmpeg->specialization_version());
+  SB_DCHECK_EQ(FFMPEG, ffmpeg->specialization_version());
 
   return AudioDecoderImpl<FFMPEG>::Create(audio_stream_info);
 }
