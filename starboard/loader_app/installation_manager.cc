@@ -654,7 +654,7 @@ void InstallationManager::ValidatePriorities() {
   for (int i = 0; i < max_num_installations_; i++) {
     SB_DCHECK(priorities.find(i) != priorities.end());
   }
-  SB_DCHECK_EQ(priorities.size(), max_num_installations_);
+  SB_DCHECK_EQ(priorities.size(), static_cast<size_t>(max_num_installations_));
 }
 
 bool InstallationManager::LoadInstallationStore() {

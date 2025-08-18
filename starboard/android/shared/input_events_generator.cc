@@ -22,7 +22,6 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/common/check_op.h"
 #include "starboard/key.h"
 
 namespace starboard::android::shared {
@@ -110,7 +109,7 @@ float GetFlat(jobject input_device, int axis) {
   float flat =
       env->CallFloatMethodOrAbort(motion_range.Get(), "getFlat", "()F");
 
-  SB_DCHECK_LT(flat, 1.0f);
+  SB_DCHECK(flat < 1.0f);
   return flat;
 }
 
@@ -429,7 +428,7 @@ void InputEventsGenerator::ProcessJoyStickEvent(
     int32_t motion_axis,
     GameActivityMotionEvent* android_motion_event,
     Events* events) {
-  SB_DCHECK_GT(android_motion_event->pointerCount, 0);
+  SB_DCHECK(android_motion_event->pointerCount > 0);
 
   int32_t device_id = android_motion_event->deviceId;
   SB_DCHECK_NE(device_flat_.find(device_id), device_flat_.end());
