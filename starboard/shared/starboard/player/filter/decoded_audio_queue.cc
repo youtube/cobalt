@@ -72,7 +72,7 @@ int DecodedAudioQueue::PeekFrames(int frames,
 void DecodedAudioQueue::SeekFrames(int frames) {
   // Perform seek only if we have enough bytes in the queue.
   SB_CHECK_LE(frames, frames_);
-  int taken = InternalRead(frames, true, 0, 0, NULL);
+  [[maybe_unused]] int taken = InternalRead(frames, true, 0, 0, NULL);
   SB_DCHECK_EQ(taken, frames);
 }
 

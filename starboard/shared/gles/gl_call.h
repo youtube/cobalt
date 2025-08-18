@@ -21,10 +21,10 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-#define GL_CALL(x)                           \
-  do {                                       \
-    x;                                       \
-    SB_DCHECK_EQ(glGetError(), GL_NO_ERROR); \
+#define GL_CALL(x)                                                \
+  do {                                                            \
+    x;                                                            \
+    SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR)); \
   } while (false)
 
 #define EGL_CALL(x)                           \

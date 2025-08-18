@@ -168,7 +168,7 @@ void VideoDecoder::ReportError(const std::string& error_message) {
 
 void VideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-  SB_DCHECK_EQ(dav1d_context_, NULL);
+  SB_DCHECK_EQ(dav1d_context_, nullptr);
 
   Dav1dSettings dav1d_settings{0};
   dav1d_default_settings(&dav1d_settings);

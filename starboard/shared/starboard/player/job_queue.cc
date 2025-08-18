@@ -34,7 +34,7 @@ pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key, NULL);
+  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
   SB_DCHECK_EQ(res, 0);
 }
 
@@ -49,7 +49,7 @@ JobQueue* GetCurrentThreadJobQueue() {
 
 void SetCurrentThreadJobQueue(JobQueue* job_queue) {
   SB_DCHECK(job_queue);
-  SB_DCHECK_EQ(GetCurrentThreadJobQueue(), NULL);
+  SB_DCHECK_EQ(GetCurrentThreadJobQueue(), nullptr);
 
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, job_queue);

@@ -176,7 +176,7 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
   if (config.audio_filename && strlen(config.audio_filename) > 0) {
     VideoDmpReader dmp_reader(config.audio_filename,
                               VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(), 0);
+    SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(), static_cast<size_t>(0));
     if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
                                         config.key_system)) {
       GTEST_SKIP() << "Unsupported audio config.";
@@ -188,7 +188,7 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
   if (config.video_filename && strlen(config.video_filename) > 0) {
     VideoDmpReader dmp_reader(config.video_filename,
                               VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), 0);
+    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), static_cast<size_t>(0));
     if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
                                         config.key_system)) {
       GTEST_SKIP() << "Unsupported video config.";

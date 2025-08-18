@@ -306,7 +306,8 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     SB_DCHECK(samples_written >= 0 &&
               static_cast<size_t>(samples_written) <= input_buffers.size());
 
-    size_t num_of_pending_buffers = input_buffers.size() - samples_written;
+    [[maybe_unused]] size_t num_of_pending_buffers =
+        input_buffers.size() - samples_written;
     input_buffers.erase(input_buffers.begin(),
                         input_buffers.begin() + samples_written);
     if (media_type == kSbMediaTypeAudio) {

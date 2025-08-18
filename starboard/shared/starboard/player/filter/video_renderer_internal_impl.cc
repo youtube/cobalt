@@ -46,7 +46,7 @@ VideoRendererImpl::VideoRendererImpl(
       decoder_(std::move(decoder)) {
   SB_DCHECK(decoder_);
   SB_DCHECK(algorithm_);
-  SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1);
+  SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
   SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
       << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."

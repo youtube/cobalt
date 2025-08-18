@@ -55,7 +55,7 @@ bool IsSupportedKeySystem(SbMediaAudioCodec codec, const char* key_system) {
   SB_DCHECK(key_system);
   // KeySystemSupportabilityCache() should always return supported for empty
   // |key_system|, so here it should always be non empty.
-  SB_DCHECK_GT(strlen(key_system), 0);
+  SB_DCHECK_GT(strlen(key_system), 0U);
 
   return MediaIsSupported(kSbMediaVideoCodecNone, codec, key_system);
 }
@@ -64,7 +64,7 @@ bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
   SB_DCHECK(key_system);
   // KeySystemSupportabilityCache() should always return supported for empty
   // |key_system|, so here it should always be non empty.
-  SB_DCHECK_GT(strlen(key_system), 0);
+  SB_DCHECK_GT(strlen(key_system), 0U);
 
   return MediaIsSupported(codec, kSbMediaAudioCodecNone, key_system);
 }

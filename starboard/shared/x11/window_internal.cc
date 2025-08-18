@@ -200,7 +200,7 @@ void SbWindowPrivate::CompositeVideoFrame(
       SB_DCHECK_NE(video_pixmap, None);
 
       video_pixmap_gc = XCreateGC(display, video_pixmap, 0, NULL);
-      SB_DCHECK_NE(video_pixmap_gc, None);
+      SB_DCHECK_NE(video_pixmap_gc, (GC)None);
 
       video_picture = XRenderCreatePicture(
           display, video_pixmap,

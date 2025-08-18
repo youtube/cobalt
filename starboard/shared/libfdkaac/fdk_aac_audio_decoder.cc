@@ -122,7 +122,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
 }
 
 void FdkAacAudioDecoder::InitializeCodec() {
-  SB_DCHECK_EQ(decoder_, NULL);
+  SB_DCHECK_EQ(decoder_, nullptr);
   decoder_ = aacDecoder_Open(TT_MP4_ADTS, 1);
   SB_DCHECK(decoder_);
 

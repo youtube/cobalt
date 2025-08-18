@@ -52,7 +52,7 @@ void Thread::Start() {
   pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
 
   // pthread_create() above produced an invalid thread handle.
-  SB_DCHECK_NE(d_->thread_, 0);
+  SB_DCHECK_NE(d_->thread_, static_cast<pthread_t>(0));
 }
 
 void Thread::Sleep(int64_t microseconds) {

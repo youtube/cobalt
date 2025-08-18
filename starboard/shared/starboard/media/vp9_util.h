@@ -35,7 +35,7 @@ class Vp9FrameParser {
   Vp9FrameParser(const void* vp9_frame, size_t size);
 
   size_t number_of_subframes() const {
-    SB_DCHECK_GT(number_of_subframes_, 0);
+    SB_DCHECK_GT(number_of_subframes_, 0U);
     return number_of_subframes_;
   }
   const uint8_t* address_of_subframe(size_t index) const {

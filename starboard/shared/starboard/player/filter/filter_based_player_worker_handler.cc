@@ -91,7 +91,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
-  SB_DCHECK_EQ(update_media_info_cb_, NULL);
+  SB_DCHECK(!update_media_info_cb_);
 
   // All parameters have to be valid.
   SB_DCHECK(SbPlayerIsValid(player));

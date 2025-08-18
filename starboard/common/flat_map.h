@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
@@ -333,7 +332,7 @@ class FlatMap {
       const_iterator begin_it,
       const_iterator end_it,
       const value_type& key_data) {
-    SB_DCHECK_GE(end_it, begin_it);
+    SB_DCHECK(end_it >= begin_it);
     for (const_iterator it = begin_it; it != end_it; ++it) {
       if (LessThanValue(key_data, *it)) {
         continue;

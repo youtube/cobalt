@@ -139,7 +139,7 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size) {
 }
 
 void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
-  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0);
+  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
   if (!pending_frees_.empty()) {
     for (auto address_to_free : pending_frees_) {
@@ -183,7 +183,7 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
 
   SB_DCHECK(reinterpret_cast<intptr_t>(allocated_block.address()) % alignment ==
             0);
-  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0);
+  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
   void* user_address =
       static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
@@ -504,7 +504,7 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }
-  SB_DCHECK_GT(size_to_allocate, 0);
+  SB_DCHECK_GT(size_to_allocate, 0U);
   ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
   if (ptr == NULL) {
     return free_blocks_.end();

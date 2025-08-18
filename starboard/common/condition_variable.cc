@@ -31,7 +31,7 @@ ConditionVariable::ConditionVariable(const Mutex& mutex)
   pthread_condattr_init(&attribute);
   pthread_condattr_setclock(&attribute, CLOCK_MONOTONIC);
 
-  int result = pthread_cond_init(&condition_, &attribute);
+  [[maybe_unused]] int result = pthread_cond_init(&condition_, &attribute);
   SB_DCHECK_EQ(result, 0);
 
   pthread_condattr_destroy(&attribute);

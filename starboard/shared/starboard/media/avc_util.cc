@@ -204,7 +204,7 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
 
   auto annex_b_source_size = size;
   // |avcc_destination_end| exists only for the purpose of validation.
-  const auto avcc_destination_end = avcc_destination + size;
+  [[maybe_unused]] const auto avcc_destination_end = avcc_destination + size;
 
   const uint8_t* last_source = annex_b_source;
 
@@ -228,7 +228,7 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
     last_source = annex_b_source;
   }
 
-  SB_DCHECK_EQ(annex_b_source_size, 0);
+  SB_DCHECK_EQ(annex_b_source_size, 0U);
   SB_DCHECK_EQ(avcc_destination, avcc_destination_end);
 
   return true;

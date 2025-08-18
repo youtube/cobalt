@@ -34,7 +34,7 @@ class KeySystemSupportabilityContainer {
  public:
   Supportability GetKeySystemSupportability(T codec, const char* key_system) {
     SB_DCHECK(key_system);
-    SB_DCHECK_GT(strlen(key_system), 0);
+    SB_DCHECK_GT(strlen(key_system), 0U);
 
     std::lock_guard scoped_lock(mutex_);
     auto map_iter = key_system_supportabilities_.find(codec);
@@ -53,7 +53,7 @@ class KeySystemSupportabilityContainer {
                                     const char* key_system,
                                     Supportability supportability) {
     SB_DCHECK(key_system);
-    SB_DCHECK_GT(strlen(key_system), 0);
+    SB_DCHECK_GT(strlen(key_system), 0U);
     SB_DCHECK_NE(supportability, kSupportabilityUnknown);
 
     std::lock_guard scoped_lock(mutex_);
@@ -141,7 +141,7 @@ void KeySystemSupportabilityCache::CacheKeySystemSupportability(
     const char* key_system,
     Supportability supportability) {
   SB_DCHECK(key_system);
-  SB_DCHECK_GT(strlen(key_system), 0);
+  SB_DCHECK_GT(strlen(key_system), static_cast<size_t>(0));
   SB_DCHECK_NE(supportability, kSupportabilityUnknown);
 
   if (!is_enabled_) {

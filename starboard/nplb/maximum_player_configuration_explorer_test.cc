@@ -69,7 +69,7 @@ TEST_P(MaximumPlayerConfigurationExplorerTest, SunnyDay) {
   for (const auto& video_filename : video_test_files) {
     VideoDmpReader dmp_reader(video_filename,
                               VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), 0);
+    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), static_cast<size_t>(0));
     if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
                                        key_system)) {
       supported_player_configs.emplace_back(nullptr, video_filename,

@@ -419,7 +419,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }
-  SB_DCHECK_GT(size_to_allocate, 0);
+  SB_DCHECK_GT(size_to_allocate, 0U);
   ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
   if (ptr == NULL) {
     return free_blocks_.end();
