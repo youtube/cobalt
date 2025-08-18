@@ -258,28 +258,26 @@ void MediaDecoder::DecoderThreadFunc() {
       std::vector<DequeueOutputResult> dequeue_output_results;
       {
         std::unique_lock<std::mutex> lock(mutex_);
-        bool has_pending_input =
-            !pending_inputs.empty() || !pending_inputs_.empty();
-        bool has_input_buffer_indices =
-            !input_buffer_indices.empty() || !input_buffer_indices_.empty();
-        bool can_process_input =
-            pending_input_to_retry_ ||
-            (has_pending_input && has_input_buffer_indices);
-        if (dequeue_output_results_.empty() && !can_process_input) {
-          if (!condition_variable_.wait_for(
-                  lock, std::chrono::microseconds(5'000'000), [this] {
-                    bool has_pending_input = !pending_inputs_.empty();
-                    bool has_input_buffer_indices =
-                        !input_buffer_indices_.empty();
-                    bool can_process_input =
-                        pending_input_to_retry_ ||
-                        (has_pending_input && has_input_buffer_indices);
-                    return !dequeue_output_results_.empty() ||
-                           can_process_input || destroying_.load();
-                  })) {
-            SB_LOG_IF(ERROR, !stream_ended_.load())
-                << GetDecoderName(media_type_) << ": Wait() hits timeout.";
-          }
+
+        // The predicate defines the condition to stop waiting. We stop if the
+        // thread is being destroyed or if there is any work to do (either
+        // processing output or input).
+        auto has_work_to_do = [this, &pending_inputs, &input_buffer_indices]() {
+          bool has_pending_input =
+              !pending_inputs.empty() || !pending_inputs_.empty();
+          bool has_input_buffer_indices =
+              !input_buffer_indices.empty() || !input_buffer_indices_.empty();
+          bool can_process_input =
+              pending_input_to_retry_ ||
+              (has_pending_input && has_input_buffer_indices);
+          return destroying_.load() || !dequeue_output_results_.empty() ||
+                 can_process_input;
+        };
+
+        if (!condition_variable_.wait_for(
+                lock, std::chrono::microseconds(5'000'000), has_work_to_do)) {
+          SB_LOG_IF(ERROR, !stream_ended_.load())
+              << GetDecoderName(media_type_) << ": Wait() hits timeout.";
         }
         SB_DCHECK(dequeue_output_results.empty());
         if (destroying_.load()) {
