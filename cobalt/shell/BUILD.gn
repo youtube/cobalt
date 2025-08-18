@@ -183,10 +183,8 @@ source_set("browsertests_sources") {
   sources = [
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
-
-    #TODO: split up shell_switch files to test and prod.
-    "common/shell_switches.cc",
-    "common/shell_switches.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",

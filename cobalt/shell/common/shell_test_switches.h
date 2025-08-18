@@ -12,26 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Defines all the "content_shell" command-line switches.
+// Defines all the "content_shell" command-line switches for browser tests.
 
-#ifndef COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
-#define COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
+#ifndef COBALT_SHELL_COMMON_SHELL_TEST_SWITCHES_H_
+#define COBALT_SHELL_COMMON_SHELL_TEST_SWITCHES_H_
 
 #include "build/build_config.h"
 
 namespace switches {
 
-extern const char kContentShellDataPath[];
-extern const char kCrashDumpsDir[];
-extern const char kDisableSystemFontCheck[];
-extern const char kContentShellHostWindowSize[];
-extern const char kContentShellHideToolbar[];
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-extern const char kContentShellDevToolsTabTarget[];
-#endif
-extern const char kIsolatedContextOrigins[];
-extern const char kRemoteDebuggingAddress[];
+extern const char kExposeInternalsForTesting[];
+extern const char kRunWebTests[];
+
+// Helper that returns true if kRunWebTests is present in the command line,
+// meaning Content Shell is running in web test mode.
+bool IsRunWebTestsSwitchPresent();
 
 }  // namespace switches
 
-#endif  // COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
+#endif  // COBALT_SHELL_COMMON_SHELL_TEST_SWITCHES_H_

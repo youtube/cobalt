@@ -55,9 +55,6 @@
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
-#if defined(RUN_BROWSER_TESTS)
-#include "components/metrics/test/test_enabled_state_provider.h"
-#endif  // defined(RUN_BROWSER_TESTS)
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/prefs/json_pref_store.h"
@@ -127,6 +124,11 @@
 #if BUILDFLAG(IS_CT_SUPPORTED)
 #include "services/network/public/mojom/ct_log_info.mojom.h"
 #endif
+
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"
+#include "components/metrics/test/test_enabled_state_provider.h"
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 
@@ -415,12 +417,21 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
   static const char* kForwardSwitches[] = {
       switches::kCrashDumpsDir,
       switches::kEnableCrashReporter,
+  };
+
+  command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
+                                 kForwardSwitches, std::size(kForwardSwitches));
+
+#if defined(RUN_BROWSER_TESTS)
+  static const char* kForwardTestSwitches[] = {
       switches::kExposeInternalsForTesting,
       switches::kRunWebTests,
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                 kForwardSwitches, std::size(kForwardSwitches));
+                                 kForwardTestSwitches,
+                                 std::size(kForwardTestSwitches));
+#endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(IS_LINUX)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
