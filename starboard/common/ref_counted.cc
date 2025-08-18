@@ -81,7 +81,7 @@ void RefCountedThreadSafeBase::AddRef() const {
 bool RefCountedThreadSafeBase::Release() const {
 #ifndef NDEBUG
   SB_DCHECK(!in_dtor_);
-  SB_DCHECK_EQ(!(ref_count_.load(std::memory_order_relaxed), 0));
+  SB_DCHECK_NE(ref_count_.load(std::memory_order_relaxed), 0);
 #endif
   if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
 #ifndef NDEBUG
