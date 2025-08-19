@@ -66,6 +66,8 @@ class AudioRendererSink {
 
   virtual void SetVolume(double volume) = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;
+
+  virtual bool AllowOverflowAudioSamples() const { return false; }
 };
 
 }  // namespace starboard
