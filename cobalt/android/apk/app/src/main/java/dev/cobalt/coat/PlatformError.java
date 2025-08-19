@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -99,6 +100,21 @@ public class PlatformError
         return;
     }
     dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
+    dialog.setOnKeyListener(
+        new DialogInterface.OnKeyListener() {
+          @Override
+          public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+            if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+              CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+              if (cobaltActivity != null) {
+                cobaltActivity.moveTaskToBack(false);
+              }
+              dialog.dismiss();
+              return true; // Consume the event
+            }
+            return false; // Let the system handle other keys
+          }
+        });
     dialog.show();
   }
 
@@ -117,6 +133,10 @@ public class PlatformError
           }
           break;
         case RETRY_BUTTON:
+          CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+          if (cobaltActivity != null) {
+            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+          }
           dialog.dismiss();
           break;
         default: // fall out
@@ -126,10 +146,6 @@ public class PlatformError
 
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
-    CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-    if (cobaltActivity != null) {
-      cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
-    }
     dialog = null;
   }
 
