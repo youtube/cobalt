@@ -21,7 +21,12 @@
 
 namespace switches {
 
+// Exposes the window.internals object to JavaScript for interactive development
+// and debugging of web tests that rely on it.
 extern const char kExposeInternalsForTesting[];
+
+// Runs Content Shell in web test mode, injecting test-only behaviour for
+// blink web tests.
 extern const char kRunWebTests[];
 
 // Helper that returns true if kRunWebTests is present in the command line,

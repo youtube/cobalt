@@ -126,8 +126,8 @@
 #endif
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
+#include "cobalt/shell/common/shell_test_switches.h"              // nogncheck
+#include "components/metrics/test/test_enabled_state_provider.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {

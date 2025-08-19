@@ -48,6 +48,7 @@
 #if defined(RUN_BROWSER_TESTS)
 #include "cobalt/shell/common/main_frame_counter_test_impl.h"   // nogncheck
 #include "cobalt/shell/common/power_monitor_test_impl.h"        // nogncheck
+#include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
 #include "cobalt/shell/renderer/shell_render_frame_observer.h"  // nogncheck
 #include "content/public/test/test_service.mojom.h"             // nogncheck
 #include "third_party/blink/public/web/web_testing_support.h"   // nogncheck

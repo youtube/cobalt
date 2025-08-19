@@ -18,12 +18,8 @@
 
 namespace switches {
 
-// Exposes the window.internals object to JavaScript for interactive development
-// and debugging of web tests that rely on it.
 const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
 
-// Runs Content Shell in web test mode, injecting test-only behaviour for
-// blink web tests.
 const char kRunWebTests[] = "run-web-tests";
 
 bool IsRunWebTestsSwitchPresent() {
