@@ -18,12 +18,12 @@
 #include <pthread.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -113,8 +113,9 @@ class MinRequiredFramesTester {
   int last_underrun_count_;
   int last_total_consumed_frames_;
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  std::mutex mutex_;
+  std::condition_variable test_complete_cv_;
+  bool is_test_complete_ = false;  // Guarded by |mutex_|.
   pthread_t tester_thread_ = 0;
   std::atomic_bool destroying_;
 };

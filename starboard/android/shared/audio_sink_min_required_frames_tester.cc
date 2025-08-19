@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 
+#include <chrono>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -49,17 +51,13 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
     : max_required_frames_(max_required_frames),
       required_frames_increment_(required_frames_increment),
       min_stable_played_frames_(min_stable_played_frames),
-      condition_variable_(mutex_),
       destroying_(false) {}
 
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
   if (tester_thread_ != 0) {
-    {
-      ScopedLock scoped_lock(mutex_);
-      condition_variable_.Signal();
-    }
+    test_complete_cv_.notify_one();
     pthread_join(tester_thread_, NULL);
     tester_thread_ = 0;
   }
@@ -123,6 +121,10 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     total_consumed_frames_ = 0;
     last_underrun_count_ = -1;
     last_total_consumed_frames_ = 0;
+    {
+      std::lock_guard lock(mutex_);
+      is_test_complete_ = false;
+    }
 
     audio_sink_ = new AudioTrackAudioSink(
         NULL, task.number_of_channels, task.sample_rate, task.sample_type,
@@ -133,8 +135,11 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         &MinRequiredFramesTester::ConsumeFramesFunc,
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
-      ScopedLock scoped_lock(mutex_);
-      wait_timeout = !condition_variable_.WaitTimed(5'000'000);
+      std::unique_lock lock(mutex_);
+      bool notified = test_complete_cv_.wait_for(
+          lock, std::chrono::seconds(5),
+          [this] { return is_test_complete_ || destroying_; });
+      wait_timeout = !notified;
     }
 
     // Get start threshold before release the audio sink.
@@ -260,8 +265,11 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
     // |min_required_frames_| reached maximum, or playback is stable and
     // doesn't have underruns. Stop the test.
     last_total_consumed_frames_ = INT_MAX;
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
+    {
+      std::lock_guard lock(mutex_);
+      is_test_complete_ = true;
+    }
+    test_complete_cv_.notify_one();
   }
 }
 
