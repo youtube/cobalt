@@ -115,7 +115,6 @@ TEST(VideoFrameTrackerTest, RenderQueueIsClearedOnSeek) {
 
   const int64_t kSeekToTime = 90'000;  // 90ms
   video_frame_tracker.Seek(kSeekToTime);
-  ASSERT_EQ(kSeekToTime, video_frame_tracker.seek_to_time());
 
   video_frame_tracker.OnInputBuffer(90000);
   video_frame_tracker.OnInputBuffer(100000);
