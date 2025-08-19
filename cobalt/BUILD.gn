@@ -14,6 +14,7 @@
 
 import("//build/linux/strip_binary.gni")
 import("//cobalt/build/modular_executable.gni")
+import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
@@ -48,6 +49,13 @@ group("gn_all") {
   }
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
+  }
+
+  if (!is_androidtv) {
+    deps += [
+      "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+      "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
+    ]
   }
 }
 
