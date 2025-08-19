@@ -16,6 +16,7 @@ package dev.cobalt.app;
 
 import android.app.Activity;
 import android.app.Service;
+import android.os.Bundle;
 import dev.cobalt.coat.ArtworkDownloaderDefault;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
@@ -49,5 +50,11 @@ public class MainActivity extends CobaltActivity {
     bridge.registerCobaltService(clientLogInfoFactory);
 
     return bridge;
+  }
+
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    this.shouldSetJNIPrefix = false;
+    super.onCreate(savedInstanceState);
   }
 }

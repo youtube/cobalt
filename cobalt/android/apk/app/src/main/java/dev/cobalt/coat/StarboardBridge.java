@@ -268,6 +268,9 @@ public class StarboardBridge {
     }
   }
 
+  // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
+  public void requestStop(int errorLevel) {}
+
   public boolean onSearchRequested() {
     // TODO(cobalt): re-enable native search request if needed.
     // if (applicationReady) {
