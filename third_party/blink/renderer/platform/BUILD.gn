@@ -1610,11 +1610,18 @@ component("platform") {
     sources += [ "fonts/ios/font_cache_ios.mm" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     sources += [
       "fonts/linux/font_cache_linux.cc",
       "fonts/linux/font_unique_name_lookup_linux.cc",
       "fonts/linux/font_unique_name_lookup_linux.h",
+    ]
+  }
+  if (is_starboard) {
+    sources += [
+      "fonts/starboard/font_cache_starboard.cc",
+      "fonts/starboard/font_unique_name_lookup_starboard.cc",
+      "fonts/starboard/font_unique_name_lookup_starboard.h",
     ]
   }
 

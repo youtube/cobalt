@@ -51,5 +51,12 @@ Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {
 #endif
 }
 
+int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
+  if (configuration_api_) {
+    return configuration_api_->CobaltSkiaCacheSizeInBytes();
+  }
+  return 1024 * 1024 * 16;
+}
+
 }  // namespace configuration
 }  // namespace cobalt

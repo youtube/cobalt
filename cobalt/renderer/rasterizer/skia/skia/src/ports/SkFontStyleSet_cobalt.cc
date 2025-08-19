@@ -18,13 +18,14 @@
 #include <limits>
 #include <memory>
 
-#include "SkOSFile.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/trace_event/trace_event.h"
+#include "base/notreached.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
-#include "third_party/skia/src/utils/SkOSPath.h"
+#include "src/core/SkOSFile.h"
+#include "src/core/SkTraceEvent.h"
+#include "src/utils/SkOSPath.h"
 
 namespace {
 
@@ -75,18 +76,18 @@ bool ComputeVariationPosition(
     const sk_freetype_cobalt::AxisDefinitions& axis_definitions,
     const FontFileInfo::VariationPosition& variation_position,
     SkFontStyleSet_Cobalt::ComputedVariationPosition* out_position) {
-  if (variation_position.count() > axis_definitions.count()) {
+  if (variation_position.size() > axis_definitions.size()) {
     // More variation axes were specified than actually supported.
     return false;
   }
 
   int positions_used = 0;
-  out_position->resize(axis_definitions.count());
-  for (int axis = 0; axis < axis_definitions.count(); ++axis) {
+  out_position->resize(axis_definitions.size());
+  for (int axis = 0; axis < axis_definitions.size(); ++axis) {
     // See if this axis has a specified position. If not, then use the default
     // value from the axis definitions.
     Fixed16 value = axis_definitions[axis].def;
-    for (int pos = 0; pos < variation_position.count(); ++pos) {
+    for (int pos = 0; pos < variation_position.size(); ++pos) {
       if (variation_position[pos].tag == axis_definitions[axis].tag) {
         value = variation_position[pos].value;
         DCHECK(value >= axis_definitions[axis].minimum);
@@ -102,7 +103,7 @@ bool ComputeVariationPosition(
     (*out_position)[axis] = value;
   }
 
-  if (positions_used != variation_position.count()) {
+  if (positions_used != variation_position.size()) {
     // Some axes were specified which aren't supported.
     LOG(ERROR) << "Mismatched font variation tags specified";
     return false;
@@ -124,26 +125,24 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
       is_fallback_family_(family_info.is_fallback_family),
       language_(family_info.language),
       page_ranges_(family_info.page_ranges) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
   DCHECK(manager_owned_mutex_);
 
-  if (family_info.names.count() == 0) {
+  if (family_info.names.size() == 0) {
     return;
   }
 
   disable_character_map_ = family_info.disable_caching;
 
   family_name_ = family_info.names[0];
-  SkTHashMap<SkString, int> styles_index_map;
+  skia_private::THashMap<SkString, int> styles_index_map;
 
   // These structures support validation of entries for font variations.
-  SkTHashMap<SkString, sk_freetype_cobalt::AxisDefinitions>
+  skia_private::THashMap<SkString, sk_freetype_cobalt::AxisDefinitions>
       variation_definitions;
   ComputedVariationPosition computed_variation_position;
   sk_freetype_cobalt::AxisDefinitions axis_definitions;
 
-  // Avoid expensive alloc / dealloc calls with SkTArray by reserving size and
+  // Avoid expensive alloc / dealloc calls with TArray by reserving size and
   // using resize(0) instead of reset(). Adobe multiple master fonts are limited
   // to 4 axes, and although OpenType font variations may have more, they tend
   // not to -- it's usually just weight, width, and slant. But just in case,
@@ -151,7 +150,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   computed_variation_position.reserve_back(16);
   axis_definitions.reserve_back(16);
 
-  for (int i = 0; i < family_info.fonts.count(); ++i) {
+  for (int i = 0; i < family_info.fonts.size(); ++i) {
     const FontFileInfo& font_file = family_info.fonts[i];
 
     SkString file_path(SkOSPath::Join(base_path, font_file.file_name.c_str()));
@@ -280,7 +279,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
         styles_[*index].reset(font);
       }
     } else {
-      int count = styles_.count();
+      int count = styles_.size();
       styles_index_map.set(font_name, count);
       styles_.push_back().reset(font);
     }
@@ -289,7 +288,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 
 int SkFontStyleSet_Cobalt::count() {
   SkAutoMutexExclusive scoped_mutex(*manager_owned_mutex_);
-  return styles_.count();
+  return styles_.size();
 }
 
 void SkFontStyleSet_Cobalt::getStyle(int index,
@@ -301,7 +300,7 @@ void SkFontStyleSet_Cobalt::getStyle(int index,
   NOTREACHED();
 }
 
-SkTypeface* SkFontStyleSet_Cobalt::createTypeface(int index) {
+sk_sp<SkTypeface> SkFontStyleSet_Cobalt::createTypeface(int index) {
   // SkFontStyleSet_Cobalt does not support publicly interacting with entries
   // via index, as entries can potentially be removed, thereby invalidating the
   // indices.
@@ -309,23 +308,25 @@ SkTypeface* SkFontStyleSet_Cobalt::createTypeface(int index) {
   return NULL;
 }
 
-SkTypeface* SkFontStyleSet_Cobalt::matchStyle(const SkFontStyle& pattern) {
+sk_sp<SkTypeface> SkFontStyleSet_Cobalt::matchStyle(
+    const SkFontStyle& pattern) {
   SkAutoMutexExclusive scoped_mutex(*manager_owned_mutex_);
   return MatchStyleWithoutLocking(pattern);
 }
 
-SkTypeface* SkFontStyleSet_Cobalt::MatchStyleWithoutLocking(
+sk_sp<SkTypeface> SkFontStyleSet_Cobalt::MatchStyleWithoutLocking(
     const SkFontStyle& pattern) {
-  SkTypeface* typeface = NULL;
-  while (typeface == NULL && styles_.count() > 0) {
+  sk_sp<SkTypeface> typeface = NULL;
+  while (typeface == NULL && styles_.size() > 0) {
     typeface = TryRetrieveTypefaceAndRemoveStyleOnFailure(
         GetClosestStyleIndex(pattern));
   }
   return typeface;
 }
 
-SkTypeface* SkFontStyleSet_Cobalt::MatchFullFontName(const std::string& name) {
-  for (int i = 0; i < styles_.count(); ++i) {
+sk_sp<SkTypeface> SkFontStyleSet_Cobalt::MatchFullFontName(
+    const std::string& name) {
+  for (int i = 0; i < styles_.size(); ++i) {
     if (styles_[i]->full_font_name == name) {
       return TryRetrieveTypefaceAndRemoveStyleOnFailure(i);
     }
@@ -333,9 +334,9 @@ SkTypeface* SkFontStyleSet_Cobalt::MatchFullFontName(const std::string& name) {
   return NULL;
 }
 
-SkTypeface* SkFontStyleSet_Cobalt::MatchFontPostScriptName(
+sk_sp<SkTypeface> SkFontStyleSet_Cobalt::MatchFontPostScriptName(
     const std::string& name) {
-  for (int i = 0; i < styles_.count(); ++i) {
+  for (int i = 0; i < styles_.size(); ++i) {
     if (styles_[i]->font_postscript_name == name) {
       return TryRetrieveTypefaceAndRemoveStyleOnFailure(i);
     }
@@ -343,9 +344,10 @@ SkTypeface* SkFontStyleSet_Cobalt::MatchFontPostScriptName(
   return NULL;
 }
 
-SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
+sk_sp<SkTypeface>
+SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
     int style_index) {
-  DCHECK(style_index >= 0 && style_index < styles_.count());
+  DCHECK(style_index >= 0 && style_index < styles_.size());
   SkFontStyleSetEntry_Cobalt* style = styles_[style_index].get();
   // If the typeface doesn't already exist, then attempt to create it.
   if (style->typeface == NULL) {
@@ -358,11 +360,11 @@ SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
       return NULL;
     }
   }
-  return SkRef(style->typeface.get());
+  return sk_sp(SkRef(style->typeface.get()));
 }
 
 bool SkFontStyleSet_Cobalt::ContainsTypeface(const SkTypeface* typeface) {
-  for (int i = 0; i < styles_.count(); ++i) {
+  for (int i = 0; i < styles_.size(); ++i) {
     if (styles_[i]->typeface.get() == typeface) {
       return true;
     }
@@ -375,7 +377,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // If page ranges exist for this style set, then verify that this character
   // falls within the ranges. Otherwise, the style set is treated as having a
   // page range containing all characters.
-  size_t num_ranges = page_ranges_.count();
+  size_t num_ranges = page_ranges_.size();
   if (num_ranges > 0) {
     int16 page = font_character_map::GetPage(character);
 
@@ -405,13 +407,10 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // generated.
   int style_index = GetClosestStyleIndex(style);
   if (!character_maps_[style_index]) {
-    TRACE_EVENT0("cobalt::renderer",
-                 "SkFontStyleSet_Cobalt::ContainsCharacter() and "
-                 "!is_character_map_generated_");
     // Attempt to load the closest font style from the set. If it fails to load,
     // it will be removed from the set and, as long as font styles remain in the
     // set, the logic will be attempted again.
-    while (styles_.count() > 0) {
+    while (styles_.size() > 0) {
       SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index].get();
 
       SkFileMemoryChunkStreamProvider* stream_provider =
@@ -485,7 +484,7 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
     return false;
   }
 
-  if (style->computed_variation_position.count() > 0) {
+  if (style->computed_variation_position.size() > 0) {
     // For font variations, use the font style parsed from fonts.xml rather than
     // the style returned by ScanFont since that's just the default.
     style->font_style = old_style;
@@ -498,9 +497,9 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
 int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   int closest_index = 0;
   int max_score = std::numeric_limits<int>::min();
-  for (int i = 0; i < styles_.count(); ++i) {
+  for (int i = 0; i < styles_.size(); ++i) {
     int score = MatchScore(pattern, styles_[i]->font_style);
-    if (styles_[i]->computed_variation_position.count() > 0) {
+    if (styles_[i]->computed_variation_position.size() > 0) {
       // Slightly prefer static fonts over font variations to maintain old look.
       score -= 1;
     }
@@ -516,9 +515,6 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry,
     int style_index,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
-
   if (!stream_provider) {
     stream_provider = local_typeface_stream_manager_->GetStreamProvider(
         style_entry->font_file_path.c_str());
@@ -532,7 +528,7 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
               << style_entry->font_style.width() << ", "
               << style_entry->font_style.slant() << ")";
     scoped_refptr<font_character_map::CharacterMap> map =
-        disable_character_map_ ? NULL : character_maps_[style_index];
+        disable_character_map_ ? nullptr : character_maps_[style_index];
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
         stream_provider, style_entry->face_index, style_entry->font_style,
         style_entry->face_is_fixed_pitch, family_name_,
@@ -547,7 +543,7 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
 void SkFontStyleSet_Cobalt::PurgeUnreferencedTypefaces() {
   // Walk each of the styles looking for any that have a non-NULL typeface.
   // These are purged if they are unreferenced outside of the style set.
-  for (int i = 0; i < styles_.count(); ++i) {
+  for (int i = 0; i < styles_.size(); ++i) {
     sk_sp<SkTypeface>& typeface = styles_[i]->typeface;
     if (typeface.get() != NULL && typeface->unique()) {
       typeface.reset(NULL);

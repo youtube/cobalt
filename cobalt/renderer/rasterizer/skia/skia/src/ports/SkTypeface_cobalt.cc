@@ -17,9 +17,10 @@
 #include <memory>
 #include <utility>
 
-#include "SkFontDescriptor.h"
-#include "SkFontStyle.h"
-#include "SkTypefaceCache.h"
+#include "base/logging.h"
+#include "include/core/SkFontStyle.h"
+#include "src/core/SkFontDescriptor.h"
+#include "src/core/SkTypefaceCache.h"
 
 SkTypeface_Cobalt::SkTypeface_Cobalt(
     int face_index,
@@ -77,7 +78,7 @@ std::unique_ptr<SkFontData> SkTypeface_Cobalt::onMakeFontData() const {
   }
   return std::make_unique<SkFontData>(
       std::move(stream), index, 0, computed_variation_position_.data(),
-      computed_variation_position_.count(), nullptr, 0);
+      computed_variation_position_.size(), nullptr, 0);
 }
 
 SkTypeface_CobaltStream::SkTypeface_CobaltStream(

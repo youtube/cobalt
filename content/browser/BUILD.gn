@@ -2409,6 +2409,16 @@ source_set("browser") {
       "child_process_launcher_helper_starboard.cc",
     ]
   }
+  if (is_starboard) {
+    sources -= [
+      "font_access/font_enumeration_data_source_linux.cc",
+      "font_access/font_enumeration_data_source_linux.h",
+      "font_service.cc",
+      "font_service.h",
+    ]
+    public_deps -= [ "//components/services/font/public/mojom" ]
+    deps -= [ "//components/services/font:lib" ]
+  }
 
   if (is_chromeos) {
     sources += [
@@ -2942,7 +2952,7 @@ source_set("browser") {
     }
   }
 
-  if ((is_linux || is_chromeos) && use_aura) {
+  if ((is_linux && !is_starboard || is_chromeos) && use_aura) {
     deps += [ "//third_party/fontconfig" ]
   }
 

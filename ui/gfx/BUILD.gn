@@ -160,7 +160,7 @@ component("gfx") {
       "android/view_configuration.h",
     ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     sources += [
       "font_fallback_linux.cc",
       "font_fallback_linux.h",
@@ -349,14 +349,14 @@ component("gfx") {
   }
 
   if (use_blink) {
-    if (is_android || is_fuchsia || is_ios) {
+    if (is_android || is_fuchsia || is_ios || is_starboard) {
       sources += [
         "font_fallback_skia.cc",
         "font_render_params_skia.cc",
       ]
     }
 
-    if (is_android || is_fuchsia || is_win || is_apple) {
+    if (is_android || is_fuchsia || is_win || is_apple || is_starboard) {
       sources += [
         "font_fallback_skia_impl.cc",
         "font_fallback_skia_impl.h",
@@ -401,7 +401,7 @@ component("gfx") {
   if (is_linux) {
     deps += [ "//ui/linux:linux_ui" ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     deps += [ "//third_party/fontconfig" ]
   }
 

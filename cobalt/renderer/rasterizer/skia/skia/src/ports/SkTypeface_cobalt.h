@@ -17,11 +17,11 @@
 
 #include <memory>
 
-#include "SkStream.h"
-#include "SkString.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkString.h"
 #include "third_party/skia/src/ports/SkFontHost_FreeType_common.h"
 
 class SkFontMgr_Cobalt;

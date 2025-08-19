@@ -1,4 +1,4 @@
-// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "skia/ext/fontmgr_default.h"
+
 #include "base/base_paths_starboard.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
-sk_sp<SkFontMgr> SkFontMgr::Factory() {
+namespace skia {
+
+SK_API sk_sp<SkFontMgr> CreateDefaultSkFontMgr() {
   base::FilePath cobalt_font_directory;
   CHECK(base::PathService::Get(base::DIR_EXE, &cobalt_font_directory));
   cobalt_font_directory =
@@ -31,7 +35,7 @@ sk_sp<SkFontMgr> SkFontMgr::Factory() {
   base::FilePath system_font_files_directory;
   base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
 
-  SkTArray<SkString, true> default_families;
+  skia_private::TArray<SkString, true> default_families;
   default_families.push_back(SkString("sans-serif"));
 
   sk_sp<SkFontMgr> font_manager(new SkFontMgr_Cobalt(
@@ -42,3 +46,5 @@ sk_sp<SkFontMgr> SkFontMgr::Factory() {
 
   return font_manager;
 }
+
+}  // namespace skia

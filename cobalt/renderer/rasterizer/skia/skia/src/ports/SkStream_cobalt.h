@@ -21,15 +21,11 @@
 #include <utility>
 #include <vector>
 
-#include "SkMutex.h"
-#include "SkStream.h"
 #include "base/atomicops.h"
-#include "base/basictypes.h"
-#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/base/c_val.h"
-#include "cobalt/base/polymorphic_downcast.h"
+#include "include/core/SkStream.h"
+#include "include/private/base/SkMutex.h"
 
 // The SkFileMemoryChunkStream classes provide a stream type that mixes features
 // of both file streams and memory streams. While the stream initially reads
@@ -55,7 +51,7 @@ typedef base::small_map<
     std::unordered_map<size_t, scoped_refptr<const SkFileMemoryChunk>>,
     8>
     SkFileMemoryChunks;
-typedef base::hash_map<std::string, SkFileMemoryChunkStreamProvider*>
+typedef std::unordered_map<std::string, SkFileMemoryChunkStreamProvider*>
     SkFileMemoryChunkStreamProviderMap;
 
 class SkFileMemoryChunk : public base::RefCountedThreadSafe<SkFileMemoryChunk> {
@@ -98,11 +94,10 @@ class SkFileMemoryChunkStreamManager {
 
   base::subtle::Atomic32 available_chunk_count_;
 
-  const base::CVal<base::cval::SizeInBytes, base::CValPublic>
-      cache_capacity_in_bytes_;
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> cache_size_in_bytes_;
-
-  DISALLOW_COPY_AND_ASSIGN(SkFileMemoryChunkStreamManager);
+  SkFileMemoryChunkStreamManager(const SkFileMemoryChunkStreamManager&) =
+      delete;
+  const SkFileMemoryChunkStreamManager& operator=(
+      const SkFileMemoryChunkStreamManager&) = delete;
 };
 
 // SkFileMemoryChunkStreamProvider is a thread-safe class that handles creating
@@ -154,7 +149,10 @@ class SkFileMemoryChunkStreamProvider {
   SkMutex memory_chunks_mutex_;
   SkFileMemoryChunks memory_chunks_;
 
-  DISALLOW_COPY_AND_ASSIGN(SkFileMemoryChunkStreamProvider);
+  SkFileMemoryChunkStreamProvider(const SkFileMemoryChunkStreamProvider&) =
+      delete;
+  const SkFileMemoryChunkStreamProvider& operator=(
+      const SkFileMemoryChunkStreamProvider&) = delete;
 };
 
 // SkFileMemoryChunkStream is a non-thread safe stream used within Skia, which
@@ -216,7 +214,9 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
   // used and which can be purged.
   SkFileMemoryChunks memory_chunks_;
 
-  DISALLOW_COPY_AND_ASSIGN(SkFileMemoryChunkStream);
+  SkFileMemoryChunkStream(const SkFileMemoryChunkStream&) = delete;
+  const SkFileMemoryChunkStream& operator=(const SkFileMemoryChunkStream&) =
+      delete;
 };
 
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_

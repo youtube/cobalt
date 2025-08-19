@@ -19,14 +19,15 @@
 #include <map>
 #include <utility>
 
-#include "SkMutex.h"
-#include "SkString.h"
-#include "SkTDArray.h"
-#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "include/core/SkString.h"
+#include "include/private/base/SkMutex.h"
+#include "include/private/base/SkTArray.h"
+#include "include/private/base/SkTDArray.h"
 
 // This mimics FT_Fixed which is a 16.16 fixed point format.
 typedef int32_t Fixed16;
+typedef short int16;
 
 // The font_character_map namespace contains all of the constants, typedefs, and
 // utility functions used with determining whether or not a font supports a
@@ -57,7 +58,7 @@ typedef std::pair<int16, int16> PageRange;
 
 // PageRanges is an array of PageRange objects that requires the objects to be
 // in non-overlapping ascending order.
-typedef SkTArray<PageRange> PageRanges;
+typedef skia_private::TArray<PageRange> PageRanges;
 
 bool IsCharacterValid(SkUnichar character);
 int16 GetPage(SkUnichar character);
@@ -142,7 +143,7 @@ struct FontFileInfo {
     uint32_t tag;
     Fixed16 value;
   };
-  typedef SkTArray<VariationCoordinate, true> VariationPosition;
+  typedef skia_private::TArray<VariationCoordinate, true> VariationPosition;
 
   FontFileInfo()
       : index(0),
@@ -179,8 +180,8 @@ struct FontFamilyInfo {
   FontFamilyInfo()
       : is_fallback_family(true), fallback_priority(0), disable_caching(0) {}
 
-  SkTArray<SkString> names;
-  SkTArray<FontFileInfo> fonts;
+  skia_private::TArray<SkString> names;
+  skia_private::TArray<FontFileInfo> fonts;
   SkLanguage language;
   bool is_fallback_family;
   int fallback_priority;

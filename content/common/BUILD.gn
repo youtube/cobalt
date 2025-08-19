@@ -360,7 +360,7 @@ source_set("common") {
     sources -= [ "cursors/webcursor_aura.cc" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       ":sandbox_support_linux",
       ":set_process_title_linux",
@@ -375,8 +375,11 @@ source_set("common") {
     ]
   }
 
-  if (is_mac || is_win || is_android || is_fuchsia || is_ios) {
+  if (is_mac || is_win || is_android || is_fuchsia || is_ios || is_starboard) {
     sources -= [ "font_list_fontconfig.cc" ]
+  }
+  if (is_starboard) {
+    sources += ["font_list_fontconfig_starboard.cc"]
   }
 
   if (enable_ppapi) {
