@@ -21,6 +21,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -302,6 +303,8 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
       return seeking_to_time_;
     }
 
+    // |frames_consumed_by_sink_since_last_get_current_time_| could include
+    // silence frames if |kContinueMediaTimeAfterAudioEOS| is enabled.
     if (frames_consumed_by_sink_since_last_get_current_time_ > 0) {
       audio_frame_tracker_.RecordPlayedFrames(
           frames_consumed_by_sink_since_last_get_current_time_);
@@ -325,6 +328,15 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
+#if BUILDFLAG(IS_ANDROID)
+    if (features::FeatureList::IsEnabled(
+            features::kContinueMediaTimeAfterAudioEOS)) {
+      // A simple workaround to handle silence frames for tunnel mode player.
+      // |playback_rate| is not considered as tunnel mode doesn't support
+      // vsp.
+      frames_played += audio_frame_tracker_.GetOverflowedFrames();
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
     media_time =
         seeking_to_time_ + frames_played * 1'000'000LL / samples_per_second;
     if (media_time < last_media_time_) {
@@ -472,6 +484,18 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
     if (non_silence_frames_consumed != 0) {
       frames_consumed_set_at_ = system_time_on_consume_frames;
     }
+
+#if BUILDFLAG(IS_ANDROID)
+    if (features::FeatureList::IsEnabled(
+            features::kContinueMediaTimeAfterAudioEOS)) {
+      auto silence_frames_consumed =
+          frames_consumed_on_sink_thread_ - non_silence_frames_consumed;
+      frames_consumed_by_sink_since_last_get_current_time_ +=
+          silence_frames_consumed;
+      frames_consumed_set_at_ = system_time_on_consume_frames;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
+
     consume_frames_called_ = true;
     frames_consumed_on_sink_thread_ = 0;
   }

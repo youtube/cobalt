@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -27,6 +28,7 @@ namespace starboard::shared::starboard::player::filter {
 void AudioFrameTracker::Reset() {
   frame_records_.clear();
   frames_played_adjusted_to_playback_rate_ = 0;
+  overflowed_frames_ = 0;
 }
 
 void AudioFrameTracker::AddFrames(int number_of_frames, double playback_rate) {
@@ -62,8 +64,8 @@ void AudioFrameTracker::RecordPlayedFrames(int number_of_frames) {
       frame_records_.erase(frame_records_.begin());
     }
   }
-  SB_LOG_IF(ERROR, number_of_frames != 0)
-      << "played frames overflow " << number_of_frames;
+
+  overflowed_frames_ += number_of_frames;
 }
 
 int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
