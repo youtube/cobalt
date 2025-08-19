@@ -1,0 +1,15 @@
+--- third_party/blink/renderer/modules/event_target_modules_names.json5
++++ third_party/blink/renderer/modules/event_target_modules_names.json5
+@@ -93,12 +93,8 @@
+     "VideoEncoder",
+     "AudioDecoder",
+     "VideoDecoder",
+-<<<<<<< HEAD
+     // TODO(cobalt, b/400518318): "Extract Cobalt event to separate file"
+-=======
+-    # TODO(cobalt, b/400518318): "Extract Cobalt event to separate file"
+     "H5vccAccessibility",
+->>>>>>> ae681b3160b (Add window.h5vcc.accessibility (#5154))
+     "H5vccMetrics",
+     "H5vccRuntime",
+   ],

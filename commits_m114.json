@@ -1274,19 +1274,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "2abd044bfd5f98f76b47c2fd4a8998bf33a16709",
-    "original_hexsha": "3ebe510d7d862f673c47506fcc459745503ee7cc",
-    "author": "Dana Dahlstrom",
-    "datetime": "2025-06-09T15:00:00-07:00",
-    "summary": "Import QUICHE from commit 02c69dd2",
-    "stats": {
-      "files": 1567,
-      "insertions": 415869,
-      "deletions": 3
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "347186e1bf90f05758a3546647250033e5e445a4",
     "original_hexsha": "a2c10c351071eca0e3f80f3e6efb6f37909d5bc7",
     "author": "Jason",
@@ -2587,19 +2574,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "1f6239c0d087b4a8a321c078ab0280e2110b3ab5",
-    "original_hexsha": "edefb1ab33f70df9bf636706fb1b98d42258c176",
-    "author": "Dana Dahlstrom",
-    "datetime": "2025-05-22T22:00:00-07:00",
-    "summary": "Import ICU from commit d8daa943",
-    "stats": {
-      "files": 6696,
-      "insertions": 5628009,
-      "deletions": 2
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "8bbfe6b819ac93af44820b4e9abc20a74fa852e0",
     "original_hexsha": "f1f20931e3ba7c90bc8909ae25c20277647887af",
     "author": "Brian Ting",
@@ -3142,19 +3116,6 @@
       "files": 2,
       "insertions": 66,
       "deletions": 0
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "6a75e7c42d8cdb635f1de856c3991db65dda345b",
-    "original_hexsha": "1f9d214114c90125358b1f43253da0e0377e0d1f",
-    "author": "Andrew Savage",
-    "datetime": "2025-05-14T21:00:47-04:00",
-    "summary": "Import Angle from commit 3f6ffdb2 (#5760)",
-    "stats": {
-      "files": 3488,
-      "insertions": 1621021,
-      "deletions": 2
     },
     "is_linear": true
   },
@@ -5668,19 +5629,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "32031222a76d8a8ebb931c4ac330bfbd565b145e",
-    "original_hexsha": "c5ca6a0f47389ac88f6526af9de662c3b231a179",
-    "author": "Andrew Savage",
-    "datetime": "2025-04-09T14:18:48-04:00",
-    "summary": "Import webrtc from commit 729f79c176c8b (#5340)",
-    "stats": {
-      "files": 7390,
-      "insertions": 1463941,
-      "deletions": 3
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "67be52acb59170e7a3ee867f64f3ef6143cbbc66",
     "original_hexsha": "7b8f62f4a04d35e955171ac5e4e6481e4f25532c",
     "author": "xiaomings",
@@ -5846,19 +5794,6 @@
       "files": 1,
       "insertions": 6,
       "deletions": 0
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "5198a6f4cbf8f11f99dca0d42005206e829a321e",
-    "original_hexsha": "8f8b1237e87ce26a998b2f581bf7acca3cc8f8b3",
-    "author": "Andrew Savage",
-    "datetime": "2025-04-04T15:30:04-04:00",
-    "summary": "Import V8 from commit 8103d8ca604 (#5295)",
-    "stats": {
-      "files": 15092,
-      "insertions": 3486832,
-      "deletions": 2
     },
     "is_linear": true
   },
@@ -8381,32 +8316,6 @@
       "files": 1,
       "insertions": 1,
       "deletions": 1
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "f50c6258a245f2fbfd7da8e72151e29c032e09ec",
-    "original_hexsha": "c2920f7c605f475e5d8beff41aabccea8e24021b",
-    "author": "Dana Dahlstrom",
-    "datetime": "2025-02-19T19:00:00-08:00",
-    "summary": "Import GoogleTest from commit af29db7e",
-    "stats": {
-      "files": 243,
-      "insertions": 107413,
-      "deletions": 2
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "7ce9d5851e6e84e75115a9232e9ae7bbc2ed303c",
-    "original_hexsha": "ecb172745e097864b657fd567f33f24c47ba319b",
-    "author": "Dana Dahlstrom",
-    "datetime": "2025-02-19T19:00:00-08:00",
-    "summary": "Import BoringSSL from commit 4b6d950d",
-    "stats": {
-      "files": 6227,
-      "insertions": 1566420,
-      "deletions": 2
     },
     "is_linear": true
   },

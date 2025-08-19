@@ -1,0 +1,23 @@
+--- components/performance_manager/service_worker_context_adapter.cc
++++ components/performance_manager/service_worker_context_adapter.cc
+@@ -82,20 +82,6 @@
+ 
+ void ServiceWorkerContextAdapter::RunningServiceWorker::
+     InProcessRendererExiting(content::RenderProcessHost* host) {
+-<<<<<<< HEAD
+-  CHECK(content::RenderProcessHost::run_renderer_in_process());
+-  adapter_->OnRenderProcessExited(version_id_);
+-
+-  /* This object is deleted inside the above, don't touch "this". */
+-}
+-
+-void ServiceWorkerContextAdapter::RunningServiceWorker::
+-    RenderProcessHostDestroyed(content::RenderProcessHost* host) {
+-  // In --single-process mode, `RenderProcessExited` is never called as there is
+-  // no render process. The worker nodes still need to be cleaned up before the
+-  // process node.
+-=======
+->>>>>>> d6de53fc8a8 (Add RenderProcessHostObserver::InProcessRendererExiting (#4896))
+   CHECK(content::RenderProcessHost::run_renderer_in_process());
+   adapter_->OnRenderProcessExited(version_id_);
+ 

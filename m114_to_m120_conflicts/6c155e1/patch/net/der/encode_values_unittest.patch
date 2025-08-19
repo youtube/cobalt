@@ -1,0 +1,88 @@
+--- net/der/encode_values_unittest.cc
++++ net/der/encode_values_unittest.cc
+@@ -33,85 +33,7 @@
+   EXPECT_EQ(54, generalized_time.seconds);
+ }
+ 
+-<<<<<<< HEAD
+ TEST(EncodeValuesTest, GeneralizedTimeToPosixTime) {
+-=======
+-// ASN.1 GeneralizedTime can represent dates from year 0000 to 9999, and
+-// although base::Time can represent times from before the Windows epoch and
+-// after the 32-bit time_t maximum, the conversion between base::Time and
+-// der::GeneralizedTime goes through the time representation of the underlying
+-// platform, which might not be able to handle the full GeneralizedTime date
+-// range. Out-of-range times should not be converted to der::GeneralizedTime.
+-//
+-// Thus, this test focuses on an input date 31 years before the Windows epoch,
+-// and confirms that EncodeTimeAsGeneralizedTime() produces the correct result
+-// on platforms where it returns true. As of this writing, it will return false
+-// on Windows.
+-TEST(EncodeValuesTest, EncodeTimeFromBeforeWindowsEpoch) {
+-  // Starboard generates base::Time::UnixEpoch() - base::Seconds(12622780800)
+-  // a slightly different time, maybe due to rounding errors.
+-  // The dependency on base::Time for this test is going away in newer upstream
+-  // code version anyway.
+-#if BUILDFLAG(IS_STARBOARD)
+-  base::Time::Exploded exploded;
+-  exploded.year = 1570;
+-  exploded.month = 1;
+-  exploded.day_of_week = 5;
+-  exploded.day_of_month = 1;
+-  exploded.hour = 0;
+-  exploded.minute = 0;
+-  exploded.second = 0;
+-  exploded.millisecond = 0;
+-
+-  base::Time kStartOfYear1570;
+-  if (!base::Time::FromUTCExploded(exploded, &kStartOfYear1570))
+-    return;
+-#else
+-  // Thu, 01 Jan 1570 00:00:00 GMT
+-  constexpr base::Time kStartOfYear1570 =
+-      base::Time::UnixEpoch() - base::Seconds(12622780800);
+-#endif
+-  GeneralizedTime generalized_time;
+-  if (!EncodeTimeAsGeneralizedTime(kStartOfYear1570, &generalized_time))
+-    return;
+-
+-  EXPECT_EQ(1570, generalized_time.year);
+-  EXPECT_EQ(1, generalized_time.month);
+-  EXPECT_EQ(1, generalized_time.day);
+-  EXPECT_EQ(0, generalized_time.hours);
+-  EXPECT_EQ(0, generalized_time.minutes);
+-  EXPECT_EQ(0, generalized_time.seconds);
+-}
+-
+-// Sat, 1 Jan 2039 00:00:00 GMT. See above comment. This time may be
+-// unrepresentable on 32-bit systems.
+-TEST(EncodeValuesTest, EncodeTimeAfterTimeTMax) {
+-  base::Time::Exploded exploded;
+-  exploded.year = 2039;
+-  exploded.month = 1;
+-  exploded.day_of_week = 7;
+-  exploded.day_of_month = 1;
+-  exploded.hour = 0;
+-  exploded.minute = 0;
+-  exploded.second = 0;
+-  exploded.millisecond = 0;
+-
+-  base::Time time;
+-  if (!base::Time::FromUTCExploded(exploded, &time))
+-    return;
+-
+-  GeneralizedTime generalized_time;
+-  ASSERT_TRUE(EncodeTimeAsGeneralizedTime(time, &generalized_time));
+-  EXPECT_EQ(2039, generalized_time.year);
+-  EXPECT_EQ(1, generalized_time.month);
+-  EXPECT_EQ(1, generalized_time.day);
+-  EXPECT_EQ(0, generalized_time.hours);
+-  EXPECT_EQ(0, generalized_time.minutes);
+-  EXPECT_EQ(0, generalized_time.seconds);
+-}
+-
+-TEST(EncodeValuesTest, GeneralizedTimeToTime) {
+->>>>>>> 3f892687bcb (25.lts.1+ Customizations to //net (#5045))
+   GeneralizedTime generalized_time;
+   generalized_time.year = 2016;
+   generalized_time.month = 6;

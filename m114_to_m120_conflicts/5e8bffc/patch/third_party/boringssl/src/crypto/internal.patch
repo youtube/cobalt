@@ -1,0 +1,59 @@
+--- third_party/boringssl/src/crypto/internal.h
++++ third_party/boringssl/src/crypto/internal.h
+@@ -718,16 +718,6 @@
+ // have a platform with fails this check.
+ #error "Thread-compatible configurations require atomics"
+ 
+-<<<<<<< HEAD
+-=======
+-// Automatically enable C11 atomics if implemented.
+-#if !defined(OPENSSL_C11_ATOMIC) && defined(OPENSSL_THREADS) &&   \
+-    !defined(__STDC_NO_ATOMICS__) && defined(__STDC_VERSION__) && \
+-    __STDC_VERSION__ >= 201112L
+-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+-#define OPENSSL_C11_ATOMIC
+-#endif
+->>>>>>> 8905acb0d1f (Only enable hacks for hermetic builds (#4973))
+ #endif
+ 
+ // See the comment in the |__cplusplus| section above.
+@@ -766,18 +756,8 @@
+ 
+ // Locks.
+ 
+-<<<<<<< HEAD
+ #if !defined(OPENSSL_THREADS)
+ typedef struct crypto_mutex_st {
+-=======
+-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+-struct CRYPTO_STATIC_MUTEX {
+-  CRYPTO_MUTEX mutex;
+-};
+-#define CRYPTO_STATIC_MUTEX_INIT { 0 }
+-#elif !defined(OPENSSL_THREADS)
+-struct CRYPTO_STATIC_MUTEX {
+->>>>>>> 8905acb0d1f (Only enable hacks for hermetic builds (#4973))
+   char padding;  // Empty structs have different sizes in C and C++.
+ } CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT { 0 }
+@@ -785,20 +765,8 @@
+ typedef SRWLOCK CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT SRWLOCK_INIT
+ #elif defined(OPENSSL_PTHREADS)
+-<<<<<<< HEAD
+ typedef pthread_rwlock_t CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT PTHREAD_RWLOCK_INITIALIZER
+-=======
+-struct CRYPTO_STATIC_MUTEX {
+-  pthread_rwlock_t lock;
+-};
+-
+-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) && !defined(PTHREAD_RWLOCK_INITIALIZER)
+-#define PTHREAD_RWLOCK_INITIALIZER {{{1, 0}}}
+-#endif
+-
+-#define CRYPTO_STATIC_MUTEX_INIT { PTHREAD_RWLOCK_INITIALIZER }
+->>>>>>> 8905acb0d1f (Only enable hacks for hermetic builds (#4973))
+ #else
+ #error "Unknown threading library"
+ #endif

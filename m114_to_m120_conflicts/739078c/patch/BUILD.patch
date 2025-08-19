@@ -1,0 +1,23 @@
+--- content/web_test/BUILD.gn
++++ content/web_test/BUILD.gn
+@@ -244,12 +244,6 @@
+   if (use_ozone) {
+     deps += [ "//ui/ozone" ]
+   }
+-<<<<<<< HEAD
+-=======
+-
+-  if (is_fuchsia) {
+-    deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic:fuchsia.ui.scenic_hlcpp" ]
+-  }
+ 
+   if (is_cobalt) {
+     deps += [
+@@ -257,7 +251,6 @@
+       "//cobalt/testing/h5vcc_runtime:stub_h5vcc_runtime",
+     ]
+   }
+->>>>>>> 44abbc07f1f (Add binder for H5vccRuntime to fix other web tests (#5183))
+ }
+ 
+ # TODO(crbug.com/1154721): The `allow_circular_includes_from` declared in

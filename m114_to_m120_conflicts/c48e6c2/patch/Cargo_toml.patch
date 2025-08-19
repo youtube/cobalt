@@ -1,0 +1,131 @@
+--- third_party/rust/Cargo.toml
++++ third_party/rust/Cargo.toml
+@@ -11,42 +11,29 @@
+ [dependencies]
+ anyhow = "1"
+ bitflags = "1"
+-<<<<<<< HEAD
+ cfg-if = "1"
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ cxx = "1"
+ cxxbridge-cmd = "1"
+ font-types = "0.4"
+ hex = "0.4"
+ hex-literal = "0.4"
+ lazy_static = "1"
+-<<<<<<< HEAD
+ log = "0.4"
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ proc-macro2 = "1"
+ qr_code = "2"
+ quote = "1"
+-<<<<<<< HEAD
+ rand = "0.8"
+ rand_pcg = "0.3"
+ read-fonts = "0.11"
+ regex = "1"
+ rstest_reuse = "0.5"
+ rustc-demangle-capi = "0.1"
+-=======
+-rstest = "0.12"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ serde = "1"
+ serde_json = "1"
+ skrifa = "0.10"
+ small_ctor = "0.1"
+ static_assertions = "1"
+-<<<<<<< HEAD
+ wycheproof = "0.4"
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ 
+ [dependencies.memoffset]
+ version = "0.6"
+@@ -73,7 +60,6 @@
+ path = "aho_corasick/v0_7/crate"
+ package = "aho-corasick"
+ 
+-<<<<<<< HEAD
+ [patch.crates-io.anstyle_v1]
+ path = "anstyle/v1/crate"
+ package = "anstyle"
+@@ -82,8 +68,6 @@
+ path = "anyhow/v1/crate"
+ package = "anyhow"
+ 
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ [patch.crates-io.autocfg_v1]
+ path = "autocfg/v1/crate"
+ package = "autocfg"
+@@ -128,7 +112,6 @@
+ path = "cxxbridge_macro/v1/crate"
+ package = "cxxbridge-macro"
+ 
+-<<<<<<< HEAD
+ [patch.crates-io.font-types_v0_4]
+ path = "font_types/v0_4/crate"
+ package = "font-types"
+@@ -144,11 +127,6 @@
+ [patch.crates-io.hex_v0_4]
+ path = "hex/v0_4/crate"
+ package = "hex"
+-=======
+-[patch.crates-io.itoa_v0_4]
+-path = "itoa/v0_4/crate"
+-package = "itoa"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ 
+ [patch.crates-io.itoa_v1]
+ path = "itoa/v1/crate"
+@@ -178,15 +156,9 @@
+ path = "memoffset/v0_6/crate"
+ package = "memoffset"
+ 
+-<<<<<<< HEAD
+ [patch.crates-io.ppv-lite86_v0_2]
+ path = "ppv_lite86/v0_2/crate"
+ package = "ppv-lite86"
+-=======
+-[patch.crates-io.os_str_bytes_v6]
+-path = "os_str_bytes/v6/crate"
+-package = "os_str_bytes"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ 
+ [patch.crates-io.proc-macro2_v1]
+ path = "proc_macro2/v1/crate"
+@@ -228,7 +200,6 @@
+ path = "regex/v1/crate"
+ package = "regex"
+ 
+-<<<<<<< HEAD
+ [patch.crates-io.rstest_macros_v0_17]
+ path = "rstest_macros/v0_17/crate"
+ package = "rstest_macros"
+@@ -239,10 +210,6 @@
+ 
+ [patch.crates-io.rstest_v0_17]
+ path = "rstest/v0_17/crate"
+-=======
+-[patch.crates-io.rstest_v0_12]
+-path = "rstest/v0_12/crate"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ package = "rstest"
+ 
+ [patch.crates-io.rustc-demangle-capi_v0_1]
+@@ -305,13 +272,10 @@
+ path = "syn/v1/crate"
+ package = "syn"
+ 
+-<<<<<<< HEAD
+ [patch.crates-io.syn_v2]
+ path = "syn/v2/crate"
+ package = "syn"
+ 
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ [patch.crates-io.termcolor_v1]
+ path = "termcolor/v1/crate"
+ package = "termcolor"

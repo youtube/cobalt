@@ -1,0 +1,71 @@
+--- third_party/boringssl/src/crypto/internal.h
++++ third_party/boringssl/src/crypto/internal.h
+@@ -109,11 +109,8 @@
+ #ifndef OPENSSL_HEADER_CRYPTO_INTERNAL_H
+ #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
+ 
+-<<<<<<< HEAD
+ #include <openssl/arm_arch.h>
+-=======
+ #include "build/build_config.h" 
+->>>>>>> 8b5ddbf9228 (Modify boringssl to run nplb (#4943))
+ #include <openssl/crypto.h>
+ #include <openssl/ex_data.h>
+ #if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+@@ -721,16 +718,6 @@
+ // have a platform with fails this check.
+ #error "Thread-compatible configurations require atomics"
+ 
+-<<<<<<< HEAD
+-=======
+-// Automatically enable C11 atomics if implemented.
+-#if !defined(OPENSSL_C11_ATOMIC) && defined(OPENSSL_THREADS) &&   \
+-    !defined(__STDC_NO_ATOMICS__) && defined(__STDC_VERSION__) && \
+-    __STDC_VERSION__ >= 201112L
+-#if !(BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+-#define OPENSSL_C11_ATOMIC
+->>>>>>> 8b5ddbf9228 (Modify boringssl to run nplb (#4943))
+-#endif
+ #endif
+ 
+ // See the comment in the |__cplusplus| section above.
+@@ -769,18 +756,8 @@
+ 
+ // Locks.
+ 
+-<<<<<<< HEAD
+ #if !defined(OPENSSL_THREADS)
+ typedef struct crypto_mutex_st {
+-=======
+-#if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+-struct CRYPTO_STATIC_MUTEX {
+-  CRYPTO_MUTEX mutex;
+-};
+-#define CRYPTO_STATIC_MUTEX_INIT { 0 }
+-#elif !defined(OPENSSL_THREADS)
+-struct CRYPTO_STATIC_MUTEX {
+->>>>>>> 8b5ddbf9228 (Modify boringssl to run nplb (#4943))
+   char padding;  // Empty structs have different sizes in C and C++.
+ } CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT { 0 }
+@@ -788,20 +765,8 @@
+ typedef SRWLOCK CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT SRWLOCK_INIT
+ #elif defined(OPENSSL_PTHREADS)
+-<<<<<<< HEAD
+ typedef pthread_rwlock_t CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT PTHREAD_RWLOCK_INITIALIZER
+-=======
+-struct CRYPTO_STATIC_MUTEX {
+-  pthread_rwlock_t lock;
+-};
+-
+-#if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD)) && !defined(PTHREAD_RWLOCK_INITIALIZER)
+-#define PTHREAD_RWLOCK_INITIALIZER {{{1, 0}}}
+-#endif
+-
+-#define CRYPTO_STATIC_MUTEX_INIT { PTHREAD_RWLOCK_INITIALIZER }
+->>>>>>> 8b5ddbf9228 (Modify boringssl to run nplb (#4943))
+ #else
+ #error "Unknown threading library"
+ #endif

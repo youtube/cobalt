@@ -1,0 +1,21 @@
+--- sandbox/policy/BUILD.gn
++++ sandbox/policy/BUILD.gn
+@@ -35,7 +35,6 @@
+     "//sandbox/policy/mojom",
+   ]
+   public_deps = [ "//sandbox:common" ]
+-<<<<<<< HEAD
+   if (is_android) {
+     sources += [
+       "linux/bpf_base_policy_linux.cc",
+@@ -49,10 +48,7 @@
+       "//sandbox/linux:seccomp_bpf",
+     ]
+   }
+-  if (is_linux || is_chromeos) {
+-=======
+   if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
+->>>>>>> 74d23da1522 (Remove build failures related to //sandbox (#5128))
+     sources += [
+       "linux/bpf_audio_policy_linux.cc",
+       "linux/bpf_audio_policy_linux.h",

@@ -1,0 +1,40 @@
+--- base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_posix.cc
++++ base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_posix.cc
+@@ -19,13 +19,7 @@
+ #include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/posix/eintr_wrapper.h"
+ #include "build/build_config.h"
+ 
+-<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_posix.cc
+ #if BUILDFLAG(IS_MAC)
+-=======
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
+-#include "third_party/lss/linux_syscall_support.h"
+-#elif BUILDFLAG(IS_MAC)
+->>>>>>> 11edda5d23f (Build shared library binaries instead of executables for test targets  (#4771)):base/allocator/partition_allocator/partition_alloc_base/rand_util_posix.cc
+ // TODO(crbug.com/995996): Waiting for this header to appear in the iOS SDK.
+ // (See below.)
+ #include <sys/random.h>
+@@ -73,8 +67,7 @@
+ // (https://chromium-review.googlesource.com/c/chromium/src/+/1545096) and land
+ // it or some form of it.
+ void RandBytes(void* output, size_t output_length) {
+-<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_posix.cc
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
++#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
+   // Use `syscall(__NR_getrandom...` to avoid a dependency on
+   // `third_party/linux_syscall_support.h`.
+   //
+@@ -84,13 +77,6 @@
+   // `//base` behavior both here and below.
+   const ssize_t r =
+       PA_HANDLE_EINTR(syscall(__NR_getrandom, output, output_length, 0));
+-=======
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
+-  // We have to call `getrandom` via Linux Syscall Support, rather than through
+-  // the libc wrapper, because we might not have an up-to-date libc (e.g. on
+-  // some bots).
+-  const ssize_t r = PA_HANDLE_EINTR(sys_getrandom(output, output_length, 0));
+->>>>>>> 11edda5d23f (Build shared library binaries instead of executables for test targets  (#4771)):base/allocator/partition_allocator/partition_alloc_base/rand_util_posix.cc
+ 
+   // Return success only on total success. In case errno == ENOSYS (or any other
+   // error), we'll fall through to reading from urandom below.

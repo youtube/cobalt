@@ -1,0 +1,20 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -1073,17 +1073,10 @@
+   # to provide the appropriate `#define` here.
+   defines += [ "IS_RAW_PTR_IMPL" ]
+ 
+-<<<<<<< HEAD
+-=======
+-  if (is_apple) {
+-    deps += [ "//base/time/buildflags:buildflags" ]
+-  }
+-
+   if (is_starboard) {
+     deps += [ "//starboard($starboard_toolchain)" ]
+   }
+ 
+->>>>>>> 8da63bba955 (Use the Starboard message pump. (#4772))
+   if (build_rust_json_reader) {
+     deps += [ "//third_party/rust/serde_json_lenient/v0_1/wrapper" ]
+   }

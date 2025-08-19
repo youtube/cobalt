@@ -1,0 +1,76 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -92,28 +92,7 @@
+ assert(!is_win || is_clang,
+        "only clang-cl is supported on Windows, see https://crbug.com/988071")
+ 
+-<<<<<<< HEAD
+-# TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+-# ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
+-# #include <sys/queue.h>
+-
+-# Determines whether libevent should be dep.
+-if (is_cobalt_hermetic_build) {
+-  dep_libevent = false
+-} else {
+-  dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+-}
+-=======
+-if (is_apple) {
+-  assert(!use_blink || enable_mach_absolute_time_ticks,
+-         "use_blink requires mach absolute time ticks")
+-
+-  assert(!is_mac || enable_mach_absolute_time_ticks,
+-         "mac requires mach absolute time ticks")
+-}
+-
+ dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+->>>>>>> 1ffb38d9246 (Build base_unittests hermetically. (#4935))
+ 
+ # Determines whether message_pump_libevent should be used.
+ use_libevent = dep_libevent && !is_ios
+@@ -3745,8 +3724,6 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+-=======
+   if (is_starboard) {
+     sources -= [
+       "debug/proc_maps_linux_unittest.cc",
+@@ -3771,35 +3748,6 @@
+     ]
+   }
+ 
+-  if (is_mac) {
+-    sources += [
+-      "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
+-      "allocator/partition_allocator/shim/malloc_zone_functions_mac_unittest.cc",
+-      "enterprise_util_mac_unittest.mm",
+-      "mac/backup_util_unittest.mm",
+-      "mac/bind_objc_block_unittest.mm",
+-      "mac/call_with_eh_frame_unittest.mm",
+-      "mac/dispatch_source_mach_unittest.cc",
+-      "mac/foundation_util_unittest.mm",
+-      "mac/mac_util_unittest.mm",
+-      "mac/mach_port_rendezvous_unittest.cc",
+-      "mac/scoped_mach_vm_unittest.cc",
+-      "mac/scoped_nsobject_unittest.mm",
+-      "mac/scoped_objc_class_swizzler_unittest.mm",
+-      "mac/scoped_sending_event_unittest.mm",
+-      "message_loop/message_pump_mac_unittest.mm",
+-      "power_monitor/thermal_state_observer_mac_unittest.mm",
+-      "process/memory_unittest_mac.h",
+-      "process/memory_unittest_mac.mm",
+-      "strings/sys_string_conversions_mac_unittest.mm",
+-    ]
+-  }
+-
+-  if (is_apple && enable_mach_absolute_time_ticks) {
+-    sources += [ "time/time_mac_unittest.mm" ]
+-  }
+-
+->>>>>>> 1ffb38d9246 (Build base_unittests hermetically. (#4935))
+   if (is_posix) {
+     sources += [
+       "files/dir_reader_posix_unittest.cc",

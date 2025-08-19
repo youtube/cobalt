@@ -1,0 +1,5 @@
+--- third_party/rust/wycheproof/v0_4/crate/.gitignore
++++ third_party/rust/wycheproof/v0_4/crate/.gitignore
+@@ -1,2 +0,0 @@
+-/target
+-Cargo.lock

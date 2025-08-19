@@ -1,0 +1,145 @@
+--- third_party/rust/Cargo.lock
++++ third_party/rust/Cargo.lock
+@@ -10,7 +10,6 @@
+ ]
+ 
+ [[package]]
+-<<<<<<< HEAD
+ name = "anstyle"
+ version = "1.0.4"
+ 
+@@ -19,8 +18,6 @@
+ version = "1.0.70"
+ 
+ [[package]]
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ name = "autocfg"
+ version = "1.1.0"
+ 
+@@ -42,10 +39,7 @@
+ dependencies = [
+  "anyhow",
+  "bitflags",
+-<<<<<<< HEAD
+  "cfg-if",
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+  "cxx",
+  "cxxbridge-cmd",
+  "font-types",
+@@ -71,11 +65,7 @@
+  "skrifa",
+  "small_ctor",
+  "static_assertions",
+-<<<<<<< HEAD
+  "syn 2.0.29",
+-=======
+- "syn",
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+  "unicode-linebreak",
+  "wycheproof",
+ ]
+@@ -84,7 +74,6 @@
+ name = "clap"
+ version = "4.4.6"
+ dependencies = [
+-<<<<<<< HEAD
+  "clap_builder",
+ ]
+ 
+@@ -93,9 +82,6 @@
+ version = "4.4.6"
+ dependencies = [
+  "anstyle",
+-=======
+- "bitflags",
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+  "clap_lex",
+  "strsim",
+ ]
+@@ -141,7 +127,6 @@
+ ]
+ 
+ [[package]]
+-<<<<<<< HEAD
+ name = "font-types"
+ version = "0.4.0"
+ 
+@@ -161,10 +146,6 @@
+ [[package]]
+ name = "hex-literal"
+ version = "0.4.1"
+-=======
+-name = "itoa"
+-version = "0.4.8"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ 
+ [[package]]
+ name = "itoa"
+@@ -201,13 +182,8 @@
+ ]
+ 
+ [[package]]
+-<<<<<<< HEAD
+ name = "ppv-lite86"
+ version = "0.2.17"
+-=======
+-name = "os_str_bytes"
+-version = "6.0.0"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ 
+ [[package]]
+ name = "proc-macro2"
+@@ -228,7 +204,6 @@
+ ]
+ 
+ [[package]]
+-<<<<<<< HEAD
+ name = "rand"
+ version = "0.8.5"
+ dependencies = [
+@@ -267,8 +242,6 @@
+ ]
+ 
+ [[package]]
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ name = "regex"
+ version = "1.6.0"
+ dependencies = [
+@@ -283,7 +256,6 @@
+ 
+ [[package]]
+ name = "rstest"
+-<<<<<<< HEAD
+ version = "0.17.0"
+ dependencies = [
+  "rstest_macros",
+@@ -293,9 +265,6 @@
+ [[package]]
+ name = "rstest_macros"
+ version = "0.17.0"
+-=======
+-version = "0.12.0"
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ dependencies = [
+  "cfg-if",
+  "proc-macro2",
+@@ -408,7 +377,6 @@
+ ]
+ 
+ [[package]]
+-<<<<<<< HEAD
+ name = "syn"
+ version = "2.0.29"
+ dependencies = [
+@@ -418,8 +386,6 @@
+ ]
+ 
+ [[package]]
+-=======
+->>>>>>> dc3ff8caeb2 (Remove third_party/rust gnrt dependencies)
+ name = "termcolor"
+ version = "1.1.2"
+ dependencies = [

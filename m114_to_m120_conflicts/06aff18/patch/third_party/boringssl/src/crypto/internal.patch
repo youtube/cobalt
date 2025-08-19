@@ -1,0 +1,22 @@
+--- third_party/boringssl/src/crypto/internal.h
++++ third_party/boringssl/src/crypto/internal.h
+@@ -751,19 +751,8 @@
+ 
+ // Locks.
+ 
+-<<<<<<< HEAD
+ #if !defined(OPENSSL_THREADS)
+ typedef struct crypto_mutex_st {
+-=======
+-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+-struct CRYPTO_STATIC_MUTEX {
+-  uint32_t initialized;
+-  CRYPTO_MUTEX mutex;
+-};
+-#define CRYPTO_STATIC_MUTEX_INIT { 0 }
+-#elif !defined(OPENSSL_THREADS)
+-struct CRYPTO_STATIC_MUTEX {
+->>>>>>> 75bfb6bad7e (Add missing boringssl SB functions (#5008))
+   char padding;  // Empty structs have different sizes in C and C++.
+ } CRYPTO_MUTEX;
+ #define CRYPTO_MUTEX_INIT { 0 }

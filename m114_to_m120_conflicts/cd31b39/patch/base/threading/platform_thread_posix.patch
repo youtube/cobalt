@@ -1,0 +1,16 @@
+--- base/threading/platform_thread_posix.cc
++++ base/threading/platform_thread_posix.cc
+@@ -352,13 +352,8 @@
+ #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
+ 
+ // static
+-<<<<<<< HEAD
+ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
+-#if BUILDFLAG(IS_NACL)
+-=======
+-bool PlatformThread::CanChangeThreadType(ThreadType from, ThreadType to) {
+ #if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+->>>>>>> 1ffb38d9246 (Build base_unittests hermetically. (#4935))
+   return false;
+ #else
+   if (from >= to) {

@@ -1,0 +1,24 @@
+--- base/time/time_unittest.cc
++++ base/time/time_unittest.cc
+@@ -14,12 +14,9 @@
+ #include "base/check_op.h"
+ #include "base/compiler_specific.h"
+ #include "base/environment.h"
+-<<<<<<< HEAD
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/to_string.h"
+-=======
+-#include "base/logging.h"
+->>>>>>> 3d9c8cb7059 (Bring 25.lts.1+ base customizations to trunk (#4800))
++
+ #include "base/test/gtest_util.h"
+ #include "base/threading/platform_thread.h"
+ #include "base/time/time_override.h"
+@@ -31,6 +28,7 @@
+ #include "third_party/icu/source/i18n/unicode/timezone.h"
+ 
+ #if BUILDFLAG(IS_STARBOARD)
++#include "base/logging.h"
+ #include "starboard/common/time.h"  // nogncheck
+ #include "starboard/types.h"  // nogncheck
+ #include "starboard/client_porting/eztime/eztime.h"  // nogncheck

@@ -1,0 +1,22 @@
+--- third_party/boringssl/BUILD.gn
++++ third_party/boringssl/BUILD.gn
+@@ -132,7 +132,6 @@
+   source_set("boringssl_asm") {
+     visibility = [ ":*" ]  # Only targets in this file can depend on this.
+ 
+-<<<<<<< HEAD
+     public_configs = [ ":no_asm_config" ]
+   }
+ } else if (is_win && (current_cpu == "x86" || current_cpu == "x64")) {
+@@ -151,11 +150,6 @@
+ 
+     sources = crypto_sources_asm
+     if (is_cobalt && is_cobalt_hermetic_build) {
+-=======
+-    sources = []
+-    asmflags = []
+-    if (is_cobalt_hermetic_build) {
+->>>>>>> cc20d3f1ae6 (Set is_cobalt_hermetic_build false globally and to true in the toolchain args (#4852))
+       include_dirs = [
+         "//cobalt/third_party/boringssl/src/include",
+         "src/include",

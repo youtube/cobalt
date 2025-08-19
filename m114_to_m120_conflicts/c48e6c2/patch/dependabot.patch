@@ -1,0 +1,11 @@
+--- third_party/rust/rustc_demangle/v0_1/crate/.github/dependabot.yml
++++ third_party/rust/rustc_demangle/v0_1/crate/.github/dependabot.yml
+@@ -1,8 +0,0 @@
+-version: 2
+-updates:
+-- package-ecosystem: cargo
+-  directory: "/"
+-  schedule:
+-    interval: daily
+-    time: "08:00"
+-  open-pull-requests-limit: 10

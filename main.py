@@ -259,12 +259,21 @@ def record_conflict(repo, commit_record_dir):
             )
             open(dst_path, 'a').close()
 
-        file_name, file_ext = file_path.split('.')
-        same_names = [x for x in conflicted_files if x.startswith(file_name)]
-        if len(same_names) > 1:
-            patch_path = f'{file_name}_{file_ext}.patch'
+        file_basename, file_ext = os.path.splitext(os.path.basename(file_path))
+        if file_ext:
+            file_ext = file_ext[1:]  # remove leading '.'
+
+        same_names = [
+            x for x in conflicted_files
+            if os.path.splitext(x)[0] == os.path.splitext(file_path)[0]
+        ]
+
+        if len(same_names) > 1 and file_ext:
+            patch_filename = f'{file_basename}_{file_ext}.patch'
         else:
-            patch_path = f'{file_name}.patch'
+            patch_filename = f'{file_basename}.patch'
+        patch_path = os.path.join(patch_dir, patch_filename)
+
         full_patch_path = os.path.join(os.getcwd(), patch_dir, patch_path)
         if os.path.exists(full_patch_path):
             print(f'   ✅ {file_path} - Patch found')
@@ -308,19 +317,33 @@ def record_conflict(repo, commit_record_dir):
             open(dst_path, 'a').close()
 
     if not resolved_conflict:
+
         print('   📄 Creating conflict resolution patches...')
         for file_path in conflicted_files:
             conflict_path = os.path.join(conflict_dir, file_path)
             resolved_path = os.path.join(resolved_dir, file_path)
 
-            file_name, file_ext = file_path.split('.')
-            same_names = [x for x in conflicted_files if x.startswith(file_name)]
-            if len(same_names) > 1:
-                patch_path = os.path.join(patch_dir, f'{file_name}_{file_ext}.patch')
+            # --- Start of robust replacement ---
+            file_basename, file_ext = os.path.splitext(os.path.basename(file_path))
+            if file_ext:
+                file_ext = file_ext[1:]  # remove leading '.'
+
+            # Check if other conflicted files share the same base path (ignoring extension)
+            same_names = [
+                x for x in conflicted_files
+                if os.path.splitext(x)[0] == os.path.splitext(file_path)[0]
+            ]
+
+            if len(same_names) > 1 and file_ext:
+                patch_filename = f'{file_basename}_{file_ext}.patch'
             else:
-                patch_path = os.path.join(patch_dir, f'{file_name}.patch')
+                patch_filename = f'{file_basename}.patch'
+
+            patch_path = os.path.join(patch_dir, patch_filename)
+            # --- End of robust replacement ---
 
             os.makedirs(os.path.dirname(patch_path), exist_ok=True)
+
             with open(patch_path, 'w', encoding='utf-8') as f:
                 subprocess.run([
                     'diff', '-u', '--label', file_path, '--label', file_path,

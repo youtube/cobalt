@@ -1,0 +1,23 @@
+--- third_party/blink/renderer/modules/BUILD.gn
++++ third_party/blink/renderer/modules/BUILD.gn
+@@ -334,20 +334,7 @@
+     rebase_path(outputs[0], root_build_dir),
+   ]
+ 
+-<<<<<<< HEAD
+   deps = [ "//third_party/blink/renderer/bindings:web_idl_database" ]
+-=======
+-  if (is_cobalt) {
+-    sources += [
+-      "cobalt/h5vcc_metrics/metrics_event.idl",
+-      "cobalt/h5vcc_runtime/deep_link_event.idl",
+-      "cobalt/h5vcc_system/h_5_vcc_system.idl",
+-    ]
+-  }
+-
+-  output_file = "modules/event_interface_modules_names.json5"
+-  suffix = "Modules"
+->>>>>>> 13da5ef47bd (blink: Add H5vccMetrics IDL, Blink implementation and Mojom (#5047))
+ }
+ 
+ # make_event_factory -----------------------------------------------------------

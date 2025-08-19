@@ -1,0 +1,19 @@
+--- third_party/blink/renderer/modules/BUILD.gn
++++ third_party/blink/renderer/modules/BUILD.gn
+@@ -332,16 +332,7 @@
+     rebase_path(outputs[0], root_build_dir),
+   ]
+ 
+-<<<<<<< HEAD
+   deps = [ "//third_party/blink/renderer/bindings:web_idl_database" ]
+-=======
+-  if (is_cobalt) {
+-    sources += [ "cobalt/h5vcc_runtime/deep_link_event.idl", ]
+-  }
+-
+-  output_file = "modules/event_interface_modules_names.json5"
+-  suffix = "Modules"
+->>>>>>> 3cdc4e87301 (Add onDeepLink EventHandler to h5vcc_runtime IDL (#4993))
+ }
+ 
+ # make_event_factory -----------------------------------------------------------
