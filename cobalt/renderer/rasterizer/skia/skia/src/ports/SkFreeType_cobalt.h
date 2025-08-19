@@ -15,9 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFREETYPE_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFREETYPE_COBALT_H_
 
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkTypeface.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 
 namespace sk_freetype_cobalt {
 
@@ -28,13 +28,17 @@ struct AxisDefinition {
   Fixed16 def;
   Fixed16 maximum;
 };
-typedef SkTArray<AxisDefinition, true> AxisDefinitions;
+typedef skia_private::TArray<AxisDefinition, true> AxisDefinitions;
 
 // Scans the font stream using FreeType, setting its name, style and whether or
 // not it has a fixed pitch. It also generates the font's character map if that
 // optional parameter is provided.
-bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
-              SkFontStyle* style, bool* is_fixed_pitch, AxisDefinitions* axes,
+bool ScanFont(SkStreamAsset* stream,
+              int face_index,
+              SkString* name,
+              SkFontStyle* style,
+              bool* is_fixed_pitch,
+              AxisDefinitions* axes,
               font_character_map::CharacterMap* maybe_character_map = NULL);
 
 }  // namespace sk_freetype_cobalt

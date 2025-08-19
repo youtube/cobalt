@@ -23,15 +23,16 @@
 #include <stack>
 #include <string>
 
-#include "include/core/SkData.h"
-#include "include/core/SkOSFile.h"
-#include "include/core/SkOSPath.h"
-#include "include/core/SkStream.h"
-#include "include/core/SkTSearch.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "include/core/SkData.h"
+#include "include/core/SkStream.h"
+#include "src/base/SkTSearch.h"
+#include "src/core/SkOSFile.h"
+#include "src/utils/SkOSPath.h"
 
 namespace {
 
@@ -209,7 +210,8 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
 
 typedef unsigned char xmlChar;
 
-void StartElement(void* context, const xmlChar* name,
+void StartElement(void* context,
+                  const xmlChar* name,
                   const xmlChar** attribute_pairs);
 void EndElement(void* context, const xmlChar* name);
 void Characters(void* context, const xmlChar* ch, int len);
@@ -318,7 +320,7 @@ void FamilyElementHandler(FontFamilyInfo* family, const char** attributes) {
       if (!ParsePageRangeList(value, &family->page_ranges)) {
         LOG(ERROR) << "---- Invalid page ranges [" << value << "]";
         NOTREACHED();
-        family->page_ranges.reset();
+        family->page_ranges.clear();
       }
     } else if (name_len == 17 &&
                strncmp("fallback_priority", name, name_len) == 0) {
@@ -431,9 +433,9 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
 
 FontFamilyInfo* FindFamily(ParserContext* context, const char* family_name) {
   size_t name_len = strlen(family_name);
-  for (int i = 0; i < context->families->count(); i++) {
+  for (int i = 0; i < context->families->size(); i++) {
     FontFamilyInfo* candidate = (*context->families)[i];
-    for (int j = 0; j < candidate->names.count(); j++) {
+    for (int j = 0; j < candidate->names.size(); j++) {
       if (!strncmp(candidate->names[j].c_str(), family_name, name_len) &&
           name_len == strlen(candidate->names[j].c_str())) {
         return candidate;
@@ -479,7 +481,8 @@ void AliasElementHandler(ParserContext* context, const char** attributes) {
   target_family->names.push_back().set(alias_name);
 }
 
-void StartElement(void* context, const xmlChar* xml_tag,
+void StartElement(void* context,
+                  const xmlChar* xml_tag,
                   const xmlChar** xml_attribute_pairs) {
   ParserContext* parser_context = reinterpret_cast<ParserContext*>(context);
   const char* tag = reinterpret_cast<const char*>(xml_tag);
@@ -579,10 +582,13 @@ void ParseConfigFile(const char* directory,
   }
 
   ParserContext parser_context(families);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   int return_value =
       xmlSAXUserParseMemory(&xml_sax_handler, &parser_context,
                             static_cast<const char*>(file_data->data()),
                             static_cast<int>(file_data->size()));
+#pragma clang diagnostic pop
   DCHECK_EQ(return_value, 0);
 }
 

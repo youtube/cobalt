@@ -31,7 +31,7 @@ sk_sp<SkFontMgr> SkFontMgr::Factory() {
   base::FilePath system_font_files_directory;
   base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
 
-  SkTArray<SkString, true> default_families;
+  skia_private::TArray<SkString, true> default_families;
   default_families.push_back(SkString("sans-serif"));
 
   sk_sp<SkFontMgr> font_manager(new SkFontMgr_Cobalt(

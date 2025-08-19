@@ -18,13 +18,13 @@
 #include <string>
 #include <unordered_map>
 
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
-#include "include/core/SkTHash.h"
 #include "include/core/SkTypeface.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
+#include "src/core/SkTHash.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of
 // SkFontStyleSet. It represents a collection of local typefaces that support
@@ -40,7 +40,7 @@
 // entry are lazily loaded the first time that they are needed.
 class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
-  typedef SkTArray<Fixed16, true> ComputedVariationPosition;
+  typedef skia_private::TArray<Fixed16, true> ComputedVariationPosition;
 
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
     // NOTE: SkFontStyleSetEntry_Cobalt objects are not guaranteed to last for
@@ -49,9 +49,11 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     // result, it is not safe to store their pointers outside of
     // SkFontStyleSet_Cobalt.
     SkFontStyleSetEntry_Cobalt(
-        const SkString& file_path, const int face_index,
+        const SkString& file_path,
+        const int face_index,
         const ComputedVariationPosition& computed_variation_position,
-        const SkFontStyle& style, const std::string& full_name,
+        const SkFontStyle& style,
+        const std::string& full_name,
         const std::string& postscript_name,
         const bool disable_synthetic_bolding)
         : font_file_path(file_path),
@@ -88,7 +90,8 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   };
 
   SkFontStyleSet_Cobalt(
-      const FontFamilyInfo& family_info, const char* base_path,
+      const FontFamilyInfo& family_info,
+      const char* base_path,
       SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
       SkMutex* const manager_owned_mutex,
       FontFormatSetting font_format_setting);
@@ -100,9 +103,9 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   void getStyle(int index, SkFontStyle* style, SkString* name) override;
   // NOTE: SkFontStyleSet_Cobalt does not support createTypeface(), as
   // publicly accessing styles by index is unsafe.
-  SkTypeface* createTypeface(int index) override;
+  sk_sp<SkTypeface> createTypeface(int index) override;
 
-  SkTypeface* matchStyle(const SkFontStyle& pattern) override;
+  sk_sp<SkTypeface> matchStyle(const SkFontStyle& pattern) override;
 
   const SkString& get_family_name() const { return family_name_; }
 
@@ -112,10 +115,10 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   // NOTE: It is the responsibility of the caller to lock the mutex before
   // calling any of the non-const private functions.
 
-  SkTypeface* MatchStyleWithoutLocking(const SkFontStyle& pattern);
-  SkTypeface* MatchFullFontName(const std::string& name);
-  SkTypeface* MatchFontPostScriptName(const std::string& name);
-  SkTypeface* TryRetrieveTypefaceAndRemoveStyleOnFailure(int style_index);
+  sk_sp<SkTypeface> MatchStyleWithoutLocking(const SkFontStyle& pattern);
+  sk_sp<SkTypeface> MatchFullFontName(const std::string& name);
+  sk_sp<SkTypeface> MatchFontPostScriptName(const std::string& name);
+  sk_sp<SkTypeface> TryRetrieveTypefaceAndRemoveStyleOnFailure(int style_index);
   bool ContainsTypeface(const SkTypeface* typeface);
 
   bool ContainsCharacter(const SkFontStyle& style, SkUnichar character);
@@ -124,11 +127,13 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
       const scoped_refptr<font_character_map::CharacterMap>& map);
 
   bool GenerateStyleFaceInfo(SkFontStyleSetEntry_Cobalt* style,
-                             SkStreamAsset* stream, int style_index);
+                             SkStreamAsset* stream,
+                             int style_index);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
   void CreateStreamProviderTypeface(
-      SkFontStyleSetEntry_Cobalt* style, int style_index,
+      SkFontStyleSetEntry_Cobalt* style,
+      int style_index,
       SkFileMemoryChunkStreamProvider* stream_provider = NULL);
 
   // Purge typefaces that are only referenced internally.
@@ -152,7 +157,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   std::unordered_map<int, scoped_refptr<font_character_map::CharacterMap>>
       character_maps_;
 
-  SkTArray<sk_sp<SkFontStyleSetEntry_Cobalt>, true> styles_;
+  skia_private::TArray<sk_sp<SkFontStyleSetEntry_Cobalt>, true> styles_;
 
   friend class SkFontMgr_Cobalt;
 };

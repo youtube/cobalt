@@ -20,10 +20,10 @@
 #include FT_TRUETYPE_TABLES_H
 #include FT_TYPE1_TABLES_H
 
-#include "include/core/SkFontStyle.h"
-#include "include/core/SkTSearch.h"
 #include "base/logging.h"
-#include "base/trace_event/trace_event.h"
+#include "include/core/SkFontStyle.h"
+#include "src/base/SkTSearch.h"
+#include "src/core/SkTraceEvent.h"
 
 namespace {
 
@@ -89,7 +89,7 @@ SkFontStyle GenerateSkFontStyleFromFace(FT_Face face) {
         {"ultralight", SkFontStyle::kExtraLight_Weight},
     };
     int const index =
-        SkStrLCSearch(&commonWeights[0].name, SK_ARRAY_COUNT(commonWeights),
+        SkStrLCSearch(&commonWeights[0].name, std::size(commonWeights),
                       psFontInfo.weight, sizeof(commonWeights[0]));
     if (index >= 0) {
       weight = commonWeights[index].weight;
@@ -103,7 +103,8 @@ SkFontStyle GenerateSkFontStyleFromFace(FT_Face face) {
 }
 
 void GenerateCharacterMapFromFace(
-    FT_Face face, font_character_map::CharacterMap* character_map) {
+    FT_Face face,
+    font_character_map::CharacterMap* character_map) {
   TRACE_EVENT0("cobalt::renderer", "GenerateCharacterMapFromFace");
 
   FT_UInt glyph_index;
@@ -135,8 +136,12 @@ static void sk_freetype_cobalt_stream_close(FT_Stream) {}
 
 namespace sk_freetype_cobalt {
 
-bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
-              SkFontStyle* style, bool* is_fixed_pitch, AxisDefinitions* axes,
+bool ScanFont(SkStreamAsset* stream,
+              int face_index,
+              SkString* name,
+              SkFontStyle* style,
+              bool* is_fixed_pitch,
+              AxisDefinitions* axes,
               font_character_map::CharacterMap* maybe_character_map /*=NULL*/) {
   TRACE_EVENT0("cobalt::renderer", "SkFreeTypeUtil::ScanFont()");
 

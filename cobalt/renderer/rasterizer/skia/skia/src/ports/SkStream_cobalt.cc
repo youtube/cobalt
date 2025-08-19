@@ -25,18 +25,19 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/stringprintf.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkOSFile_cobalt.h"
+#include "src/core/SkOSFile.h"
 
 SkFileMemoryChunkStreamManager::SkFileMemoryChunkStreamManager(
-    const std::string& name, int cache_capacity_in_bytes)
+    const std::string& name,
+    int cache_capacity_in_bytes)
     : available_chunk_count_(cache_capacity_in_bytes /
-                             SkFileMemoryChunk::kSizeInBytes),
-      cache_capacity_in_bytes_(
-          base::StringPrintf("Memory.%s.Capacity", name.c_str()),
-          cache_capacity_in_bytes, "The byte capacity of the cache."),
-      cache_size_in_bytes_(
-          base::StringPrintf("Memory.%s.Size", name.c_str()), 0,
-          "Total number of bytes currently used by the cache.") {}
+                             SkFileMemoryChunk::kSizeInBytes) {}
+// cache_capacity_in_bytes_(
+//     base::StringPrintf("Memory.%s.Capacity", name.c_str()),
+//     cache_capacity_in_bytes, "The byte capacity of the cache."),
+// cache_size_in_bytes_(
+//     base::StringPrintf("Memory.%s.Size", name.c_str()), 0,
+//     "Total number of bytes currently used by the cache.") {}
 
 SkFileMemoryChunkStreamProvider*
 SkFileMemoryChunkStreamManager::GetStreamProvider(
@@ -88,17 +89,18 @@ bool SkFileMemoryChunkStreamManager::TryReserveMemoryChunk() {
 
   // The chunk was successfully reserved. Add the reserved chunk to the used
   // cache size.
-  cache_size_in_bytes_ += SkFileMemoryChunk::kSizeInBytes;
+  // cache_size_in_bytes_ += SkFileMemoryChunk::kSizeInBytes;
   return true;
 }
 
 void SkFileMemoryChunkStreamManager::ReleaseReservedMemoryChunks(size_t count) {
   base::subtle::NoBarrier_AtomicIncrement(&available_chunk_count_, count);
-  cache_size_in_bytes_ -= count * SkFileMemoryChunk::kSizeInBytes;
+  // cache_size_in_bytes_ -= count * SkFileMemoryChunk::kSizeInBytes;
 }
 
 SkFileMemoryChunkStreamProvider::SkFileMemoryChunkStreamProvider(
-    const std::string& file_path, SkFileMemoryChunkStreamManager* manager)
+    const std::string& file_path,
+    SkFileMemoryChunkStreamManager* manager)
     : file_path_(file_path), manager_(manager) {}
 
 SkFileMemoryChunkStream* SkFileMemoryChunkStreamProvider::OpenStream() const {
@@ -154,7 +156,8 @@ void SkFileMemoryChunkStreamProvider::PurgeUnusedMemoryChunks() {
 
 scoped_refptr<const SkFileMemoryChunk>
 SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
-    size_t index, SkFileMemoryChunkStream* stream) {
+    size_t index,
+    SkFileMemoryChunkStream* stream) {
   // Scope the logic that initially accesses the memory chunks. This allows the
   // creation of a new memory chunk and the read from the stream into its memory
   // to occur outside of a lock.
@@ -169,7 +172,7 @@ SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
   // Verify that the new memory chunk can be reserved before attempting to
   // create it.
   if (!manager_->TryReserveMemoryChunk()) {
-    return NULL;
+    return nullptr;
   }
 
   // Create the memory chunk and attempt to read from the stream into it. If
@@ -178,7 +181,7 @@ SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
   // with a NULL value for this index to prevent the attempts from occurring.
   scoped_refptr<SkFileMemoryChunk> new_chunk(new SkFileMemoryChunk);
   if (!stream->ReadIndexIntoMemoryChunk(index, new_chunk.get())) {
-    new_chunk = NULL;
+    new_chunk = nullptr;
   }
 
   // Re-lock the mutex. It's time to potentially add the newly created chunk to
@@ -266,16 +269,17 @@ size_t SkFileMemoryChunkStream::read(void* buffer, size_t size) {
       // seek fails, then set file position to an invalid value to ensure that
       // the next read triggers a new seek, and break out.
       if (file_position_ != stream_position_ &&
-          !sk_fseek(file_, stream_position_)) {
+          !fseek(file_, stream_position_, SEEK_SET)) {
         file_position_ = std::numeric_limits<size_t>::max();
         break;
       }
 
-      // Note that by using |sk_fread| vs. |sk_qread|, additional seeks are
+      // Note that by using |fread| vs. |sk_qread|, additional seeks are
       // avoided.  This is because |sk_qread|'s implementation does multiple
       // seeks to ensure that the file cursor is at the same position after the
       // |sk_qread| operation is done.
-      index_actual_read_size = sk_fread(buffer, index_desired_read_size, file_);
+      index_actual_read_size = fread(buffer, index_desired_read_size,
+                                     index_desired_read_size, file_);
       file_position_ = stream_position_ + index_actual_read_size;
     }
 
@@ -308,7 +312,9 @@ SkFileMemoryChunkStream* SkFileMemoryChunkStream::onDuplicate() const {
   return stream_provider_->OpenStream();
 }
 
-size_t SkFileMemoryChunkStream::getPosition() const { return stream_position_; }
+size_t SkFileMemoryChunkStream::getPosition() const {
+  return stream_position_;
+}
 
 bool SkFileMemoryChunkStream::seek(size_t position) {
   stream_position_ = std::min(position, file_length_);
@@ -326,22 +332,25 @@ bool SkFileMemoryChunkStream::move(long offset) {  // NOLINT(runtime/int)
 
 SkFileMemoryChunkStream* SkFileMemoryChunkStream::onFork() const {
   std::unique_ptr<SkFileMemoryChunkStream> that(
-      base::polymorphic_downcast<SkFileMemoryChunkStream*>(
-          duplicate().release()));
+      static_cast<SkFileMemoryChunkStream*>(duplicate().release()));
   that->seek(stream_position_);
   return that.release();
 }
 
-size_t SkFileMemoryChunkStream::getLength() const { return file_length_; }
+size_t SkFileMemoryChunkStream::getLength() const {
+  return file_length_;
+}
 
 bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
-    size_t index, SkFileMemoryChunk* chunk) {
+    size_t index,
+    SkFileMemoryChunk* chunk) {
   size_t index_position = index * SkFileMemoryChunk::kSizeInBytes;
 
   // Ensure that the file position matches the index's position. If the seek
   // fails, then set file position to an invalid value to ensure that the next
   // read triggers a new seek, and return false.
-  if (file_position_ != index_position && !sk_fseek(file_, index_position)) {
+  if (file_position_ != index_position &&
+      !fseek(file_, index_position, SEEK_SET)) {
     file_position_ = std::numeric_limits<size_t>::max();
     return false;
   }
@@ -350,11 +359,12 @@ bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
   size_t desired_read_size =
       std::min(file_length_ - index_position, kChunkMaxReadSize);
 
-  // Note that by using |sk_fread| vs. |sk_qread|, additional seeks are
+  // Note that by using |fread| vs. |sk_qread|, additional seeks are
   // avoided.  This is because |sk_qread|'s implementation does multiple
   // seeks to ensure that the file cursor is at the same position after the
   // |sk_qread| operation is done.
-  size_t actual_read_size = sk_fread(chunk->memory, desired_read_size, file_);
+  size_t actual_read_size =
+      fread(chunk->memory, desired_read_size, kChunkMaxReadSize, file_);
   file_position_ = index_position + actual_read_size;
 
   return desired_read_size == actual_read_size;

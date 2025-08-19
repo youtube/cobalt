@@ -18,17 +18,17 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "include/core/SkFontMgr.h"
-#include "include/core/SkTArray.h"
-#include "include/core/SkTypeface.h"
-#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
+#include "include/core/SkFontMgr.h"
+#include "include/core/SkTypeface.h"
+#include "include/private/base/SkTArray.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of SkFontMgr. It
 // is responsible for the creation of remote typefaces and for, given a set of
@@ -58,13 +58,13 @@ class SkFontMgr_Cobalt : public SkFontMgr {
                    const char* cobalt_font_files_directory,
                    const char* system_font_config_directory,
                    const char* system_font_files_directory,
-                   const SkTArray<SkString, true>& default_fonts);
+                   const skia_private::TArray<SkString, true>& default_fonts);
 
   // Purges all font caching in Skia and the local stream manager.
   void PurgeCaches();
 
   // NOTE: This returns NULL if a match is not found.
-  SkTypeface* MatchFaceName(const char face_name[]);
+  sk_sp<SkTypeface> MatchFaceName(const char face_name[]);
 
   // Loads the font that matches the suggested script for the device's locale.
   void LoadLocaleDefault();
@@ -78,26 +78,28 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   void onGetFamilyName(int index, SkString* family_name) const override;
 
   // NOTE: This returns NULL if there is no accessible style set at the index.
-  SkFontStyleSet_Cobalt* onCreateStyleSet(int index) const override;
+  sk_sp<SkFontStyleSet> onCreateStyleSet(int index) const override;
 
   // NOTE: This returns NULL if there is no family match.
-  SkFontStyleSet_Cobalt* onMatchFamily(const char family_name[]) const override;
+  sk_sp<SkFontStyleSet> onMatchFamily(const char family_name[]) const override;
 
   // NOTE: This always returns a non-NULL value. If the family name cannot be
   // found, then the best match among the default family is returned.
-  SkTypeface* onMatchFamilyStyle(const char family_name[],
-                                 const SkFontStyle& style) const override;
+  sk_sp<SkTypeface> onMatchFamilyStyle(const char family_name[],
+                                       const SkFontStyle& style) const override;
 
   // NOTE: This always returns a non-NULL value. If no match can be found, then
   // the best match among the default family is returned.
-  SkTypeface* onMatchFamilyStyleCharacter(const char family_name[],
-                                          const SkFontStyle& style,
-                                          const char* bcp47[], int bcp47_count,
-                                          SkUnichar character) const override;
+  sk_sp<SkTypeface> onMatchFamilyStyleCharacter(
+      const char family_name[],
+      const SkFontStyle& style,
+      const char* bcp47[],
+      int bcp47_count,
+      SkUnichar character) const override;
 
   // NOTE: This returns NULL if a match is not found.
-  SkTypeface* onMatchFaceStyle(const SkTypeface* family_member,
-                               const SkFontStyle& font_style) const override;
+  sk_sp<SkTypeface> onMatchFaceStyle(const sk_sp<SkTypeface> family_member,
+                                     const SkFontStyle& font_style) const;
 
   // NOTE: This returns NULL if the typeface cannot be created.
   sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData> data,
@@ -121,12 +123,14 @@ class SkFontMgr_Cobalt : public SkFontMgr {
                                          SkFontStyle style) const override;
 
  private:
-  typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToStyleSetMap;
-  typedef base::small_map<base::hash_map<std::string, StyleSetArray*>>
+  typedef std::unordered_map<std::string, SkFontStyleSet_Cobalt*>
+      NameToStyleSetMap;
+  typedef base::small_map<std::unordered_map<std::string, StyleSetArray*>>
       NameToStyleSetArrayMap;
 
   void ParseConfigAndBuildFamilies(
-      const char* font_config_directory, const char* font_files_directory,
+      const char* font_config_directory,
+      const char* font_files_directory,
       PriorityStyleSetArrayMap* priority_fallback_families);
   void BuildNameToFamilyMap(
       const char* font_files_directory,
@@ -134,16 +138,17 @@ class SkFontMgr_Cobalt : public SkFontMgr {
       PriorityStyleSetArrayMap* priority_fallback_families);
   void GeneratePriorityOrderedFallbackFamilies(
       const PriorityStyleSetArrayMap& priority_fallback_families);
-  void FindDefaultFamily(const SkTArray<SkString, true>& default_families);
+  void FindDefaultFamily(
+      const skia_private::TArray<SkString, true>& default_families);
   bool CheckIfFamilyMatchesLocaleScript(sk_sp<SkFontStyleSet_Cobalt> new_family,
                                         const char* script);
 
   // Returns the first encountered fallback family that matches the language tag
   // and supports the specified character.
   // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
-  SkTypeface* FindFamilyStyleCharacter(const SkFontStyle& style,
-                                       const SkString& language_tag,
-                                       SkUnichar character);
+  sk_sp<SkTypeface> FindFamilyStyleCharacter(const SkFontStyle& style,
+                                             const SkString& language_tag,
+                                             SkUnichar character);
 
   // Returns every fallback family that matches the language tag. If the tag is
   // empty, then all fallback families are returned.
@@ -152,9 +157,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   SkFileMemoryChunkStreamManager local_typeface_stream_manager_;
 
-  SkTArray<sk_sp<SkFontStyleSet_Cobalt>, true> families_;
+  skia_private::TArray<sk_sp<SkFontStyleSet_Cobalt>, true> families_;
 
-  SkTArray<SkString> family_names_;
+  skia_private::TArray<SkString> family_names_;
   // Map names to the back end so that all names for a given family refer to
   // the same (non-replicated) set of typefaces.
   NameToStyleSetMap name_to_family_map_;
