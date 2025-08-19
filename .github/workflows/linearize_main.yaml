@@ -1,0 +1,43 @@
+name: linearize_main
+
+on:
+  schedule:
+    # GMT timezone.
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger_linearize:
+    permissions:
+      actions: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Checkout rebase_tools
+        uses: actions/checkout@v4
+        with:
+          ref: experimental/rebase_tools
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      - name: Install rebase_tools
+        run: |
+          set -eux
+          pip install -r requirements.txt
+      - name: Run linearize
+        run: |
+          set -eux
+          python main.py linearize --repo-path=${GITHUB_WORKSPACE} --source-branch=main --new-branch-name=feature/linear_main
+      - name: Checkout feature/linear_main
+        uses: actions/checkout@v4
+        with:
+          ref: feature/rebase_tools
+      # - name: Push to origin feature/linear_main
+      #   run: |
+      #     set -eux
+      #     git push --force origin feature/linear_main
