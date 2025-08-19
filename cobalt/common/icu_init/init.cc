@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "base/i18n/icu_util.h"
+// #include "base/i18n/icu_util.h" // nogncheck
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -45,7 +45,8 @@ bool g_initialization_result = false;
 // kSbSystemPathContentDirectory folder. Note that this gives the ICU its
 // database, but it does not actually set a default timezone or locale.
 void InitializeIcuDatabase() {
-  base::i18n::InitializeICU();
+  // test not initializing icu
+  // base::i18n::InitializeICU();
   g_initialization_result = true;
 }
 
