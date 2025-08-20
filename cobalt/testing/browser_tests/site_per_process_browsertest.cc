@@ -569,10 +569,12 @@ class SitePerProcessAutoplayBrowserTest : public SitePerProcessBrowserTest {
   }
 };
 
-// Ensure that navigating subframes in --site-per-process mode works and the
-// correct documents are committed.
-// TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_CrossSiteIframe) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframe CrossSiteIframe
+#else
+#define MAYBE_CrossSiteIframe DISABLED_CrossSiteIframe
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_CrossSiteIframe) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a(a,a(a)))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -714,11 +716,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_CrossSiteIframe) {
       DepictFrameTree(root));
 }
 
-// Ensure that processes for iframes correctly track whether or not they have a
-// local main frame.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframeMainFrameCount CrossSiteIframeMainFrameCount
+#else
+#define MAYBE_CrossSiteIframeMainFrameCount \
+  DISABLED_CrossSiteIframeMainFrameCount
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossSiteIframeMainFrameCount) {
+                       MAYBE_CrossSiteIframeMainFrameCount) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a,a(a,a))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -770,11 +775,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   VerifyChildProcessHasMainFrame(main_frame_counter_child, false);
 }
 
-// Ensure that title updates affect the correct NavigationEntry after a new
-// subframe navigation with an out-of-process iframe.  https://crbug.com/616609.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TitleAfterCrossSiteIframe TitleAfterCrossSiteIframe
+#else
+#define MAYBE_TitleAfterCrossSiteIframe DISABLED_TitleAfterCrossSiteIframe
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TitleAfterCrossSiteIframe) {
+                       MAYBE_TitleAfterCrossSiteIframe) {
   // Start at an initial page.
   GURL initial_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), initial_url));
@@ -809,12 +816,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_EQ(expected_title, entry->GetTitle());
 }
 
-// This test verifies that scroll bubbling from an OOPIF properly forwards
-// GestureFlingStart events from the child frame to the parent frame. This
-// test times out on failure.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GestureFlingStartEventsBubble GestureFlingStartEventsBubble
+#else
+#define MAYBE_GestureFlingStartEventsBubble \
+  DISABLED_GestureFlingStartEventsBubble
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_GestureFlingStartEventsBubble) {
+                       MAYBE_GestureFlingStartEventsBubble) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -880,10 +889,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   gesture_fling_start_ack_observer.Wait();
 }
 
-// Test that fling on an out-of-process iframe progresses properly.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TouchscreenGestureFlingStart TouchscreenGestureFlingStart
+#else
+#define MAYBE_TouchscreenGestureFlingStart DISABLED_TouchscreenGestureFlingStart
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TouchscreenGestureFlingStart) {
+                       MAYBE_TouchscreenGestureFlingStart) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -928,10 +940,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   gesture_scroll_update_ack_observer.Wait();
 }
 
-// Test that fling on an out-of-process iframe progresses properly.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TouchpadGestureFlingStart TouchpadGestureFlingStart
+#else
+#define MAYBE_TouchpadGestureFlingStart DISABLED_TouchpadGestureFlingStart
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TouchpadGestureFlingStart) {
+                       MAYBE_TouchpadGestureFlingStart) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -978,11 +993,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   gesture_scroll_update_ack_observer.Wait();
 }
 
-// Tests OOPIF rendering by checking that the RWH of the iframe generates
-// OnSwapCompositorFrame message.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CompositorFrameSwapped CompositorFrameSwapped
+#else
+#define MAYBE_CompositorFrameSwapped DISABLED_CompositorFrameSwapped
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CompositorFrameSwapped) {
+                       MAYBE_CompositorFrameSwapped) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(baz)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1005,10 +1022,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   observer.WaitForAnyFrameSubmission();
 }
 
-// Ensure that OOPIFs are deleted after navigating to a new main frame.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CleanupCrossSiteIframe CleanupCrossSiteIframe
+#else
+#define MAYBE_CleanupCrossSiteIframe DISABLED_CleanupCrossSiteIframe
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CleanupCrossSiteIframe) {
+                       MAYBE_CleanupCrossSiteIframe) {
   // The test assumes the previous page gets deleted after navigation. Disable
   // back-forward cache to ensure that it doesn't get preserved in the cache.
   DisableBackForwardCacheForTesting(
@@ -1068,9 +1088,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_FALSE(RenderViewHost::FromID(subframe_process_id, subframe_rvh_id));
 }
 
-// TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateRemoteFrame) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateRemoteFrame NavigateRemoteFrame
+#else
+#define MAYBE_NavigateRemoteFrame DISABLED_NavigateRemoteFrame
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_NavigateRemoteFrame) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a(a,a(a)))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1148,9 +1171,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
             child->current_frame_host()->GetSiteInstance());
 }
 
-// TODO(b/4.37371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateRemoteFrameToBlankAndDataURLs \
+  NavigateRemoteFrameToBlankAndDataURLs
+#else
+#define MAYBE_NavigateRemoteFrameToBlankAndDataURLs \
+  DISABLED_NavigateRemoteFrameToBlankAndDataURLs
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateRemoteFrameToBlankAndDataURLs) {
+                       MAYBE_NavigateRemoteFrameToBlankAndDataURLs) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a(a))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1297,9 +1326,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 //
 // Note that due to http://crbug.com/450681, node2 cannot be re-navigated to
 // site B and stays in not rendered state.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateRemoteFrameToKilledProcess \
+  NavigateRemoteFrameToKilledProcess
+#else
+#define MAYBE_NavigateRemoteFrameToKilledProcess \
+  DISABLED_NavigateRemoteFrameToKilledProcess
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateRemoteFrameToKilledProcess) {
+                       MAYBE_NavigateRemoteFrameToKilledProcess) {
   GURL main_url(embedded_test_server()->GetURL(
       "foo.com", "/cross_site_iframe_factory.html?foo.com(bar.com, foo.com)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1332,9 +1367,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // This test ensures that WebContentsImpl::FocusOwningWebContents does not crash
 // the browser if the currently focused frame's renderer has disappeared.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RemoveFocusFromKilledFrame RemoveFocusFromKilledFrame
+#else
+#define MAYBE_RemoveFocusFromKilledFrame DISABLED_RemoveFocusFromKilledFrame
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_RemoveFocusFromKilledFrame) {
+                       MAYBE_RemoveFocusFromKilledFrame) {
   GURL main_url(embedded_test_server()->GetURL(
       "foo.com", "/cross_site_iframe_factory.html?foo.com(bar.com)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1382,9 +1421,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 //
 // Note that due to http://crbug.com/450681, node2 cannot be re-navigated to
 // site B and stays in not rendered state.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateRemoteFrameToKilledProcessWithSubtree \
+  NavigateRemoteFrameToKilledProcessWithSubtree
+#else
+#define MAYBE_NavigateRemoteFrameToKilledProcessWithSubtree \
+  DISABLED_NavigateRemoteFrameToKilledProcessWithSubtree
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateRemoteFrameToKilledProcessWithSubtree) {
+                       MAYBE_NavigateRemoteFrameToKilledProcessWithSubtree) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(bar(baz), a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1469,9 +1514,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Ensure that the renderer process doesn't crash when the main frame navigates
 // a remote child to a page that results in a network error.
 // See https://crbug.com/558016.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateRemoteAfterError NavigateRemoteAfterError
+#else
+#define MAYBE_NavigateRemoteAfterError DISABLED_NavigateRemoteAfterError
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateRemoteAfterError) {
+                       MAYBE_NavigateRemoteAfterError) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1525,9 +1574,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // See https://crbug.com/560511.
 // TODO(creis): Make the net error page show in the correct process as well,
 // per https://crbug.com/588314.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ProcessTransferAfterError ProcessTransferAfterError
+#else
+#define MAYBE_ProcessTransferAfterError DISABLED_ProcessTransferAfterError
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ProcessTransferAfterError) {
+                       MAYBE_ProcessTransferAfterError) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1633,9 +1686,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // After the last step, the test sends a postMessage from node 3 to node 4,
 // verifying that a proxy for node 4 has been recreated in process B.  This
 // verifies the fix for https://crbug.com/478892.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigatingToKilledProcessRestoresAllProxies \
+  NavigatingToKilledProcessRestoresAllProxies
+#else
+#define MAYBE_NavigatingToKilledProcessRestoresAllProxies \
+  DISABLED_NavigatingToKilledProcessRestoresAllProxies
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigatingToKilledProcessRestoresAllProxies) {
+                       MAYBE_NavigatingToKilledProcessRestoresAllProxies) {
   // Navigate to a page with three frames: one cross-site and two same-site.
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_three_frames.html"));
@@ -1697,9 +1756,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // The test kills process B (node 2), creates a child frame of node 4 in
 // process A, and then checks that process B isn't resurrected to create a
 // proxy for the new child frame.  See https://crbug.com/476846.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CreateChildFrameAfterKillingProcess \
+  CreateChildFrameAfterKillingProcess
+#else
+#define MAYBE_CreateChildFrameAfterKillingProcess \
+  DISABLED_CreateChildFrameAfterKillingProcess
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CreateChildFrameAfterKillingProcess) {
+                       MAYBE_CreateChildFrameAfterKillingProcess) {
   // Navigate to a page with three frames: one cross-site and two same-site.
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_three_frames.html"));
@@ -1777,9 +1842,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // process A is live (step 4), the parent proxy in A is not live (which was
 // incorrectly assumed previously).  This is because step 4 does not resurrect
 // proxies for popups opened before the crash.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CreateChildFrameAfterKillingOpener \
+  CreateChildFrameAfterKillingOpener
+#else
+#define MAYBE_CreateChildFrameAfterKillingOpener \
+  DISABLED_CreateChildFrameAfterKillingOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CreateChildFrameAfterKillingOpener) {
+                       MAYBE_CreateChildFrameAfterKillingOpener) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1866,9 +1937,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // node1 is the root.
 // Initially, both node1.proxy_hosts_ and node3.proxy_hosts_ contain C.
 // After we kill B, make sure proxies for C are cleared.
-// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_KillingRendererClearsDescendantProxies \
+  KillingRendererClearsDescendantProxies
+#else
+#define MAYBE_KillingRendererClearsDescendantProxies \
+  DISABLED_KillingRendererClearsDescendantProxies
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_KillingRendererClearsDescendantProxies) {
+                       MAYBE_KillingRendererClearsDescendantProxies) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_two_frames_nested.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1940,7 +2017,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Crash a subframe and ensures its children are cleared from the FrameTree.
 // See http://crbug.com/338508.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_CrashSubframe) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrashSubframe CrashSubframe
+#else
+#define MAYBE_CrashSubframe DISABLED_CrashSubframe
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_CrashSubframe) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1999,8 +2081,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_CrashSubframe) {
 // checks that if A embeds B and later adds a new subframe A2, A2 gets a proxy
 // in B's process.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CreateProxiesForNewFrames CreateProxiesForNewFrames
+#else
+#define MAYBE_CreateProxiesForNewFrames DISABLED_CreateProxiesForNewFrames
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CreateProxiesForNewFrames) {
+                       MAYBE_CreateProxiesForNewFrames) {
   GURL main_url(embedded_test_server()->GetURL(
       "b.com", "/frame_tree/page_with_one_frame.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2037,6 +2124,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // TODO(nasko): Disable this test until out-of-process iframes is ready and the
 // security checks are back in place.
+// TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
                        DISABLED_CrossSiteIframeRedirectOnce) {
   net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -2152,6 +2240,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // TODO(nasko): Disable this test until out-of-process iframes is ready and the
 // security checks are back in place.
+// TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
                        DISABLED_CrossSiteIframeRedirectTwice) {
   net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -2233,8 +2322,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // created in the FrameTree skipping the subtree of the navigating frame (but
 // not the navigating frame itself).
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ProxyCreationSkipsSubtree ProxyCreationSkipsSubtree
+#else
+#define MAYBE_ProxyCreationSkipsSubtree DISABLED_ProxyCreationSkipsSubtree
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ProxyCreationSkipsSubtree) {
+                       MAYBE_ProxyCreationSkipsSubtree) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a(a,a(a)))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2353,7 +2447,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Verify origin replication with an A-embed-B-embed-C-embed-A hierarchy.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_OriginReplication) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OriginReplication OriginReplication
+#else
+#define MAYBE_OriginReplication DISABLED_OriginReplication
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_OriginReplication) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c(a),b), a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2408,6 +2507,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_OriginReplication) {
 // Test that HasReceivedUserGesture and HasReceivedUserGestureBeforeNavigation
 // are propagated correctly across origins.
 // TODO(crbug.com/1014175): This test is flaky.
+
+// TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_P(SitePerProcessAutoplayBrowserTest,
                        DISABLED_PropagateUserGestureFlag) {
   GURL main_url(embedded_test_server()->GetURL(
@@ -2466,8 +2567,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessAutoplayBrowserTest,
 
 // Check that iframe sandbox flags are replicated correctly.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SandboxFlagsReplication SandboxFlagsReplication
+#else
+#define MAYBE_SandboxFlagsReplication DISABLED_SandboxFlagsReplication
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SandboxFlagsReplication) {
+                       MAYBE_SandboxFlagsReplication) {
   GURL main_url(embedded_test_server()->GetURL("/sandboxed_frames.html"));
   const url::Origin main_origin = url::Origin::Create(main_url);
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2529,8 +2635,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Check that dynamic updates to iframe sandbox flags are propagated correctly.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DynamicSandboxFlags) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DynamicSandboxFlags DynamicSandboxFlags
+#else
+#define MAYBE_DynamicSandboxFlags DISABLED_DynamicSandboxFlags
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_DynamicSandboxFlags) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_two_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2646,8 +2756,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Check that dynamic updates to iframe sandbox flags are propagated correctly.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DynamicSandboxFlagsRemoteToLocal DynamicSandboxFlagsRemoteToLocal
+#else
+#define MAYBE_DynamicSandboxFlagsRemoteToLocal \
+  DISABLED_DynamicSandboxFlagsRemoteToLocal
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DynamicSandboxFlagsRemoteToLocal) {
+                       MAYBE_DynamicSandboxFlagsRemoteToLocal) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_two_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2708,9 +2824,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Check that dynamic updates to iframe sandbox flags are propagated correctly.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_DynamicSandboxFlagsRendererInitiatedNavigation) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DynamicSandboxFlagsRendererInitiatedNavigation \
+  DynamicSandboxFlagsRendererInitiatedNavigation
+#else
+#define MAYBE_DynamicSandboxFlagsRendererInitiatedNavigation \
+  DISABLED_DynamicSandboxFlagsRendererInitiatedNavigation
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_DynamicSandboxFlagsRendererInitiatedNavigation) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_one_frame.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2785,9 +2907,16 @@ IN_PROC_BROWSER_TEST_P(
 // flags and origin for its (remote) parent.  This wasn't addressed when
 // https://crbug.com/423587 was fixed.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ProxiesForNewChildFramesHaveCorrectReplicationState \
+  ProxiesForNewChildFramesHaveCorrectReplicationState
+#else
+#define MAYBE_ProxiesForNewChildFramesHaveCorrectReplicationState \
+  DISABLED_ProxiesForNewChildFramesHaveCorrectReplicationState
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_ProxiesForNewChildFramesHaveCorrectReplicationState) {
+    MAYBE_ProxiesForNewChildFramesHaveCorrectReplicationState) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_one_frame.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2858,8 +2987,12 @@ IN_PROC_BROWSER_TEST_P(
 
 // Verify that a child frame can retrieve the name property set by its parent.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_WindowNameReplication) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_WindowNameReplication WindowNameReplication
+#else
+#define MAYBE_WindowNameReplication DISABLED_WindowNameReplication
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_WindowNameReplication) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/2-4.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -2887,7 +3020,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Verify that dynamic updates to a frame's window.name propagate to the
 // frame's proxies, so that the latest frame names can be used in navigations.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_DynamicWindowName) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DynamicWindowName DynamicWindowName
+#else
+#define MAYBE_DynamicWindowName DISABLED_DynamicWindowName
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_DynamicWindowName) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/2-4.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -2939,8 +3077,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_DynamicWindowName) {
 // Verify that when a frame is navigated to a new origin, the origin update
 // propagates to the frame's proxies.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OriginUpdatesReachProxies OriginUpdatesReachProxies
+#else
+#define MAYBE_OriginUpdatesReachProxies DISABLED_OriginUpdatesReachProxies
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_OriginUpdatesReachProxies) {
+                       MAYBE_OriginUpdatesReachProxies) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_two_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -2989,8 +3132,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Ensure that navigating subframes in --site-per-process mode properly fires
 // the DidStopLoading event on WebContentsObserver.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteDidStopLoading CrossSiteDidStopLoading
+#else
+#define MAYBE_CrossSiteDidStopLoading DISABLED_CrossSiteDidStopLoading
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossSiteDidStopLoading) {
+                       MAYBE_CrossSiteDidStopLoading) {
   GURL main_url(embedded_test_server()->GetURL("/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -3023,8 +3171,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Ensure that the renderer does not crash when navigating a frame that has a
 // sibling RemoteFrame.  See https://crbug.com/426953.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateWithSiblingRemoteFrame NavigateWithSiblingRemoteFrame
+#else
+#define MAYBE_NavigateWithSiblingRemoteFrame \
+  DISABLED_NavigateWithSiblingRemoteFrame
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateWithSiblingRemoteFrame) {
+                       MAYBE_NavigateWithSiblingRemoteFrame) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_two_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3058,8 +3212,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // parent frame is swapped from local to remote, then back to local again.
 // See https://crbug.com/585654.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateSiblingsToSameProcess NavigateSiblingsToSameProcess
+#else
+#define MAYBE_NavigateSiblingsToSameProcess \
+  DISABLED_NavigateSiblingsToSameProcess
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateSiblingsToSameProcess) {
+                       MAYBE_NavigateSiblingsToSameProcess) {
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_two_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3098,8 +3258,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // out-of-process.  In such cases, the load event is forwarded from the child
 // frame to the parent frame via the browser process.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_LoadEventForwarding) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LoadEventForwarding LoadEventForwarding
+#else
+#define MAYBE_LoadEventForwarding DISABLED_LoadEventForwarding
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_LoadEventForwarding) {
   // Load a page with a cross-site frame.  The parent page has an onload
   // handler in the iframe element that appends "LOADED" to the document title.
   {
@@ -3130,8 +3294,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Check that postMessage can be routed between cross-site iframes.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframePostMessage) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframePostMessage SubframePostMessage
+#else
+#define MAYBE_SubframePostMessage DISABLED_SubframePostMessage
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_SubframePostMessage) {
   GURL main_url(embedded_test_server()->GetURL(
       "/frame_tree/page_with_post_message_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3176,8 +3344,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Check that postMessage can be sent from a subframe on a cross-process opener
 // tab, and that its event.source points to a valid proxy.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PostMessageWithSubframeOnOpenerChain \
+  PostMessageWithSubframeOnOpenerChain
+#else
+#define MAYBE_PostMessageWithSubframeOnOpenerChain \
+  DISABLED_PostMessageWithSubframeOnOpenerChain
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_PostMessageWithSubframeOnOpenerChain) {
+                       MAYBE_PostMessageWithSubframeOnOpenerChain) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_post_message_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3284,7 +3459,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Check that parent.frames[num] references correct sibling frames when the
 // parent is remote.  See https://crbug.com/478792.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_IndexedFrameAccess) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IndexedFrameAccess IndexedFrameAccess
+#else
+#define MAYBE_IndexedFrameAccess DISABLED_IndexedFrameAccess
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_IndexedFrameAccess) {
   // Start on a page with three same-site subframes.
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/frame_tree/top.html"));
@@ -3340,7 +3520,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_IndexedFrameAccess) {
 }
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_RFPHDestruction) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RFPHDestruction RFPHDestruction
+#else
+#define MAYBE_RFPHDestruction DISABLED_RFPHDestruction
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_RFPHDestruction) {
   GURL main_url(embedded_test_server()->GetURL("/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -3413,8 +3598,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_RFPHDestruction) {
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenPopupWithRemoteParent OpenPopupWithRemoteParent
+#else
+#define MAYBE_OpenPopupWithRemoteParent DISABLED_OpenPopupWithRemoteParent
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_OpenPopupWithRemoteParent) {
+                       MAYBE_OpenPopupWithRemoteParent) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3471,8 +3661,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // their opener.  This ensures that proper URL validation is performed when
 // RenderFrameProxyHosts are navigated.  See https://crbug.com/595339.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigatePopupToIllegalURL NavigatePopupToIllegalURL
+#else
+#define MAYBE_NavigatePopupToIllegalURL DISABLED_NavigatePopupToIllegalURL
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigatePopupToIllegalURL) {
+                       MAYBE_NavigatePopupToIllegalURL) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -3510,8 +3705,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Verify that named frames are discoverable from their opener's ancestors.
 // See https://crbug.com/511474.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DiscoverNamedFrameFromAncestorOfOpener \
+  DiscoverNamedFrameFromAncestorOfOpener
+#else
+#define MAYBE_DiscoverNamedFrameFromAncestorOfOpener \
+  DISABLED_DiscoverNamedFrameFromAncestorOfOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DiscoverNamedFrameFromAncestorOfOpener) {
+                       MAYBE_DiscoverNamedFrameFromAncestorOfOpener) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3650,8 +3852,15 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessFencedFrameTest,
 // an opener's ancestor, this test uses a popup with same origin as that
 // ancestor. See https://crbug.com/511474.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DiscoverFrameAfterSettingWindowName \
+  DiscoverFrameAfterSettingWindowName
+#else
+#define MAYBE_DiscoverFrameAfterSettingWindowName \
+  DISABLED_DiscoverFrameAfterSettingWindowName
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DiscoverFrameAfterSettingWindowName) {
+                       MAYBE_DiscoverFrameAfterSettingWindowName) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3713,8 +3922,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // The sites are carefully set up so that both opener updates are cross-process
 // but still allowed by Blink's navigation checks.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_UpdateSubframeOpener) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_UpdateSubframeOpener UpdateSubframeOpener
+#else
+#define MAYBE_UpdateSubframeOpener DISABLED_UpdateSubframeOpener
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_UpdateSubframeOpener) {
   GURL main_url = embedded_test_server()->GetURL(
       "foo.com", "/frame_tree/page_with_two_frames.html");
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3769,8 +3982,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // accessing parent.opener from the subframe should still work after a
 // cross-process navigation.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigatingSubframePreservesOpenerInParent \
+  NavigatingSubframePreservesOpenerInParent
+#else
+#define MAYBE_NavigatingSubframePreservesOpenerInParent \
+  DISABLED_NavigatingSubframePreservesOpenerInParent
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigatingSubframePreservesOpenerInParent) {
+                       MAYBE_NavigatingSubframePreservesOpenerInParent) {
   GURL main_url = embedded_test_server()->GetURL("a.com", "/post_message.html");
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -3808,8 +4028,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Check that if a subframe has an opener, that opener is preserved when the
 // subframe navigates cross-site.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateSubframeWithOpener NavigateSubframeWithOpener
+#else
+#define MAYBE_NavigateSubframeWithOpener DISABLED_NavigateSubframeWithOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateSubframeWithOpener) {
+                       MAYBE_NavigateSubframeWithOpener) {
   GURL main_url(embedded_test_server()->GetURL(
       "foo.com", "/frame_tree/page_with_two_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3856,8 +4081,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe opener plumbing for blink::mojom::RemoteFrame::CreateRemoteChild(),
 // whereas NavigateSubframeWithOpener targets mojom::Renderer::CreateFrame().
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NewRenderFrameProxyPreservesOpener \
+  NewRenderFrameProxyPreservesOpener
+#else
+#define MAYBE_NewRenderFrameProxyPreservesOpener \
+  DISABLED_NewRenderFrameProxyPreservesOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NewRenderFrameProxyPreservesOpener) {
+                       MAYBE_NewRenderFrameProxyPreservesOpener) {
   GURL main_url(
       embedded_test_server()->GetURL("foo.com", "/post_message.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -3920,9 +4152,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // mojo::AgentSchedulingGroupHost::DidUnloadRenderFrame. Ensure that this
 // doesn't crash and that the RVH(A1) is not reused in that case.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_RenderViewHostIsNotReusedAfterDelayedUnloadACK) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderViewHostIsNotReusedAfterDelayedUnloadACK \
+  RenderViewHostIsNotReusedAfterDelayedUnloadACK
+#else
+#define MAYBE_RenderViewHostIsNotReusedAfterDelayedUnloadACK \
+  DISABLED_RenderViewHostIsNotReusedAfterDelayedUnloadACK
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_RenderViewHostIsNotReusedAfterDelayedUnloadACK) {
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), a_url));
 
@@ -4002,8 +4240,15 @@ IN_PROC_BROWSER_TEST_P(
 // a subframe on the old site caused a crash while trying to reuse the old
 // RenderViewHost.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReusePendingDeleteRenderViewHostForSubframe \
+  ReusePendingDeleteRenderViewHostForSubframe
+#else
+#define MAYBE_ReusePendingDeleteRenderViewHostForSubframe \
+  DISABLED_ReusePendingDeleteRenderViewHostForSubframe
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ReusePendingDeleteRenderViewHostForSubframe) {
+                       MAYBE_ReusePendingDeleteRenderViewHostForSubframe) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -4034,8 +4279,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe, simulate mouse clicks to switch focus from root frame to subframe
 // and then back to root frame.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossProcessFocusChangeFiresBlurEvents \
+  CrossProcessFocusChangeFiresBlurEvents
+#else
+#define MAYBE_CrossProcessFocusChangeFiresBlurEvents \
+  DISABLED_CrossProcessFocusChangeFiresBlurEvents
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossProcessFocusChangeFiresBlurEvents) {
+                       MAYBE_CrossProcessFocusChangeFiresBlurEvents) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/page_with_input_field.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4095,8 +4347,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // The test sets up an A-embed-B-embed-C page and shifts focus A->B->A->C,
 // checking document.activeElement after each change.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DocumentActiveElement) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DocumentActiveElement DocumentActiveElement
+#else
+#define MAYBE_DocumentActiveElement DISABLED_DocumentActiveElement
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_DocumentActiveElement) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4166,8 +4422,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Check that window.focus works for cross-process subframes.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeWindowFocus) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeWindowFocus SubframeWindowFocus
+#else
+#define MAYBE_SubframeWindowFocus DISABLED_SubframeWindowFocus
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_SubframeWindowFocus) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,c)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4279,9 +4539,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // cross-site to a new renderer process, this doesn't reset the focused frame
 // to the main frame.  See https://crbug.com/802156.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeFocusNotLostWhenAnotherFrameNavigatesCrossSite \
+  SubframeFocusNotLostWhenAnotherFrameNavigatesCrossSite
+#else
+#define MAYBE_SubframeFocusNotLostWhenAnotherFrameNavigatesCrossSite \
+  DISABLED_SubframeFocusNotLostWhenAnotherFrameNavigatesCrossSite
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_SubframeFocusNotLostWhenAnotherFrameNavigatesCrossSite) {
+    MAYBE_SubframeFocusNotLostWhenAnotherFrameNavigatesCrossSite) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4325,7 +4592,12 @@ IN_PROC_BROWSER_TEST_P(
 // Tests that we are using the correct `blink::RemoteFrame` when navigating an
 // opener window.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_OpenerSetLocation) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenerSetLocation OpenerSetLocation
+#else
+#define MAYBE_OpenerSetLocation DISABLED_OpenerSetLocation
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_OpenerSetLocation) {
   // Navigate the main window.
   GURL main_url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4349,9 +4621,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_OpenerSetLocation) {
 // child frame.  This test exercises the path where the detach happens before
 // the provisional local frame is created.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateProxyAndDetachBeforeProvisionalFrameCreation \
+  NavigateProxyAndDetachBeforeProvisionalFrameCreation
+#else
+#define MAYBE_NavigateProxyAndDetachBeforeProvisionalFrameCreation \
+  DISABLED_NavigateProxyAndDetachBeforeProvisionalFrameCreation
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_NavigateProxyAndDetachBeforeProvisionalFrameCreation) {
+    MAYBE_NavigateProxyAndDetachBeforeProvisionalFrameCreation) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4382,8 +4661,15 @@ IN_PROC_BROWSER_TEST_P(
 // after the provisional local frame is created and starts to navigate, but
 // before it commits.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateProxyAndDetachBeforeCommit \
+  NavigateProxyAndDetachBeforeCommit
+#else
+#define MAYBE_NavigateProxyAndDetachBeforeCommit \
+  DISABLED_NavigateProxyAndDetachBeforeCommit
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateProxyAndDetachBeforeCommit) {
+                       MAYBE_NavigateProxyAndDetachBeforeCommit) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4418,8 +4704,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // navigation to about:blank and the parent removes the child frame in a load
 // event handler for the subframe.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateAboutBlankAndDetach NavigateAboutBlankAndDetach
+#else
+#define MAYBE_NavigateAboutBlankAndDetach DISABLED_NavigateAboutBlankAndDetach
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateAboutBlankAndDetach) {
+                       MAYBE_NavigateAboutBlankAndDetach) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/remove_frame_on_load.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4448,8 +4739,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // to create a new RenderFrame with the same routing id. If there is an
 // entry with the same routing ID, a CHECK is hit and the process crashes.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframePendingAndBackToSameSiteInstance \
+  SubframePendingAndBackToSameSiteInstance
+#else
+#define MAYBE_SubframePendingAndBackToSameSiteInstance \
+  DISABLED_SubframePendingAndBackToSameSiteInstance
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframePendingAndBackToSameSiteInstance) {
+                       MAYBE_SubframePendingAndBackToSameSiteInstance) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4539,8 +4837,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // to create a new RenderFrame with the same routing id. If there is an
 // entry with the same routing ID, a CHECK is hit and the process crashes.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ParentDetachRemoteChild ParentDetachRemoteChild
+#else
+#define MAYBE_ParentDetachRemoteChild DISABLED_ParentDetachRemoteChild
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ParentDetachRemoteChild) {
+                       MAYBE_ParentDetachRemoteChild) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4634,8 +4937,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Verify that sandbox flags inheritance works across multiple levels of
 // frames.  See https://crbug.com/576845.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SandboxFlagsInheritance SandboxFlagsInheritance
+#else
+#define MAYBE_SandboxFlagsInheritance DISABLED_SandboxFlagsInheritance
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SandboxFlagsInheritance) {
+                       MAYBE_SandboxFlagsInheritance) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4690,8 +4998,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // ensure that a new cross-site grandchild frame doesn't inherit the new flags
 // (which shouldn't have taken effect).
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SandboxFlagsNotInheritedBeforeNavigation \
+  SandboxFlagsNotInheritedBeforeNavigation
+#else
+#define MAYBE_SandboxFlagsNotInheritedBeforeNavigation \
+  DISABLED_SandboxFlagsNotInheritedBeforeNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SandboxFlagsNotInheritedBeforeNavigation) {
+                       MAYBE_SandboxFlagsNotInheritedBeforeNavigation) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4742,8 +5057,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // their opener, and that they keep these inherited flags after being navigated
 // cross-site.  See https://crbug.com/483584.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NewPopupInheritsSandboxFlagsFromOpener \
+  NewPopupInheritsSandboxFlagsFromOpener
+#else
+#define MAYBE_NewPopupInheritsSandboxFlagsFromOpener \
+  DISABLED_NewPopupInheritsSandboxFlagsFromOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NewPopupInheritsSandboxFlagsFromOpener) {
+                       MAYBE_NewPopupInheritsSandboxFlagsFromOpener) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4853,8 +5175,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // "allow-popups-to-escape-sandbox" directive do *not* inherit sandbox flags
 // from their opener.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenUnsandboxedPopupFromSandboxedFrame \
+  OpenUnsandboxedPopupFromSandboxedFrame
+#else
+#define MAYBE_OpenUnsandboxedPopupFromSandboxedFrame \
+  DISABLED_OpenUnsandboxedPopupFromSandboxedFrame
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_OpenUnsandboxedPopupFromSandboxedFrame) {
+                       MAYBE_OpenUnsandboxedPopupFromSandboxedFrame) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4920,9 +5249,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // "allow-popups-to-escape-sandbox" directive do *not* inherit sandbox flags AND
 // that local scheme documents do *not* inherit flags from the opener/initiator.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenSandboxedDocumentInUnsandboxedPopupFromSandboxedFrame \
+  OpenSandboxedDocumentInUnsandboxedPopupFromSandboxedFrame
+#else
+#define MAYBE_OpenSandboxedDocumentInUnsandboxedPopupFromSandboxedFrame \
+  DISABLED_OpenSandboxedDocumentInUnsandboxedPopupFromSandboxedFrame
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_OpenSandboxedDocumentInUnsandboxedPopupFromSandboxedFrame) {
+    MAYBE_OpenSandboxedDocumentInUnsandboxedPopupFromSandboxedFrame) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -4984,9 +5320,16 @@ IN_PROC_BROWSER_TEST_P(
 // that local scheme documents do inherit CSP sandbox flags from the
 // opener/initiator.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenSandboxedDocumentInUnsandboxedPopupFromCSPSandboxedDocument \
+  OpenSandboxedDocumentInUnsandboxedPopupFromCSPSandboxedDocument
+#else
+#define MAYBE_OpenSandboxedDocumentInUnsandboxedPopupFromCSPSandboxedDocument \
+  DISABLED_OpenSandboxedDocumentInUnsandboxedPopupFromCSPSandboxedDocument
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_OpenSandboxedDocumentInUnsandboxedPopupFromCSPSandboxedDocument) {
+    MAYBE_OpenSandboxedDocumentInUnsandboxedPopupFromCSPSandboxedDocument) {
   GURL main_url = embedded_test_server()->GetURL(
       "a.test",
       "/set-header?"
@@ -5037,8 +5380,9 @@ IN_PROC_BROWSER_TEST_P(
 // loads an image with certificate errors, the browser should be
 // notified about the subresource with certificate errors and downgrade
 // the UI appropriately.
-// TODO(b/437371782): Investigate test failure.
 // TODO(crbug.com/1105145): Flaky.
+
+// TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_P(SitePerProcessIgnoreCertErrorsBrowserTest,
                        DISABLED_SubresourceWithCertificateErrors) {
   net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -5076,8 +5420,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessIgnoreCertErrorsBrowserTest,
 
 // Test setting a cross-origin iframe to display: none.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframeDisplayNone CrossSiteIframeDisplayNone
+#else
+#define MAYBE_CrossSiteIframeDisplayNone DISABLED_CrossSiteIframeDisplayNone
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossSiteIframeDisplayNone) {
+                       MAYBE_CrossSiteIframeDisplayNone) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5105,8 +5454,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Test that a cross-origin iframe can be blocked by X-Frame-Options and CSP
 // frame-ancestors.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframeBlockedByXFrameOptionsOrCSP \
+  CrossSiteIframeBlockedByXFrameOptionsOrCSP
+#else
+#define MAYBE_CrossSiteIframeBlockedByXFrameOptionsOrCSP \
+  DISABLED_CrossSiteIframeBlockedByXFrameOptionsOrCSP
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossSiteIframeBlockedByXFrameOptionsOrCSP) {
+                       MAYBE_CrossSiteIframeBlockedByXFrameOptionsOrCSP) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5203,8 +5559,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Test that a cross-origin frame's navigation can be blocked by CSP frame-src.
 // In this version of a test, CSP comes from HTTP headers.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframeBlockedByParentCSPFromHeaders \
+  CrossSiteIframeBlockedByParentCSPFromHeaders
+#else
+#define MAYBE_CrossSiteIframeBlockedByParentCSPFromHeaders \
+  DISABLED_CrossSiteIframeBlockedByParentCSPFromHeaders
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossSiteIframeBlockedByParentCSPFromHeaders) {
+                       MAYBE_CrossSiteIframeBlockedByParentCSPFromHeaders) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/frame-src-self-and-b.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5268,8 +5631,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // In this version of a test, CSP comes from a <meta> element added after the
 // page has already loaded.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframeBlockedByParentCSPFromMeta \
+  CrossSiteIframeBlockedByParentCSPFromMeta
+#else
+#define MAYBE_CrossSiteIframeBlockedByParentCSPFromMeta \
+  DISABLED_CrossSiteIframeBlockedByParentCSPFromMeta
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossSiteIframeBlockedByParentCSPFromMeta) {
+                       MAYBE_CrossSiteIframeBlockedByParentCSPFromMeta) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5341,9 +5711,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // that declared CSP via HTTP headers.  Cross-origin frame navigating to a
 // blocked location is a child of the srcdoc iframe.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossSiteIframeBlockedByCSPInheritedBySrcDocParent \
+  CrossSiteIframeBlockedByCSPInheritedBySrcDocParent
+#else
+#define MAYBE_CrossSiteIframeBlockedByCSPInheritedBySrcDocParent \
+  DISABLED_CrossSiteIframeBlockedByCSPInheritedBySrcDocParent
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_CrossSiteIframeBlockedByCSPInheritedBySrcDocParent) {
+    MAYBE_CrossSiteIframeBlockedByCSPInheritedBySrcDocParent) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/frame-src-self-and-b.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5424,8 +5801,13 @@ IN_PROC_BROWSER_TEST_P(
 // Tests that the state of the RenderViewHost is properly reset when the main
 // frame is navigated to the same SiteInstance as one of its child frames.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateMainFrameToChildSite NavigateMainFrameToChildSite
+#else
+#define MAYBE_NavigateMainFrameToChildSite DISABLED_NavigateMainFrameToChildSite
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateMainFrameToChildSite) {
+                       MAYBE_NavigateMainFrameToChildSite) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5481,8 +5863,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe's WebFrameWidget (from RenderFrameImpl::didChangeSelection), which
 // had already been cleared by the former.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CloseSubframeWidgetAndViewOnProcessExit \
+  CloseSubframeWidgetAndViewOnProcessExit
+#else
+#define MAYBE_CloseSubframeWidgetAndViewOnProcessExit \
+  DISABLED_CloseSubframeWidgetAndViewOnProcessExit
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CloseSubframeWidgetAndViewOnProcessExit) {
+                       MAYBE_CloseSubframeWidgetAndViewOnProcessExit) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5529,8 +5918,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // launching multiple external protocol handlers, which can block repeated
 // actions from a page when a user is not interacting with the page.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_UserInteractionForChildFrameTest UserInteractionForChildFrameTest
+#else
+#define MAYBE_UserInteractionForChildFrameTest \
+  DISABLED_UserInteractionForChildFrameTest
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_UserInteractionForChildFrameTest) {
+                       MAYBE_UserInteractionForChildFrameTest) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5555,8 +5950,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // correctly commit the navigation in the same process as the one used for the
 // original navigation. See https://crbug.com/606996.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateSubframeToDataUrlInSessionHistory \
+  NavigateSubframeToDataUrlInSessionHistory
+#else
+#define MAYBE_NavigateSubframeToDataUrlInSessionHistory \
+  DISABLED_NavigateSubframeToDataUrlInSessionHistory
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateSubframeToDataUrlInSessionHistory) {
+                       MAYBE_NavigateSubframeToDataUrlInSessionHistory) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -5606,8 +6008,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // https://crbug.com/14987 is fixed).  This is better than restoring into the
 // parent process, per https://crbug.com/863069.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeDataUrlsAfterRestore SubframeDataUrlsAfterRestore
+#else
+#define MAYBE_SubframeDataUrlsAfterRestore DISABLED_SubframeDataUrlsAfterRestore
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeDataUrlsAfterRestore) {
+                       MAYBE_SubframeDataUrlsAfterRestore) {
   // We must use a page that has iframes in the HTML here, unlike
   // cross_site_iframe_factory.html which loads them dynamically.  In the latter
   // case, Chrome will not restore subframe URLs from history, which is needed
@@ -5715,8 +6122,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // are not put into their parent process after restore if their initiator origin
 // is different from the parent.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeBlankUrlsAfterRestore SubframeBlankUrlsAfterRestore
+#else
+#define MAYBE_SubframeBlankUrlsAfterRestore \
+  DISABLED_SubframeBlankUrlsAfterRestore
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeBlankUrlsAfterRestore) {
+                       MAYBE_SubframeBlankUrlsAfterRestore) {
   // We must use a page that has iframes in the HTML here, unlike
   // cross_site_iframe_factory.html which loads them dynamically.  In the latter
   // case, Chrome will not restore subframe URLs from history, which is needed
@@ -5858,8 +6271,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // up in its parent's process after restore, since that's where its content
 // comes from.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeSrcdocUrlAfterRestore SubframeSrcdocUrlAfterRestore
+#else
+#define MAYBE_SubframeSrcdocUrlAfterRestore \
+  DISABLED_SubframeSrcdocUrlAfterRestore
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeSrcdocUrlAfterRestore) {
+                       MAYBE_SubframeSrcdocUrlAfterRestore) {
   // Load a page that uses iframe srcdoc.
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_srcdoc_frame.html"));
@@ -5932,8 +6351,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // correctly commit the navigation in the same process as the one used for
 // the original navigation.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateSubframeToAboutBlankInSessionHistory \
+  NavigateSubframeToAboutBlankInSessionHistory
+#else
+#define MAYBE_NavigateSubframeToAboutBlankInSessionHistory \
+  DISABLED_NavigateSubframeToAboutBlankInSessionHistory
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateSubframeToAboutBlankInSessionHistory) {
+                       MAYBE_NavigateSubframeToAboutBlankInSessionHistory) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -6078,8 +6504,15 @@ class NewWindowCreatedObserver : public WebContentsObserver {
 // in the two pending windows colliding in the pending WebContents map, which
 // used to be keyed only by routing_id.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoSubframesCreatePopupsSimultaneously \
+  TwoSubframesCreatePopupsSimultaneously
+#else
+#define MAYBE_TwoSubframesCreatePopupsSimultaneously \
+  DISABLED_TwoSubframesCreatePopupsSimultaneously
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TwoSubframesCreatePopupsSimultaneously) {
+                       MAYBE_TwoSubframesCreatePopupsSimultaneously) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,c)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -6357,8 +6790,12 @@ IN_PROC_BROWSER_TEST_P(
 // Test for https://crbug.com/615575. It ensures that file chooser triggered
 // by a document in an out-of-process subframe works properly.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_FileChooserInSubframe) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FileChooserInSubframe FileChooserInSubframe
+#else
+#define MAYBE_FileChooserInSubframe DISABLED_FileChooserInSubframe
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_FileChooserInSubframe) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL(
                    "a.com", "/cross_site_iframe_factory.html?a(b)")));
@@ -6393,8 +6830,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // main frame routing ID nor a proxy routing ID.  See https://crbug.com/627400
 // for more details.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PendingRFHIsCanceledWhenItsProcessDies \
+  PendingRFHIsCanceledWhenItsProcessDies
+#else
+#define MAYBE_PendingRFHIsCanceledWhenItsProcessDies \
+  DISABLED_PendingRFHIsCanceledWhenItsProcessDies
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_PendingRFHIsCanceledWhenItsProcessDies) {
+                       MAYBE_PendingRFHIsCanceledWhenItsProcessDies) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
@@ -6451,9 +6895,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Similar to the test above for https://crbug.com/627400, except the popup is
 // navigated after pending RFH's process is killed, rather than the main tab.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderViewHostKeepsSwappedOutStateIfPendingRFHDies \
+  RenderViewHostKeepsSwappedOutStateIfPendingRFHDies
+#else
+#define MAYBE_RenderViewHostKeepsSwappedOutStateIfPendingRFHDies \
+  DISABLED_RenderViewHostKeepsSwappedOutStateIfPendingRFHDies
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_RenderViewHostKeepsSwappedOutStateIfPendingRFHDies) {
+    MAYBE_RenderViewHostKeepsSwappedOutStateIfPendingRFHDies) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
@@ -6507,8 +6958,15 @@ IN_PROC_BROWSER_TEST_P(
 // Test that a crashed subframe can be successfully navigated to the site it
 // was on before crashing.  See https://crbug.com/634368.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigateCrashedSubframeToSameSite \
+  NavigateCrashedSubframeToSameSite
+#else
+#define MAYBE_NavigateCrashedSubframeToSameSite \
+  DISABLED_NavigateCrashedSubframeToSameSite
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigateCrashedSubframeToSameSite) {
+                       MAYBE_NavigateCrashedSubframeToSameSite) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -6570,8 +7028,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // for history.length, and to check the offset validity properly for
 // navigations initiated via history.go(). See https:/crbug.com/501116.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SessionHistoryReplication SessionHistoryReplication
+#else
+#define MAYBE_SessionHistoryReplication DISABLED_SessionHistoryReplication
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SessionHistoryReplication) {
+                       MAYBE_SessionHistoryReplication) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -6659,8 +7122,15 @@ class DispatchLoadInterceptor
 // Test that the renderer isn't killed when a frame generates a load event just
 // after becoming pending deletion.  See https://crbug.com/636513.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LoadEventForwardingWhilePendingDeletion \
+  LoadEventForwardingWhilePendingDeletion
+#else
+#define MAYBE_LoadEventForwardingWhilePendingDeletion \
+  DISABLED_LoadEventForwardingWhilePendingDeletion
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_LoadEventForwardingWhilePendingDeletion) {
+                       MAYBE_LoadEventForwardingWhilePendingDeletion) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -6715,8 +7185,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RFHTransfersWhilePendingDeletion RFHTransfersWhilePendingDeletion
+#else
+#define MAYBE_RFHTransfersWhilePendingDeletion \
+  DISABLED_RFHTransfersWhilePendingDeletion
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_RFHTransfersWhilePendingDeletion) {
+                       MAYBE_RFHTransfersWhilePendingDeletion) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -6764,8 +7240,13 @@ class NavigationHandleWatcher : public WebContentsObserver {
 // Verifies that the SiteInstance of a NavigationHandle correctly identifies the
 // RenderFrameHost that started the navigation (and not the destination RFH).
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigationHandleSiteInstance NavigationHandleSiteInstance
+#else
+#define MAYBE_NavigationHandleSiteInstance DISABLED_NavigationHandleSiteInstance
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigationHandleSiteInstance) {
+                       MAYBE_NavigationHandleSiteInstance) {
   // Navigate to a page with a cross-site iframe.
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
@@ -6787,8 +7268,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // `blink::WebView` due to a stale main frame routing ID.  See
 // https://crbug.com/627400.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReuseNonLiveRenderViewHostAfterCancelPending \
+  ReuseNonLiveRenderViewHostAfterCancelPending
+#else
+#define MAYBE_ReuseNonLiveRenderViewHostAfterCancelPending \
+  DISABLED_ReuseNonLiveRenderViewHostAfterCancelPending
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ReuseNonLiveRenderViewHostAfterCancelPending) {
+                       MAYBE_ReuseNonLiveRenderViewHostAfterCancelPending) {
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   GURL b_url(embedded_test_server()->GetURL("b.com", "/title2.html"));
   GURL c_url(embedded_test_server()->GetURL("c.com", "/title3.html"));
@@ -6835,8 +7323,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // here are similar to ReuseNonLiveRenderViewHostAfterCancelPending, but don't
 // involve crashing the renderer. See https://crbug.com/651980.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RecreateMainFrameAfterCancelPending \
+  RecreateMainFrameAfterCancelPending
+#else
+#define MAYBE_RecreateMainFrameAfterCancelPending \
+  DISABLED_RecreateMainFrameAfterCancelPending
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_RecreateMainFrameAfterCancelPending) {
+                       MAYBE_RecreateMainFrameAfterCancelPending) {
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   GURL b_url(embedded_test_server()->GetURL("b.com", "/title2.html"));
   GURL c_url(embedded_test_server()->GetURL("c.com", "/title3.html"));
@@ -6870,8 +7365,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // its place, the proxy is properly initialized on the renderer side.  See
 // https://crbug.com/653746.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CommunicateWithProxyAfterCancelPending \
+  CommunicateWithProxyAfterCancelPending
+#else
+#define MAYBE_CommunicateWithProxyAfterCancelPending \
+  DISABLED_CommunicateWithProxyAfterCancelPending
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CommunicateWithProxyAfterCancelPending) {
+                       MAYBE_CommunicateWithProxyAfterCancelPending) {
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   GURL b_url(embedded_test_server()->GetURL("b.com", "/title2.html"));
   GURL c_url(embedded_test_server()->GetURL("c.com", "/title3.html"));
@@ -6932,8 +7434,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_HeaderPolicyOnXSLTNavigation HeaderPolicyOnXSLTNavigation
+#else
+#define MAYBE_HeaderPolicyOnXSLTNavigation DISABLED_HeaderPolicyOnXSLTNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_HeaderPolicyOnXSLTNavigation) {
+                       MAYBE_HeaderPolicyOnXSLTNavigation) {
   GURL url(embedded_test_server()->GetURL("a.com", "/permissions-policy.xml"));
 
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -6946,8 +7453,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestPolicyReplicationOnSameOriginNavigation \
+  TestPolicyReplicationOnSameOriginNavigation
+#else
+#define MAYBE_TestPolicyReplicationOnSameOriginNavigation \
+  DISABLED_TestPolicyReplicationOnSameOriginNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TestPolicyReplicationOnSameOriginNavigation) {
+                       MAYBE_TestPolicyReplicationOnSameOriginNavigation) {
   GURL start_url(
       embedded_test_server()->GetURL("a.com", "/permissions-policy1.html"));
   GURL first_nav_url(
@@ -6979,8 +7493,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestPolicyReplicationOnCrossOriginNavigation \
+  TestPolicyReplicationOnCrossOriginNavigation
+#else
+#define MAYBE_TestPolicyReplicationOnCrossOriginNavigation \
+  DISABLED_TestPolicyReplicationOnCrossOriginNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TestPolicyReplicationOnCrossOriginNavigation) {
+                       MAYBE_TestPolicyReplicationOnCrossOriginNavigation) {
   GURL start_url(
       embedded_test_server()->GetURL("a.com", "/permissions-policy1.html"));
   GURL first_nav_url(
@@ -7014,8 +7535,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Test that the replicated permissions policy header is correct in subframes as
 // they navigate.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestPolicyReplicationFromRemoteFrames \
+  TestPolicyReplicationFromRemoteFrames
+#else
+#define MAYBE_TestPolicyReplicationFromRemoteFrames \
+  DISABLED_TestPolicyReplicationFromRemoteFrames
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TestPolicyReplicationFromRemoteFrames) {
+                       MAYBE_TestPolicyReplicationFromRemoteFrames) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/permissions-policy-main.html"));
   GURL first_nav_url(
@@ -7065,9 +7593,32 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Test that the replicated permissions policy header is correct in remote
 // proxies after the local frame has navigated.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation \
+  TestPermissionsPolicyReplicationToProxyOnNavigation
+#else
+#define MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation \
+  DISABLED_TestPermissionsPolicyReplicationToProxyOnNavigation
+#endif
+// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation \
+  TestPermissionsPolicyReplicationToProxyOnNavigation
+#else
+#define MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation \
+  DISABLED_TestPermissionsPolicyReplicationToProxyOnNavigation
+#endif
+// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation \
+  TestPermissionsPolicyReplicationToProxyOnNavigation
+#else
+#define MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation \
+  DISABLED_TestPermissionsPolicyReplicationToProxyOnNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_TestPermissionsPolicyReplicationToProxyOnNavigation) {
+    MAYBE_TestPermissionsPolicyReplicationToProxyOnNavigation) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_two_frames.html"));
   GURL first_nav_url(
@@ -7131,8 +7682,15 @@ IN_PROC_BROWSER_TEST_P(
 //
 // This is a regression test for https://crbug.com/690520
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestAllowAttributeInSandboxedFrame \
+  TestAllowAttributeInSandboxedFrame
+#else
+#define MAYBE_TestAllowAttributeInSandboxedFrame \
+  DISABLED_TestAllowAttributeInSandboxedFrame
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TestAllowAttributeInSandboxedFrame) {
+                       MAYBE_TestAllowAttributeInSandboxedFrame) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com",
       "/cross_site_iframe_factory.html?"
@@ -7189,9 +7747,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 //
 // This is a regression test for https://crbug.com/690520
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_TestAllowAttributeInOpaqueOriginAfterNavigation) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestAllowAttributeInOpaqueOriginAfterNavigation \
+  TestAllowAttributeInOpaqueOriginAfterNavigation
+#else
+#define MAYBE_TestAllowAttributeInOpaqueOriginAfterNavigation \
+  DISABLED_TestAllowAttributeInOpaqueOriginAfterNavigation
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_TestAllowAttributeInOpaqueOriginAfterNavigation) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/page_with_data_iframe_and_allow.html"));
   GURL nav_url(embedded_test_server()->GetURL("c.com", "/title1.html"));
@@ -7238,8 +7802,15 @@ IN_PROC_BROWSER_TEST_P(
 // as its parent. Then when its parent navigates it via the "srcdoc" attribute,
 // it must reuse its parent's process.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IframeSrcdocAfterCrossSiteNavigation \
+  IframeSrcdocAfterCrossSiteNavigation
+#else
+#define MAYBE_IframeSrcdocAfterCrossSiteNavigation \
+  DISABLED_IframeSrcdocAfterCrossSiteNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_IframeSrcdocAfterCrossSiteNavigation) {
+                       MAYBE_IframeSrcdocAfterCrossSiteNavigation) {
   GURL parent_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   GURL child_url(embedded_test_server()->GetURL(
@@ -7276,8 +7847,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Verify that a remote-to-local navigation in a crashed subframe works.  See
 // https://crbug.com/487872.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RemoteToLocalNavigationInCrashedSubframe \
+  RemoteToLocalNavigationInCrashedSubframe
+#else
+#define MAYBE_RemoteToLocalNavigationInCrashedSubframe \
+  DISABLED_RemoteToLocalNavigationInCrashedSubframe
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_RemoteToLocalNavigationInCrashedSubframe) {
+                       MAYBE_RemoteToLocalNavigationInCrashedSubframe) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -7318,8 +7896,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Tests that trying to open a context menu in the old RFH after commiting a
 // navigation doesn't crash the browser. https://crbug.com/677266.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ContextMenuAfterCrossProcessNavigation \
+  ContextMenuAfterCrossProcessNavigation
+#else
+#define MAYBE_ContextMenuAfterCrossProcessNavigation \
+  DISABLED_ContextMenuAfterCrossProcessNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ContextMenuAfterCrossProcessNavigation) {
+                       MAYBE_ContextMenuAfterCrossProcessNavigation) {
   // Navigate to a.com.
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
@@ -7347,7 +7932,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Test iframe container policy is replicated properly to the browser.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_ContainerPolicy) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ContainerPolicy ContainerPolicy
+#else
+#define MAYBE_ContainerPolicy DISABLED_ContainerPolicy
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_ContainerPolicy) {
   GURL url(embedded_test_server()->GetURL("/allowed_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -7366,8 +7956,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_ContainerPolicy) {
 
 // Test dynamic updates to iframe "allow" attribute are propagated correctly.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ContainerPolicyDynamic ContainerPolicyDynamic
+#else
+#define MAYBE_ContainerPolicyDynamic DISABLED_ContainerPolicyDynamic
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ContainerPolicyDynamic) {
+                       MAYBE_ContainerPolicyDynamic) {
   GURL main_url(embedded_test_server()->GetURL("/allowed_frames.html"));
   GURL nav_url(
       embedded_test_server()->GetURL("b.com", "/permissions-policy2.html"));
@@ -7405,8 +8000,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // this verifies the presence of the container policy in the iframe.
 // https://crbug.com/703703
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ContainerPolicyCrossOriginNavigation \
+  ContainerPolicyCrossOriginNavigation
+#else
+#define MAYBE_ContainerPolicyCrossOriginNavigation \
+  DISABLED_ContainerPolicyCrossOriginNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ContainerPolicyCrossOriginNavigation) {
+                       MAYBE_ContainerPolicyCrossOriginNavigation) {
   WebContentsImpl* contents = web_contents();
   FrameTreeNode* root = contents->GetPrimaryFrameTree().root();
 
@@ -7441,8 +8043,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Test that dynamic updates to iframe sandbox attribute correctly set the
 // replicated container policy.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ContainerPolicySandboxDynamic ContainerPolicySandboxDynamic
+#else
+#define MAYBE_ContainerPolicySandboxDynamic \
+  DISABLED_ContainerPolicySandboxDynamic
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ContainerPolicySandboxDynamic) {
+                       MAYBE_ContainerPolicySandboxDynamic) {
   GURL main_url(embedded_test_server()->GetURL("/allowed_frames.html"));
   GURL nav_url(
       embedded_test_server()->GetURL("b.com", "/permissions-policy2.html"));
@@ -7482,8 +8090,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // results in the correct permissions policy in the RemoteSecurityContext.
 // https://crbug.com/852102
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PermissionsPolicyConstructionInExistingProxy \
+  PermissionsPolicyConstructionInExistingProxy
+#else
+#define MAYBE_PermissionsPolicyConstructionInExistingProxy \
+  DISABLED_PermissionsPolicyConstructionInExistingProxy
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_PermissionsPolicyConstructionInExistingProxy) {
+                       MAYBE_PermissionsPolicyConstructionInExistingProxy) {
   WebContentsImpl* contents = web_contents();
   FrameTreeNode* root = contents->GetPrimaryFrameTree().root();
 
@@ -7649,8 +8264,15 @@ class RequestDelayingSitePerProcessBrowserTest
 // If the logic is not correct, these tests will time out, as the n + 1st
 // request will never start.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DelayableSubframeRequestsOneFrame \
+  DelayableSubframeRequestsOneFrame
+#else
+#define MAYBE_DelayableSubframeRequestsOneFrame \
+  DISABLED_DelayableSubframeRequestsOneFrame
+#endif
 IN_PROC_BROWSER_TEST_P(RequestDelayingSitePerProcessBrowserTest,
-                       DISABLED_DelayableSubframeRequestsOneFrame) {
+                       MAYBE_DelayableSubframeRequestsOneFrame) {
   std::string path = "/mock-video.mp4";
   SetDelayedRequestsForPath(path, 2);
   SetUpEmbeddedTestServer();
@@ -7664,8 +8286,15 @@ IN_PROC_BROWSER_TEST_P(RequestDelayingSitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DelayableSubframeRequestsTwoFrames \
+  DelayableSubframeRequestsTwoFrames
+#else
+#define MAYBE_DelayableSubframeRequestsTwoFrames \
+  DISABLED_DelayableSubframeRequestsTwoFrames
+#endif
 IN_PROC_BROWSER_TEST_P(RequestDelayingSitePerProcessBrowserTest,
-                       DISABLED_DelayableSubframeRequestsTwoFrames) {
+                       MAYBE_DelayableSubframeRequestsTwoFrames) {
   std::string path0 = "/mock-video0.mp4";
   std::string path1 = "/mock-video1.mp4";
   SetDelayedRequestsForPath(path0, 2);
@@ -7795,8 +8424,13 @@ class SitePerProcessAndroidImeTest : public SitePerProcessBrowserTest {
 // This test verifies that committing text will be applied on the focused
 // RenderWidgetHost.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CommitTextForFocusedWidget CommitTextForFocusedWidget
+#else
+#define MAYBE_CommitTextForFocusedWidget DISABLED_CommitTextForFocusedWidget
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessAndroidImeTest,
-                       DISABLED_CommitTextForFocusedWidget) {
+                       MAYBE_CommitTextForFocusedWidget) {
   LoadPage();
   TextSelectionObserver selection_observer(
       web_contents()->GetTextInputManager());
@@ -7813,8 +8447,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessAndroidImeTest,
 // transfers back to b.com.  See https://crbug.com/681077#c10 and
 // https://crbug.com/660407.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeTransfersToCurrentRFH SubframeTransfersToCurrentRFH
+#else
+#define MAYBE_SubframeTransfersToCurrentRFH \
+  DISABLED_SubframeTransfersToCurrentRFH
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeTransfersToCurrentRFH) {
+                       MAYBE_SubframeTransfersToCurrentRFH) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   ASSERT_TRUE(NavigateToURL(shell(), main_url));
@@ -7846,8 +8486,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameSwapPreservesUniqueName FrameSwapPreservesUniqueName
+#else
+#define MAYBE_FrameSwapPreservesUniqueName DISABLED_FrameSwapPreservesUniqueName
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_FrameSwapPreservesUniqueName) {
+                       MAYBE_FrameSwapPreservesUniqueName) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   ASSERT_TRUE(NavigateToURL(shell(), main_url));
@@ -7891,7 +8536,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Tests that POST body is not lost when it targets a OOPIF.
 // See https://crbug.com/710937.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_PostTargetSubFrame) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PostTargetSubFrame PostTargetSubFrame
+#else
+#define MAYBE_PostTargetSubFrame DISABLED_PostTargetSubFrame
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_PostTargetSubFrame) {
   // Navigate to a page with an OOPIF.
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_one_frame.html"));
@@ -7948,8 +8598,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_PostTargetSubFrame) {
 // Tests that POST method and body is not lost when an OOPIF submits a form
 // that targets the main frame.  See https://crbug.com/806215.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PostTargetsMainFrameFromOOPIF PostTargetsMainFrameFromOOPIF
+#else
+#define MAYBE_PostTargetsMainFrameFromOOPIF \
+  DISABLED_PostTargetsMainFrameFromOOPIF
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_PostTargetsMainFrameFromOOPIF) {
+                       MAYBE_PostTargetsMainFrameFromOOPIF) {
   // Navigate to a page with an OOPIF.
   GURL main_url(
       embedded_test_server()->GetURL("/frame_tree/page_with_one_frame.html"));
@@ -8010,9 +8666,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Verify that a remote-to-local main frame navigation doesn't overwrite
 // the previous history entry.  See https://crbug.com/725716.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossProcessMainFrameNavigationDoesNotOverwriteHistory \
+  CrossProcessMainFrameNavigationDoesNotOverwriteHistory
+#else
+#define MAYBE_CrossProcessMainFrameNavigationDoesNotOverwriteHistory \
+  DISABLED_CrossProcessMainFrameNavigationDoesNotOverwriteHistory
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_CrossProcessMainFrameNavigationDoesNotOverwriteHistory) {
+    MAYBE_CrossProcessMainFrameNavigationDoesNotOverwriteHistory) {
   GURL foo_url(embedded_test_server()->GetURL("foo.com", "/title1.html"));
   GURL bar_url(embedded_test_server()->GetURL("bar.com", "/title2.html"));
 
@@ -8054,8 +8717,13 @@ IN_PROC_BROWSER_TEST_P(
 // <dialog> element, the contents of the iframe can still take focus.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossProcessInertSubframe CrossProcessInertSubframe
+#else
+#define MAYBE_CrossProcessInertSubframe DISABLED_CrossProcessInertSubframe
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossProcessInertSubframe) {
+                       MAYBE_CrossProcessInertSubframe) {
   // This uses a(b,b) instead of a(b) to preserve the b.com process even when
   // the first subframe is navigated away from it.
   GURL main_url(embedded_test_server()->GetURL(
@@ -8145,8 +8813,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Tests that IsInert frame flag is correctly updated and propagated.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossProcessIsInertPropagation CrossProcessIsInertPropagation
+#else
+#define MAYBE_CrossProcessIsInertPropagation \
+  DISABLED_CrossProcessIsInertPropagation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossProcessIsInertPropagation) {
+                       MAYBE_CrossProcessIsInertPropagation) {
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       switches::kEnableBlinkFeatures, "InertAttribute");
   GURL main_url(embedded_test_server()->GetURL(
@@ -8239,8 +8913,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // sharing processes that are already dedicated to that site when over process
 // limit. See https://crbug.com/513036.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_MainFrameProcessReuseWhenOverLimit \
+  MainFrameProcessReuseWhenOverLimit
+#else
+#define MAYBE_MainFrameProcessReuseWhenOverLimit \
+  DISABLED_MainFrameProcessReuseWhenOverLimit
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_MainFrameProcessReuseWhenOverLimit) {
+                       MAYBE_MainFrameProcessReuseWhenOverLimit) {
   // Set the process limit to 1.
   RenderProcessHost::SetMaxRendererProcessCount(1);
 
@@ -8274,8 +8955,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // sharing processes that are already dedicated to that site when over process
 // limit. See https://crbug.com/513036.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeProcessReuseWhenOverLimit \
+  SubframeProcessReuseWhenOverLimit
+#else
+#define MAYBE_SubframeProcessReuseWhenOverLimit \
+  DISABLED_SubframeProcessReuseWhenOverLimit
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeProcessReuseWhenOverLimit) {
+                       MAYBE_SubframeProcessReuseWhenOverLimit) {
   // Set the process limit to 1.
   RenderProcessHost::SetMaxRendererProcessCount(1);
 
@@ -8347,9 +9035,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // provisional frame (remote-to-local navigation) paths, where such a scenario
 // is no longer possible.  See https://crbug.com/756790.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_TwoCrossSitePendingNavigationsAndMainFrameWins) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoCrossSitePendingNavigationsAndMainFrameWins \
+  TwoCrossSitePendingNavigationsAndMainFrameWins
+#else
+#define MAYBE_TwoCrossSitePendingNavigationsAndMainFrameWins \
+  DISABLED_TwoCrossSitePendingNavigationsAndMainFrameWins
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_TwoCrossSitePendingNavigationsAndMainFrameWins) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -8428,8 +9122,15 @@ IN_PROC_BROWSER_TEST_P(
 // case where the subframe navigation commits before the main frame.  See
 // https://crbug.com/756790.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoCrossSitePendingNavigationsAndSubframeWins \
+  TwoCrossSitePendingNavigationsAndSubframeWins
+#else
+#define MAYBE_TwoCrossSitePendingNavigationsAndSubframeWins \
+  DISABLED_TwoCrossSitePendingNavigationsAndSubframeWins
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TwoCrossSitePendingNavigationsAndSubframeWins) {
+                       MAYBE_TwoCrossSitePendingNavigationsAndSubframeWins) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -8566,8 +9267,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // where the current window and its opener navigate simultaneously.
 // See https://crbug.com/756790.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoCrossSitePendingNavigationsWithOpener \
+  TwoCrossSitePendingNavigationsWithOpener
+#else
+#define MAYBE_TwoCrossSitePendingNavigationsWithOpener \
+  DISABLED_TwoCrossSitePendingNavigationsWithOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TwoCrossSitePendingNavigationsWithOpener) {
+                       MAYBE_TwoCrossSitePendingNavigationsWithOpener) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
@@ -8631,8 +9339,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DetachSpeculativeRenderFrameHost DetachSpeculativeRenderFrameHost
+#else
+#define MAYBE_DetachSpeculativeRenderFrameHost \
+  DISABLED_DetachSpeculativeRenderFrameHost
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DetachSpeculativeRenderFrameHost) {
+                       MAYBE_DetachSpeculativeRenderFrameHost) {
   // Commit a page with one iframe.
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
@@ -8664,8 +9378,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Tests what happens if the renderer attempts to cancel a navigation after the
 // NavigationRequest has already reached READY_TO_COMMIT.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CancelNavigationAfterReadyToCommit \
+  CancelNavigationAfterReadyToCommit
+#else
+#define MAYBE_CancelNavigationAfterReadyToCommit \
+  DISABLED_CancelNavigationAfterReadyToCommit
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CancelNavigationAfterReadyToCommit) {
+                       MAYBE_CancelNavigationAfterReadyToCommit) {
   class NavigationCanceller : public WebContentsObserver {
    public:
     NavigationCanceller(WebContents* web_contents,
@@ -8740,8 +9461,15 @@ class AssertNoReadyToCommitNavigationCalls : public WebContentsObserver {
 // directly triggers fallback handling, rather than triggering fallback handling
 // in the renderer after it receives a `CommitNavigation()` IPC.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ObjectTagSameSiteNavigationWithHTTPError \
+  ObjectTagSameSiteNavigationWithHTTPError
+#else
+#define MAYBE_ObjectTagSameSiteNavigationWithHTTPError \
+  DISABLED_ObjectTagSameSiteNavigationWithHTTPError
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ObjectTagSameSiteNavigationWithHTTPError) {
+                       MAYBE_ObjectTagSameSiteNavigationWithHTTPError) {
   // Set up a test page with a same-site child frame hosted in an <object> tag.
   // TODO(dcheng): In the future, it might be useful to also have a test where
   // the child frame is same-site but cross-origin, and have the parent
@@ -8789,8 +9517,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // directly triggers fallback handling, rather than triggering fallback handling
 // in the renderer after it receives a `CommitNavigation()` IPC.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ObjectTagCrossSiteNavigationWithHTTPError \
+  ObjectTagCrossSiteNavigationWithHTTPError
+#else
+#define MAYBE_ObjectTagCrossSiteNavigationWithHTTPError \
+  DISABLED_ObjectTagCrossSiteNavigationWithHTTPError
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ObjectTagCrossSiteNavigationWithHTTPError) {
+                       MAYBE_ObjectTagCrossSiteNavigationWithHTTPError) {
   // Set up a test page with a same-site child frame hosted in an <object> tag.
   // TODO(dcheng): In the future, it might be useful to also have a test where
   // the child frame is same-site but cross-origin, and have the parent
@@ -8837,9 +9572,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // handling, rather than triggering fallback handling in the renderer after it
 // receives a `CommitNavigation()` IPC.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ObjectTagSameSiteNavigationWithHTTPErrorAndFailedBodyLoad \
+  ObjectTagSameSiteNavigationWithHTTPErrorAndFailedBodyLoad
+#else
+#define MAYBE_ObjectTagSameSiteNavigationWithHTTPErrorAndFailedBodyLoad \
+  DISABLED_ObjectTagSameSiteNavigationWithHTTPErrorAndFailedBodyLoad
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_ObjectTagSameSiteNavigationWithHTTPErrorAndFailedBodyLoad) {
+    MAYBE_ObjectTagSameSiteNavigationWithHTTPErrorAndFailedBodyLoad) {
   // Set up a test page with a same-site child frame hosted in an <object> tag.
   // TODO(dcheng): In the future, it might be useful to also have a test where
   // the child frame is same-site but cross-origin, and have the parent
@@ -8923,9 +9665,16 @@ IN_PROC_BROWSER_TEST_P(
 // handling, rather than triggering fallback handling in the renderer after it
 // receives a `CommitNavigation()` IPC.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ObjectTagCrossSiteNavigationWithHTTPErrorAndFailedBodyLoad \
+  ObjectTagCrossSiteNavigationWithHTTPErrorAndFailedBodyLoad
+#else
+#define MAYBE_ObjectTagCrossSiteNavigationWithHTTPErrorAndFailedBodyLoad \
+  DISABLED_ObjectTagCrossSiteNavigationWithHTTPErrorAndFailedBodyLoad
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_ObjectTagCrossSiteNavigationWithHTTPErrorAndFailedBodyLoad) {
+    MAYBE_ObjectTagCrossSiteNavigationWithHTTPErrorAndFailedBodyLoad) {
   // Set up a test page with a same-site child frame hosted in an <object> tag.
   // TODO(dcheng): In the future, it might be useful to also have a test where
   // the child frame is same-site but cross-origin, and have the parent
@@ -9005,8 +9754,15 @@ IN_PROC_BROWSER_TEST_P(
 // directly triggers fallback handling, rather than triggering fallback handling
 // in the renderer after it receives a `CommitFailedNavigation()` IPC.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ObjectTagSameSiteNavigationWithNetworkError \
+  ObjectTagSameSiteNavigationWithNetworkError
+#else
+#define MAYBE_ObjectTagSameSiteNavigationWithNetworkError \
+  DISABLED_ObjectTagSameSiteNavigationWithNetworkError
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ObjectTagSameSiteNavigationWithNetworkError) {
+                       MAYBE_ObjectTagSameSiteNavigationWithNetworkError) {
   // Set up a test page with a same-site child frame hosted in an <object> tag.
   GURL url1(embedded_test_server()->GetURL("a.com", "/object-frame.html"));
   EXPECT_TRUE(NavigateToURL(web_contents(), url1));
@@ -9047,8 +9803,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // directly triggers fallback handling, rather than triggering fallback handling
 // in the renderer after it receives a `CommitFailedNavigation()` IPC.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ObjectTagCrossSiteNavigationWithNetworkError \
+  ObjectTagCrossSiteNavigationWithNetworkError
+#else
+#define MAYBE_ObjectTagCrossSiteNavigationWithNetworkError \
+  DISABLED_ObjectTagCrossSiteNavigationWithNetworkError
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ObjectTagCrossSiteNavigationWithNetworkError) {
+                       MAYBE_ObjectTagCrossSiteNavigationWithNetworkError) {
   // Set up a test page with a same-site child frame hosted in an <object> tag.
   GURL url1(embedded_test_server()->GetURL("a.com", "/object-frame.html"));
   EXPECT_TRUE(NavigateToURL(web_contents(), url1));
@@ -9094,9 +9857,15 @@ class SitePerProcessBrowserTestWithLeakDetector
 };
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTestWithLeakDetector,
-    DISABLED_CloseWebContentsWithSpeculativeRenderFrameHost) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CloseWebContentsWithSpeculativeRenderFrameHost \
+  CloseWebContentsWithSpeculativeRenderFrameHost
+#else
+#define MAYBE_CloseWebContentsWithSpeculativeRenderFrameHost \
+  DISABLED_CloseWebContentsWithSpeculativeRenderFrameHost
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
+                       MAYBE_CloseWebContentsWithSpeculativeRenderFrameHost) {
   const GURL url1(embedded_test_server()->GetURL("a.com", "/title1.html"));
   ASSERT_TRUE(NavigateToURL(web_contents(), url1));
 
@@ -9156,8 +9925,15 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DetachFrameWithSpeculativeRenderFrameHost \
+  DetachFrameWithSpeculativeRenderFrameHost
+#else
+#define MAYBE_DetachFrameWithSpeculativeRenderFrameHost \
+  DISABLED_DetachFrameWithSpeculativeRenderFrameHost
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
-                       DISABLED_DetachFrameWithSpeculativeRenderFrameHost) {
+                       MAYBE_DetachFrameWithSpeculativeRenderFrameHost) {
   const GURL url1(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   ASSERT_TRUE(NavigateToURL(web_contents(), url1));
@@ -9242,8 +10018,15 @@ class MockEventHandlerAndroid : public ui::EventHandlerAndroid {
 }  // namespace
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SpeculativeRenderFrameHostDoesNotReceiveInput \
+  SpeculativeRenderFrameHostDoesNotReceiveInput
+#else
+#define MAYBE_SpeculativeRenderFrameHostDoesNotReceiveInput \
+  DISABLED_SpeculativeRenderFrameHostDoesNotReceiveInput
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SpeculativeRenderFrameHostDoesNotReceiveInput) {
+                       MAYBE_SpeculativeRenderFrameHostDoesNotReceiveInput) {
   GURL url1(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url1));
 
@@ -9295,8 +10078,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestChildProcessImportance TestChildProcessImportance
+#else
+#define MAYBE_TestChildProcessImportance DISABLED_TestChildProcessImportance
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TestChildProcessImportance) {
+                       MAYBE_TestChildProcessImportance) {
   web_contents()->SetPrimaryMainFrameImportance(
       ChildProcessImportance::MODERATE);
 
@@ -9635,8 +10423,13 @@ class TouchSelectionControllerClientAndroidSiteIsolationTest
 };
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BasicSelectionIsolatedIframe BasicSelectionIsolatedIframe
+#else
+#define MAYBE_BasicSelectionIsolatedIframe DISABLED_BasicSelectionIsolatedIframe
+#endif
 IN_PROC_BROWSER_TEST_P(TouchSelectionControllerClientAndroidSiteIsolationTest,
-                       DISABLED_BasicSelectionIsolatedIframe) {
+                       MAYBE_BasicSelectionIsolatedIframe) {
   // Load test URL with cross-process child.
   SetupTest();
 
@@ -9828,6 +10621,7 @@ class TouchEventObserver : public RenderWidgetHost::InputEventObserver {
 //
 // This test is disabled due to flakiness on all platforms, but especially on
 // Android.  See https://crbug.com/945025.
+
 // TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
                        DISABLED_TouchEventAckQueueOrdering) {
@@ -9949,8 +10743,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Verify that sandbox flags specified by a CSP header are properly inherited by
 // child frames, but are removed when the frame navigates.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ActiveSandboxFlagsMaintainedAcrossNavigation \
+  ActiveSandboxFlagsMaintainedAcrossNavigation
+#else
+#define MAYBE_ActiveSandboxFlagsMaintainedAcrossNavigation \
+  DISABLED_ActiveSandboxFlagsMaintainedAcrossNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ActiveSandboxFlagsMaintainedAcrossNavigation) {
+                       MAYBE_ActiveSandboxFlagsMaintainedAcrossNavigation) {
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/sandbox_main_frame_csp.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10049,8 +10850,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Test that after an RFH is unloaded, its old sandbox flags remain active.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ActiveSandboxFlagsRetainedAfterUnload \
+  ActiveSandboxFlagsRetainedAfterUnload
+#else
+#define MAYBE_ActiveSandboxFlagsRetainedAfterUnload \
+  DISABLED_ActiveSandboxFlagsRetainedAfterUnload
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ActiveSandboxFlagsRetainedAfterUnload) {
+                       MAYBE_ActiveSandboxFlagsRetainedAfterUnload) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/sandboxed_main_frame_script.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10133,8 +10941,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // whether the grandchild frames navigated to in step 3 and 4 see the correct
 // sandbox flags.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ActiveSandboxFlagsCorrectInProxies \
+  ActiveSandboxFlagsCorrectInProxies
+#else
+#define MAYBE_ActiveSandboxFlagsCorrectInProxies \
+  DISABLED_ActiveSandboxFlagsCorrectInProxies
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ActiveSandboxFlagsCorrectInProxies) {
+                       MAYBE_ActiveSandboxFlagsCorrectInProxies) {
   GURL main_url(embedded_test_server()->GetURL(
       "foo.com", "/cross_site_iframe_factory.html?foo(bar)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10239,8 +11054,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 //
 // (B* has CSP-set sandbox flags)
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ActiveSandboxFlagsCorrectAfterUpdate \
+  ActiveSandboxFlagsCorrectAfterUpdate
+#else
+#define MAYBE_ActiveSandboxFlagsCorrectAfterUpdate \
+  DISABLED_ActiveSandboxFlagsCorrectAfterUpdate
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ActiveSandboxFlagsCorrectAfterUpdate) {
+                       MAYBE_ActiveSandboxFlagsCorrectAfterUpdate) {
   GURL main_url(embedded_test_server()->GetURL(
       "foo.com", "/cross_site_iframe_factory.html?foo(bar)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10306,8 +11128,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // and renderers (including proxies) after navigation to a page without CSP-set
 // flags.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ActiveSandboxFlagsCorrectWhenCleared \
+  ActiveSandboxFlagsCorrectWhenCleared
+#else
+#define MAYBE_ActiveSandboxFlagsCorrectWhenCleared \
+  DISABLED_ActiveSandboxFlagsCorrectWhenCleared
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ActiveSandboxFlagsCorrectWhenCleared) {
+                       MAYBE_ActiveSandboxFlagsCorrectWhenCleared) {
   GURL main_url(
       embedded_test_server()->GetURL("foo.com", "/sandboxed_frames_csp.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10385,8 +11214,14 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // reuse an existing process for the same site, even across BrowsingInstances.
 // This helps consolidate processes when running under --site-per-process.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeReusesExistingProcess SubframeReusesExistingProcess
+#else
+#define MAYBE_SubframeReusesExistingProcess \
+  DISABLED_SubframeReusesExistingProcess
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SubframeReusesExistingProcess) {
+                       MAYBE_SubframeReusesExistingProcess) {
   GURL foo_url(
       embedded_test_server()->GetURL("foo.com", "/page_with_iframe.html"));
   EXPECT_TRUE(NavigateToURL(shell(), foo_url));
@@ -10469,9 +11304,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // tab doesn't unnecessarily share the reused process.  See
 // https://crbug.com/803367.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NoProcessSharingAfterSubframeReusesExistingProcess \
+  NoProcessSharingAfterSubframeReusesExistingProcess
+#else
+#define MAYBE_NoProcessSharingAfterSubframeReusesExistingProcess \
+  DISABLED_NoProcessSharingAfterSubframeReusesExistingProcess
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_NoProcessSharingAfterSubframeReusesExistingProcess) {
+    MAYBE_NoProcessSharingAfterSubframeReusesExistingProcess) {
   GURL foo_url(embedded_test_server()->GetURL("foo.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), foo_url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
@@ -10594,8 +11436,13 @@ class CommitMessageOrderReverser : public DidCommitNavigationInterceptor {
 // TODO(809580): Disabled on Android, Mac, and ChromeOS due to flakiness.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OOPIFDetachDuringAnimation OOPIFDetachDuringAnimation
+#else
+#define MAYBE_OOPIFDetachDuringAnimation DISABLED_OOPIFDetachDuringAnimation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_OOPIFDetachDuringAnimation) {
+                       MAYBE_OOPIFDetachDuringAnimation) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/frame-detached-in-animationstart-event.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10621,8 +11468,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Tests that a cross-process iframe asked to navigate to the same URL will
 // successfully commit the navigation.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_IFrameSameDocumentNavigation IFrameSameDocumentNavigation
+#else
+#define MAYBE_IFrameSameDocumentNavigation DISABLED_IFrameSameDocumentNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_IFrameSameDocumentNavigation) {
+                       MAYBE_IFrameSameDocumentNavigation) {
   GURL main_url(embedded_test_server()->GetURL(
       "foo.com", "/cross_site_iframe_factory.html?foo(bar)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10661,8 +11513,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Verifies the the renderer has the size of the frame after commit.
 // https://crbug/804046, https://crbug.com/801091
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SizeAvailableAfterCommit SizeAvailableAfterCommit
+#else
+#define MAYBE_SizeAvailableAfterCommit DISABLED_SizeAvailableAfterCommit
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SizeAvailableAfterCommit) {
+                       MAYBE_SizeAvailableAfterCommit) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10685,8 +11542,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // incorrectly mark RenderViewHost as inactive if it's already been reused and
 // switched to active by another navigation.  See https://crbug.com/823567.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderViewHostStaysActiveWithLateUnloadACK \
+  RenderViewHostStaysActiveWithLateUnloadACK
+#else
+#define MAYBE_RenderViewHostStaysActiveWithLateUnloadACK \
+  DISABLED_RenderViewHostStaysActiveWithLateUnloadACK
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_RenderViewHostStaysActiveWithLateUnloadACK) {
+                       MAYBE_RenderViewHostStaysActiveWithLateUnloadACK) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
 
@@ -10746,9 +11610,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe is visible and generates paint events.  See
 // https://crbug.com/638375.
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
+  SubframeVisibleAfterRenderViewBecomesSwappedOut
+#else
+#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
+  DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -10779,7 +11649,12 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_FrameDepthSimple) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameDepthSimple FrameDepthSimple
+#else
+#define MAYBE_FrameDepthSimple DISABLED_FrameDepthSimple
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_FrameDepthSimple) {
   // Five nodes, from depth 0 to 4.
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c(d(e))))"));
@@ -10798,7 +11673,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_FrameDepthSimple) {
 }
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_FrameDepthTest) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameDepthTest FrameDepthTest
+#else
+#define MAYBE_FrameDepthTest DISABLED_FrameDepthTest
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_FrameDepthTest) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a,b(a))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10842,8 +11722,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, DISABLED_FrameDepthTest) {
 // Disabled due to flakiness. crbug.com/1146083
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_VisibilityFrameDepthTest VisibilityFrameDepthTest
+#else
+#define MAYBE_VisibilityFrameDepthTest DISABLED_VisibilityFrameDepthTest
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_VisibilityFrameDepthTest) {
+                       MAYBE_VisibilityFrameDepthTest) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   GURL popup_url(embedded_test_server()->GetURL("b.com", "/title1.html"));
@@ -10906,9 +11791,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // observed by the target frame before it receives the forwarded postMessage.
 // See https://crbug.com/828529.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossProcessPostMessageWaitsForCurrentScriptToFinish \
+  CrossProcessPostMessageWaitsForCurrentScriptToFinish
+#else
+#define MAYBE_CrossProcessPostMessageWaitsForCurrentScriptToFinish \
+  DISABLED_CrossProcessPostMessageWaitsForCurrentScriptToFinish
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_CrossProcessPostMessageWaitsForCurrentScriptToFinish) {
+    MAYBE_CrossProcessPostMessageWaitsForCurrentScriptToFinish) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10935,8 +11827,15 @@ IN_PROC_BROWSER_TEST_P(
 // frame is detached before the postMessage is forwarded, the source frame's
 // renderer does not crash.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossProcessPostMessageAndDetachTarget \
+  CrossProcessPostMessageAndDetachTarget
+#else
+#define MAYBE_CrossProcessPostMessageAndDetachTarget \
+  DISABLED_CrossProcessPostMessageAndDetachTarget
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CrossProcessPostMessageAndDetachTarget) {
+                       MAYBE_CrossProcessPostMessageAndDetachTarget) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -10961,8 +11860,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Tests that the last committed URL is preserved on an RFH even after the RFH
 // goes into the pending deletion state.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LastCommittedURLRetainedAfterUnload \
+  LastCommittedURLRetainedAfterUnload
+#else
+#define MAYBE_LastCommittedURLRetainedAfterUnload \
+  DISABLED_LastCommittedURLRetainedAfterUnload
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_LastCommittedURLRetainedAfterUnload) {
+                       MAYBE_LastCommittedURLRetainedAfterUnload) {
   // Navigate to a.com.
   GURL start_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), start_url));
@@ -10998,8 +11904,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // a scroll gesture when it's happening in a cross-process child frame. This is
 // important in cases like hiding the text selection popup during a scroll.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GestureManagerListensToChildFrames \
+  GestureManagerListensToChildFrames
+#else
+#define MAYBE_GestureManagerListensToChildFrames \
+  DISABLED_GestureManagerListensToChildFrames
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_GestureManagerListensToChildFrames) {
+                       MAYBE_GestureManagerListensToChildFrames) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11095,8 +12008,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DisplayLockThrottlesOOPIF DisplayLockThrottlesOOPIF
+#else
+#define MAYBE_DisplayLockThrottlesOOPIF DISABLED_DisplayLockThrottlesOOPIF
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_DisplayLockThrottlesOOPIF) {
+                       MAYBE_DisplayLockThrottlesOOPIF) {
   GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
@@ -11189,8 +12107,14 @@ class ClosePageBeforeCommitHelper : public DidCommitNavigationInterceptor {
 // subframe in the tab, a subsequent resource timing IPC from the subframe RFH
 // won't generate a renderer kill.  See https://crbug.com/805705.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CloseTabBeforeSubframeCommits CloseTabBeforeSubframeCommits
+#else
+#define MAYBE_CloseTabBeforeSubframeCommits \
+  DISABLED_CloseTabBeforeSubframeCommits
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CloseTabBeforeSubframeCommits) {
+                       MAYBE_CloseTabBeforeSubframeCommits) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11338,8 +12262,14 @@ class EnableForceZoomContentClient
 };
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ForceEnableZoomPropagatesToChild ForceEnableZoomPropagatesToChild
+#else
+#define MAYBE_ForceEnableZoomPropagatesToChild \
+  DISABLED_ForceEnableZoomPropagatesToChild
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
-                       DISABLED_ForceEnableZoomPropagatesToChild) {
+                       MAYBE_ForceEnableZoomPropagatesToChild) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11381,8 +12311,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CheckForceEnableZoomValue CheckForceEnableZoomValue
+#else
+#define MAYBE_CheckForceEnableZoomValue DISABLED_CheckForceEnableZoomValue
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
-                       DISABLED_CheckForceEnableZoomValue) {
+                       MAYBE_CheckForceEnableZoomValue) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("foo.com", "/title1.html")));
   EXPECT_FALSE(GetTouchActionForceEnableZoom(
@@ -11406,6 +12341,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
 
 // Flaky on every platform, failing most of the time on Android.
 // See https://crbug.com/945734
+// TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
                        DISABLED_EffectiveTouchActionPropagatesAcrossFrames) {
   GURL main_url(embedded_test_server()->GetURL(
@@ -11473,6 +12409,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
 }
 
 // Flaky on all platform. http://crbug.com/9515270
+// TODO(b/437371782): Investigate test failure.
 IN_PROC_BROWSER_TEST_F(
     SitePerProcessBrowserTouchActionTest,
     DISABLED_EffectiveTouchActionPropagatesAcrossNestedFrames) {
@@ -11562,9 +12499,16 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_EffectiveTouchActionPropagatesWhenChildFrameNavigates \
+  EffectiveTouchActionPropagatesWhenChildFrameNavigates
+#else
+#define MAYBE_EffectiveTouchActionPropagatesWhenChildFrameNavigates \
+  DISABLED_EffectiveTouchActionPropagatesWhenChildFrameNavigates
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTouchActionTest,
-    DISABLED_EffectiveTouchActionPropagatesWhenChildFrameNavigates) {
+    MAYBE_EffectiveTouchActionPropagatesWhenChildFrameNavigates) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11645,8 +12589,15 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ChildFrameCrashMetrics_KilledMainFrame \
+  ChildFrameCrashMetrics_KilledMainFrame
+#else
+#define MAYBE_ChildFrameCrashMetrics_KilledMainFrame \
+  DISABLED_ChildFrameCrashMetrics_KilledMainFrame
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ChildFrameCrashMetrics_KilledMainFrame) {
+                       MAYBE_ChildFrameCrashMetrics_KilledMainFrame) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a(b(b,c)))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11665,8 +12616,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ChildFrameCrashMetrics_NeverShown \
+  ChildFrameCrashMetrics_NeverShown
+#else
+#define MAYBE_ChildFrameCrashMetrics_NeverShown \
+  DISABLED_ChildFrameCrashMetrics_NeverShown
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ChildFrameCrashMetrics_NeverShown) {
+                       MAYBE_ChildFrameCrashMetrics_NeverShown) {
   // Set-up a frame tree that helps verify what the metrics tracks:
   // 1) frames (12 frames are affected if B process gets killed) or
   // 2) widgets (10 b widgets and 1 c widget are affected if B is killed) or
@@ -11707,8 +12665,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ChildFrameCrashMetrics_ScrolledIntoView \
+  ChildFrameCrashMetrics_ScrolledIntoView
+#else
+#define MAYBE_ChildFrameCrashMetrics_ScrolledIntoView \
+  DISABLED_ChildFrameCrashMetrics_ScrolledIntoView
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ChildFrameCrashMetrics_ScrolledIntoView) {
+                       MAYBE_ChildFrameCrashMetrics_ScrolledIntoView) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11791,8 +12756,15 @@ class SitePerProcessAndProcessPerSiteBrowserTest
 // does not stay in the old SiteInstance.  See https://crbug.com/825411.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GeneratedTransitionsSwapProcesses \
+  GeneratedTransitionsSwapProcesses
+#else
+#define MAYBE_GeneratedTransitionsSwapProcesses \
+  DISABLED_GeneratedTransitionsSwapProcesses
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessAndProcessPerSiteBrowserTest,
-                       DISABLED_GeneratedTransitionsSwapProcesses) {
+                       MAYBE_GeneratedTransitionsSwapProcesses) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("foo.com", "/title1.html")));
   scoped_refptr<SiteInstance> foo_site_instance(
@@ -11852,8 +12824,15 @@ class SameDocumentCommitObserver : public WebContentsObserver {
 // cross-process navigation.  See https://crbug.com/825677.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReplaceStateDoesNotCancelCrossSiteNavigation \
+  ReplaceStateDoesNotCancelCrossSiteNavigation
+#else
+#define MAYBE_ReplaceStateDoesNotCancelCrossSiteNavigation \
+  DISABLED_ReplaceStateDoesNotCancelCrossSiteNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ReplaceStateDoesNotCancelCrossSiteNavigation) {
+                       MAYBE_ReplaceStateDoesNotCancelCrossSiteNavigation) {
   GURL url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
@@ -11903,9 +12882,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // https://crbug.com/849311.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SameDocumentNavigationDoesNotCommitPendingFramePolicy \
+  SameDocumentNavigationDoesNotCommitPendingFramePolicy
+#else
+#define MAYBE_SameDocumentNavigationDoesNotCommitPendingFramePolicy \
+  DISABLED_SameDocumentNavigationDoesNotCommitPendingFramePolicy
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_SameDocumentNavigationDoesNotCommitPendingFramePolicy) {
+    MAYBE_SameDocumentNavigationDoesNotCommitPendingFramePolicy) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -11961,8 +12947,15 @@ IN_PROC_BROWSER_TEST_P(
 // up in different processes. See https://crbug.com/863623.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoBlobURLsWithNullOriginDontShareProcess \
+  TwoBlobURLsWithNullOriginDontShareProcess
+#else
+#define MAYBE_TwoBlobURLsWithNullOriginDontShareProcess \
+  DISABLED_TwoBlobURLsWithNullOriginDontShareProcess
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_TwoBlobURLsWithNullOriginDontShareProcess) {
+                       MAYBE_TwoBlobURLsWithNullOriginDontShareProcess) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/navigation_controller/page_with_data_iframe.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -12017,9 +13010,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // //mojo/core/channel_fuchsia.cc
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderFrameProxyNotRecreatedDuringProcessShutdown \
+  RenderFrameProxyNotRecreatedDuringProcessShutdown
+#else
+#define MAYBE_RenderFrameProxyNotRecreatedDuringProcessShutdown \
+  DISABLED_RenderFrameProxyNotRecreatedDuringProcessShutdown
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_RenderFrameProxyNotRecreatedDuringProcessShutdown) {
+    MAYBE_RenderFrameProxyNotRecreatedDuringProcessShutdown) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
@@ -12091,8 +13091,13 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CommitTimeoutForHungRenderer CommitTimeoutForHungRenderer
+#else
+#define MAYBE_CommitTimeoutForHungRenderer DISABLED_CommitTimeoutForHungRenderer
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CommitTimeoutForHungRenderer) {
+                       MAYBE_CommitTimeoutForHungRenderer) {
   // Navigate first tab to a.com.
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), a_url));
@@ -12139,8 +13144,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // TODO(crbug.com/1246541): Flaky on LaCrOS, Mac, and Windows.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NoCommitTimeoutForInvisibleWebContents \
+  NoCommitTimeoutForInvisibleWebContents
+#else
+#define MAYBE_NoCommitTimeoutForInvisibleWebContents \
+  DISABLED_NoCommitTimeoutForInvisibleWebContents
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NoCommitTimeoutForInvisibleWebContents) {
+                       MAYBE_NoCommitTimeoutForInvisibleWebContents) {
   // Navigate first tab to a.com.
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), a_url));
@@ -12191,8 +13203,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // Tests that an inner WebContents will reattach to its outer WebContents after
 // a navigation that causes a process swap.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ProcessSwapOnInnerContents ProcessSwapOnInnerContents
+#else
+#define MAYBE_ProcessSwapOnInnerContents DISABLED_ProcessSwapOnInnerContents
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ProcessSwapOnInnerContents) {
+                       MAYBE_ProcessSwapOnInnerContents) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -12242,8 +13259,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // https://crbug.com/1026056.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FocusInnerContentsFromOOPIF FocusInnerContentsFromOOPIF
+#else
+#define MAYBE_FocusInnerContentsFromOOPIF DISABLED_FocusInnerContentsFromOOPIF
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_FocusInnerContentsFromOOPIF) {
+                       MAYBE_FocusInnerContentsFromOOPIF) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -12290,9 +13312,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // a console error message.  See https://crbug.com/894399.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FileURLBlockedWithConsoleErrorInRemoteFrameNavigation \
+  FileURLBlockedWithConsoleErrorInRemoteFrameNavigation
+#else
+#define MAYBE_FileURLBlockedWithConsoleErrorInRemoteFrameNavigation \
+  DISABLED_FileURLBlockedWithConsoleErrorInRemoteFrameNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_FileURLBlockedWithConsoleErrorInRemoteFrameNavigation) {
+    MAYBE_FileURLBlockedWithConsoleErrorInRemoteFrameNavigation) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -12437,8 +13466,13 @@ class CrossProcessNavigationObjectElementTest
 // 3- Navigation an <object> from "b.com" to invalid "c.com". The load fails for
 //    a provisional frame, and at that time there is a proxy to parent.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FallbackShown FallbackShown
+#else
+#define MAYBE_FallbackShown DISABLED_FallbackShown
+#endif
 IN_PROC_BROWSER_TEST_P(CrossProcessNavigationObjectElementTest,
-                       DISABLED_FallbackShown) {
+                       MAYBE_FallbackShown) {
   const GURL main_url = embedded_test_server()->GetURL(
       base::StringPrintf("%s.com", std::get<0>(GetParam()).c_str()),
       "/page_with_object_fallback.html");
@@ -12477,8 +13511,15 @@ INSTANTIATE_TEST_SUITE_P(SitePerProcess,
 // This test verifies that after occluding a WebContents the RAF inside a
 // cross-process child frame is throttled.
 // Disabled due to flakiness. crbug.com/1293207
+// TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OccludedRenderWidgetThrottlesRAF OccludedRenderWidgetThrottlesRAF
+#else
+#define MAYBE_OccludedRenderWidgetThrottlesRAF \
+  DISABLED_OccludedRenderWidgetThrottlesRAF
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_OccludedRenderWidgetThrottlesRAF) {
+                       MAYBE_OccludedRenderWidgetThrottlesRAF) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -12524,8 +13565,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // commit a navigation to origin B.  See also https://crbug.com/770239.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CommittedOriginIncompatibleWithOriginLock \
+  CommittedOriginIncompatibleWithOriginLock
+#else
+#define MAYBE_CommittedOriginIncompatibleWithOriginLock \
+  DISABLED_CommittedOriginIncompatibleWithOriginLock
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CommittedOriginIncompatibleWithOriginLock) {
+                       MAYBE_CommittedOriginIncompatibleWithOriginLock) {
   GURL start_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), start_url));
   FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
@@ -12568,9 +13616,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // not become unresponsive during style changes. (see https://crbug.com/781880).
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_PluginElementResponsiveInCrossProcessNavigations) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PluginElementResponsiveInCrossProcessNavigations \
+  PluginElementResponsiveInCrossProcessNavigations
+#else
+#define MAYBE_PluginElementResponsiveInCrossProcessNavigations \
+  DISABLED_PluginElementResponsiveInCrossProcessNavigations
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_PluginElementResponsiveInCrossProcessNavigations) {
   GURL main_frame_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   ASSERT_TRUE(NavigateToURL(shell(), main_frame_url));
   GURL cross_origin(embedded_test_server()->GetURL("b.com", "/title1.html"));
@@ -12625,8 +13679,15 @@ IN_PROC_BROWSER_TEST_P(
 // 2) Navigation from B to C. The server is slow to respond.
 // 3) Deletion of B.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigationCommitInIframePendingDeletionAB \
+  NavigationCommitInIframePendingDeletionAB
+#else
+#define MAYBE_NavigationCommitInIframePendingDeletionAB \
+  DISABLED_NavigationCommitInIframePendingDeletionAB
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigationCommitInIframePendingDeletionAB) {
+                       MAYBE_NavigationCommitInIframePendingDeletionAB) {
   GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   GURL url_c(embedded_test_server()->GetURL("c.com", "/hung"));
@@ -12681,8 +13742,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // 2) Navigation from C to D. The server is slow to respond.
 // 3) Deletion of B.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NavigationCommitInIframePendingDeletionABC \
+  NavigationCommitInIframePendingDeletionABC
+#else
+#define MAYBE_NavigationCommitInIframePendingDeletionABC \
+  DISABLED_NavigationCommitInIframePendingDeletionABC
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_NavigationCommitInIframePendingDeletionABC) {
+                       MAYBE_NavigationCommitInIframePendingDeletionABC) {
   GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   GURL url_d(embedded_test_server()->GetURL("d.com", "/hung"));
@@ -12746,8 +13814,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // RenderFrameHost is pending deletion.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SameDocumentCommitWhilePendingDeletion \
+  SameDocumentCommitWhilePendingDeletion
+#else
+#define MAYBE_SameDocumentCommitWhilePendingDeletion \
+  DISABLED_SameDocumentCommitWhilePendingDeletion
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SameDocumentCommitWhilePendingDeletion) {
+                       MAYBE_SameDocumentCommitWhilePendingDeletion) {
   GURL url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -12778,8 +13853,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // RenderFrameHost is pending deletion.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_HistoryNavigationWhilePendingDeletion \
+  HistoryNavigationWhilePendingDeletion
+#else
+#define MAYBE_HistoryNavigationWhilePendingDeletion \
+  DISABLED_HistoryNavigationWhilePendingDeletion
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_HistoryNavigationWhilePendingDeletion) {
+                       MAYBE_HistoryNavigationWhilePendingDeletion) {
   GURL url_ab(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
@@ -12826,8 +13908,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // See https://crbug.com/932087.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenUrlToRemoteFramePendingDeletion \
+  OpenUrlToRemoteFramePendingDeletion
+#else
+#define MAYBE_OpenUrlToRemoteFramePendingDeletion \
+  DISABLED_OpenUrlToRemoteFramePendingDeletion
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_OpenUrlToRemoteFramePendingDeletion) {
+                       MAYBE_OpenUrlToRemoteFramePendingDeletion) {
   GURL url_ab(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
@@ -12865,8 +13954,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // IPCs and is documented here https://crbug.com/988368.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ProcessDiesBeforeCrossSiteNavigationCompletes \
+  ProcessDiesBeforeCrossSiteNavigationCompletes
+#else
+#define MAYBE_ProcessDiesBeforeCrossSiteNavigationCompletes \
+  DISABLED_ProcessDiesBeforeCrossSiteNavigationCompletes
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_ProcessDiesBeforeCrossSiteNavigationCompletes) {
+                       MAYBE_ProcessDiesBeforeCrossSiteNavigationCompletes) {
   GURL first_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), first_url));
   scoped_refptr<SiteInstanceImpl> first_site_instance(
@@ -12982,7 +14078,12 @@ class InnerWebContentsAttachTest
 // needs to be sanitized to be later consumed by the WebContents attaching API.
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(InnerWebContentsAttachTest, DISABLED_PrepareFrame) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_PrepareFrame PrepareFrame
+#else
+#define MAYBE_PrepareFrame DISABLED_PrepareFrame
+#endif
+IN_PROC_BROWSER_TEST_P(InnerWebContentsAttachTest, MAYBE_PrepareFrame) {
   ASSERT_TRUE(
       NavigateToURL(shell(), embedded_test_server()->GetURL(
                                  "a.com", "/page_with_object_fallback.html")));
@@ -13066,8 +14167,15 @@ INSTANTIATE_TEST_SUITE_P(
 // 3. A1 makes B3 to navigate to A4 = about:blank. Process A is used.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SameAndCrossProcessIframeAboutBlankNavigation \
+  SameAndCrossProcessIframeAboutBlankNavigation
+#else
+#define MAYBE_SameAndCrossProcessIframeAboutBlankNavigation \
+  DISABLED_SameAndCrossProcessIframeAboutBlankNavigation
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_SameAndCrossProcessIframeAboutBlankNavigation) {
+                       MAYBE_SameAndCrossProcessIframeAboutBlankNavigation) {
   // 1. Navigate to A1(B2).
   GURL a1_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
@@ -13103,9 +14211,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 }
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(
-    SitePerProcessBrowserTest,
-    DISABLED_AccessWindowProxyOfCrashedFrameAfterNavigation) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_AccessWindowProxyOfCrashedFrameAfterNavigation \
+  AccessWindowProxyOfCrashedFrameAfterNavigation
+#else
+#define MAYBE_AccessWindowProxyOfCrashedFrameAfterNavigation \
+  DISABLED_AccessWindowProxyOfCrashedFrameAfterNavigation
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       MAYBE_AccessWindowProxyOfCrashedFrameAfterNavigation) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
   const GURL cross_site_url =
@@ -13140,8 +14254,12 @@ IN_PROC_BROWSER_TEST_P(
 // subframe.
 
 // TODO(b/437371782): Investigate test failure.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       DISABLED_CloseNoopenerWindow) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CloseNoopenerWindow CloseNoopenerWindow
+#else
+#define MAYBE_CloseNoopenerWindow DISABLED_CloseNoopenerWindow
+#endif
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_CloseNoopenerWindow) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -13175,9 +14293,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // dedicated process do not reuse that process.
 
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ProcessNotReusedAfterInitialNavigationToRendererDebugURL \
+  ProcessNotReusedAfterInitialNavigationToRendererDebugURL
+#else
+#define MAYBE_ProcessNotReusedAfterInitialNavigationToRendererDebugURL \
+  DISABLED_ProcessNotReusedAfterInitialNavigationToRendererDebugURL
+#endif
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessBrowserTest,
-    DISABLED_ProcessNotReusedAfterInitialNavigationToRendererDebugURL) {
+    MAYBE_ProcessNotReusedAfterInitialNavigationToRendererDebugURL) {
   // Load a javascript URL, which is a renderer debug URL.  This navigation
   // won't commit, but the renderer process will synchronously process the
   // javascript URL and install an HTML document that contains "foo".
@@ -13217,8 +14342,13 @@ class DisableProcessReusePolicyTest : public SitePerProcessBrowserTest {
 // In two tabs with the same site, open a cross site iframe in each (same site
 // for the iframes). Make sure these do not have the same process ID.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DisableProcessReusePolicy DisableProcessReusePolicy
+#else
+#define MAYBE_DisableProcessReusePolicy DISABLED_DisableProcessReusePolicy
+#endif
 IN_PROC_BROWSER_TEST_P(DisableProcessReusePolicyTest,
-                       DISABLED_DisableProcessReusePolicy) {
+                       MAYBE_DisableProcessReusePolicy) {
   GURL url(
       embedded_test_server()->GetURL("www.foo.com", "/page_with_iframe.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -13276,8 +14406,13 @@ class SitePerProcessWithMainFrameThresholdTest
 // frame reaches to the threshold, a new RenderProcessHost should be created and
 // the existing RenderProcessHost should not be reused.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReuseProcessUpToThreshold ReuseProcessUpToThreshold
+#else
+#define MAYBE_ReuseProcessUpToThreshold DISABLED_ReuseProcessUpToThreshold
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
-                       DISABLED_ReuseProcessUpToThreshold) {
+                       MAYBE_ReuseProcessUpToThreshold) {
   const GURL kUrl =
       embedded_test_server()->GetURL("foo.test", "/page_with_iframe.html");
   const GURL kOtherUrl =
@@ -13338,8 +14473,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
 // Tests that opening a new tab from an existing page via ctrl-click reuses a
 // process when both pages are the same-site.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReuseProcessOpenTabByCtrlClickLink \
+  ReuseProcessOpenTabByCtrlClickLink
+#else
+#define MAYBE_ReuseProcessOpenTabByCtrlClickLink \
+  DISABLED_ReuseProcessOpenTabByCtrlClickLink
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
-                       DISABLED_ReuseProcessOpenTabByCtrlClickLink) {
+                       MAYBE_ReuseProcessOpenTabByCtrlClickLink) {
   const GURL kUrl = embedded_test_server()->GetURL(
       "foo.test", "/ctrl-click-subframe-link.html");
   ASSERT_TRUE(NavigateToURL(shell(), kUrl));
@@ -13361,8 +14503,13 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
 // TODO(https://crbug.com/1434900): Change this test to use 'noopener' once we
 // figure out how to handle navigation from an empty site to a new site.
 // TODO(b/437371782): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ReuseProcessWithOpener ReuseProcessWithOpener
+#else
+#define MAYBE_ReuseProcessWithOpener DISABLED_ReuseProcessWithOpener
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
-                       DISABLED_ReuseProcessWithOpener) {
+                       MAYBE_ReuseProcessWithOpener) {
   const GURL kUrl = embedded_test_server()->GetURL("foo.test", "/title1.html");
   ASSERT_TRUE(NavigateToURL(shell(), kUrl));
   RenderFrameHostImpl* main_frame =
