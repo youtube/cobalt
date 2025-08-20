@@ -18,7 +18,6 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 

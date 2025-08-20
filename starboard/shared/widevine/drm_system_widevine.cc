@@ -151,7 +151,7 @@ SbDrmStatus CdmStatusToSbDrmStatus(const wv3cdm::Status status) {
   return kSbDrmStatusUnknownError;
 }
 
-SB_ONCE_INITIALIZE_FUNCTION(Mutex, GetInitializationMutex)
+SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetInitializationMutex)
 
 void EnsureWidevineCdmIsInitialized(const std::string& company_name,
                                     const std::string& model_name,

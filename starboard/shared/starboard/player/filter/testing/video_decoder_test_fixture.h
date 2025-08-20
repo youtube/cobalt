@@ -23,7 +23,6 @@
 #include <mutex>
 #include <set>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
