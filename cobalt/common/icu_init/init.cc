@@ -14,59 +14,22 @@
 
 #include "cobalt/common/icu_init/init.h"
 
-#include <fcntl.h>
-#include <pthread.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unicode/utypes.h>
-#include <unistd.h>
-
-#include <string>
-#include <vector>
-
-#include "base/i18n/icu_util.h"  // nogncheck
-#include "starboard/common/log.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/file.h"
-#include "starboard/system.h"
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-
 namespace cobalt {
 namespace common {
 namespace icu_init {
-
-namespace {
-
-pthread_once_t g_initialization_once = PTHREAD_ONCE_INIT;
-bool g_initialization_result = false;
-
-void InitializeIcuDatabase() {
-  g_initialization_result = base::i18n::InitializeICU();
-}
-
-bool IcuInit() {
-  pthread_once(&g_initialization_once, &InitializeIcuDatabase);
-  return g_initialization_result;
-}
-}  // namespace
 
 // Initialize ICU with a static initializer to ensure it is initialized
 // before program execution begins. While this is very early, it is not
 // guaranteed to be early enough for ICU to be used by other global
 // initializers.
-static bool g_icu_is_initialized = IcuInit();
+static bool g_icu_is_initialized = false;
 
 void EnsureInitialized() {
-  // Even though IcuInit() is called before main() is called, when the static
-  // initializers are called, the order of execution of static initializers is
-  // undefined. This function allows functions that may use ICU from static
-  // initializers themselves to guarantee that ICU is initialized first.
-  // Note: This is thread-safe because spurious calls to IcuInit() are
-  // thread-safe.
-  if (!g_icu_is_initialized) {
-    g_icu_is_initialized = IcuInit();
-  }
+  // No special ICU initialization is needed if the icu data is linked
+  // statically in the binary. To see more details refer to
+  // ICU_UTIL_DATA_STATIC in base/i18n/icu_util.cc
+
+  g_icu_is_initialized = true;
 }
 
 }  // namespace icu_init
