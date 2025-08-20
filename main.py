@@ -190,8 +190,10 @@ def linearize_history(repo, args):
         print('✅ Working tree matches original end commit')
 
     # Write commit mapping to JSON file
-    mapping_filename = f'{args.new_branch_name}_commit_mapping.json'
-    print(f'\n📄 Writing commit mapping to {mapping_filename}...')
+    if not args.commit_output:
+        mapping_filename = f'{args.new_branch_name}_commit_mapping.json'
+    else:
+        mapping_filename = args.commit_output
 
     with open(mapping_filename, 'w', encoding='utf-8') as f:
         import json
@@ -388,6 +390,10 @@ def main():
                                   type=str,
                                   required=True,
                                   help='The name of the new linear branch.')
+    linearize_parser.add_argument('--commit-output',
+                                  required=False,
+                                  default='',
+                                  help='Output file that the linearize file should output to.')
 
     # Commits command
     commits_parser = subparsers.add_parser(
