@@ -93,6 +93,8 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
 
+  // Temp flag for CobaltUsingAndroidOverlay
+  private Boolean isCobaltUsingAndroidOverlay = true;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -298,9 +300,13 @@ public abstract class CobaltActivity extends Activity {
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
 
-    videoSurfaceView = new VideoSurfaceView(this);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (isCobaltUsingAndroidOverlay) {
+      Log.e(TAG, "Cobalt: Using Android Overlay, did not create videoSurfaceView.");
+    } else {
+      videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+      addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    }
   }
 
   /**
@@ -355,7 +361,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (forceCreateNewVideoSurfaceView) {
+    if (forceCreateNewVideoSurfaceView && !isCobaltUsingAndroidOverlay) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -522,16 +528,22 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
-    runOnUiThread(
+    if (!isCobaltUsingAndroidOverlay) {
+      runOnUiThread(
         new Runnable() {
           @Override
           public void run() {
             createNewSurfaceView();
           }
         });
+    }
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (isCobaltUsingAndroidOverlay) {
+      return;
+    }
+
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
@@ -564,6 +576,10 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (isCobaltUsingAndroidOverlay) {
+      return;
+    }
+
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;

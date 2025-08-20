@@ -208,6 +208,10 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
+
+  SB_LOG(INFO) << __func__ << "SetVideoSurfaceView to surface_view_: "
+               << starboard::android::shared::GetSurfaceViewForCurrentThread();
+
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));

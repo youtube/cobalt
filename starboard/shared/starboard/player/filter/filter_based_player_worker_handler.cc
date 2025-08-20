@@ -550,6 +550,8 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
 
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   surface_view_ = surface_view;
+  SB_LOG(INFO) << __func__ << "Cobalt: SetVideoSurfaceView to surface_view_ at "
+               << surface_view_;
 }
 
 }  // namespace starboard::shared::starboard::player::filter

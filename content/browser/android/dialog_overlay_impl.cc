@@ -121,7 +121,7 @@ void DialogOverlayImpl::CompleteInit(JNIEnv* env,
   // Note: It's ok to call SetOverlayMode() directly here, because there can be
   // at most one overlay alive at the time. This logic needs to be updated if
   // ever AndroidOverlayProviderImpl.MAX_OVERLAYS > 1.
-  delegate->SetOverlayMode(true);
+  // delegate->SetOverlayMode(true);
 
   Java_DialogOverlayImpl_onWebContents(env, obj,
                                        web_contents()->GetJavaWebContents());

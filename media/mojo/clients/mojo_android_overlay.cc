@@ -27,6 +27,9 @@ MojoAndroidOverlay::MojoAndroidOverlay(
 
   mojo::Remote<mojom::AndroidOverlayProvider> provider(
       std::move(pending_provider));
+
+  LOG(INFO) << __func__ << " Cobalt: token used at " << routing_token.ToString();
+
   provider->CreateOverlay(overlay_.BindNewPipeAndPassReceiver(),
                           receiver_.BindNewPipeAndPassRemote(),
                           std::move(mojo_config));

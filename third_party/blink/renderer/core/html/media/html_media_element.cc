@@ -2847,6 +2847,8 @@ ScriptPromise HTMLMediaElement::playForBindings(ScriptState* script_state) {
 absl::optional<DOMExceptionCode> HTMLMediaElement::Play() {
   DVLOG(2) << "play(" << *this << ")";
 
+  LOG(INFO) << "Cobalt: Play";
+  
   absl::optional<DOMExceptionCode> exception_code =
       autoplay_policy_->RequestPlay();
 
