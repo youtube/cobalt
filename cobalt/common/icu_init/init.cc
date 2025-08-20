@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-// #include "base/i18n/icu_util.h" // nogncheck
+#include "base/i18n/icu_util.h"  // nogncheck
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -41,13 +41,8 @@ namespace {
 pthread_once_t g_initialization_once = PTHREAD_ONCE_INIT;
 bool g_initialization_result = false;
 
-// Initialize the ICU using the file named kIcuDataFileName in the
-// kSbSystemPathContentDirectory folder. Note that this gives the ICU its
-// database, but it does not actually set a default timezone or locale.
 void InitializeIcuDatabase() {
-  // test not initializing icu
-  // base::i18n::InitializeICU();
-  g_initialization_result = true;
+  g_initialization_result = base::i18n::InitializeICU();
 }
 
 bool IcuInit() {
