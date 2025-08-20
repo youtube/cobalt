@@ -150,7 +150,12 @@ class SessionHistoryScrollAnchorTest : public SessionHistoryTest {
 // If this flakes, use http://crbug.com/61619 on windows and
 // http://crbug.com/102094 on mac.
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_BasicBackForward) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BasicBackForward BasicBackForward
+#else
+#define MAYBE_BasicBackForward DISABLED_BasicBackForward
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_BasicBackForward) {
   ASSERT_FALSE(CanGoBack());
 
   ASSERT_NO_FATAL_FAILURE(NavigateAndCheckTitle("bot1.html", "bot1"));
@@ -197,7 +202,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_BasicBackForward) {
 // Test that back/forward works when navigating in subframes.
 // If this flakes, use http://crbug.com/48833
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_FrameBackForward) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameBackForward FrameBackForward
+#else
+#define MAYBE_FrameBackForward DISABLED_FrameBackForward
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_FrameBackForward) {
   ASSERT_FALSE(CanGoBack());
 
   ASSERT_NO_FATAL_FAILURE(NavigateAndCheckTitle("frames.html", "bot1"));
@@ -255,7 +265,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_FrameBackForward) {
 // Test that back/forward preserves POST data and document state in subframes.
 // If this flakes use http://crbug.com/61619
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_FrameFormBackForward) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameFormBackForward FrameFormBackForward
+#else
+#define MAYBE_FrameFormBackForward DISABLED_FrameFormBackForward
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_FrameFormBackForward) {
   ASSERT_FALSE(CanGoBack());
 
   ASSERT_NO_FATAL_FAILURE(NavigateAndCheckTitle("frames.html", "bot1"));
@@ -303,7 +318,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_FrameFormBackForward) {
 }
 
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_CrossFrameFormBackForward) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CrossFrameFormBackForward CrossFrameFormBackForward
+#else
+#define MAYBE_CrossFrameFormBackForward DISABLED_CrossFrameFormBackForward
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_CrossFrameFormBackForward) {
   ASSERT_FALSE(CanGoBack());
 
   GURL frames(GetURL("frames.html"));
@@ -355,7 +375,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_CrossFrameFormBackForward) {
 // navigations. Bug 730379.
 // If this flakes use http://crbug.com/61619.
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_FragmentBackForward) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FragmentBackForward FragmentBackForward
+#else
+#define MAYBE_FragmentBackForward DISABLED_FragmentBackForward
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_FragmentBackForward) {
   ASSERT_FALSE(CanGoBack());
 
   GURL fragment(GetURL("fragment.html"));
@@ -404,7 +429,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_FragmentBackForward) {
 // TODO(crbug.com/1280512): Flaky on Linux and Lacros.
 
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_JavascriptHistory) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_JavascriptHistory JavascriptHistory
+#else
+#define MAYBE_JavascriptHistory DISABLED_JavascriptHistory
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_JavascriptHistory) {
   ASSERT_FALSE(CanGoBack());
 
   ASSERT_NO_FATAL_FAILURE(NavigateAndCheckTitle("bot1.html", "bot1"));
@@ -470,7 +500,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_JavascriptHistory) {
 }
 
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_LocationReplace) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LocationReplace LocationReplace
+#else
+#define MAYBE_LocationReplace DISABLED_LocationReplace
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_LocationReplace) {
   // Test that using location.replace doesn't leave the title of the old page
   // visible.
   std::u16string expected_title16(u"bot1");
@@ -481,7 +516,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_LocationReplace) {
 }
 
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_LocationChangeInSubframe) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LocationChangeInSubframe LocationChangeInSubframe
+#else
+#define MAYBE_LocationChangeInSubframe DISABLED_LocationChangeInSubframe
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_LocationChangeInSubframe) {
   ASSERT_NO_FATAL_FAILURE(
       NavigateAndCheckTitle("location_redirect.html", "Default Title"));
 
@@ -500,8 +540,14 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_LocationChangeInSubframe) {
 }
 
 // TODO(b/437357203): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LocationChangeInSubframe_ScrollAnchorTest LocationChangeInSubframe
+#else
+#define MAYBE_LocationChangeInSubframe_ScrollAnchorTest \
+  DISABLED_LocationChangeInSubframe
+#endif
 IN_PROC_BROWSER_TEST_F(SessionHistoryScrollAnchorTest,
-                       DISABLED_LocationChangeInSubframe) {
+                       MAYBE_LocationChangeInSubframe_ScrollAnchorTest) {
   ASSERT_NO_FATAL_FAILURE(
       NavigateAndCheckTitle("location_redirect.html", "Default Title"));
 
@@ -521,7 +567,12 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryScrollAnchorTest,
 
 // http://code.google.com/p/chromium/issues/detail?id=56267
 // TODO(b/437357203): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_HistoryLength) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_HistoryLength HistoryLength
+#else
+#define MAYBE_HistoryLength DISABLED_HistoryLength
+#endif
+IN_PROC_BROWSER_TEST_F(SessionHistoryTest, MAYBE_HistoryLength) {
   EXPECT_EQ(1, EvalJs(shell(), "history.length"));
   EXPECT_TRUE(
       NavigateToURL(shell(), embedded_test_server()->GetURL("/title1.html")));
@@ -552,8 +603,15 @@ IN_PROC_BROWSER_TEST_F(SessionHistoryTest, DISABLED_HistoryLength) {
 // uses 307 (rather than 302) redirect to preserve the body of HTTP POST across
 // redirects (as mandated by https://tools.ietf.org/html/rfc7231#section-6.4.7).
 // TODO(b/437357203): Investigate test failure.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GoBackToCrossSitePostWithRedirect \
+  GoBackToCrossSitePostWithRedirect
+#else
+#define MAYBE_GoBackToCrossSitePostWithRedirect \
+  DISABLED_GoBackToCrossSitePostWithRedirect
+#endif
 IN_PROC_BROWSER_TEST_F(SessionHistoryTest,
-                       DISABLED_GoBackToCrossSitePostWithRedirect) {
+                       MAYBE_GoBackToCrossSitePostWithRedirect) {
   GURL form_url(embedded_test_server()->GetURL(
       "a.com", "/form_that_posts_cross_site.html"));
   GURL redirect_target_url(embedded_test_server()->GetURL("x.com", "/echoall"));
