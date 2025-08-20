@@ -1,0 +1,19 @@
+--- build/config/android/config.gni
++++ build/config/android/config.gni
+@@ -127,16 +127,8 @@
+ 
+   if (!defined(default_android_ndk_root)) {
+     default_android_ndk_root = "//third_party/android_toolchain/ndk"
+-<<<<<<< HEAD
+-    default_android_ndk_version = "r27"
+-=======
+-    if (current_cpu == "riscv64") {
+-      # Today (2023-08-30) only the canary Android NDK supports RISC-V64.
+-      default_android_ndk_root = "//third_party/android_toolchain_canary/ndk"
+-    }
+     default_android_ndk_version = "r26b"
+     default_android_ndk_major_version = 26
+->>>>>>> 8b351117391 (Add starboard build to android (#4259))
+   } else {
+     assert(defined(default_android_ndk_version))
+   }

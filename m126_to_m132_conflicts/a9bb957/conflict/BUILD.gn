@@ -871,6 +871,7 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
+<<<<<<< HEAD
 
   if (is_chrome_for_testing) {
     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
@@ -884,6 +885,10 @@ group("gn_all") {
   }
   if (chrobalt) {
     deps += [ "//chrobalt:gn_all" ]
+=======
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
+>>>>>>> 55799aec18e (Rename Chrobalt to Cobalt. (#4276))
   }
 }
 

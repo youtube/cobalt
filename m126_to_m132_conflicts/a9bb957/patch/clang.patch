@@ -1,0 +1,27 @@
+--- build/config/clang/clang.gni
++++ build/config/clang/clang.gni
+@@ -21,22 +21,14 @@
+   enable_check_raw_ptr_fields =
+       build_with_chromium && !is_official_build &&
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_mac ||
+-<<<<<<< HEAD
+-       is_ios || is_win || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+-=======
+-       is_win || is_chromeos_lacros || is_chromeos_ash) && !is_cobalt
+->>>>>>> 55799aec18e (Rename Chrobalt to Cobalt. (#4276))
++       is_ios || is_win || is_chromeos_lacros || is_chromeos_ash) && !is_cobalt
+ 
+   # TODO(crbug.com/40268473): Merge with enable_check_raw_ptr_fields once both
+   # checks are activated on the same set of platforms.
+   enable_check_raw_ref_fields =
+       build_with_chromium && !is_official_build &&
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win ||
+-<<<<<<< HEAD
+-       is_mac || is_ios || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+-=======
+-       is_mac || is_chromeos_lacros || is_chromeos_ash) && !is_cobalt
+->>>>>>> 55799aec18e (Rename Chrobalt to Cobalt. (#4276))
++       is_mac || is_ios || is_chromeos_lacros || is_chromeos_ash) && !is_cobalt
+ 
+   clang_base_path = default_clang_base_path
+ 
