@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/stat.h>
 
 static_assert(S_ISUID == 04000,
@@ -82,6 +83,8 @@ int musl_flag_to_platform_flag(int musl_flag) {
   switch (musl_flag) {
     case 0:
       return 0;
+    case MUSL_AT_EMPTY_PATH:
+      return AT_EMPTY_PATH;
     case MUSL_AT_SYMLINK_NOFOLLOW:
       return AT_SYMLINK_NOFOLLOW;
     default:
@@ -170,7 +173,24 @@ int __abi_wrap_utimensat(int fildes,
     return -1;
   }
 
-  const struct timespec* platform_times = NULL;
+  // If path is |NULL| or |nullptr|, set the path to the empty string and enable
+  // the |AT_EMPTY_PATH| flag to ensure that utimensat does not try to use the
+  // path. This can allow other functions who call utimensat without a file path
+  // (futimes, futimesat) to still work as intended (some platforms do not allow
+  // utimensat() to accept NULL as the value for |path|).
+  if (!path) {
+    path = "";
+    flag |= AT_EMPTY_PATH;
+  }
+  // If utimensat is called with |path| set as the empty string but without the
+  // |AT_EMPTY_PATH| flag enabled, we set errno to ENOENT and return -1. |path|
+  // should not be set as the empty string without the |AT_EMPTY_PATH| enabled.
+  else if ((strcmp(path, "") == 0) && ((flag & AT_EMPTY_PATH) == 0)) {
+    errno = ENOENT;
+    return -1;
+  }
+
+  const struct timespec* platform_times = nullptr;
   struct timespec times[2];
   if (musl_times) {
     for (int i = 0; i < 2; i++) {
