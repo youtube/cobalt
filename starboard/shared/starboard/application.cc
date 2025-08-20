@@ -66,6 +66,7 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
 }
 
 Application::~Application() {
+  SB_LOG(INFO) << __func__;
   Application* old_instance = this;
   g_instance.compare_exchange_weak(old_instance, NULL,
                                    std::memory_order_acquire);

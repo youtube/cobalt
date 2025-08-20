@@ -243,6 +243,7 @@ extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_StarboardBridge_closeNativeStarboard(JniEnvExt* env,
                                                           jlong nativeApp) {
+  SB_LOG(INFO) << __func__;
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
   delete app;
 }

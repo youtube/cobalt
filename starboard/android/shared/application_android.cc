@@ -77,6 +77,7 @@ ApplicationAndroid::ApplicationAndroid(
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  SB_LOG(INFO) << __func__;
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
 

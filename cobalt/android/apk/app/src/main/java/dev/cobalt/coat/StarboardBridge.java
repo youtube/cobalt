@@ -16,7 +16,6 @@ package dev.cobalt.coat;
 
 import static android.content.Context.AUDIO_SERVICE;
 import static android.media.AudioManager.GET_DEVICES_INPUTS;
-import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -28,6 +27,8 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Size;
 import android.util.SizeF;
 import android.view.Display;
@@ -56,6 +57,7 @@ import org.chromium.content_public.browser.WebContents;
 // TODO(cobalt, b/383301493): we expect this class to be a singleton and should consider enforcing
 // this property.
 public class StarboardBridge {
+  private static final String TAG = "starboard.bridge";
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
@@ -84,6 +86,7 @@ public class StarboardBridge {
       new Runnable() {
         @Override
         public void run() {
+          Log.i("starboard.bridge", "stopRequester.run");
           // When the platform locale setting is updated, the application needs
           // to exit or the Accept-Language request header configuration needs
           // to be updated. The Accept-Language header configuration is set on
@@ -153,6 +156,14 @@ public class StarboardBridge {
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
+
+    new Handler(Looper.getMainLooper())
+        .postDelayed(
+            () -> {
+              Log.i(TAG, "10 second timer finished. Calling afterStopped().");
+              afterStopped();
+            },
+            10_000); // 10 seconds
   }
 
   private native boolean initJNI();
@@ -201,11 +212,21 @@ public class StarboardBridge {
   }
 
   protected void onActivityDestroy(Activity activity) {
+    Log.i(TAG, "onActivityDestroy");
     if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       closeNativeStarboard(nativeApp);
       closeAllServices();
+
+      Log.i(TAG, "HACK: Wait for 1 sec");
+      try {
+        Thread.sleep(1_000);
+      } catch (Exception e) {
+        // Do nothing
+      }
+
+      Log.i(TAG, "Now calls System.exit()");
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -249,6 +270,7 @@ public class StarboardBridge {
   }
 
   private void closeAllServices() {
+    Log.i("starboard.bridge", "closeAllServices");
     ttsHelper.shutdown();
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
@@ -258,6 +280,7 @@ public class StarboardBridge {
   // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
   @CalledByNative
   protected void afterStopped() {
+    Log.i("starboard.bridge", "afterStopped");
     applicationStopped = true;
     closeAllServices();
     Activity activity = activityHolder.get();
@@ -279,6 +302,7 @@ public class StarboardBridge {
 
   @CalledByNative
   protected void applicationStopping() {
+    Log.i("starboard.bridge", "afterStopping");
     applicationStarted = false;
     applicationStopped = true;
   }
