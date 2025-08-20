@@ -23,7 +23,6 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
 
 namespace starboard {

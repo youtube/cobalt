@@ -64,8 +64,8 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "starboard/common/condition_variable.h"  // nogncheck
-#include "starboard/common/mutex.h"               // nogncheck
+#include <pthread.h>
+#include <stdbool.h>
 #endif  // defined(STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC)
 
 #if defined(__cplusplus)

@@ -16,7 +16,6 @@
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
 #include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"

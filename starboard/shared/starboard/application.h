@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "starboard/common/command_line.h"
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"

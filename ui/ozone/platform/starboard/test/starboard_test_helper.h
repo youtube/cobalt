@@ -15,8 +15,6 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
 #define UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
 #include "starboard/event.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -24,8 +22,6 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #include "ui/platform_window/platform_window_delegate.h"
 
-using ::starboard::ConditionVariable;
-using ::starboard::Mutex;
 using ::starboard::Thread;
 
 namespace ui {
