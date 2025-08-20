@@ -1,0 +1,22 @@
+--- BUILD.gn
++++ BUILD.gn
+@@ -871,7 +871,6 @@
+       deps += [ "//components/cronet:cronet_tests" ]
+     }
+   }
+-<<<<<<< HEAD
+ 
+   if (is_chrome_for_testing) {
+     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
+@@ -880,11 +879,6 @@
+   if (checkout_src_internal) {
+     deps += [ "//internal:all" ]
+   }
+-  if (chrobalt) {
+-    deps += [ "//chrobalt:gn_all" ]
+-  }
+-=======
+->>>>>>> b785c6d4e60 (Revert "Build starboard shared library for linux-x64x11 (#4215)" (#4245))
+ }
+ 
+ # All Rust targets. This is provided for convenience while developing Rust to

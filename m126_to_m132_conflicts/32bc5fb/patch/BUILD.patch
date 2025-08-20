@@ -1,0 +1,18 @@
+--- BUILD.gn
++++ BUILD.gn
+@@ -875,14 +875,12 @@
+   if (is_chrome_for_testing) {
+     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
+   }
+-<<<<<<< HEAD
+ 
+   if (checkout_src_internal) {
+     deps += [ "//internal:all" ]
+-=======
++  }
+   if (chrobalt) {
+     deps += [ "//chrobalt:gn_all" ]
+->>>>>>> 76d8897a32f (Build starboard shared library for linux-x64x11 (#4215))
+   }
+ }
+ 
