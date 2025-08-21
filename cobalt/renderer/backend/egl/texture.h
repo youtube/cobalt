@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_H_
 
 #include <memory>
+
 #include "base/callback.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
@@ -83,7 +84,7 @@ class TextureEGL {
   GLenum target_;
 
   // The OpenGL handle to the texture that can be passed into OpenGL functions.
-  GLuint gl_handle_;
+  GLuint gl_handle_ = 0;
 
   // If the texture was constructed from a render target, we keep a reference
   // to the render target.

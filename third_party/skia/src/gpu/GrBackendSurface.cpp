@@ -10,6 +10,8 @@
 
 #include "src/gpu/gl/GrGLUtil.h"
 
+#include <starboard/common/log.h>
+
 #ifdef SK_DAWN
 #include "include/gpu/dawn/GrDawnTypes.h"
 #include "src/gpu/dawn/GrDawnUtil.h"
@@ -311,7 +313,9 @@ GrBackendTexture::GrBackendTexture(int width,
         , fHeight(height)
         , fMipMapped(mipMapped)
         , fBackend(GrBackendApi::kOpenGL)
-        , fGLInfo(glInfo, params.release()) {}
+        , fGLInfo(glInfo, params.release()) {
+            SB_LOG(WARNING) << "GrBackendTexture::GrBackendTexture :" << glInfo.fID;
+        }
 
 sk_sp<GrGLTextureParameters> GrBackendTexture::getGLTextureParams() const {
     if (fBackend != GrBackendApi::kOpenGL) {
