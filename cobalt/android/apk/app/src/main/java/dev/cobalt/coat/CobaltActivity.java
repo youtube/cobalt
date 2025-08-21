@@ -589,13 +589,6 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  @Override
-  public void onLowMemory() {
-    super.onLowMemory();
-    // TODO(cobalt): re-enable native low memory event or remove code if unnecessary.
-    // nativeLowMemoryEvent();
-  }
-
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
   }
