@@ -20,6 +20,7 @@ namespace ui {
 class EVENTS_EXPORT PlatformEventObserverStarboard {
  public:
   virtual void ProcessWindowSizeChangedEvent(int width, int height) = 0;
+  virtual void ProcessFocusEvent(bool is_focused) = 0;
 
  protected:
   virtual ~PlatformEventObserverStarboard() = default;

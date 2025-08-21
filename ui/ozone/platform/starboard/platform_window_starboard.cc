@@ -80,6 +80,14 @@ void PlatformWindowStarboard::ProcessWindowSizeChangedEvent(int width,
   PlatformWindowStarboard::SetBoundsInPixels(new_bounds_px);
 }
 
+void PlatformWindowStarboard::ProcessFocusEvent(bool is_focused) {
+  if (is_focused) {
+    Activate();
+  } else {
+    Deactivate();
+  }
+}
+
 bool PlatformWindowStarboard::ShouldUseNativeFrame() const {
   return use_native_frame_;
 }
