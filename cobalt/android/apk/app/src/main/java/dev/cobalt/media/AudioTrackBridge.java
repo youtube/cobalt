@@ -229,6 +229,15 @@ public class AudioTrackBridge {
     return mAudioTrack.setVolume(gain);
   }
 
+  @CalledByNative
+  public int getPlayState() {
+    if (mAudioTrack == null) {
+      Log.e(TAG, "Unable to getPlayState with NULL audio track.");
+      return 0;
+    }
+    return mAudioTrack.getPlayState();
+  }
+
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @CalledByNative
   private void play() {

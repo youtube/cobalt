@@ -115,6 +115,13 @@ STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
 STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 
+// By default, Cobalt pauses AudioTrack without play state from AudioTrack.
+// Set the following variable to false to force it using play state from
+// AudioTrack while pausing the playback.
+STARBOARD_FEATURE(kPauseUsingWOAudioTrackState,
+                  "PauseUsingWOAudioTrackState",
+                  true)
+
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to true with parameters
 // kResetDelayUsec and kFlushDelayUsec to force it to wait during
