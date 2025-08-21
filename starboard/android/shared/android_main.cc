@@ -44,6 +44,9 @@ namespace {
 using ::starboard::CommandLine;
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
+XXXXX
+BREAK_BUILD
+
 typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
     AndroidCommand;
 
