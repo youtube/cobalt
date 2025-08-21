@@ -182,6 +182,12 @@ source_set("browsertests_sources") {
   sources = [
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
+    "renderer/render_frame_test_helper.cc",
+    "renderer/render_frame_test_helper.h",
+    "renderer/shell_render_frame_observer.cc",
+    "renderer/shell_render_frame_observer.h",
     "utility/shell_content_utility_client.cc",
     "utility/shell_content_utility_client.h",
   ]
@@ -190,6 +196,8 @@ source_set("browsertests_sources") {
     "//components/custom_handlers:test_support",
     "//components/services/storage/test_api",
     "//content/public/child",
+    "//content/public/common",
+    "//content/public/renderer",
     "//content/public/utility",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
@@ -240,12 +248,8 @@ static_library("cobalt_shell_lib") {
     "common/shell_switches.h",
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",
-    "renderer/render_frame_test_helper.cc",
-    "renderer/render_frame_test_helper.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
-    "renderer/shell_render_frame_observer.cc",
-    "renderer/shell_render_frame_observer.h",
   ]
 
   if (is_android) {

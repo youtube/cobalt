@@ -25,9 +25,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/renderer/shell_render_frame_observer.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
 #include "components/web_cache/renderer/web_cache_impl.h"
@@ -46,13 +44,16 @@
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/web/modules/credentialmanagement/throttle_helper.h"
 #include "third_party/blink/public/web/web_local_frame.h"
-#include "third_party/blink/public/web/web_testing_support.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "v8/include/v8.h"
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
-#include "content/public/test/test_service.mojom.h"       // nogncheck
+#include "cobalt/shell/common/main_frame_counter_test_impl.h"   // nogncheck
+#include "cobalt/shell/common/power_monitor_test_impl.h"        // nogncheck
+#include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
+#include "cobalt/shell/renderer/shell_render_frame_observer.h"  // nogncheck
+#include "content/public/test/test_service.mojom.h"             // nogncheck
+#include "third_party/blink/public/web/web_testing_support.h"   // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -250,22 +251,32 @@ void ShellContentRendererClient::ExposeInterfacesToBrowser(
   binders->Add<mojom::PowerMonitorTest>(
       base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-#endif  // defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::MainFrameCounterTest>(
       base::BindRepeating(&MainFrameCounterTestImpl::Bind),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+#endif  // defined(RUN_BROWSER_TESTS)
   binders->Add<web_cache::mojom::WebCache>(
       base::BindRepeating(&web_cache::WebCacheImpl::BindReceiver,
                           base::Unretained(web_cache_impl_.get())),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 
+#if defined(RUN_BROWSER_TESTS)
 void ShellContentRendererClient::RenderFrameCreated(RenderFrame* render_frame) {
   // TODO(danakj): The ShellRenderFrameObserver is doing stuff only for
   // browser tests. If we only create that for browser tests then the override
   // of this method in WebTestContentRendererClient would not be needed.
   new ShellRenderFrameObserver(render_frame);
 }
+
+void ShellContentRendererClient::DidInitializeWorkerContextOnWorkerThread(
+    v8::Local<v8::Context> context) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kExposeInternalsForTesting)) {
+    blink::WebTestingSupport::InjectInternalsObject(context);
+  }
+}
+#endif  // defined(RUN_BROWSER_TESTS)
 
 void ShellContentRendererClient::PrepareErrorPage(
     RenderFrame* render_frame,
@@ -297,14 +308,6 @@ void ShellContentRendererClient::PrepareErrorPageForHttpStatusError(
     *error_html =
         "<head><title>Error</title></head><body>Server returned HTTP status " +
         base::NumberToString(http_status) + "</body>";
-  }
-}
-
-void ShellContentRendererClient::DidInitializeWorkerContextOnWorkerThread(
-    v8::Local<v8::Context> context) {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kExposeInternalsForTesting)) {
-    blink::WebTestingSupport::InjectInternalsObject(context);
   }
 }
 

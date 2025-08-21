@@ -31,10 +31,6 @@ const char kCrashDumpsDir[] = "crash-dumps-dir";
 // Disables the check for the system font when specified.
 const char kDisableSystemFontCheck[] = "disable-system-font-check";
 
-// Exposes the window.internals object to JavaScript for interactive development
-// and debugging of web tests that rely on it.
-const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
-
 // Size for the content_shell's host window (i.e. "800x600").
 const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 
@@ -51,16 +47,7 @@ const char kIsolatedContextOrigins[] = "isolated-context-origins";
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
 
-// Runs Content Shell in web test mode, injecting test-only behaviour for
-// blink web tests.
-const char kRunWebTests[] = "run-web-tests";
-
 // Register the provided scheme as a standard scheme.
 const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
-
-bool IsRunWebTestsSwitchPresent() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kRunWebTests);
-}
 
 }  // namespace switches

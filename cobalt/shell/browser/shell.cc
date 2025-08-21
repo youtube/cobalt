@@ -60,6 +60,10 @@
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
+
 namespace content {
 
 namespace {
@@ -89,10 +93,15 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
     web_contents_->SetDelegate(this);
   }
 
+#if defined(RUN_BROWSER_TESTS)
   if (!switches::IsRunWebTestsSwitchPresent()) {
     UpdateFontRendererPreferencesFromSystemSettings(
         web_contents_->GetMutableRendererPrefs());
   }
+#else
+  UpdateFontRendererPreferencesFromSystemSettings(
+      web_contents_->GetMutableRendererPrefs());
+#endif  // defined(RUN_BROWSER_TESTS)
 
   windows_.push_back(this);
 
@@ -126,6 +135,7 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
   Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
   g_platform->CreatePlatformWindow(shell, initial_size);
 
+#if defined(RUN_BROWSER_TESTS)
   // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
   // here, because they will be forgotten after a cross-process navigation. Use
   // RenderFrameCreated or RenderViewCreated instead.
@@ -133,6 +143,7 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
     raw_web_contents->GetMutableRendererPrefs()->use_custom_colors = false;
     raw_web_contents->SyncRendererPrefs();
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
@@ -660,7 +671,11 @@ bool Shell::DidAddMessageToConsole(WebContents* source,
                                    const std::u16string& message,
                                    int32_t line_no,
                                    const std::u16string& source_id) {
+#if defined(RUN_BROWSER_TESTS)
   return switches::IsRunWebTestsSwitchPresent();
+#else
+  return false;
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 void Shell::RendererUnresponsive(
@@ -741,12 +756,14 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
+#if defined(RUN_BROWSER_TESTS)
   // During tests, returning success to pretend the window was created and allow
   // tests to run accordingly.
-  if (!switches::IsRunWebTestsSwitchPresent()) {
-    return PictureInPictureResult::kNotSupported;
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    return PictureInPictureResult::kSuccess;
   }
-  return PictureInPictureResult::kSuccess;
+#endif  // defined(RUN_BROWSER_TESTS)
+  return PictureInPictureResult::kNotSupported;
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
@@ -756,6 +773,7 @@ bool Shell::ShouldResumeRequestsForCreatedWindow() {
 void Shell::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
   DCHECK(source == web_contents());  // There's only one WebContents per Shell.
 
+#if defined(RUN_BROWSER_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Note that chrome drops these requests on normal windows.
     // TODO(danakj): The position is dropped here but we use the size. Web tests
@@ -763,6 +781,7 @@ void Shell::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
     // letting them pretend?
     g_platform->ResizeWebContent(this, bounds.size());
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 gfx::Size Shell::GetShellDefaultSize() {

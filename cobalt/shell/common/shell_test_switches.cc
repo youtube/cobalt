@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Defines all the "content_shell" command-line switches.
+#include "cobalt/shell/common/shell_test_switches.h"
 
-#ifndef COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
-#define COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
-
-#include "build/build_config.h"
+#include "base/command_line.h"
 
 namespace switches {
 
-extern const char kContentShellUserDataDir[];
-extern const char kCrashDumpsDir[];
-extern const char kDisableSystemFontCheck[];
-extern const char kContentShellHostWindowSize[];
-extern const char kContentShellHideToolbar[];
-extern const char kIsolatedContextOrigins[];
-extern const char kRemoteDebuggingAddress[];
-extern const char kTestRegisterStandardScheme[];
+const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+
+const char kRunWebTests[] = "run-web-tests";
+
+bool IsRunWebTestsSwitchPresent() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kRunWebTests);
+}
 
 }  // namespace switches
-
-#endif  // COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
