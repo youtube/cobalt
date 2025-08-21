@@ -19,7 +19,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/client/screen_position_client.h"
@@ -27,6 +26,10 @@
 #include "ui/base/models/simple_menu_model.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/widget/widget.h"
+
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 namespace {
@@ -84,9 +87,11 @@ ShellWebContentsViewDelegate::~ShellWebContentsViewDelegate() {}
 void ShellWebContentsViewDelegate::ShowContextMenu(
     RenderFrameHost& render_frame_host,
     const ContextMenuParams& params) {
+#if defined(RUN_BROWSER_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     return;
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
   gfx::Point screen_point(params.x, params.y);
 

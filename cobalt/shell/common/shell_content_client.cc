@@ -19,12 +19,15 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/grit/shell_resources.h"
 #include "content/public/common/content_switches.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
+
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 
@@ -33,6 +36,7 @@ ShellContentClient::ShellContentClient() {}
 ShellContentClient::~ShellContentClient() {}
 
 std::u16string ShellContentClient::GetLocalizedString(int message_id) {
+#if defined(RUN_BROWSER_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     switch (message_id) {
       case IDS_FORM_OTHER_DATE_LABEL:
@@ -51,6 +55,7 @@ std::u16string ShellContentClient::GetLocalizedString(int message_id) {
         return u"<<ThisWeek>>";
     }
   }
+#endif  // defined(RUN_BROWSER_TESTS)
   return l10n_util::GetStringUTF16(message_id);
 }
 
