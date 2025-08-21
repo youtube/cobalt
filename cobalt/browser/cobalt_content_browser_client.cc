@@ -58,6 +58,10 @@
 #include "base/android/locale_utils.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
+
 namespace cobalt {
 
 namespace {
@@ -426,6 +430,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
 
+#if defined(RUN_BROWSER_TESTS)
   // Overrides for --run-web-tests.
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Disable artificial timeouts for PNA-only preflights in warning-only mode
@@ -437,6 +442,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             network::features::kPrivateNetworkAccessPreflightShortTimeout),
         base::FeatureList::OVERRIDE_DISABLE_FEATURE);
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
   feature_list->InitializeFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
