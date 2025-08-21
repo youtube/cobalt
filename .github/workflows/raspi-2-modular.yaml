@@ -23,7 +23,7 @@ on:
 
 jobs:
   # This is the raspi build config
-  rapsi-2-modular:
+  raspi-2-modular:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
