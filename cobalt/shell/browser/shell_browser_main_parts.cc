@@ -72,6 +72,10 @@
 #include "ui/linux/linux_ui_factory.h"  // nogncheck
 #endif
 
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
+
 namespace content {
 
 namespace {
@@ -142,9 +146,11 @@ void ShellBrowserMainParts::InitializeMessageLoopContext() {
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {
+#if defined(RUN_BROWSER_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     return;
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
