@@ -16,7 +16,7 @@
   ],
   "includes": [
     {
-      "name": "raspi-2-modular",
+      "name": "raspi-2",
       "platform": "raspi-2-modular"
     }
   ]
