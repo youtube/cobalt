@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.util;
+#include "cobalt/shell/common/shell_test_switches.h"
 
-import androidx.annotation.Nullable;
+#include "base/command_line.h"
 
-/** Holds a mutable reference to an object, or null. */
-public class Holder<T> {
-  private T mInstance;
+namespace switches {
 
-  public Holder() {
-    this.mInstance = null;
-  }
+const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
 
-  public void set(@Nullable T instance) {
-    this.mInstance = instance;
-  }
+const char kRunWebTests[] = "run-web-tests";
 
-  @Nullable
-  public T get() {
-    return mInstance;
-  }
+bool IsRunWebTestsSwitchPresent() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kRunWebTests);
 }
+
+}  // namespace switches
