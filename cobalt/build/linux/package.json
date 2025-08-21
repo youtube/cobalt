@@ -8,7 +8,6 @@
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
-                "icudtl.dat",
                 "starboard/libstarboard.so.17"
             ],
             "rename_files": [

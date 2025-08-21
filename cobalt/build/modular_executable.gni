@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//third_party/icu/config.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 
 template("loader_final_target") {
@@ -107,10 +108,7 @@ template("evergreen_final_target") {
 
   copy("copy_${original_target_name}_content") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    sources = [
-      "$root_out_dir/cobalt_shell.pak",
-      "$root_out_dir/icudtl.dat",
-    ]
+    sources = [ "$root_out_dir/cobalt_shell.pak" ]
     outputs = [
       "$root_out_dir/app/${original_target_name}/content/{{source_file_part}}",
     ]
@@ -118,6 +116,9 @@ template("evergreen_final_target") {
       "//cobalt/shell:pak",
       "//third_party/icu:icudata",
     ]
+    if (icu_use_data_file) {
+      sources = [ "$root_out_dir/icudtl.dat" ]
+    }
   }
 
   copy("copy_${original_target_name}_lib") {
