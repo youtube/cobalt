@@ -40,12 +40,12 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -194,6 +194,7 @@ public class StarboardBridge {
   protected void onActivityStop(Activity activity) {
     Log.i(TAG, "onActivityStop ran");
     beforeSuspend();
+    cobaltMediaSession.onActivityStop();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }

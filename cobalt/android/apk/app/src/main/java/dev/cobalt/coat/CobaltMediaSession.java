@@ -174,6 +174,12 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     setupMediaSessionObserver(MediaSession.fromWebContents(mWebContents));
   }
 
+  public void onActivityStop() {
+    // A workaround to deactivate media session before the app enters background to avoid
+    // b/424538093.
+    deactivateMediaSession();
+  }
+
   private void activateMediaSession() {
     mMediaSession = new MediaSessionCompat(mContext, TAG);
     mMediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
