@@ -640,7 +640,7 @@ void DemuxerManager::OnEncryptedMediaInitData(
 
 void DemuxerManager::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
-  DVLOG(2) << __func__ << " level=" << level;
+  LOG(INFO) << __func__ << " level=" << level;
   DCHECK(base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC));
   DCHECK(GetDemuxerType() == DemuxerType::kChunkDemuxer);
 
