@@ -22,6 +22,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -130,6 +131,8 @@ void AudioTrackBridge::Play(JNIEnv* env /*= AttachCurrentThread()*/) {
 
   Java_AudioTrackBridge_play(env, j_audio_track_bridge_);
   SB_LOG(INFO) << "AudioTrackBridge playing.";
+  SB_LOG(INFO) << __func__ << " > Application::Get="
+               << starboard::shared::starboard::Application::Get();
 }
 
 void AudioTrackBridge::Pause(JNIEnv* env /*= AttachCurrentThread()*/) {
@@ -138,6 +141,8 @@ void AudioTrackBridge::Pause(JNIEnv* env /*= AttachCurrentThread()*/) {
 
   Java_AudioTrackBridge_pause(env, j_audio_track_bridge_);
   SB_LOG(INFO) << "AudioTrackBridge paused.";
+  SB_LOG(INFO) << __func__ << " > Application::Get="
+               << starboard::shared::starboard::Application::Get();
 }
 
 void AudioTrackBridge::Stop(JNIEnv* env /*= AttachCurrentThread()*/) {
