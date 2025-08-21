@@ -14,7 +14,6 @@
 
 #include "starboard/system.h"
 
-#include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestFreeze() {

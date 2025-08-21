@@ -24,7 +24,6 @@
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/android/shared/system_info_api.h"
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"

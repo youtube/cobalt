@@ -12,33 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <atomic>
-
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
-#include "starboard/android/shared/log_internal.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/command_line.h"
-#include "starboard/common/file.h"
-#include "starboard/common/semaphore.h"
-#include "starboard/common/string.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/event.h"
-#include "starboard/log.h"
-#include "starboard/thread.h"
+#include "starboard/export.h"
 
 namespace starboard::android::shared {
 
-std::atomic_bool g_block_swapbuffers{false};
-
 namespace {
-
-using ::starboard::CommandLine;
 
 extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
