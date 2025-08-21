@@ -97,6 +97,13 @@ FEATURE_LIST_START
 //                     false)
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// By default, set the following to true to use stub decoder as audio/video
+// decoder.
+STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
+STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
+#endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
