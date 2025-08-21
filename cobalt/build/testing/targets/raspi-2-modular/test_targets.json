@@ -4,6 +4,6 @@
     "starboard/nplb:nplb_loader"
   ],
   "executables": [
-    "out/evergreen-arm-hardfp-raspi_devel/nplb_loader"
+    "out/raspi-2-modular_devel/nplb_loader"
   ]
 }
