@@ -312,13 +312,7 @@ public class StarboardBridge {
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static boolean isReleaseBuild() {
-    // TODO(cobalt): find a way to determine if is release build.
-    // return nativeIsReleaseBuild();
-    return false;
-  }
-
-  // private static native boolean nativeIsReleaseBuild();
+  public static native boolean isReleaseBuild();
 
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;
