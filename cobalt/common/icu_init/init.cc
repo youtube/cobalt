@@ -31,6 +31,10 @@
 #include "unicode/putil.h"
 #include "unicode/udata.h"
 
+#define UNSUPPORTED_ICU_CONFIG_ERROR_MSG                           \
+  "Initialize ICU properly in this case. Ensure the GN flags and " \
+  "corresponding C++ macros related to ICU are set correctly."
+
 namespace cobalt {
 namespace common {
 namespace icu_init {
@@ -146,7 +150,10 @@ bool IcuInit() {
 // guaranteed to be early enough for ICU to be used by other global
 // initializers.
 static bool g_icu_is_initialized = IcuInit();
-#endif  // (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
+
+#else
+#error UNSUPPORTED_ICU_CONFIG_ERROR_MSG
+#endif
 
 void EnsureInitialized() {
 #if (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC)
@@ -165,9 +172,7 @@ void EnsureInitialized() {
     g_icu_is_initialized = IcuInit();
   }
 #else
-  SB_CHECK(false)
-      << "Initialize ICU properly in this case. Ensure the GN flags and "
-         "corresponding C++ macros related to ICU are set correctly.";
+#error UNSUPPORTED_ICU_CONFIG_ERROR_MSG
 #endif
 }
 
