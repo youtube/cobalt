@@ -45,12 +45,6 @@ if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
-group("browser_tests") {
-  testonly = true
-
-  deps = [ ":cobalt_browsertests" ]
-}
-
 # browsertest_support can be used by targets that run cobalt_shell based
 # browser tests.
 static_library("browsertest_support") {

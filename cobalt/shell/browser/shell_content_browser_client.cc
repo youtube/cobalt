@@ -44,14 +44,10 @@
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
-#include "cobalt/shell/common/shell_controller.test-mojom.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
-#if defined(RUN_BROWSER_TESTS)
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
 #include "components/embedder_support/switches.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/client_info.h"
@@ -131,7 +127,9 @@
 #endif
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"              // nogncheck
+#include "cobalt/shell/common/shell_controller.test-mojom.h"  // nogncheck
+#include "cobalt/shell/common/shell_test_switches.h"          // nogncheck
+#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
 #include "components/metrics/test/test_enabled_state_provider.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
@@ -162,6 +160,7 @@ int GetCrashSignalFD(const base::CommandLine& command_line) {
 }
 #endif
 
+#if defined(RUN_BROWSER_TESTS)
 class ShellControllerImpl : public mojom::ShellController {
  public:
   ShellControllerImpl() = default;
@@ -188,6 +187,7 @@ class ShellControllerImpl : public mojom::ShellController {
 
   void ShutDown() override { Shell::Shutdown(); }
 };
+#endif  // defined(RUN_BROWSER_TESTS)
 
 // TODO(crbug/1219642): Consider not needing VariationsServiceClient just to use
 // VariationsFieldTrialCreator.
@@ -701,6 +701,7 @@ BluetoothDelegate* ShellContentBrowserClient::GetBluetoothDelegate() {
 }
 #endif
 
+#if defined(RUN_BROWSER_TESTS)
 void ShellContentBrowserClient::BindBrowserControlInterface(
     mojo::ScopedMessagePipeHandle pipe) {
   if (!pipe.is_valid()) {
@@ -710,6 +711,7 @@ void ShellContentBrowserClient::BindBrowserControlInterface(
       std::make_unique<ShellControllerImpl>(),
       mojo::PendingReceiver<mojom::ShellController>(std::move(pipe)));
 }
+#endif  // defined(RUN_BROWSER_TESTS)
 
 void ShellContentBrowserClient::set_browser_main_parts(
     ShellBrowserMainParts* parts) {
