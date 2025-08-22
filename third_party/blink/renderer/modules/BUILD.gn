@@ -783,6 +783,7 @@ source_set("unit_tests") {
 
   # Exclude tests for disabled modules.
   sources -= test_sources_excluded_for_lightweight
+  deps -= test_deps_excluded_for_lightweight
 
   deps += ["//build:lightweight_buildflags"]
 }

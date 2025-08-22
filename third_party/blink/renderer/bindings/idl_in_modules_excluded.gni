@@ -6,6 +6,47 @@ import ("//build/config/lightweight.gni")
 
 static_idl_files_in_modules_excluded = []
 
+# Disable Bluetooth from build.
+if (disable_bluetooth) {
+  # Bluetooth
+  static_idl_files_in_modules_excluded += [
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_advertising_event.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_advertising_event_init.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_characteristic_properties.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_data_filter_init.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_device.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_le_scan.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_le_scan_filter_init.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_le_scan_options.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_manufacturer_data_filter_init.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_manufacturer_data_map.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_remote_gatt_characteristic.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_remote_gatt_descriptor.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_remote_gatt_server.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_remote_gatt_service.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_service_data_map.idl",
+    "//third_party/blink/renderer/modules/bluetooth/bluetooth_uuid.idl",
+    "//third_party/blink/renderer/modules/bluetooth/navigator_bluetooth.idl",
+    "//third_party/blink/renderer/modules/bluetooth/request_device_options.idl",
+    "//third_party/blink/renderer/modules/bluetooth/watch_advertisements_options.idl",
+  ]
+
+  # Serial
+  static_idl_files_in_modules_excluded += [
+    "//third_party/blink/renderer/modules/serial/navigator_serial.idl",
+    "//third_party/blink/renderer/modules/serial/serial.idl",
+    "//third_party/blink/renderer/modules/serial/serial_input_signals.idl",
+    "//third_party/blink/renderer/modules/serial/serial_options.idl",
+    "//third_party/blink/renderer/modules/serial/serial_output_signals.idl",
+    "//third_party/blink/renderer/modules/serial/serial_port.idl",
+    "//third_party/blink/renderer/modules/serial/serial_port_filter.idl",
+    "//third_party/blink/renderer/modules/serial/serial_port_info.idl",
+    "//third_party/blink/renderer/modules/serial/serial_port_request_options.idl",
+    "//third_party/blink/renderer/modules/serial/worker_navigator_serial.idl",
+  ]
+}
+
 # Disable xr from build.
 if (disable_xr) {
   static_idl_files_in_modules_excluded += [
