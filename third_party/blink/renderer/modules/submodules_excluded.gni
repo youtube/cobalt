@@ -2,11 +2,31 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import ("//build/config/lightweight.gni")
+import("//build/config/lightweight.gni")
+import("//third_party/blink/renderer/config.gni")
 
 sub_modules_excluded_for_lightweight = []
 
 test_sources_excluded_for_lightweight = []
+test_deps_excluded_for_lightweight = []
+
+# Disable Bluetooth from build.
+if (disable_bluetooth) {
+  sub_modules_excluded_for_lightweight += [
+    "//third_party/blink/renderer/modules/bluetooth",
+    "//third_party/blink/renderer/modules/serial",
+  ]
+
+  test_sources_excluded_for_lightweight += [
+    "bluetooth/bluetooth_uuid_unittest.cc"
+  ]
+
+  if (!target_os_is_android) {
+    test_deps_excluded_for_lightweight += [
+      "//third_party/blink/renderer/modules/serial:unit_tests"
+    ]
+  }
+}
 
 # Disable xr from build.
 if (disable_xr) {
