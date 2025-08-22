@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/player_worker.h"
 
 #include <pthread.h>
+#include <string.h>
 
 #include <condition_variable>
 #include <memory>
@@ -136,8 +137,8 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   pthread_attr_destroy(&attributes);
 
   if (result != 0) {
-    SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
-    thread_ = 0;
+    SB_LOG(ERROR) << "Failed to create thread in PlayerWorker constructor: "
+                  << strerror(result);
     return;
   }
   std::unique_lock lock(thread_param.mutex);
