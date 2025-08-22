@@ -84,14 +84,6 @@ ApplicationAndroid::~ApplicationAndroid() {
   JniEnvExt::OnThreadShutdown();
 }
 
-extern "C" SB_EXPORT_PLATFORM jboolean
-Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
-    JniEnvExt* env,
-    jobject unused_this) {
-  // TODO(cobalt, b/378581064): how to handle onSearchRequested()?
-  return true;
-}
-
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfigurationChanged(
     JNIEnv* env,

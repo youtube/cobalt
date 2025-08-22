@@ -294,14 +294,8 @@ public class StarboardBridge {
   public void requestStop(int errorLevel) {}
 
   public boolean onSearchRequested() {
-    // TODO(cobalt): re-enable native search request if needed.
-    // if (applicationStarted) {
-    //   return nativeOnSearchRequested();
-    // }
     return false;
   }
-
-  // private native boolean nativeOnSearchRequested();
 
   @CalledByNative
   public Context getApplicationContext() {
