@@ -45,4 +45,16 @@ int __abi_wrap_fchmod(int fd, mode_t mode);
 int fchmod(int fd, mode_t mode) {
   return __abi_wrap_fchmod(fd, mode);
 }
+
+int __abi_wrap_utimensat(int fildes,
+                         const char* path,
+                         const struct timespec times[2],
+                         int flag);
+
+int utimensat(int fildes,
+              const char* path,
+              const struct timespec times[2],
+              int flag) {
+  return __abi_wrap_utimensat(fildes, path, times, flag);
+}
 }
