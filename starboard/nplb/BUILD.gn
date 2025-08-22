@@ -245,6 +245,7 @@ test("nplb") {
       "posix_compliance/posix_unistd_gethostname_test.cc",
       "posix_compliance/posix_unistd_sysconf_test.cc",
       "posix_compliance/posix_usleep_test.cc",
+      "posix_compliance/posix_utimensat_test.cc",
       "random_helpers.cc",
       "sabi/alignment_test.cc",
       "sabi/endianness_test.cc",
