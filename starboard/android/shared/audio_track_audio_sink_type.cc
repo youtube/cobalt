@@ -177,7 +177,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    pthread_join(*audio_out_thread_, NULL);
+    pthread_join(*audio_out_thread_, nullptr);
   }
 }
 
