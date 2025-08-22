@@ -22,7 +22,7 @@ namespace starboard::android::shared {
 namespace {
 
 extern "C" SB_EXPORT_PLATFORM jboolean
-Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
+Java_dev_cobalt_coat_StarboardBridge_isReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
