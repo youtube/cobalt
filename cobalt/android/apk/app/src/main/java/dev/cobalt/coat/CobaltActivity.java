@@ -288,9 +288,6 @@ public abstract class CobaltActivity extends Activity {
     return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
-  // TODO(b/375442742): re-enable native code.
-  // private static native void nativeLowMemoryEvent();
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.

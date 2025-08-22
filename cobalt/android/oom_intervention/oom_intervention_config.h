@@ -1,18 +1,28 @@
-// Copyright 2018 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#ifndef CHROME_BROWSER_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_CONFIG_H_
-#define CHROME_BROWSER_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_CONFIG_H_
+#ifndef COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_CONFIG_H_
+#define COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_CONFIG_H_
 
+#include "base/memory/singleton.h"
 #include "third_party/blink/public/mojom/oom_intervention/oom_intervention.mojom.h"
 
-// Holds the configurations provided by field trials for OOM intervention.
 class OomInterventionConfig {
  public:
   static const OomInterventionConfig* GetInstance();
 
-  // True when field trials enables intervention and config is valid.
+  // True when intervention and config is valid.
   bool is_intervention_enabled() const { return is_intervention_enabled_; }
 
   // True when browser swap monitor is enabled.
@@ -44,8 +54,9 @@ class OomInterventionConfig {
   blink::mojom::DetectionArgsPtr GetRendererOomDetectionArgs() const;
 
  private:
+  friend struct base::DefaultSingletonTraits<OomInterventionConfig>;
+
   OomInterventionConfig();
-  ~OomInterventionConfig();
 
   bool is_intervention_enabled_ = false;
 
@@ -62,4 +73,4 @@ class OomInterventionConfig {
   blink::mojom::DetectionArgsPtr renderer_detection_args_;
 };
 
-#endif  // CHROME_BROWSER_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_CONFIG_H_
+#endif  // COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_CONFIG_H_
