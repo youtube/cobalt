@@ -166,9 +166,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  pthread_create(&audio_out_thread_, nullptr,
-                 &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
+  int result = pthread_create(&audio_out_thread_, nullptr,
+                              &AudioTrackAudioSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {

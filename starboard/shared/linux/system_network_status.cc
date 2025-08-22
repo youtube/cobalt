@@ -108,11 +108,12 @@ bool NetworkNotifier::Initialize() {
   }
 
   pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-  pthread_create(&notifier_thread_, &attributes,
-                 &NetworkNotifier::NotifierThreadEntry, this);
+  int create_result =
+      pthread_create(&notifier_thread_, &attributes,
+                     &NetworkNotifier::NotifierThreadEntry, this);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK_NE(notifier_thread_, 0);
+  SB_CHECK_EQ(create_result, 0);
   return true;
 }
 

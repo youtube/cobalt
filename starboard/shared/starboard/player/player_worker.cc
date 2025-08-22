@@ -131,12 +131,13 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
   pthread_attr_setstacksize(&attributes, kPlayerStackSize);
-  pthread_create(&thread_, &attributes, &PlayerWorker::ThreadEntryPoint,
-                 &thread_param);
+  int result = pthread_create(&thread_, &attributes,
+                              &PlayerWorker::ThreadEntryPoint, &thread_param);
   pthread_attr_destroy(&attributes);
 
-  if (thread_ == 0) {
+  if (result != 0) {
     SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
+    thread_ = 0;
     return;
   }
   std::unique_lock lock(thread_param.mutex);

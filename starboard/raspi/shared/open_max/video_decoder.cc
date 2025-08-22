@@ -66,8 +66,9 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 
   SB_DCHECK_EQ(thread_, 0);
-  pthread_create(&thread_, nullptr, &VideoDecoder::ThreadEntryPoint, this);
-  SB_DCHECK_NE(thread_, 0);
+  int result =
+      pthread_create(&thread_, nullptr, &VideoDecoder::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
 }
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {

@@ -195,9 +195,9 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (decoder_thread_ == 0) {
-    pthread_create(&decoder_thread_, nullptr,
-                   &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK_NE(decoder_thread_, 0);
+    int result = pthread_create(&decoder_thread_, nullptr,
+                                &MediaDecoder::DecoderThreadEntryPoint, this);
+    SB_CHECK_EQ(result, 0);
   }
 
   std::lock_guard lock(mutex_);

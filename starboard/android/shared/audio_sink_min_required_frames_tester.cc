@@ -82,9 +82,10 @@ void MinRequiredFramesTester::Start() {
   // MinRequiredFramesTester only supports to start once.
   SB_DCHECK_EQ(tester_thread_, 0);
 
-  pthread_create(&tester_thread_, nullptr,
-                 &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_DCHECK_NE(tester_thread_, 0);
+  int result =
+      pthread_create(&tester_thread_, nullptr,
+                     &MinRequiredFramesTester::TesterThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
 }
 
 // static

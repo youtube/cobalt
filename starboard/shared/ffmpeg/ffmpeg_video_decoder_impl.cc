@@ -165,9 +165,10 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
   }
 
   if (decoder_thread_ == 0) {
-    pthread_create(&decoder_thread_, nullptr,
-                   &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_DCHECK_NE(decoder_thread_, 0);
+    int result =
+        pthread_create(&decoder_thread_, nullptr,
+                       &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
+    SB_CHECK_EQ(result, 0);
   }
   queue_.Put(Event(input_buffer));
 }
