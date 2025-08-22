@@ -95,7 +95,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     return;
   }
 
-  int result =
+  const int result =
       pthread_create(&audio_out_thread_, nullptr,
                      &ContinuousAudioTrackSink::ThreadEntryPoint, this);
   SB_CHECK_EQ(result, 0);

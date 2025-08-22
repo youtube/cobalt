@@ -48,7 +48,8 @@ void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
-  int result = pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
+  const int result =
+      pthread_create(&d_->thread_, nullptr, ThreadEntryPoint, this);
   SB_CHECK_EQ(result, 0);
 }
 

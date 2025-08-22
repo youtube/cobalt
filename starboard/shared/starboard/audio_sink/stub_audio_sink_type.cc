@@ -72,8 +72,8 @@ StubAudioSink::StubAudioSink(
       context_(context),
       audio_out_thread_(0),
       destroying_(false) {
-  int result = pthread_create(&audio_out_thread_, nullptr,
-                              &StubAudioSink::ThreadEntryPoint, this);
+  const int result = pthread_create(&audio_out_thread_, nullptr,
+                                    &StubAudioSink::ThreadEntryPoint, this);
   SB_CHECK_EQ(result, 0);
 }
 

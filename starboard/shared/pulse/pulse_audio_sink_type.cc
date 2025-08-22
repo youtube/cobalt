@@ -476,8 +476,8 @@ bool PulseAudioSinkType::Initialize() {
     context_ = NULL;
     return false;
   }
-  int result = pthread_create(&audio_thread_, nullptr,
-                              &PulseAudioSinkType::ThreadEntryPoint, this);
+  const int result = pthread_create(
+      &audio_thread_, nullptr, &PulseAudioSinkType::ThreadEntryPoint, this);
   SB_CHECK_EQ(result, 0);
 
   return true;

@@ -166,8 +166,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  int result = pthread_create(&audio_out_thread_, nullptr,
-                              &AudioTrackAudioSink::ThreadEntryPoint, this);
+  const int result =
+      pthread_create(&audio_out_thread_, nullptr,
+                     &AudioTrackAudioSink::ThreadEntryPoint, this);
   SB_CHECK_EQ(result, 0);
 }
 

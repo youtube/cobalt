@@ -165,7 +165,7 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
   }
 
   if (decoder_thread_ == 0) {
-    int result =
+    const int result =
         pthread_create(&decoder_thread_, nullptr,
                        &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
     SB_CHECK_EQ(result, 0);

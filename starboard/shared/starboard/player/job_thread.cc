@@ -50,8 +50,8 @@ JobThread::JobThread(const char* thread_name,
     pthread_attr_setstacksize(&attributes, stack_size);
   }
 
-  int result = pthread_create(&thread_, &attributes,
-                              &JobThread::ThreadEntryPoint, &thread_param);
+  const int result = pthread_create(
+      &thread_, &attributes, &JobThread::ThreadEntryPoint, &thread_param);
   pthread_attr_destroy(&attributes);
 
   SB_CHECK_EQ(result, 0);

@@ -132,8 +132,8 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
   pthread_attr_setstacksize(&attributes, kPlayerStackSize);
-  int result = pthread_create(&thread_, &attributes,
-                              &PlayerWorker::ThreadEntryPoint, &thread_param);
+  const int result = pthread_create(
+      &thread_, &attributes, &PlayerWorker::ThreadEntryPoint, &thread_param);
   pthread_attr_destroy(&attributes);
 
   if (result != 0) {
