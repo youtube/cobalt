@@ -4343,8 +4343,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // views registered with the top-level WebContents' InputEventRouter. This
 // ensures the descendants will receive events that should be routed to them.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_AttachNestedInnerWebContents AttachNestedInnerWebContents
+#else
+#define MAYBE_AttachNestedInnerWebContents DISABLED_AttachNestedInnerWebContents
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_AttachNestedInnerWebContents) {
+                       MAYBE_AttachNestedInnerWebContents) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(a)"));
