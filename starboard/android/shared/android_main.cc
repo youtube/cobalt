@@ -23,6 +23,16 @@ namespace {
 
 extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_StarboardBridge_isReleaseBuild() {
+#if defined(COBALT_BUILD_TYPE_DEVEL)
+  BREAK_DEVEL_BUILD
+#endif
+#if defined(COBALT_BUILD_TYPE_QA)
+  BREAK_QA_BUILD
+#endif
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  BREAK_GOLD_BUILD
+#endif
+
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
