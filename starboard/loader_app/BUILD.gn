@@ -307,10 +307,9 @@ static_library("slot_management") {
 
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
-if (sb_is_evergreen) {
+if (sb_is_evergreen && current_toolchain == starboard_toolchain) {
   source_set("slot_management_test") {
     testonly = true
-    build_loader = false
 
     sources = [ "slot_management_test.cc" ]
     deps = [
