@@ -1,0 +1,15 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/lightweight.gni")
+
+generated_union_sources_in_core_excluded = []
+
+# Disable Bluetooth from build.
+if (disable_bluetooth) {
+  generated_union_sources_in_core_excluded += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_union_string_unsignedlong.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_union_string_unsignedlong.h",
+  ]
+}

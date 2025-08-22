@@ -4,6 +4,10 @@
 
 # Lightweight build configuration. Only Linux based build is considered.
 declare_args() {
+  # Disable Bluetooth support.
+  # Serial which depends on Bluetooth is also excluded from the build.
+  disable_bluetooth = false
+
   # Disable XR support.
   disable_xr = false
 }
