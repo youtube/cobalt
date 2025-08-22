@@ -83,7 +83,12 @@ class FrameTreeBrowserTest : public ContentBrowserTest {
 
 // Ensures FrameTree correctly reflects page structure during navigations.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FrameTreeShape FrameTreeShape
+#else
+#define MAYBE_FrameTreeShape DISABLED_FrameTreeShape
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeShape) {
   GURL base_url = embedded_test_server()->GetURL("A.com", "/site_isolation/");
 
   // Load doc without iframes. Verify FrameTree just has root.
@@ -110,7 +115,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape) {
 // TODO(ajwong): Talk with nasko and merge this functionality with
 // FrameTreeShape.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape2) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FrameTreeShape2 FrameTreeShape2
+#else
+#define MAYBE_FrameTreeShape2 DISABLED_FrameTreeShape2
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeShape2) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -143,8 +153,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape2) {
 
 // Frame attributes of iframe elements are correctly tracked in FrameTree.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_FrameTreeAttributesUpdate) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FrameTreeAttributesUpdate FrameTreeAttributesUpdate
+#else
+#define MAYBE_FrameTreeAttributesUpdate DISABLED_FrameTreeAttributesUpdate
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeAttributesUpdate) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -174,7 +188,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Ensures that frames' name attributes and their updates are tracked in
 // |html_name()| and window.name and its updates are tracked in |frame_name()|.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameNameVSWindowName) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FrameNameVSWindowName FrameNameVSWindowName
+#else
+#define MAYBE_FrameNameVSWindowName DISABLED_FrameNameVSWindowName
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameNameVSWindowName) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -213,7 +232,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameNameVSWindowName) {
 
 // Ensures that long attributes are cut down to the max length.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_LongAttributesCutDown) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_LongAttributesCutDown LongAttributesCutDown
+#else
+#define MAYBE_LongAttributesCutDown DISABLED_LongAttributesCutDown
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_LongAttributesCutDown) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -241,7 +265,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_LongAttributesCutDown) {
 // Insert a frame into the frame tree and ensure that the inserted frame's
 // attributes are correctly captured.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_InsertFrameInTree) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_InsertFrameInTree InsertFrameInTree
+#else
+#define MAYBE_InsertFrameInTree DISABLED_InsertFrameInTree
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_InsertFrameInTree) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -273,7 +302,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_InsertFrameInTree) {
 // Test that we can navigate away if the previous renderer doesn't clean up its
 // child frames.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeAfterCrash) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FrameTreeAfterCrash FrameTreeAfterCrash
+#else
+#define MAYBE_FrameTreeAfterCrash DISABLED_FrameTreeAfterCrash
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeAfterCrash) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -317,8 +351,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeAfterCrash) {
 // Test that we can navigate away if the previous renderer doesn't clean up its
 // child frames.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_NavigateWithLeftoverFrames) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_NavigateWithLeftoverFrames NavigateWithLeftoverFrames
+#else
+#define MAYBE_NavigateWithLeftoverFrames DISABLED_NavigateWithLeftoverFrames
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_NavigateWithLeftoverFrames) {
   GURL base_url = embedded_test_server()->GetURL("A.com", "/site_isolation/");
 
   EXPECT_TRUE(NavigateToURL(
@@ -345,7 +383,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 
 // Ensure that IsRenderFrameLive is true for main frames and same-site iframes.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_IsRenderFrameLive) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_IsRenderFrameLive IsRenderFrameLive
+#else
+#define MAYBE_IsRenderFrameLive DISABLED_IsRenderFrameLive
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_IsRenderFrameLive) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -371,7 +414,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_IsRenderFrameLive) {
 
 // Ensure that origins are correctly set on navigations.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_OriginSetOnNavigation) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_OriginSetOnNavigation OriginSetOnNavigation
+#else
+#define MAYBE_OriginSetOnNavigation DISABLED_OriginSetOnNavigation
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_OriginSetOnNavigation) {
   GURL about_blank(url::kAboutBlankURL);
   GURL main_url(
       embedded_test_server()->GetURL("a.com", "/frame_tree/top.html"));
@@ -456,8 +504,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_OriginSetOnNavigation) {
 // Tests a cross-origin navigation to a blob URL. The main frame initiates this
 // navigation on its grandchild. It should wind up in the main frame's process.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_NavigateGrandchildToBlob) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_NavigateGrandchildToBlob NavigateGrandchildToBlob
+#else
+#define MAYBE_NavigateGrandchildToBlob DISABLED_NavigateGrandchildToBlob
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_NavigateGrandchildToBlob) {
   WebContents* contents = shell()->web_contents();
   FrameTreeNode* root =
       static_cast<WebContentsImpl*>(contents)->GetPrimaryFrameTree().root();
@@ -510,8 +562,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 }
 
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_NavigateChildToAboutBlank) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_NavigateChildToAboutBlank NavigateChildToAboutBlank
+#else
+#define MAYBE_NavigateChildToAboutBlank DISABLED_NavigateChildToAboutBlank
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_NavigateChildToAboutBlank) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -558,8 +614,14 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Nested iframes, three origins: A(B(C)). Frame A navigates C to about:blank
 // (via window.open). This should wind up in A's origin per the spec. Test fails
 // because of http://crbug.com/564292
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_NavigateGrandchildToAboutBlank NavigateGrandchildToAboutBlank
+#else
+#define MAYBE_NavigateGrandchildToAboutBlank \
+  DISABLED_NavigateGrandchildToAboutBlank
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_NavigateGrandchildToAboutBlank) {
+                       MAYBE_NavigateGrandchildToAboutBlank) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -607,8 +669,13 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // navigation on its grandchild. It should wind up in the main frame's process
 // and have precursor origin of the main frame origin.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_NavigateGrandchildToDataUrl NavigateGrandchildToDataUrl
+#else
+#define MAYBE_NavigateGrandchildToDataUrl DISABLED_NavigateGrandchildToDataUrl
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_NavigateGrandchildToDataUrl) {
+                       MAYBE_NavigateGrandchildToDataUrl) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c))"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -669,7 +736,12 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Ensures that iframe with srcdoc is always put in the same origin as its
 // parent frame.
 // TODO(b/437413685): Investigate test failure.
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_ChildFrameWithSrcdoc) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ChildFrameWithSrcdoc ChildFrameWithSrcdoc
+#else
+#define MAYBE_ChildFrameWithSrcdoc DISABLED_ChildFrameWithSrcdoc
+#endif
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_ChildFrameWithSrcdoc) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -730,8 +802,13 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_ChildFrameWithSrcdoc) {
 // Ensure that sandbox flags are correctly set in the main frame when set by
 // Content-Security-Policy header.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SandboxFlagsSetForMainFrame SandboxFlagsSetForMainFrame
+#else
+#define MAYBE_SandboxFlagsSetForMainFrame DISABLED_SandboxFlagsSetForMainFrame
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_SandboxFlagsSetForMainFrame) {
+                       MAYBE_SandboxFlagsSetForMainFrame) {
   GURL main_url(embedded_test_server()->GetURL("/csp_sandboxed_frame.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -787,8 +864,14 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 
 // Ensure that sandbox flags are correctly set when child frames are created.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SandboxFlagsSetForChildFrames SandboxFlagsSetForChildFrames
+#else
+#define MAYBE_SandboxFlagsSetForChildFrames \
+  DISABLED_SandboxFlagsSetForChildFrames
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_SandboxFlagsSetForChildFrames) {
+                       MAYBE_SandboxFlagsSetForChildFrames) {
   GURL main_url(embedded_test_server()->GetURL("/sandboxed_frames.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -834,8 +917,15 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Content-Security-Policy header, and in combination with the sandbox iframe
 // attribute.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SandboxFlagsSetByCSPForChildFrames \
+  SandboxFlagsSetByCSPForChildFrames
+#else
+#define MAYBE_SandboxFlagsSetByCSPForChildFrames \
+  DISABLED_SandboxFlagsSetByCSPForChildFrames
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_SandboxFlagsSetByCSPForChildFrames) {
+                       MAYBE_SandboxFlagsSetByCSPForChildFrames) {
   GURL main_url(embedded_test_server()->GetURL("/sandboxed_frames_csp.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -916,8 +1006,14 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Ensure that a popup opened from a subframe sets its opener to the subframe's
 // FrameTreeNode, and that the opener is cleared if the subframe is destroyed.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SubframeOpenerSetForNewWindow SubframeOpenerSetForNewWindow
+#else
+#define MAYBE_SubframeOpenerSetForNewWindow \
+  DISABLED_SubframeOpenerSetForNewWindow
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_SubframeOpenerSetForNewWindow) {
+                       MAYBE_SubframeOpenerSetForNewWindow) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -949,8 +1045,15 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 // Tests that the user activation bits get cleared when a same-site document is
 // installed in the frame.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ClearUserActivationForNewDocument \
+  ClearUserActivationForNewDocument
+#else
+#define MAYBE_ClearUserActivationForNewDocument \
+  DISABLED_ClearUserActivationForNewDocument
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
-                       DISABLED_ClearUserActivationForNewDocument) {
+                       MAYBE_ClearUserActivationForNewDocument) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1000,8 +1103,15 @@ class CrossProcessFrameTreeBrowserTest : public ContentBrowserTest {
 
 // Ensure that we can complete a cross-process subframe navigation.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_CreateCrossProcessSubframeProxies \
+  CreateCrossProcessSubframeProxies
+#else
+#define MAYBE_CreateCrossProcessSubframeProxies \
+  DISABLED_CreateCrossProcessSubframeProxies
+#endif
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       DISABLED_CreateCrossProcessSubframeProxies) {
+                       MAYBE_CreateCrossProcessSubframeProxies) {
   GURL main_url(embedded_test_server()->GetURL("/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1067,8 +1177,13 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 }
 
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_OriginSetOnNavigations OriginSetOnNavigations
+#else
+#define MAYBE_OriginSetOnNavigations DISABLED_OriginSetOnNavigations
+#endif
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       DISABLED_OriginSetOnNavigations) {
+                       MAYBE_OriginSetOnNavigations) {
   GURL main_url(embedded_test_server()->GetURL("/site_per_process_main.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1311,8 +1426,15 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 // iframe is not considered same origin, but precursor information is preserved
 // in its origin.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_AboutBlankSubframeInSandboxedFrame \
+  AboutBlankSubframeInSandboxedFrame
+#else
+#define MAYBE_AboutBlankSubframeInSandboxedFrame \
+  DISABLED_AboutBlankSubframeInSandboxedFrame
+#endif
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       DISABLED_AboutBlankSubframeInSandboxedFrame) {
+                       MAYBE_AboutBlankSubframeInSandboxedFrame) {
   // Start off by navigating to a page with sandboxed iframe, which allows
   // script execution.
   GURL main_url(
@@ -1367,8 +1489,13 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 // Ensure that a popup opened from a sandboxed main frame inherits sandbox flags
 // from its opener.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SandboxFlagsSetForNewWindow SandboxFlagsSetForNewWindow
+#else
+#define MAYBE_SandboxFlagsSetForNewWindow DISABLED_SandboxFlagsSetForNewWindow
+#endif
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       DISABLED_SandboxFlagsSetForNewWindow) {
+                       MAYBE_SandboxFlagsSetForNewWindow) {
   GURL main_url(
       embedded_test_server()->GetURL("/sandboxed_main_frame_script.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -1409,8 +1536,15 @@ IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
 // Tests that the user activation bits get cleared when a cross-site document is
 // installed in the frame.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ClearUserActivationForNewDocument_CrossProcess \
+  ClearUserActivationForNewDocument
+#else
+#define MAYBE_ClearUserActivationForNewDocument_CrossProcess \
+  DISABLED_ClearUserActivationForNewDocument
+#endif
 IN_PROC_BROWSER_TEST_F(CrossProcessFrameTreeBrowserTest,
-                       DISABLED_ClearUserActivationForNewDocument) {
+                       MAYBE_ClearUserActivationForNewDocument_CrossProcess) {
   GURL main_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1446,6 +1580,7 @@ class BrowserContextGroupSwapFrameTreeBrowserTest : public ContentBrowserTest {
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     IsolateAllSitesForTesting(command_line);
+    mock_cert_verifier_.SetUpCommandLine(command_line);
   }
 
   void SetUpOnMainThread() override {
@@ -1455,20 +1590,35 @@ class BrowserContextGroupSwapFrameTreeBrowserTest : public ContentBrowserTest {
     https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
     net::test_server::RegisterDefaultHandlers(&https_server_);
     ASSERT_TRUE(https_server_.Start());
+    mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    mock_cert_verifier_.SetUpInProcessBrowserTestFixture();
+  }
+
+  void TearDownInProcessBrowserTestFixture() override {
+    mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
   }
 
   net::EmbeddedTestServer* https_server() { return &https_server_; }
 
  public:
   net::EmbeddedTestServer https_server_;
+  content::ContentMockCertVerifier mock_cert_verifier_;
 };
 
 // Force a race between when the RenderViewHostImpl's main frame is running
 // the unload handlers and when a new navigation occurs that tries to
 // reuse a RenderViewHostImpl.
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_NavigateAndGoBack NavigateAndGoBack
+#else
+#define MAYBE_NavigateAndGoBack DISABLED_NavigateAndGoBack
+#endif
 IN_PROC_BROWSER_TEST_F(BrowserContextGroupSwapFrameTreeBrowserTest,
-                       DISABLED_NavigateAndGoBack) {
+                       MAYBE_NavigateAndGoBack) {
   GURL main_url(https_server()->GetURL("a.test", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1523,8 +1673,13 @@ class IsolateIcelandFrameTreeBrowserTest : public ContentBrowserTest {
 
 // Regression test for https://crbug.com/644966
 // TODO(b/437413685): Investigate test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ProcessSwitchForIsolatedBlob ProcessSwitchForIsolatedBlob
+#else
+#define MAYBE_ProcessSwitchForIsolatedBlob DISABLED_ProcessSwitchForIsolatedBlob
+#endif
 IN_PROC_BROWSER_TEST_F(IsolateIcelandFrameTreeBrowserTest,
-                       DISABLED_ProcessSwitchForIsolatedBlob) {
+                       MAYBE_ProcessSwitchForIsolatedBlob) {
   // Set up an iframe.
   WebContents* contents = shell()->web_contents();
   FrameTreeNode* root =
@@ -1576,8 +1731,14 @@ class FrameTreeCredentiallessIframeBrowserTest : public FrameTreeBrowserTest {
 
 // Tests the mojo propagation of the 'credentialless' attribute to the browser.
 // TODO(b/437413685): Investigate failing test.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_AttributeIsPropagatedToBrowser AttributeIsPropagatedToBrowser
+#else
+#define MAYBE_AttributeIsPropagatedToBrowser \
+  DISABLED_AttributeIsPropagatedToBrowser
+#endif
 IN_PROC_BROWSER_TEST_F(FrameTreeCredentiallessIframeBrowserTest,
-                       DISABLED_AttributeIsPropagatedToBrowser) {
+                       MAYBE_AttributeIsPropagatedToBrowser) {
   GURL main_url(embedded_test_server()->GetURL("/hello.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -1624,232 +1785,5 @@ IN_PROC_BROWSER_TEST_F(FrameTreeCredentiallessIframeBrowserTest,
   EXPECT_TRUE(root->child_at(2)->Credentialless());
   EXPECT_EQ(true, EvalJs(root->child_at(2)->current_frame_host(),
                          "window.credentialless"));
-}
-
-// TODO(crbug.com/1407150): Remove this when deprecation trial is complete.
-class FrameTreeSessionStorageDeprecationTrialBrowserTest
-    : public ContentBrowserTest {
- public:
-  FrameTreeSessionStorageDeprecationTrialBrowserTest() {
-    feature_list_.InitAndEnableFeature(
-        net::features::kThirdPartyStoragePartitioning);
-  }
-
- protected:
-  virtual net::EmbeddedTestServer& GetServer() = 0;
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    GetServer().ServeFilesFromSourceDirectory("content/test/data");
-    // EmbeddedTestServer::InitializeAndListen() initializes its `base_url_`
-    // which is required below. This cannot invoke Start() however as that kicks
-    // off the "EmbeddedTestServer IO Thread" which then races with
-    // initialization in ContentBrowserTest::SetUp(), http://crbug.com/674545.
-    ASSERT_TRUE(GetServer().InitializeAndListen());
-
-    // Add a host resolver rule to map all outgoing requests to the test server.
-    // This allows us to use "real" hostnames in URLs, which we can use to
-    // create arbitrary SiteInstances.
-    command_line->AppendSwitchASCII(
-        network::switches::kHostResolverRules,
-        "MAP * " +
-            net::HostPortPair::FromURL(GetServer().base_url()).ToString() +
-            ",EXCLUDE localhost");
-    mock_cert_verifier_.SetUpCommandLine(command_line);
-  }
-
-  void SetUp() override { ContentBrowserTest::SetUp(); }
-
-  void SetUpOnMainThread() override {
-    // Complete the manual Start() after ContentBrowserTest's own
-    // initialization, ref. comment on InitializeAndListen() above.
-    GetServer().StartAcceptingConnections();
-    mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
-  }
-
-  void SetUpInProcessBrowserTestFixture() override {
-    mock_cert_verifier_.SetUpInProcessBrowserTestFixture();
-  }
-
-  void TearDownInProcessBrowserTestFixture() override {
-    mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-  content::ContentMockCertVerifier mock_cert_verifier_;
-};
-
-class FrameTreeSessionStorageDeprecationTrialBrowserSecureTest
-    : public FrameTreeSessionStorageDeprecationTrialBrowserTest {
-  net::EmbeddedTestServer& GetServer() override {
-    static net::EmbeddedTestServer https_server(
-        net::EmbeddedTestServer::TYPE_HTTPS);
-    return https_server;
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(FrameTreeSessionStorageDeprecationTrialBrowserSecureTest,
-                       RegisterOriginForUnpartitionedSessionStorageAccess) {
-  const url::Origin origin = url::Origin::Create(GURL("https://example.com"));
-  const blink::StorageKey first_party =
-      blink::StorageKey::CreateFirstParty(origin);
-  const blink::StorageKey third_party = blink::StorageKey::Create(
-      origin, net::SchemefulSite(GURL("https://notexample.com")),
-      blink::mojom::AncestorChainBit::kCrossSite);
-  const url::Origin opaque_origin = url::Origin();
-  const blink::StorageKey opaque_first_party =
-      blink::StorageKey::CreateFirstParty(opaque_origin);
-  const blink::StorageKey opaque_third_party = blink::StorageKey::Create(
-      opaque_origin, net::SchemefulSite(GURL("https://notexample.com")),
-      blink::mojom::AncestorChainBit::kCrossSite);
-  EXPECT_NE(first_party, third_party);
-  EXPECT_NE(opaque_first_party, opaque_third_party);
-  FrameTree& frame_tree = static_cast<WebContentsImpl*>(shell()->web_contents())
-                              ->GetPrimaryFrameTree();
-
-  // Before registering any origins we expect partitioned access for both keys.
-  EXPECT_EQ(third_party, frame_tree.GetSessionStorageKey(third_party));
-  EXPECT_EQ(opaque_third_party,
-            frame_tree.GetSessionStorageKey(opaque_third_party));
-
-  // We then register both origins.
-  frame_tree.RegisterOriginForUnpartitionedSessionStorageAccess(origin);
-  frame_tree.RegisterOriginForUnpartitionedSessionStorageAccess(opaque_origin);
-
-  // After registration the non-opaque key is unpartitioned but the opaque one
-  // is still partitioned.
-  EXPECT_EQ(first_party, frame_tree.GetSessionStorageKey(third_party));
-  EXPECT_EQ(opaque_third_party,
-            frame_tree.GetSessionStorageKey(opaque_third_party));
-}
-
-// TODO(b/437413685): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(FrameTreeSessionStorageDeprecationTrialBrowserSecureTest,
-                       DISABLED_GetSessionStorageKey) {
-  const blink::StorageKey dt_third_party = blink::StorageKey::Create(
-      url::Origin::Create(GURL("https://example.com")),
-      net::SchemefulSite(GURL("https://notexample.com")),
-      blink::mojom::AncestorChainBit::kCrossSite);
-  const blink::StorageKey dt_first_party =
-      blink::StorageKey::CreateFromStringForTesting("https://example.com");
-  const blink::StorageKey random_third_party = blink::StorageKey::Create(
-      url::Origin::Create(GURL("https://otherexample.com")),
-      net::SchemefulSite(GURL("https://notexample.com")),
-      blink::mojom::AncestorChainBit::kCrossSite);
-  EXPECT_NE(dt_third_party, dt_first_party);
-
-  // Load a page without the origin trial token.
-  EXPECT_TRUE(NavigateToURL(shell(), GURL("https://example.com/empty.html")));
-  // We should be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-
-  // Load a page with the origin trial token.
-  EXPECT_TRUE(NavigateToURL(shell(), GURL("https://example.com/session_storage/"
-                                          "partition_deprecation_trial.html")));
-  // We shouldn't be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_first_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-  // Other origins can still get partitioned storage keys.
-  EXPECT_EQ(random_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(random_third_party));
-
-  // Load a page without the token after having loaded a page with the token.
-  EXPECT_TRUE(
-      NavigateToURL(shell(), GURL("https://otherexample.com/empty.html")));
-  // We shouldn't be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_first_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-  // Other origins can still get partitioned storage keys.
-  EXPECT_EQ(random_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(random_third_party));
-
-  // Load a page without the origin trial token.
-  EXPECT_TRUE(NavigateToURL(shell(), GURL("https://example.com/empty.html")));
-  // We should be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-}
-
-class FrameTreeSessionStorageDeprecationTrialBrowserInsecureTest
-    : public FrameTreeSessionStorageDeprecationTrialBrowserTest {
-  net::EmbeddedTestServer& GetServer() override {
-    static net::EmbeddedTestServer https_server_(
-        net::EmbeddedTestServer::TYPE_HTTP);
-    return https_server_;
-  }
-};
-
-// TODO(b/437413685): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(
-    FrameTreeSessionStorageDeprecationTrialBrowserInsecureTest,
-    DISABLED_GetSessionStorageKeyInsecure) {
-  const blink::StorageKey dt_third_party = blink::StorageKey::Create(
-      url::Origin::Create(GURL("http://example.com")),
-      net::SchemefulSite(GURL("http://notexample.com")),
-      blink::mojom::AncestorChainBit::kCrossSite);
-  const blink::StorageKey dt_first_party =
-      blink::StorageKey::CreateFromStringForTesting("http://example.com");
-  const blink::StorageKey random_third_party = blink::StorageKey::Create(
-      url::Origin::Create(GURL("http://otherexample.com")),
-      net::SchemefulSite(GURL("http://notexample.com")),
-      blink::mojom::AncestorChainBit::kCrossSite);
-  EXPECT_NE(dt_third_party, dt_first_party);
-
-  // Load a page without the origin trial token.
-  EXPECT_TRUE(NavigateToURL(shell(), GURL("http://example.com/empty.html")));
-  // We should be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-
-  // Load a page with the origin trial token.
-  EXPECT_TRUE(NavigateToURL(shell(), GURL("http://example.com/session_storage/"
-                                          "partition_deprecation_trial.html")));
-  // We shouldn't be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_first_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-  // Other origins can still get partitioned storage keys.
-  EXPECT_EQ(random_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(random_third_party));
-
-  // Load a page without the token after having loaded a page with the token.
-  EXPECT_TRUE(
-      NavigateToURL(shell(), GURL("http://otherexample.com/empty.html")));
-  // We shouldn't be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_first_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
-  // Other origins can still get partitioned storage keys.
-  EXPECT_EQ(random_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(random_third_party));
-
-  // Load a page without the origin trial token.
-  EXPECT_TRUE(NavigateToURL(shell(), GURL("http://example.com/empty.html")));
-  // We should be able to get a partitioned storage key for example.com.
-  EXPECT_EQ(dt_third_party,
-            static_cast<WebContentsImpl*>(shell()->web_contents())
-                ->GetPrimaryFrameTree()
-                .GetSessionStorageKey(dt_third_party));
 }
 }  // namespace content
