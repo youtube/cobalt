@@ -301,8 +301,13 @@ class LoadingStateChangedDelegate : public WebContentsDelegate {
 
 // Test that DidStopLoading includes the correct URL in the details.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DidStopLoadingDetails DidStopLoadingDetails
+#else
+#define MAYBE_DidStopLoadingDetails DISABLED_DidStopLoadingDetails
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DidStopLoadingDetails) {
+                       MAYBE_DidStopLoadingDetails) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   LoadStopNotificationObserver load_observer(
@@ -321,8 +326,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Dumping the accessibility tree should not crash, even if it has not received
 // an ID through a renderer tree yet.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DumpAccessibilityTreeWithoutTreeID \
+  DumpAccessibilityTreeWithoutTreeID
+#else
+#define MAYBE_DumpAccessibilityTreeWithoutTreeID \
+  DISABLED_DumpAccessibilityTreeWithoutTreeID
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DumpAccessibilityTreeWithoutTreeID) {
+                       MAYBE_DumpAccessibilityTreeWithoutTreeID) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   LoadStopNotificationObserver load_observer(
@@ -341,8 +353,14 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Test that DidStopLoading includes the correct URL in the details when a
 // pending entry is present.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DidStopLoadingDetailsWithPending DidStopLoadingDetailsWithPending
+#else
+#define MAYBE_DidStopLoadingDetailsWithPending \
+  DISABLED_DidStopLoadingDetailsWithPending
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DidStopLoadingDetailsWithPending) {
+                       MAYBE_DidStopLoadingDetailsWithPending) {
   ASSERT_TRUE(embedded_test_server()->Start());
   // TODO(clamy): Add a cross-process navigation case as well once
   // crbug.com/581024 is fixed.
@@ -405,8 +423,14 @@ class LoadFinishedWaiter : public WebContentsObserver {
 // Note that this test makes sense to run with and without OOPIFs.
 // See https://crbug.com/822013#c12.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DidStopLoadingWithNestedFrames DidStopLoadingWithNestedFrames
+#else
+#define MAYBE_DidStopLoadingWithNestedFrames \
+  DISABLED_DidStopLoadingWithNestedFrames
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DidStopLoadingWithNestedFrames) {
+                       MAYBE_DidStopLoadingWithNestedFrames) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -463,8 +487,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // DidStartProvisionalLoadForFrame for in-page navigations.
 // See http://crbug.com/280512.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ClearNonVisiblePendingOnFail ClearNonVisiblePendingOnFail
+#else
+#define MAYBE_ClearNonVisiblePendingOnFail DISABLED_ClearNonVisiblePendingOnFail
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ClearNonVisiblePendingOnFail) {
+                       MAYBE_ClearNonVisiblePendingOnFail) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   EXPECT_TRUE(
@@ -597,7 +626,12 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, SetTitleOnUnload) {
 }
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_OpenURLSubframe) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenURLSubframe OpenURLSubframe
+#else
+#define MAYBE_OpenURLSubframe DISABLED_OpenURLSubframe
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_OpenURLSubframe) {
   // Navigate to a page with frames and grab a subframe's FrameTreeNode ID.
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(NavigateToURL(
@@ -625,8 +659,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_OpenURLSubframe) {
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_OpenURLNonExistentSubframe OpenURLNonExistentSubframe
+#else
+#define MAYBE_OpenURLNonExistentSubframe DISABLED_OpenURLNonExistentSubframe
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_OpenURLNonExistentSubframe) {
+                       MAYBE_OpenURLNonExistentSubframe) {
   // Navigate to a page with frames and grab a subframe's FrameTreeNode ID.
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(
@@ -665,8 +704,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Test that creation of new RenderFrameHost objects sends the correct object
 // to the WebContentObservers. See http://crbug.com/347339.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderFrameCreatedCorrectProcessForObservers \
+  RenderFrameCreatedCorrectProcessForObservers
+#else
+#define MAYBE_RenderFrameCreatedCorrectProcessForObservers \
+  DISABLED_RenderFrameCreatedCorrectProcessForObservers
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_RenderFrameCreatedCorrectProcessForObservers) {
+                       MAYBE_RenderFrameCreatedCorrectProcessForObservers) {
   static const char kFooCom[] = "foo.com";
   GURL::Replacements replace_host;
   net::HostPortPair foo_host_port;
@@ -700,8 +746,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LoadingStateChangedForSameDocumentNavigation \
+  LoadingStateChangedForSameDocumentNavigation
+#else
+#define MAYBE_LoadingStateChangedForSameDocumentNavigation \
+  DISABLED_LoadingStateChangedForSameDocumentNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_LoadingStateChangedForSameDocumentNavigation) {
+                       MAYBE_LoadingStateChangedForSameDocumentNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   std::unique_ptr<LoadingStateChangedDelegate> delegate(
       new LoadingStateChangedDelegate());
@@ -727,8 +780,12 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadComplete) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadComplete ResourceLoadComplete
+#else
+#define MAYBE_ResourceLoadComplete DISABLED_ResourceLoadComplete
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_ResourceLoadComplete) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   // Load a page with an image and an image.
@@ -757,8 +814,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Same as WebContentsImplBrowserTest.ResourceLoadComplete but with resources
 // retrieved from the network cache.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadCompleteFromNetworkCache \
+  ResourceLoadCompleteFromNetworkCache
+#else
+#define MAYBE_ResourceLoadCompleteFromNetworkCache \
+  DISABLED_ResourceLoadCompleteFromNetworkCache
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadCompleteFromNetworkCache) {
+                       MAYBE_ResourceLoadCompleteFromNetworkCache) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL page_url(
@@ -826,8 +890,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadCompleteFromLocalResource \
+  ResourceLoadCompleteFromLocalResource
+#else
+#define MAYBE_ResourceLoadCompleteFromLocalResource \
+  DISABLED_ResourceLoadCompleteFromLocalResource
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadCompleteFromLocalResource) {
+                       MAYBE_ResourceLoadCompleteFromLocalResource) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(NavigateToURL(
@@ -848,8 +919,14 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadCompleteWithRedirect ResourceLoadCompleteWithRedirect
+#else
+#define MAYBE_ResourceLoadCompleteWithRedirect \
+  DISABLED_ResourceLoadCompleteWithRedirect
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadCompleteWithRedirect) {
+                       MAYBE_ResourceLoadCompleteWithRedirect) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -876,8 +953,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadCompleteNetError ResourceLoadCompleteNetError
+#else
+#define MAYBE_ResourceLoadCompleteNetError DISABLED_ResourceLoadCompleteNetError
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadCompleteNetError) {
+                       MAYBE_ResourceLoadCompleteNetError) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -947,8 +1029,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadCompleteWithRedirects \
+  ResourceLoadCompleteWithRedirects
+#else
+#define MAYBE_ResourceLoadCompleteWithRedirects \
+  DISABLED_ResourceLoadCompleteWithRedirects
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadCompleteWithRedirects) {
+                       MAYBE_ResourceLoadCompleteWithRedirects) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -990,8 +1079,14 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ResourceLoadCompleteIsMainFrame ResourceLoadCompleteIsMainFrame
+#else
+#define MAYBE_ResourceLoadCompleteIsMainFrame \
+  DISABLED_ResourceLoadCompleteIsMainFrame
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ResourceLoadCompleteIsMainFrame) {
+                       MAYBE_ResourceLoadCompleteIsMainFrame) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -1052,7 +1147,12 @@ struct LoadProgressObserver : public WebContentsObserver {
 };
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_LoadProgress) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LoadProgress LoadProgress
+#else
+#define MAYBE_LoadProgress DISABLED_LoadProgress
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_LoadProgress) {
   ASSERT_TRUE(embedded_test_server()->Start());
   auto delegate = std::make_unique<LoadProgressObserver>(shell());
 
@@ -1074,8 +1174,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_LoadProgress) {
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LoadProgressWithFrames LoadProgressWithFrames
+#else
+#define MAYBE_LoadProgressWithFrames DISABLED_LoadProgressWithFrames
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_LoadProgressWithFrames) {
+                       MAYBE_LoadProgressWithFrames) {
   ASSERT_TRUE(embedded_test_server()->Start());
   auto delegate = std::make_unique<LoadProgressObserver>(shell());
 
@@ -1099,8 +1204,14 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Ensure that a new navigation that interrupts a pending one will still fire
 // a DidStopLoading.  See http://crbug.com/429399.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_LoadProgressAfterInterruptedNav LoadProgressAfterInterruptedNav
+#else
+#define MAYBE_LoadProgressAfterInterruptedNav \
+  DISABLED_LoadProgressAfterInterruptedNav
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_LoadProgressAfterInterruptedNav) {
+                       MAYBE_LoadProgressAfterInterruptedNav) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Start at a real page.
@@ -1266,7 +1377,12 @@ class MockPageScaleObserver : public WebContentsObserver {
 // When the page scale factor is set in the renderer it should send
 // a notification to the browser so that WebContentsObservers are notified.
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_ChangePageScale) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ChangePageScale ChangePageScale
+#else
+#define MAYBE_ChangePageScale DISABLED_ChangePageScale
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_ChangePageScale) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(
       NavigateToURL(shell(), embedded_test_server()->GetURL("/title1.html")));
@@ -1295,8 +1411,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_ChangePageScale) {
 // This test is only relevant for Android, since desktop would always have one
 // as the initial scale.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SameInitialScaleAcrossNavigations \
+  SameInitialScaleAcrossNavigations
+#else
+#define MAYBE_SameInitialScaleAcrossNavigations \
+  DISABLED_SameInitialScaleAcrossNavigations
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_SameInitialScaleAcrossNavigations) {
+                       MAYBE_SameInitialScaleAcrossNavigations) {
   // Scale value comparisons don't need to be precise.
   constexpr double kEpsilon = 0.01;
 
@@ -1341,8 +1464,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Test that a direct navigation to a view-source URL works.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ViewSourceDirectNavigation ViewSourceDirectNavigation
+#else
+#define MAYBE_ViewSourceDirectNavigation DISABLED_ViewSourceDirectNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ViewSourceDirectNavigation) {
+                       MAYBE_ViewSourceDirectNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kUrl(embedded_test_server()->GetURL("/simple_page.html"));
   const GURL kViewSourceURL(kViewSourceScheme + std::string(":") + kUrl.spec());
@@ -1362,8 +1490,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Test that window.open to a view-source URL is blocked.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ViewSourceWindowOpen_ShouldBeBlocked \
+  ViewSourceWindowOpen_ShouldBeBlocked
+#else
+#define MAYBE_ViewSourceWindowOpen_ShouldBeBlocked \
+  DISABLED_ViewSourceWindowOpen_ShouldBeBlocked
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ViewSourceWindowOpen_ShouldBeBlocked) {
+                       MAYBE_ViewSourceWindowOpen_ShouldBeBlocked) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kUrl(embedded_test_server()->GetURL("/simple_page.html"));
   const GURL kViewSourceURL(kViewSourceScheme + std::string(":") + kUrl.spec());
@@ -1382,8 +1517,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Test that a content initiated navigation to a view-source URL is blocked.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ViewSourceRedirect_ShouldBeBlocked \
+  ViewSourceRedirect_ShouldBeBlocked
+#else
+#define MAYBE_ViewSourceRedirect_ShouldBeBlocked \
+  DISABLED_ViewSourceRedirect_ShouldBeBlocked
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_ViewSourceRedirect_ShouldBeBlocked) {
+                       MAYBE_ViewSourceRedirect_ShouldBeBlocked) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kUrl(embedded_test_server()->GetURL("/simple_page.html"));
   const GURL kViewSourceURL(kViewSourceScheme + std::string(":") + kUrl.spec());
@@ -1421,7 +1563,12 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, ViewSourceWebUI) {
 }
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_NewNamedWindow) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NewNamedWindow NewNamedWindow
+#else
+#define MAYBE_NewNamedWindow DISABLED_NewNamedWindow
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_NewNamedWindow) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url = embedded_test_server()->GetURL("/click-noreferrer-links.html");
@@ -1491,8 +1638,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Flaky on all platforms: https://crbug.com/655628
 // Test that if a BeforeUnload dialog is destroyed due to the commit of a
 // cross-site navigation, it will not reset the loading state.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_NoResetOnBeforeUnloadCanceledOnCommit \
+  NoResetOnBeforeUnloadCanceledOnCommit
+#else
+#define MAYBE_NoResetOnBeforeUnloadCanceledOnCommit \
+  DISABLED_NoResetOnBeforeUnloadCanceledOnCommit
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_NoResetOnBeforeUnloadCanceledOnCommit) {
+                       MAYBE_NoResetOnBeforeUnloadCanceledOnCommit) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kStartURL(
       embedded_test_server()->GetURL("/hang_before_unload.html"));
@@ -1937,8 +2091,15 @@ class MockFileSelectListener : public FileChooserImpl::FileSelectListenerImpl {
 };
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_JavaScriptDialogsInMainAndSubframes \
+  JavaScriptDialogsInMainAndSubframes
+#else
+#define MAYBE_JavaScriptDialogsInMainAndSubframes \
+  DISABLED_JavaScriptDialogsInMainAndSubframes
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_JavaScriptDialogsInMainAndSubframes) {
+                       MAYBE_JavaScriptDialogsInMainAndSubframes) {
   WebContentsImpl* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
   TestWCDelegateForDialogsAndFullscreen test_delegate(wc);
 
@@ -2132,8 +2293,15 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CreateWebContentsWithRendererProcess \
+  CreateWebContentsWithRendererProcess
+#else
+#define MAYBE_CreateWebContentsWithRendererProcess \
+  DISABLED_CreateWebContentsWithRendererProcess
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_CreateWebContentsWithRendererProcess) {
+                       MAYBE_CreateWebContentsWithRendererProcess) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContents* base_web_contents = shell()->web_contents();
   ASSERT_TRUE(base_web_contents);
@@ -2182,8 +2350,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 
 // Regression test for https://crbug.com/840409.
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CreateWebContentsWithoutRendererProcess \
+  CreateWebContentsWithoutRendererProcess
+#else
+#define MAYBE_CreateWebContentsWithoutRendererProcess \
+  DISABLED_CreateWebContentsWithoutRendererProcess
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_CreateWebContentsWithoutRendererProcess) {
+                       MAYBE_CreateWebContentsWithoutRendererProcess) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContents* base_web_contents = shell()->web_contents();
   ASSERT_TRUE(base_web_contents);
@@ -2359,16 +2534,26 @@ void ExpectSingleValidImageCallback(base::OnceClosure quit_closure,
 }  // anonymous namespace
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_HttpImage DownloadImage_HttpImage
+#else
+#define MAYBE_DownloadImage_HttpImage DISABLED_DownloadImage_HttpImage
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_HttpImage) {
+                       MAYBE_DownloadImage_HttpImage) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/single_face.jpg");
   DownloadImageTestInternal(shell(), kImageUrl, 200, 1);
 }
 
 // Disabled due to flakiness: https://crbug.com/1124349.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_Deny_FileImage DownloadImage_Deny_FileImage
+#else
+#define MAYBE_DownloadImage_Deny_FileImage DISABLED_DownloadImage_Deny_FileImage
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_Deny_FileImage) {
+                       MAYBE_DownloadImage_Deny_FileImage) {
   ASSERT_TRUE(embedded_test_server()->Start());
   shell()->LoadURL(embedded_test_server()->GetURL("/simple_page.html"));
 
@@ -2377,16 +2562,27 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // Disabled due to flakiness: https://crbug.com/1124349.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_Allow_FileImage DownloadImage_Allow_FileImage
+#else
+#define MAYBE_DownloadImage_Allow_FileImage \
+  DISABLED_DownloadImage_Allow_FileImage
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_Allow_FileImage) {
+                       MAYBE_DownloadImage_Allow_FileImage) {
   shell()->LoadURL(GetTestUrl("", "simple_page.html"));
 
   const GURL kImageUrl = GetTestUrl("", "image.jpg");
   DownloadImageTestInternal(shell(), kImageUrl, 0, 0);
 }
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_NoValidImage DownloadImage_NoValidImage
+#else
+#define MAYBE_DownloadImage_NoValidImage DISABLED_DownloadImage_NoValidImage
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_NoValidImage) {
+                       MAYBE_DownloadImage_NoValidImage) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/invalid.ico");
   shell()->LoadURL(GURL("about:blank"));
@@ -2418,8 +2614,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DownloadImage_DataImageSVG) {
   DownloadImageTestInternal(shell(), kImageUrl, 0, 1);
 }
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_PreferredSize DownloadImage_PreferredSize
+#else
+#define MAYBE_DownloadImage_PreferredSize DISABLED_DownloadImage_PreferredSize
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_PreferredSize) {
+                       MAYBE_DownloadImage_PreferredSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2433,8 +2634,14 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_PreferredSizeZero DownloadImage_PreferredSizeZero
+#else
+#define MAYBE_DownloadImage_PreferredSizeZero \
+  DISABLED_DownloadImage_PreferredSizeZero
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_PreferredSizeZero) {
+                       MAYBE_DownloadImage_PreferredSizeZero) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2448,8 +2655,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_PreferredSizeClampedByMaxSize \
+  DownloadImage_PreferredSizeClampedByMaxSize
+#else
+#define MAYBE_DownloadImage_PreferredSizeClampedByMaxSize \
+  DISABLED_DownloadImage_PreferredSizeClampedByMaxSize
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_PreferredSizeClampedByMaxSize) {
+                       MAYBE_DownloadImage_PreferredSizeClampedByMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2463,8 +2677,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_PreferredWidthClampedByMaxSize \
+  DownloadImage_PreferredWidthClampedByMaxSize
+#else
+#define MAYBE_DownloadImage_PreferredWidthClampedByMaxSize \
+  DISABLED_DownloadImage_PreferredWidthClampedByMaxSize
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_PreferredWidthClampedByMaxSize) {
+                       MAYBE_DownloadImage_PreferredWidthClampedByMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2478,8 +2699,15 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_PreferredHeightClampedByMaxSize \
+  DownloadImage_PreferredHeightClampedByMaxSize
+#else
+#define MAYBE_DownloadImage_PreferredHeightClampedByMaxSize \
+  DISABLED_DownloadImage_PreferredHeightClampedByMaxSize
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_PreferredHeightClampedByMaxSize) {
+                       MAYBE_DownloadImage_PreferredHeightClampedByMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl = embedded_test_server()->GetURL("/rgb.svg");
   shell()->LoadURL(GURL("about:blank"));
@@ -2515,8 +2743,15 @@ void ExpectTwoValidImageCallback(base::OnceClosure quit_closure,
 }  // anonymous namespace
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_DownloadImage_MultipleImagesNoMaxSize \
+  DownloadImage_MultipleImagesNoMaxSize
+#else
+#define MAYBE_DownloadImage_MultipleImagesNoMaxSize \
+  DISABLED_DownloadImage_MultipleImagesNoMaxSize
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_DownloadImage_MultipleImagesNoMaxSize) {
+                       MAYBE_DownloadImage_MultipleImagesNoMaxSize) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL kImageUrl =
       embedded_test_server()->GetURL("/icon-with-two-entries.ico");
@@ -2543,8 +2778,15 @@ class MouseLockDelegate : public WebContentsDelegate {
 };
 
 // TODO(crbug.com/898641): This test is flaky.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderWidgetDeletedWhileMouseLockPending \
+  RenderWidgetDeletedWhileMouseLockPending
+#else
+#define MAYBE_RenderWidgetDeletedWhileMouseLockPending \
+  DISABLED_RenderWidgetDeletedWhileMouseLockPending
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_RenderWidgetDeletedWhileMouseLockPending) {
+                       MAYBE_RenderWidgetDeletedWhileMouseLockPending) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   std::unique_ptr<MouseLockDelegate> delegate(new MouseLockDelegate());
@@ -3165,8 +3407,14 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameDetachInCopyDoesNotCrash FrameDetachInCopyDoesNotCrash
+#else
+#define MAYBE_FrameDetachInCopyDoesNotCrash \
+  DISABLED_FrameDetachInCopyDoesNotCrash
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       DISABLED_FrameDetachInCopyDoesNotCrash) {
+                       MAYBE_FrameDetachInCopyDoesNotCrash) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_TRUE(NavigateToURL(
       shell(),
