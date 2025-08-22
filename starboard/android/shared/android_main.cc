@@ -12,17 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <atomic>
-
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
-#include "starboard/android/shared/log_internal.h"
 #include "starboard/android/shared/starboard_bridge.h"
+<<<<<<< HEAD
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -34,13 +27,15 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
 #endif
+=======
+#include "starboard/export.h"
+>>>>>>> 4d128229080 (refactor: Remove dead EVERGREEN_COMPATIBLE code from Android (#6940))
 
 namespace starboard::android::shared {
 
-std::atomic_bool g_block_swapbuffers{false};
-
 namespace {
 
+<<<<<<< HEAD
 using ::starboard::shared::starboard::CommandLine;
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -219,6 +214,8 @@ void* ThreadEntryPoint(void* context) {
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
+=======
+>>>>>>> 4d128229080 (refactor: Remove dead EVERGREEN_COMPATIBLE code from Android (#6940))
 extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_StarboardBridge_isReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
@@ -251,69 +248,18 @@ extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
                                                              jobject jcaller,
                                                              jint volumeDelta) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  if (g_app_running.load()) {
-    SbKey key =
-        volumeDelta > 0 ? SbKey::kSbKeyVolumeUp : SbKey::kSbKeyVolumeDown;
-    ApplicationAndroid::Get()->SendKeyboardInject(key);
-  }
-#else
   // TODO(cobalt, b/378384110): send volume keys to web app through Content
   // SbKey key = volumeDelta > 0 ? SbKey::kSbKeyVolumeUp :
   // SbKey::kSbKeyVolumeDown;
   // ApplicationAndroid::Get()->SendKeyboardInject(key);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
                                                            jobject jcaller) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
-  }
-#else
   // TODO(cobalt, b/378384110): send volume keys to web app through Content
   // ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-extern "C" int SbRunStarboardMain(int argc,
-                                  char** argv,
-                                  SbEventHandleCallback callback) {
-  ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
-  ApplicationAndroid app(looper, callback);
-
-  CommandLine command_line(GetArgs());
-  LogInit(command_line);
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  InstallCrashpadHandler(command_line);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
-  // Mark the app running before signaling app created so there's no race to
-  // allow sending the first AndroidCommand after onCreate() returns.
-  g_app_running.store(true);
-
-  // Signal GameActivity_onCreate() that it may proceed.
-  g_app_created_semaphore->Put();
-
-  const auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
-  const std::string start_url = manager->GetDeepLink();
-  SB_LOG(INFO) << "GetStartDeepLink: " << start_url;
-
-  // Enter the Starboard run loop until stopped.
-  int error_level = app.Run(std::move(command_line), start_url.c_str());
-
-  // Mark the app not running before informing StarboardBridge that the app is
-  // stopped so that we won't send any more AndroidCommands as a result of
-  // shutting down the Activity.
-  g_app_running.store(false);
-
-  return error_level;
-}
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 }  // namespace
 
