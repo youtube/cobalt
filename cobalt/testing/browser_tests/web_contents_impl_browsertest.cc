@@ -3470,7 +3470,12 @@ class UpdateTargetURLWaiter : public WebContentsDelegate {
 // WebContentsDelegate to show a link status bubble.  This is a regression test
 // for https://crbug.com/807776.
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_UpdateTargetURL) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_UpdateTargetURL UpdateTargetURL
+#else
+#define MAYBE_UpdateTargetURL DISABLED_UpdateTargetURL
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_UpdateTargetURL) {
   // Navigate to a test page.
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
@@ -3546,7 +3551,12 @@ class LoadStateWaiter : public WebContentsDelegate {
 
 // TODO(csharrison,mmenke):  Beef up testing of LoadState a little. In
 // particular, check upload progress and check the LoadState param.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_UpdateLoadState) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_UpdateLoadState UpdateLoadState
+#else
+#define MAYBE_UpdateLoadState DISABLED_UpdateLoadState
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_UpdateLoadState) {
   std::u16string a_host = url_formatter::IDNToUnicode("a.com");
   std::u16string b_host = url_formatter::IDNToUnicode("b.com");
   std::u16string paused_host = url_formatter::IDNToUnicode("paused.com");
@@ -3841,7 +3851,12 @@ class OutgoingSetRendererPrefsMojoWatcher {
 }  // namespace
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_SyncRendererPrefs) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SyncRendererPrefs SyncRendererPrefs
+#else
+#define MAYBE_SyncRendererPrefs DISABLED_SyncRendererPrefs
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_SyncRendererPrefs) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -3902,7 +3917,12 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_SyncRendererPrefs) {
 }
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_SetPageFrozen) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SetPageFrozen SetPageFrozen
+#else
+#define MAYBE_SetPageFrozen DISABLED_SetPageFrozen
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_SetPageFrozen) {
   EXPECT_TRUE(embedded_test_server()->Start());
 
   GURL test_url = embedded_test_server()->GetURL("/pause_schedule_task.html");
@@ -4429,7 +4449,12 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // Finally on Android, which supports full browser ScreenOrientation locks, that
 // we can successfully apply the lock.
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_ToggleFullscreen) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ToggleFullscreen ToggleFullscreen
+#else
+#define MAYBE_ToggleFullscreen DISABLED_ToggleFullscreen
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_ToggleFullscreen) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -4837,7 +4862,12 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_FrameCount) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_FrameCount FrameCount
+#else
+#define MAYBE_FrameCount DISABLED_FrameCount
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_FrameCount) {
   ASSERT_TRUE(embedded_test_server()->Start());
   base::HistogramTester histogram_tester;
 
@@ -5594,7 +5624,12 @@ class DidStopLoadingInterceptor : public mojom::FrameHostInterceptorForTesting {
 // Test that get_process_idle_time() returns reasonable values when compared
 // with time deltas measured locally.
 // TODO(b/437415063): Investigate failing test.
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, DISABLED_RenderIdleTime) {
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderIdleTime RenderIdleTime
+#else
+#define MAYBE_RenderIdleTime DISABLED_RenderIdleTime
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_RenderIdleTime) {
   EXPECT_TRUE(embedded_test_server()->Start());
 
   base::TimeTicks start = base::TimeTicks::Now();
