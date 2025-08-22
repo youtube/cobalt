@@ -156,7 +156,8 @@ public final class VideoFrameReleaseTimeHelper {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
           adjustedReleaseTimeNs =
               mSyncUnadjustedReleaseTimeNs
-                  + (long) ((adjustedFrameTimeNs - mSyncFramePresentationTimeNs) / playbackRate);
+                  + adjustFrameTimeForPlaybackRate(
+                      adjustedFrameTimeNs - mSyncFramePresentationTimeNs, playbackRate);
         }
       } else {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
@@ -197,8 +198,21 @@ public final class VideoFrameReleaseTimeHelper {
   private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
     long elapsedFrameTimeNs = frameTimeNs - mSyncFramePresentationTimeNs;
     long elapsedReleaseTimeNs = releaseTimeNs - mSyncUnadjustedReleaseTimeNs;
-    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs / playbackRate)
+    return Math.abs(
+            elapsedReleaseTimeNs - adjustFrameTimeForPlaybackRate(elapsedFrameTimeNs, playbackRate))
         > MAX_ALLOWED_DRIFT_NS;
+  }
+
+  private long adjustFrameTimeForPlaybackRate(long frameTimeNs, double playbackRate) {
+    if (playbackRate == 1.0 || playbackRate == 0.0) {
+      return frameTimeNs;
+    }
+    // YT playback rate can be set to multiples of 0.25, ranging from 0.25 to 2.0 (e.g., 0.25, 0.5,
+    // 0.75, 1.0, 1.25, 1.5, 1.75, and 2.0). To prevent issues with floating-point conversions, the
+    // playback rate is converted to a long integer by multiplying it by 4.
+    final long PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER = 4;
+    long adjustedPlaybackRate = Math.round(playbackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER);
+    return frameTimeNs / adjustedPlaybackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER;
   }
 
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
