@@ -21,6 +21,7 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -143,6 +144,35 @@ JNI_StarboardBridge_SetAndroidBuildFingerprint(
   header_value_provider->SetHeaderValue(
       "Sec-CH-UA-Co-Android-Build-Fingerprint",
       ConvertJavaStringToUTF8(env, fingerprint));
+}
+
+extern "C" SB_EXPORT_PLATFORM jboolean
+JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  return true;
+#else
+  return false;
+#endif
+}
+
+// TODO(cobalt, b/372559388): consolidate this function when fully deprecate
+// JniEnvExt.
+extern "C" SB_EXPORT_PLATFORM jboolean
+JNI_StarboardBridge_InitJNI(JNIEnv* env,
+                            const JavaParamRef<jobject>& j_starboard_bridge) {
+  JniEnvExt::Initialize(reinterpret_cast<JniEnvExt*>(env),
+                        j_starboard_bridge.obj());
+
+  // Initialize the singleton instance of StarboardBridge
+  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+  return true;
+}
+
+extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_CloseNativeStarboard(
+    JNIEnv* env,
+    jlong nativeApp) {
+  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
+  delete app;
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
