@@ -122,6 +122,7 @@ public abstract class CobaltActivity extends Activity {
   private CronetEngine mCronetEngine;
 
   private void initializeCronetEngine() {
+    Log.i("ColinL", "initializeCronetEngine");
     // 1. Create and configure the builder FIRST.
     CronetEngine.Builder builder = new CronetEngine.Builder(this);
     builder.enableHttp2(true)
@@ -129,6 +130,7 @@ public abstract class CobaltActivity extends Activity {
            // Add any other configuration here (e.g., caching, user-agent)
 
     mCronetEngine = builder.build();
+    Log.i("ColinL", "mCronetEngine is " + mCronetEngine);
   }
 
   public CronetEngine getCronetEngine() {
@@ -227,6 +229,14 @@ public abstract class CobaltActivity extends Activity {
               public void onSuccess() {
                 Log.i(TAG, "Browser process init succeeded");
                 initializeCronetEngine();
+                
+                if (mCronetEngine != null) {
+                    Log.i("ColinL", "new CronetNetworkRequest");
+                    CronetNetworkRequest networkRequest = new CronetNetworkRequest(mCronetEngine);
+                    // Use a public JSON API for testing.
+                    networkRequest.performGetRequest("https://jsonplaceholder.typicode.com/posts/1");
+                }
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }

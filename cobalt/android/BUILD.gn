@@ -97,6 +97,7 @@ android_library("cobalt_main_java") {
     "//base:jni_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
+    "//components/cronet/android:cronet_api_java",  # added
     "//components/cronet/android:cronet_impl_native_base_java",  # added
     "//components/embedder_support/android:view_java",
     "//components/version_info/android:version_constants_java",
@@ -138,6 +139,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CronetNetworkRequest.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
