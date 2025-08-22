@@ -44,6 +44,7 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.shell.Util;
+import dev.cobalt.util.BlockingHolder;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
@@ -82,7 +83,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 // import org.chromium.net.UrlRequest;
 
 import org.chromium.net.CronetEngine;
-import org.chromium.net.impl.CronetLibraryLoader;
+// import org.chromium.net.impl.CronetLibraryLoader;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -120,6 +121,7 @@ public abstract class CobaltActivity extends Activity {
   private Boolean isKeepScreenOnEnabled = false;
 
   private CronetEngine mCronetEngine;
+  private BlockingHolder<CronetEngine> mCronetEngineHolder;
 
   private void initializeCronetEngine() {
     Log.i("ColinL", "initializeCronetEngine");
@@ -133,8 +135,9 @@ public abstract class CobaltActivity extends Activity {
     Log.i("ColinL", "mCronetEngine is " + mCronetEngine);
   }
 
-  public CronetEngine getCronetEngine() {
-      return mCronetEngine;
+  // This is set by Kimono 's MainActivity very earlier. CoAT does not set it.
+  protected void setCronetEngineHolder(BlockingHolder<CronetEngine> holder) {
+    this.mCronetEngineHolder = holder;
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -228,13 +231,10 @@ public abstract class CobaltActivity extends Activity {
               @Override
               public void onSuccess() {
                 Log.i(TAG, "Browser process init succeeded");
+
                 initializeCronetEngine();
-                
-                if (mCronetEngine != null) {
-                    Log.i("ColinL", "new CronetNetworkRequest");
-                    CronetNetworkRequest networkRequest = new CronetNetworkRequest(mCronetEngine);
-                    // Use a public JSON API for testing.
-                    networkRequest.performGetRequest("https://jsonplaceholder.typicode.com/posts/1");
+                if (mCronetEngineHolder != null) {
+                  mCronetEngineHolder.set(mCronetEngine);
                 }
 
                 finishInitialization(savedInstanceState);
@@ -245,6 +245,9 @@ public abstract class CobaltActivity extends Activity {
               public void onFailure() {
                 Log.e(TAG, "Browser process init failed");
                 initializationFailed();
+                if (mCronetEngineHolder != null) {
+                  mCronetEngineHolder.set(null); // Do not break Kimono initialization
+                }
               }
             });
   }
