@@ -220,7 +220,7 @@ void* ThreadEntryPoint(void* context) {
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 extern "C" SB_EXPORT_PLATFORM jboolean
-Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
+Java_dev_cobalt_coat_StarboardBridge_isReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
