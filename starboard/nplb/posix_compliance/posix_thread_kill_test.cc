@@ -153,9 +153,8 @@ TEST_F(PosixThreadKillTest, SendSignalToInvalidThread) {
   ASSERT_EQ(ret_setup, 0);
   ret_setup = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
   ASSERT_EQ(ret_setup, 0);
-  int result_setup =
-      pthread_create(&temp_thread_id, &attr, NopThreadFunc, nullptr);
-  ASSERT_EQ(result_setup, 0);
+  ret_setup = pthread_create(&temp_thread_id, &attr, NopThreadFunc, nullptr);
+  ASSERT_EQ(ret_setup, 0);
   ret_setup = pthread_join(temp_thread_id, nullptr);
   ASSERT_EQ(ret_setup, 0);
   // Now temp_thread_id refers to a terminated and joined thread.
@@ -178,8 +177,8 @@ TEST_F(PosixThreadKillTest, SendInvalidSignalNumber) {
   ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
   ASSERT_EQ(ret, 0) << "pthread_attr_setdetachstate failed: " << strerror(ret);
 
-  int result = pthread_create(&thread_id, &attr, NopThreadFunc, nullptr);
-  ASSERT_EQ(result, 0) << "pthread_create failed: " << strerror(result);
+  ret = pthread_create(&thread_id, &attr, NopThreadFunc, nullptr);
+  ASSERT_EQ(ret, 0) << "pthread_create failed: " << strerror(ret);
 
   // Give the thread a moment to start.
   usleep(10000);  // 10ms
