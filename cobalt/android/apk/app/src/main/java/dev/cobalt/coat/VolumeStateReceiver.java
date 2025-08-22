@@ -63,8 +63,4 @@ final class VolumeStateReceiver extends BroadcastReceiver {
       dispatchKeyDownEvent(KeyEvent.KEYCODE_VOLUME_MUTE);
     }
   }
-
-  private native void nativeVolumeChanged(int volumeDelta);
-
-  private native void nativeMuteChanged();
 }
