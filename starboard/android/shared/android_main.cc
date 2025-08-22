@@ -49,23 +49,6 @@ Java_dev_cobalt_coat_StarboardBridge_closeNativeStarboard(JniEnvExt* env,
   delete app;
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
-                                                             jobject jcaller,
-                                                             jint volumeDelta) {
-  // TODO(cobalt, b/378384110): send volume keys to web app through Content
-  // SbKey key = volumeDelta > 0 ? SbKey::kSbKeyVolumeUp :
-  // SbKey::kSbKeyVolumeDown;
-  // ApplicationAndroid::Get()->SendKeyboardInject(key);
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
-                                                           jobject jcaller) {
-  // TODO(cobalt, b/378384110): send volume keys to web app through Content
-  // ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
-}
-
 }  // namespace
 
 }  // namespace starboard::android::shared
