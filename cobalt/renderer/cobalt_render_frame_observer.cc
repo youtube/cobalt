@@ -19,7 +19,10 @@
 #include "content/public/renderer/render_frame.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
-#include "third_party/blink/public/web/web_testing_support.h"
+
+#if defined(RUN_BROWSER_TESTS)
+#include "third_party/blink/public/web/web_testing_support.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace cobalt {
 
@@ -33,6 +36,7 @@ void CobaltRenderFrameObserver::OnDestruct() {
   delete this;
 }
 
+#if defined(RUN_BROWSER_TESTS)
 void CobaltRenderFrameObserver::DidClearWindowObject() {
   const auto& cmd = *base::CommandLine::ForCurrentProcess();
   if (cmd.HasSwitch(switches::kExposeInternalsForTesting)) {
@@ -44,6 +48,7 @@ void CobaltRenderFrameObserver::DidClearWindowObject() {
         render_frame()->GetWebFrame());
   }
 }
+#endif  // defined(RUN_BROWSER_TESTS)
 
 void CobaltRenderFrameObserver::DidMeaningfulLayout(
     blink::WebMeaningfulLayout meaningful_layout) {
