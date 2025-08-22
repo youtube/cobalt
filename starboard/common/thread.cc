@@ -48,8 +48,8 @@ void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
-  int success = pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
-  SB_CHECK_EQ(success, 0);
+  int result = pthread_create(&d_->thread_, nullptr, ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
 }
 
 void Thread::Sleep(int64_t microseconds) {
