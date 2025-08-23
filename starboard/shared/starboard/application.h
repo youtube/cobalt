@@ -159,7 +159,7 @@ class SB_EXPORT_ANDROID Application {
   // application has been constructed.
   static inline Application* Get() {
     Application* instance = g_instance.load(std::memory_order_acquire);
-    SB_DCHECK(instance);
+    SB_CHECK(instance);
     return instance;
   }
 
