@@ -256,8 +256,6 @@ public class StarboardBridge {
     }
   }
 
-  // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
-  @CalledByNative
   protected void afterStopped() {
     applicationStopped = true;
     closeAllServices();
