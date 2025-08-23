@@ -25,10 +25,8 @@ import org.chromium.services.service_manager.InterfaceRegistry;
 class CobaltInterfaceRegistrar {
     @CalledByNative
     private static void registerMojoInterfaces() {
-        android.util.Log.i("ColinL", "registerMojoInterfaces");
         InterfaceRegistrar.Registry.addRenderFrameHostRegistrar(
             new CobaltRenderFrameHostInterfaceRegistrar());
-        android.util.Log.i("ColinL", "registerMojoInterfaces done");
     }
 
     private static class CobaltRenderFrameHostInterfaceRegistrar

@@ -24,10 +24,8 @@
 namespace cobalt {
 
 void RegisterCobaltJavaMojoInterfaces() {
-  LOG(INFO) << "ColinL: RegisterCobaltJavaMojoInterfaces";
   Java_CobaltInterfaceRegistrar_registerMojoInterfaces(
       base::android::AttachCurrentThread());
-  LOG(INFO) << "ColinL: RegisterCobaltJavaMojoInterfaces done";
 }
 
 }  // namespace cobalt

@@ -62,28 +62,7 @@ import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-
-// import org.chromium.net.CronetEngine;
-// import org.chromium.net.CronetProvider;
-// import org.chromium.net.ExperimentalCronetEngine;
-// import org.chromium.net.RequestFinishedInfo;
-// import org.chromium.net.CallbackException;
-// import org.chromium.net.NetworkException;
-// import org.chromium.net.QuicException;
-// import org.chromium.net.RequestFinishedInfo;
-// import org.chromium.net.UrlResponseInfo;
-// import org.chromium.net.UrlRequest;
-// import org.chromium.net.CronetException;
-// import org.chromium.net.UrlRequest;
-// import org.chromium.net.UrlResponseInfo;
-// import org.chromium.net.UploadDataProviders;
-// import org.chromium.net.UploadDataProvider;
-// import org.chromium.net.UploadDataSink;
-// import org.chromium.net.NetworkException;
-// import org.chromium.net.UrlRequest;
-
 import org.chromium.net.CronetEngine;
-// import org.chromium.net.impl.CronetLibraryLoader;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -124,15 +103,12 @@ public abstract class CobaltActivity extends Activity {
   private BlockingHolder<CronetEngine> mCronetEngineHolder;
 
   private void initializeCronetEngine() {
-    Log.i("ColinL", "initializeCronetEngine");
-    // 1. Create and configure the builder FIRST.
     CronetEngine.Builder builder = new CronetEngine.Builder(this);
     builder.enableHttp2(true)
            .enableQuic(true);
            // Add any other configuration here (e.g., caching, user-agent)
 
     mCronetEngine = builder.build();
-    Log.i("ColinL", "mCronetEngine is " + mCronetEngine);
   }
 
   // This is set by Kimono 's MainActivity very earlier. CoAT does not set it.

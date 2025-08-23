@@ -55,19 +55,6 @@
   @dev.cobalt.coat.javabridge.CobaltJavaScriptInterface <methods>;
 }
 
-# Keep classes from the following packages from being obfuscated.
-# without this, crash stack will be "at dev.cobalt.coat.CobaltActivity.onCreate(Unknown Source)"
-# classes with package name starts with dev.cobalt
--keep,allowshrinking,allowoptimization,allowaccessmodification class dev.cobalt.** { *; }
-# classes with package name is org.chromium.components.embedder_support.view
--keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.components.embedder_support.view.* { *; }
-# classes with package name starts with org.chromium.content
--keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.content.** { *; }
-
-# Keeps debugging information for stack traces for the ENTIRE app.
-# Without this dev.cobalt.coat.CobaltActivity.onStart() will be renamed to a.b.c.a()
--keepattributes SourceFile,LineNumberTable
-
 # add to keep cronet classes as reflection is used to load cronet library.
 # without this, CronetProvider will fail on Kimono
--keep class org.chromium.net.** { *; }
+-keep class org.chromium.net.impl.NativeCronetProvider { *; }
