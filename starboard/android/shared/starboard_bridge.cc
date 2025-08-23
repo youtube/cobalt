@@ -178,11 +178,6 @@ void StarboardBridge::ApplicationStopping(JNIEnv* env) {
   Java_StarboardBridge_applicationStopping(env, j_starboard_bridge_);
 }
 
-void StarboardBridge::AfterStopped(JNIEnv* env) {
-  SB_DCHECK(env);
-  Java_StarboardBridge_afterStopped(env, j_starboard_bridge_);
-}
-
 void StarboardBridge::AppendArgs(JNIEnv* env,
                                  std::vector<std::string>* args_vector) {
   SB_DCHECK(env);
