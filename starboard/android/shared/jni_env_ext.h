@@ -44,7 +44,7 @@ struct JniEnvExt : public JNIEnv {
   // recursion.
 
   // One-time initialization to be called before starting the application.
-  static void Initialize(JniEnvExt* jni_env, jobject starboard_bridge);
+  static void Initialize(JNIEnv* jni_env, jobject starboard_bridge);
 
   // Called right before each native thread is about to be shutdown.
   static void OnThreadShutdown();

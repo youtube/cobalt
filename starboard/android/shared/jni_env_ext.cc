@@ -22,6 +22,7 @@
 #include <string>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 
 #include "jni_state.h"
@@ -36,6 +37,19 @@ void Destroy(void* value) {
   }
 }
 
+bool HasException(JNIEnv* env) {
+  return env->ExceptionCheck() != JNI_FALSE;
+}
+
+bool ClearException(JNIEnv* env) {
+  if (!HasException(env)) {
+    return false;
+  }
+  env->ExceptionDescribe();
+  env->ExceptionClear();
+  return true;
+}
+
 }  // namespace
 
 namespace starboard::android::shared {
@@ -43,7 +57,7 @@ namespace starboard::android::shared {
 // Warning: use __android_log_write for logging in this file.
 
 // static
-void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
+void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
@@ -51,10 +65,23 @@ void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
   SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
-  JNIState::SetApplicationClassLoader(
-      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
-          env->GetObjectClass(starboard_bridge), "getClassLoader",
-          "()Ljava/lang/ClassLoader;")));
+
+  jclass starboard_bridge_class = env->GetObjectClass(starboard_bridge);
+  SB_CHECK(!ClearException(env));
+
+  jmethodID get_class_loader = env->GetMethodID(
+      starboard_bridge_class, "getClassLoader", "()Ljava/lang/ClassLoader;");
+  SB_CHECK(!ClearException(env));
+
+  jobject class_loader_local =
+      env->CallObjectMethod(starboard_bridge, get_class_loader);
+  env->DeleteLocalRef(starboard_bridge_class);
+  SB_CHECK(!ClearException(env));
+
+  jobject class_loader_global = env->NewGlobalRef(class_loader_local);
+  env->DeleteLocalRef(class_loader_local);
+
+  JNIState::SetApplicationClassLoader(class_loader_global);
 
   SB_DCHECK_EQ(JNIState::GetStarboardBridge(), nullptr);
   JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));

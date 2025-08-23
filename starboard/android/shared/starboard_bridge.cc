@@ -160,8 +160,7 @@ JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
 extern "C" SB_EXPORT_PLATFORM jboolean
 JNI_StarboardBridge_InitJNI(JNIEnv* env,
                             const JavaParamRef<jobject>& j_starboard_bridge) {
-  JniEnvExt::Initialize(reinterpret_cast<JniEnvExt*>(env),
-                        j_starboard_bridge.obj());
+  JniEnvExt::Initialize(env, j_starboard_bridge.obj());
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
