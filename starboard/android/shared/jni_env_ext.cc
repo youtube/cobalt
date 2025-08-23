@@ -79,12 +79,15 @@ void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_CHECK(!ClearException(env));
 
   jobject class_loader_global = env->NewGlobalRef(class_loader_local);
+  SB_CHECK(!ClearException(env));
   env->DeleteLocalRef(class_loader_local);
 
   JNIState::SetApplicationClassLoader(class_loader_global);
 
   SB_DCHECK_EQ(JNIState::GetStarboardBridge(), nullptr);
-  JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));
+  jobject starboard_bridge_global = env->NewGlobalRef(starboard_bridge);
+  SB_CHECK(!ClearException(env));
+  JNIState::SetStarboardBridge(starboard_bridge_global);
 }
 
 // static
