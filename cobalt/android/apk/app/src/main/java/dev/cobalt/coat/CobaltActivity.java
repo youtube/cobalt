@@ -52,6 +52,7 @@ import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -303,6 +304,7 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
+    MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
 
     videoSurfaceView = new VideoSurfaceView(this);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
@@ -380,6 +382,7 @@ public abstract class CobaltActivity extends Activity {
       // visibility:visible event
       webContents.onShow();
     }
+    MemoryPressureMonitor.INSTANCE.enablePolling();
   }
 
   @Override
@@ -398,6 +401,7 @@ public abstract class CobaltActivity extends Activity {
     if (VideoSurfaceView.getCurrentSurface() != null) {
       forceCreateNewVideoSurfaceView = true;
     }
+    MemoryPressureMonitor.INSTANCE.disablePolling();
 
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
