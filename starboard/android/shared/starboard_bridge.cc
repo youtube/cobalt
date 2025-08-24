@@ -61,6 +61,19 @@ std::vector<std::string> GetArgs() {
 
 }  // namespace
 
+// TODO: b/372559388 - Consolidate this function when fully deprecate
+// JniEnvExt.
+jboolean JNI_StarboardBridge_InitJNI(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_starboard_bridge) {
+  JniEnvExt::Initialize(reinterpret_cast<JniEnvExt*>(env),
+                        j_starboard_bridge.obj());
+
+  // Initialize the singleton instance of StarboardBridge
+  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+  return true;
+}
+
 void JNI_StarboardBridge_OnStop(JNIEnv* env) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
   SbFileAndroidTeardown();
@@ -91,6 +104,11 @@ jlong JNI_StarboardBridge_StartNativeStarboard(
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
+}
+
+void JNI_StarboardBridge_CloseNativeStarboard(JNIEnv* env, jlong nativeApp) {
+  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
+  delete app;
 }
 
 void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
@@ -141,33 +159,12 @@ void JNI_StarboardBridge_SetAndroidBuildFingerprint(
       ConvertJavaStringToUTF8(env, fingerprint));
 }
 
-extern "C" SB_EXPORT_PLATFORM jboolean
-JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
+jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
   return false;
 #endif
-}
-
-// TODO(cobalt, b/372559388): consolidate this function when fully deprecate
-// JniEnvExt.
-extern "C" SB_EXPORT_PLATFORM jboolean
-JNI_StarboardBridge_InitJNI(JNIEnv* env,
-                            const JavaParamRef<jobject>& j_starboard_bridge) {
-  JniEnvExt::Initialize(reinterpret_cast<JniEnvExt*>(env),
-                        j_starboard_bridge.obj());
-
-  // Initialize the singleton instance of StarboardBridge
-  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
-  return true;
-}
-
-extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_CloseNativeStarboard(
-    JNIEnv* env,
-    jlong nativeApp) {
-  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
-  delete app;
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
