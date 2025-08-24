@@ -161,10 +161,12 @@ public class StarboardBridge {
 
     long currentMonotonicTime();
 
-    boolean initJNI(StarboardBridge starboardBridge);
-
     long startNativeStarboard(
         AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
+
+    boolean initJNI(StarboardBridge starboardBridge);
+
+    void closeNativeStarboard(long app);
 
     void initializePlatformAudioSink();
 
@@ -177,8 +179,6 @@ public class StarboardBridge {
     void setAndroidPlayServicesVersion(long version);
 
     boolean isReleaseBuild();
-
-    void closeNativeStarboard(long app);
   }
 
   protected void onActivityStart(Activity activity) {
