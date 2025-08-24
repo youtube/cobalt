@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include "cobalt/shell/common/shell_test_switches.h"
 
-#include "starboard/shared/starboard/application.h"
+#include "base/command_line.h"
 
-void SbSystemRequestFreeze() {
-  // There is no FreezeDone callback for stopping all thread execution
-  // after fully transitioning into Frozen.
-  starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
+namespace switches {
+
+const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+
+const char kRunWebTests[] = "run-web-tests";
+
+bool IsRunWebTestsSwitchPresent() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kRunWebTests);
 }
+
+}  // namespace switches

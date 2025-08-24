@@ -115,6 +115,11 @@ STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
 STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 
+// By default, set the following to true to use stub decoder as audio/video
+// decoder.
+STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
+STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
+
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to true with parameters
 // kResetDelayUsec and kFlushDelayUsec to force it to wait during

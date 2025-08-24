@@ -40,12 +40,12 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -194,6 +194,7 @@ public class StarboardBridge {
   protected void onActivityStop(Activity activity) {
     Log.i(TAG, "onActivityStop ran");
     beforeSuspend();
+    cobaltMediaSession.onActivityStop();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
@@ -255,8 +256,6 @@ public class StarboardBridge {
     }
   }
 
-  // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
-  @CalledByNative
   protected void afterStopped() {
     applicationStopped = true;
     closeAllServices();
@@ -295,14 +294,8 @@ public class StarboardBridge {
   public void requestStop(int errorLevel) {}
 
   public boolean onSearchRequested() {
-    // TODO(cobalt): re-enable native search request if needed.
-    // if (applicationStarted) {
-    //   return nativeOnSearchRequested();
-    // }
     return false;
   }
-
-  // private native boolean nativeOnSearchRequested();
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
@@ -311,13 +304,7 @@ public class StarboardBridge {
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static boolean isReleaseBuild() {
-    // TODO(cobalt): find a way to determine if is release build.
-    // return nativeIsReleaseBuild();
-    return false;
-  }
-
-  // private static native boolean nativeIsReleaseBuild();
+  public static native boolean isReleaseBuild();
 
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;

@@ -26,10 +26,10 @@ import android.util.Log;
  */
 public class AmatiDeviceInspector implements CobaltJavaScriptAndroidObject {
 
-    private final Context context;
+    private final Context mContext;
 
     public AmatiDeviceInspector(Context context) {
-        this.context = context;
+        this.mContext = context;
     }
 
     @Override
@@ -39,7 +39,8 @@ public class AmatiDeviceInspector implements CobaltJavaScriptAndroidObject {
 
     @CobaltJavaScriptInterface
     public void printIsAmatiDevice() {
-        boolean isAmatiDevice = context.getPackageManager().hasSystemFeature("com.google.android.feature.AMATI_EXPERIENCE");
+        boolean isAmatiDevice =
+                mContext.getPackageManager().hasSystemFeature("com.google.android.feature.AMATI_EXPERIENCE");
         Log.i(TAG, "It is running on an Amati device? " + isAmatiDevice);
     }
 }

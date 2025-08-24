@@ -21,6 +21,7 @@
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -152,11 +153,18 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
 
+  bool use_stub_audio_decoder = false;
+  bool use_stub_video_decoder = false;
+#if BUILDFLAG(IS_ANDROID)
+  use_stub_audio_decoder = ::starboard::features::FeatureList::IsEnabled(
+      ::starboard::features::kUseStubAudioDecoder);
+  use_stub_video_decoder = ::starboard::features::FeatureList::IsEnabled(
+      ::starboard::features::kUseStubVideoDecoder);
+#else
   auto command_line = shared::starboard::Application::Get()->GetCommandLine();
-  bool use_stub_audio_decoder =
-      command_line->HasSwitch("use_stub_audio_decoder");
-  bool use_stub_video_decoder =
-      command_line->HasSwitch("use_stub_video_decoder");
+  use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
+  use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (use_stub_audio_decoder && use_stub_video_decoder) {
     CreateStubAudioComponents(creation_parameters, &audio_decoder,
