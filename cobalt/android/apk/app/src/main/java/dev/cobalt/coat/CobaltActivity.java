@@ -288,9 +288,6 @@ public abstract class CobaltActivity extends Activity {
     return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
-  // TODO(b/375442742): re-enable native code.
-  // private static native void nativeLowMemoryEvent();
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
@@ -587,13 +584,6 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
-  }
-
-  @Override
-  public void onLowMemory() {
-    super.onLowMemory();
-    // TODO(cobalt): re-enable native low memory event or remove code if unnecessary.
-    // nativeLowMemoryEvent();
   }
 
   public long getAppStartTimestamp() {
