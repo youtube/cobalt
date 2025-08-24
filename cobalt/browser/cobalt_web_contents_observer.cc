@@ -21,6 +21,7 @@
 #include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
 using starboard::android::shared::StarboardBridge;
@@ -36,6 +37,12 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
       std::make_unique<js_injection::JsCommunicationHost>(web_contents);
 
   RegisterInjectedJavaScript();
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (OomInterventionTabHelper::IsEnabled()) {
+    OomInterventionTabHelper::CreateForWebContents(web_contents);
+  }
+#endif
 }
 
 void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
