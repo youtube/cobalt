@@ -47,6 +47,7 @@ source_set("browser") {
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
+    "//cobalt/android/oom_intervention",
     "//cobalt/browser:switches",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
