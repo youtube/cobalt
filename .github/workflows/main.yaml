@@ -340,8 +340,6 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    # Run ODT when on_device label is applied on PR.
-    # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
     if: needs.initialize.outputs.test_on_device == 'true' &&
         (
           github.event.pull_request.draft == false ||
