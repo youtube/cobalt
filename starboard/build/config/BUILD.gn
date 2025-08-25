@@ -140,7 +140,9 @@ config("starboard") {
     defines += [
       "STARBOARD_BUILD_TYPE_DEVEL",
       "COBALT_BUILD_TYPE_DEVEL",
-      "_DEBUG",
+
+      # Disable _DEBUG. Otherwise //third_party/icu is broken.
+      # "_DEBUG",
       "COBALT_LOGGING_ENABLED",
     ]
   }
