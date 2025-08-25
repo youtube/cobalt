@@ -166,16 +166,18 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  pthread_create(&audio_out_thread_, nullptr,
-                 &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &AudioTrackAudioSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  audio_out_thread_ = thread;
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
-  if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+  if (audio_out_thread_) {
+    pthread_join(*audio_out_thread_, nullptr);
   }
 }
 
