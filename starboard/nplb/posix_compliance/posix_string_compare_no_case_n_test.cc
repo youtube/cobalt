@@ -14,32 +14,31 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
-TEST(PosixCompareNoCaseNTest, SunnyDaySelf) {
+TEST(PosixStringCompareNoCaseNTest, SunnyDaySelf) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, strncasecmp(kString, kString, strlen(kString)));
   EXPECT_EQ(0, strncasecmp("", "", 0));
 }
 
-TEST(PosixCompareNoCaseNTest, SunnyDayEmptyLessThanNotEmpty) {
+TEST(PosixStringCompareNoCaseNTest, SunnyDayEmptyLessThanNotEmpty) {
   const char kString[] = "0123456789";
   EXPECT_GT(0, strncasecmp("", kString, strlen(kString)));
 }
 
-TEST(PosixCompareNoCaseNTest, SunnyDayEmptyZeroNEqual) {
+TEST(PosixStringCompareNoCaseNTest, SunnyDayEmptyZeroNEqual) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, strncasecmp("", kString, 0));
 }
 
-TEST(PosixCompareNoCaseNTest, SunnyDayBigN) {
+TEST(PosixStringCompareNoCaseNTest, SunnyDayBigN) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, strncasecmp(kString, kString, strlen(kString) * 2));
 }
 
-TEST(PosixCompareNoCaseNTest, SunnyDayCase) {
+TEST(PosixStringCompareNoCaseNTest, SunnyDayCase) {
   const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
   const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, strncasecmp(kString1, kString2, strlen(kString1)));
@@ -53,6 +52,41 @@ TEST(PosixCompareNoCaseNTest, SunnyDayCase) {
   EXPECT_EQ(0, strncasecmp(kString4, kString3, strlen(kString4) / 2));
 }
 
+TEST(PosixStringCompareNoCaseNTest, SunnyDayOrdering) {
+  const char kString1[] = "abc";
+  const char kString2[] = "def";
+  const char kString3[] = "aBc";
+  const char kString4[] = "dEf";
+
+  // Test "less than"
+  EXPECT_GT(0, strncasecmp(kString1, kString2, 3));
+  EXPECT_GT(0, strncasecmp(kString3, kString4, 3));
+
+  // Test "greater than"
+  EXPECT_LT(0, strncasecmp(kString2, kString1, 3));
+  EXPECT_LT(0, strncasecmp(kString4, kString3, 3));
+}
+
+TEST(PosixStringCompareNoCaseNTest, SunnyDayPartialMatchOrdering) {
+  const char kString1[] = "aBcDe";
+  const char kString2[] = "aBxYz";
+
+  EXPECT_EQ(0, strncasecmp(kString1, kString2, 2));
+
+  EXPECT_GT(0, strncasecmp(kString1, kString2, 3));
+  EXPECT_LT(0, strncasecmp(kString2, kString1, 3));
+}
+
+TEST(PosixStringCompareNoCaseNTest, SunnyDayNonAlphabetic) {
+  const char kString1[] = "string-123!";
+  const char kString2[] = "String-123!";
+  const char kString3[] = "string-124!";
+
+  EXPECT_EQ(0, strncasecmp(kString1, kString2, strlen(kString1)));
+
+  EXPECT_GT(0, strncasecmp(kString1, kString3, strlen(kString1)));
+  EXPECT_LT(0, strncasecmp(kString3, kString1, strlen(kString1)));
+}
+
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
