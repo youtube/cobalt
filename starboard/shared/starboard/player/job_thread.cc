@@ -50,11 +50,11 @@ JobThread::JobThread(const char* thread_name,
     pthread_attr_setstacksize(&attributes, stack_size);
   }
 
-  pthread_create(&thread_, &attributes, &JobThread::ThreadEntryPoint,
-                 &thread_param);
+  const int result = pthread_create(
+      &thread_, &attributes, &JobThread::ThreadEntryPoint, &thread_param);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK_NE(thread_, 0);
+  SB_CHECK_EQ(result, 0);
   std::unique_lock lock(thread_param.mutex);
   thread_param.condition_variable.wait(
       lock, [this] { return job_queue_ != nullptr; });

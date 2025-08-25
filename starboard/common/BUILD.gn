@@ -75,6 +75,8 @@ static_library("common") {
     "semaphore.h",
     "size.cc",
     "size.h",
+    "source_location.cc",
+    "source_location.h",
     "spin_lock.cc",
     "spin_lock.h",
     "storage.cc",
@@ -109,6 +111,7 @@ source_set("common_test") {
     "queue_test.cc",
     "semaphore_test.cc",
     "size_test.cc",
+    "starboard_common_time_test.cc",
   ]
   deps = [
     ":common",

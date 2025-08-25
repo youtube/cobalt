@@ -24,16 +24,12 @@ fseek
 fseeko
 ftell
 ftello
-futimes
 fwrite
 getc
 getcwd
 getrlimit
 initstate
 localeconv
-localtime
-localtime_r
-mktime
 newlocale
 openlog
 prctl
@@ -53,10 +49,8 @@ stderr
 stdin
 stdout
 syslog
-timegm
 tmpfile
 ungetc
 uselocale
-utimes
 vfprintf
 vprintf
