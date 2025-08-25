@@ -219,6 +219,7 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//cc/slim",
     "//cobalt/shell:browsertests_mojom",
+    "//cobalt/shell:browsertests_sources",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
