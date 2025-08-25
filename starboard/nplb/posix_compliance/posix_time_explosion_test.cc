@@ -110,7 +110,7 @@ TEST_P(PosixTimeExplosionOverflowTest, HandlesTimeOverflow) {
   const auto& function_info = std::get<0>(GetParam());
   const auto& test_data = std::get<1>(GetParam());
   // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   if (test_data.hermetic_only) {
     GTEST_SKIP() << "Non-hermetic builds fail this test for "
                  << test_data.case_name;
