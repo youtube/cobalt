@@ -41,12 +41,12 @@ jobs:
           set -eux
           # m114 merge commit=38a06fe8674ad2140ff85c87b5b3a817304e369a
           export REV=$(git rev-parse --verify origin/main)
-          python main.py linearize --repo-path=${GITHUB_WORKSPACE} --source-branch=main --new-branch-name=feature/linear_main \
+          python main.py linearize --repo-path=${GITHUB_WORKSPACE} --source-branch=main --new-branch-name=automated/linear_main \
             --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=${REV} --commit-output="${GITHUB_WORKSPACE}/linear_main_commit_mapping.json"
-      - name: Update feature/linear_main and commit map
+      - name: Update automated/linear_main and commit map
         run: |
           set -eux
-          git push --force origin feature/linear_main:feature/linear_main
+          git push --force origin automated/linear_main:automated/linear_main
           git add linear_main_commit_mapping.json
           git stash push -- linear_main_commit_mapping.json
           git checkout experimental/rebase_tools
