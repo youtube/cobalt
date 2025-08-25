@@ -167,7 +167,6 @@ config("platform_configuration") {
 }
 
 config("libraries") {
-  ldflags = [ "-Wl,--wrap=eglSwapBuffers" ]
   libs = [
     "X11",
     "Xcomposite",
