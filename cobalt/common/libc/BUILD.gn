@@ -20,10 +20,14 @@ static_library("libc") {
   if (is_cobalt_hermetic_build) {
     sources += [
       "stdlib/environment.cc",
+      "time/gmtime.cc",
       "time/icu_time_support.cc",
       "time/icu_time_support.h",
+      "time/localtime.cc",
+      "time/mktime.cc",
       "time/time_zone_state.cc",
       "time/time_zone_state.h",
+      "time/timegm.cc",
       "time/tzset.cc",
     ]
   }
