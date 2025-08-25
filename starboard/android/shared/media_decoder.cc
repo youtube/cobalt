@@ -194,10 +194,12 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
-  if (decoder_thread_ == 0) {
-    pthread_create(&decoder_thread_, nullptr,
-                   &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK_NE(decoder_thread_, 0);
+  if (!decoder_thread_) {
+    pthread_t thread;
+    const int result = pthread_create(
+        &thread, nullptr, &MediaDecoder::DecoderThreadEntryPoint, this);
+    SB_CHECK_EQ(result, 0);
+    decoder_thread_ = thread;
   }
 
   std::lock_guard lock(mutex_);
@@ -396,9 +398,9 @@ void MediaDecoder::TerminateDecoderThread() {
     condition_variable_.notify_one();
   }
 
-  if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, nullptr);
-    decoder_thread_ = 0;
+  if (decoder_thread_) {
+    pthread_join(*decoder_thread_, nullptr);
+    decoder_thread_ = std::nullopt;
   }
 }
 
@@ -661,7 +663,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
   // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
-  if (destroying_.load() || decoder_thread_ == 0) {
+  if (destroying_.load() || !decoder_thread_) {
     return;
   }
 

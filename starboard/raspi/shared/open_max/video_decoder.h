@@ -18,6 +18,7 @@
 #include <functional>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 #include "starboard/common/check_op.h"
@@ -89,7 +90,7 @@ class VideoDecoder
   bool eos_written_;
   bool first_input_written_ = false;
 
-  pthread_t thread_;
+  std::optional<pthread_t> thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 

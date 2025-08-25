@@ -37,7 +37,6 @@ const int64_t kUpdateIntervalUsec = 5'000;
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
     : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       eos_written_(false),
-      thread_(0),
       request_thread_termination_(false) {
   SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);
   update_job_ = std::bind(&VideoDecoder::Update, this);
@@ -45,12 +44,12 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
 }
 
 VideoDecoder::~VideoDecoder() {
-  if (thread_ != 0) {
+  if (thread_) {
     {
       std::lock_guard scoped_lock(mutex_);
       request_thread_termination_ = true;
     }
-    pthread_join(thread_, NULL);
+    pthread_join(*thread_, nullptr);
   }
   RemoveJobByToken(update_job_token_);
 }
@@ -65,9 +64,12 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 
-  SB_DCHECK_EQ(thread_, 0);
-  pthread_create(&thread_, nullptr, &VideoDecoder::ThreadEntryPoint, this);
-  SB_DCHECK_NE(thread_, 0);
+  SB_DCHECK(!thread_);
+  pthread_t thread;
+  const int result =
+      pthread_create(&thread, nullptr, &VideoDecoder::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  thread_ = thread;
 }
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {

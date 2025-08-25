@@ -21,6 +21,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -155,7 +156,7 @@ class AudioTrackAudioSink
   AudioTrackBridge bridge_;
 
   volatile bool quit_ = false;
-  pthread_t audio_out_thread_ = 0;
+  std::optional<pthread_t> audio_out_thread_;
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;

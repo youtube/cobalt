@@ -19,6 +19,7 @@
 
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 #include "starboard/common/check_op.h"
@@ -138,7 +139,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  pthread_t decoder_thread_;
+  std::optional<pthread_t> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;

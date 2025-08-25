@@ -56,10 +56,10 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
-  if (tester_thread_ != 0) {
+  if (tester_thread_) {
     test_complete_cv_.notify_one();
-    pthread_join(tester_thread_, NULL);
-    tester_thread_ = 0;
+    pthread_join(*tester_thread_, nullptr);
+    tester_thread_ = std::nullopt;
   }
 }
 
@@ -71,7 +71,7 @@ void MinRequiredFramesTester::AddTest(
     int default_required_frames) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester doesn't support to add test after starts.
-  SB_DCHECK_EQ(tester_thread_, 0);
+  SB_DCHECK(!tester_thread_);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
@@ -80,11 +80,13 @@ void MinRequiredFramesTester::AddTest(
 void MinRequiredFramesTester::Start() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester only supports to start once.
-  SB_DCHECK_EQ(tester_thread_, 0);
+  SB_DCHECK(!tester_thread_);
 
-  pthread_create(&tester_thread_, nullptr,
-                 &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_DCHECK_NE(tester_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &MinRequiredFramesTester::TesterThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  tester_thread_ = thread;
 }
 
 // static

@@ -20,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include "starboard/android/shared/audio_track_bridge.h"
@@ -85,7 +86,7 @@ class ContinuousAudioTrackSink
   AudioTrackBridge bridge_;
 
   volatile bool quit_ = false;
-  pthread_t audio_out_thread_ = 0;
+  std::optional<pthread_t> audio_out_thread_;
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;

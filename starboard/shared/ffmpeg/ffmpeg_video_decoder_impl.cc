@@ -110,7 +110,6 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
       av_frame_(NULL),
       stream_ended_(false),
       error_occurred_(false),
-      decoder_thread_(0),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -164,10 +163,12 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     return;
   }
 
-  if (decoder_thread_ == 0) {
-    pthread_create(&decoder_thread_, nullptr,
-                   &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_DCHECK_NE(decoder_thread_, 0);
+  if (!decoder_thread_) {
+    pthread_t thread;
+    const int result = pthread_create(
+        &thread, nullptr, &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
+    SB_CHECK_EQ(result, 0);
+    decoder_thread_ = thread;
   }
   queue_.Put(Event(input_buffer));
 }
@@ -179,7 +180,7 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
 
-  if (decoder_thread_ == 0) {
+  if (!decoder_thread_) {
     // In case there is no WriteInputBuffers() call before WriteEndOfStream(),
     // don't create the decoder thread and send the EOS frame directly.
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
@@ -191,16 +192,16 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
 
 void VideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
-  if (decoder_thread_ != 0) {
+  if (decoder_thread_) {
     queue_.Put(Event(kReset));
-    pthread_join(decoder_thread_, NULL);
+    pthread_join(*decoder_thread_, nullptr);
   }
 
   if (codec_context_ != NULL) {
     ffmpeg_->avcodec_flush_buffers(codec_context_);
   }
 
-  decoder_thread_ = 0;
+  decoder_thread_ = std::nullopt;
   stream_ended_ = false;
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

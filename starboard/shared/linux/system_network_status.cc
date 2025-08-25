@@ -99,7 +99,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 }  // namespace
 
 bool NetworkNotifier::Initialize() {
-  SB_DCHECK_EQ(notifier_thread_, 0);
+  SB_DCHECK(!notifier_thread_);
 
   pthread_attr_t attributes;
   int result = pthread_attr_init(&attributes);
@@ -108,11 +108,13 @@ bool NetworkNotifier::Initialize() {
   }
 
   pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-  pthread_create(&notifier_thread_, &attributes,
-                 &NetworkNotifier::NotifierThreadEntry, this);
+  pthread_t thread;
+  const int create_result = pthread_create(
+      &thread, &attributes, &NetworkNotifier::NotifierThreadEntry, this);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK_NE(notifier_thread_, 0);
+  SB_CHECK_EQ(create_result, 0);
+  notifier_thread_ = thread;
   return true;
 }
 

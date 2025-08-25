@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/player_worker.h"
 
 #include <pthread.h>
+#include <string.h>
 
 #include <condition_variable>
 #include <memory>
@@ -79,7 +80,7 @@ PlayerWorker* PlayerWorker::CreateInstance(
                        update_media_info_cb, decoder_status_func,
                        player_status_func, player_error_func, player, context);
 
-  if (ret && ret->thread_ != 0) {
+  if (ret && ret->thread_) {
     return ret;
   }
   delete ret;
@@ -89,10 +90,10 @@ PlayerWorker* PlayerWorker::CreateInstance(
 PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
-  if (thread_ != 0) {
+  if (thread_) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
-    pthread_join(thread_, NULL);
-    thread_ = 0;
+    pthread_join(*thread_, nullptr);
+    thread_ = std::nullopt;
 
     // Now the whole pipeline has been torn down and no callback will be called.
     // The caller can ensure that upon the return of SbPlayerDestroy() all side
@@ -131,14 +132,17 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
   pthread_attr_setstacksize(&attributes, kPlayerStackSize);
-  pthread_create(&thread_, &attributes, &PlayerWorker::ThreadEntryPoint,
-                 &thread_param);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, &attributes, &PlayerWorker::ThreadEntryPoint, &thread_param);
   pthread_attr_destroy(&attributes);
 
-  if (thread_ == 0) {
-    SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
+  if (result != 0) {
+    SB_LOG(ERROR) << "Failed to create thread in PlayerWorker constructor: "
+                  << strerror(result);
     return;
   }
+  thread_ = thread;
   std::unique_lock lock(thread_param.mutex);
   thread_param.condition_variable.wait(
       lock, [this] { return job_queue_ != nullptr; });

@@ -21,6 +21,7 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -116,7 +117,7 @@ class MinRequiredFramesTester {
   std::mutex mutex_;
   std::condition_variable test_complete_cv_;
   bool is_test_complete_ = false;  // Guarded by |mutex_|.
-  pthread_t tester_thread_ = 0;
+  std::optional<pthread_t> tester_thread_;
   std::atomic_bool destroying_;
 };
 
