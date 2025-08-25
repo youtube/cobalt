@@ -21,12 +21,15 @@
 #include <algorithm>
 #include <string>
 
+#include "base/android/scoped_java_ref.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 #include "jni_state.h"
 
 namespace {
+
+using base::android::ScopedJavaLocalRef;
 
 pthread_key_t g_tls_key = 0;
 
@@ -64,21 +67,21 @@ void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
 
-  jclass starboard_bridge_class = env->GetObjectClass(starboard_bridge);
+  ScopedJavaLocalRef<jclass> starboard_bridge_class(
+      env, env->GetObjectClass(starboard_bridge));
   SB_CHECK(!ClearException(env));
 
-  jmethodID get_class_loader = env->GetMethodID(
-      starboard_bridge_class, "getClassLoader", "()Ljava/lang/ClassLoader;");
+  jmethodID get_class_loader =
+      env->GetMethodID(starboard_bridge_class.obj(), "getClassLoader",
+                       "()Ljava/lang/ClassLoader;");
   SB_CHECK(!ClearException(env));
 
-  jobject class_loader_local =
-      env->CallObjectMethod(starboard_bridge, get_class_loader);
-  env->DeleteLocalRef(starboard_bridge_class);
+  ScopedJavaLocalRef<jobject> class_loader_local(
+      env, env->CallObjectMethod(starboard_bridge, get_class_loader));
   SB_CHECK(!ClearException(env));
 
-  jobject class_loader_global = env->NewGlobalRef(class_loader_local);
+  jobject class_loader_global = env->NewGlobalRef(class_loader_local.obj());
   SB_CHECK(!ClearException(env));
-  env->DeleteLocalRef(class_loader_local);
 
   JNIState::SetApplicationClassLoader(class_loader_global);
 
