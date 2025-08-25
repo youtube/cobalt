@@ -22,10 +22,12 @@
 
 namespace aura {
 namespace client {
-class CursorShapeClient;
-class DefaultCaptureClient;
 class FocusClient;
+class DefaultCaptureClient;
+#if defined(RUN_BROWSER_TESTS)
+class CursorShapeClient;
 class WindowParentingClient;
+#endif  // defined(RUN_BROWSER_TESTS)
 }  // namespace client
 }  // namespace aura
 
@@ -63,8 +65,11 @@ class ShellPlatformDataAura {
   std::unique_ptr<aura::WindowTreeHost> host_;
   std::unique_ptr<aura::client::FocusClient> focus_client_;
   std::unique_ptr<aura::client::DefaultCaptureClient> capture_client_;
+
+#if defined(RUN_BROWSER_TESTS)
   std::unique_ptr<aura::client::WindowParentingClient> window_parenting_client_;
   std::unique_ptr<aura::client::CursorShapeClient> cursor_shape_client_;
+#endif  // defined(RUN_BROWSER_TESTS)
 };
 
 }  // namespace content
