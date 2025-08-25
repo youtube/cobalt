@@ -76,7 +76,8 @@ void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
                        "()Ljava/lang/ClassLoader;");
   SB_CHECK(!ClearException(env));
 
-  ScopedJavaLocalRef<jobject> class_loader_local(env, env->CallObjectMethod(starboard_bridge, get_class_loader));
+  ScopedJavaLocalRef<jobject> class_loader_local(
+      env, env->CallObjectMethod(starboard_bridge, get_class_loader));
   SB_CHECK(!ClearException(env));
   SB_CHECK(class_loader_local.obj());
 
