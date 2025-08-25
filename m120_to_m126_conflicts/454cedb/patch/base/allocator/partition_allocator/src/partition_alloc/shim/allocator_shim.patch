@@ -1,0 +1,33 @@
+--- base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.cc
++++ base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.cc
+@@ -32,28 +32,11 @@
+ // allocator_shim::internal::PartitionMallocUnchecked through the shim layer.
+ #include "partition_alloc/shim/allocator_shim_override_cpp_symbols.h"
+ 
+-<<<<<<< HEAD
+-#include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
+-=======
+-#if BUILDFLAG(IS_ANDROID)
+-// Android does not support symbol interposition. The way malloc symbols are
+-// intercepted on Android is by using link-time -wrap flags.
+-#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_linker_wrapped_symbols.h"
+-#elif BUILDFLAG(IS_WIN)
+-// On Windows we use plain link-time overriding of the CRT symbols.
+-#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_ucrt_symbols_win.h"
+-#elif BUILDFLAG(IS_APPLE)
+-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+-#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_apple_default_zone.h"
+-#else  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+-#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_apple_symbols.h"
+-#endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+-#elif defined(IS_COBALT_HERMETIC_BUILD)
++#if defined(IS_COBALT_HERMETIC_BUILD)
+ // Don't include anything, all includes are already set up in MUSL libc
+ #else
+-#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_libc_symbols.h"
++#include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
+ #endif
+->>>>>>> 08381675a91 (Build nplb hermetically (#4587))
+ 
+ // Some glibc versions (until commit 6c444ad6e953dbdf9c7be065308a0a777)
+ // incorrectly call __libc_memalign() to allocate memory (see elf/dl-tls.c in

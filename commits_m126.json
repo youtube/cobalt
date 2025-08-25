@@ -1,5 +1,824 @@
 [
   {
+    "hexsha": "a46144f95706698eaec1dcfd9a50d0058eb289f0",
+    "original_hexsha": "a204459cce4d86668e144a0e28bc1f7535094c82",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-01-31T10:32:17-08:00",
+    "summary": "Add on-device tests (#4739)",
+    "stats": {
+      "files": 17,
+      "insertions": 794,
+      "deletions": 117
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "783c56beecba07604473c899cfed4141483b0198",
+    "original_hexsha": "cd09067ec0f7a6902c37fff0946195af14c21803",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-31T09:00:00-08:00",
+    "summary": "Revert commit 4edeeef8",
+    "stats": {
+      "files": 5,
+      "insertions": 189,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "164889bc68914dc604c00d669da6ae657d60b035",
+    "original_hexsha": "e3875799427298c5347312defd601f760d5885f6",
+    "author": "johnx",
+    "datetime": "2025-01-31T03:15:42+00:00",
+    "summary": "Add proguard rules to avoid stripping JNI-needed symbols (#4780)",
+    "stats": {
+      "files": 1,
+      "insertions": 17,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4db890f3b31faa9e8427d407f2e2e7e0d3106075",
+    "original_hexsha": "802cebe7c296ab99056164c21bf321437b8cc1ad",
+    "author": "Brian Ting",
+    "datetime": "2025-01-30T17:29:43-08:00",
+    "summary": "Refactor release packaging (#4804)",
+    "stats": {
+      "files": 5,
+      "insertions": 14,
+      "deletions": 189
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a54395bd611f8de2183ba9c63b93e0a80a97f695",
+    "original_hexsha": "b9d34372409d30b12aa2064dd9049b3f80163d93",
+    "author": "Jason",
+    "datetime": "2025-01-30T17:02:14-08:00",
+    "summary": "Remove COBALT_MEDIA_ENABLE_SIDE_DATA (#4801)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fc09484f038ac8839a19c65ecf21e2644d3a17d2",
+    "original_hexsha": "8bca239f4144ab40945e0b9923fa86421b2ed821",
+    "author": "Kaido Kert",
+    "datetime": "2025-01-30T15:46:19-08:00",
+    "summary": "Remove artifact upload due to failure (#4802)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "303c474fbb9c9dc8078e6df9b82835e267e5a709",
+    "original_hexsha": "2e1b3cd8113c50bf9f9fd1d8b474687c3900f65b",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-29T19:00:00-08:00",
+    "summary": "Extract common packaging code",
+    "stats": {
+      "files": 4,
+      "insertions": 44,
+      "deletions": 53
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b45a9e7c739852dff55f403c57c5b6a8c7417722",
+    "original_hexsha": "d9aa7910e943d138623a9b6686687fe15cb19fc6",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-21T21:00:00-08:00",
+    "summary": "Package Cobalt for Android",
+    "stats": {
+      "files": 2,
+      "insertions": 35,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b44bed481c2ae31e588b7d576f1870e254d418f9",
+    "original_hexsha": "5e271487fc7565835b9fcb862ceea2a216528c4c",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-01-29T17:05:20-08:00",
+    "summary": "Add check-json to pre-commit (#4792)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3f8bc55a37b37bc51db411aa5f9bf4f3daed5a27",
+    "original_hexsha": "0b34129398e96096cb74c517820001e53d326606",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-01-29T15:42:30-08:00",
+    "summary": "Link angle statically (#4789)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "be974cd7487a71570e6036f2bdfdd4ba27c4cb02",
+    "original_hexsha": "c96960561a36b60513d17501c851ff49e69bc6c2",
+    "author": "Jason",
+    "datetime": "2025-01-29T14:23:20-08:00",
+    "summary": "Fix typo in vertical video tests (#4784) (#4788)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7dc59d49b2d1ec07f6b538d353b1c887019841d2",
+    "original_hexsha": "cc4863ac5ff3deaa4f4bfa6f28502425aead27f4",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-01-29T21:10:52+00:00",
+    "summary": "Add ozone_unittests target to be build and run on CI (#4783)",
+    "stats": {
+      "files": 3,
+      "insertions": 31,
+      "deletions": 56
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d7c2e4f87120d124e34142b63b70a0a9a34700e1",
+    "original_hexsha": "326c51af49fd19da3e1a078e031e339e21cad637",
+    "author": "johnx",
+    "datetime": "2025-01-29T21:09:56+00:00",
+    "summary": "Embed v8 snapshot blob in built binary (#4775)",
+    "stats": {
+      "files": 2,
+      "insertions": 5,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "23ae6d0ba700ea6c8b5b4a54eac428aeafc50ddb",
+    "original_hexsha": "a24f92a1e4d113a11a731afb9e8853ad00311522",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-01-29T21:01:24+00:00",
+    "summary": "Add flag to ignore gpu blocklist for Cobalt (#4782)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5692bca176f30385fc396f78325766cf3cc689a6",
+    "original_hexsha": "b1a20adfdbee810a920650c08722c5ec75ab41f0",
+    "author": "johnx",
+    "datetime": "2025-01-29T10:16:50+00:00",
+    "summary": "Stop building webview in CI (#4781)",
+    "stats": {
+      "files": 3,
+      "insertions": 0,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "04a50daa0207f753f35d3764d62aed10166c25a7",
+    "original_hexsha": "c04d60b101a1227d555211982fe9f2a8485703ed",
+    "author": "Kaido Kert",
+    "datetime": "2025-01-28T14:21:36-08:00",
+    "summary": "Add Chromedriver binaries to Linux builds (#4778)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a785755b14fe74dd5a20798d914bc5f5c1518f69",
+    "original_hexsha": "93aa24d43916f56d03843f9ff529e7ca53a7454e",
+    "author": "Colin Liang",
+    "datetime": "2025-01-28T14:03:30-08:00",
+    "summary": "Add H5vccSystem web interface, set it as window.h5vcc.system (#4763)",
+    "stats": {
+      "files": 14,
+      "insertions": 164,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "79bdd1b8d61da0cd8e3b35ae6d70acf5868b23a2",
+    "original_hexsha": "1b4f3c17f5baf81d2bfe1c2164a33db63ea59d78",
+    "author": "Brian Ting",
+    "datetime": "2025-01-28T14:00:02-08:00",
+    "summary": "Package Cobalt for Linux (#4760)",
+    "stats": {
+      "files": 2,
+      "insertions": 42,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d1ab673d556675c1b0ac5117295a4d9f272e5f93",
+    "original_hexsha": "f892997bcebcecee996575febf76331ee4ad31b8",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-01-28T19:47:50+00:00",
+    "summary": "Fix test expectations after change to Angle (#4773)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "21dc84ae3bd8930274688fa3bc97e73dc6d85129",
+    "original_hexsha": "d965cf3ed9ea391ec3a4923452e513470770deff",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-01-28T08:20:33-08:00",
+    "summary": "Make is_starboard a global variable (#4774)",
+    "stats": {
+      "files": 6,
+      "insertions": 6,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d95206da2ca3890712e0876c3b43b595e957ca3e",
+    "original_hexsha": "252b810bbca051e102da46449c49aeda0c1c67ec",
+    "author": "Holden Warriner",
+    "datetime": "2025-01-27T16:12:01-05:00",
+    "summary": "Rename CrashAnnotatorService as CrashAnnotatorImpl (#4768)",
+    "stats": {
+      "files": 19,
+      "insertions": 249,
+      "deletions": 250
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b86dcae2b7db28b2e68bcd3be8f473dd34547cf9",
+    "original_hexsha": "d469e289ecfbf60e81548ddd00e7814b886f82bc",
+    "author": "Andrew Savage",
+    "datetime": "2025-01-27T16:08:35-05:00",
+    "summary": "Remove unused idl files (#4762)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5ad7f13b96e1b09570a510edc3328ca63fcc10f4",
+    "original_hexsha": "6e62cf19e7dbf18f7d79bcc7cdf76bdb3e7a923a",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-01-27T12:25:23-08:00",
+    "summary": "Bringing the Cobalt 25 Starboard message pump. (#4767)",
+    "stats": {
+      "files": 2,
+      "insertions": 276,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1a9ab2bef81a466eda4b6de995b7d26b6f9a89f3",
+    "original_hexsha": "086ff4b7500f1dc2100f8562691faf3abeaee7a6",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-01-27T11:10:46-08:00",
+    "summary": "Merge Ozone prototype commits into main (#4727)",
+    "stats": {
+      "files": 18,
+      "insertions": 701,
+      "deletions": 73
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "70ba3a86ec09f51e723a9d68bd4fe3a90ab53adf",
+    "original_hexsha": "82896864420b1158e87754b42de454c798b88bcd",
+    "author": "Hao",
+    "datetime": "2025-01-24T20:59:50-05:00",
+    "summary": "Migrate JNI to jni_generator for class CobaltTextToSpeechHelper (#4710)",
+    "stats": {
+      "files": 10,
+      "insertions": 74,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7650266030d06e6cf4b99d3ca3d8e3700cf1e597",
+    "original_hexsha": "7299daddc0ecc3b92f0d7d960ea93d40cdfc729c",
+    "author": "Hao",
+    "datetime": "2025-01-24T20:01:52-05:00",
+    "summary": "Migrate class MediaCodecBridge$GetOutputFormatResult to jni_generator (#4759)",
+    "stats": {
+      "files": 4,
+      "insertions": 104,
+      "deletions": 73
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1cd7c933ca916447fce5f6c11b69a03eb16c4c19",
+    "original_hexsha": "9968b067f46d6b32ddf74e1e799a5054827773f1",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-01-24T16:17:18-08:00",
+    "summary": "Remove third_party/llvm-project/libcxx{,abi} (#4728)",
+    "stats": {
+      "files": 9653,
+      "insertions": 0,
+      "deletions": 1225071
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c19d651d742ed41a6ba29a0a1a2cf5d07277700b",
+    "original_hexsha": "2bb9be1bdb200be299b144a5a47c64e9c310c5c9",
+    "author": "Andrew Savage",
+    "datetime": "2025-01-24T11:30:33-05:00",
+    "summary": "Add flag for temporary, hacky cobalt changes (#4755)",
+    "stats": {
+      "files": 3,
+      "insertions": 29,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c4cdd79960c835ab5279ccd18c325ead816548f6",
+    "original_hexsha": "9ad5c7b4551734790502ee77deb915201d1e0b4f",
+    "author": "Andrew Savage",
+    "datetime": "2025-01-24T11:22:14-05:00",
+    "summary": "Create H5vcc interface (#4712)",
+    "stats": {
+      "files": 14,
+      "insertions": 205,
+      "deletions": 55
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "de9fdef8a2213d5df9972c68fb0cf7a52072e03e",
+    "original_hexsha": "2395442bc988174e1ee2f5ab41a2d083ba2821cc",
+    "author": "Brian Ting",
+    "datetime": "2025-01-23T13:24:07-08:00",
+    "summary": "Remove crosstool builder. (#4749)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 55
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8e148c395971c5ad6e8ad7cacfc64a9a5260cead",
+    "original_hexsha": "bca0e6a8d11a089d7319d505d5d7dd01e03850e1",
+    "author": "Holden Warriner",
+    "datetime": "2025-01-23T16:15:08-05:00",
+    "summary": "Move sources to a new browser dir and build target (#4754)",
+    "stats": {
+      "files": 20,
+      "insertions": 468,
+      "deletions": 451
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b0903a44738fe9febf7a95920a475ca94c9e2fe2",
+    "original_hexsha": "c6cc9f2b71d82617f8fcacc0cc9b481fe297a4aa",
+    "author": "Jason",
+    "datetime": "2025-01-22T16:32:03-08:00",
+    "summary": "Refresh media capabilities cache on display change (#4747)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b13e53f3d185fe36b85b1e326df911ab4c3580c2",
+    "original_hexsha": "cbffebf7e3481ee7b63352e8be2693a7fdf773ec",
+    "author": "Jason",
+    "datetime": "2025-01-22T16:24:12-08:00",
+    "summary": "[android] Ensure MinRequiredFramesTester can start (#4737) (#4743)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4451919e1bd9f4e9f2981500f525c8a8956175a3",
+    "original_hexsha": "7bf6f39c2f8ef85bc288949bcaf467af09ba6231",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-01-22T16:00:46-08:00",
+    "summary": "Remove on_device_test from android configs (#4745)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8fb4ff57d648e3553aa7a93b54d6441e343733e6",
+    "original_hexsha": "3e63f2498e4976f8fa51c31a9323137e7b83ebf3",
+    "author": "Brian Ting",
+    "datetime": "2025-01-22T15:45:52-08:00",
+    "summary": "Enable RBE for Kokoro builds. (#4741)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b335ee7eced107ce14e7d3339fd56ec0879cd6d2",
+    "original_hexsha": "e8334d714b99623b2136934a2c3465af567b8954",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-21T21:00:00-08:00",
+    "summary": "Install gcloud instead of sccache",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c867bd37a6f40d654bc43f4a1f29c274141cf6d9",
+    "original_hexsha": "bb771fcda4979dd6941e4d152b010db21bec0da3",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-22T12:50:14-08:00",
+    "summary": "[media] Enable e/ac3 support (#4738)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "14cc23fe3d5bf9fe13c60c99ef94c7d2241c6943",
+    "original_hexsha": "654b491fa8d528ac240865c6d243eb2b1cbf3cf6",
+    "author": "xiaomings",
+    "datetime": "2025-01-22T11:47:07-08:00",
+    "summary": "Fix typo in HTMLMediaElement::GetSupportsType() (#4732)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6962334df9e4b12541fd36daef918e0ae2bb59cf",
+    "original_hexsha": "8c6474acf9449dfd4c7d69338b14f6859661fe60",
+    "author": "Jason",
+    "datetime": "2025-01-22T10:34:42-08:00",
+    "summary": "Set default color depth to 8 in nplb tests (#4729) (#4733)",
+    "stats": {
+      "files": 5,
+      "insertions": 11,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "68737a2dca4a3f05850bebcb5a149bcca5e0b3c5",
+    "original_hexsha": "052f6b92b4af4d420046be6cd7a52993ef602086",
+    "author": "Kaido Kert",
+    "datetime": "2025-01-22T09:07:56-08:00",
+    "summary": "Add --no-rbe flag to gn.py to disable RBE. (#4735)",
+    "stats": {
+      "files": 2,
+      "insertions": 16,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6afd5ff3736377809506c360f63a5edeff310279",
+    "original_hexsha": "1e393e2faced18c78fcf2bed303fbba791f61d6f",
+    "author": "johnx",
+    "datetime": "2025-01-22T15:55:03+00:00",
+    "summary": "Remove one line of setCrashContext log (#4723)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "52d70bdd63201beb0b646014fb2cd9cbce0a10ea",
+    "original_hexsha": "498c246308d93b054c4b6ab5cdb25f337e8a74b2",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-15T15:00:00-08:00",
+    "summary": "Remove files for Kokoro on-device tests",
+    "stats": {
+      "files": 3,
+      "insertions": 0,
+      "deletions": 84
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6a5f7e699e0007530d35798cc0d77d193c5e9251",
+    "original_hexsha": "6698790118fb0da73ea35432bbdc2ce3be252bd8",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-21T18:09:41-08:00",
+    "summary": "[media] Enable blink feature for MediaSource.duration (#4734)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "48d38c507c74c001e3a171c1eef78dd9f82ac271",
+    "original_hexsha": "79df06d0c4b390e51129274c9c73d7d8d3ab8e95",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-01-21T16:44:32-08:00",
+    "summary": "Rework test targets and artifacts (#4720)",
+    "stats": {
+      "files": 27,
+      "insertions": 502,
+      "deletions": 244
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2fc06df3a7ab6b9b93b7a5a08518ec0db087e683",
+    "original_hexsha": "d78bb51bd93b8d73a5ac39f64d109ef5b5ff5a6c",
+    "author": "Jason",
+    "datetime": "2025-01-21T13:45:46-08:00",
+    "summary": "Update the comment of SbPlayerGetInfo() (#4713)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ba42f4c0cd526d2c8d9baf5f9c771726864106b5",
+    "original_hexsha": "73018f4e1c425bedd3adae4deef56386c6c2ac3d",
+    "author": "Colin Liang",
+    "datetime": "2025-01-19T08:58:58-08:00",
+    "summary": "Integrate js_injection and make java bridge polyfill script work (#4715)",
+    "stats": {
+      "files": 15,
+      "insertions": 169,
+      "deletions": 106
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "404a4c892e2674777e997e31b42b29b00aada555",
+    "original_hexsha": "454cedb880c3aa30c45507c3f2973ff9b68d2d07",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-01-17T18:39:18-08:00",
+    "summary": "Build nplb hermetically (#4587)",
+    "stats": {
+      "files": 33,
+      "insertions": 479,
+      "deletions": 99
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c98c9c60a86740998ba923bf1ad08aed0078b88d",
+    "original_hexsha": "1426cebb0331fc68a2148cb448d6fa2d42100c8c",
+    "author": "Ian Mindich",
+    "datetime": "2025-01-17T15:02:29-08:00",
+    "summary": "Enable globstar in shell to ensure Datadog upload finds all files. (#4716)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3cf14d6a8302a54911701ed7bdb02eaabb1e3a84",
+    "original_hexsha": "9a4ed4933ecc787ddda43462d461a361dab828d9",
+    "author": "Holden Warriner",
+    "datetime": "2025-01-17T17:15:12-05:00",
+    "summary": "Refactor CrashAnnotator impl as a Cobalt service (#4709)",
+    "stats": {
+      "files": 26,
+      "insertions": 339,
+      "deletions": 224
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4912bc77c71ebd811116c5544b5356306056774e",
+    "original_hexsha": "e84f1895eae6322acc9d02d07238e157518fc382",
+    "author": "Hao",
+    "datetime": "2025-01-17T16:43:33-05:00",
+    "summary": "JNI migration to jni_generator for file starboard/android/shared/file_internal.cc (#4684)",
+    "stats": {
+      "files": 6,
+      "insertions": 151,
+      "deletions": 78
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "28e9da0aa4b9aa7ed141c291720f7fc855ae86d3",
+    "original_hexsha": "782628828110eb76c42ac742ce3547c7686fa301",
+    "author": "thorsten sideb0ard",
+    "datetime": "2025-01-17T12:34:03-08:00",
+    "summary": "Support WebAudio (#4577)",
+    "stats": {
+      "files": 8,
+      "insertions": 508,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6c3f678941fff0479fb2635804ecc7e767d59fba",
+    "original_hexsha": "d7c2bc0f23a1a7f62df2f8d86c5516cdfb9d185c",
+    "author": "Jason",
+    "datetime": "2025-01-17T11:14:35-08:00",
+    "summary": "Avoid calling GetMediaTime() on media thread (#4703)",
+    "stats": {
+      "files": 1,
+      "insertions": 13,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "06d3ea2927eec17a13d8fcad08866d793017ad8a",
+    "original_hexsha": "d59ac6b02a1358df91218b24aab6c4b36ff79eea",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-17T10:48:04-08:00",
+    "summary": "[android] Enable low-end-device-mode (#4663)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "77be86a104946e5f5643a39be97a13ab64d349e2",
+    "original_hexsha": "d561d947012ff98f811606e61ce1c0bc81f054b7",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-16T08:00:00-08:00",
+    "summary": "Remove time call",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d0674b78c3fcbc754389c63e153be5aaf85d22a4",
+    "original_hexsha": "08e544fa15eb4acaaa491037861ee9de6acc292a",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-16T08:00:00-08:00",
+    "summary": "Correct spelling of build_telemetry",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2e9f0621fb7c51af2309b6b1f7e69b1fca757ebb",
+    "original_hexsha": "2c519c9d4b20407ffba564f690fb31df9569f0fb",
+    "author": "Kaido Kert",
+    "datetime": "2025-01-16T10:32:34-08:00",
+    "summary": "Restore embedding scripts from Cobalt (#4706)",
+    "stats": {
+      "files": 2,
+      "insertions": 197,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b7357472bb1cbea751002bf85f346874e429f101",
+    "original_hexsha": "afd43c872774d74d24a772fcd226e6fba1abe52a",
+    "author": "Brian Ting",
+    "datetime": "2025-01-15T17:47:07-08:00",
+    "summary": "Set up Cobalt build acceleration with RBE (#4604)",
+    "stats": {
+      "files": 5,
+      "insertions": 30,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2b7d7897184a6bdd0b6a31756298d285f5fb8bf7",
+    "original_hexsha": "165ac0ed8f82d0951eed85171d7882db3c9b4ee8",
+    "author": "Igor Sarkisov",
+    "datetime": "2025-01-15T13:21:19-08:00",
+    "summary": "Avoid using container in validate-test-result job (#4700)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "84da796309ca8a71caa9c5ef3b5477205830d593",
+    "original_hexsha": "d08c8cd5920a99800d0908468bbc51d7c67e2229",
+    "author": "aee",
+    "datetime": "2025-01-15T13:17:55-08:00",
+    "summary": "Add top-level Cobalt WebContentsObserver. (#4699)",
+    "stats": {
+      "files": 6,
+      "insertions": 72,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "41ee2bf4793f1bd554a3ccd0db3253a1ad8af6b4",
+    "original_hexsha": "b597c1c9e6a08802c7711ffb1c986566c96c8517",
+    "author": "Ian Mindich",
+    "datetime": "2025-01-14T18:03:21-08:00",
+    "summary": "Shard unit tests (#4666)",
+    "stats": {
+      "files": 6,
+      "insertions": 77,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "57459994e3c013312596e6511f68eaf037128a68",
+    "original_hexsha": "ad39ff4120520bbdcdeef89567353e6f9fb33fe2",
+    "author": "xiaomings",
+    "datetime": "2025-01-14T16:51:46-08:00",
+    "summary": "Make cobalt-media owner of everything in /media/ (#4696)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8646b3497a312b3dbc2de21204d80cbd38d101eb",
+    "original_hexsha": "a028ee649b771de477f2ba49850ab988e472b654",
+    "author": "Austin Osagie",
+    "datetime": "2025-01-14T16:07:55-08:00",
+    "summary": "[media] Move calls to GetPlayerStateName() (#4679)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1703abddbeca8a69b5ea5ee608987cb4e7802380",
+    "original_hexsha": "5e6a0d9502d2ad7c7a7e74210002783865c1a42f",
+    "author": "johnx",
+    "datetime": "2025-01-14T20:58:54+00:00",
+    "summary": "CoAT changes to support Kimono build (#4506)",
+    "stats": {
+      "files": 11,
+      "insertions": 674,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "a4b3aa5a0b724ddad7e407857825f8f31c152251",
     "original_hexsha": "aba5a7a1fcfff969de23c56c6fbe71fa27c2d67d",
     "author": "thorsten sideb0ard",

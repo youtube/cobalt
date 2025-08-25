@@ -1,0 +1,18 @@
+--- base/allocator/partition_allocator/BUILD.gn
++++ base/allocator/partition_allocator/BUILD.gn
+@@ -11,13 +11,12 @@
+   public_deps = [ "src/partition_alloc:buildflags" ]
+ }
+ 
+-<<<<<<< HEAD
+ if (is_clang_or_gcc) {
+   group("partition_alloc") {
+     public_deps = [ "src/partition_alloc:partition_alloc" ]
+   }
+-=======
++}
++
+ if (is_cobalt) {
+   import("//cobalt/build/configs/modular_variables.gni")
+->>>>>>> 08381675a91 (Build nplb hermetically (#4587))
+ }
