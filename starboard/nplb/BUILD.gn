@@ -41,6 +41,7 @@ test("nplb") {
 
   # TODO(b/432821616): Move |media_sources| to a source_set.
   media_sources = [
+    "//starboard/android/shared/media_capabilities_cache_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
     "//starboard/testing/fake_graphics_context_provider.cc",
