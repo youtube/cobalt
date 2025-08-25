@@ -91,9 +91,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
  private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   const Type type_;
   const bool is_memory_pool_allocated_on_demand_;
@@ -103,13 +103,13 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
   // operations.
   std::stringstream pending_allocation_operations_ GUARDED_BY(mutex_);
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 };
 
 }  // namespace media

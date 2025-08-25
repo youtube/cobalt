@@ -56,7 +56,7 @@ void MessagePumpUIStarboard::CancelImmediate() {
 
 void MessagePumpUIStarboard::RunUntilIdle() {
   DCHECK(delegate_);
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Abort if this is a QA build to signal that this is unexpected.
   CHECK(delegate_);
 #endif

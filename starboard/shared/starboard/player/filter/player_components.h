@@ -163,9 +163,9 @@ class PlayerComponents {
         const CreationParameters& creation_parameters,
         std::string* error_message);
 
-#if COBALT_BUILD_TYPE_GOLD
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
    private:
-#endif  // COBALT_BUILD_TYPE_GOLD
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.

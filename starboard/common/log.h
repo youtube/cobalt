@@ -31,7 +31,7 @@ extern "C++" {
 #include <sstream>
 #include <string>
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define SB_LOGGING_IS_OFFICIAL_BUILD 1
 #else
 #define SB_LOGGING_IS_OFFICIAL_BUILD 0

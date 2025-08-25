@@ -1161,9 +1161,9 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
   } else if (state == kSbPlayerStatePresenting &&
              sb_player_state_presenting_time_.is_null()) {
     sb_player_state_presenting_time_ = Time::Now();
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     LogStartupLatency();
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
   host_->OnPlayerStatus(state);
 }

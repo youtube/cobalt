@@ -21,7 +21,7 @@
 
 namespace starboard::shared::starboard {
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 class ThreadChecker {
  public:
@@ -34,7 +34,7 @@ class ThreadChecker {
   bool CalledOnValidThread() const { return true; }
 };
 
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
+#else  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 class ThreadChecker {
  public:
@@ -72,7 +72,7 @@ class ThreadChecker {
   mutable std::atomic<SbThreadId> thread_id_;
 };
 
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 }  // namespace starboard::shared::starboard
 

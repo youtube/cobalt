@@ -1111,7 +1111,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
         return;
       }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // If we failed to find any matching clip regions, the crop values
       // returned from the platform may be inconsistent.
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
@@ -1120,7 +1120,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           << frame_size << " - (" << content_region.left << ", "
           << content_region.top << ", " << content_region.right << ", "
           << content_region.bottom << ")";
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
     }

@@ -289,7 +289,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 #endif
 
 // Apply overrides from command line
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (!base::CommandLine::InitializedForCurrentProcess()) {
     return;
   }

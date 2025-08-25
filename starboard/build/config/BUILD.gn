@@ -125,54 +125,8 @@ config("target") {
 # TODO(b/212641065): Scope global defines migrated from
 # cobalt_configuration.gypi to only the targets they're necessary in.
 config("starboard") {
-  defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
-
-  if (is_debug) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_DEBUG",
-      "COBALT_BUILD_TYPE_DEBUG",
-      "_DEBUG",
-      "COBALT_LOGGING_ENABLED",
-    ]
-  }
-
-  if (is_devel) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_DEVEL",
-      "COBALT_BUILD_TYPE_DEVEL",
-
-      # Disable _DEBUG. Otherwise //third_party/icu is broken.
-      # "_DEBUG",
-      "COBALT_LOGGING_ENABLED",
-    ]
-  }
-
-  if (is_qa) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_QA",
-      "COBALT_BUILD_TYPE_QA",
-      "NDEBUG",
-    ]
-  }
-
-  if (is_gold) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_GOLD",
-      "COBALT_BUILD_TYPE_GOLD",
-      "NDEBUG",
-      "OFFICIAL_BUILD",
-      "TRACING_DISABLED",
-      "COBALT_FORCE_CSP",
-      "COBALT_FORCE_CORS",
-    ]
-  }
-
-  if (enable_in_app_dial) {
-    defines += [ "DIAL_SERVER" ]
-  }
-
   if (is_starboardized_toolchain) {
-    defines += [
+    defines = [
       "STARBOARD",
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
     ]

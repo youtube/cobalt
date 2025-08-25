@@ -110,14 +110,14 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
   void* p = strategy_->Allocate(type, size, alignment);
   CHECK(p);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
     pending_allocation_operations_ << " a " << p << " " << type << " " << size
                                    << " " << alignment;
     TryFlushAllocationLog_Locked();
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   return p;
 }
@@ -135,13 +135,13 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   // TODO: b/369245553 - Cobalt: Refactor to pass a valid stream type.
   strategy_->Free(DemuxerStream::UNKNOWN, p);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
     pending_allocation_operations_ << " f " << p;
     TryFlushAllocationLog_Locked();
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   if (is_memory_pool_allocated_on_demand_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -228,7 +228,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
             << " bytes for media buffer pool.";
 }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
   const int kMaxOperationsPerLog = 80;
 
@@ -252,6 +252,6 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
     pending_allocation_operations_.clear();
   }
 }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 }  // namespace media
