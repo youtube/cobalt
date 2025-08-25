@@ -21,15 +21,12 @@
 #include <algorithm>
 #include <string>
 
-#include "base/android/scoped_java_ref.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 #include "jni_state.h"
 
 namespace {
-
-using base::android::ScopedJavaLocalRef;
 
 pthread_key_t g_tls_key = 0;
 
@@ -39,26 +36,14 @@ void Destroy(void* value) {
   }
 }
 
-bool HasException(JNIEnv* env) {
-  return env->ExceptionCheck() != JNI_FALSE;
-}
-
-bool ClearException(JNIEnv* env) {
-  if (!HasException(env)) {
-    return false;
-  }
-  env->ExceptionDescribe();
-  env->ExceptionClear();
-  return true;
-}
-
 }  // namespace
 
 namespace starboard::android::shared {
 
 // Warning: use __android_log_write for logging in this file.
 
-void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
+// static
+void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
@@ -66,30 +51,13 @@ void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
-
-  ScopedJavaLocalRef<jclass> starboard_bridge_class(
-      env, env->GetObjectClass(starboard_bridge));
-  SB_CHECK(!ClearException(env));
-
-  jmethodID get_class_loader =
-      env->GetMethodID(starboard_bridge_class.obj(), "getClassLoader",
-                       "()Ljava/lang/ClassLoader;");
-  SB_CHECK(!ClearException(env));
-
-  ScopedJavaLocalRef<jobject> class_loader_local(
-      env, env->CallObjectMethod(starboard_bridge, get_class_loader));
-  SB_CHECK(!ClearException(env));
-  SB_CHECK(class_loader_local.obj());
-
-  jobject class_loader_global = env->NewGlobalRef(class_loader_local.obj());
-  SB_CHECK(!ClearException(env));
-
-  JNIState::SetApplicationClassLoader(class_loader_global);
+  JNIState::SetApplicationClassLoader(
+      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
+          env->GetObjectClass(starboard_bridge), "getClassLoader",
+          "()Ljava/lang/ClassLoader;")));
 
   SB_DCHECK_EQ(JNIState::GetStarboardBridge(), nullptr);
-  jobject starboard_bridge_global = env->NewGlobalRef(starboard_bridge);
-  SB_CHECK(!ClearException(env));
-  JNIState::SetStarboardBridge(starboard_bridge_global);
+  JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));
 }
 
 // static
