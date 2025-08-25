@@ -173,6 +173,8 @@ public class StarboardBridge {
 
     // void closeNativeStarboard(long nativeApp);
 
+    void initializePlatformAudioSink();
+
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
@@ -327,6 +329,12 @@ public class StarboardBridge {
       throw new IllegalArgumentException("args cannot be null");
     }
     return args;
+  }
+
+  // Initialize the platform's AudioTrackAudioSink. This must be done after the browser client
+  // loads in the feature list and field trials.
+  public void initializePlatformAudioSink() {
+    StarboardBridgeJni.get().initializePlatformAudioSink();
   }
 
   /** Sends an event to the web app to navigate to the given URL */
