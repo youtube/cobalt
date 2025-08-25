@@ -817,31 +817,6 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
   current_video_frames_.erase(player);
 }
 
-void ApplicationX11::SwapBuffersBegin() {
-  // Prevent compositing while the GL layer is changing.
-  frame_mutex_.lock();
-}
-
-void ApplicationX11::SwapBuffersEnd() {
-  // Determine the video bounds that should be used with the new GL layer.
-
-  // Sort the video bounds according to their z_index.
-  current_video_bounds_.clear();
-  for (auto& iter : next_video_bounds_) {
-    const FrameInfo& bounds = iter.second;
-    auto position = current_video_bounds_.begin();
-    while (position != current_video_bounds_.end()) {
-      if (bounds.z_index < position->z_index) {
-        break;
-      }
-      ++position;
-    }
-    current_video_bounds_.insert(position, bounds);
-  }
-
-  frame_mutex_.unlock();
-}
-
 void ApplicationX11::PlayerSetBounds(SbPlayer player,
                                      int z_index,
                                      int x,
