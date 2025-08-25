@@ -301,7 +301,9 @@ public class StarboardBridge {
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static native boolean isReleaseBuild();
+  public static boolean isReleaseBuild() {
+    return StarboardBridgeJni.get().isReleaseBuild();
+  }
 
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;
