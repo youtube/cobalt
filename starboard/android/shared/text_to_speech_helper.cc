@@ -62,8 +62,7 @@ void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent() const {
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
+void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
   CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
   CobaltTextToSpeechHelper::GetInstance()->SendTextToSpeechChangeEvent();
 }
