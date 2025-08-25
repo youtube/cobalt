@@ -33,6 +33,8 @@ class StarboardBridge {
 
   void Initialize(JNIEnv* env, jobject obj);
 
+  static void InitializeForTesting(JNIEnv* env);
+
   long GetAppStartTimestamp(JNIEnv* env);
 
   long GetAppStartDuration(JNIEnv* env);
