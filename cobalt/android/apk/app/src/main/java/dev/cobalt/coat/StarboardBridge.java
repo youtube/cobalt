@@ -173,6 +173,8 @@ public class StarboardBridge {
 
     // void closeNativeStarboard(long nativeApp);
 
+    void initializePlatformAudioSink();
+
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
@@ -315,13 +317,7 @@ public class StarboardBridge {
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static boolean isReleaseBuild() {
-    // TODO(cobalt): find a way to determine if is release build.
-    // return nativeIsReleaseBuild();
-    return false;
-  }
-
-  // private static native boolean nativeIsReleaseBuild();
+  public static native boolean isReleaseBuild();
 
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;
@@ -333,6 +329,12 @@ public class StarboardBridge {
       throw new IllegalArgumentException("args cannot be null");
     }
     return args;
+  }
+
+  // Initialize the platform's AudioTrackAudioSink. This must be done after the browser client
+  // loads in the feature list and field trials.
+  public void initializePlatformAudioSink() {
+    StarboardBridgeJni.get().initializePlatformAudioSink();
   }
 
   /** Sends an event to the web app to navigate to the given URL */
