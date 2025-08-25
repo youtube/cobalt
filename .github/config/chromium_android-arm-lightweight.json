@@ -6,6 +6,7 @@
   "gn_args": [
     {
       "disable_xr": true,
+      "disable_bluetooth" : true,
       "target_os": "android",
       "target_cpu": "arm"
     }
