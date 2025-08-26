@@ -263,7 +263,7 @@ component("skia") {
   if (is_android) {
     sources += [ "ext/fontmgr_default_android.cc" ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     sources += [ "ext/fontmgr_default_linux.cc" ]
   }
   if (is_ios) {
@@ -280,6 +280,9 @@ component("skia") {
       "ext/fontmgr_default_win.cc",
       "ext/skia_utils_win.cc",
     ]
+  }
+  if (is_starboard) {
+    sources += ["ext/fontmgr_default_starboard.cc"]
   }
 
   if (use_blink) {
@@ -442,7 +445,6 @@ component("skia") {
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h",
-      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt_factory.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.cc",
