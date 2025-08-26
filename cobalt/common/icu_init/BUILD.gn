@@ -13,10 +13,7 @@
 # limitations under the License.
 
 static_library("icu_init") {
-  sources = [
-    "init.cc",
-    "init.h",
-  ]
+  sources = [ "init.cc" ]
 
   deps = [
     "//starboard:starboard_headers_only",
