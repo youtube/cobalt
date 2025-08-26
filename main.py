@@ -190,10 +190,8 @@ def linearize_history(repo, args):
         print('✅ Working tree matches original end commit')
 
     # Write commit mapping to JSON file
-    if not args.commit_output:
-        mapping_filename = f'{args.new_branch_name}_commit_mapping.json'
-    else:
-        mapping_filename = args.commit_output
+    mapping_filename = f'{args.new_branch_name}_commit_mapping.json'
+    print(f'\n📄 Writing commit mapping to {mapping_filename}...')
 
     with open(mapping_filename, 'w', encoding='utf-8') as f:
         import json
@@ -261,21 +259,12 @@ def record_conflict(repo, commit_record_dir):
             )
             open(dst_path, 'a').close()
 
-        file_basename, file_ext = os.path.splitext(os.path.basename(file_path))
-        if file_ext:
-            file_ext = file_ext[1:]  # remove leading '.'
-
-        same_names = [
-            x for x in conflicted_files
-            if os.path.splitext(x)[0] == os.path.splitext(file_path)[0]
-        ]
-
-        if len(same_names) > 1 and file_ext:
-            patch_filename = f'{file_basename}_{file_ext}.patch'
+        file_name, file_ext = file_path.split('.')
+        same_names = [x for x in conflicted_files if x.startswith(file_name)]
+        if len(same_names) > 1:
+            patch_path = f'{file_name}_{file_ext}.patch'
         else:
-            patch_filename = f'{file_basename}.patch'
-        patch_path = os.path.join(patch_dir, patch_filename)
-
+            patch_path = f'{file_name}.patch'
         full_patch_path = os.path.join(os.getcwd(), patch_dir, patch_path)
         if os.path.exists(full_patch_path):
             print(f'   ✅ {file_path} - Patch found')
@@ -319,33 +308,19 @@ def record_conflict(repo, commit_record_dir):
             open(dst_path, 'a').close()
 
     if not resolved_conflict:
-
         print('   📄 Creating conflict resolution patches...')
         for file_path in conflicted_files:
             conflict_path = os.path.join(conflict_dir, file_path)
             resolved_path = os.path.join(resolved_dir, file_path)
 
-            # --- Start of robust replacement ---
-            file_basename, file_ext = os.path.splitext(os.path.basename(file_path))
-            if file_ext:
-                file_ext = file_ext[1:]  # remove leading '.'
-
-            # Check if other conflicted files share the same base path (ignoring extension)
-            same_names = [
-                x for x in conflicted_files
-                if os.path.splitext(x)[0] == os.path.splitext(file_path)[0]
-            ]
-
-            if len(same_names) > 1 and file_ext:
-                patch_filename = f'{file_basename}_{file_ext}.patch'
+            file_name, file_ext = file_path.split('.')
+            same_names = [x for x in conflicted_files if x.startswith(file_name)]
+            if len(same_names) > 1:
+                patch_path = os.path.join(patch_dir, f'{file_name}_{file_ext}.patch')
             else:
-                patch_filename = f'{file_basename}.patch'
-
-            patch_path = os.path.join(patch_dir, patch_filename)
-            # --- End of robust replacement ---
+                patch_path = os.path.join(patch_dir, f'{file_name}.patch')
 
             os.makedirs(os.path.dirname(patch_path), exist_ok=True)
-
             with open(patch_path, 'w', encoding='utf-8') as f:
                 subprocess.run([
                     'diff', '-u', '--label', file_path, '--label', file_path,
@@ -390,10 +365,6 @@ def main():
                                   type=str,
                                   required=True,
                                   help='The name of the new linear branch.')
-    linearize_parser.add_argument('--commit-output',
-                                  required=False,
-                                  default='',
-                                  help='Output file that the linearize file should output to.')
 
     # Commits command
     commits_parser = subparsers.add_parser(
