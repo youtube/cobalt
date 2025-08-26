@@ -17,10 +17,12 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
+#include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -60,6 +62,23 @@ std::vector<std::string> GetArgs() {
 
 }  // namespace
 
+// TODO: b/372559388 - Consolidate this function when fully deprecate
+// JniEnvExt.
+jboolean JNI_StarboardBridge_InitJNI(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_starboard_bridge) {
+  // This downcast is safe, since JniEnvExt adds only methods, not member
+  // variables.
+  // https://github.com/youtube/cobalt/blob/88c9c68/starboard/android/shared/jni_env_ext.cc#L90-L91
+  auto env_ext = static_cast<JniEnvExt*>(env);
+  SB_CHECK(env_ext);
+  JniEnvExt::Initialize(env_ext, j_starboard_bridge.obj());
+
+  // Initialize the singleton instance of StarboardBridge
+  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+  return true;
+}
+
 void JNI_StarboardBridge_OnStop(JNIEnv* env) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
   SbFileAndroidTeardown();
@@ -90,6 +109,11 @@ jlong JNI_StarboardBridge_StartNativeStarboard(
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
+}
+
+void JNI_StarboardBridge_CloseNativeStarboard(JNIEnv* env, jlong nativeApp) {
+  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
+  delete app;
 }
 
 void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
@@ -138,6 +162,14 @@ void JNI_StarboardBridge_SetAndroidBuildFingerprint(
   header_value_provider->SetHeaderValue(
       "Sec-CH-UA-Co-Android-Build-Fingerprint",
       ConvertJavaStringToUTF8(env, fingerprint));
+}
+
+jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  return true;
+#else
+  return false;
+#endif
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
