@@ -33,7 +33,7 @@ class LocaleInfo {
   std::string locale_id;
 
   LocaleInfo() {
-    JniEnvExt* env = JniEnvExt::Get();
+    std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
 
     ScopedLocalJavaRef<jstring> result(env->CallStarboardObjectMethodOrAbort(
         "systemGetLocaleId", "()Ljava/lang/String;"));

@@ -72,23 +72,7 @@ void JniEnvExt::OnThreadShutdown() {
   }
 }
 
-std::unique_ptr<JniEnvExt> JniEnvExt::Get() {
-  JNIEnv* env = nullptr;
-  if (JNI_OK != JNIState::GetVM()->GetEnv(reinterpret_cast<void**>(&env),
-                                          JNI_VERSION_1_4)) {
-    // Tell the JVM our thread name so it doesn't change it.
-    char thread_name[16];
-#if __ANDROID_API__ < 26
-    prctl(PR_GET_NAME, thread_name, 0L, 0L, 0L);
-#else
-    pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-#endif  // __ANDROID_API__ < 26
-    JavaVMAttachArgs args{JNI_VERSION_1_4, thread_name, NULL};
-    JNIState::GetVM()->AttachCurrentThread(&env, &args);
-    // We don't use the value, but any non-NULL means we have to detach.
-    pthread_setspecific(g_tls_key, env);
-  }
-  // The downcast is safe since we only add methods, not fields.
+std::unique_ptr<JniEnvExt> JniEnvExt::Get(JNIEnv* env) {
   return std::make_unique<JniEnvExt>(env);
 }
 

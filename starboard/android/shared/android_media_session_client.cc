@@ -166,7 +166,7 @@ void UpdateActiveSessionPlatformPlaybackState(
 
 void OnMediaSessionStateChanged(
     const CobaltExtensionMediaSessionState session_state) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
 
   jint playback_state = CobaltExtensionPlaybackStateToPlaybackState(
       session_state.actual_playback_state);
@@ -191,13 +191,13 @@ void OnMediaSessionStateChanged(
       CobaltExtensionMediaImage* artwork(media_metadata->artwork);
       ScopedLocalJavaRef<jclass> media_image_class(
           env->FindClassExtOrAbort("dev/cobalt/coat/MediaImage"));
-      jmethodID media_image_constructor = env->GetMethodID(
+      jmethodID media_image_constructor = env->env()->GetMethodID(
           media_image_class.Get(), "<init>",
           "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
       env->AbortOnException();
 
-      j_artwork.Reset(static_cast<jobjectArray>(
-          env->NewObjectArray(artwork_count, media_image_class.Get(), NULL)));
+      j_artwork.Reset(static_cast<jobjectArray>(env->env()->NewObjectArray(
+          artwork_count, media_image_class.Get(), NULL)));
       env->AbortOnException();
 
       ScopedLocalJavaRef<jstring> j_src;
@@ -209,11 +209,12 @@ void OnMediaSessionStateChanged(
         j_sizes.Reset(env->NewStringStandardUTFOrAbort(media_image.size));
         j_type.Reset(env->NewStringStandardUTFOrAbort(media_image.type));
 
-        ScopedLocalJavaRef<jobject> j_media_image(
-            env->NewObject(media_image_class.Get(), media_image_constructor,
-                           j_src.Get(), j_sizes.Get(), j_type.Get()));
+        ScopedLocalJavaRef<jobject> j_media_image(env->env()->NewObject(
+            media_image_class.Get(), media_image_constructor, j_src.Get(),
+            j_sizes.Get(), j_type.Get()));
 
-        env->SetObjectArrayElement(j_artwork.Get(), i, j_media_image.Get());
+        env->env()->SetObjectArrayElement(j_artwork.Get(), i,
+                                          j_media_image.Get());
       }
     }
   }
@@ -266,7 +267,7 @@ void DestroyMediaSessionClientCallback() {
 
   pthread_mutex_unlock(&mutex);
 
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   env->CallStarboardVoidMethodOrAbort("deactivateMediaSession", "()V");
 }
 

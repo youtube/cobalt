@@ -26,7 +26,7 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 }
 
 bool SetString(const char* key, const char* value) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_key(env->NewStringStandardUTFOrAbort(key));
   ScopedLocalJavaRef<jstring> j_value(env->NewStringStandardUTFOrAbort(value));
   env->CallStarboardVoidMethodOrAbort("setCrashContext",

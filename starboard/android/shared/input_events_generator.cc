@@ -97,7 +97,7 @@ float GetFlat(jobject input_device, int axis) {
     return 0.0f;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> motion_range(env->CallObjectMethodOrAbort(
       input_device, "getMotionRange",
       "(I)Landroid/view/InputDevice$MotionRange;", axis));
@@ -800,7 +800,7 @@ bool InputEventsGenerator::ProcessPointerEvent(
 
 jobject GetDevice(GameActivityMotionEvent* android_motion_event) {
   int32_t device_id = android_motion_event->deviceId;
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   return env->CallStaticObjectMethodOrAbort(
       "android/view/InputDevice", "getDevice", "(I)Landroid/view/InputDevice;",
       device_id);

@@ -67,12 +67,7 @@ std::vector<std::string> GetArgs() {
 jboolean JNI_StarboardBridge_InitJNI(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_starboard_bridge) {
-  // This downcast is safe, since JniEnvExt adds only methods, not member
-  // variables.
-  // https://github.com/youtube/cobalt/blob/88c9c68/starboard/android/shared/jni_env_ext.cc#L90-L91
-  auto env_ext = static_cast<JniEnvExt*>(env);
-  SB_CHECK(env_ext);
-  JniEnvExt::Initialize(env_ext, j_starboard_bridge.obj());
+  JniEnvExt::Initialize(env, j_starboard_bridge.obj());
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());

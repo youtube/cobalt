@@ -24,7 +24,7 @@ SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
                             RuntimeResourceOverlay::GetInstance)
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jobject resource_overlay = env->CallStarboardObjectMethodOrAbort(
       "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
 

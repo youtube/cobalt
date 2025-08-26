@@ -69,7 +69,7 @@ void SetColorProperties(jobject j_caption_settings,
                         SbAccessibilityCaptionState* color_state,
                         SbAccessibilityCaptionOpacityPercentage* opacity,
                         SbAccessibilityCaptionState* opacity_state) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jint j_color = env->GetIntFieldOrAbort(j_caption_settings, color_field, "I");
   *color = GetClosestCaptionColor(j_color);
   *opacity = GetClosestOpacity((0xFF & (j_color >> 24)) * 100 / 255);
@@ -89,7 +89,7 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
     return false;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
 
   ScopedLocalJavaRef<jobject> j_caption_settings(
       env->CallStarboardObjectMethodOrAbort(

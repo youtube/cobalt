@@ -23,7 +23,7 @@ namespace starboard::android::shared {
 // A simple scoped wrapper of |android.os.Trace|.
 struct ScopedTrace {
   explicit ScopedTrace(const char* section_name) {
-    JniEnvExt* env = JniEnvExt::Get();
+    std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
     ScopedLocalJavaRef<jstring> j_section_name(
         env->NewStringStandardUTFOrAbort(section_name));
     env->CallStaticVoidMethodOrAbort("android/os/Trace", "beginSection",
@@ -32,7 +32,7 @@ struct ScopedTrace {
   }
 
   ~ScopedTrace() {
-    JniEnvExt* env = JniEnvExt::Get();
+    std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
     env->CallStaticVoidMethodOrAbort("android/os/Trace", "endSection", "()V");
   }
 };

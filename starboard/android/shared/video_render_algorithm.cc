@@ -132,7 +132,7 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
-  auto* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   j_video_frame_release_time_helper_ = env->NewObjectOrAbort(
       "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
   j_video_frame_release_time_helper_ =
@@ -143,9 +143,9 @@ VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
   SB_DCHECK(j_video_frame_release_time_helper_);
-  auto* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   env->CallVoidMethod(j_video_frame_release_time_helper_, "disable", "()V");
-  env->DeleteGlobalRef(j_video_frame_release_time_helper_);
+  env->env()->DeleteGlobalRef(j_video_frame_release_time_helper_);
   j_video_frame_release_time_helper_ = nullptr;
 }
 
@@ -154,7 +154,7 @@ jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
     jlong unadjusted_release_time_ns,
     double playback_rate) {
   SB_DCHECK(j_video_frame_release_time_helper_);
-  auto* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   return env->CallLongMethodOrAbort(
       j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);

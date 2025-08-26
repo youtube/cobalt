@@ -714,7 +714,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       }
       j_output_surface = decode_target->surface();
 
-      JniEnvExt* env = JniEnvExt::Get();
+      std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
       env->CallVoidMethodOrAbort(decode_target->surface_texture(),
                                  "setOnFrameAvailableListener", "(J)V", this);
 
@@ -789,9 +789,9 @@ void VideoDecoder::TeardownCodec() {
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target_->surface_texture(),
-                                 "removeOnFrameAvailableListener", "()V");
+      JniEnvExt::Get()->CallVoidMethodOrAbort(decode_target_->surface_texture(),
+                                              "removeOnFrameAvailableListener",
+                                              "()V");
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -975,23 +975,21 @@ void VideoDecoder::OnFlushing() {
 namespace {
 
 void updateTexImage(jobject surface_texture) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(surface_texture, "updateTexImage", "()V");
+  JniEnvExt::Get()->CallVoidMethodOrAbort(surface_texture, "updateTexImage",
+                                          "()V");
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
-  jfloatArray java_array = env->NewFloatArray(16);
-  SB_DCHECK(java_array);
+  ScopedLocalJavaRef<jfloatArray> java_array(env->NewFloatArray(16));
+  SB_DCHECK(java_array.Get());
 
-  env->CallVoidMethodOrAbort(surface_texture, "getTransformMatrix", "([F)V",
-                             java_array);
+  JniEnvExt(env).CallVoidMethodOrAbort(surface_texture, "getTransformMatrix",
+                                       "([F)V", java_array.Get());
 
-  jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
+  jfloat* array_values = env->GetFloatArrayElements(java_array.Get(), 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
-
-  env->DeleteLocalRef(java_array);
 }
 
 // Converts a 4x4 matrix representing the texture coordinate transform into

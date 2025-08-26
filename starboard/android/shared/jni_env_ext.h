@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 
+#include "base/android/jni_android.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
@@ -52,7 +53,8 @@ class JniEnvExt {
   static void OnThreadShutdown();
 
   // Returns the thread-specific instance of JniEnvExt.
-  static std::unique_ptr<JniEnvExt> Get();
+  static std::unique_ptr<JniEnvExt> Get(
+      JNIEnv* env = base::android::AttachCurrentThread());
 
   explicit JniEnvExt(JNIEnv* env);
 
@@ -385,6 +387,8 @@ class JniEnvExt {
     env_.ExceptionDescribe();
     SbSystemBreakIntoDebugger();
   }
+
+  JNIEnv* env() const { return &env_; }
 
  private:
   JNIEnv& env_;

@@ -42,7 +42,7 @@ const int kMU8Length = SB_ARRAY_SIZE(kMU8) - 1;
 // see: https://github.com/android-ndk/ndk/issues/283
 
 TEST(JniEnvExtTest, NewStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str = env->NewStringStandardUTFOrAbort(kU8);
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
@@ -54,7 +54,7 @@ TEST(JniEnvExtTest, NewStringStandardUTF) {
 }
 
 TEST(JniEnvExtTest, NewStringModifiedUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str = env->NewStringUTF(kMU8);
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
@@ -66,14 +66,14 @@ TEST(JniEnvExtTest, NewStringModifiedUTF) {
 }
 
 TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str = env->NewStringStandardUTFOrAbort("");
 
   EXPECT_EQ(0, env->GetStringLength(j_str));
 }
 
 TEST(JniEnvExtTest, GetStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str =
       env->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
 
@@ -84,7 +84,7 @@ TEST(JniEnvExtTest, GetStringStandardUTF) {
 }
 
 TEST(JniEnvExtTest, EmptyGetStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jchar empty[] = {};
   jstring j_str = env->NewString(empty, 0);
 

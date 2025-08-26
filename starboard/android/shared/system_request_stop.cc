@@ -19,6 +19,6 @@
 using starboard::android::shared::JniEnvExt;
 
 void SbSystemRequestStop(int error_level) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   env->CallStarboardVoidMethodOrAbort("requestStop", "(I)V", error_level);
 }

@@ -23,17 +23,19 @@
 
 #include <functional>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/check_op.h"
 #include "starboard/shared/gles/gl_call.h"
 
-using starboard::android::shared::JniEnvExt;
-
 namespace starboard::android::shared {
 namespace {
 
+using base::android::AttachCurrentThread;
+using starboard::android::shared::JniEnvExt;
+
 jobject CreateSurfaceTexture(int gl_texture_id) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
 
   jobject local_surface_texture = env->NewObjectOrAbort(
       "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
@@ -45,7 +47,7 @@ jobject CreateSurfaceTexture(int gl_texture_id) {
 }
 
 jobject CreateSurfaceFromSurfaceTexture(jobject surface_texture) {
-  JniEnvExt* env = JniEnvExt::Get();
+  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
 
   jobject local_surface = env->NewObjectOrAbort(
       "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
@@ -79,7 +81,7 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 DecodeTarget::~DecodeTarget() {
   ANativeWindow_release(native_window_);
 
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
   env->DeleteGlobalRef(surface_);
   env->DeleteGlobalRef(surface_texture_);
 
@@ -111,7 +113,7 @@ void DecodeTarget::CreateOnContextRunner() {
   // ANativeWindow object that we can pass into the AMediaCodec library.
   surface_ = CreateSurfaceFromSurfaceTexture(surface_texture_);
 
-  native_window_ = ANativeWindow_fromSurface(JniEnvExt::Get(), surface_);
+  native_window_ = ANativeWindow_fromSurface(AttachCurrentThread(), surface_);
 
   // Setup our publicly accessible decode target information.
   info_.format = kSbDecodeTargetFormat1PlaneRGBA;
