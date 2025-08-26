@@ -72,20 +72,9 @@ const void* SbSystemGetExtension(const char* name) {
     // return starboard::android::shared::GetAccessibilityApi();
     return NULL;
   }
-<<<<<<< HEAD
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
-    // TODO(b/377052944): Possibly re-enable
-    // return starboard::shared::starboard::GetLoaderAppMetricsApi();
-    return NULL;
-  }
-#endif
   if (strcmp(name, kStarboardExtensionMediaSettingsName) == 0) {
     return starboard::android::shared::GetMediaSettingsApi();
   }
-=======
-
->>>>>>> 4d128229080 (refactor: Remove dead EVERGREEN_COMPATIBLE code from Android (#6940))
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::android::shared::GetSystemInfoApi();
   }

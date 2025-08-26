@@ -25,11 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-<<<<<<< HEAD
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/log_mutex.h"
-=======
->>>>>>> 4d128229080 (refactor: Remove dead EVERGREEN_COMPATIBLE code from Android (#6940))
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"

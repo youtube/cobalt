@@ -24,14 +24,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-<<<<<<< HEAD
-#if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/elf_loader/evergreen_config.h"  // nogncheck
-#endif
-
-=======
-using ::base::android::ScopedJavaGlobalRef;
->>>>>>> 4d128229080 (refactor: Remove dead EVERGREEN_COMPATIBLE code from Android (#6940))
 using ::starboard::android::shared::g_app_assets_dir;
 using ::starboard::android::shared::g_app_cache_dir;
 using ::starboard::android::shared::g_app_files_dir;
