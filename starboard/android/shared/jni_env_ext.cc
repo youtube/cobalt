@@ -43,7 +43,7 @@ namespace starboard::android::shared {
 // Warning: use __android_log_write for logging in this file.
 
 // static
-void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
+void JniEnvExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
@@ -51,13 +51,14 @@ void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
   SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
+  JniEnvExt env_ext(env);
   JNIState::SetApplicationClassLoader(
-      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
-          env->GetObjectClass(starboard_bridge), "getClassLoader",
+      env_ext.ConvertLocalRefToGlobalRef(env_ext.CallObjectMethodOrAbort(
+          env_ext.env_.GetObjectClass(starboard_bridge), "getClassLoader",
           "()Ljava/lang/ClassLoader;")));
 
   SB_DCHECK_EQ(JNIState::GetStarboardBridge(), nullptr);
-  JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));
+  JNIState::SetStarboardBridge(env_ext.env_.NewGlobalRef(starboard_bridge));
 }
 
 // static
@@ -71,7 +72,7 @@ void JniEnvExt::OnThreadShutdown() {
   }
 }
 
-JniEnvExt* JniEnvExt::Get() {
+std::unique_ptr<JniEnvExt> JniEnvExt::Get() {
   JNIEnv* env = nullptr;
   if (JNI_OK != JNIState::GetVM()->GetEnv(reinterpret_cast<void**>(&env),
                                           JNI_VERSION_1_4)) {
@@ -88,7 +89,11 @@ JniEnvExt* JniEnvExt::Get() {
     pthread_setspecific(g_tls_key, env);
   }
   // The downcast is safe since we only add methods, not fields.
-  return static_cast<JniEnvExt*>(env);
+  return std::make_unique<JniEnvExt>(env);
+}
+
+JniEnvExt::JniEnvExt(JNIEnv* env) : env_(*env) {
+  SB_CHECK(env);
 }
 
 jobject JniEnvExt::GetStarboardBridge() {
@@ -100,12 +105,12 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
-  jstring jname = NewStringUTF(dot_name.c_str());
+  jstring jname = env_.NewStringUTF(dot_name.c_str());
   AbortOnException();
   jobject clazz_obj = CallObjectMethodOrAbort(
       JNIState::GetApplicationClassLoader(), "loadClass",
       "(Ljava/lang/String;)Ljava/lang/Class;", jname);
-  DeleteLocalRef(jname);
+  env_.DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
 }
 

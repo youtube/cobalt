@@ -20,6 +20,7 @@
 
 #include <cstdarg>
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "starboard/common/check_op.h"
@@ -39,18 +40,23 @@ namespace starboard::android::shared {
 // There are convenience methods to lookup and call Java methods on object
 // instances in a single step, with even simpler methods to call Java methods on
 // the StarboardBridge.
-struct JniEnvExt : public JNIEnv {
+class JniEnvExt {
+ public:
   // Warning: use __android_log_write for logging in this file to avoid infinite
   // recursion.
 
   // One-time initialization to be called before starting the application.
-  static void Initialize(JniEnvExt* jni_env, jobject starboard_bridge);
+  static void Initialize(JNIEnv* jni_env, jobject starboard_bridge);
 
   // Called right before each native thread is about to be shutdown.
   static void OnThreadShutdown();
 
   // Returns the thread-specific instance of JniEnvExt.
-  static JniEnvExt* Get();
+  static std::unique_ptr<JniEnvExt> Get();
+
+  explicit JniEnvExt(JNIEnv* env);
+
+  JNIEnv* env() { return &env_; }
 
   // Returns the StarboardBridge object.
   jobject GetStarboardBridge();
@@ -59,23 +65,23 @@ struct JniEnvExt : public JNIEnv {
   jfieldID GetStaticFieldIDOrAbort(jclass clazz,
                                    const char* name,
                                    const char* sig) {
-    jfieldID field = GetStaticFieldID(clazz, name, sig);
+    jfieldID field = env_.GetStaticFieldID(clazz, name, sig);
     AbortOnException();
     return field;
   }
 
   jfieldID GetFieldIDOrAbort(jobject obj, const char* name, const char* sig) {
-    jclass clazz = GetObjectClass(obj);
+    jclass clazz = env_.GetObjectClass(obj);
     AbortOnException();
-    jfieldID field = GetFieldID(clazz, name, sig);
+    jfieldID field = env_.GetFieldID(clazz, name, sig);
     AbortOnException();
-    DeleteLocalRef(clazz);
+    env_.DeleteLocalRef(clazz);
     return field;
   }
 
   jint GetEnumValueOrAbort(jclass clazz, const char* name) {
     jfieldID field = GetStaticFieldIDOrAbort(clazz, name, "I");
-    jint enum_value = GetStaticIntField(clazz, field);
+    jint enum_value = env_.GetStaticIntField(clazz, field);
     AbortOnException();
     return enum_value;
   }
@@ -84,24 +90,24 @@ struct JniEnvExt : public JNIEnv {
   jmethodID GetObjectMethodIDOrAbort(jobject obj,
                                      const char* name,
                                      const char* sig) {
-    jclass clazz = GetObjectClass(obj);
+    jclass clazz = env_.GetObjectClass(obj);
     AbortOnException();
-    jmethodID method_id = GetMethodID(clazz, name, sig);
+    jmethodID method_id = env_.GetMethodID(clazz, name, sig);
     AbortOnException();
-    DeleteLocalRef(clazz);
+    env_.DeleteLocalRef(clazz);
     return method_id;
   }
 
   jmethodID GetStaticMethodIDOrAbort(jclass clazz,
                                      const char* name,
                                      const char* sig) {
-    jmethodID method = GetStaticMethodID(clazz, name, sig);
+    jmethodID method = env_.GetStaticMethodID(clazz, name, sig);
     AbortOnException();
     return method;
   }
 
   jobject GetObjectArrayElementOrAbort(jobjectArray array, jsize index) {
-    jobject result = GetObjectArrayElement(array, index);
+    jobject result = env_.GetObjectArrayElement(array, index);
     AbortOnException();
     return result;
   }
@@ -113,7 +119,7 @@ struct JniEnvExt : public JNIEnv {
   jclass FindClassExtOrAbort(const char* name);
 
   jclass FindClassOrAbort(const char* name) {
-    jclass result = FindClass(name);
+    jclass result = env_.FindClass(name);
     AbortOnException();
     return result;
   }
@@ -123,11 +129,11 @@ struct JniEnvExt : public JNIEnv {
     va_list argp;
     va_start(argp, sig);
     jclass clazz = FindClassExtOrAbort(class_name);
-    jmethodID methodID = GetMethodID(clazz, "<init>", sig);
+    jmethodID methodID = env_.GetMethodID(clazz, "<init>", sig);
     AbortOnException();
-    jobject result = NewObjectV(clazz, methodID, argp);
+    jobject result = env_.NewObjectV(clazz, methodID, argp);
     AbortOnException();
-    DeleteLocalRef(clazz);
+    env_.DeleteLocalRef(clazz);
     va_end(argp);
     return result;
   }
@@ -136,15 +142,15 @@ struct JniEnvExt : public JNIEnv {
   // standard UTF-8 encoding. This differs from JNIEnv::NewStringUTF() which
   // takes JNI modified UTF-8.
   jstring NewStringStandardUTFOrAbort(const char* bytes) {
-    const jstring charset = NewStringUTF("UTF-8");
+    const jstring charset = env_.NewStringUTF("UTF-8");
     AbortOnException();
     const jbyteArray byte_array = NewByteArrayFromRaw(
         reinterpret_cast<const jbyte*>(bytes), (bytes ? strlen(bytes) : 0U));
     AbortOnException();
     jstring result = static_cast<jstring>(NewObjectOrAbort(
         "java/lang/String", "([BLjava/lang/String;)V", byte_array, charset));
-    DeleteLocalRef(byte_array);
-    DeleteLocalRef(charset);
+    env_.DeleteLocalRef(byte_array);
+    env_.DeleteLocalRef(charset);
     return result;
   }
 
@@ -156,20 +162,20 @@ struct JniEnvExt : public JNIEnv {
     if (str == NULL) {
       return std::string();
     }
-    const jstring charset = NewStringUTF("UTF-8");
+    const jstring charset = env_.NewStringUTF("UTF-8");
     AbortOnException();
     const jbyteArray byte_array =
         static_cast<jbyteArray>(CallObjectMethodOrAbort(
             str, "getBytes", "(Ljava/lang/String;)[B", charset));
-    jsize array_length = GetArrayLength(byte_array);
+    jsize array_length = env_.GetArrayLength(byte_array);
     AbortOnException();
-    void* bytes = GetPrimitiveArrayCritical(byte_array, NULL);
+    void* bytes = env_.GetPrimitiveArrayCritical(byte_array, NULL);
     AbortOnException();
     std::string result(static_cast<const char*>(bytes), array_length);
-    ReleasePrimitiveArrayCritical(byte_array, bytes, JNI_ABORT);
+    env_.ReleasePrimitiveArrayCritical(byte_array, bytes, JNI_ABORT);
     AbortOnException();
-    DeleteLocalRef(byte_array);
-    DeleteLocalRef(charset);
+    env_.DeleteLocalRef(byte_array);
+    env_.DeleteLocalRef(charset);
     return result;
   }
 
@@ -181,7 +187,7 @@ struct JniEnvExt : public JNIEnv {
   _jtype Get##_jname##FieldOrAbort(jobject obj, const char* name,              \
                                    const char* sig) {                          \
     _jtype result =                                                            \
-        Get##_jname##Field(obj, GetFieldIDOrAbort(obj, name, sig));            \
+        env_.Get##_jname##Field(obj, GetFieldIDOrAbort(obj, name, sig));       \
     AbortOnException();                                                        \
     return result;                                                             \
   }                                                                            \
@@ -190,13 +196,13 @@ struct JniEnvExt : public JNIEnv {
                                          const char* name, const char* sig) {  \
     jclass clazz = FindClassExtOrAbort(class_name);                            \
     _jtype result = GetStatic##_jname##FieldOrAbort(clazz, name, sig);         \
-    DeleteLocalRef(clazz);                                                     \
+    env_.DeleteLocalRef(clazz);                                                \
     return result;                                                             \
   }                                                                            \
                                                                                \
   _jtype GetStatic##_jname##FieldOrAbort(jclass clazz, const char* name,       \
                                          const char* sig) {                    \
-    _jtype result = GetStatic##_jname##Field(                                  \
+    _jtype result = env_.GetStatic##_jname##Field(                             \
         clazz, GetStaticFieldIDOrAbort(clazz, name, sig));                     \
     AbortOnException();                                                        \
     return result;                                                             \
@@ -230,21 +236,21 @@ struct JniEnvExt : public JNIEnv {
     jclass clazz = FindClassExtOrAbort(class_name);                            \
     _jtype result = CallStatic##_jname##MethodVOrAbort(                        \
         clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);       \
-    DeleteLocalRef(clazz);                                                     \
+    env_.DeleteLocalRef(clazz);                                                \
     va_end(argp);                                                              \
     return result;                                                             \
   }                                                                            \
                                                                                \
   _jtype Call##_jname##MethodVOrAbort(jobject obj, jmethodID methodID,         \
                                       va_list args) {                          \
-    _jtype result = Call##_jname##MethodV(obj, methodID, args);                \
+    _jtype result = env_.Call##_jname##MethodV(obj, methodID, args);           \
     AbortOnException();                                                        \
     return result;                                                             \
   }                                                                            \
                                                                                \
   _jtype CallStatic##_jname##MethodVOrAbort(jclass clazz, jmethodID methodID,  \
                                             va_list args) {                    \
-    _jtype result = CallStatic##_jname##MethodV(clazz, methodID, args);        \
+    _jtype result = env_.CallStatic##_jname##MethodV(clazz, methodID, args);   \
     AbortOnException();                                                        \
     return result;                                                             \
   }
@@ -264,7 +270,7 @@ struct JniEnvExt : public JNIEnv {
   void CallVoidMethod(jobject obj, const char* name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
-    CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
+    env_.CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
     va_end(argp);
   }
 
@@ -279,7 +285,7 @@ struct JniEnvExt : public JNIEnv {
   }
 
   void CallVoidMethodVOrAbort(jobject obj, jmethodID methodID, va_list args) {
-    CallVoidMethodV(obj, methodID, args);
+    env_.CallVoidMethodV(obj, methodID, args);
     AbortOnException();
   }
 
@@ -287,7 +293,7 @@ struct JniEnvExt : public JNIEnv {
     va_list argp;
     va_start(argp, sig);
     jobject obj = GetStarboardBridge();
-    CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
+    env_.CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
     va_end(argp);
   }
 
@@ -306,9 +312,9 @@ struct JniEnvExt : public JNIEnv {
     va_list argp;
     va_start(argp, sig);
     jclass clazz = FindClassExtOrAbort(class_name);
-    CallStaticVoidMethodV(
+    env_.CallStaticVoidMethodV(
         clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);
-    DeleteLocalRef(clazz);
+    env_.DeleteLocalRef(clazz);
     va_end(argp);
   }
 
@@ -319,10 +325,10 @@ struct JniEnvExt : public JNIEnv {
     va_list argp;
     va_start(argp, sig);
     jclass clazz = FindClassExtOrAbort(class_name);
-    CallStaticVoidMethodV(
+    env_.CallStaticVoidMethodV(
         clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);
     AbortOnException();
-    DeleteLocalRef(clazz);
+    env_.DeleteLocalRef(clazz);
     va_end(argp);
   }
 
@@ -349,9 +355,9 @@ struct JniEnvExt : public JNIEnv {
   _jtype##Array New##_jname##ArrayFromRaw(const _jtype* data, jsize size) { \
     SB_DCHECK(data);                                                        \
     SB_DCHECK_GE(size, 0);                                                  \
-    _jtype##Array j_array = New##_jname##Array(size);                       \
+    _jtype##Array j_array = env_.New##_jname##Array(size);                  \
     SB_CHECK(j_array) << "Out of memory making new array";                  \
-    Set##_jname##ArrayRegion(j_array, 0, size, data);                       \
+    env_.Set##_jname##ArrayRegion(j_array, 0, size, data);                  \
     return j_array;                                                         \
   }
 
@@ -367,22 +373,22 @@ struct JniEnvExt : public JNIEnv {
 #undef X
 
   jobject ConvertLocalRefToGlobalRef(jobject local) {
-    jobject global = NewGlobalRef(local);
-    DeleteLocalRef(local);
+    jobject global = env_.NewGlobalRef(local);
+    env_.DeleteLocalRef(local);
     return global;
   }
 
   void AbortOnException() {
-    if (!ExceptionCheck()) {
+    if (!env_.ExceptionCheck()) {
       return;
     }
-    ExceptionDescribe();
+    env_.ExceptionDescribe();
     SbSystemBreakIntoDebugger();
   }
-};
 
-SB_COMPILE_ASSERT(sizeof(JNIEnv) == sizeof(JniEnvExt),
-                  JniEnvExt_must_not_add_fields);
+ private:
+  JNIEnv& env_;
+};
 
 }  // namespace starboard::android::shared
 
