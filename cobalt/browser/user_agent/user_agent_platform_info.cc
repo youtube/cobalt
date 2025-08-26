@@ -25,6 +25,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
+#include "build/build_config.h"
 #include "starboard/extension/platform_info.h"
 
 #include "cobalt/cobalt_build_id.h"  // Generated
@@ -289,7 +290,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 #endif
 
 // Apply overrides from command line
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (!base::CommandLine::InitializedForCurrentProcess()) {
     return;
   }

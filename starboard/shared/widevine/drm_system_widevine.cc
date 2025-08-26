@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -184,9 +185,9 @@ void EnsureWidevineCdmIsInitialized(const std::string& company_name,
                << client_info.model_name << "\".";
 
   auto log_level = wv3cdm::kInfo;
-#if COBALT_BUILD_TYPE_GOLD
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   log_level = wv3cdm::kSilent;
-#endif  // COBALT_BUILD_TYPE_GOLD
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   wv3cdm::Status status =
       wv3cdm::initialize(wv3cdm::kNoSecureOutput, client_info, storage,
                          &s_clock, &s_timer, log_level);
@@ -221,7 +222,7 @@ DrmSystemWidevine::DrmSystemWidevine(
 
   ON_INSTANCE_CREATED(DrmSystemWidevine);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   using shared::starboard::Application;
 
   auto command_line = Application::Get()->GetCommandLine();
@@ -231,7 +232,7 @@ DrmSystemWidevine::DrmSystemWidevine(
     SB_LOG(INFO) << "Limit drm session updates to "
                  << maximum_number_of_session_updates_;
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   static WidevineStorage s_storage(GetWidevineStoragePath());
   EnsureWidevineCdmIsInitialized(company_name, model_name, &s_storage);
@@ -776,7 +777,7 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
     const std::string& message) {
   int ticket = GetAndResetTicket(sb_drm_session_id);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (number_of_session_updates_sent_ > maximum_number_of_session_updates_) {
     SB_LOG(INFO) << "Number of drm sessions exceeds maximum allowed session"
                  << " (" << maximum_number_of_session_updates_ << "), fail the"
@@ -787,7 +788,7 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
     return;
   }
   ++number_of_session_updates_sent_;
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   session_update_request_callback_(
       this, context_, ticket, kSbDrmStatusSuccess, type, "",

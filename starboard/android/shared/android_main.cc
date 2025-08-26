@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "build/build_config.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -23,7 +24,7 @@ namespace {
 
 extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_StarboardBridge_isReleaseBuild() {
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
 #else
   return false;

@@ -18,6 +18,7 @@
 #include <functional>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
@@ -31,8 +32,8 @@ typedef std::function<void()> EndedCB;
 
 }  // namespace starboard::shared::starboard::player::filter
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define SB_PLAYER_FILTER_ENABLE_STATE_CHECK 1
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_COMMON_H_
