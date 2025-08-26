@@ -990,6 +990,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
 
   jfloat* array_values = env->GetFloatArrayElements(java_array.Get(), 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
+  env->ReleaseFloatArrayElements(java_array.Get(), array_values, JNI_ABORT);
 }
 
 // Converts a 4x4 matrix representing the texture coordinate transform into
