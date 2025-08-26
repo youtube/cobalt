@@ -34,7 +34,6 @@
 #include "gtest/gtest.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "cobalt/common/eztime/eztime.h"  // nogncheck
 #include "starboard/common/file.h"        // nogncheck
 #include "starboard/system.h"             // nogncheck
 #endif
@@ -4843,17 +4842,9 @@ static std::string FormatTimeInMillisAsDuration(TimeInMillis ms) {
 // Converts the given epoch time in milliseconds to a date string in the
 // RFC3339 format, without the timezone information.
 static std::string FormatEpochTimeInMillisAsRFC3339(TimeInMillis ms) {
-// TODO: b/399507045 - Cobalt: Investigate if we want to use eztime
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  EzTimeExploded time_struct;
-  const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
-  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL)
-    return "";
-#else
   struct tm time_struct;
   if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct))
     return "";
-#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // YYYY-MM-DDThh:mm:ss
   return StreamableToString(time_struct.tm_year + 1900) + "-" +
          String::FormatIntWidth2(time_struct.tm_mon + 1) + "-" +

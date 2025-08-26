@@ -53,19 +53,6 @@ struct musl_timeval {
   int64_t tv_usec;
 };
 
-struct musl_tm {
-  int32_t /* int */ tm_sec;
-  int32_t /* int */ tm_min;
-  int32_t /* int */ tm_hour;
-  int32_t /* int */ tm_mday;
-  int32_t /* int */ tm_mon;
-  int32_t /* int */ tm_year;
-  int32_t /* int */ tm_wday;
-  int32_t /* int */ tm_yday;
-  int32_t /* int */ tm_isdst;
-  __MUSL_LONG_TYPE /* long */ __tm_gmtoff;
-  const char* __tm_zone;
-};
 // Copying macro constants from //third_party/musl/include/time.h
 #define MUSL_CLOCK_INVALID -1
 #define MUSL_CLOCK_REALTIME 0
@@ -202,10 +189,6 @@ SB_EXPORT int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
                                          int flags,
                                          const struct musl_timespec* ts,
                                          struct musl_timespec* remain);
-
-SB_EXPORT struct musl_tm* __abi_wrap_gmtime_r(
-    const int64_t* /* time_t* */ musl_timer,
-    struct musl_tm* musl_result);
 
 #ifdef __cplusplus
 }  // extern "C"
