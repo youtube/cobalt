@@ -24,7 +24,6 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
-import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -100,21 +99,6 @@ public class PlatformError
         return;
     }
     dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
-    dialog.setOnKeyListener(
-        new DialogInterface.OnKeyListener() {
-          @Override
-          public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-            if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
-              CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-              if (cobaltActivity != null) {
-                cobaltActivity.moveTaskToBack(false);
-              }
-              dialog.dismiss();
-              return true; // Consume the event
-            }
-            return false; // Let the system handle other keys
-          }
-        });
     dialog.show();
   }
 
@@ -125,14 +109,17 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           Activity activity = activityHolder.get();
           if (activity != null) {
+            response = POSITIVE;
             try {
               activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
+            dialog.dismiss();
           }
           break;
         case RETRY_BUTTON:
+          response = POSITIVE;
           CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
@@ -147,6 +134,13 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     dialog = null;
+    CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+    cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+    if (cobaltActivity != null) {
+      if (response == CANCELLED) {
+          cobaltActivity.getStarboardBridge().requestSuspend();
+        }
+    }
   }
 
   /** Informs Starboard when the error is dismissed. */
