@@ -173,6 +173,7 @@ if (is_android) {
   }
 }
 
+# Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
 
@@ -219,7 +220,6 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//cc/slim",
     "//cobalt/shell:browsertests_mojom",
-    "//cobalt/shell:browsertests_sources",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
@@ -350,6 +350,11 @@ test("cobalt_browsertests") {
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
+
+  # official builds do not include this in content_shell_lib
+  if (is_official_build) {
+    deps += [ "//cobalt/shell:browsertests_sources" ]
+  }
 
   if (is_android) {
     deps += [
