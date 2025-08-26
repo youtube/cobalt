@@ -125,8 +125,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
       is_fallback_family_(family_info.is_fallback_family),
       language_(family_info.language),
       page_ranges_(family_info.page_ranges) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
+  //TRACE_EVENT0("cobalt::renderer",
+  //             "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
   DCHECK(manager_owned_mutex_);
 
   if (family_info.names.size() == 0) {
@@ -409,9 +409,9 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // generated.
   int style_index = GetClosestStyleIndex(style);
   if (!character_maps_[style_index]) {
-    TRACE_EVENT0("cobalt::renderer",
-                 "SkFontStyleSet_Cobalt::ContainsCharacter() and "
-                 "!is_character_map_generated_");
+    //TRACE_EVENT0("cobalt::renderer",
+    //             "SkFontStyleSet_Cobalt::ContainsCharacter() and "
+    //             "!is_character_map_generated_");
     // Attempt to load the closest font style from the set. If it fails to load,
     // it will be removed from the set and, as long as font styles remain in the
     // set, the logic will be attempted again.
@@ -520,8 +520,8 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry,
     int style_index,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
+  //TRACE_EVENT0("cobalt::renderer",
+  //             "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
 
   if (!stream_provider) {
     stream_provider = local_typeface_stream_manager_->GetStreamProvider(

@@ -38,6 +38,7 @@ class SkChromiumEventTracer: public SkEventTracer {
 
 const uint8_t*
   SkChromiumEventTracer::getCategoryGroupEnabled(const char* name) {
+    LOG(INFO) << "getCategoryGroupEnabled: " << name;
     return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(name);
 }
 

@@ -105,7 +105,7 @@ SkFontStyle GenerateSkFontStyleFromFace(FT_Face face) {
 void GenerateCharacterMapFromFace(
     FT_Face face,
     font_character_map::CharacterMap* character_map) {
-  TRACE_EVENT0("cobalt::renderer", "GenerateCharacterMapFromFace");
+  //TRACE_EVENT0("cobalt::renderer", "GenerateCharacterMapFromFace");
 
   FT_UInt glyph_index;
   SkUnichar code_point = FT_Get_First_Char(face, &glyph_index);
@@ -143,7 +143,7 @@ bool ScanFont(SkStreamAsset* stream,
               bool* is_fixed_pitch,
               AxisDefinitions* axes,
               font_character_map::CharacterMap* maybe_character_map /*=NULL*/) {
-  TRACE_EVENT0("cobalt::renderer", "SkFreeTypeUtil::ScanFont()");
+  //TRACE_EVENT0("cobalt::renderer", "SkFreeTypeUtil::ScanFont()");
 
   FT_Library freetype_lib;
   if (FT_Init_FreeType(&freetype_lib) != 0) {
