@@ -1,0 +1,53 @@
+--- third_party/blink/renderer/core/frame/csp/source_list_directive.cc
++++ third_party/blink/renderer/core/frame/csp/source_list_directive.cc
+@@ -4,15 +4,12 @@
+ 
+ #include "third_party/blink/renderer/core/frame/csp/source_list_directive.h"
+ 
+-<<<<<<< HEAD
+-#include "base/feature_list.h"
+-=======
+ #if BUILDFLAG(IS_COBALT)
+ #include <arpa/inet.h>
+ #include <ifaddrs.h>
+ #endif
+ 
+->>>>>>> 2b88d79e294 (Add custom cobalt-insecure-local-network csp source (#4958))
++#include "base/feature_list.h"
+ #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
+ #include "third_party/blink/renderer/core/frame/csp/csp_source.h"
+ #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
+@@ -79,18 +76,7 @@
+       return CSPCheckResult::Allowed();
+     }
+   }
+-<<<<<<< HEAD
+ 
+-=======
+-#if BUILDFLAG(IS_COBALT)
+-  if (source_list.cobalt_insecure_local_network) {
+-    // Allow websocket connection to host ip within the local network.
+-    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
+-      return IsIPInLocalNetwork(url.Host().Utf8());
+-    }
+-  }
+-#endif
+->>>>>>> 2b88d79e294 (Add custom cobalt-insecure-local-network csp source (#4958))
+   if (source_list.allow_self && CSPSourceMatchesAsSelf(self_source, url)) {
+     return CSPCheckResult::Allowed();
+   }
+@@ -110,6 +96,14 @@
+       return CSPCheckResult::AllowedOnlyIfWildcardMatchesFtp();
+     }
+   }
++#if BUILDFLAG(IS_COBALT)
++  if (source_list.cobalt_insecure_local_network) {
++    // Allow websocket connection to host ip within the local network.
++    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
++      return IsIPInLocalNetwork(url.Host().Utf8());
++    }
++  }
++#endif
+ 
+   return CSPCheckResult::Blocked();
+ }

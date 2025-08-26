@@ -1,0 +1,35 @@
+--- base/logging.cc
++++ base/logging.cc
+@@ -1137,14 +1137,6 @@
+ }
+ 
+ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_WIN)
+-  LPWSTR msgbuf = nullptr;
+-  DWORD len = ::FormatMessageW(
+-      FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+-          FORMAT_MESSAGE_IGNORE_INSERTS,
+-      nullptr, error_code, 0, reinterpret_cast<LPWSTR>(&msgbuf), 0, nullptr);
+-=======
+ #if BUILDFLAG(IS_STARBOARD)
+   const int kErrorMessageBufferSize = 256;
+   char msgbuf[kErrorMessageBufferSize];
+@@ -1158,12 +1150,11 @@
+                               GetLastSystemErrorCode(), error_code);
+   }
+ #elif BUILDFLAG(IS_WIN)
+-  const int kErrorMessageBufferSize = 256;
+-  char msgbuf[kErrorMessageBufferSize];
+-  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+-  DWORD len = FormatMessageA(flags, nullptr, error_code, 0, msgbuf,
+-                             std::size(msgbuf), nullptr);
+->>>>>>> 024812b90ac (Bring 25.lts.1+ base customizations to trunk (#4800))
++  LPWSTR msgbuf = nullptr;
++  DWORD len = ::FormatMessageW(
++      FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
++          FORMAT_MESSAGE_IGNORE_INSERTS,
++      nullptr, error_code, 0, reinterpret_cast<LPWSTR>(&msgbuf), 0, nullptr);
+   if (len) {
+     std::u16string message = base::WideToUTF16(msgbuf);
+     ::LocalFree(msgbuf);

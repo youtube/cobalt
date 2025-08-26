@@ -1,0 +1,30 @@
+--- third_party/fontconfig/include/config.h
++++ third_party/fontconfig/include/config.h
+@@ -5,12 +5,8 @@
+ 
+ #pragma once
+ 
+-<<<<<<< HEAD
+-=======
+ #include "build/build_config.h"
+ 
+-/* The normal alignment of `double', in bytes. */
+->>>>>>> c6f1d3da462 (Build base_unittests hermetically. (#4935))
+ #define ALIGNOF_DOUBLE 8
+ 
+ #define ALIGNOF_VOID_P 8
+@@ -80,14 +76,10 @@
+ 
+ #define HAVE_RANDOM 1
+ 
+-<<<<<<< HEAD
+-=======
+ #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+ /* TODO: (cobalt b/398295440) Add `random_r' support to Evergreen. */
+ #define HAVE_RANDOM_R 0
+ #else
+-/* Define to 1 if you have the `random_r' function. */
+->>>>>>> c6f1d3da462 (Build base_unittests hermetically. (#4935))
+ #define HAVE_RANDOM_R 1
+ #endif
+ 

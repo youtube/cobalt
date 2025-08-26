@@ -1,0 +1,20 @@
+--- base/check.h
++++ base/check.h
+@@ -221,17 +221,12 @@
+ // compiler optimizations. Unlike the other check macros, this one does not use
+ // LOGGING_CHECK_FUNCTION_IMPL(), since it is incompatible with
+ // EAT_CHECK_STREAM_PARAMETERS().
+-<<<<<<< HEAD
+ #define CHECK(condition, ...)                                 \
+   BASE_IF(BASE_IS_EMPTY(__VA_ARGS__),                         \
+           UNLIKELY(!(condition)) ? logging::CheckFailure()    \
+                                  : EAT_CHECK_STREAM_PARAMS(), \
+           LOGGING_CHECK_FUNCTION_IMPL(                        \
+               logging::CheckError::Check(#condition, __VA_ARGS__), condition))
+-=======
+-#define CHECK(condition) \
+-  UNLIKELY(!(condition)) ? ::logging::CheckFailure() : EAT_CHECK_STREAM_PARAMS()
+->>>>>>> 024812b90ac (Bring 25.lts.1+ base customizations to trunk (#4800))
+ 
+ #define CHECK_WILL_STREAM() false
+ 

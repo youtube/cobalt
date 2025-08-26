@@ -1,0 +1,18 @@
+--- base/trace_event/malloc_dump_provider.cc
++++ base/trace_event/malloc_dump_provider.cc
+@@ -187,15 +187,9 @@
+ }
+ #endif
+ 
+-<<<<<<< HEAD
+ #if (PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(IS_ANDROID)) || \
+     (!PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && !BUILDFLAG(IS_WIN) &&    \
+-     !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA))
+-=======
+-#if (BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(IS_ANDROID)) || \
+-    (!BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && !BUILDFLAG(IS_WIN) &&    \
+      !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_STARBOARD))
+->>>>>>> 024812b90ac (Bring 25.lts.1+ base customizations to trunk (#4800))
+ void ReportMallinfoStats(ProcessMemoryDump* pmd,
+                          size_t* total_virtual_size,
+                          size_t* resident_size,

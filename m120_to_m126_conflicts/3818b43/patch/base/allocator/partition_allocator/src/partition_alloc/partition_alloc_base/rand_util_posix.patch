@@ -1,0 +1,18 @@
+--- base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_posix.cc
++++ base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_posix.cc
+@@ -20,15 +20,8 @@
+ #include "partition_alloc/partition_alloc_base/no_destructor.h"
+ #include "partition_alloc/partition_alloc_base/posix/eintr_wrapper.h"
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_MAC)
+ // TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
+-=======
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+-#include "third_party/lss/linux_syscall_support.h"
+-#elif BUILDFLAG(IS_MAC)
+-// TODO(crbug.com/995996): Waiting for this header to appear in the iOS SDK.
+->>>>>>> ea059b32471 (Add BUILDFLAG IS_COBALT_HERMETIC_BUILD (#4966))
+ // (See below.)
+ #include <sys/random.h>
+ #endif
