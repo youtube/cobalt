@@ -116,7 +116,6 @@ typedef FILE* FileHandle;
 #if BUILDFLAG(IS_STARBOARD)
 #include <fcntl.h>
 
-#include "cobalt/common/eztime/eztime.h"  // nogncheck
 #include "starboard/common/log.h"  // nogncheck
 #include "starboard/common/time.h"  // nogncheck
 #include "starboard/configuration.h"  // nogncheck

@@ -62,7 +62,16 @@ bool ExplodeTime(const time_t* time,
     return false;
   }
 
-  UDate udate = (*time) * 1000LL;
+  constexpr int64_t kMaxSecondsForExactUDate =
+      (1LL << std::numeric_limits<double>::digits) / 1000;
+  if (*time > kMaxSecondsForExactUDate || *time < -kMaxSecondsForExactUDate) {
+    // *time is too large to be converted to milliseconds in a double without
+    // potential loss of precision.
+    return false;
+  }
+  double time_ms = static_cast<double>(*time) * 1000.0;
+
+  UDate udate = time_ms;
   calendar->setTime(udate, status);
   out_exploded->tm_year = calendar->get(UCAL_YEAR, status) - 1900;
   out_exploded->tm_mon = calendar->get(UCAL_MONTH, status);
