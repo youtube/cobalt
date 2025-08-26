@@ -334,7 +334,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
-  REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
 
   // TODO: Cobalt - b/424001809.
@@ -414,6 +413,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_post);
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
+  REGISTER_WRAPPER(sendmsg);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
