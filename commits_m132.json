@@ -1,0 +1,3200 @@
+[
+  {
+    "hexsha": "f776ef028971744dbe2a0e1b6f036c6b125ba8eb",
+    "original_hexsha": "aba5a7a1fcfff969de23c56c6fbe71fa27c2d67d",
+    "author": "thorsten sideb0ard",
+    "datetime": "2025-01-14T09:38:22-08:00",
+    "summary": "Add cobalt-media as CODEOWNER for /media/ (#4690)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4268dba240aed4c9948d399c0ff59272cba97307",
+    "original_hexsha": "1637768aab1539c5f7c214e5d3433800b06bf71e",
+    "author": "Andrew Savage",
+    "datetime": "2025-01-13T19:10:47-05:00",
+    "summary": "Revert \"[android] Fix Cobalt crash in official build (#4617)\" (#4685)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc67529067016ec528bb854d6084331e16b9a003",
+    "original_hexsha": "a7c27be3fcab17cd8abcb8d2803689ed54c51042",
+    "author": "xiaomings",
+    "datetime": "2025-01-13T15:14:57-08:00",
+    "summary": "[android] Make operator==(SbDrmKeyId, ...) static (#4689)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6caaa37f48c0e91f8831b1b9401e3836dbad3b9e",
+    "original_hexsha": "8b317b2b5134645ce70f324d4dc7f584584761d0",
+    "author": "xiaomings",
+    "datetime": "2025-01-13T11:30:55-08:00",
+    "summary": "[media] Refine DecoderBufferAllocator memory budget (#4674)",
+    "stats": {
+      "files": 7,
+      "insertions": 74,
+      "deletions": 52
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "39fe8b21000b437bd9bc45e4c1a6763f88a40f70",
+    "original_hexsha": "58fc967b1d1e656b893128dbe552fe75821639c9",
+    "author": "xiaomings",
+    "datetime": "2025-01-10T15:20:22-08:00",
+    "summary": "Move demuxer_memory_limit_starboard.cc (#4683)",
+    "stats": {
+      "files": 4,
+      "insertions": 47,
+      "deletions": 46
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0cd037a409c5d2419fb9b4c7418fcac2b66c98fd",
+    "original_hexsha": "632168a5d5be07479ca9acc5b1d89b791ed2836d",
+    "author": "Hao",
+    "datetime": "2025-01-09T15:42:58-08:00",
+    "summary": "[JNI Example] Call native in Java (#4657)",
+    "stats": {
+      "files": 3,
+      "insertions": 58,
+      "deletions": 56
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7c08d338c146b23861ba74841c7aa85fd7a1e475",
+    "original_hexsha": "c99e3480ac6ecec6c5e75bf0d26dff5acf3abacd",
+    "author": "Hao",
+    "datetime": "2025-01-09T14:46:26-08:00",
+    "summary": "Use SB_DCHECK in Starboard (#4677)",
+    "stats": {
+      "files": 1,
+      "insertions": 8,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "56c702afe605368ebec7c7eaedb73b923e3e6dc6",
+    "original_hexsha": "148c54ed941b9373f6e1a1b3a0b5df6edb8e7aef",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-07T07:00:00-08:00",
+    "summary": "Remove unused and unneeded code",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0143d020fa94ac9e881e36e1dfdaeb5d120c1f9e",
+    "original_hexsha": "7bf51b31d34b6a08a294fb626e7eacf81e4d4aa3",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-09T10:35:16-08:00",
+    "summary": "[android] Fix incorrect JNI call on MediaCodecBridge (#4218)",
+    "stats": {
+      "files": 4,
+      "insertions": 15,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5282fc4ac5bef32b5d3558f37712fcb84dae9213",
+    "original_hexsha": "675eee99653a6f3bf39b9b52c0badb9644fa8844",
+    "author": "Hao",
+    "datetime": "2025-01-09T10:30:04-08:00",
+    "summary": "Move include order for starboard_bridge (#4670)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e829561410ce08bec8835083ae05540bf2eaa655",
+    "original_hexsha": "15f8186336ecd66be6dbadbabddd63e06443390c",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-06T18:00:00-08:00",
+    "summary": "Mount KOKORO_ARTIFACTS_DIR as a volume",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c23c0c315ccf7dd3d97521f74cf721691e70f9a1",
+    "original_hexsha": "67032e069b4d8640c882dffa0895c39c27e8ac2b",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-09T01:18:48-08:00",
+    "summary": "[android] Fix software video decoder fallback (#4216)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f1e4a8595a17a4a3cccc968033cf91c68c9cc84",
+    "original_hexsha": "4b517f0c8de4bfeb034039cdcb8c881eec6260f7",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-08T14:00:00-08:00",
+    "summary": "Restore media/base/demuxer_memory_limit_starboard.cc",
+    "stats": {
+      "files": 1,
+      "insertions": 46,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "07cedf6581c29da63bfaeb23524a2223c687c8c9",
+    "original_hexsha": "b5905dfea6db6eda0c7705d3486fc80011057d22",
+    "author": "thorsten sideb0ard",
+    "datetime": "2025-01-08T16:54:52-08:00",
+    "summary": "Add CobaltContentRendererClient (#4661)",
+    "stats": {
+      "files": 11,
+      "insertions": 453,
+      "deletions": 138
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ee289519a8ffc31ca7770a6067e853a2347e6e3f",
+    "original_hexsha": "26783b4b02073e5470c7ec5878a0a862d48cf521",
+    "author": "Austin Osagie",
+    "datetime": "2025-01-08T16:32:43-08:00",
+    "summary": "[media] Create SbPlayerState utility function (#4668)",
+    "stats": {
+      "files": 6,
+      "insertions": 50,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "db1ec3cc721e95972740e6526c513c317937a752",
+    "original_hexsha": "baffdd59c17a0cf3c8ea78315ee9207bdb99d6a2",
+    "author": "xiaomings",
+    "datetime": "2025-01-08T14:34:00-08:00",
+    "summary": "[media] Rename SbMediaIs*Supported() functions (#4664)",
+    "stats": {
+      "files": 18,
+      "insertions": 251,
+      "deletions": 147
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5f6cd3ad77d40870e569c5799cd349631117cf0f",
+    "original_hexsha": "cbd0f250c88ce5c0da5d8934437bf4b2d2ada42b",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-06T18:00:00-08:00",
+    "summary": "Don't read files from current working directory",
+    "stats": {
+      "files": 4,
+      "insertions": 4,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "328994bf8c075ed5da100659a757d958cfb336b8",
+    "original_hexsha": "f1505ad661f6a04f0f5ca325b24ae7b8f26bc662",
+    "author": "Hao",
+    "datetime": "2025-01-08T10:21:39-08:00",
+    "summary": "[JNI Example] Call Java in native (#4649)",
+    "stats": {
+      "files": 4,
+      "insertions": 18,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7b77f705afe533f4f5269dcb8892e53846fcfb2e",
+    "original_hexsha": "54f9c572a1f6a41e73dc4a17d54d339104f298d0",
+    "author": "Hao",
+    "datetime": "2025-01-07T18:23:52-08:00",
+    "summary": "Migrate StarboardBridge JNI functions in android_main.cc (#4632)",
+    "stats": {
+      "files": 6,
+      "insertions": 121,
+      "deletions": 151
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12ff0b53a794608b8b5eb985e3d81b14c5cb5b3b",
+    "original_hexsha": "ba698f518b5b5a07686cfdeb423cdfba79db6b0a",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-07T17:23:11-08:00",
+    "summary": "[android] Disable low-end-device-mode (#4662)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bf34a1c78a0d8fa0712cc1932d36526cc0368309",
+    "original_hexsha": "fde29f27f887d6fff88350b579f3e8730fb19abc",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-07T16:59:08-08:00",
+    "summary": "[android] Fix CommandLine initialization (#4639)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c129e4c8be2ab626f6655da44d237adfa1489e46",
+    "original_hexsha": "7a689b653b6e8df23ab179520a797eee827959b3",
+    "author": "Austin Osagie",
+    "datetime": "2025-01-07T16:50:39-08:00",
+    "summary": "Implement SourceBuffer.writeHead attribute (#4559)",
+    "stats": {
+      "files": 13,
+      "insertions": 307,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "919cf8a316aa047dd6b0fd0ea83934bcad69553c",
+    "original_hexsha": "6c07cf6dc9b5a0cd877fd205059c3ccfc8f2621c",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-06T18:00:00-08:00",
+    "summary": "Remove unused variables",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "324607f225a0983105ed709647d06b25ef75115d",
+    "original_hexsha": "6c6f249a531f1e19b26d23469c57985d329981a2",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-06T21:27:14-08:00",
+    "summary": "[android] Disable RGBA_4444 textures with overlay video (#4650)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c6d5f07bf71f72773d46d99153ec25413e8c52be",
+    "original_hexsha": "182a34a0765fd7c2855eeda4774f71f7ef5655e5",
+    "author": "johnx",
+    "datetime": "2025-01-07T04:34:13+00:00",
+    "summary": "Avoid stopping ATV activity on suspend (#4642)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f20a0c1b5052e39b444a5cbcf3ba389ef6bc8c6e",
+    "original_hexsha": "35e154f792796c91e6c551b6eb3566f5ce4e987e",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-06T12:00:00-08:00",
+    "summary": "Stop setting WORKSPACE_COBALT in dind_build.sh",
+    "stats": {
+      "files": 2,
+      "insertions": 1,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "544d8d0eff3d5b8658ebba2e81f89b9ddb46d6d7",
+    "original_hexsha": "7e87947f2c50a82e3cd8facd135bed84f6361da1",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-04T00:00:00-08:00",
+    "summary": "Stop calling configure_environment",
+    "stats": {
+      "files": 5,
+      "insertions": 0,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1be37f6b217cc843b98ed780accb65dcca6d2316",
+    "original_hexsha": "387b23b0a4362a43cad5e4797d037cc59862f449",
+    "author": "Holden Warriner",
+    "datetime": "2025-01-06T16:01:19-05:00",
+    "summary": "Add nplb sources to fix include check on android (#4638)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ec40e86f5f6f9553ee2bd0170a6d6197a39ea059",
+    "original_hexsha": "5a10f254343edf94cb48a720510877b75add3dd8",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-04T00:00:00-08:00",
+    "summary": "Add safe.directory path in Kokoro cleanup script",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "35c4be1ded4a8d57d3bdb47da8d401fd3a11d310",
+    "original_hexsha": "3b068ece6d8ba4ef68058d5f9679d6465766ab9c",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-01-04T00:00:00-08:00",
+    "summary": "Simplify cleanup script and use correct path",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3d1672795aae7f51fa839a8709b33dc76f746238",
+    "original_hexsha": "173ecc39274e037981eda5416fb216a4a7d901f4",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-05T20:23:17-08:00",
+    "summary": "[android] Enable low end device mode (#4625)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6c146869cb8a79a3269ab3dfca55c45e537d423e",
+    "original_hexsha": "a6d7996af37e3df5e838e0bd3842c3d5b81a8002",
+    "author": "xiaomings",
+    "datetime": "2025-01-03T13:35:17-08:00",
+    "summary": "[media] Move concrete SbAudioSink impl to namespace (#4634)",
+    "stats": {
+      "files": 17,
+      "insertions": 127,
+      "deletions": 73
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ccf46366b423380693638211b2007811b537a822",
+    "original_hexsha": "affac16210b3c2e14f6c645ba7934a8824b6c5f2",
+    "author": "Holden Warriner",
+    "datetime": "2025-01-03T10:38:19-05:00",
+    "summary": "Remove unneeded #include and nogncheck annotation (#4633)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "16461a672510d51cd98a00c499820557d06105c6",
+    "original_hexsha": "8e80e039354bf4a9a4882a80b96f5cf9303f4b29",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-01-02T16:12:39-08:00",
+    "summary": "[android] Fix Cobalt crash in official build (#4617)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3ad33ca7f6bb91522b566ad7f10fd48c97b66dcc",
+    "original_hexsha": "8e7db49c1da7a1701b42d20f228a7cdda628ea61",
+    "author": "Ian Mindich",
+    "datetime": "2025-01-02T11:10:34-08:00",
+    "summary": "Remove linux debug target, and change test results publisher to test-summary/action because it is faster.  (#4573)",
+    "stats": {
+      "files": 2,
+      "insertions": 10,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d8c876872afa24230c21bda44a685bed25547dc0",
+    "original_hexsha": "56d05dcb75054cb64695de557b46b22d35c82a02",
+    "author": "xiaomings",
+    "datetime": "2024-12-30T16:58:59-08:00",
+    "summary": "[media] Remove decode_target_internal.cc (#4631)",
+    "stats": {
+      "files": 3,
+      "insertions": 2,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5632229ad2dcd47076c1e8e4a981f0c41e45b085",
+    "original_hexsha": "2d181987a46cd33d761a10d154a5d09f5d575814",
+    "author": "Hao",
+    "datetime": "2024-12-30T12:05:48-08:00",
+    "summary": "Define ANDROID_ABI in Cobalt (#4622)",
+    "stats": {
+      "files": 4,
+      "insertions": 11,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "09445d0fce064c8538d1c8e936e4e875c34329d2",
+    "original_hexsha": "7fce4a79c230895e7a437174ea235eda0248768e",
+    "author": "Austin Osagie",
+    "datetime": "2024-12-27T15:07:35-08:00",
+    "summary": "Update check for progressive formats (#4624)",
+    "stats": {
+      "files": 2,
+      "insertions": 16,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7de375db17021db2fc38543c22da45f9634a3b22",
+    "original_hexsha": "9847279655e13646d313538590b9436c98d633ab",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-12-27T13:00:27-08:00",
+    "summary": "Make cobalt_unittests android only (#4630)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "62966de07362eafaeb2917ad2994712bd5378cd3",
+    "original_hexsha": "f79e30f9bc88ece7dbb8c53cd30ceba72726c74f",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-12-26T21:47:02-08:00",
+    "summary": "[media] Support media suspend and resume (#4580)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9f4a7e945eb9040f1f1e234398745df58dab94a8",
+    "original_hexsha": "b7b2d76b3254d370eb0bf198182ba6a4b39f736d",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-12-18T18:00:00-08:00",
+    "summary": "Copy Cobalt binary and APK to GCS",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7192c3111d6aa3db8c36842b39f3eae5598afc51",
+    "original_hexsha": "f7a9b09617571ceea47a2ae4a70982d8fcafb00c",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-12-20T19:13:10-08:00",
+    "summary": "Include runtime deps in test archive (#4569)",
+    "stats": {
+      "files": 3,
+      "insertions": 24,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "462777e6ae6e0d108582d9e67f9c6ae82b126ec1",
+    "original_hexsha": "9ae46a46fd6075b742575f7da7bf2d2a54ad6d5e",
+    "author": "Brian Ting",
+    "datetime": "2024-12-20T12:55:57-08:00",
+    "summary": "Remove Chromium Android debug builds. (#4619)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c288ceb048366b052186342dc137d7a4617707ab",
+    "original_hexsha": "4cc53410d154120b0c21f1945d8031703acbfaf1",
+    "author": "xiaomings",
+    "datetime": "2024-12-20T10:38:17-08:00",
+    "summary": "Avoid triggering DCHECK() on playback end (#4620)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e2cec3a2b6406df023ef94f084a2ed47b94f9dfd",
+    "original_hexsha": "3a76d1ee2d22944dc6eaf4e7903975cadf26711d",
+    "author": "Holden Warriner",
+    "datetime": "2024-12-19T21:53:30-05:00",
+    "summary": "Add web IDL interface for crash annotations (#4574)",
+    "stats": {
+      "files": 20,
+      "insertions": 493,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4ff6202b4ef5d831185b99320ed0f1c16acff5a5",
+    "original_hexsha": "d13b6644a17c685cf62df196349a005973dcf5d9",
+    "author": "Andrew Savage",
+    "datetime": "2024-12-19T21:43:02-05:00",
+    "summary": "Disable is_official_build for QA builds (#4618)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b27c195680445133df16992f3c5e8c4d7423a03f",
+    "original_hexsha": "6fe94b3a5945701dba1a9bc03b3cf2c3f0c58ef7",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-12-19T12:00:00-08:00",
+    "summary": "Add cipd directory to android_deps/.gitignore",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4f1731cdb2b8c8d0cc29a67fbdca7fd1a1c032c2",
+    "original_hexsha": "768aefe07ae80c25c62f358fa5725955800dc200",
+    "author": "Andrew Savage",
+    "datetime": "2024-12-19T15:15:09-05:00",
+    "summary": "Allow insecure websocket in QA builds (#4614)",
+    "stats": {
+      "files": 3,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "87929a8ce66e81d67df44175e31f3647d46a3040",
+    "original_hexsha": "1322f53399475b751a67b1a52b64afec675fc632",
+    "author": "Hao",
+    "datetime": "2024-12-19T12:06:53-08:00",
+    "summary": "Create StarboardBridge native class with jni_generator (#4606)",
+    "stats": {
+      "files": 8,
+      "insertions": 184,
+      "deletions": 33
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ef3c9f88f4bc7d9fe7edd2a1cd29d326bc936b37",
+    "original_hexsha": "9158f9af67cf612ca9aecaee8076d726ab4535bf",
+    "author": "Austin Osagie",
+    "datetime": "2024-12-18T18:14:41-08:00",
+    "summary": "Disable progressive playback support by default (#4547)",
+    "stats": {
+      "files": 5,
+      "insertions": 103,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "69143727ba1f4e97c6ec2f9b13de3db6c5730bd4",
+    "original_hexsha": "afbfaade8cc9386b1db82ec06df8d61eb086c51a",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-12-18T18:00:00+00:00",
+    "summary": "Move IS_CI back to GitHub workflow configuration",
+    "stats": {
+      "files": 2,
+      "insertions": 1,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cb818fc5fcf31d6e9924ea657edd940418757f67",
+    "original_hexsha": "597d2b017e5e8d36d8399952744add367958952e",
+    "author": "Miguel Casas",
+    "datetime": "2024-12-18T15:39:23-08:00",
+    "summary": "starboard/nplb: Disable some tests (#4594)",
+    "stats": {
+      "files": 8,
+      "insertions": 34,
+      "deletions": 53
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bd67df26470391d0ad1123fd9d070cc31137830c",
+    "original_hexsha": "1f79302770643f6f774c66b8a9b3f06f056c9829",
+    "author": "xiaomings",
+    "datetime": "2024-12-18T14:19:15-08:00",
+    "summary": "[android] Turn SbDecodeTargetPrivate to interface (#4610)",
+    "stats": {
+      "files": 13,
+      "insertions": 358,
+      "deletions": 289
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "23238694ed2f6e9f22074e34860ebd188d1fff36",
+    "original_hexsha": "a2deb5c325ecea9986913a3afe6c717364f36dd9",
+    "author": "Miguel Casas",
+    "datetime": "2024-12-18T14:11:09-08:00",
+    "summary": "ozone/starboard: Enforce \"egl\" for Ozone Starboard platform (#4607)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6cae4f91cbd3c22c6235647a9710b200e28dbe3e",
+    "original_hexsha": "6443bce14922d87fdff0397dad3eece93e3c7dff",
+    "author": "Igor Sarkisov",
+    "datetime": "2022-06-07T14:14:16-07:00",
+    "summary": "Upgrade sccache to v0.3.0",
+    "stats": {
+      "files": 2,
+      "insertions": 10,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9dd7fb058e9cebff34d6b6484d104c356d834633",
+    "original_hexsha": "fb32eaee7497b387744e645911ebd4eddcd59bde",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-12-17T17:00:00-08:00",
+    "summary": "Restore SCCACHE_GCS_OAUTH_URL from commit 1d51125d",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e4f7ec1a763e2f44b6001fe692c2184b9469584c",
+    "original_hexsha": "0cd7c8f211f5b342fd0fc980ee2a01aaf39b7bd2",
+    "author": "Miguel Casas",
+    "datetime": "2024-12-18T09:19:01-08:00",
+    "summary": "Starboard: support --v for verbosity (#4583)",
+    "stats": {
+      "files": 6,
+      "insertions": 103,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7f53f893c99692cc7086b6b8230d2d4c5238cc13",
+    "original_hexsha": "61d79523a71c84893b8abc4e57b1d78c5287024c",
+    "author": "Hao",
+    "datetime": "2024-12-17T18:24:05-08:00",
+    "summary": "Revert \"Create StarboardBridge native class with jni_generator\" (#4603)",
+    "stats": {
+      "files": 8,
+      "insertions": 75,
+      "deletions": 228
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cacc3590e23cc362acf6af2d20873330552bb158",
+    "original_hexsha": "fc163a7d163d5dce1cedaeffb99ad411ae98bbf6",
+    "author": "xiaomings",
+    "datetime": "2024-12-17T15:24:37-08:00",
+    "summary": "[android] Refactor SbDecodeTarget creation (#4598)",
+    "stats": {
+      "files": 6,
+      "insertions": 111,
+      "deletions": 188
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f21bf0ffc9b681f41a5b95f65b7fe891210d2743",
+    "original_hexsha": "45806093af89eb40bc99d48cdf100e50f921baa5",
+    "author": "Hao",
+    "datetime": "2024-12-17T13:24:38-08:00",
+    "summary": "Create StarboardBridge native class with jni_generator (#4545)",
+    "stats": {
+      "files": 8,
+      "insertions": 228,
+      "deletions": 75
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d5eb8f7f2c62483c5407188dddc401b9342f9d0d",
+    "original_hexsha": "7c68356b327bf9a47493a6ce5beb510a4f1b8aaf",
+    "author": "Colin Liang",
+    "datetime": "2024-12-17T10:24:04-08:00",
+    "summary": "Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579)",
+    "stats": {
+      "files": 12,
+      "insertions": 6383,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "845dddd4acd02c392212458b7f84e9ea444d0b94",
+    "original_hexsha": "dcfbd92bb3713f7a70ee0271816bfa11d11cf9b5",
+    "author": "Kaido Kert",
+    "datetime": "2024-12-16T19:46:09-08:00",
+    "summary": "Restore full git history for checkouts (#4595)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8beef959fc4fe9bf4fd528d32dc0d68be43943d8",
+    "original_hexsha": "9c9a8a96f3bf1c1efe7ddffc0605d4df071d1a5d",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-12-16T17:35:27-08:00",
+    "summary": "Fix on-host test if condition (#4581)",
+    "stats": {
+      "files": 3,
+      "insertions": 37,
+      "deletions": 24
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a05cc0bb77c59896c94c1effdba50d763a712ffd",
+    "original_hexsha": "9bafbb1d73fd00651b91024c8ac72e86c1af304a",
+    "author": "xiaomings",
+    "datetime": "2024-12-16T15:50:55-08:00",
+    "summary": "Move SbMedia structs comparators to starboard/common (#4592)",
+    "stats": {
+      "files": 4,
+      "insertions": 99,
+      "deletions": 97
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f45d4a6c97e229282b7de09cb024066cc4dd4441",
+    "original_hexsha": "dd692ea43042ab50069afda8d8ca2548a5bcf468",
+    "author": "Kaido Kert",
+    "datetime": "2024-12-16T14:39:44-08:00",
+    "summary": "Preserve build-info in archives (#4591)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ad8c71af2d02d558120443d093604f41329a0bc8",
+    "original_hexsha": "cc55e8766dedf810855028e05af3671452e41c6f",
+    "author": "Miguel Casas",
+    "datetime": "2024-12-16T13:15:07-08:00",
+    "summary": "ui/ozone/starboard: introduce ScopedSbWindow (#4590)",
+    "stats": {
+      "files": 3,
+      "insertions": 43,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "81b5d76993417e17b8f41643ab30d3b501503cd2",
+    "original_hexsha": "dc857f3307dfaa52ea05dcb472ef38bf58c429cc",
+    "author": "Tyler Holcombe",
+    "datetime": "2024-12-16T18:54:31+00:00",
+    "summary": "Add GL provider to surface_factory_starboard (#4487)",
+    "stats": {
+      "files": 7,
+      "insertions": 258,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a229ecd9442d91fd21ce9c4208b6e3f8a5293371",
+    "original_hexsha": "8b67d25021bf13dffddce2a0af489f21fe20dd85",
+    "author": "Jason",
+    "datetime": "2024-12-16T10:02:18-08:00",
+    "summary": "Avoid double Seek() at playback start (#4546)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "db9d0c7152c4b30141cff5f7a58e68b9b8ff2457",
+    "original_hexsha": "77da1728ee491cf9a8d4f8cac39194da1c53b16b",
+    "author": "xiaomings",
+    "datetime": "2024-12-13T18:17:01-08:00",
+    "summary": "[media] Turn SbPlayerPrivate into an interface (#4575)",
+    "stats": {
+      "files": 4,
+      "insertions": 143,
+      "deletions": 103
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f2841a1b5eb47d62dbc5a384424af229a40e910",
+    "original_hexsha": "57a06ddcbf5f49ddde3dd5dde1ed3475f58ee855",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-12-13T16:58:17-08:00",
+    "summary": "Fix error identifying cobalt_toolchain (#4582)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eef0353541dbdb4e5c5a7f7c7e433e321c791d1d",
+    "original_hexsha": "e967f94ed36151f0ae4af2c23649fc356f8d815e",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-12-13T13:02:42-08:00",
+    "summary": "Add a builder for making progress on hermetic toolchain on main branch (#4576)",
+    "stats": {
+      "files": 5,
+      "insertions": 48,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "60105855f9f58949f4684582659b581244f1f886",
+    "original_hexsha": "a2ce17e0796237ddb70b524581f56e52a930eef9",
+    "author": "aee",
+    "datetime": "2024-12-13T12:26:14-08:00",
+    "summary": "[Android] Map remote back key to escape key event. (#4537)",
+    "stats": {
+      "files": 3,
+      "insertions": 211,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "02bfc7101176825328960d1e3836bf322cf7385a",
+    "original_hexsha": "645db7fc1a3dbd4867973c2a7cd9155adf9388c2",
+    "author": "Hao",
+    "datetime": "2024-12-12T21:09:43+00:00",
+    "summary": "Move user_agent target and create cobalt_unittests (#4550)",
+    "stats": {
+      "files": 10,
+      "insertions": 1186,
+      "deletions": 1169
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b75368595037c8d94b2388382a50c4e2c6c09d96",
+    "original_hexsha": "5adfadfcafc9b998f0b06628c814f6b5a1aed657",
+    "author": "Yavor Goulishev",
+    "datetime": "2024-12-12T21:04:26+00:00",
+    "summary": "Sort the test targets alphabetically. (#4568)",
+    "stats": {
+      "files": 1,
+      "insertions": 8,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bb4f7ba06494aac7601c193196137696e1eaf43d",
+    "original_hexsha": "59c4c44615a59850993670f1a5efe3f69521705b",
+    "author": "xiaomings",
+    "datetime": "2024-12-12T12:47:50-08:00",
+    "summary": "[android] Refine bounds setting in SbPlayerCreate() (#4572)",
+    "stats": {
+      "files": 1,
+      "insertions": 14,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bfedd05b2efc973dad1b95431cdf03a36a850b3b",
+    "original_hexsha": "4c94e91253a36d528cb40a7decac2f5c31de9590",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-12-12T12:04:37-08:00",
+    "summary": "[media] Properly log messages for unsupported functions (#4558)",
+    "stats": {
+      "files": 1,
+      "insertions": 22,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f7861a8dd080f9672417ff9ecb90e2bae338fe6",
+    "original_hexsha": "05ae7c020da3fda702b922b68306d424d6ec0f07",
+    "author": "Colin Liang",
+    "datetime": "2024-12-11T18:52:22-08:00",
+    "summary": "Add gn flags to generate size info for the supersize tool. (#4560)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ce70d4da9c8bf4939c278034852d5091cc2c1827",
+    "original_hexsha": "a1bbd77ecf5b8fe2d04f5c3169d78bb8e09bd923",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-12-11T17:34:55-08:00",
+    "summary": "Restore required checks script (#4566)",
+    "stats": {
+      "files": 1,
+      "insertions": 188,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fa8775af8898eaa3fa272d96c3c9a2bb072159c4",
+    "original_hexsha": "58d69e4e5d73695dce636ebe21b6a41d7b3254c0",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-12-11T17:11:13-08:00",
+    "summary": "Override enable_nacl value, set it to false by default (#4555)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9934e90a747b5ca998d4b24ee09ac6ca539ca4b4",
+    "original_hexsha": "f32b8e13815dea55a57f6f29b41ce9e60c8dbe8a",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-12-11T17:08:36-08:00",
+    "summary": "Create separation between cobalt and host toolchain for all platforms (#4542)",
+    "stats": {
+      "files": 3,
+      "insertions": 36,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a89d5a0cf32a2fac8fb8a3ee403406624c78e21f",
+    "original_hexsha": "7cc350e567a1a5ae8c2c97a809a9c427d7ae51b1",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-12-11T11:00:00-08:00",
+    "summary": "Revert commit bd53a697",
+    "stats": {
+      "files": 2,
+      "insertions": 1,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "98314fa4346c39142c29749c44ba7361516da3e0",
+    "original_hexsha": "4d2e677563e2328fdb1e941e8770d6af4a117aea",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-12-11T15:57:23-08:00",
+    "summary": "Add DataDog secret to main workflow (#4536)",
+    "stats": {
+      "files": 25,
+      "insertions": 318,
+      "deletions": 283
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bb64d772f644945c3e13b59a3bc9c55f16c60fbe",
+    "original_hexsha": "43d0507ff11804ffae9ce414e8b91704a77e7888",
+    "author": "Austin Osagie",
+    "datetime": "2024-12-11T11:44:19-08:00",
+    "summary": "[media] Change local and remote audio write durations (#4501)",
+    "stats": {
+      "files": 6,
+      "insertions": 250,
+      "deletions": 34
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fb8242ac0d71c5d8d3dd89e13df4e521ef2617bb",
+    "original_hexsha": "f337d65daaa27636dd14545915050aac26d5c097",
+    "author": "Yavor Goulishev",
+    "datetime": "2024-12-10T19:31:16-08:00",
+    "summary": "Enable nplb on Linux. (#4543)",
+    "stats": {
+      "files": 5,
+      "insertions": 29,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a62356cde8597143a625844ba9191b2c583ab500",
+    "original_hexsha": "1e0103b402e1b333a43f8b27a6db6f7a4536f3fb",
+    "author": "Tyler Holcombe",
+    "datetime": "2024-12-11T01:09:55+00:00",
+    "summary": "Disable Vulkan for Cobalt (#4552)",
+    "stats": {
+      "files": 1,
+      "insertions": 17,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "687980a3627864ec1f09f751511c12878bb2f1d1",
+    "original_hexsha": "bd53a6974197a2688d047b9f351a48b681343d27",
+    "author": "Igor Sarkisov",
+    "datetime": "2022-06-07T14:14:16-07:00",
+    "summary": "Upgrade sccache to v0.3.0",
+    "stats": {
+      "files": 2,
+      "insertions": 10,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a151b55dcb11b2500d7a73cdd735df6e0b4d5ae7",
+    "original_hexsha": "32eb8596ef08d796b1693e73c919b9cc8853a3e2",
+    "author": "Igor Sarkisov",
+    "datetime": "2024-12-05T17:22:31-08:00",
+    "summary": "Add test artifact upload for Android (#4508)",
+    "stats": {
+      "files": 5,
+      "insertions": 22,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e4c7ab0518bfd396404d558766e206a6f6a68686",
+    "original_hexsha": "399c7ca71fee5ea9b8b16891a43030895dee8e8b",
+    "author": "Colin Liang",
+    "datetime": "2024-12-05T14:02:21-08:00",
+    "summary": "JavaBridge Implementation of H5vccPlatformService (#4525)",
+    "stats": {
+      "files": 18,
+      "insertions": 344,
+      "deletions": 87
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "18a537f501330ddcdafdfb5ba128167644cb69b6",
+    "original_hexsha": "0116de3b17af1c754c24f54e5f80ed3b22fa9f61",
+    "author": "Ian Mindich",
+    "datetime": "2024-12-04T22:11:46-08:00",
+    "summary": "Pin JUnit report action with a SHA instead of a tag. (#4532)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8499733e25cfb4576dad38efae079522a4830237",
+    "original_hexsha": "7bbc5b76d9ef1259c133245e6c83fbc8e9d3bbaa",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-12-04T17:06:45-08:00",
+    "summary": "Fix datadog upload (#4513)",
+    "stats": {
+      "files": 3,
+      "insertions": 62,
+      "deletions": 55
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6b51bd7474a2c76e5ed37ed4893b7b31e40bef28",
+    "original_hexsha": "9e8f86cc88f471c8fad363e99914ae32e8947100",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-11-22T11:00:00-08:00",
+    "summary": "Update Kokoro main build configuration",
+    "stats": {
+      "files": 5,
+      "insertions": 30,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4b9f310e9dfe7cb4432468507a2d5bd86222976f",
+    "original_hexsha": "4e87f069e80773fae29329f810456ed28bd729f7",
+    "author": "Holden Warriner",
+    "datetime": "2024-12-03T15:59:24-05:00",
+    "summary": "Fix/disable errors and enable gn check (#4518)",
+    "stats": {
+      "files": 17,
+      "insertions": 52,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1cffec2989568c30b97818c19c5cc0a72730b4f0",
+    "original_hexsha": "41b5546091a819c4f567d4468c7ac621cf46966b",
+    "author": "Hao",
+    "datetime": "2024-12-02T22:23:41+00:00",
+    "summary": "Use NDEBUG to determine debug build (#4520)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "73b805e77728537f7bd403224a3b804e9f2ee1d3",
+    "original_hexsha": "446dfa2b7c3d4cb40e7dc12373f558667ac42f48",
+    "author": "Holden Warriner",
+    "datetime": "2024-12-02T14:24:16-05:00",
+    "summary": "Allow media/base to circular include from media/SB (#4502)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "704cc3c8d9c1ea35db94efdbbe9554ab752ad32e",
+    "original_hexsha": "85877aaee3d362d5a3dc38fdd6e0d5039056573d",
+    "author": "Holden Warriner",
+    "datetime": "2024-12-02T14:18:08-05:00",
+    "summary": "Add missing //url dep to //media/starboard (#4503)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "22438b252400a8e8abc5f7360fd30997477b7a5f",
+    "original_hexsha": "3918e8816a2a0982fee8bca2fa0e41adc82ff08c",
+    "author": "Andrew Savage",
+    "datetime": "2024-12-02T14:13:26-05:00",
+    "summary": "Add Cobalt dependency on java constants (#4470)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "71a688f0bcdb41e6e6242c9e3ba61db020a9ce74",
+    "original_hexsha": "582b22d649985e1f743f8f9529f8c35616b6cc4f",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-12-02T10:11:32-08:00",
+    "summary": "Make Kokoro build files executable (#4514)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d9e3b4ed8c6a35ff48e2f00a7a0e18afcc711f26",
+    "original_hexsha": "f4ac5fd5b3ccdff6d7ad1c2cf7523e10d7110267",
+    "author": "Austin Osagie",
+    "datetime": "2024-12-02T09:37:39-08:00",
+    "summary": "[media] Disable ffmpeg for linux (#4512)",
+    "stats": {
+      "files": 3,
+      "insertions": 10,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c52ed0903799183d1e05bf2d9fe35d1071b1ee0d",
+    "original_hexsha": "440741cd21171cd8915dc0a4f70cc703cf303a37",
+    "author": "Hao",
+    "datetime": "2024-11-28T00:25:20+00:00",
+    "summary": "Infer UA build_configuration from build config (#4484)",
+    "stats": {
+      "files": 6,
+      "insertions": 29,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6e876427a186e44510378c37e0a701a649836c64",
+    "original_hexsha": "1b3a8fa7269493dfeba89fb0ef1edcbc1914855e",
+    "author": "Hao",
+    "datetime": "2024-11-27T22:36:26+00:00",
+    "summary": "Set Miscellaneous Properties for UA (#4511)",
+    "stats": {
+      "files": 1,
+      "insertions": 13,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "efe3f2b1e491723f0dbfcf764eacc1421c82d0f5",
+    "original_hexsha": "96f21f2d573a1c0b51ad9d80de1b35e847d04abd",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-26T16:41:56-08:00",
+    "summary": "[media] Address NOTIMPLEMENTED() in StarboardRenderer (#4507)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f112748eedbbf058adb16ddf6958cc75a14f0726",
+    "original_hexsha": "a4ea0ef09af7754d056100f12f3e6c8751563125",
+    "author": "Tyler Holcombe",
+    "datetime": "2024-11-26T22:35:32+00:00",
+    "summary": "Add starboard ozone to set of files for pre-commit checks (#4488)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c0485db8983e7af0d071f3ae952c86029ec5ea82",
+    "original_hexsha": "90e1d1dc461bf374ddf655062d0c901f60c1c1f3",
+    "author": "Kaido Kert",
+    "datetime": "2024-11-26T13:59:59-08:00",
+    "summary": "Combine build-info scripts into a single one (#4505)",
+    "stats": {
+      "files": 3,
+      "insertions": 38,
+      "deletions": 64
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "679a8fd3bf03e97642f7bc9a4dfd4d5cde003311",
+    "original_hexsha": "4c56f1278026c8066ba65b5db050b3a84cf185bf",
+    "author": "Ian Mindich",
+    "datetime": "2024-11-26T11:26:30-08:00",
+    "summary": "Add on-host tests and results upload (#4266)",
+    "stats": {
+      "files": 16,
+      "insertions": 427,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "25b4dcfe37e6dfc5929d7bd7d65973ff31a22f11",
+    "original_hexsha": "9e037bebacae057d8d2bc678ccadbb786e6d1dca",
+    "author": "Holden Warriner",
+    "datetime": "2024-11-26T14:23:48-05:00",
+    "summary": "//media/renderers visibility for //media/starboard (#4500)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "01725313ef5b1ee7d4b3252aff5e702773b92fa9",
+    "original_hexsha": "195f79f4c27d5fa558aed2674e54dbec1cee47e4",
+    "author": "Kaido Kert",
+    "datetime": "2024-11-26T09:15:12-08:00",
+    "summary": "Restore collaborator workflow (#4504)",
+    "stats": {
+      "files": 1,
+      "insertions": 35,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6ef1c952436c0bb6824d3c31ba5f2d2d4b3175f1",
+    "original_hexsha": "8577a9446661a2495611ab84ccc8d35d6fc7d185",
+    "author": "johnx",
+    "datetime": "2024-11-26T08:58:23-08:00",
+    "summary": "Remove CobaltStorageLoader (#4449)",
+    "stats": {
+      "files": 4,
+      "insertions": 0,
+      "deletions": 3818
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "164e054223d280830c6da50f6e33401c9127d02e",
+    "original_hexsha": "6e082ebe9c4067eaab927b63ffb0c4161e593d78",
+    "author": "Kaido Kert",
+    "datetime": "2024-11-25T19:12:43-08:00",
+    "summary": "Restore Cobalt version info (#4478)",
+    "stats": {
+      "files": 4,
+      "insertions": 25,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e19ffcc7c1b4aa717c93e89946c595020dd81e93",
+    "original_hexsha": "786b434fc26482c1e6ea672d1fe981de83338ae7",
+    "author": "Jason",
+    "datetime": "2024-11-25T15:53:04-08:00",
+    "summary": "Force reset surface view for every playback (#4498)",
+    "stats": {
+      "files": 4,
+      "insertions": 18,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "da34e36c655b2893200640a77f49a38b8b8c8831",
+    "original_hexsha": "e63876c8be7734db40f7da35ca561e92fb977a64",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-25T14:51:38-08:00",
+    "summary": "[media] Set RendererType to StarboardRenderer (#4495)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e513c9ae1c19bf093f17b06822854530723efb1f",
+    "original_hexsha": "110fd7d518f7291e8fa5392a0aef463d0333f56a",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-25T12:08:44-08:00",
+    "summary": "[media] Support progressive playback (#4437)",
+    "stats": {
+      "files": 27,
+      "insertions": 911,
+      "deletions": 821
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f45089bf6c0492fa53b577bcda37cf182f0bdb21",
+    "original_hexsha": "f245d4ed84ada52e98a010a2abcc89b4c372df21",
+    "author": "aee",
+    "datetime": "2024-11-22T15:45:47-08:00",
+    "summary": "Allow insecure ws: connections for testing. (#4468)",
+    "stats": {
+      "files": 4,
+      "insertions": 16,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "60cfbb1ee66ca1cac40d28e494cf633a8bc9b912",
+    "original_hexsha": "20f2596ed3e615dcbe7d11e0e26014eaf0b410d7",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-22T10:37:20-08:00",
+    "summary": "Refactor flags in args.gn files (#4476)",
+    "stats": {
+      "files": 7,
+      "insertions": 34,
+      "deletions": 77
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e4507b8306950bf7179fa72eab13bb0310b4e8d0",
+    "original_hexsha": "e10338481fb34ee940f859b122a7b0bb8935b58b",
+    "author": "Andrew Savage",
+    "datetime": "2024-11-22T12:54:43-05:00",
+    "summary": "Remove ClearNativeWindow (#4479)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 86
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bd0058ed5be0e4950d49ea8b9d29c7a359f9ead8",
+    "original_hexsha": "f752e20ddacca4e215ac6666cf8af83e9f0bd5a5",
+    "author": "Hao",
+    "datetime": "2024-11-22T01:07:11+00:00",
+    "summary": "Retrieve additional platform info for Android UA (#4474)",
+    "stats": {
+      "files": 2,
+      "insertions": 27,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "788dcef7d512f9862af27d5fcdbfe266be7eb50a",
+    "original_hexsha": "db8a99487541c66f3867a143eed1faaef09a563b",
+    "author": "Arjun Menon",
+    "datetime": "2024-11-21T16:41:30-08:00",
+    "summary": "Fix internal Kokoro build to use appropriate image (#4472)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b786190db770686377e24637259cdc83e2bf8894",
+    "original_hexsha": "67db4011eebda95f469aa5fcff9712efb257d587",
+    "author": "Austin Osagie",
+    "datetime": "2024-11-21T13:46:20-08:00",
+    "summary": "Disable ffmpeg for Android builds (#4469)",
+    "stats": {
+      "files": 4,
+      "insertions": 16,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "621bca43483c258e312987c3d7c80dfc0a3debc1",
+    "original_hexsha": "58258c172c7f7be78d643e5bd726e30dcb001f79",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-21T12:23:29-08:00",
+    "summary": "[media] Waiting for setting CDM before initializing StarboardRenderer (#4458)",
+    "stats": {
+      "files": 2,
+      "insertions": 74,
+      "deletions": 28
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a004a3be88f945ea81b43f46116d1840796ba1cf",
+    "original_hexsha": "601f8fc95fa177362408a2dacf68422fd78538d1",
+    "author": "Austin Osagie",
+    "datetime": "2024-11-21T06:36:52-08:00",
+    "summary": "[media] Allow media_unittests to build without ffmpeg (#4467)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f5c726be9bc8c02be1edf2a33306fb60e1ac9089",
+    "original_hexsha": "4e029b2110dbb5c528a6fde02fec2c1986d68f42",
+    "author": "Kaido Kert",
+    "datetime": "2024-11-20T16:52:13-08:00",
+    "summary": "Restore cobalt/CHANGELOG.md and version.h (#4463)",
+    "stats": {
+      "files": 1,
+      "insertions": 41,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1aac820db71b54fe9e6fa9a66569e8a9941465d8",
+    "original_hexsha": "4ae5722cb79b8aef8532b7bdf21be18f43e71894",
+    "author": "Austin Osagie",
+    "datetime": "2024-11-20T14:30:53-08:00",
+    "summary": "[media] Fix spacing when printing SbMediaAudioSampleInfo (#4462)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fa74e67fd582c33a6747ff332910c90c018b6023",
+    "original_hexsha": "ae599d02feff33d9ef5a0ea1df460c2ed874fbdf",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-20T13:52:14-08:00",
+    "summary": "[media] Enable media_unittests for all platforms (#4455)",
+    "stats": {
+      "files": 15,
+      "insertions": 18,
+      "deletions": 72
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a9bb4ac1ab8c6286eedcfa6246e16750e4aace61",
+    "original_hexsha": "85b99f1e35c6a94664e89aea92a343f8433def06",
+    "author": "Andrew Savage",
+    "datetime": "2024-11-20T15:44:52-05:00",
+    "summary": "Add allowed origins for devtools in dev builds (#4459)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c5b89da51f0d126c3130c057a64f1ddcf06cb24b",
+    "original_hexsha": "02147a873223c7dbf438e41286fbb2e27c6629a7",
+    "author": "Austin Osagie",
+    "datetime": "2024-11-20T12:37:30-08:00",
+    "summary": "[media] Pass full mime type to SbPlayer (#4378)",
+    "stats": {
+      "files": 10,
+      "insertions": 164,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "11e66e0372d1e46a7092ebea686a876bf4480d33",
+    "original_hexsha": "4a8dcedf2f6bdf0c84f85a2b1c11a1d6ce4da4bb",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-19T21:23:30-08:00",
+    "summary": "[media] Report errors via MediaError to WebApp (#4453)",
+    "stats": {
+      "files": 13,
+      "insertions": 172,
+      "deletions": 20
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc1adadcd1b751c49d164cedc98ee0d689ac93e3",
+    "original_hexsha": "03ed8d2f890c3912a2993730a0e5da9b52f3af55",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-19T15:27:55-08:00",
+    "summary": "Set is_cobalt = false by default (#4445)",
+    "stats": {
+      "files": 10,
+      "insertions": 12,
+      "deletions": 15
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5538e6937041a888f004a243bf9bf8db96bb48a4",
+    "original_hexsha": "7bb825205767b5ba6bbc19a3ffaca6aa4bf8757e",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-19T15:07:22-08:00",
+    "summary": "Add proprietary_codecs.gn (#4450)",
+    "stats": {
+      "files": 5,
+      "insertions": 16,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e80d514da6b4ff067302290b908c8cf45d07b529",
+    "original_hexsha": "9db5712f2fd1c7f3a4f5bb1390f40cd749ba4c41",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-19T14:36:57-08:00",
+    "summary": "Add reviewers for gn, gni files (#4446)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "75334dbfc489e4a197caade187af7d5ab29d5f38",
+    "original_hexsha": "8125775568692d6f40cdfae22d014c6d39e4f059",
+    "author": "Yavor Goulishev",
+    "datetime": "2024-11-19T11:06:14-08:00",
+    "summary": "Remove the SocketResolver type. (#4452)",
+    "stats": {
+      "files": 3,
+      "insertions": 0,
+      "deletions": 375
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eac8a6c0fc04bb9b3c42344b3276911e87b85b26",
+    "original_hexsha": "66a0555b442584103637bb97933e899253009254",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-11-19T09:00:00-08:00",
+    "summary": "Update name of file docker-compose.yaml",
+    "stats": {
+      "files": 6,
+      "insertions": 83,
+      "deletions": 81
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d235450ab30473c06e0eb11c90b09409c7c45d63",
+    "original_hexsha": "34382e9c56b119d785acbc001bec4497d5063694",
+    "author": "Jason",
+    "datetime": "2024-11-18T11:50:10-08:00",
+    "summary": "Support key system in HTMLMediaElement.canPlayType (#4429)",
+    "stats": {
+      "files": 5,
+      "insertions": 116,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d36fe40356f1b54abd4114d94a145e30001b5f27",
+    "original_hexsha": "3c4b5f47e49a37294d30486370247fead7a7776b",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-15T16:17:51-08:00",
+    "summary": "[android] Fix wrong viewport on player (#4441)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e5b4392e645138e9fe6fbe90ad6fe17c526be612",
+    "original_hexsha": "9b841f418a6f544fe03e27d8c9599b871b5d0b0b",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-11-15T11:00:00-08:00",
+    "summary": "Update kokoro path to cobalt/devinfra/kokoro",
+    "stats": {
+      "files": 32,
+      "insertions": 42,
+      "deletions": 41
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f3a564585be068d3c4628850744986e60aea12a",
+    "original_hexsha": "644a0d19e4ece190e2e00397d56ef19cbfea6bcd",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-15T14:56:29-08:00",
+    "summary": "Set certain upstream GN flags correctly in args.gn (#4419)",
+    "stats": {
+      "files": 6,
+      "insertions": 31,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2d453c55d37211b9b9949ea595110eb0de6281ff",
+    "original_hexsha": "f2b140a782f6d6822a40bb998c1e415f839e852d",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-15T14:56:06-08:00",
+    "summary": "Remove overwrite_args parser argument (#4439)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aa851725f418639879b9884381a9ea543e2d5e55",
+    "original_hexsha": "9b6a24706f40ab36093f41bf72abc8326b6084fa",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-15T10:29:45-08:00",
+    "summary": "[media] Set the bounds of Sbplayer via video_painter.cc (#4385)",
+    "stats": {
+      "files": 15,
+      "insertions": 113,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "61083d5f80a481308d6d39e197d27cd22994ec69",
+    "original_hexsha": "7fea4349aa3880dc3f9ac3f05d9009dff7c795b2",
+    "author": "Miguel Casas",
+    "datetime": "2024-11-14T19:52:17-08:00",
+    "summary": "starboard/types.h: Remove SSIZE_T provisions/fallbacks (#4382)",
+    "stats": {
+      "files": 10,
+      "insertions": 1,
+      "deletions": 36
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "97280634d5e3468d099a5d431e891a642f5d6236",
+    "original_hexsha": "02c7026ddcd9e2923eb0c720627ef1e6b1b93e07",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-14T19:22:56-08:00",
+    "summary": "Set default gn --check to false (#4438)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "32e2ce143b0985ba6aa521b18ca26e74f387c535",
+    "original_hexsha": "f4c26a295f01046b42d14146162c02c5944fa24f",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-11-14T11:00:00-08:00",
+    "summary": "Add kokoro tree from commit 73c47431",
+    "stats": {
+      "files": 56,
+      "insertions": 2887,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2a3fc3fcbe081b15603facf98fc134b8a230f710",
+    "original_hexsha": "8d9678c441b93a318e2dca4e356af9f4123fdf7a",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-14T15:51:05-08:00",
+    "summary": "Set environment variable IS_CI (#4432)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "af3a6466408500c2a91faf4ce291b79062563aca",
+    "original_hexsha": "9344cf5b84202373c15aa5c4397565884ac4a2a8",
+    "author": "johnx",
+    "datetime": "2024-11-14T14:46:47-08:00",
+    "summary": "Remove Starboard thread, SbEvent and most of ApplicationAndroid (#4421)",
+    "stats": {
+      "files": 9,
+      "insertions": 108,
+      "deletions": 748
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "619d09d1c8c2dcc3f3abd45e209367b45dc5845a",
+    "original_hexsha": "3b13623643828f1dafaf6277d018c923874ef383",
+    "author": "thorsten sideb0ard",
+    "datetime": "2024-11-14T14:37:32-08:00",
+    "summary": "Implement media::ContentDecryptionModule interface for Starboard (#4368)",
+    "stats": {
+      "files": 12,
+      "insertions": 709,
+      "deletions": 581
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "95fe730607c92ba98123cffb2a68fa79ed06bed5",
+    "original_hexsha": "1740e9aac8e5e0f200c6c92462a32fb82376106d",
+    "author": "Hao",
+    "datetime": "2024-11-14T20:08:22+00:00",
+    "summary": "Chrobalt ATV UA String Implementation With No Dependencies on SB (#4388)",
+    "stats": {
+      "files": 10,
+      "insertions": 1314,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f774d6e2cb614d75143956ad7510996bf28bfc4",
+    "original_hexsha": "12c54c78ab521b6ccd4f202bd585d7232bc6b7a6",
+    "author": "Tyler Holcombe",
+    "datetime": "2024-11-14T19:19:06+00:00",
+    "summary": "Add minimal Ozone implementation for Starboard (#4396)",
+    "stats": {
+      "files": 14,
+      "insertions": 714,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2071f1457c139f07b62429b17c21b921d6bc74b2",
+    "original_hexsha": "95feda832ccfaf931012d4bfdd2cd3a973a477eb",
+    "author": "Colin Liang",
+    "datetime": "2024-11-14T11:00:25-08:00",
+    "summary": "Enable Javascript console log (#4426)",
+    "stats": {
+      "files": 1,
+      "insertions": 9,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "96d8ae8f05d50fa184a48b1257bcb6c644b07cf4",
+    "original_hexsha": "248d236b96298f96a5049064a0b1eeb47a3e4311",
+    "author": "Austin Osagie",
+    "datetime": "2024-11-13T15:10:06-08:00",
+    "summary": "[media] Remove //third_party/ffmpeg from build (#4425)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3e281d0b84e6db4ce6525ecff3dda7758dc6c29a",
+    "original_hexsha": "b62719070ff06f290691d70193e82b108a32d72d",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-13T13:04:40-08:00",
+    "summary": "[media] Build StarboardRenderer only if use_starboard_media=true (#4424)",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3060f4ead0e5ed7a6032b688bc8d2dfc9c0d3b1a",
+    "original_hexsha": "0677c9a46f24921f01fb58be3840976babae3f45",
+    "author": "xiaomings",
+    "datetime": "2024-11-13T11:08:11-08:00",
+    "summary": "Enable progressive playback (#4422)",
+    "stats": {
+      "files": 1,
+      "insertions": 17,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c61587138be8a223e8e51e1c04fea9969aa4a5c7",
+    "original_hexsha": "8c88946bfa6d8b661508dfe57f8b366947e715be",
+    "author": "Andrew Savage",
+    "datetime": "2024-11-13T13:45:18-05:00",
+    "summary": "Fix GHA conditional to speed up builds (#4423)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "75739b3824012f1b4ee412e7a91dbab37212f699",
+    "original_hexsha": "1122f235b316a37bf285088875a949c8fd265602",
+    "author": "Andrew Savage",
+    "datetime": "2024-11-13T10:21:44-05:00",
+    "summary": "Rename USE_STARBOARD to IS_STARBOARD (#4417)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "080317a1c3699af6fddf7d5d2e9301c11e2c5a8b",
+    "original_hexsha": "9444174e06f54f3fa4d6f518567b34b793b2a144",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-12T18:31:47-08:00",
+    "summary": "Fix flags in chromium* args.gn files (#4420)",
+    "stats": {
+      "files": 5,
+      "insertions": 5,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "def3ef41cb7d8112d53baba83e1472663e184118",
+    "original_hexsha": "9cd99741cda8e003fa4816fbdeac3808fc217fa4",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-12T16:58:39-08:00",
+    "summary": "Add assert for is_cobalt (#4416)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5c04408196871cbfd7968c5d22ba7cdb625324f2",
+    "original_hexsha": "d0a9e4bfb11c2964c7c5de81593d68e81db0fab3",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-12T15:47:03-08:00",
+    "summary": "Remove unreviewed flags (#4418)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e94fc50dbc16d97caa5f18b39b08673b831e9552",
+    "original_hexsha": "72d2b3f6939d9e8feddf6592a046bd17d5ba53e4",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-12T14:40:37-08:00",
+    "summary": "Rename <target_platform> to chromium_<target_platform> (#4399)",
+    "stats": {
+      "files": 28,
+      "insertions": 161,
+      "deletions": 155
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "df492aa9b75ddb9443c58701bdced1e365b9f1a2",
+    "original_hexsha": "c6792907b4b4c09059793f967f675cda5f27c3e1",
+    "author": "Madhura Jayaraman",
+    "datetime": "2024-11-12T12:57:52-08:00",
+    "summary": "Remove starboard socket.h APIs (#4325)",
+    "stats": {
+      "files": 34,
+      "insertions": 0,
+      "deletions": 1872
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2dea74807561d776fe488157833454e2d0adddef",
+    "original_hexsha": "c79da9654919ab79b8c6df603d068101fdee4414",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-12T11:29:25-08:00",
+    "summary": "[android] Fix autoplay video with startup url (#4415)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "32dab39a23479e23c20588e95471f5e3f8cf2020",
+    "original_hexsha": "f49f1207f9c5e9e1316df120bd00fb8e004ae1ed",
+    "author": "xiaomings",
+    "datetime": "2024-11-12T10:27:27-08:00",
+    "summary": "Fix StarboardRenderer::StartPlayingFrom() re-entrant (#4411)",
+    "stats": {
+      "files": 1,
+      "insertions": 7,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dd060e9ed92d5262fdfdf2cfa952d370a6db9444",
+    "original_hexsha": "947935b828afa6059df8acf9b27d67a62123a6e3",
+    "author": "xiaomings",
+    "datetime": "2024-11-12T10:00:32-08:00",
+    "summary": "Add log to StarboardRenderer::OnPlayerError() (#4412)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "43ac864b9f52ece56bf5500c56c9997702858910",
+    "original_hexsha": "20617c9b55639a95c3c64e4094a35c26d66e1cf2",
+    "author": "Colin Liang",
+    "datetime": "2024-11-11T18:10:11-08:00",
+    "summary": "Re-enable leanback styles (#4404)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "45b27a34cffd45f9fb3d52417c82d26ea12facb2",
+    "original_hexsha": "534b340dd75558caa597c527bad30b014fb31c64",
+    "author": "Miguel Casas",
+    "datetime": "2024-11-11T17:40:46-08:00",
+    "summary": "starboard/types.h: Remove kSbInvalidInt (#4386)",
+    "stats": {
+      "files": 3,
+      "insertions": 2,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "19ae38ea87ba24132f51748618adb4a5246503c7",
+    "original_hexsha": "bac5768c4f5db109e5c32279380530698388de9d",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-11T12:21:57-08:00",
+    "summary": "[media] Fix build failures for DecoderBufferAllocator (#4408)",
+    "stats": {
+      "files": 2,
+      "insertions": 24,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c13f0da4c48b958ba25694a4574fdd7ce31d4a90",
+    "original_hexsha": "819f56c8092fa31c13418766919e5e7fd3633d53",
+    "author": "xiaomings",
+    "datetime": "2024-11-08T15:06:16-08:00",
+    "summary": "Refine copyright for OverlayStrategyUnderlayStarboard (#4405)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 26
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0a6f8e9aa2d5b1daf395c4db7e5ae89f7f637593",
+    "original_hexsha": "010bc0cb42a6b25ef805d0a576f13d492dccd520",
+    "author": "Jason",
+    "datetime": "2024-11-08T12:59:40-08:00",
+    "summary": "Correct key system supportability queries (#4403)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3224c954557f5161131d210185f12e3189e960f5",
+    "original_hexsha": "01bf374184e93fbd04aed61827b6ebfee3d4a2ad",
+    "author": "johnx",
+    "datetime": "2024-11-08T20:31:08+00:00",
+    "summary": "Support --url parameter on Android (#4400)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "672d4f2b4e8db3badfc17a3222d57b12d92a03c2",
+    "original_hexsha": "ae843b40ff7edc20e140b11bbe2d609773198780",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-08T10:59:46-08:00",
+    "summary": "[media] Support DecoderBufferAllocator (#4348)",
+    "stats": {
+      "files": 13,
+      "insertions": 160,
+      "deletions": 68
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2b6aebd53ddff3d59d04d1609560de38daf0ac7b",
+    "original_hexsha": "e7cd5a722226ad48102419480c495ba74f1ab41e",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-07T17:31:09-08:00",
+    "summary": "[media] Fix black screen issue after pausing for a while (#4389)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2d54274c952126441e0cdab6c74c1bed5330fc67",
+    "original_hexsha": "0d46336b3874d9065045f28f9262fa9d402a1efb",
+    "author": "Andrew Savage",
+    "datetime": "2024-11-07T19:17:50-05:00",
+    "summary": "Clean up existing media buildflags (#4393)",
+    "stats": {
+      "files": 9,
+      "insertions": 19,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f99d8bcd77ddc17244dbaa242e9531a895b6f5e2",
+    "original_hexsha": "2ef5314fc8c5eb14d7a7919f80a823dab1fa0bda",
+    "author": "Jason",
+    "datetime": "2024-11-07T13:56:43-08:00",
+    "summary": "Accept 'H' in av1 codec parsing (#4374)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4f69038eb9427a09505b00c8f7f6170a3b850197",
+    "original_hexsha": "326fadb413eda74594edc8c6be00aac8e8808510",
+    "author": "Andrew Savage",
+    "datetime": "2024-11-07T16:13:18-05:00",
+    "summary": "Move all buildflags to build_config header (#4366)",
+    "stats": {
+      "files": 20,
+      "insertions": 52,
+      "deletions": 84
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "639188a20dfdffe1855d34328f204ad059a11e0a",
+    "original_hexsha": "f47f3870e41827e7f5411f41057a80f4a0acca4c",
+    "author": "Jason",
+    "datetime": "2024-11-07T11:58:29-08:00",
+    "summary": "Reset stream reading status on abort (#4390)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5562fcef25cb63354fe94f83e2a76e7e17fe0d06",
+    "original_hexsha": "d25ae29ec4c290df9be2fcd00cb4ecb6982c9cad",
+    "author": "Arjun Menon",
+    "datetime": "2024-11-06T17:14:29-08:00",
+    "summary": "Change default buildkit image to Mirror in GHCR (#4384)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "07602b2620571050d2fa0a49788cb9964fe3c323",
+    "original_hexsha": "aef08998de9ed2d3ec040ce9ae6afec99ed86ed9",
+    "author": "Jason",
+    "datetime": "2024-11-06T15:32:09-08:00",
+    "summary": "[media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340)",
+    "stats": {
+      "files": 12,
+      "insertions": 279,
+      "deletions": 38
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b553c029af2cfd6639b27181c000ab22c72395ea",
+    "original_hexsha": "ecc8ac91f836c2e473b6838664a39bca09b54d5c",
+    "author": "Yavor Goulishev",
+    "datetime": "2024-11-06T13:09:57-08:00",
+    "summary": "Set the min Starboard version to 17 (#4370)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6cc5837503d74699e6711eb4c573f01cac78b3bf",
+    "original_hexsha": "7290e852540a1c83c2747dde62c9fbf50a9c4505",
+    "author": "Jason",
+    "datetime": "2024-11-06T12:53:20-08:00",
+    "summary": "[android] Increase kFIFOSize in AudioDestination (#4376)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ac2119868bd39063270722490da614c8624b02ba",
+    "original_hexsha": "5b6beb185db809f93101552846657aec2e5c3039",
+    "author": "Holden Warriner",
+    "datetime": "2024-11-06T15:01:32-05:00",
+    "summary": "Fix header dependencies in cpp14_supported lib (#4380)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4de18a4034709ce98e8fea1dfeba807d07b891a1",
+    "original_hexsha": "f2853081f3ee4d174aecb1b33e0ba38c74ddc021",
+    "author": "Kaido Kert",
+    "datetime": "2024-11-06T11:32:17-08:00",
+    "summary": "Add .gitignore section for Cobalt (#4360)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "053f222e0205c50aed38e9730affb354872d09d1",
+    "original_hexsha": "f6323d9e55e910179ef0925d24ccb1b3e41b3576",
+    "author": "Colin Liang",
+    "datetime": "2024-11-06T10:32:00-08:00",
+    "summary": "Add #else to exclude linux return for Android build (#4381)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9a5682409913c2f6795475fdf8210bdef96de79a",
+    "original_hexsha": "8412158f4f404f6fa182ba4dbe70a033387fe8e1",
+    "author": "Jason",
+    "datetime": "2024-11-06T10:27:43-08:00",
+    "summary": "Send player initialized state to StarboardRenderer (#4379)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "31d25b5d0e40fccd06fd0657110215557343f846",
+    "original_hexsha": "7bf0af38b0c97e8ec7b8d572bb9de3727229bf40",
+    "author": "MSoliankoLuxoft",
+    "datetime": "2024-11-06T19:33:22+02:00",
+    "summary": "Add event config for starboard (#4228)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cf6c5dc25def9759dc93d41e5dc7eb11b00812a4",
+    "original_hexsha": "232171bbaefb3afb59b1a47abde13831d38e2612",
+    "author": "Colin Liang",
+    "datetime": "2024-11-05T19:20:19-08:00",
+    "summary": "Hack Android User Agent String (#4373)",
+    "stats": {
+      "files": 1,
+      "insertions": 9,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ead495f9dd8a2e7467e48c3b2821da6a82fdf1dd",
+    "original_hexsha": "ccba39f30857152e40be1da279d43c15444584cc",
+    "author": "Colin Liang",
+    "datetime": "2024-11-05T19:15:48-08:00",
+    "summary": "Chrobalt Java Bridge (#4335)",
+    "stats": {
+      "files": 9,
+      "insertions": 250,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aeecc5bf48781f0942758b49462a1489001c7df1",
+    "original_hexsha": "e33156ad02c1c5b3459911870c5bf17a51c514bd",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-05T15:53:12-08:00",
+    "summary": "Disable Vulkan for cobalt linux builds (#4375)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bb9e04022039ed64a6846a862ca344c6ec094ef3",
+    "original_hexsha": "9c34fa02e79539b60be96bf3eae7b94561d6b4c5",
+    "author": "Yavor Goulishev",
+    "datetime": "2024-11-05T10:44:10-08:00",
+    "summary": "Remove starboard/atomic.h (#4369)",
+    "stats": {
+      "files": 12,
+      "insertions": 3,
+      "deletions": 2128
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f331a1fc86be2828ec23373a0fd4f5b16848e9a8",
+    "original_hexsha": "3830e65360083ae18c0365feb84e44a8cd605196",
+    "author": "Holden Warriner",
+    "datetime": "2024-11-05T12:39:52-05:00",
+    "summary": "Remove unused headers from cpp17_support.cc (#4363)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3cb0fe2b21b4ae52d63d8c8bc46fc59a38298171",
+    "original_hexsha": "edb385f2c821b3147ec8f33265264d9d34a8ee6c",
+    "author": "johnx",
+    "datetime": "2024-11-04T23:20:29+00:00",
+    "summary": "Address style comments in JNI fix (#4364)",
+    "stats": {
+      "files": 2,
+      "insertions": 5,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1b3a05acf130ebc247d0014d80e9e78a23cbb3f5",
+    "original_hexsha": "477c6279cf64a8b33cbb1ee333062ea7413536a6",
+    "author": "Kaido Kert",
+    "datetime": "2024-11-04T10:00:36-08:00",
+    "summary": "Fixing Cobalt APK JNI initialization (#4359)",
+    "stats": {
+      "files": 14,
+      "insertions": 442,
+      "deletions": 202
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "48916c6cb144938254012be703490d902ebbbfab",
+    "original_hexsha": "5c3993c8f86961f0025fdbb2eaa9c0b4901b7ab8",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-11-03T13:55:03-08:00",
+    "summary": "Use is_debug = true for debug  builds (#4355)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4624a354bcb1c724a7501348d31353928a4a4b20",
+    "original_hexsha": "623ff8784645671a3621b8e2319fb76f0ae9a714",
+    "author": "Miguel Casas",
+    "datetime": "2024-11-03T11:49:30-08:00",
+    "summary": "Cleanup command line creation on Linux-like. (#4357)",
+    "stats": {
+      "files": 1,
+      "insertions": 25,
+      "deletions": 27
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b94e988fd68ca3535710820d840caf8b48d333a0",
+    "original_hexsha": "ddbd1ec8cf2f6c01f32b4ea23594cdffda3d7bb6",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-01T15:39:30-07:00",
+    "summary": "[android] Support SbPlayer via punching a video hole frame (#4287)",
+    "stats": {
+      "files": 9,
+      "insertions": 84,
+      "deletions": 62
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b28e704db3811f8e326da9336c45c3fad003f384",
+    "original_hexsha": "5b5661dbe88ae7eeaabc556e2f7c4e0694b533a3",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-11-01T11:20:00-07:00",
+    "summary": "[media] Copy OverlayStrategyUnderlayCast (#4352)",
+    "stats": {
+      "files": 4,
+      "insertions": 313,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "75c32ef1f6ef50f9c1b1a5ec8ef194bccca2ba46",
+    "original_hexsha": "cde34e56726d95a0469082a0aa63b51d4e4e15e0",
+    "author": "Miguel Casas",
+    "datetime": "2024-11-01T11:09:26-07:00",
+    "summary": "starboard/types.h: Replace kSbInt64Max with std::numeric_limits equivalent (#4331)",
+    "stats": {
+      "files": 23,
+      "insertions": 73,
+      "deletions": 35
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7dac3d4d8fa7c668ec9d66fff787a17530b25d20",
+    "original_hexsha": "d0438dd374b3a6d8131f8d7e7110ad614b4efe7c",
+    "author": "Colin Liang",
+    "datetime": "2024-11-01T10:01:10-07:00",
+    "summary": "Custom Native Entry Point for Chrobalt Android (#4346)",
+    "stats": {
+      "files": 2,
+      "insertions": 64,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2577a70a91926f63c6485f8347debf4e1f56b462",
+    "original_hexsha": "dc95bd0655fc34f0844056d872e1fc7291d23e4b",
+    "author": "Madhura Jayaraman",
+    "datetime": "2024-11-01T06:43:26-07:00",
+    "summary": "Posix-ify link_receiver.cc (#4229) (#4333)",
+    "stats": {
+      "files": 1,
+      "insertions": 157,
+      "deletions": 67
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5158a559dbddfefee3368776b8a79dd740fbdaec",
+    "original_hexsha": "dab82e0d571d1596a79e88edb8497584fa4d8db1",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-10-31T09:40:57-07:00",
+    "summary": "[android] Support full-screen on Cobalt.apk (#4327)",
+    "stats": {
+      "files": 1,
+      "insertions": 8,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9ecebf886de7c02f9cc168c18b79ebcece0cf2a9",
+    "original_hexsha": "37e466fa6c98d59b27c8f8b63790e2aaaa63508a",
+    "author": "xiaomings",
+    "datetime": "2024-10-30T19:20:08-07:00",
+    "summary": "[media] Implement SbPlayer based video playback (#4283)",
+    "stats": {
+      "files": 19,
+      "insertions": 872,
+      "deletions": 1813
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "66ae07074a000f58105fb264e33527aca11a36c8",
+    "original_hexsha": "b6344363b9389c22141f22940cc1eea232fdde27",
+    "author": "Bo-Rong Chen",
+    "datetime": "2024-10-30T17:06:52-07:00",
+    "summary": "[android] Add command line parameters to Cobalt.apk (#4329)",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0b2567001757a843f014449f7206f2ffe1199b18",
+    "original_hexsha": "bcd7aa9afccbbee121dc6e37dbf1b2ea78236a74",
+    "author": "Brian Ting",
+    "datetime": "2024-10-30T17:02:41-07:00",
+    "summary": "Pin clang-format, yapf, and pylint versions. (#4339)",
+    "stats": {
+      "files": 10,
+      "insertions": 90,
+      "deletions": 51
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f6f1f6476bbd0457ad3e3c729e44c79af40c7050",
+    "original_hexsha": "bac1370bf090888282df141b2c368c4c2730bae4",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-30T18:55:39-04:00",
+    "summary": "Fix starboard toolchain when multiple are used (#4322)",
+    "stats": {
+      "files": 3,
+      "insertions": 30,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "acd6b3a596f1cc02c944670fc865bab8446299e0",
+    "original_hexsha": "fa919a29186a9f4ad8af7b7ac6602c17cc7f17aa",
+    "author": "johnx",
+    "datetime": "2024-10-30T22:42:56+00:00",
+    "summary": "Copy ContentShellActivity instead of inheriting (#4336)",
+    "stats": {
+      "files": 3,
+      "insertions": 231,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d1b04a7f0f2b493a47048cda19bf70c6a812c13b",
+    "original_hexsha": "9cea165e9da3d6c6336886779cc14d2b55360566",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-30T17:14:57-04:00",
+    "summary": "Build nplb test (#4299)",
+    "stats": {
+      "files": 18,
+      "insertions": 95,
+      "deletions": 38
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12e1a24456c184e0fa83080ca790b27d042b79e9",
+    "original_hexsha": "e16ed1e9a352f0f28fc2159ec8a5c5687463924b",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-29T09:50:01-07:00",
+    "summary": "Remove unnecessary build flags (#4323)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 174
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "46f69e290b887e18aa27b6bcb198b29728ac1ad3",
+    "original_hexsha": "5f5780461ca72342bcdbcf67a5bfa929b5a7045e",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-29T12:48:56-04:00",
+    "summary": "Fix overlapping defines (#4319)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "789bd5c1280434a00bdbc0149339e5641de8b06d",
+    "original_hexsha": "c9084fe634578b6e6556ea60b7d65ff096968666",
+    "author": "johnx",
+    "datetime": "2024-10-29T05:28:49+00:00",
+    "summary": "`cobalt_apk` to build dev.cobalt.coat (#4304)",
+    "stats": {
+      "files": 192,
+      "insertions": 14709,
+      "deletions": 15528
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c97eccf76232013d327a337f446032cd05d8cf26",
+    "original_hexsha": "a4c526d8040cfeae4943fae8584520e2fa0d4ed1",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-28T15:28:23-04:00",
+    "summary": "Move cobalt variables to build_config.h (#4313)",
+    "stats": {
+      "files": 4,
+      "insertions": 39,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d15dfa347e143f2691e5eade5a4b55fc14a63c86",
+    "original_hexsha": "9be9fc6db7467df01d8b0809d71d29d01963a9a4",
+    "author": "Jelle Foks",
+    "datetime": "2024-10-25T11:32:09-07:00",
+    "summary": "Fix to allow single-process on Linux. (#4290)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "999d15dadf51e0f6d0967e26728dd9ba6ae9f488",
+    "original_hexsha": "72d80d6fd3d66fa77f8f3a59fd41215d9a23c753",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-24T14:48:18-04:00",
+    "summary": "Propagate starboard configs to Chromium on linux (#4301)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1799345b297053f65a84dbb904aff9c27abde6f4",
+    "original_hexsha": "32fa0ec32978f96781bef279de2d6cc889c83cfa",
+    "author": "Brian Ting",
+    "datetime": "2024-10-23T17:24:56-07:00",
+    "summary": "Update README build matrix link. (#4306)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d93238fcbcd179f7704fdf432d68cbc46213d179",
+    "original_hexsha": "e1833441d01b81b881a3b29103518fe11b3e4bd7",
+    "author": "Jelle Foks",
+    "datetime": "2024-10-23T17:09:31-07:00",
+    "summary": "Poor man's cobalt target (#4277)",
+    "stats": {
+      "files": 6,
+      "insertions": 281,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "52673e6e62f5dfe9be61bb254f7afd93404ef4b4",
+    "original_hexsha": "a828c6e0d468ae667c056d19873a425a4dd06425",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-23T13:34:55-07:00",
+    "summary": "Fix chromium builds with is_cobalt = false (#4298)",
+    "stats": {
+      "files": 11,
+      "insertions": 8,
+      "deletions": 98
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7bdd04864b6756d6851461547a90c0947d8ef0ec",
+    "original_hexsha": "83335512d8da8e93affd7310e8954245625f7288",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-23T11:24:44-07:00",
+    "summary": "Add cobalt:gn_all to cobalt github actions only (#4302)",
+    "stats": {
+      "files": 5,
+      "insertions": 9,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8ce34c0ce1d408011387726563ad33730e5324c6",
+    "original_hexsha": "59da42d55d1bf997881ad7075e187cba37d62082",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-23T08:13:14-07:00",
+    "summary": "Fix chromium android builds (#4303)",
+    "stats": {
+      "files": 1,
+      "insertions": 7,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "533c8a04569264e807405415458ef2d1dee3db85",
+    "original_hexsha": "d4f184eaf5e093c2f1e21703daed2a1468f79a1e",
+    "author": "KS Yim",
+    "datetime": "2024-10-22T14:30:33-07:00",
+    "summary": "Add generated LUCI configs (#4295)",
+    "stats": {
+      "files": 6,
+      "insertions": 86,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ce4db00aed58c1e9c3c8ca314e3345195f0f4c90",
+    "original_hexsha": "0293b749a8fccb4038c6998fce0fdf30be6fc852",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-22T17:00:24-04:00",
+    "summary": "Add Cobalt buildflags (#4294)",
+    "stats": {
+      "files": 1,
+      "insertions": 39,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6be5ee429c5aaee3a89e7d4c8ae86f28c876f06b",
+    "original_hexsha": "da338440bade6437e8166d08f4b4203c15a457ca",
+    "author": "KS Yim",
+    "datetime": "2024-10-21T16:28:18-07:00",
+    "summary": "Create main.star for LUCI - initial config (#4291)",
+    "stats": {
+      "files": 1,
+      "insertions": 70,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "768392b154e229ecebd7063105e70d84e83e414d",
+    "original_hexsha": "1b5de6f8e9cb43963d1c2cf5433e262cb51085b5",
+    "author": "xiaomings",
+    "datetime": "2024-10-18T17:33:03-07:00",
+    "summary": "[media] Setup code formatting for //media/starboard (#4285)",
+    "stats": {
+      "files": 8,
+      "insertions": 165,
+      "deletions": 76
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aa2333f51bf46432f8ff61a6692fc8df10ba2eda",
+    "original_hexsha": "37f497de8adfc2e9c007d9a0d14b7bea09b35dbb",
+    "author": "KS Yim",
+    "datetime": "2024-10-18T17:11:23-07:00",
+    "summary": "Create README.md for cobalt/devinfra/luci (#4284)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3ebbec552fd5fda89034973b9a32e9c5ff967c0f",
+    "original_hexsha": "a9bb957180dc64dd0b4fbcb28cfbaf067f8c8cd3",
+    "author": "Brian Ting",
+    "datetime": "2024-10-18T14:00:56-07:00",
+    "summary": "Rename Chrobalt to Cobalt. (#4276)",
+    "stats": {
+      "files": 66,
+      "insertions": 981,
+      "deletions": 980
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b80977bcd899f2abb5a177a58a782c8f83b38754",
+    "original_hexsha": "43867509abdef78cecc7a6ebc5072427831c6189",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-18T12:47:18-04:00",
+    "summary": "Add starboard build to android (#4259)",
+    "stats": {
+      "files": 23,
+      "insertions": 302,
+      "deletions": 337
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "811132bbf6f477e225759ecbd23e81867b0c4c46",
+    "original_hexsha": "efb26563ce0370d0894c258f09148f736482f509",
+    "author": "Brian Ting",
+    "datetime": "2024-10-17T14:01:12-07:00",
+    "summary": "Add lint github workflow. (#4272)",
+    "stats": {
+      "files": 5,
+      "insertions": 52,
+      "deletions": 27
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "db64aa83072108f1f6c37048529346eac11476b2",
+    "original_hexsha": "6ceb79258fa8b63dbde53bb743a62723dee0d408",
+    "author": "Madhura Jayaraman",
+    "datetime": "2024-10-17T10:34:05-07:00",
+    "summary": "Add Posix tests for sockets (#4201) (#4262)",
+    "stats": {
+      "files": 24,
+      "insertions": 109,
+      "deletions": 709
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c7f6edfa9cd0527b1168d838f069c76c84e48f71",
+    "original_hexsha": "99d1830c13093a01777294cf3bef068da735081d",
+    "author": "Xiaoming Shi",
+    "datetime": "2024-10-15T16:41:03-07:00",
+    "summary": "Restore SbPlayer-related files from Cobalt",
+    "stats": {
+      "files": 9,
+      "insertions": 2688,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "24574461720553abaa9437b4e28770c6b3f782af",
+    "original_hexsha": "aaacbeee59dd6e3c8563d44a7de9c99c4b391e81",
+    "author": "Brian Ting",
+    "datetime": "2024-10-15T20:57:38-07:00",
+    "summary": "Cleanup codebase by running pre-commit. (#4273)",
+    "stats": {
+      "files": 13,
+      "insertions": 70,
+      "deletions": 56
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc0d35d381ad4bed25906fb992c7229c642f0589",
+    "original_hexsha": "c8b78bee415cf967e23388ee9255a78fc374da42",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-10-15T15:00:00-07:00",
+    "summary": "Restore scorecards workflow",
+    "stats": {
+      "files": 1,
+      "insertions": 59,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc7053492d94cf8965dd9edeeecfa4dc3d60588c",
+    "original_hexsha": "55a1d8c9adfd1add79b7eced797709bad1d0ea8b",
+    "author": "iuriionishchenko",
+    "datetime": "2024-10-15T18:41:26+03:00",
+    "summary": "Migrate C++ code from starboard/atomic.h to std::atomic (#4199)",
+    "stats": {
+      "files": 45,
+      "insertions": 101,
+      "deletions": 496
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cc72ccd69f0a3b15f2373df80f9c4efbe234eec4",
+    "original_hexsha": "e863eab0a20d1baf278cc2a03427ba863da0e2f1",
+    "author": "Brian Ting",
+    "datetime": "2024-10-14T16:45:49-07:00",
+    "summary": "Cleanup codebase by running pre-commit. (#4253)",
+    "stats": {
+      "files": 107,
+      "insertions": 1059,
+      "deletions": 529
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "79d4c8600e45968e52e4904fc96bb92e030456b8",
+    "original_hexsha": "79e6b537e641f0f82e6a99e95a6d361984ce2429",
+    "author": "Andrew Savage",
+    "datetime": "2024-10-14T11:54:39-04:00",
+    "summary": "Revert \"Revert \"Build starboard shared library for linux-x64x11 (#4215)\"\" (#4247)",
+    "stats": {
+      "files": 33,
+      "insertions": 313,
+      "deletions": 122
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5554583359753b6b75b26565dee035f9ee612244",
+    "original_hexsha": "102a04d1706a07c87cc0df2b20f41d411425a132",
+    "author": "Brian Ting",
+    "datetime": "2024-10-11T17:02:45-07:00",
+    "summary": "Setup pre-commit hooks. (#4250)",
+    "stats": {
+      "files": 5,
+      "insertions": 216,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3240c9594660b2121484c2071d25126606a65a9b",
+    "original_hexsha": "8b563ac0571a46c2ec3c081e50f7f867dcca1b76",
+    "author": "Kaido Kert",
+    "datetime": "2024-10-11T10:57:27-07:00",
+    "summary": "Add Chrobalt build configs (#4248)",
+    "stats": {
+      "files": 16,
+      "insertions": 342,
+      "deletions": 94
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2b8e20dad8fcc84dc9727ec3f7475fab1e727787",
+    "original_hexsha": "7e79f1a1d5a7ba775a4576c30955426e5975f521",
+    "author": "Arjun Menon",
+    "datetime": "2024-10-09T14:38:54-07:00",
+    "summary": "Revert \"Build starboard shared library for linux-x64x11 (#4215)\" (#4245)",
+    "stats": {
+      "files": 32,
+      "insertions": 121,
+      "deletions": 319
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3514bdae49fb93c2fe51e9e65348d68af9e18bf7",
+    "original_hexsha": "32bc5fbfec1ccb5d51bde7c0001e607b23130b2b",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-09T11:35:38-07:00",
+    "summary": "Build starboard shared library for linux-x64x11 (#4215)",
+    "stats": {
+      "files": 33,
+      "insertions": 322,
+      "deletions": 121
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7659bdbfcf7f122a904e90b1b9ded6a2070b44b7",
+    "original_hexsha": "d6b8bb91a44425d5302d20b32bc24ab8fb35dc28",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-08T14:56:28-07:00",
+    "summary": "USe RBE while building locally with gn.py (#4222)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "891f9616761fb40cc4382aa80aa10db27d7db8e9",
+    "original_hexsha": "2601481f806b8ce39a2f2660af49af25ab08a7d8",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-08T11:54:42-07:00",
+    "summary": "Revert \"Install Starboard clang toolchain\" (#4226)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "65e7577532edc8d9c461a3b40894f2e52dd3e647",
+    "original_hexsha": "6d98ce030bc22bcb52f0a6a6a41db43d62d1b116",
+    "author": "Oscar Vestlie",
+    "datetime": "2024-10-07T15:46:44-07:00",
+    "summary": "Install Starboard clang toolchain (#4219)",
+    "stats": {
+      "files": 2,
+      "insertions": 17,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "03e78ed88673bd7be0b6487c3e600fc1459e49e0",
+    "original_hexsha": "f9b34d14caf3138431e45eef64bd840245ff0f62",
+    "author": "Niranjan Yardi",
+    "datetime": "2024-10-07T11:45:16-07:00",
+    "summary": "Remove unnecessary args.gn (#4211)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 156
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e35e06073d616ac8e288b36bec7cab51a69814e1",
+    "original_hexsha": "c25707a564ce2466770deb3827898c29ce7a30e0",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-10-06T10:00:00-07:00",
+    "summary": "Restore references to base/third_party/symbolize",
+    "stats": {
+      "files": 4,
+      "insertions": 7,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ee4846ee517cede1794f4a21ed9f4f4f76bd1f55",
+    "original_hexsha": "efe9b499c9e4f561d6b9f0b26ce00cc041eb68c5",
+    "author": "Brian Ting",
+    "datetime": "2024-10-05T14:17:13-07:00",
+    "summary": "Update BUILD_STATUS.md (#4209)",
+    "stats": {
+      "files": 1,
+      "insertions": 31,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dbc8037fdcd2b825119de10090df3f3c8ffe2b96",
+    "original_hexsha": "d88fe48c73888615ab7c07d16d32b212a95a6a90",
+    "author": "Miguel Casas",
+    "datetime": "2024-10-04T15:41:49-07:00",
+    "summary": "starboard/types.h: Remove unused kSbInt64Min, kSbUInt64Max (#4200)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "daa40893230f42658cd2f3d9180db0c823cf73cd",
+    "original_hexsha": "9135e7dc248c6e87bac2ef4fbf51679dce9ced56",
+    "author": "Brian Ting",
+    "datetime": "2024-10-04T14:51:34-07:00",
+    "summary": "Update README.md (#4208)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dd8718e6fc5efcdc20eba915dce6a3fa455e814e",
+    "original_hexsha": "d610ed7f2fa1409433585982062e36528c5ecdba",
+    "author": "Brian Ting",
+    "datetime": "2024-10-04T13:06:02-07:00",
+    "summary": "Update README.md (#4196)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "872c7f9182dac6bbd9a1b4149ce6848556b54bd4",
+    "original_hexsha": "2be9d98bd3062338f0f02219ac0ecf879f2102ea",
+    "author": "Igor Sarkisov",
+    "datetime": "2024-10-03T16:49:09-07:00",
+    "summary": "Add nightly trigger workflows (#4203)",
+    "stats": {
+      "files": 3,
+      "insertions": 202,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0986d424ce515c1aea4054045166ea0d96c9c267",
+    "original_hexsha": "906ad8e9be44de5af50ba2605122a12beb806418",
+    "author": "Brian Ting",
+    "datetime": "2024-10-03T14:51:04-07:00",
+    "summary": "Add BUILD_STATUS.md to Chrobalt. (#4192)",
+    "stats": {
+      "files": 1,
+      "insertions": 21,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ca0da8c5e150c46daa2632428376bcfd48917543",
+    "original_hexsha": "5bf159c97904be88685b4fe5bdd48713c024af74",
+    "author": "Miguel Casas",
+    "datetime": "2024-10-02T20:45:05-07:00",
+    "summary": "starboard/types.h: Replace kSbInt32Max with std::numeric_limits equivalents (#4187)",
+    "stats": {
+      "files": 5,
+      "insertions": 13,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "758e8a3cb34c5be04311e7bffbfc43d7d7fd494c",
+    "original_hexsha": "338a06fa986e7f55056553597d8ae8ef9e035a6d",
+    "author": "Yavor Goulishev",
+    "datetime": "2024-10-02T19:54:45-07:00",
+    "summary": "Update the Starboard CHANGELOG.md (#4181)",
+    "stats": {
+      "files": 1,
+      "insertions": 42,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e901e88f7d23920ebacbce5142a3db65dde780f9",
+    "original_hexsha": "52b4287686e61f0ce579cf39e2710e72d5c1c678",
+    "author": "Igor Sarkisov",
+    "datetime": "2024-09-14T21:35:23-07:00",
+    "summary": "Update GitHub actions for Chrobalt",
+    "stats": {
+      "files": 58,
+      "insertions": 821,
+      "deletions": 2559
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5867fc6cf703152349dcde8e29420130cca4b9f8",
+    "original_hexsha": "1c160437cb00c1fa3a524cb31da6287e81a10d67",
+    "author": "Dana Dahlstrom",
+    "datetime": "2024-08-20T20:00:00-07:00",
+    "summary": "Update CODEOWNERS for Chrobalt",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 20
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc1a23d8af45b8d320dd96852305e2c019ddb2d8",
+    "original_hexsha": "649ffa1f9b0f970ea628ccd307ec382d287c8319",
+    "author": "Daniel Richard G",
+    "datetime": "2025-04-15T01:13:20-07:00",
+    "summary": "Don't apply /*FALLTHROUGH*/ edit to gperf 3.2 output",
+    "stats": {
+      "files": 1,
+      "insertions": 7,
+      "deletions": 4
+    },
+    "is_linear": true
+  }
+]
