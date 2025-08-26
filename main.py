@@ -259,7 +259,11 @@ def record_conflict(repo, commit_record_dir):
             )
             open(dst_path, 'a').close()
 
-        file_name, file_ext = file_path.split('.')
+        if '.' in file_path:
+            file_name, file_ext = file_path.split('.')
+        else:
+            file_name = file_path
+            file_ext = None
         same_names = [x for x in conflicted_files if x.startswith(file_name)]
         if len(same_names) > 1:
             patch_path = f'{file_name}_{file_ext}.patch'
