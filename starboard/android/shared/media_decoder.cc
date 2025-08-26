@@ -91,13 +91,10 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-      decoder_flow_control_(
-          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
-                                               kFrameTrackerLogIntervalUs,
-                                               [this]() {
-                                                 ScopedLock lock(mutex_);
-                                                 condition_variable_.Signal();
-                                               })) {
+      decoder_flow_control_(DecoderFlowControl::CreateThrottling(
+          kMaxFramesInDecoder,
+          kFrameTrackerLogIntervalUs,
+          [this]() { condition_variable_.notify_one(); })) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -146,13 +143,10 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      decoder_flow_control_(
-          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
-                                               kFrameTrackerLogIntervalUs,
-                                               [this]() {
-                                                 ScopedLock lock(mutex_);
-                                                 condition_variable_.Signal();
-                                               })) {
+      decoder_flow_control_(DecoderFlowControl::CreateThrottling(
+          kMaxFramesInDecoder,
+          kFrameTrackerLogIntervalUs,
+          [this]() { condition_variable_.notify_one(); })) {
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -242,18 +236,6 @@ void MediaDecoder::WriteEndOfStream() {
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
     condition_variable_.notify_one();
-  }
-}
-
-void MediaDecoder::SetRenderScheduledTime(int64_t pts_us,
-                                          int64_t scheduled_us) {
-  std::lock_guard lock(frame_timestamps_mutex_);
-  auto it = frame_timestamps_.find(pts_us);
-  if (it != frame_timestamps_.end()) {
-    it->second.render_scheduled_us = scheduled_us;
-  } else {
-    SB_LOG(WARNING) << "Could not find timestamp for PTS " << pts_us
-                    << " to set scheduled render time.";
   }
 }
 
@@ -910,12 +892,9 @@ void MediaDecoder::ResetDecoderFlowControl() {
       kForceLimiting ||
               frame_size.texture_size.width * frame_size.texture_size.height >
                   kArea4k
-          ? DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
-                                                 kFrameTrackerLogIntervalUs,
-                                                 [this]() {
-                                                   ScopedLock lock(mutex_);
-                                                   condition_variable_.Signal();
-                                                 })
+          ? DecoderFlowControl::CreateThrottling(
+                kMaxFramesInDecoder, kFrameTrackerLogIntervalUs,
+                [this]() { condition_variable_.notify_one(); })
           : DecoderFlowControl::CreateNoOp();
 }
 
