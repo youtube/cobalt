@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"

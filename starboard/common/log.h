@@ -20,6 +20,7 @@
 #ifndef STARBOARD_COMMON_LOG_H_
 #define STARBOARD_COMMON_LOG_H_
 
+#include "build/build_config.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/system.h"

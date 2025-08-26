@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"

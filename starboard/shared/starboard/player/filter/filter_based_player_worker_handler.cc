@@ -18,6 +18,7 @@
 #include <mutex>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"

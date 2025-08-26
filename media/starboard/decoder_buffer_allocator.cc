@@ -18,6 +18,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_allocator_strategy.h"

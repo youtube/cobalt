@@ -22,6 +22,7 @@
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
 #include "starboard/media.h"

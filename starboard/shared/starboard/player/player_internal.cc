@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"

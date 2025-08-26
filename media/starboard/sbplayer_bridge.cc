@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 #include "cobalt/base/statistics.h"
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING

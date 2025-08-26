@@ -25,6 +25,7 @@
 #include <limits>
 #include <list>
 
+#include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"

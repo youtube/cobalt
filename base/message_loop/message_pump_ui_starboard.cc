@@ -14,6 +14,7 @@
 
 #include "base/message_loop/message_pump_ui_starboard.h"
 
+#include "build/build_config.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/time/time.h"

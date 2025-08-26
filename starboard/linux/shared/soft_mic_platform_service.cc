@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"

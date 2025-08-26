@@ -18,6 +18,7 @@
 #include <functional>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
