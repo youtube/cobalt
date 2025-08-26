@@ -25,6 +25,7 @@
 #include <limits>
 #include <list>
 
+#include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -1126,18 +1127,25 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
         return;
       }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // If we failed to find any matching clip regions, the crop values
       // returned from the platform may be inconsistent.
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
+<<<<<<< HEAD
           << frame_size.texture_width << "x" << frame_size.texture_height
           << " - (" << content_region.left << ", " << content_region.top << ", "
           << content_region.right << ", " << content_region.bottom << "), ("
           << frame_size.crop_left << "), (" << frame_size.crop_top << "), ("
           << frame_size.crop_right << "), (" << frame_size.crop_bottom << ")";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+=======
+          << frame_size << " - (" << content_region.left << ", "
+          << content_region.top << ", " << content_region.right << ", "
+          << content_region.bottom << ")";
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+>>>>>>> 9bc6a4ef4b0 (starboard: replace COBALT_BUILD_TYPE_GOLD with COBALT_IS_RELEASE_BUILD (#6975))
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
     }
