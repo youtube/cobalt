@@ -23,21 +23,21 @@ public enum CrashContext {
   // TODO(cobalt, b/383301493): at time of writing all clients of this class are on the same thread.
   // But as johnx@ suggested we should either enforce this assumption or use a mutex to guard
   // concurrent access from different threads.
-  private final HashMap<String, String> crashContext = new HashMap<>();
-  private CrashContextUpdateHandler crashContextUpdateHandler;
+  private final HashMap<String, String> mCrashContext = new HashMap<>();
+  private CrashContextUpdateHandler mCrashContextUpdateHandler;
 
   public void setCrashContext(String key, String value) {
-    crashContext.put(key, value);
-    if (this.crashContextUpdateHandler != null) {
-      this.crashContextUpdateHandler.onCrashContextUpdate();
+    mCrashContext.put(key, value);
+    if (this.mCrashContextUpdateHandler != null) {
+      this.mCrashContextUpdateHandler.onCrashContextUpdate();
     }
   }
 
   HashMap<String, String> getCrashContext() {
-    return this.crashContext;
+    return this.mCrashContext;
   }
 
   void registerCrashContextUpdateHandler(CrashContextUpdateHandler handler) {
-    this.crashContextUpdateHandler = handler;
+    this.mCrashContextUpdateHandler = handler;
   }
 }
