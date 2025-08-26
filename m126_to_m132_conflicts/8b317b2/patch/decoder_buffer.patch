@@ -1,0 +1,32 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -196,15 +196,7 @@
+     DCHECK(!end_of_stream());
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+     return data_;
+-<<<<<<< HEAD
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+-    if (read_only_mapping_.IsValid())
+-      return read_only_mapping_.GetMemoryAs<const uint8_t>();
+-    if (writable_mapping_.IsValid())
+-      return writable_mapping_.GetMemoryAs<const uint8_t>();
+->>>>>>> 859319a10c9 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+     if (external_memory_)
+       return external_memory_->Span().data();
+     return data_.data();
+@@ -362,13 +354,8 @@
+   size_t allocated_size_ = 0;
+ #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Encoded data, if it is stored on the heap.
+-<<<<<<< HEAD
+   const base::HeapArray<uint8_t> data_;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-  base::HeapArray<uint8_t> data_;
+-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 859319a10c9 ([media] Refine DecoderBufferAllocator memory budget (#4674))
+ 
+  private:
+   // ***************************************************************************

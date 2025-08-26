@@ -1,0 +1,19 @@
+--- content/browser/BUILD.gn
++++ content/browser/BUILD.gn
+@@ -2387,16 +2387,6 @@
+   ]
+ 
+   if (is_cobalt) {
+-<<<<<<< HEAD
+-=======
+-    sources += [
+-      "cobalt/crash_annotator/crash_annotator_impl.cc",
+-      "cobalt/crash_annotator/crash_annotator_impl.h",
+-    ]
+-  }
+-
+-  if (use_starscan) {
+->>>>>>> 1a2cde70321 (Add web IDL interface for crash annotations (#4574))
+     sources += [
+       "cobalt/crash_annotator/crash_annotator_impl.cc",
+       "cobalt/crash_annotator/crash_annotator_impl.h",
