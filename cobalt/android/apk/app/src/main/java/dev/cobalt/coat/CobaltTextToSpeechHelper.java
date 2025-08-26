@@ -40,14 +40,14 @@ class CobaltTextToSpeechHelper
     implements TextToSpeech.OnInitListener,
         AccessibilityManager.AccessibilityStateChangeListener,
         AccessibilityManager.TouchExplorationStateChangeListener {
-  private final Context context;
-  private final HandlerThread thread;
-  private final Handler handler;
+  private final Context mContext;
+  private final HandlerThread mThread;
+  private final Handler mHandler;
 
   // The TTS engine should be used only on the background thread.
-  private TextToSpeech ttsEngine;
+  private TextToSpeech mTtsEngine;
 
-  private boolean wasScreenReaderEnabled;
+  private boolean mWasScreenReaderEnabled;
 
   private enum State {
     PENDING,
@@ -56,39 +56,39 @@ class CobaltTextToSpeechHelper
   }
 
   // These are only accessed inside the Handler Thread
-  private State state = State.PENDING;
-  private long nextUtteranceId;
-  private final List<String> pendingUtterances = new ArrayList<>();
+  private State mState = State.PENDING;
+  private long mNextUtteranceId;
+  private final List<String> mPendingUtterances = new ArrayList<>();
 
   CobaltTextToSpeechHelper(Context context) {
-    this.context = context;
+    this.mContext = context;
 
-    thread = new HandlerThread("CobaltTextToSpeechHelper");
-    thread.start();
-    handler = new Handler(thread.getLooper());
+    mThread = new HandlerThread("CobaltTextToSpeechHelper");
+    mThread.start();
+    mHandler = new Handler(mThread.getLooper());
 
     AccessibilityManager accessibilityManager =
         (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
-    wasScreenReaderEnabled = isScreenReaderEnabled();
+    mWasScreenReaderEnabled = isScreenReaderEnabled();
     accessibilityManager.addAccessibilityStateChangeListener(this);
     accessibilityManager.addTouchExplorationStateChangeListener(this);
   }
 
   public void shutdown() {
 
-    handler.post(
+    mHandler.post(
         new Runnable() {
           @Override
           public void run() {
-            if (ttsEngine != null) {
-              ttsEngine.shutdown();
+            if (mTtsEngine != null) {
+              mTtsEngine.shutdown();
             }
           }
         });
-    thread.quitSafely();
+    mThread.quitSafely();
 
     AccessibilityManager accessibilityManager =
-        (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+        (AccessibilityManager) mContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
     accessibilityManager.removeAccessibilityStateChangeListener(this);
     accessibilityManager.removeTouchExplorationStateChangeListener(this);
   }
@@ -97,7 +97,7 @@ class CobaltTextToSpeechHelper
   @CalledByNative
   public boolean isScreenReaderEnabled() {
     AccessibilityManager am =
-        (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+        (AccessibilityManager) mContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
     final List<AccessibilityServiceInfo> screenReaders =
         am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN);
     return !screenReaders.isEmpty();
@@ -106,20 +106,20 @@ class CobaltTextToSpeechHelper
   /** Implementation of TextToSpeech.OnInitListener */
   @Override
   public void onInit(final int status) {
-    handler.post(
+    mHandler.post(
         new Runnable() {
           @Override
           public void run() {
             if (status != TextToSpeech.SUCCESS) {
               Log.e(TAG, "TextToSpeech.onInit failure: " + status);
-              state = State.FAILED;
+              mState = State.FAILED;
               return;
             }
-            state = State.INITIALIZED;
-            for (String utterance : pendingUtterances) {
+            mState = State.INITIALIZED;
+            for (String utterance : mPendingUtterances) {
               speak(utterance);
             }
-            pendingUtterances.clear();
+            mPendingUtterances.clear();
           }
         });
   }
@@ -129,23 +129,23 @@ class CobaltTextToSpeechHelper
    * of Starboard's SbSpeechSynthesisSpeak.
    */
   void speak(final String text) {
-    handler.post(
+    mHandler.post(
         new Runnable() {
           @Override
           public void run() {
 
-            if (ttsEngine == null) {
-              ttsEngine = new TextToSpeech(context, CobaltTextToSpeechHelper.this);
+            if (mTtsEngine == null) {
+              mTtsEngine = new TextToSpeech(mContext, CobaltTextToSpeechHelper.this);
             }
 
-            switch (state) {
+            switch (mState) {
               case PENDING:
-                pendingUtterances.add(text);
+                mPendingUtterances.add(text);
                 break;
               case INITIALIZED:
                 int success =
-                    ttsEngine.speak(
-                        text, TextToSpeech.QUEUE_ADD, null, Long.toString(nextUtteranceId++));
+                    mTtsEngine.speak(
+                        text, TextToSpeech.QUEUE_ADD, null, Long.toString(mNextUtteranceId++));
 
                 if (success != TextToSpeech.SUCCESS) {
                   Log.e(TAG, "TextToSpeech.speak error: " + success);
@@ -161,14 +161,14 @@ class CobaltTextToSpeechHelper
 
   /** Cancels all speaking. Java-layer implementation of Starboard's SbSpeechSynthesisCancel. */
   void cancel() {
-    handler.post(
+    mHandler.post(
         new Runnable() {
           @Override
           public void run() {
-            if (ttsEngine != null) {
-              ttsEngine.stop();
+            if (mTtsEngine != null) {
+              mTtsEngine.stop();
             }
-            pendingUtterances.clear();
+            mPendingUtterances.clear();
           }
         });
   }
@@ -194,8 +194,8 @@ class CobaltTextToSpeechHelper
    * the app to change the setting.
    */
   private void finishIfScreenReaderChanged() {
-    if (wasScreenReaderEnabled != isScreenReaderEnabled()) {
-      wasScreenReaderEnabled = isScreenReaderEnabled();
+    if (mWasScreenReaderEnabled != isScreenReaderEnabled()) {
+      mWasScreenReaderEnabled = isScreenReaderEnabled();
       CobaltTextToSpeechHelperJni.get().sendTTSChangedEvent();
     }
   }
