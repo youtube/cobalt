@@ -390,9 +390,8 @@ void StarboardRenderer::SetVolume(float volume) {
   }
 }
 
-// Note: Renderer::GetMediaTime() could be called on both main and media
-// threads.
 TimeDelta StarboardRenderer::GetMediaTime() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   base::AutoLock auto_lock(lock_);
 
   if (!player_bridge_) {
