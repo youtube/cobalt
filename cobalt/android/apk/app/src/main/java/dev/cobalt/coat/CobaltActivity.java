@@ -91,6 +91,8 @@ public abstract class CobaltActivity extends Activity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   protected Boolean shouldSetJNIPrefix = true;
+  // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
+  protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
 
@@ -403,6 +405,18 @@ public abstract class CobaltActivity extends Activity {
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    if (mShouldReloadOnResume) {
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null) {
+        webContents.getNavigationController().reload(true);
+      }
+      mShouldReloadOnResume = false;
+    }
   }
 
   @Override
