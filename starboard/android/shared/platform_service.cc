@@ -18,6 +18,7 @@
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -49,8 +50,9 @@ using starboard::android::shared::ScopedLocalJavaRef;
 bool Has(const char* name) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_name(env->NewStringStandardUTFOrAbort(name));
-  jboolean j_has = env->CallStarboardBooleanMethodOrAbort(
-      "hasCobaltService", "(Ljava/lang/String;)Z", j_name.Get());
+  jboolean j_has = env->CallBooleanMethodOrAbort(
+      JNIState::GetStarboardBridge(), "hasCobaltService",
+      "(Ljava/lang/String;)Z", j_name.Get());
   return j_has;
 }
 
@@ -68,8 +70,8 @@ CobaltExtensionPlatformService Open(void* context,
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
   ScopedLocalJavaRef<jstring> j_name(env->NewStringStandardUTFOrAbort(name));
-  jobject cobalt_service = env->CallStarboardObjectMethodOrAbort(
-      "openCobaltService",
+  jobject cobalt_service = env->CallObjectMethodOrAbort(
+      JNIState::GetStarboardBridge(), "openCobaltService",
       "(JLjava/lang/String;)Ldev/cobalt/coat/CobaltService;",
       reinterpret_cast<jlong>(service), j_name.Get());
   if (!cobalt_service) {
@@ -85,8 +87,9 @@ void Close(CobaltExtensionPlatformService service) {
   env->CallVoidMethodOrAbort(service->cobalt_service, "onClose", "()V");
   ScopedLocalJavaRef<jstring> j_name(
       env->NewStringStandardUTFOrAbort(service->name));
-  env->CallStarboardVoidMethodOrAbort("closeCobaltService",
-                                      "(Ljava/lang/String;)V", j_name.Get());
+  env->CallVoidMethodOrAbort(JNIState::GetStarboardBridge(),
+                             "closeCobaltService", "(Ljava/lang/String;)V",
+                             j_name.Get());
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 

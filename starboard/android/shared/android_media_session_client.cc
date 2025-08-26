@@ -19,6 +19,7 @@
 #include <limits>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
@@ -231,8 +232,8 @@ void OnMediaSessionStateChanged(
     durationInMilliseconds = session_state.duration / 1000;
   }
 
-  env->CallStarboardVoidMethodOrAbort(
-      "updateMediaSession",
+  env->CallVoidMethodOrAbort(
+      JNIState::GetStarboardBridge(), "updateMediaSession",
       "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
       "[Ldev/cobalt/coat/MediaImage;J)V",
       playback_state, playback_state_actions,
@@ -268,7 +269,8 @@ void DestroyMediaSessionClientCallback() {
   pthread_mutex_unlock(&mutex);
 
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("deactivateMediaSession", "()V");
+  env->CallVoidMethodOrAbort(JNIState::GetStarboardBridge(),
+                             "deactivateMediaSession", "()V");
 }
 
 }  // namespace

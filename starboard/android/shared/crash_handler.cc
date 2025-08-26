@@ -15,6 +15,7 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 
 namespace starboard::android::shared {
@@ -29,9 +30,9 @@ bool SetString(const char* key, const char* value) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_key(env->NewStringStandardUTFOrAbort(key));
   ScopedLocalJavaRef<jstring> j_value(env->NewStringStandardUTFOrAbort(value));
-  env->CallStarboardVoidMethodOrAbort("setCrashContext",
-                                      "(Ljava/lang/String;Ljava/lang/String;)V",
-                                      j_key.Get(), j_value.Get());
+  env->CallVoidMethodOrAbort(JNIState::GetStarboardBridge(), "setCrashContext",
+                             "(Ljava/lang/String;Ljava/lang/String;)V",
+                             j_key.Get(), j_value.Get());
   return true;
 }
 

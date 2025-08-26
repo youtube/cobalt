@@ -60,9 +60,6 @@ class JniEnvExt {
 
   JNIEnv* env() { return &env_; }
 
-  // Returns the StarboardBridge object.
-  jobject GetStarboardBridge();
-
   // Lookup the class of an object and find a field in it.
   jfieldID GetStaticFieldIDOrAbort(jclass clazz,
                                    const char* name,
@@ -220,17 +217,6 @@ class JniEnvExt {
     return result;                                                             \
   }                                                                            \
                                                                                \
-  _jtype CallStarboard##_jname##MethodOrAbort(const char* name,                \
-                                              const char* sig, ...) {          \
-    va_list argp;                                                              \
-    va_start(argp, sig);                                                       \
-    jobject obj = GetStarboardBridge();                                        \
-    _jtype result = Call##_jname##MethodVOrAbort(                              \
-        obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
-    va_end(argp);                                                              \
-    return result;                                                             \
-  }                                                                            \
-                                                                               \
   _jtype CallStatic##_jname##MethodOrAbort(                                    \
       const char* class_name, const char* method_name, const char* sig, ...) { \
     va_list argp;                                                              \
@@ -289,22 +275,6 @@ class JniEnvExt {
   void CallVoidMethodVOrAbort(jobject obj, jmethodID methodID, va_list args) {
     env_.CallVoidMethodV(obj, methodID, args);
     AbortOnException();
-  }
-
-  void CallStarboardVoidMethod(const char* name, const char* sig, ...) {
-    va_list argp;
-    va_start(argp, sig);
-    jobject obj = GetStarboardBridge();
-    env_.CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
-    va_end(argp);
-  }
-
-  void CallStarboardVoidMethodOrAbort(const char* name, const char* sig, ...) {
-    va_list argp;
-    va_start(argp, sig);
-    jobject obj = GetStarboardBridge();
-    CallVoidMethodVOrAbort(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
-    va_end(argp);
   }
 
   void CallStaticVoidMethod(const char* class_name,
