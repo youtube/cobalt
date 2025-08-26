@@ -200,6 +200,7 @@ test("nplb") {
       "posix_compliance/posix_socket_recvfrom_test.cc",
       "posix_compliance/posix_socket_resolve_test.cc",
       "posix_compliance/posix_socket_send_test.cc",
+      "posix_compliance/posix_socket_sendmsg_test.cc",
       "posix_compliance/posix_socket_sendto_test.cc",
       "posix_compliance/posix_socket_set_options_test.cc",
       "posix_compliance/posix_socket_shutdown_test.cc",
