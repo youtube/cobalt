@@ -23,12 +23,12 @@ import dev.cobalt.coat.StarboardBridge;
  */
 public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
-    private final Activity activity;
-    private final StarboardBridge bridge;
+    private final Activity mActivity;
+    private final StarboardBridge mBridge;
 
     public H5vccPlatformService(Activity activity, StarboardBridge bridge) {
-        this.activity = activity;
-        this.bridge = bridge;
+        this.mActivity = activity;
+        this.mBridge = bridge;
     }
 
     @Override
@@ -38,23 +38,23 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
     @CobaltJavaScriptInterface
     public boolean hasPlatformService(String servicename) {
-        return bridge.hasCobaltService(servicename);
+        return mBridge.hasCobaltService(servicename);
     }
 
     @CobaltJavaScriptInterface
     public void openPlatformService(long serviceId, String servicename) {
-        bridge.openCobaltService(activity, serviceId, servicename);
+        mBridge.openCobaltService(mActivity, serviceId, servicename);
     }
 
     @CobaltJavaScriptInterface
     public void closePlatformService(String servicename) {
-        bridge.closeCobaltService(servicename);
+        mBridge.closeCobaltService(servicename);
     }
 
     @CobaltJavaScriptInterface
     public String platformServiceSend(String servicename, String base64Data) {
         byte[] data = Base64.decode(base64Data, Base64.DEFAULT);
-        byte[] result = bridge.sendToCobaltService(servicename, data);
+        byte[] result = mBridge.sendToCobaltService(servicename, data);
         if (result == null) {
             return "";
         }
