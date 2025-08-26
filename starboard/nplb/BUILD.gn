@@ -162,6 +162,7 @@ test("nplb") {
       "posix_compliance/posix_getcwd_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
+      "posix_compliance/posix_locale_test.cc",
       "posix_compliance/posix_lstat_test.cc",
       "posix_compliance/posix_memory_allocate_test.cc",
       "posix_compliance/posix_memory_deallocate_aligned_test.cc",
