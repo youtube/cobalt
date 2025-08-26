@@ -42,25 +42,20 @@ jobs:
           set -eux
           # m114 merge commit=38a06fe8674ad2140ff85c87b5b3a817304e369a
           python main.py linearize --repo-path=${GITHUB_WORKSPACE} --source-branch=main --new-branch-name=automated/linear_main \
-            --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=${REV} --commit-output="${GITHUB_WORKSPACE}/linear_main_commit_mapping.json"
+            --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=${REV}
       - name: Update automated/linear_main and commit map, extract m114 commits
         run: |
           set -eux
           git push --force origin automated/linear_main:automated/linear_main
-          git add linear_main_commit_mapping.json
-          git stash push -- linear_main_commit_mapping.json
 
           # Pull from experimental/rebase_tools incase something changed
           git checkout experimental/rebase_tools
           git fetch origin experimental/rebase_tools
           git pull origin experimental/rebase_tools --rebase
 
-          git stash pop || true
-          git checkout --theirs linear_main_commit_mapping.json
-
           # Create new commits json for m114
           python main.py commits --repo-path=${GITHUB_WORKSPACE} --source-branch=origin/automated/linear_main \
             --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=$REV --output-file=automated_commits_m114.json
-          git add linear_main_commit_mapping.json automated_commits_m114.json
+          git add automated_commits_m114.json
           git commit -m "Linearization refresh on $(date +'%Y-%m-%d')."
           git push --force origin experimental/rebase_tools:experimental/rebase_tools
