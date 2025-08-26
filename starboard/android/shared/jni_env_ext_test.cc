@@ -45,53 +45,53 @@ TEST(JniEnvExtTest, NewStringStandardUTF) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str = env->NewStringStandardUTFOrAbort(kU8);
 
-  EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
-  const jchar* u16_chars = env->GetStringChars(j_str, NULL);
+  EXPECT_EQ(kU16Length, env->env()->GetStringLength(j_str));
+  const jchar* u16_chars = env->env()->GetStringChars(j_str, NULL);
   std::u16string u16_string(reinterpret_cast<const char16_t*>(u16_chars),
                             kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
-  env->ReleaseStringChars(j_str, u16_chars);
+  env->env()->ReleaseStringChars(j_str, u16_chars);
 }
 
 TEST(JniEnvExtTest, NewStringModifiedUTF) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  jstring j_str = env->NewStringUTF(kMU8);
+  jstring j_str = env->env()->NewStringUTF(kMU8);
 
-  EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
-  const jchar* u16_chars = env->GetStringChars(j_str, NULL);
+  EXPECT_EQ(kU16Length, env->env()->GetStringLength(j_str));
+  const jchar* u16_chars = env->env()->GetStringChars(j_str, NULL);
   std::u16string u16_string(reinterpret_cast<const char16_t*>(u16_chars),
                             kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
-  env->ReleaseStringChars(j_str, u16_chars);
+  env->env()->ReleaseStringChars(j_str, u16_chars);
 }
 
 TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str = env->NewStringStandardUTFOrAbort("");
 
-  EXPECT_EQ(0, env->GetStringLength(j_str));
+  EXPECT_EQ(0, env->env()->GetStringLength(j_str));
 }
 
 TEST(JniEnvExtTest, GetStringStandardUTF) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jstring j_str =
-      env->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
+      env->env()->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
 
   std::string str = env->GetStringStandardUTFOrAbort(j_str);
   EXPECT_EQ(kU8Length, str.length());
   EXPECT_EQ(std::string(kU8), str);
-  env->DeleteLocalRef(j_str);
+  env->env()->DeleteLocalRef(j_str);
 }
 
 TEST(JniEnvExtTest, EmptyGetStringStandardUTF) {
   std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
   jchar empty[] = {};
-  jstring j_str = env->NewString(empty, 0);
+  jstring j_str = env->env()->NewString(empty, 0);
 
   std::string str = env->GetStringStandardUTFOrAbort(j_str);
   EXPECT_EQ(0, str.length());
   EXPECT_EQ(std::string(), str);
-  env->DeleteLocalRef(j_str);
+  env->env()->DeleteLocalRef(j_str);
 }
 
 }  // namespace
