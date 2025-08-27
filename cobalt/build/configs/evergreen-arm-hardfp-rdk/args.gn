@@ -1,0 +1,10 @@
+import("//cobalt/build/configs/linux-x64x11-modular/args.gn")
+
+use_asan = false
+target_os = "linux"
+target_cpu = "arm"
+starboard_target_platform = "rdk-arm"
+use_evergreen = true
+rdk_build_with_yocto = false
+rdk_starboard_root = "//starboard/contrib/rdk/src"
+rdk_enable_securityagent = false

@@ -178,6 +178,11 @@ template("pkg_config") {
     cflags = pkgresult[1]
 
     foreach(_path, pkgresult[0]) {
+      supports_isystem = true
+      if (defined(invoker.supports_isystem)) {
+        supports_isystem = invoker.supports_isystem
+      }
+      if (supports_isystem) {
       if (_pkg_config_requires_abs_path && (use_sysroot || use_remoteexec)) {
         _path = rebase_path(_path, root_build_dir)
       }
@@ -185,6 +190,9 @@ template("pkg_config") {
       # We want the system include paths to use -isystem instead of -I to
       # suppress warnings in those headers.
       cflags += [ "-isystem$_path" ]
+    } else {
+      cflags += [ "-I$_path" ]
+    }
     }
 
     if (!defined(invoker.ignore_libs) || !invoker.ignore_libs) {

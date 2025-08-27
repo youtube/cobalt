@@ -292,6 +292,7 @@ vars = {
   'skia_git': 'https://skia.googlesource.com',
   'swiftshader_git': 'https://swiftshader.googlesource.com',
   'webrtc_git': 'https://webrtc.googlesource.com',
+  'rdk_starboard_git': 'https://cobalt.googlesource.com',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
@@ -4944,6 +4945,11 @@ deps = {
       'url': Var('chrome_git') + '/chrome/data/webkit_plugin_tests.git' + '@' +
         'e4bd19f95afa6483a54906c2a3e5d329d2d81690',
       'condition': 'checkout_src_internal',
+  },
+
+  # Dependencies for RDK (starboard/contrib/rdk)
+  'src/starboard/contrib/rdk': {
+      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
   },
 }
 
