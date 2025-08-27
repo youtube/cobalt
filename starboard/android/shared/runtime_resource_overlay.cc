@@ -14,7 +14,9 @@
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 
@@ -24,16 +26,17 @@ SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
                             RuntimeResourceOverlay::GetInstance)
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject resource_overlay = env->CallStarboardObjectMethodOrAbort(
-      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jobject resource_overlay = JniCallObjectMethodOrAbort(
+      env, JNIState::GetStarboardBridge(), "getResourceOverlay",
+      "()Ldev/cobalt/coat/ResourceOverlay;");
 
   // Retrieve all Runtime Resource Overlay variables during initialization, so
   // synchronization isn't needed on access.
-  min_audio_sink_buffer_size_in_frames_ = env->GetIntFieldOrAbort(
-      resource_overlay, "min_audio_sink_buffer_size_in_frames", "I");
-  max_video_buffer_budget_ =
-      env->GetIntFieldOrAbort(resource_overlay, "max_video_buffer_budget", "I");
+  min_audio_sink_buffer_size_in_frames_ = JniGetIntFieldOrAbort(
+      env, resource_overlay, "min_audio_sink_buffer_size_in_frames", "I");
+  max_video_buffer_budget_ = JniGetIntFieldOrAbort(
+      env, resource_overlay, "max_video_buffer_budget", "I");
 
   SB_LOG(INFO) << "Loaded RRO values\n\tmin_audio_sink_buffer_size_in_frames: "
                << min_audio_sink_buffer_size_in_frames_

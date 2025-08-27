@@ -131,10 +131,7 @@ class AudioTrackAudioSink
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  int WriteData(JniEnvExt* env,
-                const void* buffer,
-                int size,
-                int64_t sync_time);
+  int WriteData(JNIEnv* env, const void* buffer, int size, int64_t sync_time);
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
