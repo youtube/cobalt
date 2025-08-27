@@ -19,7 +19,6 @@
 #include <jni.h>
 #include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"

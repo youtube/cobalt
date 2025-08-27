@@ -33,8 +33,8 @@ namespace starboard::android::shared {
 // This struct has convenience methods to lookup and call Java methods on object
 // instances in a single step.
 struct JniExt {
-  // Warning: use __android_log_write for logging in this file to astatic void
-  // infinite recursion.
+  // Warning: use __android_log_write for logging in this file to avoid infinite
+  // recursion.
 
   // One-time initialization to be called before starting the application.
   static void Initialize(JNIEnv* env, jobject starboard_bridge);
@@ -361,6 +361,7 @@ struct JniExt {
   static _jtype##Array New##_jname##ArrayFromRaw(          \
       JNIEnv* env, const _jtype* data, jsize size) {       \
     SB_CHECK(env);                                         \
+    SB_DCHECK_GE(size, 0);                                 \
     SB_DCHECK(size == 0 || data);                          \
     _jtype##Array j_array = env->New##_jname##Array(size); \
     SB_CHECK(j_array) << "Out of memory making new array"; \
