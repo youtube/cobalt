@@ -111,18 +111,18 @@ void ShellPermissionManager::ResetPermission(PermissionType permission,
                                              const GURL& embedding_origin) {}
 
 void ShellPermissionManager::RequestPermissionsFromCurrentDocument(
-    const std::vector<PermissionType>& permissions,
     content::RenderFrameHost* render_frame_host,
-    bool user_gesture,
+    const PermissionRequestDescription& request_description,
     base::OnceCallback<void(const std::vector<blink::mojom::PermissionStatus>&)>
         callback) {
   if (render_frame_host->IsNestedWithinFencedFrame()) {
     std::move(callback).Run(std::vector<blink::mojom::PermissionStatus>(
-        permissions.size(), blink::mojom::PermissionStatus::DENIED));
+        request_description.permissions.size(),
+        blink::mojom::PermissionStatus::DENIED));
     return;
   }
   std::vector<blink::mojom::PermissionStatus> result;
-  for (const auto& permission : permissions) {
+  for (const auto& permission : request_description.permissions) {
     result.push_back(IsAllowlistedPermissionType(permission)
                          ? blink::mojom::PermissionStatus::GRANTED
                          : blink::mojom::PermissionStatus::DENIED);
@@ -150,9 +150,10 @@ blink::mojom::PermissionStatus ShellPermissionManager::GetPermissionStatus(
 PermissionResult
 ShellPermissionManager::GetPermissionResultForOriginWithoutContext(
     blink::PermissionType permission,
-    const url::Origin& origin) {
+    const url::Origin& requesting_origin,
+    const url::Origin& embedding_origin) {
   blink::mojom::PermissionStatus status =
-      GetPermissionStatus(permission, origin.GetURL(), origin.GetURL());
+      GetPermissionStatus(permission, requesting_origin.GetURL(), requesting_origin.GetURL());
 
   return PermissionResult(status, content::PermissionStatusSource::UNSPECIFIED);
 }

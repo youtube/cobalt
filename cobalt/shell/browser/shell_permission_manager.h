@@ -45,9 +45,8 @@ class ShellPermissionManager : public PermissionControllerDelegate {
                        const GURL& requesting_origin,
                        const GURL& embedding_origin) override;
   void RequestPermissionsFromCurrentDocument(
-      const std::vector<blink::PermissionType>& permissions,
       content::RenderFrameHost* render_frame_host,
-      bool user_gesture,
+      const PermissionRequestDescription& request_description,
       base::OnceCallback<
           void(const std::vector<blink::mojom::PermissionStatus>&)> callback)
       override;
@@ -57,7 +56,8 @@ class ShellPermissionManager : public PermissionControllerDelegate {
       const GURL& embedding_origin) override;
   PermissionResult GetPermissionResultForOriginWithoutContext(
       blink::PermissionType permission,
-      const url::Origin& origin) override;
+      const url::Origin& requesting_origin,
+      const url::Origin& embedding_origin) override;
   blink::mojom::PermissionStatus GetPermissionStatusForCurrentDocument(
       blink::PermissionType permission,
       content::RenderFrameHost* render_frame_host) override;

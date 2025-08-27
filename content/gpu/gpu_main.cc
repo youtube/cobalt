@@ -328,7 +328,7 @@ int GpuMain(MainFunctionParams parameters) {
   // before it.
   InitializeSkia();
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
   // Thread type delegate of the process should be registered before
   // first thread type change in ChildProcess constructor.
   // It also needs to be registered before the process has multiple threads,
@@ -338,7 +338,7 @@ int GpuMain(MainFunctionParams parameters) {
           features::kHandleChildThreadTypeChangesInBrowser)) {
     SandboxedProcessThreadTypeHandler::Create();
   }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
 
   // The ThreadPool must have been created before invoking |gpu_init| as it
   // needs the ThreadPool (in angle::InitializePlatform()). Do not start it

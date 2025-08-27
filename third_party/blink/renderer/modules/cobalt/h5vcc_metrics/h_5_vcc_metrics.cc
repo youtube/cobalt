@@ -195,7 +195,7 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_metrics_);
   visitor->Trace(receiver_);
   visitor->Trace(h5vcc_metrics_promises_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void H5vccMetrics::CleanupPromise(ScriptPromiseResolver* resolver) {

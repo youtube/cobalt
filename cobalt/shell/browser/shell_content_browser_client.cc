@@ -64,6 +64,7 @@
 #include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/service/variations_service_client.h"
+#include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_switches.h"
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/login_delegate.h"
@@ -210,24 +211,6 @@ class ShellVariationsServiceClient
       PrefService* local_state) override {}
 };
 
-// Returns the full user agent string for the content shell.
-std::string GetShellFullUserAgent() {
-  std::string product = "Chrome/" CONTENT_SHELL_VERSION;
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kUseMobileUserAgent)) {
-    product += " Mobile";
-  }
-  return BuildUserAgentFromProduct(product);
-}
-
-// Returns the reduced user agent string for the content shell.
-std::string GetShellReducedUserAgent() {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  return content::GetReducedUserAgent(
-      command_line->HasSwitch(switches::kUseMobileUserAgent),
-      CONTENT_SHELL_MAJOR_VERSION);
-}
-
 void BindNetworkHintsHandler(
     content::RenderFrameHost* frame_host,
     mojo::PendingReceiver<network_hints::mojom::NetworkHintsHandler> receiver) {
@@ -295,18 +278,6 @@ std::unique_ptr<PrefService> CreateLocalState() {
 }
 
 }  // namespace
-
-std::string GetShellUserAgent() {
-  if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent)) {
-    return GetShellFullUserAgent();
-  }
-
-  if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent)) {
-    return GetShellReducedUserAgent();
-  }
-
-  return GetShellFullUserAgent();
-}
 
 std::string GetShellLanguage() {
   return "en-us,en";
@@ -416,7 +387,7 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                 kForwardSwitches, std::size(kForwardSwitches));
+                                 kForwardSwitches);
 
 #if BUILDFLAG(IS_LINUX)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -485,6 +456,7 @@ ShellContentBrowserClient::GetGeneratedCodeCacheSettings(
 }
 
 base::OnceClosure ShellContentBrowserClient::SelectClientCertificate(
+    content::BrowserContext* browser_context,
     WebContents* web_contents,
     net::SSLCertRequestInfo* cert_request_info,
     net::ClientCertIdentityList client_certs,
@@ -615,15 +587,10 @@ base::FilePath ShellContentBrowserClient::GetFirstPartySetsDirectory() {
 }
 
 std::string ShellContentBrowserClient::GetUserAgent() {
-  return GetShellUserAgent();
-}
-
-std::string ShellContentBrowserClient::GetFullUserAgent() {
-  return GetShellFullUserAgent();
-}
-
-std::string ShellContentBrowserClient::GetReducedUserAgent() {
-  return GetShellReducedUserAgent();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  return content::GetReducedUserAgent(
+      command_line->HasSwitch(switches::kUseMobileUserAgent),
+      CONTENT_SHELL_MAJOR_VERSION);
 }
 
 blink::UserAgentMetadata ShellContentBrowserClient::GetUserAgentMetadata() {
@@ -736,7 +703,7 @@ void ShellContentBrowserClient::GetHyphenationDictionary(
     base::OnceCallback<void(const base::FilePath&)> callback) {
   // If we have the source tree, return the dictionary files in the tree.
   base::FilePath dir;
-  if (base::PathService::Get(base::DIR_SOURCE_ROOT, &dir)) {
+  if (base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &dir)) {
     dir = dir.AppendASCII("third_party")
               .AppendASCII("hyphenation-patterns")
               .AppendASCII("hyb");
@@ -790,7 +757,9 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
       &variations_service_client,
       std::make_unique<variations::VariationsSeedStore>(
           GetSharedState().local_state.get(), std::move(initial_seed),
-          /*signature_verification_enabled=*/true),
+          /*signature_verification_enabled=*/true,
+          std::make_unique<variations::VariationsSafeSeedStoreLocalState>(
+              GetSharedState().local_state.get())),
       variations::UIStringOverrider());
 
   variations::SafeSeedManager safe_seed_manager(
@@ -834,13 +803,17 @@ absl::optional<blink::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
     content::BrowserContext* browser_context,
     const url::Origin& app_origin) {
-  blink::ParsedPermissionsPolicyDeclaration decl(
-      blink::mojom::PermissionsPolicyFeature::kDirectSockets,
-      {blink::OriginWithPossibleWildcards(app_origin,
-                                          /*has_subdomain_wildcard=*/false)},
+  blink::ParsedPermissionsPolicyDeclaration coi_decl(
+      blink::mojom::PermissionsPolicyFeature::kCrossOriginIsolated,
+      /*allowed_origins=*/{},
       /*self_if_matches=*/absl::nullopt,
+      /*matches_all_origins=*/true, /*matches_opaque_src=*/false);
+
+  blink::ParsedPermissionsPolicyDeclaration socket_decl(
+      blink::mojom::PermissionsPolicyFeature::kDirectSockets,
+      /*allowed_origins=*/{}, app_origin,
       /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
-  return {{decl}};
+  return {{coi_decl, socket_decl}};  
 }
 
 // Tests may install their own ShellContentBrowserClient, track the list here.
