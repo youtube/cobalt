@@ -262,7 +262,7 @@ if (!is_cronet_build || is_ios) {
       sources += [ "machine_id_provider_nonwin.cc" ]
     }
 
-    if (is_fuchsia) {
+    if (is_fuchsia || is_starboard) {
       sources += [ "drive_metrics_provider_fuchsia.cc" ]
     }
 

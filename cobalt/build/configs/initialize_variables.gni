@@ -32,6 +32,12 @@ declare_args() {
   build_with_separate_cobalt_toolchain = target_os != "android"
 
   use_evergreen = false
+
+  use_tsan = false
+}
+
+declare_args() {
+  use_asan = !is_official_build && is_linux && !use_tsan
 }
 
 assert(!(is_starboard && is_native_target_build),
