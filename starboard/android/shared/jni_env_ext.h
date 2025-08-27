@@ -142,6 +142,7 @@ struct JniExt {
   // standard UTF-8 encoding. This differs from JNIEnv::NewStringUTF() which
   // takes JNI modified UTF-8.
   static jstring NewStringStandardUTFOrAbort(JNIEnv* env, const char* bytes) {
+    SB_CHECK(env);
     const jstring charset = env->NewStringUTF("UTF-8");
     AbortOnException(env);
     const jbyteArray byte_array =
@@ -161,6 +162,7 @@ struct JniExt {
   // Also, the buffer of the returned bytes is managed by the std::string object
   // so it is not necessary to release it with JNIEnv::ReleaseStringUTFChars().
   static std::string GetStringStandardUTFOrAbort(JNIEnv* env, jstring str) {
+    SB_CHECK(env);
     if (str == nullptr) {
       return std::string();
     }
@@ -187,6 +189,7 @@ struct JniExt {
 #define X(_jtype, _jname)                                                      \
   static _jtype Get##_jname##FieldOrAbort(JNIEnv* env, jobject obj,            \
                                           const char* name, const char* sig) { \
+    SB_CHECK(env);                                                             \
     _jtype result =                                                            \
         env->Get##_jname##Field(obj, GetFieldIDOrAbort(env, obj, name, sig));  \
     AbortOnException(env);                                                     \
@@ -196,6 +199,7 @@ struct JniExt {
   static _jtype GetStatic##_jname##FieldOrAbort(                               \
       JNIEnv* env, const char* class_name, const char* name,                   \
       const char* sig) {                                                       \
+    SB_CHECK(env);                                                             \
     jclass clazz = FindClassExtOrAbort(env, class_name);                       \
     _jtype result = GetStatic##_jname##FieldOrAbort(env, clazz, name, sig);    \
     env->DeleteLocalRef(clazz);                                                \
@@ -204,6 +208,7 @@ struct JniExt {
                                                                                \
   static _jtype GetStatic##_jname##FieldOrAbort(                               \
       JNIEnv* env, jclass clazz, const char* name, const char* sig) {          \
+    SB_CHECK(env);                                                             \
     _jtype result = env->GetStatic##_jname##Field(                             \
         clazz, GetStaticFieldIDOrAbort(env, clazz, name, sig));                \
     AbortOnException(env);                                                     \
@@ -212,6 +217,7 @@ struct JniExt {
                                                                                \
   static _jtype Call##_jname##MethodOrAbort(                                   \
       JNIEnv* env, jobject obj, const char* name, const char* sig, ...) {      \
+    SB_CHECK(env);                                                             \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
     _jtype result = Call##_jname##MethodVOrAbort(                              \
@@ -223,6 +229,7 @@ struct JniExt {
   static _jtype CallStatic##_jname##MethodOrAbort(                             \
       JNIEnv* env, const char* class_name, const char* method_name,            \
       const char* sig, ...) {                                                  \
+    SB_CHECK(env);                                                             \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
     jclass clazz = FindClassExtOrAbort(env, class_name);                       \
@@ -236,6 +243,7 @@ struct JniExt {
                                                                                \
   static _jtype Call##_jname##MethodVOrAbort(                                  \
       JNIEnv* env, jobject obj, jmethodID methodID, va_list args) {            \
+    SB_CHECK(env);                                                             \
     _jtype result = env->Call##_jname##MethodV(obj, methodID, args);           \
     AbortOnException(env);                                                     \
     return result;                                                             \
@@ -243,6 +251,7 @@ struct JniExt {
                                                                                \
   static _jtype CallStatic##_jname##MethodVOrAbort(                            \
       JNIEnv* env, jclass clazz, jmethodID methodID, va_list args) {           \
+    SB_CHECK(env);                                                             \
     _jtype result = env->CallStatic##_jname##MethodV(clazz, methodID, args);   \
     AbortOnException(env);                                                     \
     return result;                                                             \
@@ -265,6 +274,7 @@ struct JniExt {
                              const char* name,
                              const char* sig,
                              ...) {
+    SB_CHECK(env);
     va_list argp;
     va_start(argp, sig);
     env->CallVoidMethodV(obj, GetObjectMethodIDOrAbort(env, obj, name, sig),
@@ -277,6 +287,7 @@ struct JniExt {
                                     const char* name,
                                     const char* sig,
                                     ...) {
+    SB_CHECK(env);
     va_list argp;
     va_start(argp, sig);
     CallVoidMethodVOrAbort(env, obj,
@@ -288,6 +299,7 @@ struct JniExt {
                                      jobject obj,
                                      jmethodID methodID,
                                      va_list args) {
+    SB_CHECK(env);
     env->CallVoidMethodV(obj, methodID, args);
     AbortOnException(env);
   }
@@ -297,6 +309,7 @@ struct JniExt {
                                    const char* method_name,
                                    const char* sig,
                                    ...) {
+    SB_CHECK(env);
     va_list argp;
     va_start(argp, sig);
     jclass clazz = FindClassExtOrAbort(env, class_name);
@@ -311,6 +324,7 @@ struct JniExt {
                                           const char* method_name,
                                           const char* sig,
                                           ...) {
+    SB_CHECK(env);
     va_list argp;
     va_start(argp, sig);
     jclass clazz = FindClassExtOrAbort(env, class_name);
@@ -347,8 +361,7 @@ struct JniExt {
   static _jtype##Array New##_jname##ArrayFromRaw(          \
       JNIEnv* env, const _jtype* data, jsize size) {       \
     SB_CHECK(env);                                         \
-    SB_DCHECK(data);                                       \
-    SB_DCHECK_GE(size, 0);                                 \
+    SB_DCHECK(size == 0 || data);                          \
     _jtype##Array j_array = env->New##_jname##Array(size); \
     SB_CHECK(j_array) << "Out of memory making new array"; \
     env->Set##_jname##ArrayRegion(j_array, 0, size, data); \
