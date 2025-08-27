@@ -14,6 +14,7 @@
 
 #include "starboard/system.h"
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 
@@ -21,7 +22,7 @@ using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::JNIState;
 
 void SbSystemRequestStop(int error_level) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(JNIState::GetStarboardBridge(), "requestStop",
-                             "(I)V", error_level);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniCallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(), "requestStop",
+                           "(I)V", error_level);
 }

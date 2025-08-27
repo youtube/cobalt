@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/configuration.h"
 
@@ -42,8 +43,8 @@ const int kMU8Length = SB_ARRAY_SIZE(kMU8) - 1;
 // see: https://github.com/android-ndk/ndk/issues/283
 
 TEST(JniEnvExtTest, NewStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
-  jstring j_str = env->NewStringStandardUTFOrAbort(kU8);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jstring j_str = JniNewStringStandardUTFOrAbort(env, kU8);
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
   const jchar* u16_chars = env->GetStringChars(j_str, NULL);
@@ -54,7 +55,7 @@ TEST(JniEnvExtTest, NewStringStandardUTF) {
 }
 
 TEST(JniEnvExtTest, NewStringModifiedUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   jstring j_str = env->NewStringUTF(kMU8);
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
@@ -66,29 +67,29 @@ TEST(JniEnvExtTest, NewStringModifiedUTF) {
 }
 
 TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
-  jstring j_str = env->NewStringStandardUTFOrAbort("");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jstring j_str = JniNewStringStandardUTFOrAbort(env, "");
 
   EXPECT_EQ(0, env->GetStringLength(j_str));
 }
 
 TEST(JniEnvExtTest, GetStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   jstring j_str =
       env->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
 
-  std::string str = env->GetStringStandardUTFOrAbort(j_str);
+  std::string str = JniGetStringStandardUTFOrAbort(env, j_str);
   EXPECT_EQ(kU8Length, str.length());
   EXPECT_EQ(std::string(kU8), str);
   env->DeleteLocalRef(j_str);
 }
 
 TEST(JniEnvExtTest, EmptyGetStringStandardUTF) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   jchar empty[] = {};
   jstring j_str = env->NewString(empty, 0);
 
-  std::string str = env->GetStringStandardUTFOrAbort(j_str);
+  std::string str = JniGetStringStandardUTFOrAbort(env, j_str);
   EXPECT_EQ(0, str.length());
   EXPECT_EQ(std::string(), str);
   env->DeleteLocalRef(j_str);
