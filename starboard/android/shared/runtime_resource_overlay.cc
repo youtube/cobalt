@@ -27,15 +27,15 @@ SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  jobject resource_overlay = JniExt::CallObjectMethodOrAbort(
+  jobject resource_overlay = JniCallObjectMethodOrAbort(
       env, JNIState::GetStarboardBridge(), "getResourceOverlay",
       "()Ldev/cobalt/coat/ResourceOverlay;");
 
   // Retrieve all Runtime Resource Overlay variables during initialization, so
   // synchronization isn't needed on access.
-  min_audio_sink_buffer_size_in_frames_ = JniExt::GetIntFieldOrAbort(
+  min_audio_sink_buffer_size_in_frames_ = JniGetIntFieldOrAbort(
       env, resource_overlay, "min_audio_sink_buffer_size_in_frames", "I");
-  max_video_buffer_budget_ = JniExt::GetIntFieldOrAbort(
+  max_video_buffer_budget_ = JniGetIntFieldOrAbort(
       env, resource_overlay, "max_video_buffer_budget", "I");
 
   SB_LOG(INFO) << "Loaded RRO values\n\tmin_audio_sink_buffer_size_in_frames: "

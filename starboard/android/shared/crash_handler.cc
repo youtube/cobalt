@@ -27,11 +27,10 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 
 bool SetString(const char* key, const char* value) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jstring> j_key(
-      JniExt::NewStringStandardUTFOrAbort(env, key));
+  ScopedLocalJavaRef<jstring> j_key(JniNewStringStandardUTFOrAbort(env, key));
   ScopedLocalJavaRef<jstring> j_value(
-      JniExt::NewStringStandardUTFOrAbort(env, value));
-  JniExt::CallVoidMethodOrAbort(
+      JniNewStringStandardUTFOrAbort(env, value));
+  JniCallVoidMethodOrAbort(
       env, JNIState::GetStarboardBridge(), "setCrashContext",
       "(Ljava/lang/String;Ljava/lang/String;)V", j_key.Get(), j_value.Get());
   return true;

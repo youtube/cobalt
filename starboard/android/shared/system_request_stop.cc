@@ -23,6 +23,6 @@ using starboard::android::shared::JNIState;
 
 void SbSystemRequestStop(int error_level) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  JniExt::CallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(),
-                                "requestStop", "(I)V", error_level);
+  JniCallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(), "requestStop",
+                           "(I)V", error_level);
 }

@@ -134,20 +134,18 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  j_video_frame_release_time_helper_ = JniExt::NewObjectOrAbort(
+  j_video_frame_release_time_helper_ = JniNewObjectOrAbort(
       env, "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
-  j_video_frame_release_time_helper_ = JniExt::ConvertLocalRefToGlobalRef(
-      env, j_video_frame_release_time_helper_);
-  JniExt::CallVoidMethod(env, j_video_frame_release_time_helper_, "enable",
-                         "()V");
+  j_video_frame_release_time_helper_ =
+      JniConvertLocalRefToGlobalRef(env, j_video_frame_release_time_helper_);
+  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
 }
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
   SB_DCHECK(j_video_frame_release_time_helper_);
   JNIEnv* env = base::android::AttachCurrentThread();
-  JniExt::CallVoidMethod(env, j_video_frame_release_time_helper_, "disable",
-                         "()V");
+  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "disable", "()V");
   env->DeleteGlobalRef(j_video_frame_release_time_helper_);
   j_video_frame_release_time_helper_ = nullptr;
 }
@@ -158,7 +156,7 @@ jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
     double playback_rate) {
   SB_DCHECK(j_video_frame_release_time_helper_);
   JNIEnv* env = base::android::AttachCurrentThread();
-  return JniExt::CallLongMethodOrAbort(
+  return JniCallLongMethodOrAbort(
       env, j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }

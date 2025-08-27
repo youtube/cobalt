@@ -32,22 +32,21 @@ namespace starboard::android::shared {
 namespace {
 
 jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-  jobject local_surface_texture = JniExt::NewObjectOrAbort(
+  jobject local_surface_texture = JniNewObjectOrAbort(
       env, "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
 
   jobject global_surface_texture =
-      JniExt::ConvertLocalRefToGlobalRef(env, local_surface_texture);
+      JniConvertLocalRefToGlobalRef(env, local_surface_texture);
 
   return global_surface_texture;
 }
 
 jobject CreateSurfaceFromSurfaceTexture(JNIEnv* env, jobject surface_texture) {
-  jobject local_surface = JniExt::NewObjectOrAbort(
+  jobject local_surface = JniNewObjectOrAbort(
       env, "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
       surface_texture);
 
-  jobject global_surface =
-      JniExt::ConvertLocalRefToGlobalRef(env, local_surface);
+  jobject global_surface = JniConvertLocalRefToGlobalRef(env, local_surface);
 
   return global_surface;
 }

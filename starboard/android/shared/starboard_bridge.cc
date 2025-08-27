@@ -66,7 +66,7 @@ jboolean JNI_StarboardBridge_InitJNI(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_starboard_bridge) {
   SB_CHECK(env);
-  JniExt::Initialize(env, j_starboard_bridge.obj());
+  JniInitialize(env, j_starboard_bridge.obj());
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());

@@ -72,11 +72,11 @@ void SetColorProperties(JNIEnv* env,
                         SbAccessibilityCaptionOpacityPercentage* opacity,
                         SbAccessibilityCaptionState* opacity_state) {
   jint j_color =
-      JniExt::GetIntFieldOrAbort(env, j_caption_settings, color_field, "I");
+      JniGetIntFieldOrAbort(env, j_caption_settings, color_field, "I");
   *color = GetClosestCaptionColor(j_color);
   *opacity = GetClosestOpacity((0xFF & (j_color >> 24)) * 100 / 255);
-  *color_state = BooleanToCaptionState(JniExt::GetBooleanFieldOrAbort(
-      env, j_caption_settings, has_color_field, "Z"));
+  *color_state = BooleanToCaptionState(
+      JniGetBooleanFieldOrAbort(env, j_caption_settings, has_color_field, "Z"));
   // Color and opacity are combined into a single ARGB value.
   // Therefore, if the color is set, so is the opacity.
   *opacity_state = *color_state;
@@ -93,13 +93,12 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
 
   JNIEnv* env = base::android::AttachCurrentThread();
 
-  ScopedLocalJavaRef<jobject> j_caption_settings(
-      JniExt::CallObjectMethodOrAbort(env, JNIState::GetStarboardBridge(),
-                                      "getCaptionSettings",
-                                      "()Ldev/cobalt/coat/CaptionSettings;"));
+  ScopedLocalJavaRef<jobject> j_caption_settings(JniCallObjectMethodOrAbort(
+      env, JNIState::GetStarboardBridge(), "getCaptionSettings",
+      "()Ldev/cobalt/coat/CaptionSettings;"));
 
-  jfloat font_scale = JniExt::GetFloatFieldOrAbort(
-      env, j_caption_settings.Get(), "fontScale", "F");
+  jfloat font_scale =
+      JniGetFloatFieldOrAbort(env, j_caption_settings.Get(), "fontScale", "F");
   caption_settings->font_size =
       GetClosestFontSizePercentage(100.0 * font_scale);
   // Android's captioning API always returns a font scale of 1 (100%) if
@@ -111,11 +110,10 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   caption_settings->font_family = kSbAccessibilityCaptionFontFamilyCasual;
   caption_settings->font_family_state = kSbAccessibilityCaptionStateUnsupported;
 
-  caption_settings->character_edge_style =
-      AndroidEdgeTypeToSbEdgeStyle(JniExt::GetIntFieldOrAbort(
-          env, j_caption_settings.Get(), "edgeType", "I"));
+  caption_settings->character_edge_style = AndroidEdgeTypeToSbEdgeStyle(
+      JniGetIntFieldOrAbort(env, j_caption_settings.Get(), "edgeType", "I"));
   caption_settings->character_edge_style_state =
-      BooleanToCaptionState(JniExt::GetBooleanFieldOrAbort(
+      BooleanToCaptionState(JniGetBooleanFieldOrAbort(
           env, j_caption_settings.Get(), "hasEdgeType", "Z"));
 
   SetColorProperties(
@@ -135,7 +133,7 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
                      &caption_settings->window_opacity,
                      &caption_settings->window_opacity_state);
 
-  caption_settings->is_enabled = JniExt::GetBooleanFieldOrAbort(
+  caption_settings->is_enabled = JniGetBooleanFieldOrAbort(
       env, j_caption_settings.Get(), "isEnabled", "Z");
   caption_settings->supports_is_enabled = true;
   caption_settings->supports_set_enabled = false;
