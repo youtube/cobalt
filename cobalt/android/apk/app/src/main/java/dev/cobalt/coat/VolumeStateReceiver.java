@@ -23,7 +23,7 @@ final class VolumeStateReceiver extends BroadcastReceiver {
   public static final String STREAM_MUTE_CHANGED_ACTION =
       "android.media.STREAM_MUTE_CHANGED_ACTION";
 
-  private WebContents webContents;
+  private WebContents mWebContents;
 
   VolumeStateReceiver(Context appContext) {
     IntentFilter filter = new IntentFilter();
@@ -34,10 +34,10 @@ final class VolumeStateReceiver extends BroadcastReceiver {
 
   protected void dispatchKeyDownEvent(int keyCode) {
     long eventTime = SystemClock.uptimeMillis();
-    if (webContents == null) {
+    if (mWebContents == null) {
       return;
     }
-    ImeAdapterImpl imeAdapter = ImeAdapterImpl.fromWebContents(webContents);
+    ImeAdapterImpl imeAdapter = ImeAdapterImpl.fromWebContents(mWebContents);
     if (imeAdapter == null) {
       return;
     }
@@ -45,7 +45,7 @@ final class VolumeStateReceiver extends BroadcastReceiver {
   }
 
   public void setWebContents(WebContents webContents) {
-    this.webContents = webContents;
+    this.mWebContents = webContents;
   }
 
   @Override
