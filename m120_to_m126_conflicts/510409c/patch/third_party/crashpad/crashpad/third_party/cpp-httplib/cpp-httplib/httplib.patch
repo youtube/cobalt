@@ -1,0 +1,301 @@
+--- third_party/crashpad/crashpad/third_party/cpp-httplib/cpp-httplib/httplib.h
++++ third_party/crashpad/crashpad/third_party/cpp-httplib/cpp-httplib/httplib.h
+@@ -6490,148 +6490,9 @@
+   {
+     std::unique_ptr<TaskQueue> task_queue(new_task_queue());
+ 
+-<<<<<<< HEAD
+-    for (;;) {
+-        auto val = detail::select_read(svr_sock_, 0, 100000);
+-
+-        if (val == 0) { // Timeout
+-            if (svr_sock_ == INVALID_SOCKET) {
+-                // The server socket was closed by 'stop' method.
+-                break;
+-            }
+-            continue;
+-        }
+-
+-        socket_t sock = accept(svr_sock_, NULL, NULL);
+-
+-        if (sock == INVALID_SOCKET) {
+-            if (svr_sock_ != INVALID_SOCKET) {
+-                detail::close_socket(svr_sock_);
+-                ret = false;
+-            } else {
+-                ; // The server socket was closed by user.
+-            }
+-            break;
+-        }
+-
+-        // TODO: Use thread pool...
+-        std::thread([=, this]() {
+-          {
+-            std::lock_guard<std::mutex> guard(running_threads_mutex_);
+-            running_threads_++;
+-          }
+-
+-          read_and_close_socket(sock);
+-
+-          {
+-            std::lock_guard<std::mutex> guard(running_threads_mutex_);
+-            running_threads_--;
+-          }
+-        }).detach();
+-    }
+-
+-    // TODO: Use thread pool...
+-    for (;;) {
+-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+-        std::lock_guard<std::mutex> guard(running_threads_mutex_);
+-        if (!running_threads_) {
+-            break;
+-        }
+-    }
+-
+-    is_running_ = false;
+-
+-    return ret;
+-}
+-
+-inline bool Server::routing(Request& req, Response& res)
+-{
+-    if (req.method == "GET" && handle_file_request(req, res)) {
+-        return true;
+-    }
+-
+-    if (req.method == "GET" || req.method == "HEAD") {
+-        return dispatch_request(req, res, get_handlers_);
+-    } else if (req.method == "POST") {
+-        return dispatch_request(req, res, post_handlers_);
+-    } else if (req.method == "PUT") {
+-        return dispatch_request(req, res, put_handlers_);
+-    } else if (req.method == "DELETE") {
+-        return dispatch_request(req, res, delete_handlers_);
+-    } else if (req.method == "OPTIONS") {
+-        return dispatch_request(req, res, options_handlers_);
+-    }
+-    return false;
+-}
+-
+-inline bool Server::dispatch_request(Request& req, Response& res, Handlers& handlers)
+-{
+-    for (const auto& x: handlers) {
+-        const auto& pattern = x.first;
+-        const auto& handler = x.second;
+-
+-        if (std::regex_match(req.path, req.matches, pattern)) {
+-            handler(req, res);
+-            return true;
+-        }
+-    }
+-    return false;
+-}
+-
+-inline bool Server::process_request(Stream& strm, bool last_connection, bool& connection_close)
+-{
+-    const auto bufsiz = 2048;
+-    char buf[bufsiz];
+-
+-    detail::stream_line_reader reader(strm, buf, bufsiz);
+-
+-    // Connection has been closed on client
+-    if (!reader.getline()) {
+-        return false;
+-    }
+-
+-    Request req;
+-    Response res;
+-
+-    res.version = "HTTP/1.1";
+-
+-    // Request line and headers
+-    if (!parse_request_line(reader.ptr(), req) || !detail::read_headers(strm, req.headers)) {
+-        res.status = 400;
+-        write_response(strm, last_connection, req, res);
+-        return true;
+-    }
+-
+-    auto ret = true;
+-    if (req.get_header_value("Connection") == "close") {
+-        // ret = false;
+-        connection_close = true;
+-    }
+-
+-    req.set_header("REMOTE_ADDR", strm.get_remote_addr().c_str());
+-
+-    // Body
+-    if (req.method == "POST" || req.method == "PUT") {
+-        if (!detail::read_content(strm, req)) {
+-            res.status = 400;
+-            write_response(strm, last_connection, req, res);
+-            return ret;
+-        }
+-
+-        const auto& content_type = req.get_header_value("Content-Type");
+-
+-        if (req.get_header_value("Content-Encoding") == "gzip") {
+-#ifdef CPPHTTPLIB_ZLIB_SUPPORT
+-            detail::decompress(req.body);
+-#else
+-            res.status = 415;
+-            write_response(strm, last_connection, req, res);
+-            return ret;
+-=======
+     while (svr_sock_ != INVALID_SOCKET) {
+ #ifndef _WIN32
+       if (idle_interval_sec_ > 0 || idle_interval_usec_ > 0) {
+->>>>>>> cb6b75d19ac (Update cpp-httplib to 6a848b1a1643)
+ #endif
+         auto val = detail::select_read(svr_sock_, idle_interval_sec_,
+                                        idle_interval_usec_);
+@@ -7101,141 +6962,6 @@
+ 
+ inline bool ClientImpl::is_valid() const { return true; }
+ 
+-<<<<<<< HEAD
+-inline bool Client::is_valid() const
+-{
+-    return true;
+-}
+-
+-inline socket_t Client::create_client_socket() const
+-{
+-  return detail::create_socket(
+-      host_.c_str(), port_, [this](socket_t sock, struct addrinfo& ai) -> bool {
+-        detail::set_nonblocking(sock, true);
+-
+-        auto ret = connect(sock, ai.ai_addr, ai.ai_addrlen);
+-        if (ret < 0) {
+-          if (detail::is_connection_error() ||
+-              !detail::wait_until_socket_is_ready(sock, timeout_sec_, 0)) {
+-            detail::close_socket(sock);
+-            return false;
+-          }
+-        }
+-
+-        detail::set_nonblocking(sock, false);
+-        return true;
+-      });
+-}
+-
+-inline bool Client::read_response_line(Stream& strm, Response& res)
+-{
+-    const auto bufsiz = 2048;
+-    char buf[bufsiz];
+-
+-    detail::stream_line_reader reader(strm, buf, bufsiz);
+-
+-    if (!reader.getline()) {
+-        return false;
+-    }
+-
+-    const static std::regex re("(HTTP/1\\.[01]) (\\d+?) .+\r\n");
+-
+-    std::cmatch m;
+-    if (std::regex_match(reader.ptr(), m, re)) {
+-        res.version = std::string(m[1]);
+-        res.status = std::stoi(std::string(m[2]));
+-    }
+-
+-    return true;
+-}
+-
+-inline bool Client::send(Request& req, Response& res)
+-{
+-    if (req.path.empty()) {
+-        return false;
+-    }
+-
+-    auto sock = create_client_socket();
+-    if (sock == INVALID_SOCKET) {
+-        return false;
+-    }
+-
+-    return read_and_close_socket(sock, req, res);
+-}
+-
+-inline void Client::write_request(Stream& strm, Request& req)
+-{
+-    auto path = detail::encode_url(req.path);
+-
+-    // Request line
+-    strm.write_format("%s %s HTTP/1.1\r\n",
+-        req.method.c_str(),
+-        path.c_str());
+-
+-    // Headers
+-    req.set_header("Host", host_and_port_.c_str());
+-
+-    if (!req.has_header("Accept")) {
+-        req.set_header("Accept", "*/*");
+-    }
+-
+-    if (!req.has_header("User-Agent")) {
+-        req.set_header("User-Agent", "cpp-httplib/0.2");
+-    }
+-
+-    // TODO: Support KeepAlive connection
+-    // if (!req.has_header("Connection")) {
+-        req.set_header("Connection", "close");
+-    // }
+-
+-    if (!req.body.empty()) {
+-        if (!req.has_header("Content-Type")) {
+-            req.set_header("Content-Type", "text/plain");
+-        }
+-
+-        auto length = std::to_string(req.body.size());
+-        req.set_header("Content-Length", length.c_str());
+-    }
+-
+-    detail::write_headers(strm, req);
+-
+-    // Body
+-    if (!req.body.empty()) {
+-        if (req.get_header_value("Content-Type") == "application/x-www-form-urlencoded") {
+-            auto str = detail::encode_url(req.body);
+-            strm.write(str.c_str(), str.size());
+-        } else {
+-            strm.write(req.body.c_str(), req.body.size());
+-        }
+-    }
+-}
+-
+-inline bool Client::process_request(Stream& strm, Request& req, Response& res, bool& connection_close)
+-{
+-    // Send request
+-    write_request(strm, req);
+-
+-    // Receive response and headers
+-    if (!read_response_line(strm, res) || !detail::read_headers(strm, res.headers)) {
+-        return false;
+-    }
+-
+-    if (res.get_header_value("Connection") == "close" || res.version == "HTTP/1.0") {
+-        connection_close = true;
+-    }
+-
+-    // Body
+-    if (req.method != "HEAD") {
+-        if (!detail::read_content(strm, res, req.progress)) {
+-            return false;
+-        }
+-
+-        if (res.get_header_value("Content-Encoding") == "gzip") {
+-#ifdef CPPHTTPLIB_ZLIB_SUPPORT
+-            detail::decompress(res.body);
+-#else
+-            return false;
+-=======
+ inline void ClientImpl::copy_settings(const ClientImpl &rhs) {
+   client_cert_path_ = rhs.client_cert_path_;
+   client_key_path_ = rhs.client_key_path_;
+@@ -7250,7 +6976,6 @@
+ #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+   digest_auth_username_ = rhs.digest_auth_username_;
+   digest_auth_password_ = rhs.digest_auth_password_;
+->>>>>>> cb6b75d19ac (Update cpp-httplib to 6a848b1a1643)
+ #endif
+   keep_alive_ = rhs.keep_alive_;
+   follow_location_ = rhs.follow_location_;

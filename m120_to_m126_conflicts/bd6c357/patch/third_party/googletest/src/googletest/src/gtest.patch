@@ -1,0 +1,16 @@
+--- third_party/googletest/src/googletest/src/gtest.cc
++++ third_party/googletest/src/googletest/src/gtest.cc
+@@ -3283,12 +3283,8 @@
+   const char* const gtest_color = c.c_str();
+ 
+   if (String::CaseInsensitiveCStringEquals(gtest_color, "auto")) {
+-<<<<<<< HEAD
+-#if defined(GTEST_OS_WINDOWS) && !defined(GTEST_OS_WINDOWS_MINGW)
+-=======
+ // TODO: b/399507045 - Cobalt: Fix weird printing out artifacts
+-#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+->>>>>>> 58e37190fa8 (Starboardize googletest to run nplb in hermetic builds (#4962))
++#if defined(GTEST_OS_WINDOWS) && !defined(GTEST_OS_WINDOWS_MINGW) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+     // On Windows the TERM variable is usually not set, but the
+     // console there does support colors.
+     return stdout_is_tty;

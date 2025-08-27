@@ -1,0 +1,52 @@
+--- third_party/googletest/src/googletest/src/gtest.cc
++++ third_party/googletest/src/googletest/src/gtest.cc
+@@ -216,12 +216,7 @@
+ // is specified on the command line.
+ bool g_help_flag = false;
+ 
+-<<<<<<< HEAD
+ #if GTEST_HAS_FILE_SYSTEM
+-=======
+-// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+->>>>>>> 8114d71394d (Run nplb hermetically (#4975))
+ // Utility function to Open File for Writing
+ static FILE* OpenFileForWriting(const std::string& output_file) {
+   FILE* fileout = nullptr;
+@@ -236,11 +231,7 @@
+   }
+   return fileout;
+ }
+-<<<<<<< HEAD
+ #endif  // GTEST_HAS_FILE_SYSTEM
+-=======
+-#endif
+->>>>>>> 8114d71394d (Run nplb hermetically (#4975))
+ 
+ }  // namespace internal
+ 
+@@ -6514,12 +6505,7 @@
+     }
+   }
+   fflush(stdout);
+-<<<<<<< HEAD
+ #if GTEST_HAS_FILE_SYSTEM
+-=======
+-// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+->>>>>>> 8114d71394d (Run nplb hermetically (#4975))
+   const std::string& output_format = UnitTestOptions::GetOutputFormat();
+   if (output_format == "xml" || output_format == "json") {
+     FILE* fileout =
+@@ -6537,11 +6523,7 @@
+     fprintf(fileout, "%s", StringStreamToString(&stream).c_str());
+     fclose(fileout);
+   }
+-<<<<<<< HEAD
+ #endif  // GTEST_HAS_FILE_SYSTEM
+-=======
+-#endif
+->>>>>>> 8114d71394d (Run nplb hermetically (#4975))
+ }
+ 
+ // Sets the OS stack trace getter.

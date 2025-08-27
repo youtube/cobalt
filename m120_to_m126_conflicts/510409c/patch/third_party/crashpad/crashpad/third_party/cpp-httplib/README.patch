@@ -1,0 +1,21 @@
+--- third_party/crashpad/crashpad/third_party/cpp-httplib/README.crashpad
++++ third_party/crashpad/crashpad/third_party/cpp-httplib/README.crashpad
+@@ -9,17 +9,10 @@
+ CPEPrefix: cpe:/a:cpp-httplib_project:cpp-httplib
+ 
+ Description:
+-A C++11 single-file header-only cross-platform HTTP/HTTPS library.
++A C++11 header-only HTTP library.
+ 
+ Local Modifications:
+-<<<<<<< HEAD
+ - Exclude test/ and example/ subdirs.
+ - Patch httplib.h to use #include "third_party/zlib/zlib_crashpad.h" instead of
+   <zlib.h>.
+ - Make `this` capture explicit to avoid errors in C++20.
+-=======
+- - Exclude test/ and example/ subdirectories, and build-related files.
+- - Patch httplib.h to use #include "third_party/zlib/zlib_crashpad.h" instead of
+-   <zlib.h>.
+- - #define CPPHTTPLIB_NO_EXCEPTIONS 1.
+->>>>>>> cb6b75d19ac (Update cpp-httplib to 6a848b1a1643)

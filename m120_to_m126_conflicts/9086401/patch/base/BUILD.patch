@@ -1,0 +1,25 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -3872,10 +3872,6 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (enable_base_tracing) {
+-    sources += [ "test/test_trace_processor_example_unittest.cc" ]
+-=======
+   # TODO: b/402471389 - Cobalt: try to enable these tests.
+   if (enable_cobalt_hermetic_hacks) {
+     sources -= [
+@@ -3883,7 +3879,10 @@
+       "state_transitions_unittest.cc",
+       "tools_sanity_unittest.cc",
+     ]
+->>>>>>> 49ba8e8812a (More fixes for base_unittest build. (#5019))
++  }
++
++  if (enable_base_tracing) {
++    sources += [ "test/test_trace_processor_example_unittest.cc" ]
+   }
+ 
+   if (is_posix) {
