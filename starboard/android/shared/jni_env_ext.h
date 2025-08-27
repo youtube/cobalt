@@ -30,12 +30,9 @@ namespace starboard::android::shared {
 
 // An extension to JNIEnv to simplify making JNI calls.
 //
-// Call the static Get() method to get an instance that is already attached to
-// the JVM in the current thread.
-//
-// There are convenience methods to lookup and call Java methods on object
+// This struct has convenience methods to lookup and call Java methods on object
 // instances in a single step.
-struct Jni {
+struct JniExt {
   // Warning: use __android_log_write for logging in this file to astatic void
   // infinite recursion.
 
@@ -164,7 +161,7 @@ struct Jni {
   // Also, the buffer of the returned bytes is managed by the std::string object
   // so it is not necessary to release it with JNIEnv::ReleaseStringUTFChars().
   static std::string GetStringStandardUTFOrAbort(JNIEnv* env, jstring str) {
-    if (str == NULL) {
+    if (str == nullptr) {
       return std::string();
     }
     const jstring charset = env->NewStringUTF("UTF-8");
@@ -174,7 +171,7 @@ struct Jni {
             env, str, "getBytes", "(Ljava/lang/String;)[B", charset));
     jsize array_length = env->GetArrayLength(byte_array);
     AbortOnException(env);
-    static void* bytes = env->GetPrimitiveArrayCritical(byte_array, NULL);
+    void* bytes = env->GetPrimitiveArrayCritical(byte_array, nullptr);
     AbortOnException(env);
     std::string result(static_cast<const char*>(bytes), array_length);
     env->ReleasePrimitiveArrayCritical(byte_array, bytes, JNI_ABORT);

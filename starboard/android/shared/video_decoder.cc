@@ -716,8 +716,9 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       j_output_surface = decode_target->surface();
 
       JNIEnv* env = base::android::AttachCurrentThread();
-      Jni::CallVoidMethodOrAbort(env, decode_target->surface_texture(),
-                                 "setOnFrameAvailableListener", "(J)V", this);
+      JniExt::CallVoidMethodOrAbort(env, decode_target->surface_texture(),
+                                    "setOnFrameAvailableListener", "(J)V",
+                                    this);
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -791,8 +792,8 @@ void VideoDecoder::TeardownCodec() {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JNIEnv* env = base::android::AttachCurrentThread();
-      Jni::CallVoidMethodOrAbort(env, decode_target_->surface_texture(),
-                                 "removeOnFrameAvailableListener", "()V");
+      JniExt::CallVoidMethodOrAbort(env, decode_target_->surface_texture(),
+                                    "removeOnFrameAvailableListener", "()V");
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -977,7 +978,7 @@ namespace {
 
 void updateTexImage(jobject surface_texture) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Jni::CallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
+  JniExt::CallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
@@ -986,8 +987,8 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
   jfloatArray java_array = env->NewFloatArray(16);
   SB_DCHECK(java_array);
 
-  Jni::CallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix",
-                             "([F)V", java_array);
+  JniExt::CallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix",
+                                "([F)V", java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);

@@ -25,7 +25,7 @@
 
 namespace {
 
-using starboard::android::shared::Jni;
+using starboard::android::shared::JniExt;
 using starboard::android::shared::JNIState;
 using starboard::android::shared::ScopedLocalJavaRef;
 
@@ -38,10 +38,10 @@ class LocaleInfo {
   LocaleInfo() {
     JNIEnv* env = base::android::AttachCurrentThread();
 
-    ScopedLocalJavaRef<jstring> result(Jni::CallObjectMethodOrAbort(
+    ScopedLocalJavaRef<jstring> result(JniExt::CallObjectMethodOrAbort(
         env, JNIState::GetStarboardBridge(), "systemGetLocaleId",
         "()Ljava/lang/String;"));
-    locale_id = Jni::GetStringStandardUTFOrAbort(env, result.Get());
+    locale_id = JniExt::GetStringStandardUTFOrAbort(env, result.Get());
   }
 };
 

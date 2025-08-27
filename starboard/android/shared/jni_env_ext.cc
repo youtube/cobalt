@@ -32,7 +32,7 @@ pthread_key_t g_tls_key = 0;
 
 void Destroy(void* value) {
   if (value != NULL) {
-    starboard::android::shared::Jni::OnThreadShutdown();
+    starboard::android::shared::JniExt::OnThreadShutdown();
   }
 }
 
@@ -43,7 +43,7 @@ namespace starboard::android::shared {
 // Warning: use __android_log_write for logging in this file.
 
 // static
-void Jni::Initialize(JNIEnv* env, jobject starboard_bridge) {
+void JniExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
@@ -51,8 +51,8 @@ void Jni::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
-  JNIState::SetApplicationClassLoader(Jni::ConvertLocalRefToGlobalRef(
-      env, Jni::CallObjectMethodOrAbort(
+  JNIState::SetApplicationClassLoader(JniExt::ConvertLocalRefToGlobalRef(
+      env, JniExt::CallObjectMethodOrAbort(
                env, env->GetObjectClass(starboard_bridge), "getClassLoader",
                "()Ljava/lang/ClassLoader;")));
 
@@ -61,7 +61,7 @@ void Jni::Initialize(JNIEnv* env, jobject starboard_bridge) {
 }
 
 // static
-void Jni::OnThreadShutdown() {
+void JniExt::OnThreadShutdown() {
   // We must call DetachCurrentThread() before exiting, if we have ever
   // previously called AttachCurrentThread() on it.
   //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
@@ -71,7 +71,7 @@ void Jni::OnThreadShutdown() {
   }
 }
 
-jclass Jni::FindClassExtOrAbort(JNIEnv* env, const char* name) {
+jclass JniExt::FindClassExtOrAbort(JNIEnv* env, const char* name) {
   // Convert the JNI FindClass name with slashes to the "binary name" with dots
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
