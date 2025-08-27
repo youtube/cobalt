@@ -467,10 +467,13 @@ TEST_F(AnnotationAgentContainerImplTest,
       SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
 
+#if BUILDFLAG(IS_COBALT)
+  container->OpenedContextMenuOverSelection();
+#else
   // Right click on the selected text
   const auto& selection_rect = CreateRange(range)->BoundingBox();
   SendRightClick(selection_rect.origin());
-
+#endif
   MockAnnotationAgentHost host;
 
   base::RunLoop run_loop;
@@ -539,9 +542,12 @@ TEST_F(AnnotationAgentContainerImplTest, CreateAgentFromSelection) {
       SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
 
+#if BUILDFLAG(IS_COBALT)
+  container->OpenedContextMenuOverSelection();
+#else
   const auto& selection_rect = CreateRange(range)->BoundingBox();
   SendRightClick(selection_rect.origin());
-
+#endif
   MockAnnotationAgentHost host;
 
   base::RunLoop run_loop;
@@ -617,10 +623,13 @@ TEST_F(AnnotationAgentContainerImplTest, ShutdownDocumentWhileGenerating) {
       SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
 
+#if BUILDFLAG(IS_COBALT)
+  container->OpenedContextMenuOverSelection();
+#else
   // Right click on the selected text
   const auto& selection_rect = CreateRange(range)->BoundingBox();
   SendRightClick(selection_rect.origin());
-
+#endif
   base::RunLoop run_loop;
   bool did_finish = false;
 

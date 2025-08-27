@@ -81,6 +81,7 @@ class FrameSelectionTest : public EditingTestBase {
             .Build());
   }
 
+#if !BUILDFLAG(IS_COBALT)
   // Returns whether a context menu is being displayed.
   bool HasContextMenu() {
     return GetDocument()
@@ -88,6 +89,7 @@ class FrameSelectionTest : public EditingTestBase {
         ->GetContextMenuController()
         .ContextMenuNodeForFrame(GetDocument().GetFrame());
   }
+#endif
 
   void MoveRangeSelectionInternal(const Position& base,
                                   const Position& extent,
@@ -306,6 +308,7 @@ TEST_F(FrameSelectionTest, SelectAroundCaret_ShouldShowHandle) {
   EXPECT_TRUE(Selection().IsHandleVisible());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(FrameSelectionTest, SelectAroundCaret_ShouldShowContextMenu) {
   Text* text = AppendTextNode("This is a sentence.");
   int selection_index = 12;  // This is a se|ntence.
@@ -364,6 +367,7 @@ TEST_F(FrameSelectionTest, SelectAroundCaret_ShouldShowContextMenu) {
                                             ContextMenuVisibility::kVisible));
   EXPECT_TRUE(HasContextMenu());
 }
+#endif
 
 TEST_F(FrameSelectionTest, GetSelectionRangeAroundCaret_Word) {
   Text* text = AppendTextNode("This is a sentence.");
