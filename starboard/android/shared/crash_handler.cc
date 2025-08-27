@@ -21,17 +21,15 @@
 
 namespace starboard::android::shared {
 
-using starboard::android::shared::JniEnvExt;
-
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
 }
 
 bool SetString(const char* key, const char* value) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jstring> j_key(JniNewStringStandardUTFOrAbort(env, key));
+  ScopedLocalJavaRef<jstring> j_key(Jni::NewStringStandardUTFOrAbort(env, key));
   ScopedLocalJavaRef<jstring> j_value(
-      JniNewStringStandardUTFOrAbort(env, value));
+      Jni::NewStringStandardUTFOrAbort(env, value));
   Jni::CallVoidMethodOrAbort(
       env, JNIState::GetStarboardBridge(), "setCrashContext",
       "(Ljava/lang/String;Ljava/lang/String;)V", j_key.Get(), j_value.Get());

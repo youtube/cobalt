@@ -25,7 +25,7 @@
 
 namespace {
 
-using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::Jni;
 using starboard::android::shared::JNIState;
 using starboard::android::shared::ScopedLocalJavaRef;
 

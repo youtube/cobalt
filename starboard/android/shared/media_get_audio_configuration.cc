@@ -25,7 +25,7 @@ bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
   using starboard::GetMediaAudioConnectorName;
-  using starboard::android::shared::JniEnvExt;
+
   using starboard::android::shared::MediaCapabilitiesCache;
   using starboard::android::shared::ScopedLocalJavaRef;
 

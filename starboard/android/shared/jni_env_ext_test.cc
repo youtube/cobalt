@@ -44,7 +44,7 @@ const int kMU8Length = SB_ARRAY_SIZE(kMU8) - 1;
 
 TEST(JniEnvExtTest, NewStringStandardUTF) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  jstring j_str = JniNewStringStandardUTFOrAbort(env, kU8);
+  jstring j_str = Jni::NewStringStandardUTFOrAbort(env, kU8);
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
   const jchar* u16_chars = env->GetStringChars(j_str, NULL);
@@ -68,7 +68,7 @@ TEST(JniEnvExtTest, NewStringModifiedUTF) {
 
 TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  jstring j_str = JniNewStringStandardUTFOrAbort(env, "");
+  jstring j_str = Jni::NewStringStandardUTFOrAbort(env, "");
 
   EXPECT_EQ(0, env->GetStringLength(j_str));
 }

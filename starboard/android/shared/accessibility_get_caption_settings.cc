@@ -29,7 +29,6 @@
 
 namespace starboard::android::shared::accessibility {
 
-using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::shared::starboard::GetClosestCaptionColor;
 using starboard::shared::starboard::GetClosestFontSizePercentage;

@@ -27,7 +27,6 @@
 namespace starboard::android::shared {
 namespace {
 
-using ::starboard::android::shared::JniEnvExt;
 using ::starboard::android::shared::ScopedLocalJavaRef;
 
 // These constants are from android.media.session.PlaybackState
@@ -184,33 +183,34 @@ void OnMediaSessionStateChanged(
   if (session_state.metadata != NULL) {
     CobaltExtensionMediaMetadata* media_metadata(session_state.metadata);
 
-    j_title.Reset(JniNewStringStandardUTFOrAbort(env, media_metadata->title));
-    j_artist.Reset(JniNewStringStandardUTFOrAbort(env, media_metadata->artist));
-    j_album.Reset(JniNewStringStandardUTFOrAbort(env, media_metadata->album));
+    j_title.Reset(Jni::NewStringStandardUTFOrAbort(env, media_metadata->title));
+    j_artist.Reset(
+        Jni::NewStringStandardUTFOrAbort(env, media_metadata->artist));
+    j_album.Reset(Jni::NewStringStandardUTFOrAbort(env, media_metadata->album));
 
     size_t artwork_count = media_metadata->artwork_count;
     if (artwork_count > 0) {
       CobaltExtensionMediaImage* artwork(media_metadata->artwork);
       ScopedLocalJavaRef<jclass> media_image_class(
-          JniFindClassExtOrAbort(env, "dev/cobalt/coat/MediaImage"));
+          Jni::FindClassExtOrAbort(env, "dev/cobalt/coat/MediaImage"));
       jmethodID media_image_constructor =
           env->GetMethodID(media_image_class.Get(), "<init>",
                            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/"
                            "String;)V");
-      JniAbortOnException(env);
+      Jni::AbortOnException(env);
 
       j_artwork.Reset(static_cast<jobjectArray>(
           env->NewObjectArray(artwork_count, media_image_class.Get(), NULL)));
-      JniAbortOnException(env);
+      Jni::AbortOnException(env);
 
       ScopedLocalJavaRef<jstring> j_src;
       ScopedLocalJavaRef<jstring> j_sizes;
       ScopedLocalJavaRef<jstring> j_type;
       for (size_t i = 0; i < artwork_count; i++) {
         const CobaltExtensionMediaImage& media_image(artwork[i]);
-        j_src.Reset(JniNewStringStandardUTFOrAbort(env, media_image.src));
-        j_sizes.Reset(JniNewStringStandardUTFOrAbort(env, media_image.size));
-        j_type.Reset(JniNewStringStandardUTFOrAbort(env, media_image.type));
+        j_src.Reset(Jni::NewStringStandardUTFOrAbort(env, media_image.src));
+        j_sizes.Reset(Jni::NewStringStandardUTFOrAbort(env, media_image.size));
+        j_type.Reset(Jni::NewStringStandardUTFOrAbort(env, media_image.type));
 
         ScopedLocalJavaRef<jobject> j_media_image(
             env->NewObject(media_image_class.Get(), media_image_constructor,

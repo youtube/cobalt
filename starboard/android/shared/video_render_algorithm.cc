@@ -134,10 +134,10 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  j_video_frame_release_time_helper_ = JniNewObjectOrAbort(
+  j_video_frame_release_time_helper_ = Jni::NewObjectOrAbort(
       env, "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
   j_video_frame_release_time_helper_ =
-      JniConvertLocalRefToGlobalRef(env, j_video_frame_release_time_helper_);
+      Jni::ConvertLocalRefToGlobalRef(env, j_video_frame_release_time_helper_);
   Jni::CallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
 }
 

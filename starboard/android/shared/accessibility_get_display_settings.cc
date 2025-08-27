@@ -19,8 +19,6 @@
 
 namespace starboard::android::shared::accessibility {
 
-using starboard::android::shared::JniEnvExt;
-
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   SB_NOTIMPLEMENTED();
   return false;

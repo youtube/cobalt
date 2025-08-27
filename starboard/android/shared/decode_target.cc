@@ -28,27 +28,25 @@
 #include "starboard/common/check_op.h"
 #include "starboard/shared/gles/gl_call.h"
 
-using starboard::android::shared::JniEnvExt;
-
 namespace starboard::android::shared {
 namespace {
 
 jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-  jobject local_surface_texture = JniNewObjectOrAbort(
+  jobject local_surface_texture = Jni::NewObjectOrAbort(
       env, "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
 
   jobject global_surface_texture =
-      JniConvertLocalRefToGlobalRef(env, local_surface_texture);
+      Jni::ConvertLocalRefToGlobalRef(env, local_surface_texture);
 
   return global_surface_texture;
 }
 
 jobject CreateSurfaceFromSurfaceTexture(JNIEnv* env, jobject surface_texture) {
-  jobject local_surface = JniNewObjectOrAbort(
+  jobject local_surface = Jni::NewObjectOrAbort(
       env, "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
       surface_texture);
 
-  jobject global_surface = JniConvertLocalRefToGlobalRef(env, local_surface);
+  jobject global_surface = Jni::ConvertLocalRefToGlobalRef(env, local_surface);
 
   return global_surface;
 }

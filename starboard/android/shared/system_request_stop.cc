@@ -18,7 +18,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 
-using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::Jni;
 using starboard::android::shared::JNIState;
 
 void SbSystemRequestStop(int error_level) {
