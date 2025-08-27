@@ -241,7 +241,7 @@ def record_conflict(repo, commit_record_dir):
             open(dst_path, 'a').close()
 
         if '.' in file_path:
-            file_name, file_ext = file_path.split('.')
+            file_name, file_ext = file_path.rsplit('.', 1)
         else:
             file_name = file_path
             file_ext = None
