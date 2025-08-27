@@ -66,17 +66,50 @@ char* setlocale(int category, const char* locale) {
 }
 
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
-  return reinterpret_cast<locale_t>(const_cast<lconv*>(GetCLocaleConv()));
+  if (locale == NULL || (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
+    return (locale_t)0;
+  }
+
+  lconv* new_lconv = new lconv;
+  if (base != (locale_t)0) {
+    memcpy(new_lconv, reinterpret_cast<lconv*>(base), sizeof(lconv));
+    freelocale(base);
+  } else {
+    memcpy(new_lconv, GetCLocaleConv(), sizeof(lconv));
+  }
+  return reinterpret_cast<locale_t>(new_lconv);
 }
 
+namespace {
+thread_local locale_t g_current_locale = LC_GLOBAL_LOCALE;
+}  // namespace
+
 locale_t uselocale(locale_t newloc) {
-  return reinterpret_cast<locale_t>(const_cast<lconv*>(GetCLocaleConv()));
+  locale_t old_locale = g_current_locale;
+  if (newloc != (locale_t)0) {
+    g_current_locale = newloc;
+  }
+  return old_locale;
 }
 
 void freelocale(locale_t loc) {
-  // Nothing to do.
+  if (loc) {
+    delete reinterpret_cast<lconv*>(loc);
+  }
 }
 
 struct lconv* localeconv(void) {
   return const_cast<lconv*>(GetCLocaleConv());
+}
+
+locale_t duplocale(locale_t loc) {
+  if (loc == LC_GLOBAL_LOCALE) {
+    return LC_GLOBAL_LOCALE;
+  }
+  if (loc == (locale_t)0) {
+    return (locale_t)0;
+  }
+  lconv* new_lconv = new lconv;
+  memcpy(new_lconv, reinterpret_cast<lconv*>(loc), sizeof(lconv));
+  return reinterpret_cast<locale_t>(new_lconv);
 }

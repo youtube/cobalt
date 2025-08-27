@@ -48,14 +48,14 @@ class ScopedLocale {
   char* original_locale_;
 };
 
-TEST(PosixLocaleTest, SetLocaleC) {
+TEST(PosixLocaleSetTest, SetLocaleC) {
   ScopedLocale scoped_locale;
   const char* result = setlocale(LC_ALL, "C");
   ASSERT_NE(nullptr, result);
   EXPECT_STREQ("C", result);
 }
 
-TEST(PosixLocaleTest, SetLocalePosix) {
+TEST(PosixLocaleSetTest, SetLocalePosix) {
   ScopedLocale scoped_locale;
   const char* result = setlocale(LC_ALL, "POSIX");
   ASSERT_NE(nullptr, result);
@@ -64,7 +64,7 @@ TEST(PosixLocaleTest, SetLocalePosix) {
   EXPECT_TRUE(strcmp(result, "POSIX") == 0 || strcmp(result, "C") == 0);
 }
 
-TEST(PosixLocaleTest, QueryLocale) {
+TEST(PosixLocaleSetTest, QueryLocale) {
   ScopedLocale scoped_locale;
   setlocale(LC_ALL, "C");
   const char* result = setlocale(LC_ALL, NULL);
@@ -72,13 +72,13 @@ TEST(PosixLocaleTest, QueryLocale) {
   EXPECT_STREQ("C", result);
 }
 
-TEST(PosixLocaleTest, InvalidLocale) {
+TEST(PosixLocaleSetTest, InvalidLocale) {
   ScopedLocale scoped_locale;
   const char* result = setlocale(LC_ALL, "invalid-locale-does-not-exist");
   EXPECT_EQ(nullptr, result);
 }
 
-TEST(PosixLocaleTest, LocaleConvC) {
+TEST(PosixLocaleSetTest, LocaleConvC) {
   ScopedLocale scoped_locale;
   setlocale(LC_ALL, "C");
   struct lconv* conv = localeconv();
@@ -99,7 +99,7 @@ TEST(PosixLocaleTest, LocaleConvC) {
 // available on all platforms. Check for _XOPEN_SOURCE >= 700 or similar macros.
 // Starboard seems to aim for POSIX.1-2008 compliance, so these should be
 // available.
-TEST(PosixLocaleTest, NewUseFreeLocale) {
+TEST(PosixLocaleSetTest, NewUseFreeLocale) {
   ScopedLocale scoped_locale;
 
   // Set a known global locale.
@@ -140,12 +140,12 @@ TEST(PosixLocaleTest, NewUseFreeLocale) {
   freelocale(c_locale);
 }
 
-TEST(PosixLocaleTest, NewLocaleInvalid) {
+TEST(PosixLocaleSetTest, NewLocaleInvalid) {
   locale_t loc = newlocale(LC_ALL_MASK, "invalid-locale-name", (locale_t)0);
   EXPECT_EQ((locale_t)0, loc);
 }
 
-TEST(PosixLocaleTest, UseLocaleGlobal) {
+TEST(PosixLocaleSetTest, UseLocaleGlobal) {
   ScopedLocale scoped_locale;
   setlocale(LC_ALL, "C");
 
@@ -159,10 +159,10 @@ struct LocaleCategoryParam {
   const char* name;
 };
 
-class PosixLocaleCategoryTest
+class PosixLocaleSetCategoryTest
     : public ::testing::TestWithParam<LocaleCategoryParam> {};
 
-TEST_P(PosixLocaleCategoryTest, SetAllThenQueryCategory) {
+TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
   ScopedLocale scoped_locale;
 
   // Attempt to set a non-C locale first to ensure we can see a change.
@@ -196,8 +196,8 @@ const LocaleCategoryParam kLocaleCategories[] = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    PosixLocaleTests,
-    PosixLocaleCategoryTest,
+    PosixLocaleSetTests,
+    PosixLocaleSetCategoryTest,
     ::testing::ValuesIn(kLocaleCategories),
     [](const ::testing::TestParamInfo<LocaleCategoryParam>& info) {
       return info.param.name;
@@ -211,13 +211,13 @@ void PrintTo(const LocaleFormatParam& param, ::std::ostream* os) {
   *os << "LocaleFormatParam(\"" << param.locale_string << ")";
 }
 
-class PosixSetLocaleFormatTest
+class PosixLocaleSetFormatTest
     : public ::testing::TestWithParam<LocaleFormatParam> {};
 
-class PosixSetLocaleAlternativeFormatTest
+class PosixLocaleSetAlternativeFormatTest
     : public ::testing::TestWithParam<LocaleFormatParam> {};
 
-TEST_P(PosixSetLocaleFormatTest, HandlesLocaleString) {
+TEST_P(PosixLocaleSetFormatTest, HandlesLocaleString) {
   ScopedLocale scoped_locale;
   const auto& param = GetParam();
 
@@ -235,7 +235,7 @@ TEST_P(PosixSetLocaleFormatTest, HandlesLocaleString) {
   }
 }
 
-TEST_P(PosixSetLocaleAlternativeFormatTest, HandlesLocaleStringWithCodeSet) {
+TEST_P(PosixLocaleSetAlternativeFormatTest, HandlesLocaleStringWithCodeSet) {
   ScopedLocale scoped_locale;
   const auto& param = GetParam();
 
@@ -249,7 +249,7 @@ TEST_P(PosixSetLocaleAlternativeFormatTest, HandlesLocaleStringWithCodeSet) {
 }
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-TEST_P(PosixSetLocaleAlternativeFormatTest, HandlesLocaleStringInBcp47Format) {
+TEST_P(PosixLocaleSetAlternativeFormatTest, HandlesLocaleStringInBcp47Format) {
   ScopedLocale scoped_locale;
   const auto& param = GetParam();
 
@@ -270,7 +270,7 @@ TEST_P(PosixSetLocaleAlternativeFormatTest, HandlesLocaleStringInBcp47Format) {
 }
 #endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
-TEST(PosixLocaleTest, InvalidLocaleFormat) {
+TEST(PosixLocaleSetTest, InvalidLocaleFormat) {
   ScopedLocale scoped_locale;
   const char* result = setlocale(LC_ALL, "invalid-locale");
   EXPECT_EQ(nullptr, result);
@@ -395,14 +395,14 @@ std::string GetLocaleTestName(
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    PosixLocaleFormatTests,
-    PosixSetLocaleFormatTest,
+    PosixLocaleSetFormatTests,
+    PosixLocaleSetFormatTest,
     ::testing::Concat(::testing::ValuesIn(kSpecialLocaleFormats),
                       ::testing::ValuesIn(kLocaleFormats)),
     GetLocaleTestName);
 
-INSTANTIATE_TEST_SUITE_P(PosixLocaleAlternativeFormatTests,
-                         PosixSetLocaleAlternativeFormatTest,
+INSTANTIATE_TEST_SUITE_P(PosixLocaleSetAlternativeFormatTests,
+                         PosixLocaleSetAlternativeFormatTest,
                          ::testing::ValuesIn(kLocaleFormats),
                          GetLocaleTestName);
 

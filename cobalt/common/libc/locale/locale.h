@@ -26,6 +26,7 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base);
 locale_t uselocale(locale_t newloc);
 void freelocale(locale_t loc);
 struct lconv* localeconv(void);
+locale_t duplocale(locale_t loc);
 
 #ifdef __cplusplus
 }  // extern "C"
