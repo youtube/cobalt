@@ -15,6 +15,7 @@
 #include "starboard/android/shared/runtime_resource_overlay.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 
@@ -25,8 +26,9 @@ SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
   JniEnvExt* env = JniEnvExt::Get();
-  jobject resource_overlay = env->CallStarboardObjectMethodOrAbort(
-      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
+  jobject resource_overlay = env->CallObjectMethodOrAbort(
+      JNIState::GetStarboardBridge(), "getResourceOverlay",
+      "()Ldev/cobalt/coat/ResourceOverlay;");
 
   // Retrieve all Runtime Resource Overlay variables during initialization, so
   // synchronization isn't needed on access.

@@ -17,6 +17,7 @@
 #include <string>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
@@ -91,9 +92,9 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
 
   JniEnvExt* env = JniEnvExt::Get();
 
-  ScopedLocalJavaRef<jobject> j_caption_settings(
-      env->CallStarboardObjectMethodOrAbort(
-          "getCaptionSettings", "()Ldev/cobalt/coat/CaptionSettings;"));
+  ScopedLocalJavaRef<jobject> j_caption_settings(env->CallObjectMethodOrAbort(
+      JNIState::GetStarboardBridge(), "getCaptionSettings",
+      "()Ldev/cobalt/coat/CaptionSettings;"));
 
   jfloat font_scale =
       env->GetFloatFieldOrAbort(j_caption_settings.Get(), "fontScale", "F");

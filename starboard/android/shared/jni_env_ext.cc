@@ -91,10 +91,6 @@ JniEnvExt* JniEnvExt::Get() {
   return static_cast<JniEnvExt*>(env);
 }
 
-jobject JniEnvExt::GetStarboardBridge() {
-  return JNIState::GetStarboardBridge();
-}
-
 jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   // Convert the JNI FindClass name with slashes to the "binary name" with dots
   // for ClassLoader.loadClass().

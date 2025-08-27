@@ -37,8 +37,7 @@ namespace starboard::android::shared {
 // calling JNI methods, so any JNIEnv method can be called directly on this.
 //
 // There are convenience methods to lookup and call Java methods on object
-// instances in a single step, with even simpler methods to call Java methods on
-// the StarboardBridge.
+// instances in a single step.
 struct JniEnvExt : public JNIEnv {
   // Warning: use __android_log_write for logging in this file to avoid infinite
   // recursion.
@@ -51,9 +50,6 @@ struct JniEnvExt : public JNIEnv {
 
   // Returns the thread-specific instance of JniEnvExt.
   static JniEnvExt* Get();
-
-  // Returns the StarboardBridge object.
-  jobject GetStarboardBridge();
 
   // Lookup the class of an object and find a field in it.
   jfieldID GetStaticFieldIDOrAbort(jclass clazz,
@@ -176,7 +172,6 @@ struct JniEnvExt : public JNIEnv {
 // Convenience methods to lookup and read a field or call a method all at once:
 // Get[Type]FieldOrAbort() takes a jobject of an instance.
 // Call[Type]MethodOrAbort() takes a jobject of an instance.
-// CallStarboard[Type]MethodOrAbort() to call methods on the StarboardBridge.
 #define X(_jtype, _jname)                                                      \
   _jtype Get##_jname##FieldOrAbort(jobject obj, const char* name,              \
                                    const char* sig) {                          \
@@ -206,17 +201,6 @@ struct JniEnvExt : public JNIEnv {
                                      const char* sig, ...) {                   \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
-    _jtype result = Call##_jname##MethodVOrAbort(                              \
-        obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
-    va_end(argp);                                                              \
-    return result;                                                             \
-  }                                                                            \
-                                                                               \
-  _jtype CallStarboard##_jname##MethodOrAbort(const char* name,                \
-                                              const char* sig, ...) {          \
-    va_list argp;                                                              \
-    va_start(argp, sig);                                                       \
-    jobject obj = GetStarboardBridge();                                        \
     _jtype result = Call##_jname##MethodVOrAbort(                              \
         obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
     va_end(argp);                                                              \
@@ -281,22 +265,6 @@ struct JniEnvExt : public JNIEnv {
   void CallVoidMethodVOrAbort(jobject obj, jmethodID methodID, va_list args) {
     CallVoidMethodV(obj, methodID, args);
     AbortOnException();
-  }
-
-  void CallStarboardVoidMethod(const char* name, const char* sig, ...) {
-    va_list argp;
-    va_start(argp, sig);
-    jobject obj = GetStarboardBridge();
-    CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
-    va_end(argp);
-  }
-
-  void CallStarboardVoidMethodOrAbort(const char* name, const char* sig, ...) {
-    va_list argp;
-    va_start(argp, sig);
-    jobject obj = GetStarboardBridge();
-    CallVoidMethodVOrAbort(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
-    va_end(argp);
   }
 
   void CallStaticVoidMethod(const char* class_name,
