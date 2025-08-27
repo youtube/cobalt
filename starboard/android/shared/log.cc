@@ -27,8 +27,6 @@
 #include "starboard/shared/starboard/log_mutex.h"
 #include "starboard/thread.h"
 
-using starboard::android::shared::ScopedLocalJavaRef;
-
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;
   switch (priority) {

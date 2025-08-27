@@ -23,11 +23,8 @@
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 
+namespace starboard::android::shared {
 namespace {
-
-using starboard::android::shared::JniExt;
-using starboard::android::shared::JNIState;
-using starboard::android::shared::ScopedLocalJavaRef;
 
 // A singleton class to hold a locale string
 class LocaleInfo {
@@ -47,7 +44,8 @@ class LocaleInfo {
 
 SB_ONCE_INITIALIZE_FUNCTION(LocaleInfo, GetLocale)
 }  // namespace
+}  // namespace starboard::android::shared
 
 const char* SbSystemGetLocaleId() {
-  return GetLocale()->locale_id.c_str();
+  return starboard::android::shared::GetLocale()->locale_id.c_str();
 }

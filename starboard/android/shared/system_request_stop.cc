@@ -18,7 +18,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 
-using starboard::android::shared::JniExt;
+using starboard::android::shared::JniCallVoidMethodOrAbort;
 using starboard::android::shared::JNIState;
 
 void SbSystemRequestStop(int error_level) {

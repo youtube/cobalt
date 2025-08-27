@@ -32,7 +32,7 @@ pthread_key_t g_tls_key = 0;
 
 void Destroy(void* value) {
   if (value != NULL) {
-    starboard::android::shared::JniExt::OnThreadShutdown();
+    starboard::android::shared::JniOnThreadShutdown();
   }
 }
 
@@ -43,7 +43,7 @@ namespace starboard::android::shared {
 // Warning: use __android_log_write for logging in this file.
 
 // static
-void JniExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
+void JniInitialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
@@ -51,8 +51,8 @@ void JniExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
-  JNIState::SetApplicationClassLoader(JniExt::ConvertLocalRefToGlobalRef(
-      env, JniExt::CallObjectMethodOrAbort(
+  JNIState::SetApplicationClassLoader(JniConvertLocalRefToGlobalRef(
+      env, JniCallObjectMethodOrAbort(
                env, env->GetObjectClass(starboard_bridge), "getClassLoader",
                "()Ljava/lang/ClassLoader;")));
 
@@ -61,7 +61,7 @@ void JniExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
 }
 
 // static
-void JniExt::OnThreadShutdown() {
+void JniOnThreadShutdown() {
   // We must call DetachCurrentThread() before exiting, if we have ever
   // previously called AttachCurrentThread() on it.
   //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
@@ -71,216 +71,217 @@ void JniExt::OnThreadShutdown() {
   }
 }
 
-jfieldID JniExt::GetStaticFieldIDOrAbort(JNIEnv* env,
-                                         jclass clazz,
-                                         const char* name,
-                                         const char* sig) {
+jfieldID JniGetStaticFieldIDOrAbort(JNIEnv* env,
+                                    jclass clazz,
+                                    const char* name,
+                                    const char* sig) {
   SB_CHECK(env);
   jfieldID field = env->GetStaticFieldID(clazz, name, sig);
-  AbortOnException(env);
+  JniAbortOnException(env);
   return field;
 }
 
-jfieldID JniExt::GetFieldIDOrAbort(JNIEnv* env,
-                                   jobject obj,
-                                   const char* name,
-                                   const char* sig) {
+jfieldID JniGetFieldIDOrAbort(JNIEnv* env,
+                              jobject obj,
+                              const char* name,
+                              const char* sig) {
   SB_CHECK(env);
   jclass clazz = env->GetObjectClass(obj);
-  AbortOnException(env);
+  JniAbortOnException(env);
   jfieldID field = env->GetFieldID(clazz, name, sig);
-  AbortOnException(env);
+  JniAbortOnException(env);
   env->DeleteLocalRef(clazz);
   return field;
 }
 
-jint JniExt::GetEnumValueOrAbort(JNIEnv* env, jclass clazz, const char* name) {
+jint JniGetEnumValueOrAbort(JNIEnv* env, jclass clazz, const char* name) {
   SB_CHECK(env);
-  jfieldID field = GetStaticFieldIDOrAbort(env, clazz, name, "I");
+  jfieldID field = JniGetStaticFieldIDOrAbort(env, clazz, name, "I");
   jint enum_value = env->GetStaticIntField(clazz, field);
-  AbortOnException(env);
+  JniAbortOnException(env);
   return enum_value;
 }
 
-jmethodID JniExt::GetObjectMethodIDOrAbort(JNIEnv* env,
-                                           jobject obj,
-                                           const char* name,
-                                           const char* sig) {
+jmethodID JniGetObjectMethodIDOrAbort(JNIEnv* env,
+                                      jobject obj,
+                                      const char* name,
+                                      const char* sig) {
   SB_CHECK(env);
   jclass clazz = env->GetObjectClass(obj);
-  AbortOnException(env);
+  JniAbortOnException(env);
   jmethodID method_id = env->GetMethodID(clazz, name, sig);
-  AbortOnException(env);
+  JniAbortOnException(env);
   env->DeleteLocalRef(clazz);
   return method_id;
 }
 
-jmethodID JniExt::GetStaticMethodIDOrAbort(JNIEnv* env,
-                                           jclass clazz,
-                                           const char* name,
-                                           const char* sig) {
+jmethodID JniGetStaticMethodIDOrAbort(JNIEnv* env,
+                                      jclass clazz,
+                                      const char* name,
+                                      const char* sig) {
   SB_CHECK(env);
   jmethodID method = env->GetStaticMethodID(clazz, name, sig);
-  AbortOnException(env);
+  JniAbortOnException(env);
   return method;
 }
 
-jobject JniExt::GetObjectArrayElementOrAbort(JNIEnv* env,
-                                             jobjectArray array,
-                                             jsize index) {
+jobject JniGetObjectArrayElementOrAbort(JNIEnv* env,
+                                        jobjectArray array,
+                                        jsize index) {
   SB_CHECK(env);
   jobject result = env->GetObjectArrayElement(array, index);
-  AbortOnException(env);
+  JniAbortOnException(env);
   return result;
 }
 
-jclass JniExt::FindClassExtOrAbort(JNIEnv* env, const char* name) {
+jclass JniFindClassExtOrAbort(JNIEnv* env, const char* name) {
   // Convert the JNI FindClass name with slashes to the "binary name" with dots
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
   jstring jname = env->NewStringUTF(dot_name.c_str());
-  AbortOnException(env);
-  jobject clazz_obj = CallObjectMethodOrAbort(
+  JniAbortOnException(env);
+  jobject clazz_obj = JniCallObjectMethodOrAbort(
       env, JNIState::GetApplicationClassLoader(), "loadClass",
       "(Ljava/lang/String;)Ljava/lang/Class;", jname);
   env->DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
 }
 
-jclass JniExt::FindClassOrAbort(JNIEnv* env, const char* name) {
+jclass JniFindClassOrAbort(JNIEnv* env, const char* name) {
   SB_CHECK(env);
   jclass result = env->FindClass(name);
-  AbortOnException(env);
+  JniAbortOnException(env);
   return result;
 }
 
-jobject JniExt::NewObjectOrAbort(JNIEnv* env,
-                                 const char* class_name,
-                                 const char* sig,
-                                 ...) {
+jobject JniNewObjectOrAbort(JNIEnv* env,
+                            const char* class_name,
+                            const char* sig,
+                            ...) {
   SB_CHECK(env);
   va_list argp;
   va_start(argp, sig);
-  jclass clazz = FindClassExtOrAbort(env, class_name);
+  jclass clazz = JniFindClassExtOrAbort(env, class_name);
   jmethodID methodID = env->GetMethodID(clazz, "<init>", sig);
-  AbortOnException(env);
+  JniAbortOnException(env);
   jobject result = env->NewObjectV(clazz, methodID, argp);
-  AbortOnException(env);
+  JniAbortOnException(env);
   env->DeleteLocalRef(clazz);
   va_end(argp);
   return result;
 }
 
-jstring JniExt::NewStringStandardUTFOrAbort(JNIEnv* env, const char* bytes) {
+jstring JniNewStringStandardUTFOrAbort(JNIEnv* env, const char* bytes) {
   SB_CHECK(env);
   const jstring charset = env->NewStringUTF("UTF-8");
-  AbortOnException(env);
-  const jbyteArray byte_array = NewByteArrayFromRaw(
+  JniAbortOnException(env);
+  const jbyteArray byte_array = JniNewByteArrayFromRaw(
       env, reinterpret_cast<const jbyte*>(bytes), (bytes ? strlen(bytes) : 0U));
-  AbortOnException(env);
-  jstring result = static_cast<jstring>(NewObjectOrAbort(
+  JniAbortOnException(env);
+  jstring result = static_cast<jstring>(JniNewObjectOrAbort(
       env, "java/lang/String", "([BLjava/lang/String;)V", byte_array, charset));
   env->DeleteLocalRef(byte_array);
   env->DeleteLocalRef(charset);
   return result;
 }
 
-std::string JniExt::GetStringStandardUTFOrAbort(JNIEnv* env, jstring str) {
+std::string JniGetStringStandardUTFOrAbort(JNIEnv* env, jstring str) {
   SB_CHECK(env);
   if (str == nullptr) {
     return std::string();
   }
   const jstring charset = env->NewStringUTF("UTF-8");
-  AbortOnException(env);
-  const jbyteArray byte_array = static_cast<jbyteArray>(CallObjectMethodOrAbort(
-      env, str, "getBytes", "(Ljava/lang/String;)[B", charset));
+  JniAbortOnException(env);
+  const jbyteArray byte_array =
+      static_cast<jbyteArray>(JniCallObjectMethodOrAbort(
+          env, str, "getBytes", "(Ljava/lang/String;)[B", charset));
   jsize array_length = env->GetArrayLength(byte_array);
-  AbortOnException(env);
+  JniAbortOnException(env);
   void* bytes = env->GetPrimitiveArrayCritical(byte_array, nullptr);
-  AbortOnException(env);
+  JniAbortOnException(env);
   std::string result(static_cast<const char*>(bytes), array_length);
   env->ReleasePrimitiveArrayCritical(byte_array, bytes, JNI_ABORT);
-  AbortOnException(env);
+  JniAbortOnException(env);
   env->DeleteLocalRef(byte_array);
   env->DeleteLocalRef(charset);
   return result;
 }
 
-void JniExt::CallVoidMethod(JNIEnv* env,
-                            jobject obj,
-                            const char* name,
-                            const char* sig,
-                            ...) {
+void JniCallVoidMethod(JNIEnv* env,
+                       jobject obj,
+                       const char* name,
+                       const char* sig,
+                       ...) {
   SB_CHECK(env);
   va_list argp;
   va_start(argp, sig);
-  env->CallVoidMethodV(obj, GetObjectMethodIDOrAbort(env, obj, name, sig),
+  env->CallVoidMethodV(obj, JniGetObjectMethodIDOrAbort(env, obj, name, sig),
                        argp);
   va_end(argp);
 }
 
-void JniExt::CallVoidMethodOrAbort(JNIEnv* env,
-                                   jobject obj,
-                                   const char* name,
-                                   const char* sig,
-                                   ...) {
+void JniCallVoidMethodOrAbort(JNIEnv* env,
+                              jobject obj,
+                              const char* name,
+                              const char* sig,
+                              ...) {
   SB_CHECK(env);
   va_list argp;
   va_start(argp, sig);
-  CallVoidMethodVOrAbort(env, obj,
-                         GetObjectMethodIDOrAbort(env, obj, name, sig), argp);
+  JniCallVoidMethodVOrAbort(
+      env, obj, JniGetObjectMethodIDOrAbort(env, obj, name, sig), argp);
   va_end(argp);
 }
 
-void JniExt::CallVoidMethodVOrAbort(JNIEnv* env,
-                                    jobject obj,
-                                    jmethodID methodID,
-                                    va_list args) {
+void JniCallVoidMethodVOrAbort(JNIEnv* env,
+                               jobject obj,
+                               jmethodID methodID,
+                               va_list args) {
   SB_CHECK(env);
   env->CallVoidMethodV(obj, methodID, args);
-  AbortOnException(env);
+  JniAbortOnException(env);
 }
 
-void JniExt::CallStaticVoidMethod(JNIEnv* env,
-                                  const char* class_name,
-                                  const char* method_name,
-                                  const char* sig,
-                                  ...) {
+void JniCallStaticVoidMethod(JNIEnv* env,
+                             const char* class_name,
+                             const char* method_name,
+                             const char* sig,
+                             ...) {
   SB_CHECK(env);
   va_list argp;
   va_start(argp, sig);
-  jclass clazz = FindClassExtOrAbort(env, class_name);
+  jclass clazz = JniFindClassExtOrAbort(env, class_name);
   env->CallStaticVoidMethodV(
-      clazz, GetStaticMethodIDOrAbort(env, clazz, method_name, sig), argp);
+      clazz, JniGetStaticMethodIDOrAbort(env, clazz, method_name, sig), argp);
   env->DeleteLocalRef(clazz);
   va_end(argp);
 }
 
-void JniExt::CallStaticVoidMethodOrAbort(JNIEnv* env,
-                                         const char* class_name,
-                                         const char* method_name,
-                                         const char* sig,
-                                         ...) {
+void JniCallStaticVoidMethodOrAbort(JNIEnv* env,
+                                    const char* class_name,
+                                    const char* method_name,
+                                    const char* sig,
+                                    ...) {
   SB_CHECK(env);
   va_list argp;
   va_start(argp, sig);
-  jclass clazz = FindClassExtOrAbort(env, class_name);
+  jclass clazz = JniFindClassExtOrAbort(env, class_name);
   env->CallStaticVoidMethodV(
-      clazz, GetStaticMethodIDOrAbort(env, clazz, method_name, sig), argp);
-  AbortOnException(env);
+      clazz, JniGetStaticMethodIDOrAbort(env, clazz, method_name, sig), argp);
+  JniAbortOnException(env);
   env->DeleteLocalRef(clazz);
   va_end(argp);
 }
 
-jobject JniExt::ConvertLocalRefToGlobalRef(JNIEnv* env, jobject local) {
+jobject JniConvertLocalRefToGlobalRef(JNIEnv* env, jobject local) {
   SB_CHECK(env);
   jobject global = env->NewGlobalRef(local);
   env->DeleteLocalRef(local);
   return global;
 }
 
-void JniExt::AbortOnException(JNIEnv* env) {
+void JniAbortOnException(JNIEnv* env) {
   SB_CHECK(env);
   if (!env->ExceptionCheck()) {
     return;
