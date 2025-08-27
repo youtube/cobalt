@@ -825,9 +825,6 @@ void ApplicationX11::PlayerSetBounds(SbPlayer player,
                                      int height) {
   std::lock_guard lock(frame_mutex_);
 
-  bool player_exists =
-      next_video_bounds_.find(player) != next_video_bounds_.end();
-
   FrameInfo& frame_info = next_video_bounds_[player];
   frame_info.player = player;
   frame_info.z_index = z_index;
@@ -836,13 +833,16 @@ void ApplicationX11::PlayerSetBounds(SbPlayer player,
   frame_info.width = width;
   frame_info.height = height;
 
-  if (player_exists) {
-    return;
+  // The bounds should only take effect once the UI frame is submitted. But we
+  // also apply the bounds immediately so that there is no flicker.
+  for (auto it = current_video_bounds_.begin();
+       it != current_video_bounds_.end(); ++it) {
+    if (it->player == player) {
+      current_video_bounds_.erase(it);
+      break;
+    }
   }
 
-  // The bounds should only take effect once the UI frame is submitted.  But we
-  // apply the bounds immediately if it is the first time the bounds for this
-  // player are set.
   auto position = current_video_bounds_.begin();
   while (position != current_video_bounds_.end()) {
     if (frame_info.z_index < position->z_index) {
