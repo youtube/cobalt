@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
@@ -132,19 +133,19 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
-  auto* env = JniEnvExt::Get();
-  j_video_frame_release_time_helper_ = env->NewObjectOrAbort(
-      "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  j_video_frame_release_time_helper_ = JniNewObjectOrAbort(
+      env, "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
   j_video_frame_release_time_helper_ =
-      env->ConvertLocalRefToGlobalRef(j_video_frame_release_time_helper_);
-  env->CallVoidMethod(j_video_frame_release_time_helper_, "enable", "()V");
+      JniConvertLocalRefToGlobalRef(env, j_video_frame_release_time_helper_);
+  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
 }
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
   SB_DCHECK(j_video_frame_release_time_helper_);
-  auto* env = JniEnvExt::Get();
-  env->CallVoidMethod(j_video_frame_release_time_helper_, "disable", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "disable", "()V");
   env->DeleteGlobalRef(j_video_frame_release_time_helper_);
   j_video_frame_release_time_helper_ = nullptr;
 }
@@ -154,9 +155,9 @@ jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
     jlong unadjusted_release_time_ns,
     double playback_rate) {
   SB_DCHECK(j_video_frame_release_time_helper_);
-  auto* env = JniEnvExt::Get();
-  return env->CallLongMethodOrAbort(
-      j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return JniCallLongMethodOrAbort(
+      env, j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }
 

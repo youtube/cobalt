@@ -65,7 +65,7 @@ class ContinuousAudioTrackSink
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
+  int WriteData(JNIEnv* env, const void* buffer, int size);
 
   void ReportError(bool capability_changed, const std::string& error_message);
 

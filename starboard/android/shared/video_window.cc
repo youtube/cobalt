@@ -132,7 +132,7 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
 
   JNIEnv* env = AttachCurrentThread();
   if (!env) {
-    SB_LOG(INFO) << "Tried to clear video window when JniEnvExt was null.";
+    SB_LOG(INFO) << "Tried to clear video window when JNIEnv was null.";
     return;
   }
 

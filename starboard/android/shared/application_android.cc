@@ -81,7 +81,7 @@ ApplicationAndroid::~ApplicationAndroid() {
   starboard_bridge_->ApplicationStopping(env);
 
   // Detaches JNI, no more JNI calls after this.
-  JniEnvExt::OnThreadShutdown();
+  JniOnThreadShutdown();
 }
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -95,16 +95,16 @@ Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfiguratio
 
 extern "C" SB_EXPORT_PLATFORM jstring
 Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
-    JniEnvExt* env,
+    JNIEnv* env,
     jobject jcaller,
     jstring j_mime_type,
     jstring j_key_system) {
   std::string mime_type, key_system;
   if (j_mime_type) {
-    mime_type = env->GetStringStandardUTFOrAbort(j_mime_type);
+    mime_type = JniGetStringStandardUTFOrAbort(env, j_mime_type);
   }
   if (j_key_system) {
-    key_system = env->GetStringStandardUTFOrAbort(j_key_system);
+    key_system = JniGetStringStandardUTFOrAbort(env, j_key_system);
   }
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
@@ -122,7 +122,7 @@ Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
   }
   SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
                << ") --> " << ret;
-  return env->NewStringStandardUTFOrAbort(ret);
+  return JniNewStringStandardUTFOrAbort(env, ret);
 }
 
 }  // namespace starboard::android::shared
