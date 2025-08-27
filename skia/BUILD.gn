@@ -456,7 +456,10 @@ component("skia") {
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h",
     ]
-    deps += ["//third_party/libxml"]
+    deps += [
+      "//starboard/content/fonts:copy_font_data",
+      "//third_party/libxml",
+    ]
   }
 
   if (is_linux && !is_starboard || is_chromeos || is_android) {

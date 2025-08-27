@@ -80,13 +80,16 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
       //     ->CobaltLocalTypefaceCacheSizeInBytes()),
       default_fonts_loaded_event_(base::WaitableEvent::ResetPolicy::MANUAL,
                                   base::WaitableEvent::InitialState::SIGNALED) {
-  //TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
+  // TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
 
   PriorityStyleSetArrayMap priority_fallback_families;
 
   // Cobalt fonts are loaded first.
   {
-    //TRACE_EVENT0("cobalt::renderer", "LoadCobaltFontFamilies");
+    // TRACE_EVENT0("cobalt::renderer", "LoadCobaltFontFamilies");
+    LOG(INFO) << "cobalt_font_config_directory: "
+              << cobalt_font_config_directory;
+    LOG(INFO) << "cobalt_font_files_directory: " << cobalt_font_files_directory;
     ParseConfigAndBuildFamilies(cobalt_font_config_directory,
                                 cobalt_font_files_directory,
                                 &priority_fallback_families);
@@ -95,12 +98,14 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   // Only attempt to load the system font families if the system directories
   // have been populated and if the system font directory is not equal to the
   // cobalt directory.
+  LOG(INFO) << "system_font_config_directory: " << system_font_config_directory;
+  LOG(INFO) << "system_font_files_directory: " << system_font_files_directory;
   if (system_font_config_directory != NULL &&
       *system_font_config_directory != '\0' &&
       system_font_files_directory != NULL &&
       *system_font_files_directory != '\0' &&
       (0 != strcmp(cobalt_font_files_directory, system_font_files_directory))) {
-    //TRACE_EVENT0("cobalt::renderer", "LoadSystemFontFamilies");
+    // TRACE_EVENT0("cobalt::renderer", "LoadSystemFontFamilies");
     ParseConfigAndBuildFamilies(system_font_config_directory,
                                 system_font_files_directory,
                                 &priority_fallback_families);
@@ -118,7 +123,7 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     if (font_extension->GetPathFallbackFontDirectory(fallback_directory.data(),
                                                      kSbFileMaxPath)) {
       LOG(INFO) << "Fallback font directory :" << fallback_directory.data();
-      //TRACE_EVENT0("cobalt::renderer", "LoadCobaltFallbackFontFamilies");
+      // TRACE_EVENT0("cobalt::renderer", "LoadCobaltFallbackFontFamilies");
 
       ParseConfigAndBuildFamilies(fallback_directory.data(),
                                   fallback_directory.data(),
@@ -316,7 +321,8 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamArgs(
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
     std::unique_ptr<SkStreamAsset> stream,
     int face_index) const {
-  //TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onMakeFromStreamIndex()");
+  // TRACE_EVENT0("cobalt::renderer",
+  // "SkFontMgr_Cobalt::onMakeFromStreamIndex()");
   bool is_fixed_pitch;
   SkFontStyle style;
   SkString name;
@@ -335,7 +341,7 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromFile(const char path[],
                                                    int face_index) const {
-  //TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onMakeFromFile()");
+  // TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onMakeFromFile()");
   return makeFromStream(SkStream::MakeFromFile(path), face_index);
 }
 
@@ -374,7 +380,8 @@ void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
     PriorityStyleSetArrayMap* priority_fallback_families) {
   SkTDArray<FontFamilyInfo*> config_font_families;
   {
-    //TRACE_EVENT0("cobalt::renderer", "SkFontConfigParser::GetFontFamilies()");
+    // TRACE_EVENT0("cobalt::renderer",
+    // "SkFontConfigParser::GetFontFamilies()");
     SkFontConfigParser::GetFontFamilies(font_config_directory,
                                         &config_font_families);
   }
@@ -387,7 +394,10 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
     const char* font_files_directory,
     SkTDArray<FontFamilyInfo*>* config_font_families,
     PriorityStyleSetArrayMap* priority_fallback_families) {
-  //TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
+  // TRACE_EVENT0("cobalt::renderer",
+  // "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
+  LOG(INFO) << "Called BuildNameToFamilyMap";
+  LOG(INFO) << "config_font_families size: " << config_font_families->size();
 
   auto command_line = base::CommandLine::ForCurrentProcess();
   SkFontStyleSet_Cobalt::FontFormatSetting font_format =
