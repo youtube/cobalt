@@ -35,7 +35,8 @@ typedef struct CobaltExtensionPlatformServicePrivate {
       delete name;
     }
     if (cobalt_service) {
-      base::android::AttachCurrentThread()->DeleteGlobalRef(cobalt_service);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      env->DeleteGlobalRef(cobalt_service);
     }
   }
 } CobaltExtensionPlatformServicePrivate;
@@ -44,14 +45,14 @@ namespace starboard::android::shared {
 
 namespace {
 
-using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
 
 bool Has(const char* name) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_name(env->NewStringStandardUTFOrAbort(name));
-  jboolean j_has = env->CallBooleanMethodOrAbort(
-      JNIState::GetStarboardBridge(), "hasCobaltService",
+  JNIEnv* env = base::android::AttachCurrentThread();
+  ScopedLocalJavaRef<jstring> j_name(
+      JniExt::NewStringStandardUTFOrAbort(env, name));
+  jboolean j_has = JniExt::CallBooleanMethodOrAbort(
+      env, JNIState::GetStarboardBridge(), "hasCobaltService",
       "(Ljava/lang/String;)Z", j_name.Get());
   return j_has;
 }
@@ -60,7 +61,7 @@ CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   if (!Has(name)) {
     SB_LOG(ERROR) << "Can't open Service " << name;
@@ -69,27 +70,29 @@ CobaltExtensionPlatformService Open(void* context,
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
-  ScopedLocalJavaRef<jstring> j_name(env->NewStringStandardUTFOrAbort(name));
-  jobject cobalt_service = env->CallObjectMethodOrAbort(
-      JNIState::GetStarboardBridge(), "openCobaltService",
+  ScopedLocalJavaRef<jstring> j_name(
+      JniExt::NewStringStandardUTFOrAbort(env, name));
+  jobject cobalt_service = JniExt::CallObjectMethodOrAbort(
+      env, JNIState::GetStarboardBridge(), "openCobaltService",
       "(JLjava/lang/String;)Ldev/cobalt/coat/CobaltService;",
       reinterpret_cast<jlong>(service), j_name.Get());
   if (!cobalt_service) {
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
   }
-  service->cobalt_service = env->ConvertLocalRefToGlobalRef(cobalt_service);
+  service->cobalt_service =
+      JniExt::ConvertLocalRefToGlobalRef(env, cobalt_service);
   return service;
 }
 
 void Close(CobaltExtensionPlatformService service) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(service->cobalt_service, "onClose", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniExt::CallVoidMethodOrAbort(env, service->cobalt_service, "onClose", "()V");
   ScopedLocalJavaRef<jstring> j_name(
-      env->NewStringStandardUTFOrAbort(service->name));
-  env->CallVoidMethodOrAbort(JNIState::GetStarboardBridge(),
-                             "closeCobaltService", "(Ljava/lang/String;)V",
-                             j_name.Get());
+      JniExt::NewStringStandardUTFOrAbort(env, service->name));
+  JniExt::CallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(),
+                                "closeCobaltService", "(Ljava/lang/String;)V",
+                                j_name.Get());
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -102,13 +105,13 @@ void* Send(CobaltExtensionPlatformService service,
   SB_DCHECK(output_length);
   SB_DCHECK(invalid_state);
 
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   ScopedLocalJavaRef<jbyteArray> data_byte_array;
-  data_byte_array.Reset(
-      env->NewByteArrayFromRaw(reinterpret_cast<const jbyte*>(data), length));
+  data_byte_array.Reset(JniExt::NewByteArrayFromRaw(
+      env, reinterpret_cast<const jbyte*>(data), length));
   ScopedLocalJavaRef<jobject> j_response_from_client(
-      static_cast<jbyteArray>(env->CallObjectMethodOrAbort(
-          service->cobalt_service, "receiveFromClient",
+      static_cast<jbyteArray>(JniExt::CallObjectMethodOrAbort(
+          env, service->cobalt_service, "receiveFromClient",
           "([B)Ldev/cobalt/coat/CobaltService$ResponseToClient;",
           data_byte_array.Get())));
   if (!j_response_from_client) {
@@ -116,14 +119,15 @@ void* Send(CobaltExtensionPlatformService service,
     *output_length = 0;
     return 0;
   }
-  *invalid_state = env->GetBooleanFieldOrAbort(j_response_from_client.Get(),
-                                               "invalidState", "Z");
-  ScopedLocalJavaRef<jbyteArray> j_out_data_array(static_cast<jbyteArray>(
-      env->GetObjectFieldOrAbort(j_response_from_client.Get(), "data", "[B")));
-  *output_length = env->env()->GetArrayLength(j_out_data_array.Get());
+  *invalid_state = JniExt::GetBooleanFieldOrAbort(
+      env, j_response_from_client.Get(), "invalidState", "Z");
+  ScopedLocalJavaRef<jbyteArray> j_out_data_array(
+      static_cast<jbyteArray>(JniExt::GetObjectFieldOrAbort(
+          env, j_response_from_client.Get(), "data", "[B")));
+  *output_length = env->GetArrayLength(j_out_data_array.Get());
   char* output = new char[*output_length];
-  env->env()->GetByteArrayRegion(j_out_data_array.Get(), 0, *output_length,
-                                 reinterpret_cast<jbyte*>(output));
+  env->GetByteArrayRegion(j_out_data_array.Get(), 0, *output_length,
+                          reinterpret_cast<jbyte*>(output));
   return output;
 }
 

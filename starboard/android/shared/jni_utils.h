@@ -34,14 +34,18 @@ class ScopedLocalJavaRef {
       : jt_(static_cast<JT>(j_object)) {}
   ~ScopedLocalJavaRef() {
     if (jt_) {
-      base::android::AttachCurrentThread()->DeleteLocalRef(jt_);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      SB_CHECK(env);
+      env->DeleteLocalRef(jt_);
       jt_ = NULL;
     }
   }
   JT Get() const { return jt_; }
   void Reset(jobject j_object) {
     if (jt_) {
-      base::android::AttachCurrentThread()->DeleteLocalRef(jt_);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      SB_CHECK(env);
+      env->DeleteLocalRef(jt_);
     }
     jt_ = static_cast<JT>(j_object);
   }

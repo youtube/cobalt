@@ -32,19 +32,18 @@ pthread_key_t g_tls_key = 0;
 
 void Destroy(void* value) {
   if (value != NULL) {
-    starboard::android::shared::JniOnThreadShutdown();
+    starboard::android::shared::JniExt::OnThreadShutdown();
   }
 }
 
 }  // namespace
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Warning: use __android_log_write for logging in this file.
 
-void JniInitialize(JNIEnv* env, jobject starboard_bridge) {
+// static
+void JniExt::Initialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
@@ -52,8 +51,8 @@ void JniInitialize(JNIEnv* env, jobject starboard_bridge) {
   SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
   SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
-  JNIState::SetApplicationClassLoader(JniConvertLocalRefToGlobalRef(
-      env, JniCallObjectMethodOrAbort(
+  JNIState::SetApplicationClassLoader(JniExt::ConvertLocalRefToGlobalRef(
+      env, JniExt::CallObjectMethodOrAbort(
                env, env->GetObjectClass(starboard_bridge), "getClassLoader",
                "()Ljava/lang/ClassLoader;")));
 
@@ -61,7 +60,8 @@ void JniInitialize(JNIEnv* env, jobject starboard_bridge) {
   JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));
 }
 
-void JniOnThreadShutdown() {
+// static
+void JniExt::OnThreadShutdown() {
   // We must call DetachCurrentThread() before exiting, if we have ever
   // previously called AttachCurrentThread() on it.
   //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
@@ -71,20 +71,18 @@ void JniOnThreadShutdown() {
   }
 }
 
-jclass JniFindClassExtOrAbort(JNIEnv* env, const char* name) {
+jclass JniExt::FindClassExtOrAbort(JNIEnv* env, const char* name) {
   // Convert the JNI FindClass name with slashes to the "binary name" with dots
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
-  jstring jname = env->NewStringUTF(dot_name.c_c_str());
-  JniAbortOnException(env);
-  jobject clazz_obj = JniCallObjectMethodOrAbort(
+  jstring jname = env->NewStringUTF(dot_name.c_str());
+  AbortOnException(env);
+  jobject clazz_obj = CallObjectMethodOrAbort(
       env, JNIState::GetApplicationClassLoader(), "loadClass",
       "(Ljava/lang/String;)Ljava/lang/Class;", jname);
   env->DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

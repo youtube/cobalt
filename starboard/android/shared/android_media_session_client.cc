@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -26,7 +27,6 @@
 namespace starboard::android::shared {
 namespace {
 
-using ::starboard::android::shared::JniEnvExt;
 using ::starboard::android::shared::ScopedLocalJavaRef;
 
 // These constants are from android.media.session.PlaybackState
@@ -167,7 +167,7 @@ void UpdateActiveSessionPlatformPlaybackState(
 
 void OnMediaSessionStateChanged(
     const CobaltExtensionMediaSessionState session_state) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   jint playback_state = CobaltExtensionPlaybackStateToPlaybackState(
       session_state.actual_playback_state);
@@ -183,39 +183,44 @@ void OnMediaSessionStateChanged(
   if (session_state.metadata != NULL) {
     CobaltExtensionMediaMetadata* media_metadata(session_state.metadata);
 
-    j_title.Reset(env->NewStringStandardUTFOrAbort(media_metadata->title));
-    j_artist.Reset(env->NewStringStandardUTFOrAbort(media_metadata->artist));
-    j_album.Reset(env->NewStringStandardUTFOrAbort(media_metadata->album));
+    j_title.Reset(
+        JniExt::NewStringStandardUTFOrAbort(env, media_metadata->title));
+    j_artist.Reset(
+        JniExt::NewStringStandardUTFOrAbort(env, media_metadata->artist));
+    j_album.Reset(
+        JniExt::NewStringStandardUTFOrAbort(env, media_metadata->album));
 
     size_t artwork_count = media_metadata->artwork_count;
     if (artwork_count > 0) {
       CobaltExtensionMediaImage* artwork(media_metadata->artwork);
       ScopedLocalJavaRef<jclass> media_image_class(
-          env->FindClassExtOrAbort("dev/cobalt/coat/MediaImage"));
-      jmethodID media_image_constructor = env->env()->GetMethodID(
-          media_image_class.Get(), "<init>",
-          "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
-      env->AbortOnException();
+          JniExt::FindClassExtOrAbort(env, "dev/cobalt/coat/MediaImage"));
+      jmethodID media_image_constructor =
+          env->GetMethodID(media_image_class.Get(), "<init>",
+                           "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/"
+                           "String;)V");
+      JniExt::AbortOnException(env);
 
-      j_artwork.Reset(static_cast<jobjectArray>(env->env()->NewObjectArray(
-          artwork_count, media_image_class.Get(), NULL)));
-      env->AbortOnException();
+      j_artwork.Reset(static_cast<jobjectArray>(
+          env->NewObjectArray(artwork_count, media_image_class.Get(), NULL)));
+      JniExt::AbortOnException(env);
 
       ScopedLocalJavaRef<jstring> j_src;
       ScopedLocalJavaRef<jstring> j_sizes;
       ScopedLocalJavaRef<jstring> j_type;
       for (size_t i = 0; i < artwork_count; i++) {
         const CobaltExtensionMediaImage& media_image(artwork[i]);
-        j_src.Reset(env->NewStringStandardUTFOrAbort(media_image.src));
-        j_sizes.Reset(env->NewStringStandardUTFOrAbort(media_image.size));
-        j_type.Reset(env->NewStringStandardUTFOrAbort(media_image.type));
+        j_src.Reset(JniExt::NewStringStandardUTFOrAbort(env, media_image.src));
+        j_sizes.Reset(
+            JniExt::NewStringStandardUTFOrAbort(env, media_image.size));
+        j_type.Reset(
+            JniExt::NewStringStandardUTFOrAbort(env, media_image.type));
 
-        ScopedLocalJavaRef<jobject> j_media_image(env->env()->NewObject(
-            media_image_class.Get(), media_image_constructor, j_src.Get(),
-            j_sizes.Get(), j_type.Get()));
+        ScopedLocalJavaRef<jobject> j_media_image(
+            env->NewObject(media_image_class.Get(), media_image_constructor,
+                           j_src.Get(), j_sizes.Get(), j_type.Get()));
 
-        env->env()->SetObjectArrayElement(j_artwork.Get(), i,
-                                          j_media_image.Get());
+        env->SetObjectArrayElement(j_artwork.Get(), i, j_media_image.Get());
       }
     }
   }
@@ -232,8 +237,8 @@ void OnMediaSessionStateChanged(
     durationInMilliseconds = session_state.duration / 1000;
   }
 
-  env->CallVoidMethodOrAbort(
-      JNIState::GetStarboardBridge(), "updateMediaSession",
+  JniExt::CallVoidMethodOrAbort(
+      env, JNIState::GetStarboardBridge(), "updateMediaSession",
       "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
       "[Ldev/cobalt/coat/MediaImage;J)V",
       playback_state, playback_state_actions,
@@ -268,9 +273,9 @@ void DestroyMediaSessionClientCallback() {
 
   pthread_mutex_unlock(&mutex);
 
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(JNIState::GetStarboardBridge(),
-                             "deactivateMediaSession", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniExt::CallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(),
+                                "deactivateMediaSession", "()V");
 }
 
 }  // namespace

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -136,6 +137,7 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
+  JNIEnv* env = base::android::AttachCurrentThread();
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
@@ -144,7 +146,6 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
-  JNIEnv* env = AttachCurrentThread();
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;

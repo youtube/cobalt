@@ -62,12 +62,11 @@ std::vector<std::string> GetArgs() {
 
 }  // namespace
 
-// TODO: b/372559388 - Consolidate this function when fully deprecate
-// JniEnvExt.
 jboolean JNI_StarboardBridge_InitJNI(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_starboard_bridge) {
-  JniEnvExt::Initialize(env, j_starboard_bridge.obj());
+  SB_CHECK(env);
+  JniExt::Initialize(env, j_starboard_bridge.obj());
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());

@@ -31,29 +31,23 @@
 namespace starboard::android::shared {
 namespace {
 
-using base::android::AttachCurrentThread;
-using starboard::android::shared::JniEnvExt;
-
-jobject CreateSurfaceTexture(int gl_texture_id) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-
-  jobject local_surface_texture = env->NewObjectOrAbort(
-      "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
+jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
+  jobject local_surface_texture = JniExt::NewObjectOrAbort(
+      env, "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
 
   jobject global_surface_texture =
-      env->ConvertLocalRefToGlobalRef(local_surface_texture);
+      JniExt::ConvertLocalRefToGlobalRef(env, local_surface_texture);
 
   return global_surface_texture;
 }
 
-jobject CreateSurfaceFromSurfaceTexture(jobject surface_texture) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-
-  jobject local_surface = env->NewObjectOrAbort(
-      "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
+jobject CreateSurfaceFromSurfaceTexture(JNIEnv* env, jobject surface_texture) {
+  jobject local_surface = JniExt::NewObjectOrAbort(
+      env, "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
       surface_texture);
 
-  jobject global_surface = env->ConvertLocalRefToGlobalRef(local_surface);
+  jobject global_surface =
+      JniExt::ConvertLocalRefToGlobalRef(env, local_surface);
 
   return global_surface;
 }
@@ -81,7 +75,7 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 DecodeTarget::~DecodeTarget() {
   ANativeWindow_release(native_window_);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = base::android::AttachCurrentThread();
   env->DeleteGlobalRef(surface_);
   env->DeleteGlobalRef(surface_texture_);
 
@@ -106,14 +100,15 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
+  JNIEnv* env = base::android::AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
-  surface_texture_ = CreateSurfaceTexture(texture);
+  surface_texture_ = CreateSurfaceTexture(env, texture);
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  surface_ = CreateSurfaceFromSurfaceTexture(surface_texture_);
+  surface_ = CreateSurfaceFromSurfaceTexture(env, surface_texture_);
 
-  native_window_ = ANativeWindow_fromSurface(AttachCurrentThread(), surface_);
+  native_window_ = ANativeWindow_fromSurface(env, surface_);
 
   // Setup our publicly accessible decode target information.
   info_.format = kSbDecodeTargetFormat1PlaneRGBA;

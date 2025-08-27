@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/configuration.h"
 
@@ -42,56 +43,56 @@ const int kMU8Length = SB_ARRAY_SIZE(kMU8) - 1;
 // see: https://github.com/android-ndk/ndk/issues/283
 
 TEST(JniEnvExtTest, NewStringStandardUTF) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  jstring j_str = env->NewStringStandardUTFOrAbort(kU8);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jstring j_str = JniExt::NewStringStandardUTFOrAbort(env, kU8);
 
-  EXPECT_EQ(kU16Length, env->env()->GetStringLength(j_str));
-  const jchar* u16_chars = env->env()->GetStringChars(j_str, NULL);
+  EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
+  const jchar* u16_chars = env->GetStringChars(j_str, NULL);
   std::u16string u16_string(reinterpret_cast<const char16_t*>(u16_chars),
                             kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
-  env->env()->ReleaseStringChars(j_str, u16_chars);
+  env->ReleaseStringChars(j_str, u16_chars);
 }
 
 TEST(JniEnvExtTest, NewStringModifiedUTF) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  jstring j_str = env->env()->NewStringUTF(kMU8);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jstring j_str = env->NewStringUTF(kMU8);
 
-  EXPECT_EQ(kU16Length, env->env()->GetStringLength(j_str));
-  const jchar* u16_chars = env->env()->GetStringChars(j_str, NULL);
+  EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
+  const jchar* u16_chars = env->GetStringChars(j_str, NULL);
   std::u16string u16_string(reinterpret_cast<const char16_t*>(u16_chars),
                             kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
-  env->env()->ReleaseStringChars(j_str, u16_chars);
+  env->ReleaseStringChars(j_str, u16_chars);
 }
 
 TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
-  jstring j_str = env->NewStringStandardUTFOrAbort("");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jstring j_str = JniExt::NewStringStandardUTFOrAbort(env, "");
 
-  EXPECT_EQ(0, env->env()->GetStringLength(j_str));
+  EXPECT_EQ(0, env->GetStringLength(j_str));
 }
 
 TEST(JniEnvExtTest, GetStringStandardUTF) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   jstring j_str =
-      env->env()->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
+      env->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
 
-  std::string str = env->GetStringStandardUTFOrAbort(j_str);
+  std::string str = JniExt::GetStringStandardUTFOrAbort(env, j_str);
   EXPECT_EQ(kU8Length, str.length());
   EXPECT_EQ(std::string(kU8), str);
-  env->env()->DeleteLocalRef(j_str);
+  env->DeleteLocalRef(j_str);
 }
 
 TEST(JniEnvExtTest, EmptyGetStringStandardUTF) {
-  std::unique_ptr<JniEnvExt> env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   jchar empty[] = {};
-  jstring j_str = env->env()->NewString(empty, 0);
+  jstring j_str = env->NewString(empty, 0);
 
-  std::string str = env->GetStringStandardUTFOrAbort(j_str);
+  std::string str = JniExt::GetStringStandardUTFOrAbort(env, j_str);
   EXPECT_EQ(0, str.length());
   EXPECT_EQ(std::string(), str);
-  env->env()->DeleteLocalRef(j_str);
+  env->DeleteLocalRef(j_str);
 }
 
 }  // namespace
