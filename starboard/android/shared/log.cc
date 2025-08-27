@@ -19,7 +19,6 @@
 #include <jni.h>
 #include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
@@ -27,9 +26,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/log_mutex.h"
 #include "starboard/thread.h"
-
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
 
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;

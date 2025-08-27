@@ -25,6 +25,7 @@
 #include <limits>
 #include <list>
 
+#include "base/android/jni_android.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -714,9 +715,9 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       }
       j_output_surface = decode_target->surface();
 
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target->surface_texture(),
-                                 "setOnFrameAvailableListener", "(J)V", this);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      JniCallVoidMethodOrAbort(env, decode_target->surface_texture(),
+                               "setOnFrameAvailableListener", "(J)V", this);
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -789,9 +790,9 @@ void VideoDecoder::TeardownCodec() {
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target_->surface_texture(),
-                                 "removeOnFrameAvailableListener", "()V");
+      JNIEnv* env = base::android::AttachCurrentThread();
+      JniCallVoidMethodOrAbort(env, decode_target_->surface_texture(),
+                               "removeOnFrameAvailableListener", "()V");
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -975,18 +976,18 @@ void VideoDecoder::OnFlushing() {
 namespace {
 
 void updateTexImage(jobject surface_texture) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(surface_texture, "updateTexImage", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniCallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   jfloatArray java_array = env->NewFloatArray(16);
   SB_DCHECK(java_array);
 
-  env->CallVoidMethodOrAbort(surface_texture, "getTransformMatrix", "([F)V",
-                             java_array);
+  JniCallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix", "([F)V",
+                           java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
