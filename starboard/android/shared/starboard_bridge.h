@@ -45,8 +45,6 @@ class StarboardBridge {
 
   void ApplicationStopping(JNIEnv* env);
 
-  void AfterStopped(JNIEnv* env);
-
   void AppendArgs(JNIEnv* env, std::vector<std::string>* args_vector);
 
   ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
