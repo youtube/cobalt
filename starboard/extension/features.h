@@ -15,6 +15,7 @@
 #ifndef STARBOARD_EXTENSION_FEATURES_H_
 #define STARBOARD_EXTENSION_FEATURES_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
