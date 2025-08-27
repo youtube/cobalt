@@ -19,11 +19,7 @@
 #include <string>
 #include <vector>
 
-<<<<<<< HEAD
-=======
 #include "build/build_config.h"
-#include "starboard/common/check_op.h"
->>>>>>> 9bc6a4ef4b0 (starboard: replace COBALT_BUILD_TYPE_GOLD with COBALT_IS_RELEASE_BUILD (#6975))
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"

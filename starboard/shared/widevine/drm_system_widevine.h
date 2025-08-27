@@ -23,11 +23,8 @@
 #include <string>
 #include <vector>
 
-<<<<<<< HEAD
-#include "starboard/common/mutex.h"
-=======
 #include "build/build_config.h"
->>>>>>> 9bc6a4ef4b0 (starboard: replace COBALT_BUILD_TYPE_GOLD with COBALT_IS_RELEASE_BUILD (#6975))
+#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"

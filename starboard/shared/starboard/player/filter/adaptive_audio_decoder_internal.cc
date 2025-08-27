@@ -113,13 +113,8 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
     audio_decoder_->WriteEndOfStream();
     return;
   }
-<<<<<<< HEAD
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  for (int i = 1; i < input_buffers.size(); i++) {
-=======
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   for (size_t i = 1; i < input_buffers.size(); i++) {
->>>>>>> 9bc6a4ef4b0 (starboard: replace COBALT_BUILD_TYPE_GOLD with COBALT_IS_RELEASE_BUILD (#6975))
     if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
             input_audio_stream_info_, input_buffers[i]->audio_stream_info())) {
       error_cb_(kSbPlayerErrorDecode,
