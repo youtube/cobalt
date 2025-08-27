@@ -32,7 +32,7 @@ pthread_key_t g_tls_key = 0;
 
 void Destroy(void* value) {
   if (value != NULL) {
-    starboard::android::shared::JniEnvExt::OnThreadShutdown();
+    starboard::android::shared::Jni::OnThreadShutdown();
   }
 }
 

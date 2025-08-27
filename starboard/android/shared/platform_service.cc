@@ -16,7 +16,7 @@
 
 #include <memory>
 
-#include "base/android/jni_android.hh"
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"

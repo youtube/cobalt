@@ -148,8 +148,8 @@ struct Jni {
     const jstring charset = env->NewStringUTF("UTF-8");
     AbortOnException(env);
     const jbyteArray byte_array =
-        ByteArrayFromRaw(env, reinterpret_cast<const jbyte*>(bytes),
-                         (bytes ? strlen(bytes) : 0U));
+        NewByteArrayFromRaw(env, reinterpret_cast<const jbyte*>(bytes),
+                            (bytes ? strlen(bytes) : 0U));
     AbortOnException(env);
     jstring result = static_cast<jstring>(
         NewObjectOrAbort(env, "java/lang/String", "([BLjava/lang/String;)V",
@@ -191,14 +191,15 @@ struct Jni {
   static _jtype Get##_jname##FieldOrAbort(JNIEnv* env, jobject obj,            \
                                           const char* name, const char* sig) { \
     _jtype result =                                                            \
-        Get##_jname##Field(obj, GetFieldIDOrAbort(env, obj, name, sig));       \
+        env->Get##_jname##Field(obj, GetFieldIDOrAbort(env, obj, name, sig));  \
     AbortOnException(env);                                                     \
     return result;                                                             \
   }                                                                            \
                                                                                \
   static _jtype GetStatic##_jname##FieldOrAbort(                               \
-      JNIEnv* env const char* class_name, const char* name, const char* sig) { \
-    jclass clazz = FindClassExtOrAbort(class_name);                            \
+      JNIEnv* env, const char* class_name, const char* name,                   \
+      const char* sig) {                                                       \
+    jclass clazz = FindClassExtOrAbort(env, class_name);                       \
     _jtype result = GetStatic##_jname##FieldOrAbort(env, clazz, name, sig);    \
     env->DeleteLocalRef(clazz);                                                \
     return result;                                                             \
@@ -206,7 +207,7 @@ struct Jni {
                                                                                \
   static _jtype GetStatic##_jname##FieldOrAbort(                               \
       JNIEnv* env, jclass clazz, const char* name, const char* sig) {          \
-    _jtype result = GetStatic##_jname##Field(                                  \
+    _jtype result = env->GetStatic##_jname##Field(                             \
         clazz, GetStaticFieldIDOrAbort(env, clazz, name, sig));                \
     AbortOnException(env);                                                     \
     return result;                                                             \
@@ -223,10 +224,11 @@ struct Jni {
   }                                                                            \
                                                                                \
   static _jtype CallStatic##_jname##MethodOrAbort(                             \
-      const char* class_name, const char* method_name, const char* sig, ...) { \
+      JNIEnv* env, const char* class_name, const char* method_name,            \
+      const char* sig, ...) {                                                  \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
-    jclass clazz = FindClassExtOrAbort(class_name);                            \
+    jclass clazz = FindClassExtOrAbort(env, class_name);                       \
     _jtype result = CallStatic##_jname##MethodVOrAbort(                        \
         env, clazz, GetStaticMethodIDOrAbort(env, clazz, method_name, sig),    \
         argp);                                                                 \
@@ -237,21 +239,21 @@ struct Jni {
                                                                                \
   static _jtype Call##_jname##MethodVOrAbort(                                  \
       JNIEnv* env, jobject obj, jmethodID methodID, va_list args) {            \
-    _jtype result = Call##_jname##MethodV(env, obj, methodID, args);           \
+    _jtype result = env->Call##_jname##MethodV(obj, methodID, args);           \
     AbortOnException(env);                                                     \
     return result;                                                             \
   }                                                                            \
                                                                                \
   static _jtype CallStatic##_jname##MethodVOrAbort(                            \
       JNIEnv* env, jclass clazz, jmethodID methodID, va_list args) {           \
-    _jtype result = CallStatic##_jname##MethodV(env, clazz, methodID, args);   \
+    _jtype result = env->CallStatic##_jname##MethodV(clazz, methodID, args);   \
     AbortOnException(env);                                                     \
     return result;                                                             \
   }
 
   X(jobject, Object)
   X(jboolean, Boolean)
-  X(byte, Byte)
+  X(jbyte, Byte)
   X(jchar, Char)
   X(jshort, Short)
   X(jint, Int)
@@ -307,7 +309,8 @@ struct Jni {
     va_end(argp);
   }
 
-  static void CallStaticVoidMethodOrAbort(const char* class_name,
+  static void CallStaticVoidMethodOrAbort(JNIEnv* env,
+                                          const char* class_name,
                                           const char* method_name,
                                           const char* sig,
                                           ...) {
@@ -326,7 +329,8 @@ struct Jni {
         GetObjectFieldOrAbort(env, obj, name, "Ljava/lang/String;"));
   }
 
-  jstring GetStaticStringFieldOrAbort(const char* class_name,
+  jstring GetStaticStringFieldOrAbort(JNIEnv* env,
+                                      const char* class_name,
                                       const char* name) {
     return static_cast<jstring>(GetStaticObjectFieldOrAbort(
         env, class_name, name, "Ljava/lang/String;"));
@@ -342,25 +346,26 @@ struct Jni {
 // Convenience method to create a j[Type]Array from raw, native data. It is
 // the responsibility of clients to free the returned array when done with it
 // by manually calling |DeleteLocalRef| on it.
-#define X(_jtype, _jname)                                               \
-  static _jtype##Array New##_jname##ArrayFromRaw(const _jtype* data,    \
-                                                 jsize size) {          \
-    SB_DCHECK(data);                                                    \
-    SB_DCHECK_GE(size, 0);                                              \
-    _jtype##Array j_array = New##_jname##Array(size);                   \
-    SB_CHECK(JNIEnv* env, j_array) << "Out of memory making new array"; \
-    Set##_jname##ArrayRegion(JNIEnv* env, j_array, 0, size, data);      \
-    return j_array;                                                     \
+#define X(_jtype, _jname)                                  \
+  static _jtype##Array New##_jname##ArrayFromRaw(          \
+      JNIEnv* env, const _jtype* data, jsize size) {       \
+    SB_CHECK(env);                                         \
+    SB_DCHECK(data);                                       \
+    SB_DCHECK_GE(size, 0);                                 \
+    _jtype##Array j_array = env->New##_jname##Array(size); \
+    SB_CHECK(j_array) << "Out of memory making new array"; \
+    env->Set##_jname##ArrayRegion(j_array, 0, size, data); \
+    return j_array;                                        \
   }
 
-  X(JNIEnv* env, jboolean, Boolean)
-  X(JNIEnv* env, jbyte, Byte)
-  X(JNIEnv* env, jchar, Char)
-  X(JNIEnv* env, jshort, Short)
-  X(JNIEnv* env, jint, Int)
-  X(JNIEnv* env, jlong, Long)
-  X(JNIEnv* env, jfloat, Float)
-  X(JNIEnv* env, jdouble, Double)
+  X(jboolean, Boolean)
+  X(jbyte, Byte)
+  X(jchar, Char)
+  X(jshort, Short)
+  X(jint, Int)
+  X(jlong, Long)
+  X(jfloat, Float)
+  X(jdouble, Double)
 
 #undef X
 
