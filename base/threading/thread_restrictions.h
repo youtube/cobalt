@@ -313,6 +313,9 @@ class AudioOutputDevice;
 class BlockingUrlProtocol;
 class FileVideoCaptureDeviceFactory;
 class MojoVideoEncodeAccelerator;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 class PaintCanvasVideoRenderer;
 }  // namespace media
 namespace memory_instrumentation {
@@ -770,6 +773,9 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBaseSyncPrimitives {
   friend class media::AudioOutputDevice;
   friend class media::BlockingUrlProtocol;
   friend class media::MojoVideoEncodeAccelerator;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class media::StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class mojo::core::ScopedIPCSupport;
   friend class net::MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
   friend class rlz_lib::FinancialPing;
@@ -853,6 +859,9 @@ class BASE_EXPORT
   friend class media::AudioInputDevice;
   friend class media::AudioOutputDevice;
   friend class media::PaintCanvasVideoRenderer;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class media::StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class mojo::SyncCallRestrictions;
   friend class mojo::core::ipcz_driver::MojoTrap;
   friend class net::NetworkConfigWatcherMacThread;

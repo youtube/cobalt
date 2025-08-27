@@ -27,6 +27,10 @@
 #include "starboard/common/check_op.h"
 #include "starboard/shared/gles/gl_call.h"
 
+// Follow //ui/gl/android/surface_texture.cc to support
+// SurfaceTexture with the passthrough decoder.
+#define GL_TEXTURE_NATIVE_ID_ANGLE 0x3481
+
 using starboard::android::shared::JniEnvExt;
 
 namespace starboard::android::shared {
@@ -104,8 +108,21 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
+  // Support hardware video decoder with SurfaceTexture and the passthrough
+  // decoder.
+  int native_id = texture;
+  // ANGLE emulates texture IDs so query the native ID of the texture.
+  if (texture != 0) {
+    GLint prev_texture = 0;
+    GL_CALL(glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &prev_texture));
+    GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture));
+    GL_CALL(glGetTexParameteriv(GL_TEXTURE_EXTERNAL_OES,
+                                GL_TEXTURE_NATIVE_ID_ANGLE, &native_id));
+    GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, prev_texture));
+  }
+
   // Wrap the GL texture in an Android SurfaceTexture object.
-  surface_texture_ = CreateSurfaceTexture(texture);
+  surface_texture_ = CreateSurfaceTexture(native_id);
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
