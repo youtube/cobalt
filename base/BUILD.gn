@@ -1059,9 +1059,7 @@ component("base") {
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
 
-  if (is_starboard) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
+  
 
   if (build_rust_json_reader) {
     deps += [ "//third_party/rust/serde_json_lenient/v0_1/wrapper" ]
@@ -3621,7 +3619,7 @@ test("base_unittests") {
     "//tools/metrics/histograms/enums.xml",
   ]
 
-  if (!is_ios) {
+  if (!is_ios && !is_cobalt) {
     sources += [
       "allocator/partition_allocator/src/partition_alloc/tagging_unittest.cc",
     ]
@@ -3994,11 +3992,11 @@ test("base_unittests") {
         "allocator/partition_allocator/src/partition_alloc/starscan/stack/stack_unittest.cc",
         "allocator/partition_allocator/src/partition_alloc/starscan/state_bitmap_unittest.cc",
       ]
-      if (is_starboard) {
-        sources -= [
-          "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
-        ]
-      }
+      # if (is_starboard) {
+      #   sources -= [
+      #     "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+      #   ]
+      # }
     }
 
     if ((is_android || is_linux) && target_cpu == "arm64") {

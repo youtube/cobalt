@@ -61,20 +61,6 @@ std::string HostedProcessTypesToString(
   return str;
 }
 
-#if !BUILDFLAG(IS_APPLE)
-const char* GetProcessPriorityString(const base::Process& process) {
-  switch (process.GetPriority()) {
-    case base::Process::Priority::kBestEffort:
-      return "Best effort";
-    case base::Process::Priority::kUserVisible:
-      return "User visible";
-    case base::Process::Priority::kUserBlocking:
-      return "User blocking";
-  }
-  NOTREACHED_NORETURN();
-}
-#endif
-
 base::Value GetProcessValueDict(const base::Process& process) {
   base::Value::Dict ret;
 

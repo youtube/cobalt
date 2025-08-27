@@ -65,7 +65,7 @@ group("content_shell_lib_deps") {
     "//components/variations/service",
     "//components/web_cache/renderer",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
+    
     "//content/common:main_frame_counter",
     "//content/public/app",
     "//content/public/browser",
@@ -214,8 +214,6 @@ static_library("content_shell_lib") {
     "browser/shell_devtools_manager_delegate.h",
     "browser/shell_download_manager_delegate.cc",
     "browser/shell_download_manager_delegate.h",
-    "browser/shell_federated_permission_context.cc",
-    "browser/shell_federated_permission_context.h",
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
