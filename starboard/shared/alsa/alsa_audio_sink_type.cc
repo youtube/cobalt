@@ -23,11 +23,8 @@
 #include <vector>
 
 #include "starboard/audio_sink.h"
-<<<<<<< HEAD
-#include "starboard/common/condition_variable.h"
-=======
 #include "starboard/common/check_op.h"
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
@@ -201,13 +198,8 @@ AlsaAudioSink::AlsaAudioSink(
   ScopedLock lock(mutex_);
   pthread_create(&audio_out_thread_, nullptr, &AlsaAudioSink::ThreadEntryPoint,
                  this);
-<<<<<<< HEAD
-  SB_DCHECK(audio_out_thread_ != 0);
-  creation_signal_.Wait();
-=======
   SB_DCHECK_NE(audio_out_thread_, 0);
-  creation_signal_.wait(lock, [this] { return audio_thread_created_; });
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
+  creation_signal_.Wait();
 }
 
 AlsaAudioSink::~AlsaAudioSink() {

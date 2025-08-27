@@ -19,16 +19,10 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-<<<<<<< HEAD
-=======
-// Must come after all headers that specialize FromJniType() / ToJniType().
-#include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
-#include "starboard/common/check_op.h"
-
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 namespace starboard::android::shared {
 
 namespace {

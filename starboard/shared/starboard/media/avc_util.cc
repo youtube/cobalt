@@ -209,14 +209,9 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   const auto kAvccLengthInBytes = kAnnexBHeaderSizeInBytes;
 
   while (AdvanceToNextAnnexBHeader(&annex_b_source, &annex_b_source_size)) {
-<<<<<<< HEAD
-    SB_DCHECK(annex_b_source - last_source >= kAnnexBHeaderSizeInBytes);
-    SB_DCHECK(avcc_destination < avcc_destination_end);
-=======
     SB_DCHECK(static_cast<size_t>(annex_b_source - last_source) >=
               kAnnexBHeaderSizeInBytes);
     SB_DCHECK_LT(avcc_destination, avcc_destination_end);
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 
     size_t payload_size =
         annex_b_source - last_source - kAnnexBHeaderSizeInBytes;

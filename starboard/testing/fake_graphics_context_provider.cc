@@ -59,51 +59,10 @@
 #define EGL_WIDTH SB_EGL_WIDTH
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
 
-<<<<<<< HEAD
-#define EGL_CALL(x)                                          \
-  do {                                                       \
-    EGL_CALL_PREFIX x;                                       \
-    SB_DCHECK(EGL_CALL_PREFIX eglGetError() == EGL_SUCCESS); \
-=======
-#ifndef EGL_ANGLE_platform_angle
-#define EGL_ANGLE_platform_angle 1
-#define EGL_PLATFORM_ANGLE_ANGLE 0x3202
-#define EGL_PLATFORM_ANGLE_TYPE_ANGLE 0x3203
-#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE 0x3209
-#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE 0x348E
-#endif /* EGL_ANGLE_platform_angle */
-
-#ifndef EGL_ANGLE_platform_angle_opengl
-#define EGL_ANGLE_platform_angle_opengl 1
-#define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
-#define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
-#endif /* EGL_ANGLE_platform_angle_opengl */
-
-#if !defined(EGL_VERSION_1_5)
-// Lifted verbatim from egl.h.
-#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__SCITECH_SNAP__)
-/* Win32 but not WinCE */
-#define KHRONOS_APIENTRY __stdcall
-#else
-#define KHRONOS_APIENTRY
-#endif
-
-#ifndef EGLAPIENTRY
-#define EGLAPIENTRY KHRONOS_APIENTRY
-#endif
-#define EGLAPIENTRYP EGLAPIENTRY*
-
-typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
-    SbEglEnum platform,
-    void* native_display,
-    const EGLint* attrib_list);
-#endif  // !defined(EGL_VERSION_1_5)
-
 #define EGL_CALL(x)                                           \
   do {                                                        \
     EGL_CALL_PREFIX x;                                        \
     SB_DCHECK_EQ(EGL_CALL_PREFIX eglGetError(), EGL_SUCCESS); \
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
   } while (false)
 
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
@@ -196,19 +155,14 @@ void FakeGraphicsContextProvider::InitializeWindow() {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
 
-<<<<<<< HEAD
   window_ = SbWindowCreate(&window_options);
   SB_CHECK(SbWindowIsValid(window_));
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-  SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK(EGL_NO_DISPLAY != display_);
-=======
   SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK_NE(EGL_NO_DISPLAY, display_);
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 
 #if HAS_LEAK_SANITIZER
   __lsan_disable();

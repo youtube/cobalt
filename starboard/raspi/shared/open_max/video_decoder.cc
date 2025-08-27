@@ -16,12 +16,8 @@
 
 #include <unistd.h>
 
-<<<<<<< HEAD
-#include "starboard/shared/pthread/thread_create_priority.h"
-=======
 #include "starboard/common/check_op.h"
-#include "starboard/thread.h"
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace raspi {

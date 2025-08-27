@@ -209,15 +209,9 @@ bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
     return false;
   }
 
-<<<<<<< HEAD
-  for (int i = 0; i < configs_to_create.size(); i++) {
-    SB_DCHECK(configs_to_create[i] >= 0);
-    SB_DCHECK(configs_to_create[i] <= max_instances_per_config_);
-=======
   for (size_t i = 0; i < configs_to_create.size(); i++) {
     SB_DCHECK_GE(configs_to_create[i], 0);
     SB_DCHECK_LE(configs_to_create[i], max_instances_per_config_);
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 
     std::vector<PlayerInstance>& instances = player_instances_[i];
     while (instances.size() > configs_to_create[i]) {

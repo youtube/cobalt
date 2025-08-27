@@ -55,11 +55,7 @@ std::string InputBuffer::ToString() const {
        << audio_stream_info().mime << "'\n";
     ss << audio_stream_info().samples_per_second << '\n';
   } else {
-<<<<<<< HEAD
-    SB_DCHECK(sample_type() == kSbMediaTypeVideo);
-=======
-    SB_DCHECK_EQ(buffer.sample_type(), kSbMediaTypeVideo);
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
+    SB_DCHECK_EQ(sample_type(), kSbMediaTypeVideo);
 
     ss << "codec: " << video_stream_info().codec << ", mime: '"
        << video_stream_info().mime << "'"

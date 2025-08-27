@@ -171,13 +171,8 @@ const SampleType* GetInterleavedSamplesOfFrame(
   if (input->storage_type() == kSbMediaAudioFrameStorageTypeInterleaved) {
     return input_buffer + frame_index * input->channels();
   }
-<<<<<<< HEAD
-  SB_DCHECK(input->storage_type() == kSbMediaAudioFrameStorageTypePlanar);
-  for (size_t channel_index = 0; channel_index < input->channels();
-=======
   SB_DCHECK_EQ(input->storage_type(), kSbMediaAudioFrameStorageTypePlanar);
   for (int channel_index = 0; channel_index < input->channels();
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
        channel_index++) {
     aux_buffer[channel_index] =
         input_buffer[channel_index * input->frames() + frame_index];

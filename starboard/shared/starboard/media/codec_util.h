@@ -18,11 +18,7 @@
 #include <optional>
 #include <vector>
 
-<<<<<<< HEAD
-=======
 #include "starboard/common/check_op.h"
-#include "starboard/common/size.h"
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"

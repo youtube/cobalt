@@ -17,11 +17,7 @@
 #include <memory>
 #include <utility>
 
-<<<<<<< HEAD
-=======
 #include "starboard/common/check_op.h"
-#include "starboard/common/command_line.h"
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"

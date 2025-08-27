@@ -17,11 +17,7 @@
 #include <atomic>
 #include <string>
 
-<<<<<<< HEAD
-=======
 #include "starboard/common/check_op.h"
-#include "starboard/common/command_line.h"
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"

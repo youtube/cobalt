@@ -19,11 +19,8 @@
 #include <map>
 #include <utility>
 
-<<<<<<< HEAD
-#include "starboard/common/condition_variable.h"
-=======
 #include "starboard/common/check_op.h"
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"

@@ -282,14 +282,9 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
         ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeAudio));
         iterator.AdvanceAudio(1);
       } else {
-<<<<<<< HEAD
-        SB_DCHECK(descriptor.samples_count > 0);
-        SB_DCHECK(descriptor.start_index + descriptor.samples_count <
-=======
         SB_DCHECK_GT(descriptor.samples_count, 0);
         SB_DCHECK(static_cast<size_t>(descriptor.start_index +
                                       descriptor.samples_count) <
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
                   audio_dmp_reader_->number_of_audio_buffers())
             << "Audio dmp file is not long enough to finish the test.";
 
@@ -310,14 +305,9 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
         ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeVideo));
         iterator.AdvanceVideo(1);
       } else {
-<<<<<<< HEAD
-        SB_DCHECK(descriptor.samples_count > 0);
-        SB_DCHECK(descriptor.start_index + descriptor.samples_count <
-=======
         SB_DCHECK_GT(descriptor.samples_count, 0);
         SB_DCHECK(static_cast<size_t>(descriptor.start_index +
                                       descriptor.samples_count) <
->>>>>>> 17d4fb03217 (starboard: Use comparison (D)CHECK macros, instead of generic check macros (#6869))
                   video_dmp_reader_->number_of_video_buffers())
             << "Video dmp file is not long enough to finish the test.";
 
