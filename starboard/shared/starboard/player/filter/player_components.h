@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -163,9 +164,9 @@ class PlayerComponents {
         const CreationParameters& creation_parameters,
         std::string* error_message);
 
-#if COBALT_BUILD_TYPE_GOLD
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
    private:
-#endif  // COBALT_BUILD_TYPE_GOLD
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.
