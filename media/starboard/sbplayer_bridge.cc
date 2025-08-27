@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 #include "cobalt/base/statistics.h"
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
@@ -1148,9 +1149,9 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
   } else if (state == kSbPlayerStatePresenting &&
              sb_player_state_presenting_time_.is_null()) {
     sb_player_state_presenting_time_ = Time::Now();
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     LogStartupLatency();
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
   host_->OnPlayerStatus(state);
 }

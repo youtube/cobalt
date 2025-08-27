@@ -17,15 +17,16 @@
 
 #include <atomic>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 #define DECLARE_INSTANCE_COUNTER(class_name)
 #define ON_INSTANCE_CREATED(class_name)
 #define ON_INSTANCE_RELEASED(class_name)
 
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
+#else  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 #define DECLARE_INSTANCE_COUNTER(class_name)                \
   namespace {                                               \
@@ -49,6 +50,6 @@
                         1, std::memory_order_relaxed)                         \
                  << " instances in total.";                                   \
   }
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 #endif  // STARBOARD_COMMON_INSTANCE_COUNTER_H_
