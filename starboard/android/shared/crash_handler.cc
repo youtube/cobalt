@@ -32,7 +32,7 @@ bool SetString(const char* key, const char* value) {
   ScopedLocalJavaRef<jstring> j_key(JniNewStringStandardUTFOrAbort(env, key));
   ScopedLocalJavaRef<jstring> j_value(
       JniNewStringStandardUTFOrAbort(env, value));
-  JniCallVoidMethodOrAbort(
+  Jni::CallVoidMethodOrAbort(
       env, JNIState::GetStarboardBridge(), "setCrashContext",
       "(Ljava/lang/String;Ljava/lang/String;)V", j_key.Get(), j_value.Get());
   return true;

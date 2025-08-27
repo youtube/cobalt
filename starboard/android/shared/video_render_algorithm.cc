@@ -138,14 +138,15 @@ VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
       env, "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
   j_video_frame_release_time_helper_ =
       JniConvertLocalRefToGlobalRef(env, j_video_frame_release_time_helper_);
-  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
+  Jni::CallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
 }
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
   SB_DCHECK(j_video_frame_release_time_helper_);
   JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "disable", "()V");
+  Jni::CallVoidMethod(env, j_video_frame_release_time_helper_, "disable",
+                      "()V");
   env->DeleteGlobalRef(j_video_frame_release_time_helper_);
   j_video_frame_release_time_helper_ = nullptr;
 }
@@ -156,7 +157,7 @@ jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
     double playback_rate) {
   SB_DCHECK(j_video_frame_release_time_helper_);
   JNIEnv* env = base::android::AttachCurrentThread();
-  return JniCallLongMethodOrAbort(
+  return Jni::CallLongMethodOrAbort(
       env, j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }

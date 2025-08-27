@@ -78,7 +78,7 @@ TEST(JniEnvExtTest, GetStringStandardUTF) {
   jstring j_str =
       env->NewString(reinterpret_cast<const jchar*>(kU16), kU16Length);
 
-  std::string str = JniGetStringStandardUTFOrAbort(env, j_str);
+  std::string str = Jni::GetStringStandardUTFOrAbort(env, j_str);
   EXPECT_EQ(kU8Length, str.length());
   EXPECT_EQ(std::string(kU8), str);
   env->DeleteLocalRef(j_str);
@@ -89,7 +89,7 @@ TEST(JniEnvExtTest, EmptyGetStringStandardUTF) {
   jchar empty[] = {};
   jstring j_str = env->NewString(empty, 0);
 
-  std::string str = JniGetStringStandardUTFOrAbort(env, j_str);
+  std::string str = Jni::GetStringStandardUTFOrAbort(env, j_str);
   EXPECT_EQ(0, str.length());
   EXPECT_EQ(std::string(), str);
   env->DeleteLocalRef(j_str);

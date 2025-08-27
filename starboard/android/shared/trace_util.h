@@ -27,15 +27,15 @@ struct ScopedTrace {
     JNIEnv* env = base::android::AttachCurrentThread();
     ScopedLocalJavaRef<jstring> j_section_name(
         JniNewStringStandardUTFOrAbort(env, section_name));
-    JniCallStaticVoidMethodOrAbort(env, "android/os/Trace", "beginSection",
-                                   "(Ljava/lang/String;)V",
-                                   j_section_name.Get());
+    Jni::CallStaticVoidMethodOrAbort(env, "android/os/Trace", "beginSection",
+                                     "(Ljava/lang/String;)V",
+                                     j_section_name.Get());
   }
 
   ~ScopedTrace() {
     JNIEnv* env = base::android::AttachCurrentThread();
-    JniCallStaticVoidMethodOrAbort(env, "android/os/Trace", "endSection",
-                                   "()V");
+    Jni::CallStaticVoidMethodOrAbort(env, "android/os/Trace", "endSection",
+                                     "()V");
   }
 };
 

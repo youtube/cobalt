@@ -38,10 +38,10 @@ class LocaleInfo {
   LocaleInfo() {
     JNIEnv* env = base::android::AttachCurrentThread();
 
-    ScopedLocalJavaRef<jstring> result(JniCallObjectMethodOrAbort(
+    ScopedLocalJavaRef<jstring> result(Jni::CallObjectMethodOrAbort(
         env, JNIState::GetStarboardBridge(), "systemGetLocaleId",
         "()Ljava/lang/String;"));
-    locale_id = JniGetStringStandardUTFOrAbort(env, result.Get());
+    locale_id = Jni::GetStringStandardUTFOrAbort(env, result.Get());
   }
 };
 

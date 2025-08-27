@@ -99,7 +99,7 @@ float GetFlat(jobject input_device, int axis) {
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jobject> motion_range(JniCallObjectMethodOrAbort(
+  ScopedLocalJavaRef<jobject> motion_range(Jni::CallObjectMethodOrAbort(
       env, input_device, "getMotionRange",
       "(I)Landroid/view/InputDevice$MotionRange;", axis));
 
@@ -108,7 +108,7 @@ float GetFlat(jobject input_device, int axis) {
   }
 
   float flat =
-      JniCallFloatMethodOrAbort(env, motion_range.Get(), "getFlat", "()F");
+      Jni::CallFloatMethodOrAbort(env, motion_range.Get(), "getFlat", "()F");
 
   SB_DCHECK(flat < 1.0f);
   return flat;
@@ -802,7 +802,7 @@ bool InputEventsGenerator::ProcessPointerEvent(
 jobject GetDevice(GameActivityMotionEvent* android_motion_event) {
   int32_t device_id = android_motion_event->deviceId;
   JNIEnv* env = base::android::AttachCurrentThread();
-  return JniCallStaticObjectMethodOrAbort(
+  return Jni::CallStaticObjectMethodOrAbort(
       env, "android/view/InputDevice", "getDevice",
       "(I)Landroid/view/InputDevice;", device_id);
 }

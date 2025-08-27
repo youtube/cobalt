@@ -233,7 +233,7 @@ void OnMediaSessionStateChanged(
     durationInMilliseconds = session_state.duration / 1000;
   }
 
-  JniCallVoidMethodOrAbort(
+  Jni::CallVoidMethodOrAbort(
       env, JNIState::GetStarboardBridge(), "updateMediaSession",
       "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
       "[Ldev/cobalt/coat/MediaImage;J)V",
@@ -270,8 +270,8 @@ void DestroyMediaSessionClientCallback() {
   pthread_mutex_unlock(&mutex);
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(),
-                           "deactivateMediaSession", "()V");
+  Jni::CallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(),
+                             "deactivateMediaSession", "()V");
 }
 
 }  // namespace
