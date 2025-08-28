@@ -160,18 +160,12 @@ public class StarboardBridge {
     long currentMonotonicTime();
 
     long startNativeStarboard(
-<<<<<<< HEAD
       AssetManager assetManager,
       String filesDir,
       String cacheDir,
       String nativeLibraryDir);
-    // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
-    // boolean initJNI();
-=======
-        AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
 
     boolean initJNI(StarboardBridge starboardBridge);
->>>>>>> 81a4e03953e (starboard: Move starboard bridge JNI methods into starboard_bridge.cc (#6970))
 
     void closeNativeStarboard(long app);
 
