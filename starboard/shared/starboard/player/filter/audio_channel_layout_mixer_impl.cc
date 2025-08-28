@@ -17,6 +17,7 @@
 #include <limits>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -170,8 +171,8 @@ const SampleType* GetInterleavedSamplesOfFrame(
   if (input->storage_type() == kSbMediaAudioFrameStorageTypeInterleaved) {
     return input_buffer + frame_index * input->channels();
   }
-  SB_DCHECK(input->storage_type() == kSbMediaAudioFrameStorageTypePlanar);
-  for (size_t channel_index = 0; channel_index < input->channels();
+  SB_DCHECK_EQ(input->storage_type(), kSbMediaAudioFrameStorageTypePlanar);
+  for (int channel_index = 0; channel_index < input->channels();
        channel_index++) {
     aux_buffer[channel_index] =
         input_buffer[channel_index * input->frames() + frame_index];
@@ -272,8 +273,8 @@ AudioChannelLayoutMixerImpl::AudioChannelLayoutMixerImpl(
 
 scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
     const scoped_refptr<DecodedAudio>& input) {
-  SB_DCHECK(input->sample_type() == sample_type_);
-  SB_DCHECK(input->storage_type() == storage_type_);
+  SB_DCHECK_EQ(input->sample_type(), sample_type_);
+  SB_DCHECK_EQ(input->storage_type(), storage_type_);
 
   if (input->channels() == output_channels_) {
     return input;
@@ -327,7 +328,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
     return Mix<int16_t>(input, matrix);
   }
-  SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeFloat32);
+  SB_DCHECK_EQ(sample_type_, kSbMediaAudioSampleTypeFloat32);
   return Mix<float>(input, matrix);
 }
 
@@ -354,8 +355,8 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
 scoped_refptr<DecodedAudio>
 AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
     const scoped_refptr<DecodedAudio>& input) {
-  SB_DCHECK(output_channels_ == 2);
-  SB_DCHECK(input->channels() == 1);
+  SB_DCHECK_EQ(output_channels_, 2);
+  SB_DCHECK_EQ(input->channels(), 1);
 
   scoped_refptr<DecodedAudio> output(
       new DecodedAudio(output_channels_, sample_type_, storage_type_,
@@ -374,7 +375,7 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
       frames_left--;
     }
   } else {
-    SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
+    SB_DCHECK_EQ(storage_type_, kSbMediaAudioFrameStorageTypePlanar);
     memcpy(output->data(), input->data(), input->size_in_bytes());
     memcpy(output->data() + input->size_in_bytes(), input->data(),
            input->size_in_bytes());
