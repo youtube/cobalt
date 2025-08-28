@@ -7,8 +7,6 @@ declare_args() {
   enable_lightweight = false
 }
 
-
-# Lightweight build configuration. Only Linux based build is considered.
 declare_args() {
   # Disable Bluetooth support.
   # Serial which depends on Bluetooth is also excluded from the build.
