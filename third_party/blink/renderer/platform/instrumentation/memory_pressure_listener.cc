@@ -112,6 +112,7 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
   TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
                "level", level);
+  LOG(INFO) << "Blink handling OnMemoryPressure";
   CHECK(IsMainThread());
   for (auto& client : clients_)
     client->OnMemoryPressure(level);

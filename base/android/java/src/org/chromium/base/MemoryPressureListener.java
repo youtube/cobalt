@@ -106,6 +106,7 @@ public class MemoryPressureListener {
      * actions.
      */
     public static boolean handleDebugIntent(Activity activity, String action) {
+        Log.i("cobalt", "starboard: MemoryListener.handleDebugIntent: action=" + action);
         ThreadUtils.assertOnUiThread();
         if (ACTION_LOW_MEMORY.equals(action)) {
             simulateLowMemoryPressureSignal(activity);
