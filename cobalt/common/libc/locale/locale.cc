@@ -56,17 +56,18 @@ const lconv* GetCLocaleConv() {
 // The POSIX setlocale is not hermetic, so we must provide our own
 // implementation.
 char* setlocale(int category, const char* locale) {
-  if (locale == NULL) {
+  if (locale == nullptr) {
     return const_cast<char*>("C");
   }
   if (strcmp(locale, "C") == 0 || strcmp(locale, "") == 0) {
     return const_cast<char*>("C");
   }
-  return NULL;
+  return nullptr;
 }
 
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
-  if (locale == NULL || (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
+  if (locale == nullptr ||
+      (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
     return (locale_t)0;
   }
 
