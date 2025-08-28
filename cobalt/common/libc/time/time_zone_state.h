@@ -15,6 +15,8 @@
 #ifndef COBALT_COMMON_LIBC_TIME_TIME_ZONE_STATE_H_
 #define COBALT_COMMON_LIBC_TIME_TIME_ZONE_STATE_H_
 
+#include <pthread.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include "unicode/timezone.h"
@@ -34,7 +36,7 @@ class TimeZoneState {
   ~TimeZoneState();
 
   // Returns a reference to the currently active ICU timezone object.
-  const icu::TimeZone& GetTimeZone();
+  void WithTimeZone(std::function<void(const icu::TimeZone&)> func);
 
   // Calculates the values for the global C variables (timezone, daylight,
   // tzname).
@@ -45,17 +47,18 @@ class TimeZoneState {
  private:
   // Parses the TZ environment variable and updates the internal timezone.
   // If TZ is unset or invalid, it falls back to the system default or UTC.
-  void CreateTimeZoneFromEnvironment();
+  void EnsureTimeZoneIsCreatedLocked();
 
   // Creates a timezone from a given IANA timezone ID (e.g.,
   // "America/Los_Angeles") and sets the relevant internal state.
-  void SetTimeZoneFromIanaId(const std::string& tz_id);
+  void SetTimeZoneFromIanaIdLocked(const std::string& tz_id);
 
   // Cached values to avoid recalculation.
   std::string cached_timezone_name_;
   std::unique_ptr<icu::TimeZone> current_zone_;
   std::string std_name_;
   std::string dst_name_;
+  pthread_mutex_t mutex_;
 
   // Static buffers for tzname to point to, managed by this class.
   // Note: This introduces a global state, but it is a necessary

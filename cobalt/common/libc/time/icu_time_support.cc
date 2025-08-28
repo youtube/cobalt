@@ -18,6 +18,7 @@
 #include <time.h>
 
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -165,7 +166,11 @@ void IcuTimeSupport::GetPosixTimezoneGlobals(long& out_timezone,
 
 bool IcuTimeSupport::ExplodeLocalTime(const time_t* time,
                                       struct tm* out_exploded) {
-  return ExplodeTime(time, state_.GetTimeZone(), out_exploded);
+  bool result = false;
+  state_.WithTimeZone([&](const icu::TimeZone& tz) {
+    result = ExplodeTime(time, tz, out_exploded);
+  });
+  return result;
 }
 
 bool IcuTimeSupport::ExplodeGmtTime(const time_t* time,
@@ -179,7 +184,10 @@ bool IcuTimeSupport::ExplodeGmtTime(const time_t* time,
 }
 
 time_t IcuTimeSupport::ImplodeLocalTime(struct tm* exploded) {
-  return ImplodeTime(exploded, state_.GetTimeZone());
+  time_t result = -1;
+  state_.WithTimeZone(
+      [&](const icu::TimeZone& tz) { result = ImplodeTime(exploded, tz); });
+  return result;
 }
 
 time_t IcuTimeSupport::ImplodeGmtTime(struct tm* exploded) {

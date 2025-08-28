@@ -27,6 +27,7 @@
 #include <charconv>
 #include <chrono>
 #include <ctime>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -59,6 +60,18 @@ namespace libc {
 namespace time {
 
 namespace {
+
+// A simple scoped locker for pthread_mutex_t.
+class ScopedLocker {
+ public:
+  explicit ScopedLocker(pthread_mutex_t* mutex) : mutex_(mutex) {
+    pthread_mutex_lock(mutex_);
+  }
+  ~ScopedLocker() { pthread_mutex_unlock(mutex_); }
+
+ private:
+  pthread_mutex_t* mutex_;
+};
 
 // Number of seconds in an hour.
 constexpr int kSecondsInHour = 3600;
@@ -353,20 +366,25 @@ char TimeZoneState::std_name_buffer_[TZNAME_MAX + 1];
 char TimeZoneState::dst_name_buffer_[TZNAME_MAX + 1];
 
 TimeZoneState::TimeZoneState() {
-  CreateTimeZoneFromEnvironment();
+  pthread_mutex_init(&mutex_, nullptr);
 }
 
-TimeZoneState::~TimeZoneState() = default;
+TimeZoneState::~TimeZoneState() {
+  pthread_mutex_destroy(&mutex_);
+}
 
-const icu::TimeZone& TimeZoneState::GetTimeZone() {
-  CreateTimeZoneFromEnvironment();
-  return *current_zone_;
+void TimeZoneState::WithTimeZone(
+    std::function<void(const icu::TimeZone&)> func) {
+  ScopedLocker lock(&mutex_);
+  EnsureTimeZoneIsCreatedLocked();
+  func(*current_zone_);
 }
 
 void TimeZoneState::GetPosixTimezoneGlobals(long& out_timezone,
                                             int& out_daylight,
                                             char** out_tzname) {
-  CreateTimeZoneFromEnvironment();
+  ScopedLocker lock(&mutex_);
+  EnsureTimeZoneIsCreatedLocked();
   out_timezone = -(current_zone_->getRawOffset() / 1000);
   out_daylight = current_zone_->useDaylightTime();
   SafeCopyToName(std_name_, std_name_buffer_, sizeof(std_name_buffer_));
@@ -375,7 +393,7 @@ void TimeZoneState::GetPosixTimezoneGlobals(long& out_timezone,
   out_tzname[1] = dst_name_buffer_;
 }
 
-void TimeZoneState::SetTimeZoneFromIanaId(const std::string& tz_id) {
+void TimeZoneState::SetTimeZoneFromIanaIdLocked(const std::string& tz_id) {
   // The Correction struct and kCorrections map are used to handle
   // inconsistencies or missing data in the underlying timezone database for
   // specific zones. This provides a manual override mechanism.
@@ -454,7 +472,7 @@ void TimeZoneState::SetTimeZoneFromIanaId(const std::string& tz_id) {
   }
 }
 
-void TimeZoneState::CreateTimeZoneFromEnvironment() {
+void TimeZoneState::EnsureTimeZoneIsCreatedLocked() {
   // The TZ environment variable is the primary source for the timezone.
   // If it's not set, fall back to the system's default timezone name.
   const char* timezone_name = getenv("TZ");
@@ -489,7 +507,7 @@ void TimeZoneState::CreateTimeZoneFromEnvironment() {
   } else {
     // If it's not a POSIX TZ string, treat it as an IANA timezone ID (e.g.,
     // "America/New_York").
-    SetTimeZoneFromIanaId(tz_to_process);
+    SetTimeZoneFromIanaIdLocked(tz_to_process);
   }
 
   // Set the processed timezone as the default for the entire application.
