@@ -1,0 +1,51 @@
+--- testing/variations/fieldtrial_testing_config.json
++++ testing/variations/fieldtrial_testing_config.json
+@@ -10250,48 +10250,20 @@
+             ]
+         }
+     ],
+-<<<<<<< HEAD
+     "MergeSubprocessMetricsOnBgAndFg": [
+         {
+             "platforms": [
+                 "android",
+                 "android_webview"
+-=======
+-    "MessagesForAndroidOfferNotification": [
+-        {
+-            "platforms": [
+-                "android"
+->>>>>>> 77602837872 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+             ],
+             "experiments": [
+                 {
+                     "name": "Enabled",
+                     "enable_features": [
+-<<<<<<< HEAD
+                         "MergeSubprocessMetricsOnBgAndFg"
+                     ]
+                 }
+             ]
+-        }
+-    ],
+-    "MessagePumpEpoll": [
+-        {
+-            "platforms": [
+-                "android",
+-                "chromeos",
+-                "linux"
+-            ],
+-            "experiments": [
+-                {
+-                    "name": "Enabled",
+-                    "enable_features": [
+-                        "MessagePumpEpoll"
+-=======
+-                        "MessagesForAndroidOfferNotification"
+->>>>>>> 77602837872 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+-                    ]
+-                }
+-            ]
+         }
+     ],
+     "MessagesPreinstall": [

@@ -1,0 +1,15 @@
+--- base/logging.cc
++++ base/logging.cc
+@@ -112,12 +112,8 @@
+ 
+ #if BUILDFLAG(IS_STARBOARD)
+ #include <fcntl.h>
+-<<<<<<< HEAD
+-#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+-=======
+ 
+ #include "cobalt/common/eztime/eztime.h"  // nogncheck
+->>>>>>> 144a6739d60 (Move eztime out of Starboard (#5765))
+ #include "starboard/common/log.h"  // nogncheck
+ #include "starboard/common/mutex.h"  // nogncheck
+ #include "starboard/common/time.h"  // nogncheck

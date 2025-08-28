@@ -1,0 +1,26 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -5220,19 +5220,20 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
++
+ if (enable_base_tracing) {
+   # This group makes visible those targets in subdirectories that are not
+   # explicitly depended on.
+   group("gn_all") {
+     testonly = true
+     deps = [ "//base/tracing:perfetto_diff_tests" ]
+-=======
++  }
++}
++
+ if (is_cobalt_hermetic_build) {
+   # TODO: b/413130400 - Cobalt: Remove this config 
+   # after removing base/starboard/linker_stub.h
+   config("base_starboard_linker_stub") {
+     cflags = ["-Wno-unreachable-code-break"]
+->>>>>>> 6b834b37365 (Fix stub linker error (#5558))
+   }
+ }

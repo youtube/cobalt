@@ -1,0 +1,19 @@
+--- components/performance_manager/graph/process_node_impl_describer.cc
++++ components/performance_manager/graph/process_node_impl_describer.cc
+@@ -107,15 +107,9 @@
+ 
+   if (process.IsValid()) {
+     // These properties can only be accessed for valid processes.
+-<<<<<<< HEAD
+     ret.Set("os_priority", process.GetOSPriority());
+-#if !BUILDFLAG(IS_APPLE)
+-    ret.Set("priority", GetProcessPriorityString(process));
+-=======
+-    ret.Set("os_priority", process.GetPriority());
+ #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
+-    ret.Set("is_backgrounded", process.IsProcessBackgrounded());
+->>>>>>> b1ce77e4c10 (Fix remaining compiler issues in hermetic cobalt (#5316))
++    ret.Set("priority", GetProcessPriorityString(process));
+ #endif
+ #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
+     ret.Set("creation_time",

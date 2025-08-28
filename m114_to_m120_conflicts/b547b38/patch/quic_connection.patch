@@ -1,0 +1,16 @@
+--- net/third_party/quiche/src/quiche/quic/core/quic_connection.cc
++++ net/third_party/quiche/src/quiche/quic/core/quic_connection.cc
+@@ -3342,12 +3342,8 @@
+   const QuicTime now = clock_->ApproximateNow();
+ #else
+   const QuicTime now = clock_->Now();
+-<<<<<<< HEAD
+-  if (!supports_release_time_) {
+-=======
+ #endif
+-  if (!supports_release_time_ || per_packet_options_ == nullptr) {
+->>>>>>> 80ab66bc39e (net/quic + third_party/quiche: Improving performance by removing histograms and using ApproximateNow (#6188))
++  if (!supports_release_time_) {
+     // Don't change the release delay.
+     return now;
+   }

@@ -1,0 +1,16 @@
+--- net/quic/quic_connection_logger.cc
++++ net/quic/quic_connection_logger.cc
+@@ -160,13 +160,9 @@
+     quic::EncryptionLevel encryption_level,
+     const quic::QuicFrames& retransmittable_frames,
+     const quic::QuicFrames& nonretransmittable_frames,
+-<<<<<<< HEAD
+     quic::QuicTime sent_time,
+     uint32_t batch_id) {
+-=======
+-    quic::QuicTime sent_time) {
+ #if !BUILDFLAG(IS_COBALT)
+->>>>>>> 80ab66bc39e (net/quic + third_party/quiche: Improving performance by removing histograms and using ApproximateNow (#6188))
+   // 4.4.1.4.  Minimum Packet Size
+   // The payload of a UDP datagram carrying the Initial packet MUST be
+   // expanded to at least 1200 octets

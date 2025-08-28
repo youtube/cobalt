@@ -1,0 +1,26 @@
+--- content/browser/BUILD.gn
++++ content/browser/BUILD.gn
+@@ -28,21 +28,12 @@
+ if (is_mac) {
+   import("//content/public/app/mac_helpers.gni")
+ }
+-<<<<<<< HEAD
+ if (is_android) {
+   import("//third_party/jni_zero/jni_zero.gni")
+-=======
+-import("//cobalt/build/configs/hacks.gni")
+-
+-buildflag_header("buildflags") {
+-  header = "buildflags.h"
+-
+-  use_socket_broker = is_android || is_win
+-
+-  flags = [ "USE_SOCKET_BROKER=$use_socket_broker" ]
+->>>>>>> e15e817d9eb (Fix compiler error building cobalt (#5365))
+ }
+ 
++import("//cobalt/build/configs/hacks.gni")
++
+ source_set("browser") {
+   # Only the public target should depend on this. All other targets (even
+   # internal content ones) should depend on the public one.

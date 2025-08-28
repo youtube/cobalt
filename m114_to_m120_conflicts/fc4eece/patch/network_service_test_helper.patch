@@ -1,0 +1,21 @@
+--- content/public/test/network_service_test_helper.cc
++++ content/public/test/network_service_test_helper.cc
+@@ -758,7 +758,6 @@
+     system_task_ptr->Start(std::move(results_cb));
+   }
+ 
+-<<<<<<< HEAD
+   void SetIPv6ProbeResult(bool success,
+                           SetIPv6ProbeResultCallback callback) override {
+     network::NetworkService::GetNetworkServiceForTesting()
+@@ -767,10 +766,7 @@
+     std::move(callback).Run();
+   }
+ 
+-#if BUILDFLAG(IS_LINUX)
+-=======
+ #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+->>>>>>> b1ce77e4c10 (Fix remaining compiler issues in hermetic cobalt (#5316))
+   void GetAddressMapCacheLinux(
+       GetAddressMapCacheLinuxCallback callback) override {
+     const net::AddressMapOwnerLinux* address_map_owner =

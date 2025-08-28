@@ -1,0 +1,62 @@
+--- base/threading/post_task_and_reply_impl.cc
++++ base/threading/post_task_and_reply_impl.cc
+@@ -84,59 +84,6 @@
+     reply_task_runner_raw->DeleteSoon(from_here_, std::move(relay_to_delete));
+     return;
+   }
+-
+-<<<<<<< HEAD
+-=======
+-  const Location from_here_;
+-  OnceClosure task_;
+-  OnceClosure reply_;
+-  // Not const to allow moving.
+-  scoped_refptr<SequencedTaskRunner> reply_task_runner_;
+-};
+-
+-}  // namespace
+-
+-namespace internal {
+-
+-bool PostTaskAndReplyImpl::PostTaskAndReply(const Location& from_here,
+-                                            OnceClosure task,
+-                                            OnceClosure reply) {
+-  DCHECK(task) << from_here.ToString();
+-  DCHECK(reply) << from_here.ToString();
+-
+-#if BUILDFLAG(IS_COBALT)
+-  // This is a slight performance optimization for Starboard.
+-  // With Starboard, HasCurrentDefault() and GetCurrentDefault() are quite
+-  // expensive, and GetCurrentDefault() is safe to call and will return
+-  // nullptr when needed.
+-  const auto& current_context = SequencedTaskRunner::GetCurrentDefault();
+-  const bool has_sequenced_context = !!current_context;
+-  const bool post_task_success = PostTask(
+-      from_here,
+-      BindOnce(&PostTaskAndReplyRelay::RunTaskAndPostReply,
+-               PostTaskAndReplyRelay(
+-                   from_here, std::move(task), std::move(reply),
+-                   has_sequenced_context ? current_context : nullptr)));
+-#else
+-  const bool has_sequenced_context = SequencedTaskRunner::HasCurrentDefault();
+-
+-  const bool post_task_success = PostTask(
+-      from_here, BindOnce(&PostTaskAndReplyRelay::RunTaskAndPostReply,
+-                          PostTaskAndReplyRelay(
+-                              from_here, std::move(task), std::move(reply),
+-                              has_sequenced_context
+-                                  ? SequencedTaskRunner::GetCurrentDefault()
+-                                  : nullptr)));
+-#endif
+-
+-  // PostTaskAndReply() requires a SequencedTaskRunner::CurrentDefaultHandle to
+-  // post the reply.  Having no SequencedTaskRunner::CurrentDefaultHandle is
+-  // allowed when posting the task fails, to simplify calls during shutdown
+-  // (https://crbug.com/922938).
+-  CHECK(has_sequenced_context || !post_task_success);
+-
+-  return post_task_success;
+->>>>>>> a6be60ddf6b (base/task + base/threading: Remove RecordQueuingDelayedTaskMetrics and TLS lookups (#6212))
+ }
+ 
+ }  // namespace base::internal

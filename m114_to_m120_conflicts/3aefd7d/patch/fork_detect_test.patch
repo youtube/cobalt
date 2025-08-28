@@ -1,0 +1,19 @@
+--- third_party/boringssl/src/crypto/fipsmodule/rand/fork_detect_test.cc
++++ third_party/boringssl/src/crypto/fipsmodule/rand/fork_detect_test.cc
+@@ -34,16 +34,6 @@
+ 
+ #include <gtest/gtest.h>
+ 
+-<<<<<<< HEAD
+-=======
+-#include "fork_detect.h"
+-
+-#if BUILDFLAG(IS_STARBOARD)
+-#include <sys/wait.h>
+-#endif
+-
+->>>>>>> 79b9f4332a5 (Add a number of hermetic build targets (#5300))
+-
+ static pid_t WaitpidEINTR(pid_t pid, int *out_status, int options) {
+   pid_t ret;
+   do {

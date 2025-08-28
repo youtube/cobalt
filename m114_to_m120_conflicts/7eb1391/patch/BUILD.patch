@@ -1,0 +1,20 @@
+--- third_party/blink/renderer/modules/BUILD.gn
++++ third_party/blink/renderer/modules/BUILD.gn
+@@ -626,15 +626,14 @@
+     "xr/xr_view_test.cc",
+   ]
+ 
+-<<<<<<< HEAD
+   if (!is_android) {
+     # Inline text box tests do not apply to Android, which only loads
+     # AXInlineTextBox tests for the focused node.
+     sources += [ "accessibility/ax_inline_text_box_test.cc" ]
+-=======
++  }
++
+   if (is_cobalt) {
+     sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+->>>>>>> 59ceffcfbb4 (Add tests for h_5_vcc_experiments. (#5773))
+   }
+ 
+   if (rtc_use_h264) {

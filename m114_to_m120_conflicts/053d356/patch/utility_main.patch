@@ -1,0 +1,14 @@
+--- content/utility/utility_main.cc
++++ content/utility/utility_main.cc
+@@ -7,11 +7,8 @@
+ #include "base/debug/leak_annotations.h"
+ #include "base/functional/bind.h"
+ #include "base/message_loop/message_pump_type.h"
+-<<<<<<< HEAD
+ #include "base/metrics/histogram_functions.h"
+-=======
+ #include "base/notreached.h"
+->>>>>>> a5d4d888e04 (Add media changes to build cobalt hermetically (#5499))
+ #include "base/power_monitor/power_monitor.h"
+ #include "base/run_loop.h"
+ #include "base/task/single_thread_task_executor.h"

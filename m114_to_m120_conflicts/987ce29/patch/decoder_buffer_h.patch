@@ -1,0 +1,25 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -310,21 +310,12 @@
+   // Allocates a buffer of size |size| >= 0 and copies |data| into it. If |data|
+   // is NULL then |data_| is set to NULL and |buffer_size_| to 0.
+   // |is_key_frame_| will default to false.
+-<<<<<<< HEAD
+   DecoderBuffer(const uint8_t* data, size_t size);
+-=======
+-  DecoderBuffer(const uint8_t* data,
+-                size_t size,
+-                const uint8_t* side_data,
+-                size_t side_data_size);
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   DecoderBuffer(DemuxerStream::Type type,
+                 const uint8_t* data,
+-                size_t size,
+-                const uint8_t* side_data,
+-                size_t side_data_size);
++                size_t size);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> a86c930dc17 ([media] Improve DecoderBufferAllocator logging (#5036))
+ 
+   DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size);
+ 

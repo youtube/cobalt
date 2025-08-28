@@ -1,0 +1,20 @@
+--- media/test/run_all_unittests.cc
++++ media/test/run_all_unittests.cc
+@@ -17,15 +17,14 @@
+ #include "media/base/android/media_codec_util.h"
+ #endif
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "ui/gfx/linux/gbm_util.h"  // nogncheck
+ #endif                              // BUILDFLAG(IS_CHROMEOS)
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ #include "media/starboard/decoder_buffer_allocator.h"
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> e063547a277 (Run 5K+ media_unittests during PR submit (#5260))
++
+ 
+ class TestSuiteNoAtExit : public base::TestSuite {
+  public:

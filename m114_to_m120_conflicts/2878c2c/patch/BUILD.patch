@@ -1,0 +1,26 @@
+--- components/viz/common/BUILD.gn
++++ components/viz/common/BUILD.gn
+@@ -11,19 +11,15 @@
+ 
+ import("//third_party/inspector_protocol/inspector_protocol.gni")
+ 
+-<<<<<<< HEAD
++if (is_cobalt) {
++  import("//starboard/build/buildflags.gni")
++}
++
+ viz_component("shared_image_format") {
+   output_name = "viz_shared_image_format"
+ 
+   defines = [ "IS_VIZ_SHARED_IMAGE_FORMAT_IMPL" ]
+ 
+-=======
+-if (is_cobalt) {
+-  import("//starboard/build/buildflags.gni")
+-}
+-
+-source_set("resource_format") {
+->>>>>>> 8ff7790c894 ([android] Support multiple punchout players via video holes (#5422))
+   sources = [
+     "resources/resource_sizes.h",
+     "resources/shared_image_format.cc",

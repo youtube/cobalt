@@ -1,0 +1,14 @@
+--- third_party/blink/renderer/core/exported/web_media_player_impl_unittest.cc
++++ third_party/blink/renderer/core/exported/web_media_player_impl_unittest.cc
+@@ -208,11 +208,7 @@
+   MOCK_METHOD0(DidSeek, void());
+   MOCK_METHOD2(OnFirstFrame, void(base::TimeTicks, size_t));
+   MOCK_METHOD0(OnRequestVideoFrameCallback, void());
+-<<<<<<< HEAD
+-=======
+-  MOCK_METHOD0(GetTextTrackMetadata, Vector<TextTrackMetadata>());
+   MOCK_METHOD0(GetElementId, int());
+->>>>>>> aff9c0340aa (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
+ };
+ 
+ class MockWebMediaPlayerEncryptedMediaClient

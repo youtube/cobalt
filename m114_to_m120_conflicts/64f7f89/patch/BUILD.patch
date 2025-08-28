@@ -1,0 +1,36 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -1051,13 +1051,8 @@
+   # to provide the appropriate `#define` here.
+   defines += [ "IS_RAW_PTR_IMPL" ]
+ 
+-<<<<<<< HEAD
+   if (is_starboard) {
+     deps += [ "//starboard($starboard_toolchain)" ]
+-=======
+-  if (is_apple) {
+-    deps += [ "//base/time/buildflags:buildflags" ]
+->>>>>>> c27240ab77b (Remove zygote processes (#5680))
+   }
+ 
+   if (build_rust_json_reader) {
+@@ -5233,8 +5228,6 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+-
+ if (enable_base_tracing) {
+   # This group makes visible those targets in subdirectories that are not
+   # explicitly depended on.
+@@ -5244,10 +5237,7 @@
+   }
+ }
+ 
+-if (is_cobalt_hermetic_build) {
+-=======
+ if (enable_cobalt_hermetic_hacks) {
+->>>>>>> c27240ab77b (Remove zygote processes (#5680))
+   # TODO: b/413130400 - Cobalt: Remove this config 
+   # after removing base/starboard/linker_stub.h
+   config("base_starboard_linker_stub") {

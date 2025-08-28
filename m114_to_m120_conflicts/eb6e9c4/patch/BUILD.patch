@@ -1,0 +1,22 @@
+--- media/mojo/clients/BUILD.gn
++++ media/mojo/clients/BUILD.gn
+@@ -162,7 +162,6 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+   if (is_win) {
+     sources += [ "win/media_foundation_renderer_client_unittest.cc" ]
+ 
+@@ -171,9 +170,9 @@
+       "//content/renderer:renderer",
+       "//media",
+     ]
+-=======
++  }
++
+   if (is_cobalt && use_starboard_media) {
+     sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
+->>>>>>> 5fa3db4e4cc ([media] Add unit tests for StarboardRendererClient (#6203))
+   }
+ }

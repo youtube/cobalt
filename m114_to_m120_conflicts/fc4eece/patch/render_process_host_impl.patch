@@ -1,0 +1,34 @@
+--- content/browser/renderer_host/render_process_host_impl.cc
++++ content/browser/renderer_host/render_process_host_impl.cc
+@@ -5238,28 +5238,18 @@
+     if (coordinator_connector_receiver_.is_bound())
+       coordinator_connector_receiver_.Resume();
+ 
+-<<<<<<< HEAD
+     io_thread_host_impl_->AsyncCall(&IOThreadHostImpl::SetPid)
+         .WithArgs(GetProcess().Pid());
+ 
+     // Not all platforms launch processes in the same backgrounded state. Make
+     // sure |priority_.visible| reflects this platform's initial process
+     // state.
+-#if BUILDFLAG(IS_APPLE)
+-    priority_.visible = child_process_launcher_->GetProcess().GetPriority(
+-                            ChildProcessTaskPortProvider::GetInstance()) ==
+-                        base::Process::Priority::kUserBlocking;
+-=======
+-      // Not all platforms launch processes in the same backgrounded state. Make
+-      // sure |priority_.visible| reflects this platform's initial process
+-      // state.
+ #if BUILDFLAG(IS_STARBOARD)
+     priority_.visible = true;
+ #elif BUILDFLAG(IS_APPLE)
+-    priority_.visible =
+-        !child_process_launcher_->GetProcess().IsProcessBackgrounded(
+-            ChildProcessTaskPortProvider::GetInstance());
+->>>>>>> b1ce77e4c10 (Fix remaining compiler issues in hermetic cobalt (#5316))
++    priority_.visible = child_process_launcher_->GetProcess().GetPriority(
++                            ChildProcessTaskPortProvider::GetInstance()) ==
++                        base::Process::Priority::kUserBlocking;
+ #elif BUILDFLAG(IS_ANDROID)
+     // Android child process priority works differently and cannot be queried
+     // directly from base::Process.

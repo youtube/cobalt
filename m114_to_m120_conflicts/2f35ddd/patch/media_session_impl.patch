@@ -1,0 +1,20 @@
+--- content/browser/media/session/media_session_impl.cc
++++ content/browser/media/session/media_session_impl.cc
+@@ -1798,17 +1798,11 @@
+     artwork = routed_service_->metadata()->artwork;
+   }
+ 
+-<<<<<<< HEAD
+-  if (metadata.title.empty()) {
+-    metadata.title = SanitizeMediaTitle(web_contents()->GetTitle());
+-  }
+-=======
+ #if !BUILDFLAG(IS_COBALT)
+   // We don't want to use web content title as media session title.
+   if (metadata.title.empty())
+     metadata.title = SanitizeMediaTitle(web_contents()->GetTitle());
+ #endif // !BUILDFLAG(IS_COBALT)
+->>>>>>> 8ab29751c0d (Allow media session title to be empty (#5428))
+ 
+   ContentClient* content_client = content::GetContentClient();
+   const GURL& url = web_contents()->GetLastCommittedURL();

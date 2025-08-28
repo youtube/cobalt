@@ -1,0 +1,18 @@
+--- third_party/blink/renderer/core/dom/events/event_target.cc
++++ third_party/blink/renderer/core/dom/events/event_target.cc
+@@ -859,15 +859,7 @@
+   return GetDispatchEventResult(event);
+ }
+ 
+-<<<<<<< HEAD
+ // Fire event listeners, creates a copy of EventListenerVector on being called.
+-=======
+-// NOTE: To future Cobalt rebasers, this change to use
+-// a copy of listeners_vector can be overriden entirely upon rebasing as
+-// long as the code uses EventListenerVectorSnapshot. It's based on
+-// an upstream patch in Chromium to fix this crash b/420931375. You should
+-// be introducing the more complete fix and this patch is no longer needed.
+->>>>>>> 4e16a3a0cdd (BACKPORT: Improve event listener dispatch (#5981))
+ bool EventTarget::FireEventListeners(Event& event,
+                                      EventTargetData* d,
+                                      EventListenerVector entry) {

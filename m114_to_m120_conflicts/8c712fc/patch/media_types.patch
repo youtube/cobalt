@@ -1,0 +1,17 @@
+--- media/mojo/mojom/media_types.mojom
++++ media/mojo/mojom/media_types.mojom
+@@ -270,13 +270,11 @@
+   mojo_base.mojom.TimeDelta front_discard;
+   mojo_base.mojom.TimeDelta back_discard;
+ 
+-<<<<<<< HEAD
+   DecoderBufferSideData? side_data;
+-=======
++
+   [EnableIf=use_starboard_media]
+   // This stores the address of DecoderBuffer.
+   uint64 address;
+->>>>>>> f5fd71414c6 ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
+ };
+ 
+ // This defines a mojo transport format for media::AudioBuffer.

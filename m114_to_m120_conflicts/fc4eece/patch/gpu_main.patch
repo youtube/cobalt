@@ -1,0 +1,16 @@
+--- content/gpu/gpu_main.cc
++++ content/gpu/gpu_main.cc
+@@ -91,12 +91,8 @@
+ #include "sandbox/win/src/sandbox.h"
+ #endif
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+-#include "content/child/sandboxed_process_thread_type_handler.h"
+-=======
+ #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+->>>>>>> b1ce77e4c10 (Fix remaining compiler issues in hermetic cobalt (#5316))
++#include "content/child/sandboxed_process_thread_type_handler.h"
+ #include "content/gpu/gpu_sandbox_hook_linux.h"
+ #include "sandbox/policy/linux/sandbox_linux.h"
+ #include "sandbox/policy/sandbox_type.h"

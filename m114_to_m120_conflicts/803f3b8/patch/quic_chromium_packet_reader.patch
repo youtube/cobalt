@@ -1,0 +1,23 @@
+--- net/quic/quic_chromium_packet_reader.h
++++ net/quic/quic_chromium_packet_reader.h
+@@ -66,9 +66,8 @@
+   // Return true if reading should continue.
+   bool ProcessReadResult(int result);
+ 
+-<<<<<<< HEAD
+   std::unique_ptr<DatagramClientSocket> socket_;
+-=======
++
+ #if BUILDFLAG(IS_COBALT)
+   // Version of StartReading that reads multiple packets per read call.
+   int StartReadingMultiplePackets();
+@@ -78,9 +77,6 @@
+   bool ProcessMultiplePacketReadResult(int result);
+ #endif
+ 
+-  raw_ptr<DatagramClientSocket, DanglingUntriaged> socket_;
+->>>>>>> 67d51efb8fc (net/quic/ + net/socket/: Read multiple packets per call for QUIC connections (#6109))
+-
+   raw_ptr<Visitor> visitor_;
+   bool read_pending_ = false;
+   int num_packets_read_ = 0;

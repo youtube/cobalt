@@ -1,0 +1,17 @@
+--- third_party/blink/renderer/core/dom/node.cc
++++ third_party/blink/renderer/core/dom/node.cc
+@@ -327,14 +327,11 @@
+   return DOMNodeIds::IdForNode(this);
+ }
+ 
+-<<<<<<< HEAD
+ // static
+ Node* Node::FromDomNodeId(DOMNodeId dom_node_id) {
+   return DOMNodeIds::NodeForId(dom_node_id);
+ }
+ 
+-=======
+->>>>>>> aff9c0340aa (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
+ NodeRareData& Node::CreateRareData() {
+   if (IsElementNode()) {
+     data_ = MakeGarbageCollected<ElementRareDataVector>(data_);

@@ -1,0 +1,18 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -1010,15 +1010,11 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+   if (is_chromeos) {
+     sources += [ "threading/platform_thread_cros.cc" ]
+   }
+ 
+-  if (is_linux || is_chromeos || is_android) {
+-=======
+   if ((is_linux && !is_starboard) || is_chromeos || is_android) {
+->>>>>>> 4ca7dfbe485 ([POSIX] Remove filesystem monitoring functions from Cobalt (#6061))
+     sources += [
+       "files/file_path_watcher_inotify.cc",
+       "files/file_path_watcher_inotify.h",

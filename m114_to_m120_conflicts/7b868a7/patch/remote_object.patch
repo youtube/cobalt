@@ -1,0 +1,79 @@
+--- third_party/blink/renderer/modules/remote_objects/remote_object.cc
++++ third_party/blink/renderer/modules/remote_objects/remote_object.cc
+@@ -321,36 +321,20 @@
+   String method_name = ToCoreString(info.Data().As<v8::String>());
+   if (info.IsConstructCall()) {
+     // This is not a constructor. Throw and return.
+-<<<<<<< HEAD
+-    isolate->ThrowException(v8::Exception::Error(
+-        V8String(isolate, kMethodInvocationAsConstructorDisallowed)));
+-=======
+     isolate->ThrowException(v8::Exception::Error(V8String(
+         isolate, base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
+                                kMethodInvocationAsConstructorDisallowed})
+                      .c_str())));
+-    UMA_HISTOGRAM_ENUMERATION(
+-        "Blink.JavaJsBridge.MethodInvocationError",
+-        JavaJsBridgeMethodInvocationError::kAsConstructorDisallowed);
+->>>>>>> d5ee5ede5f0 (Add method name to Java Bridge error messages (#6091))
+     return;
+   }
+ 
+   RemoteObject* remote_object;
+   if (!gin::ConvertFromV8(isolate, info.Holder(), &remote_object)) {
+     // Someone messed with the |this| pointer. Throw and return.
+-<<<<<<< HEAD
+-    isolate->ThrowException(v8::Exception::Error(
+-        V8String(isolate, kMethodInvocationOnNonInjectedObjectDisallowed)));
+-=======
+     isolate->ThrowException(v8::Exception::Error(V8String(
+         isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
+                                kMethodInvocationOnNonInjectedObjectDisallowed})
+                      .c_str())));
+-    UMA_HISTOGRAM_ENUMERATION(
+-        "Blink.JavaJsBridge.MethodInvocationError",
+-        JavaJsBridgeMethodInvocationError::kOnNonInjectedObjectDisallowed);
+->>>>>>> d5ee5ede5f0 (Add method name to Java Bridge error messages (#6091))
+     return;
+   }
+ 
+@@ -365,18 +349,10 @@
+           .ToLocalChecked();
+ 
+   if (cached_method->IsUndefined()) {
+-<<<<<<< HEAD
+-    isolate->ThrowException(v8::Exception::Error(
+-        V8String(isolate, kMethodInvocationNonexistentMethod)));
+-=======
+     isolate->ThrowException(v8::Exception::Error(V8String(
+         isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
+                                kMethodInvocationNonexistentMethod})
+                      .c_str())));
+-    UMA_HISTOGRAM_ENUMERATION(
+-        "Blink.JavaJsBridge.MethodInvocationError",
+-        JavaJsBridgeMethodInvocationError::kNonexistentMethod);
+->>>>>>> d5ee5ede5f0 (Add method name to Java Bridge error messages (#6091))
+     return;
+   }
+ 
+@@ -397,20 +373,12 @@
+                                        &result);
+ 
+   if (result->error != mojom::blink::RemoteInvocationError::OK) {
+-<<<<<<< HEAD
+-    String message = String::Format("%s : ", kMethodInvocationErrorMessage) +
+-                     RemoteInvocationErrorToString(result->error);
+-    isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+-=======
+     isolate->ThrowException(v8::Exception::Error(V8String(
+         isolate,
+         base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
+                       kMethodInvocationErrorMessage, ": ",
+                       RemoteInvocationErrorToString(result->error).Utf8()})
+             .c_str())));
+-    UMA_HISTOGRAM_ENUMERATION("Blink.JavaJsBridge.MethodInvocationError",
+-                              JavaJsBridgeMethodInvocationError::kErrorMessage);
+->>>>>>> d5ee5ede5f0 (Add method name to Java Bridge error messages (#6091))
+     return;
+   }
+ 

@@ -1,0 +1,23 @@
+--- components/variations/service/variations_field_trial_creator.h
++++ components/variations/service/variations_field_trial_creator.h
+@@ -39,20 +39,7 @@
+   // Returns whether the map of the cached UI strings to override is empty.
+   bool IsOverrideResourceMapEmpty() override;
+ 
+-<<<<<<< HEAD
+  protected:
+-=======
+-  // Returns the locale that was used for evaluating trials.
+-  const std::string& application_locale() const { return application_locale_; }
+-
+-  SeedType seed_type() const { return seed_type_; }
+-
+- protected:
+-  // Get the platform we're running on, respecting OverrideVariationsPlatform().
+-  // Protected for testing.
+-  Study::Platform GetPlatform();
+-
+->>>>>>> 65e6e30dea2 (Revert "Fix missing Feature flags initialization" (#6092))
+   // Overrides the string resource specified by |hash| with |str| in the
+   // resource bundle. Protected for testing.
+   void OverrideUIString(uint32_t hash, const std::u16string& str) override;

@@ -1,0 +1,14 @@
+--- components/crash/core/app/BUILD.gn
++++ components/crash/core/app/BUILD.gn
+@@ -5,11 +5,8 @@
+ # TODO(crbug.com/1226159): Complete crash reporting integration on Fuchsia.
+ assert(!is_fuchsia)
+ 
+-<<<<<<< HEAD
+ import("//base/debug/debug.gni")
+-=======
+ import("//cobalt/build/configs/hacks.gni")
+->>>>>>> b1ce77e4c10 (Fix remaining compiler issues in hermetic cobalt (#5316))
+ import("//components/gwp_asan/buildflags/buildflags.gni")
+ 
+ if (is_android) {

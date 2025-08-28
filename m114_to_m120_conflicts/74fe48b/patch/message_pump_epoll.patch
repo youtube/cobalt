@@ -1,0 +1,15 @@
+--- base/message_loop/message_pump_epoll.cc
++++ base/message_loop/message_pump_epoll.cc
+@@ -146,11 +146,7 @@
+     // non-persistent) Interest.
+     existing_interest->set_active(true);
+   } else {
+-<<<<<<< HEAD
+-    entry.interests.push_back(controller->AssignEpollInterest(params));
+-=======
+-    entry.interests->push_back(controller->AssignInterest(params));
+->>>>>>> 77602837872 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
++    entry.interests.push_back(controller->AssignInterest(params));
+     if (existing_interest) {
+       UnregisterInterest(existing_interest);
+     }

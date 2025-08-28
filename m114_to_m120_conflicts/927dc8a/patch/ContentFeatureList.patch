@@ -1,0 +1,17 @@
+--- content/public/android/java/src/org/chromium/content_public/browser/ContentFeatureList.java
++++ content/public/android/java/src/org/chromium/content_public/browser/ContentFeatureList.java
+@@ -29,13 +29,9 @@
+     public static final String BACKGROUND_MEDIA_RENDERER_HAS_MODERATE_BINDING =
+             "BackgroundMediaRendererHasModerateBinding";
+ 
+-<<<<<<< HEAD
+     public static final String MOUSE_AND_TRACKPAD_DROPDOWN_MENU = "MouseAndTrackpadDropdownMenu";
+-=======
+-    public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+ 
+-    public static final String ON_DEMAND_ACCESSIBILITY_EVENTS = "OnDemandAccessibilityEvents";
+->>>>>>> edf588afe45 (Stop creating a11y node provder for Chrobalt (#5271))
++    public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+ 
+     public static final String OPTIMIZE_IMM_HIDE_CALLS = "OptimizeImmHideCalls";
+ 

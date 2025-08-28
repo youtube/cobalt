@@ -1,0 +1,36 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -83,7 +83,7 @@
+ 
+ DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-  : DecoderBuffer(data.get(), size, nullptr, 0) {
++  : DecoderBuffer(data.get(), size) {
+   // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+ }
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+@@ -119,8 +119,6 @@
+   Initialize(DemuxerStream::UNKNOWN);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   data_.reset(new uint8_t[size_]);
+-  if (side_data_size_ > 0)
+-    side_data_.reset(new uint8_t[side_data_size_]);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ }
+ 
+@@ -136,15 +134,6 @@
+                                                       allocated_size_,
+                                                       alignment));
+   memset(data_ + size_, 0, padding);
+-<<<<<<< HEAD
+-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  data_.reset(new uint8_t[size_]);
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-
+-  if (side_data_size_ > 0)
+-    side_data_.reset(new uint8_t[side_data_size_]);
+->>>>>>> a86c930dc17 ([media] Improve DecoderBufferAllocator logging (#5036))
+ }
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
