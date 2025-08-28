@@ -15,6 +15,7 @@
 #include "cobalt/common/libc/locale/locale.h"
 
 #include <limits.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <string.h>
 
@@ -113,4 +114,164 @@ locale_t duplocale(locale_t loc) {
   lconv* new_lconv = new lconv;
   memcpy(new_lconv, reinterpret_cast<lconv*>(loc), sizeof(lconv));
   return reinterpret_cast<locale_t>(new_lconv);
+}
+
+char* nl_langinfo_l(nl_item item, locale_t locale) {
+  if (locale == (locale_t)0) {
+    // The behavior is undefined according to POSIX, but we will follow the
+    // behavior of glibc and return an empty string.
+    return const_cast<char*>("");
+  }
+
+  lconv* conv;
+  if (locale == LC_GLOBAL_LOCALE) {
+    conv = const_cast<lconv*>(GetCLocaleConv());
+  } else {
+    conv = reinterpret_cast<lconv*>(locale);
+  }
+
+  switch (item) {
+    // Values from lconv
+    case RADIXCHAR:
+      return conv->decimal_point;
+    case THOUSEP:
+      return conv->thousands_sep;
+    case GROUPING:
+      return conv->grouping;
+    case MON_DECIMAL_POINT:
+      return conv->mon_decimal_point;
+    case MON_THOUSANDS_SEP:
+      return conv->mon_thousands_sep;
+    case MON_GROUPING:
+      return conv->mon_grouping;
+    case CURRENCY_SYMBOL:
+      return conv->currency_symbol;
+    case INT_CURR_SYMBOL:
+      return conv->int_curr_symbol;
+    case POSITIVE_SIGN:
+      return conv->positive_sign;
+    case NEGATIVE_SIGN:
+      return conv->negative_sign;
+
+    // Date and time formats
+    case D_T_FMT:
+      return const_cast<char*>("%a %b %e %H:%M:%S %Y");
+    case D_FMT:
+      return const_cast<char*>("%m/%d/%y");
+    case T_FMT:
+      return const_cast<char*>("%H:%M:%S");
+    case T_FMT_AMPM:
+      return const_cast<char*>("%I:%M:%S %p");
+    case AM_STR:
+      return const_cast<char*>("AM");
+    case PM_STR:
+      return const_cast<char*>("PM");
+
+    // Days
+    case DAY_1:
+      return const_cast<char*>("Sunday");
+    case DAY_2:
+      return const_cast<char*>("Monday");
+    case DAY_3:
+      return const_cast<char*>("Tuesday");
+    case DAY_4:
+      return const_cast<char*>("Wednesday");
+    case DAY_5:
+      return const_cast<char*>("Thursday");
+    case DAY_6:
+      return const_cast<char*>("Friday");
+    case DAY_7:
+      return const_cast<char*>("Saturday");
+
+    // Abbreviated days
+    case ABDAY_1:
+      return const_cast<char*>("Sun");
+    case ABDAY_2:
+      return const_cast<char*>("Mon");
+    case ABDAY_3:
+      return const_cast<char*>("Tue");
+    case ABDAY_4:
+      return const_cast<char*>("Wed");
+    case ABDAY_5:
+      return const_cast<char*>("Thu");
+    case ABDAY_6:
+      return const_cast<char*>("Fri");
+    case ABDAY_7:
+      return const_cast<char*>("Sat");
+
+    // Months
+    case MON_1:
+      return const_cast<char*>("January");
+    case MON_2:
+      return const_cast<char*>("February");
+    case MON_3:
+      return const_cast<char*>("March");
+    case MON_4:
+      return const_cast<char*>("April");
+    case MON_5:
+      return const_cast<char*>("May");
+    case MON_6:
+      return const_cast<char*>("June");
+    case MON_7:
+      return const_cast<char*>("July");
+    case MON_8:
+      return const_cast<char*>("August");
+    case MON_9:
+      return const_cast<char*>("September");
+    case MON_10:
+      return const_cast<char*>("October");
+    case MON_11:
+      return const_cast<char*>("November");
+    case MON_12:
+      return const_cast<char*>("December");
+
+    // Abbreviated months
+    case ABMON_1:
+      return const_cast<char*>("Jan");
+    case ABMON_2:
+      return const_cast<char*>("Feb");
+    case ABMON_3:
+      return const_cast<char*>("Mar");
+    case ABMON_4:
+      return const_cast<char*>("Apr");
+    case ABMON_5:
+      return const_cast<char*>("May");
+    case ABMON_6:
+      return const_cast<char*>("Jun");
+    case ABMON_7:
+      return const_cast<char*>("Jul");
+    case ABMON_8:
+      return const_cast<char*>("Aug");
+    case ABMON_9:
+      return const_cast<char*>("Sep");
+    case ABMON_10:
+      return const_cast<char*>("Oct");
+    case ABMON_11:
+      return const_cast<char*>("Nov");
+    case ABMON_12:
+      return const_cast<char*>("Dec");
+
+    // Other
+    case CODESET:
+      return const_cast<char*>("US-ASCII");
+    case YESEXPR:
+      return const_cast<char*>("^[yY]");
+    case NOEXPR:
+      return const_cast<char*>("^[nN]");
+
+    // Some other values from POSIX
+    case ERA:
+    case ERA_D_FMT:
+    case ERA_D_T_FMT:
+    case ERA_T_FMT:
+    case ALT_DIGITS:
+      return const_cast<char*>("");
+
+    default:
+      return const_cast<char*>("");
+  }
+}
+
+char* nl_langinfo(nl_item item) {
+  return nl_langinfo_l(item, g_current_locale);
 }
