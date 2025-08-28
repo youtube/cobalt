@@ -48,11 +48,17 @@ class MODULES_EXPORT H5vccExperiments final
   WTF::Vector<uint32_t> activeExperimentIds();
   String getFeature(const String&);
   const String& getFeatureParam(const String&);
+  String getActiveExperimentConfigData();
+  String getLatestExperimentConfigHashData();
+  ScriptPromise setLatestExperimentConfigHashData(ScriptState*,
+                                                  const String&,
+                                                  ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
   void OnSetExperimentState(ScriptPromiseResolver*);
+  void OnSetLatestExperimentConfigHashData(ScriptPromiseResolver*);
   void OnResetExperimentState(ScriptPromiseResolver*);
   void OnConnectionError();
   void EnsureReceiverIsBound();
