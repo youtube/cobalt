@@ -269,7 +269,7 @@ size_t SkFileMemoryChunkStream::read(void* buffer, size_t size) {
       // seek fails, then set file position to an invalid value to ensure that
       // the next read triggers a new seek, and break out.
       if (file_position_ != stream_position_ &&
-          !fseek(file_, stream_position_, SEEK_SET)) {
+          fseek(file_, stream_position_, SEEK_SET) != 0) {
         file_position_ = std::numeric_limits<size_t>::max();
         break;
       }
@@ -278,8 +278,7 @@ size_t SkFileMemoryChunkStream::read(void* buffer, size_t size) {
       // avoided.  This is because |sk_qread|'s implementation does multiple
       // seeks to ensure that the file cursor is at the same position after the
       // |sk_qread| operation is done.
-      index_actual_read_size = fread(buffer, index_desired_read_size,
-                                     index_desired_read_size, file_);
+      index_actual_read_size = fread(buffer, 1, index_desired_read_size, file_);
       file_position_ = stream_position_ + index_actual_read_size;
     }
 
@@ -350,7 +349,7 @@ bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
   // fails, then set file position to an invalid value to ensure that the next
   // read triggers a new seek, and return false.
   if (file_position_ != index_position &&
-      !fseek(file_, index_position, SEEK_SET)) {
+      fseek(file_, index_position, SEEK_SET) != 0) {
     file_position_ = std::numeric_limits<size_t>::max();
     return false;
   }
@@ -363,8 +362,7 @@ bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
   // avoided.  This is because |sk_qread|'s implementation does multiple
   // seeks to ensure that the file cursor is at the same position after the
   // |sk_qread| operation is done.
-  size_t actual_read_size =
-      fread(chunk->memory, desired_read_size, kChunkMaxReadSize, file_);
+  size_t actual_read_size = fread(chunk->memory, 1, desired_read_size, file_);
   file_position_ = index_position + actual_read_size;
 
   return desired_read_size == actual_read_size;
