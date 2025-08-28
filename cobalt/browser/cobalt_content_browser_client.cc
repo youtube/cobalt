@@ -440,10 +440,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
-  LOG(INFO) << "CobaltCommandLine "
-            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
-  LOG(INFO) << "CobaltCommandLine "
-            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+  LOG(INFO) << "CobaltCommandLine: enable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
+            << "], disable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "]";
 
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();
