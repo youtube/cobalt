@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_cobalt) {
+  import("//cobalt/build/configs/initialize_variables.gni")
+}
+
 declare_args() {
   # Determines various flavors of build configuration, and which concrete
   # targets to use for dependencies. Valid values are "standalone", "chromium",
@@ -60,7 +64,12 @@ if (crashpad_is_in_chromium) {
   crashpad_is_mac = is_mac
   crashpad_is_ios = is_ios
   crashpad_is_win = is_win
-  crashpad_is_linux = is_linux && !is_cobalt_hermetic_build || is_chromeos
+  # TODO: b/406511608 - in c25 we consider crashpad to either be in starboard
+  # (for the client) or in a native target build (for the handler), but never in
+  # chromium. We may want to port these changes forward. For now, we just use
+  # is_starboard and is_native_target_build, and their corresponding C++
+  # buildflags, to guard customizations in crashpad.
+  crashpad_is_linux = is_linux && !(is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) || is_chromeos
   crashpad_is_android = is_android
   crashpad_is_fuchsia = is_fuchsia
 
