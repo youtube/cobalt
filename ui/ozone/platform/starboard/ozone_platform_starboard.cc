@@ -19,7 +19,7 @@
 #include "base/logging.h"
 #include "starboard/event.h"
 #include "ui/base/ime/input_method_minimal.h"
-#include "ui/display/manager/test/fake_display_delegate.h"
+// #include "ui/display/manager/test/fake_display_delegate.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
 #include "ui/gl/gl_switches.h"
@@ -91,7 +91,8 @@ class OzonePlatformStarboard : public OzonePlatform {
     // TODO(b/371272304): Implement a native display delegate to allow display
     // configuration and hotplug (adding a new display while the process is
     // running).
-    return std::make_unique<display::FakeDisplayDelegate>();
+    //return std::make_unique<display::FakeDisplayDelegate>();
+    return nullptr;
   }
 
   std::unique_ptr<PlatformScreen> CreateScreen() override {
