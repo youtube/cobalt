@@ -336,6 +336,7 @@ static_library("starboard_platform") {
 
   deps = [
     "//base",
+    "//third_party/jni_zero",
     "//third_party/libevent",
     "//third_party/opus",
   ]

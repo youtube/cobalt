@@ -25,7 +25,7 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
 class MediaCodecBridgeBuilder {
   @CalledByNative

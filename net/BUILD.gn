@@ -1650,8 +1650,10 @@ component("net") {
   # We use `is_cobalt` here because non-starboard configs builds Chromedriver
   # which needs to use the Chrome Root Store only.
   if (is_cobalt && (!chrome_root_store_optional || chrome_root_store_only)) {
+    if (!use_nss_certs) {
+      sources += ["cert/test_root_certs_builtin.cc"]
+    }
     sources += [
-      "cert/test_root_certs_builtin.cc",
       "cert/internal/system_trust_store_cobalt.cc",
     ]
   }
