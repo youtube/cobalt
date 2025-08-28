@@ -43,6 +43,8 @@ import java.util.Optional;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.MemoryPressureLevel;
+import org.chromium.base.memory.MemoryPressureMonitor;
 
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard::android::shared")
@@ -427,6 +429,10 @@ class MediaCodecBridge {
       outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
     }
+
+    int pressure = MemoryPressureMonitor.INSTANCE.getLastReportedPressure();
+    Log.e(TAG, "createVideoMediaCodecBridge > Calling notifyPressure(MemoryPressureLevel.CRITICAL): current pressure level=" + pressure);
+    MemoryPressureMonitor.INSTANCE.notifyPressure(MemoryPressureLevel.CRITICAL);
 
     try {
       Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
