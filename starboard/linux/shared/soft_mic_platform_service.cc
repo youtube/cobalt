@@ -24,9 +24,7 @@
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
 
-// Omit namespace linux due to symbol name conflict.
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 
 namespace {
 typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
@@ -185,5 +183,4 @@ const void* GetSoftMicPlatformServiceApi() {
   return &kSoftMicPlatformServiceApi;
 }
 
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux

@@ -19,8 +19,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 namespace starboard {
 namespace media {
 
@@ -58,5 +57,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
 }  // namespace media
 }  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux

@@ -23,8 +23,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 namespace starboard {
 namespace media {
 
@@ -80,5 +79,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
 }  // namespace media
 }  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux

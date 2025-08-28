@@ -17,8 +17,7 @@
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 namespace starboard {
 namespace audio_sink {
 namespace {
@@ -50,5 +49,4 @@ void SbAudioSinkImpl::PlatformTearDown() {
 
 }  // namespace audio_sink
 }  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux
