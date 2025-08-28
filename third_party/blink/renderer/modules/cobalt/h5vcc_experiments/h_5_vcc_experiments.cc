@@ -110,7 +110,50 @@ const String& H5vccExperiments::getFeatureParam(
   return feature_param_value_;
 }
 
+String H5vccExperiments::getActiveExperimentConfigData() {
+  // EnsureReceiverIsBound();
+  // String active_experiment_config_data;
+  // remote_h5vcc_experiments_->GetActiveExperimentConfigData(
+  //     &active_experiment_config_data);
+  // return active_experiment_config_data;
+  return "";
+}
+
+String H5vccExperiments::getLatestExperimentConfigHashData() {
+  // EnsureReceiverIsBound();
+  // String latest_experiment_config_hash_data;
+  // remote_h5vcc_experiments_->GetLatestExperimentConfigHashData(
+  //     &latest_experiment_config_hash_data);
+  // return latest_experiment_config_hash_data;
+  return "";
+}
+
+ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
+    ScriptState* script_state,
+    const String& hash_data,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
+
+  EnsureReceiverIsBound();
+
+  ongoing_requests_.insert(resolver);
+  // remote_h5vcc_experiments_->SetLatestExperimentConfigHashData(
+  //     hash_data,
+  //     WTF::BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
+  //                   WrapPersistent(this), WrapPersistent(resolver)));
+
+  return promise;
+}
+
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
+}
+
+void H5vccExperiments::OnSetLatestExperimentConfigHashData(
+    ScriptPromiseResolver* resolver) {
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }

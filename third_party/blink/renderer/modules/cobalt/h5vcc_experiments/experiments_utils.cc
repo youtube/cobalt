@@ -22,6 +22,13 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
   base::Value::Dict experiment_config_dict;
 
+  if (!experiment_configuration->hasLatestExperimentConfigHashData()) {
+    return std::nullopt;
+  }
+  experiment_config_dict.Set(
+      cobalt::kExperimentConfigLatestConfigHash,
+      experiment_configuration->latestExperimentConfigHashData());
+
   base::Value::Dict features;
   if (experiment_configuration->hasFeatures()) {
     for (auto& feature_name_and_value : experiment_configuration->features()) {
