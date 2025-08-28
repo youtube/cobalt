@@ -61,6 +61,18 @@ class PersistedDataImpl : public PersistedData {
   // PersistedData overrides:
   int GetDateLastRollCall(const std::string& id) const override;
   int GetDateLastActive(const std::string& id) const override;
+
+#if BUILDFLAG(IS_STARBOARD)
+  std::string GetLastInstalledSbVersion(const std::string& id) const override;
+  std::string GetLastInstalledVersion(const std::string& id) const override;
+  std::string GetUpdaterChannel(const std::string& id) const override;
+  std::string GetLatestChannel() const override;
+  void SetLastInstalledEgAndSbVersion(const std::string& id,
+                                      const std::string& eg_version,
+                                      const std::string& sb_version) override;
+  void SetUpdaterChannel(const std::string& id, const std::string& channel) override;
+  void SetLatestChannel(const std::string& channel) override;
+#endif
   std::string GetPingFreshness(const std::string& id) const override;
   void SetDateLastData(const std::vector<std::string>& ids,
                        int datenum,
@@ -196,6 +208,50 @@ std::string PersistedDataImpl::GetPingFreshness(const std::string& id) const {
   std::string result = GetString(id, "pf");
   return !result.empty() ? base::StringPrintf("{%s}", result.c_str()) : result;
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+std::string PersistedDataImpl::GetLastInstalledSbVersion(const std::string& id) const {
+  return GetString(id, "sbversion");
+}
+
+std::string PersistedDataImpl::GetLastInstalledVersion(const std::string& id) const {
+  return GetString(id, "version");
+}
+std::string PersistedDataImpl::GetUpdaterChannel(const std::string& id) const {
+  return GetString(id, "updaterchannel");
+}
+std::string PersistedDataImpl::GetLatestChannel() const {
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return std::string();
+  }
+  const base::Value& dict = pref_service->GetValue(kPersistedDataPreference);
+  if (!dict.is_dict())
+    return std::string();
+  const std::string* result = dict.GetDict().FindString("latestchannel");
+  return result != nullptr ? *result : std::string();
+}
+void PersistedDataImpl::SetLastInstalledEgAndSbVersion(const std::string& id,
+                                                   const std::string& eg_version,
+                                                   const std::string& sb_version) {
+  SetString(id, "version", eg_version);
+  SetString(id, "sbversion", sb_version);
+}
+void PersistedDataImpl::SetUpdaterChannel(const std::string& id,
+                                      const std::string& channel) {
+  SetString(id, "updaterchannel", channel);
+}
+void PersistedDataImpl::SetLatestChannel(const std::string& channel) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return;
+  }
+  ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
+  base::Value::Dict* app_key = GetOrCreateAppKey("latestchannel", update.Get());
+  app_key->Set("latestchannel", channel);
+}
+#endif
 
 int PersistedDataImpl::GetInstallDate(const std::string& id) const {
   return GetInt(id, "installdate", kDateUnknown);
