@@ -17,6 +17,7 @@
 
 #include <android/native_window.h>
 #include <jni.h>
+#include "starboard/android/shared/decode_target.h"
 
 namespace starboard::android::shared {
 
@@ -46,7 +47,10 @@ class VideoSurfaceHolder {
   bool GetVideoWindowSize(int* width, int* height);
 
   // Clear the video window by painting it Black.
-  void ClearVideoWindow(bool force_reset_surface);
+  void ClearVideoWindow(bool force_reset_surface,
+                        SbDecodeTargetGraphicsContextProvider* gpu_provider);
+
+  void ClearNativeWindow(ANativeWindow* native_window);
 };
 
 }  // namespace starboard::android::shared

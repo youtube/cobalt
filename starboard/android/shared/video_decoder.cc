@@ -431,9 +431,10 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
 VideoDecoder::~VideoDecoder() {
   TeardownCodec();
   if (tunnel_mode_audio_session_id_ != -1) {
-    ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
+    ClearVideoWindow(force_reset_surface_under_tunnel_mode_, nullptr);
   } else {
-    ClearVideoWindow(force_reset_surface_);
+    ClearVideoWindow(force_reset_surface_,
+                     decode_target_graphics_context_provider_);
   }
 }
 
