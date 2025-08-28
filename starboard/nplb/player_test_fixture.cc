@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -69,8 +70,8 @@ class SbPlayerTestFixture::GroupedSamplesIterator {
     if (grouped_samples_.audio_samples_[audio_samples_index_]
             .is_end_of_stream) {
       // For EOS, |samples_count| must be 1.
-      SB_DCHECK(samples_count == 1);
-      SB_DCHECK(current_written_audio_samples_ == 0);
+      SB_DCHECK_EQ(samples_count, 1);
+      SB_DCHECK_EQ(current_written_audio_samples_, 0);
       audio_samples_index_++;
       return;
     }
@@ -92,8 +93,8 @@ class SbPlayerTestFixture::GroupedSamplesIterator {
     if (grouped_samples_.video_samples_[video_samples_index_]
             .is_end_of_stream) {
       // For EOS, |samples_count| must be 1.
-      SB_DCHECK(samples_count == 1);
-      SB_DCHECK(current_written_video_samples_ == 0);
+      SB_DCHECK_EQ(samples_count, 1);
+      SB_DCHECK_EQ(current_written_video_samples_, 0);
       video_samples_index_++;
       return;
     }
@@ -130,8 +131,8 @@ GroupedSamples& GroupedSamples::AddAudioSamples(
     int64_t timestamp_offset,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
-  SB_DCHECK(start_index >= 0);
-  SB_DCHECK(number_of_samples >= 0);
+  SB_DCHECK_GE(start_index, 0);
+  SB_DCHECK_GE(number_of_samples, 0);
   SB_DCHECK(audio_samples_.empty() || !audio_samples_.back().is_end_of_stream);
   // Currently, the implementation only supports writing one sample at a time
   // if |discarded_duration_from_front| or |discarded_duration_from_back| is not
@@ -162,8 +163,8 @@ GroupedSamples& GroupedSamples::AddAudioEOS() {
 
 GroupedSamples& GroupedSamples::AddVideoSamples(int start_index,
                                                 int number_of_samples) {
-  SB_DCHECK(start_index >= 0);
-  SB_DCHECK(number_of_samples >= 0);
+  SB_DCHECK_GE(start_index, 0);
+  SB_DCHECK_GE(number_of_samples, 0);
   SB_DCHECK(video_samples_.empty() || !video_samples_.back().is_end_of_stream);
 
   VideoSamplesDescriptor descriptor;
@@ -281,8 +282,9 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
         ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeAudio));
         iterator.AdvanceAudio(1);
       } else {
-        SB_DCHECK(descriptor.samples_count > 0);
-        SB_DCHECK(descriptor.start_index + descriptor.samples_count <
+        SB_DCHECK_GT(descriptor.samples_count, 0);
+        SB_DCHECK(static_cast<size_t>(descriptor.start_index +
+                                      descriptor.samples_count) <
                   audio_dmp_reader_->number_of_audio_buffers())
             << "Audio dmp file is not long enough to finish the test.";
 
@@ -303,8 +305,9 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
         ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeVideo));
         iterator.AdvanceVideo(1);
       } else {
-        SB_DCHECK(descriptor.samples_count > 0);
-        SB_DCHECK(descriptor.start_index + descriptor.samples_count <
+        SB_DCHECK_GT(descriptor.samples_count, 0);
+        SB_DCHECK(static_cast<size_t>(descriptor.start_index +
+                                      descriptor.samples_count) <
                   video_dmp_reader_->number_of_video_buffers())
             << "Video dmp file is not long enough to finish the test.";
 
@@ -352,7 +355,7 @@ int64_t SbPlayerTestFixture::GetCurrentMediaTime() const {
 
 void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(duration > 0);
+  SB_DCHECK_GT(duration, 0);
   audio_write_duration_ = duration;
 }
 
@@ -518,8 +521,8 @@ void SbPlayerTestFixture::WriteAudioSamples(
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(audio_dmp_reader_);
-  SB_DCHECK(start_index >= 0);
-  SB_DCHECK(samples_to_write > 0);
+  SB_DCHECK_GE(start_index, 0);
+  SB_DCHECK_GT(samples_to_write, 0);
   SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
                                     player_, kSbMediaTypeAudio));
   SB_DCHECK(start_index + samples_to_write + 1 <
@@ -545,8 +548,8 @@ void SbPlayerTestFixture::WriteAudioSamples(
 void SbPlayerTestFixture::WriteVideoSamples(int start_index,
                                             int samples_to_write) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(start_index >= 0);
-  SB_DCHECK(samples_to_write > 0);
+  SB_DCHECK_GE(start_index, 0);
+  SB_DCHECK_GT(samples_to_write, 0);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
                                     player_, kSbMediaTypeVideo));
@@ -570,7 +573,7 @@ void SbPlayerTestFixture::WriteEndOfStream(SbMediaType media_type) {
     can_accept_more_audio_data_ = false;
     audio_end_of_stream_written_ = true;
   } else {
-    SB_DCHECK(media_type == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(media_type, kSbMediaTypeVideo);
     SB_DCHECK(video_dmp_reader_);
     SB_DCHECK(!video_end_of_stream_written_);
     SbPlayerWriteEndOfStream(player_, kSbMediaTypeVideo);

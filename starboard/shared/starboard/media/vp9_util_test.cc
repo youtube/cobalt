@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,18 +32,18 @@ std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
 
 uint8_t CreateSuperframeMarker(size_t bytes_of_size,
                                size_t number_of_subframes) {
-  SB_DCHECK(bytes_of_size > 0);
-  SB_DCHECK(bytes_of_size <= 4);
-  SB_DCHECK(number_of_subframes > 0);
-  SB_DCHECK(number_of_subframes <= Vp9FrameParser::kMaxNumberOfSubFrames);
+  SB_DCHECK_GT(bytes_of_size, 0);
+  SB_DCHECK_LE(bytes_of_size, 4);
+  SB_DCHECK_GT(number_of_subframes, 0);
+  SB_DCHECK_LE(number_of_subframes, Vp9FrameParser::kMaxNumberOfSubFrames);
 
   return static_cast<uint8_t>(0b11000000 | ((bytes_of_size - 1) << 3) |
                               (number_of_subframes - 1));
 }
 
 std::vector<uint8_t> ConvertSizeToBytes(size_t size, size_t bytes_of_size) {
-  SB_DCHECK(bytes_of_size > 0);
-  SB_DCHECK(bytes_of_size <= 4);
+  SB_DCHECK_GT(bytes_of_size, 0);
+  SB_DCHECK_LE(bytes_of_size, 4);
 
   std::vector<uint8_t> size_in_bytes;
 
@@ -52,7 +53,7 @@ std::vector<uint8_t> ConvertSizeToBytes(size_t size, size_t bytes_of_size) {
     size /= 256;
   }
 
-  SB_DCHECK(size == 0);
+  SB_DCHECK_EQ(size, 0);
 
   return size_in_bytes;
 }
