@@ -28,8 +28,7 @@ SbDecodeTargetPrivate::Data::~Data() {
   SB_DCHECK_EQ(glGetError(), GL_NO_ERROR);
 }
 
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 
 namespace {
 
@@ -231,5 +230,4 @@ SbDecodeTarget DecodeTargetCopy(SbDecodeTarget decode_target) {
   return out_decode_target;
 }
 
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux

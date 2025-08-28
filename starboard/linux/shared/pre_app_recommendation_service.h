@@ -16,15 +16,13 @@
 #define STARBOARD_LINUX_SHARED_PRE_APP_RECOMMENDATION_SERVICE_H_
 
 // Omit namespace 'linux' due to symbol name conflict with macro 'linux'
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 
 const char* const kPreappRecommendationServiceName =
     "com.google.youtube.tv.Recommendations";
 
 const void* GetPreappRecommendationServiceApi();
 
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux
 
 #endif  // STARBOARD_LINUX_SHARED_PRE_APP_RECOMMENDATION_SERVICE_H_

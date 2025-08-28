@@ -17,9 +17,7 @@
 #include "starboard/common/configuration_defaults.h"
 #include "starboard/extension/configuration.h"
 
-// Omit namespace linux due to symbol name conflict.
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 
 namespace {
 
@@ -65,5 +63,4 @@ const void* GetConfigurationApi() {
   return &kConfigurationApi;
 }
 
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux
