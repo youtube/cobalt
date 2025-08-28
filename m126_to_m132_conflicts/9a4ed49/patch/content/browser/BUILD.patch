@@ -1,0 +1,21 @@
+--- content/browser/BUILD.gn
++++ content/browser/BUILD.gn
+@@ -2386,18 +2386,7 @@
+     "worker_host/worker_script_loader_factory.h",
+   ]
+ 
+-<<<<<<< HEAD
+-  if (is_cobalt) {
+-    sources += [
+-      "cobalt/crash_annotator/crash_annotator_impl.cc",
+-      "cobalt/crash_annotator/crash_annotator_impl.h",
+-    ]
+-  }
+-
+   if (is_android) {
+-=======
+-  if (use_starscan) {
+->>>>>>> 3cf14d6a830 (Refactor CrashAnnotator impl as a Cobalt service (#4709))
+     sources += [
+       "memory_pressure/user_level_memory_pressure_signal_generator.cc",
+       "memory_pressure/user_level_memory_pressure_signal_generator.h",
