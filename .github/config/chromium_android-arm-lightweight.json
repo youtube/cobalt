@@ -5,8 +5,7 @@
   ],
   "gn_args": [
     {
-      "disable_xr": true,
-      "disable_bluetooth" : true,
+      "enable_lightweight" : true,
       "target_os": "android",
       "target_cpu": "arm"
     }
