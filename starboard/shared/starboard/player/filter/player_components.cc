@@ -155,16 +155,12 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
 
   bool use_stub_audio_decoder = false;
   bool use_stub_video_decoder = false;
-#if BUILDFLAG(IS_ANDROID)
   use_stub_audio_decoder = ::starboard::features::FeatureList::IsEnabled(
       ::starboard::features::kUseStubAudioDecoder);
   use_stub_video_decoder = ::starboard::features::FeatureList::IsEnabled(
       ::starboard::features::kUseStubVideoDecoder);
-#else
-  auto command_line = shared::starboard::Application::Get()->GetCommandLine();
-  use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
-  use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
-#endif  // BUILDFLAG(IS_ANDROID)
+  SB_LOG(INFO) << __func__ << ": use_stub_audio_decoder="
+               << (use_stub_audio_decoder ? "true" : "false");
 
   if (use_stub_audio_decoder && use_stub_video_decoder) {
     CreateStubAudioComponents(creation_parameters, &audio_decoder,
