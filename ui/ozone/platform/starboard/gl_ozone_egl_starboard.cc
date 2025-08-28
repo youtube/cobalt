@@ -264,19 +264,18 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   gl::GLGetProcAddressProc gl_proc =
       [](const char* name) -> gl::GLFunctionPointerType {
-    gl::GLFunctionPointerType proc =
-        reinterpret_cast<gl::GLFunctionPointerType>(
-            SbGetEglInterface()->eglGetProcAddress(name));
+
+    // We first want to retrieve EGL core functions form SbEglInterface, since
+    // some EGL functions are overridden there as required by cobalt/chromium.
+    // If that fails then we can target the eglGetProcAddress.
+    const SbEglInterface* egl = SbGetEglInterface();
+    gl::GLFunctionPointerType proc = GetEglInterfaceProcAddress(name, egl);
     if (proc) {
       return proc;
     }
-    // For EGL 1.4, eglGetProcAddress might not return pointers to EGL core
-    // functions. In this case, we need to retrieve them from the
-    // SbEglInterface.
-    // If eglGetProcAddress fails, try to retrieve EGL core functions directly
-    // from the SbEglInterface.
-    const SbEglInterface* egl = SbGetEglInterface();
-    proc = GetEglInterfaceProcAddress(name, egl);
+
+    proc = reinterpret_cast<gl::GLFunctionPointerType>(
+            SbGetEglInterface()->eglGetProcAddress(name));
     if (proc) {
       return proc;
     }
