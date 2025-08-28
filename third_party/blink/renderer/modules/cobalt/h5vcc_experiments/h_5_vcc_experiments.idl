@@ -22,6 +22,8 @@ dictionary ExperimentConfiguration {
   record<DOMString, boolean> features;
   record<DOMString, (DOMString or long or boolean)> featureParams;
   sequence<unsigned long> experimentIds;
+  DOMString activeExperimentConfigData;
+  DOMString latestExperimentConfigHashData;
 };
 
 [
@@ -46,4 +48,18 @@ interface H5vccExperiments {
   OverrideState getFeature(DOMString feature_name);
 
   DOMString getFeatureParam(DOMString feature_param_name);
+
+  // Returns Finch opaque blob associated with the active Finch config. For use
+  // by the server that generates Finch experiment state.
+  DOMString getActiveExperimentConfigData();
+
+  // Returns a Finch opaque data associated with the latest received Finch
+  // config. For use by the server that generates Finch experiment state.
+  DOMString getLatestExperimentConfigHashData();
+
+  // Separate setter for the case when the server returns a new opaque hash data
+  // but the Finch experiment state is unchanged. Used for server-side
+  // processing.
+  [CallWith=ScriptState, RaisesException]
+  Promise<void> setLatestExperimentConfigHashData(DOMString hashData);
 };
