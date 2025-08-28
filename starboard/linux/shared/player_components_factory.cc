@@ -42,8 +42,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 namespace starboard {
 namespace player {
 namespace filter {
@@ -210,5 +209,4 @@ bool PlayerComponents::Factory::OutputModeSupported(
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux

@@ -15,13 +15,10 @@
 #ifndef STARBOARD_LINUX_SHARED_IFA_H_
 #define STARBOARD_LINUX_SHARED_IFA_H_
 
-// Omit namespace linux due to symbol name conflict.
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 
 const void* GetIfaApi();
 
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux
 
 #endif  // STARBOARD_LINUX_SHARED_IFA_H_

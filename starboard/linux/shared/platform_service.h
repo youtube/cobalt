@@ -81,13 +81,10 @@ typedef struct CobaltExtensionPlatformServicePrivate {
 // Well-defined value for an invalid |PlatformServiceImpl|.
 #define kPlatformServiceImplInvalid (reinterpret_cast<PlatformServiceImpl*>(0))
 
-// Omit namespace linux due to symbol name conflict.
-namespace starboard {
-namespace shared {
+namespace starboard::linux {
 
 const void* GetPlatformServiceApi();
 
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::linux
 
 #endif  // STARBOARD_LINUX_SHARED_PLATFORM_SERVICE_H_
