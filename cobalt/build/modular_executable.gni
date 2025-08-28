@@ -56,6 +56,8 @@ template("loader_final_target") {
       configs += [ "//starboard/build/config:starboard_implementation" ]
       defines = [ "SB_LOADER_MODULE=\"$original_target_name\"" ]
       ldflags = [
+        "-Wl,-rpath=" + rebase_path("$root_out_dir"),
+        "-Wl,-rpath=" + rebase_path("$root_build_dir"),
         "-Wl,-rpath=" + rebase_path("$root_out_dir", root_build_dir),
         "-Wl,-rpath=" + rebase_path("$root_build_dir", root_build_dir),
       ]
