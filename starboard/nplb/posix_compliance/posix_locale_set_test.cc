@@ -12,17 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Many systems have only a few locales defined. When a test requires a
+// specific locale that is not available, the test will be skipped.
+
 #include <locale.h>
 #include <string.h>
 #include <algorithm>
+#include <cerrno>
 #include <clocale>
+#include <cstring>
 
 #include "build/build_config.h"
+#include "starboard/nplb/posix_compliance/posix_locale_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
+
+constexpr char kDefaultLocale[] = "C";
+constexpr char kPosixLocale[] = "POSIX";
 
 // RAII class to save and restore locale.
 class ScopedLocale {
@@ -50,26 +59,35 @@ class ScopedLocale {
 
 TEST(PosixLocaleSetTest, SetLocaleC) {
   ScopedLocale scoped_locale;
-  const char* result = setlocale(LC_ALL, "C");
+  const char* result = setlocale(LC_ALL, kDefaultLocale);
   ASSERT_NE(nullptr, result);
-  EXPECT_STREQ("C", result);
+  EXPECT_STREQ(kDefaultLocale, result);
 }
 
 TEST(PosixLocaleSetTest, SetLocalePosix) {
   ScopedLocale scoped_locale;
-  const char* result = setlocale(LC_ALL, "POSIX");
-  ASSERT_NE(nullptr, result);
-  // "POSIX" is an alias for "C". Some systems may return "C" when "POSIX"
-  // is requested.
-  EXPECT_TRUE(strcmp(result, "POSIX") == 0 || strcmp(result, "C") == 0);
+  const char* kTestLocale = LocaleFinder::FindSupported({kPosixLocale});
+  if (!kTestLocale) {
+    GTEST_SKIP() << "The \"POSIX\" locale is not supported: "
+                 << strerror(errno);
+  }
+  const char* result = setlocale(LC_ALL, kTestLocale);
+  if (!result) {
+    GTEST_SKIP() << "The \"" << kTestLocale
+                 << "\" locale is not supported: " << strerror(errno);
+  }
+  // kPosixLocale is an alias for kDefaultLocale. Some systems may return
+  // kDefaultLocale when kPosixLocale is requested.
+  EXPECT_TRUE(strcmp(result, kTestLocale) == 0 ||
+              strcmp(result, kDefaultLocale) == 0);
 }
 
 TEST(PosixLocaleSetTest, QueryLocale) {
   ScopedLocale scoped_locale;
-  setlocale(LC_ALL, "C");
+  setlocale(LC_ALL, kDefaultLocale);
   const char* result = setlocale(LC_ALL, NULL);
   ASSERT_NE(nullptr, result);
-  EXPECT_STREQ("C", result);
+  EXPECT_STREQ(kDefaultLocale, result);
 }
 
 TEST(PosixLocaleSetTest, InvalidLocale) {
@@ -80,14 +98,16 @@ TEST(PosixLocaleSetTest, InvalidLocale) {
 
 TEST(PosixLocaleSetTest, LocaleConvC) {
   ScopedLocale scoped_locale;
-  setlocale(LC_ALL, "C");
+  setlocale(LC_ALL, kDefaultLocale);
   struct lconv* conv = localeconv();
   ASSERT_NE(nullptr, conv);
   EXPECT_STREQ(".", conv->decimal_point);
   EXPECT_STREQ("", conv->thousands_sep);
   EXPECT_STREQ("", conv->grouping);
-  EXPECT_STREQ("", conv->int_curr_symbol);
-  EXPECT_STREQ("", conv->currency_symbol);
+  EXPECT_TRUE(strcmp(conv->int_curr_symbol, "") == 0 ||
+              strcmp(conv->int_curr_symbol, kDefaultLocale) == 0);
+  EXPECT_TRUE(strcmp(conv->currency_symbol, "") == 0 ||
+              strcmp(conv->currency_symbol, kDefaultLocale) == 0);
   EXPECT_STREQ("", conv->mon_decimal_point);
   EXPECT_STREQ("", conv->mon_thousands_sep);
   EXPECT_STREQ("", conv->mon_grouping);
@@ -103,15 +123,20 @@ TEST(PosixLocaleSetTest, NewUseFreeLocale) {
   ScopedLocale scoped_locale;
 
   // Set a known global locale.
-  ASSERT_NE(nullptr, setlocale(LC_ALL, "C"));
+  ASSERT_NE(nullptr, setlocale(LC_ALL, kDefaultLocale));
   const char* initial_decimal_point = localeconv()->decimal_point;
 
-  locale_t c_locale = newlocale(LC_ALL_MASK, "C", (locale_t)0);
+  locale_t c_locale = newlocale(LC_ALL_MASK, kDefaultLocale, (locale_t)0);
   ASSERT_NE((locale_t)0, c_locale);
 
   // Try to use a different locale if available.
   // en_US.UTF-8 is common. If not, this part of the test will be skipped.
-  locale_t us_locale = newlocale(LC_ALL_MASK, "en_US.UTF-8", (locale_t)0);
+  const char* kTestLocale = LocaleFinder::FindSupported({"en_US.UTF-8"});
+  if (!kTestLocale) {
+    GTEST_SKIP() << "The \"en_US.UTF-8\" locale is not supported: "
+                 << strerror(errno);
+  }
+  locale_t us_locale = newlocale(LC_ALL_MASK, kTestLocale, (locale_t)0);
   if (us_locale != (locale_t)0) {
     locale_t original_thread_locale = uselocale(us_locale);
 
@@ -147,7 +172,7 @@ TEST(PosixLocaleSetTest, NewLocaleInvalid) {
 
 TEST(PosixLocaleSetTest, UseLocaleGlobal) {
   ScopedLocale scoped_locale;
-  setlocale(LC_ALL, "C");
+  setlocale(LC_ALL, kDefaultLocale);
 
   locale_t original_thread_locale = uselocale(LC_GLOBAL_LOCALE);
   EXPECT_STREQ(".", localeconv()->decimal_point);
@@ -167,7 +192,12 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
 
   // Attempt to set a non-C locale first to ensure we can see a change.
   // en_US.UTF-8 is commonly available.
-  const char* initial_set = setlocale(LC_ALL, "en_US.UTF-8");
+  const char* kTestLocale = LocaleFinder::FindSupported({"en_US.UTF-8"});
+  if (!kTestLocale) {
+    GTEST_SKIP() << "The \"en_US.UTF-8\" locale is not supported: "
+                 << strerror(errno);
+  }
+  const char* initial_set = setlocale(LC_ALL, kTestLocale);
   if (!initial_set) {
     GTEST_SKIP() << "Test skipped: en_US.UTF-8 locale not available.";
   }
@@ -175,15 +205,16 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
   int category = GetParam().category;
   const char* category_locale_1 = setlocale(category, NULL);
   ASSERT_NE(nullptr, category_locale_1);
-  EXPECT_STREQ("en_US.UTF-8", category_locale_1);
+  EXPECT_STREQ(kTestLocale, category_locale_1);
 
-  // Now, set LC_ALL to "C" and verify the specific category has changed.
-  const char* result = setlocale(LC_ALL, "C");
+  // Now, set LC_ALL to kDefaultLocale and verify the specific category has
+  // changed.
+  const char* result = setlocale(LC_ALL, kDefaultLocale);
   ASSERT_NE(nullptr, result);
 
   const char* category_locale_2 = setlocale(category, NULL);
   ASSERT_NE(nullptr, category_locale_2);
-  EXPECT_STREQ("C", category_locale_2);
+  EXPECT_STREQ(kDefaultLocale, category_locale_2);
 
   // Ensure the locale actually changed.
   EXPECT_STRNE(category_locale_1, category_locale_2);
@@ -208,7 +239,7 @@ struct LocaleFormatParam {
 };
 
 void PrintTo(const LocaleFormatParam& param, ::std::ostream* os) {
-  *os << "LocaleFormatParam(\"" << param.locale_string << ")";
+  *os << "LocaleFormatParam(\"" << param.locale_string << "\")";
 }
 
 class PosixLocaleSetFormatTest
@@ -225,8 +256,10 @@ TEST_P(PosixLocaleSetFormatTest, HandlesLocaleString) {
   ASSERT_NE(nullptr, result)
       << "Expected setlocale to succeed for: " << param.locale_string;
 
-  if (strcmp(param.locale_string, "POSIX") == 0) {
-    EXPECT_TRUE(strcmp(result, "POSIX") == 0 || strcmp(result, "C") == 0);
+  const char* kTestLocale = LocaleFinder::FindSupported({kPosixLocale});
+  if (kTestLocale && strcmp(param.locale_string, kTestLocale) == 0) {
+    EXPECT_TRUE(strcmp(result, kTestLocale) == 0 ||
+                strcmp(result, kDefaultLocale) == 0);
   } else if (strlen(param.locale_string) > 0) {
     EXPECT_EQ(static_cast<std::string::size_type>(0),
               std::string(result).find(param.locale_string))
@@ -277,8 +310,8 @@ TEST(PosixLocaleSetTest, InvalidLocaleFormat) {
 }
 
 const LocaleFormatParam kSpecialLocaleFormats[] = {
-    {"C"},
-    {"POSIX"},
+    {kDefaultLocale},
+    {kPosixLocale},
     {""},  // An empty string should query the current locale.
 };
 
@@ -394,14 +427,21 @@ std::string GetLocaleTestName(
   return name;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    PosixLocaleSetFormatTests,
-    PosixLocaleSetFormatTest,
-    ::testing::Concat(::testing::ValuesIn(kSpecialLocaleFormats),
-                      ::testing::ValuesIn(kLocaleFormats)),
-    GetLocaleTestName);
+INSTANTIATE_TEST_SUITE_P(PosixLocaleSetTests,
+                         PosixLocaleSetFormatTest,
+                         ::testing::ValuesIn([]() {
+                           std::vector<LocaleFormatParam> all_formats;
+                           all_formats.insert(all_formats.end(),
+                                              std::begin(kSpecialLocaleFormats),
+                                              std::end(kSpecialLocaleFormats));
+                           all_formats.insert(all_formats.end(),
+                                              std::begin(kLocaleFormats),
+                                              std::end(kLocaleFormats));
+                           return all_formats;
+                         }()),
+                         GetLocaleTestName);
 
-INSTANTIATE_TEST_SUITE_P(PosixLocaleSetAlternativeFormatTests,
+INSTANTIATE_TEST_SUITE_P(PosixLocaleSetTests,
                          PosixLocaleSetAlternativeFormatTest,
                          ::testing::ValuesIn(kLocaleFormats),
                          GetLocaleTestName);
