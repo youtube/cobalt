@@ -32,7 +32,7 @@ namespace starboard::linux {
 
 namespace {
 
-using starboard::player::filter::CpuVideoFrame;
+using shared::starboard::player::filter::CpuVideoFrame;
 
 struct CreateParamsForVideoFrame {
   SbDecodeTarget decode_target_out;

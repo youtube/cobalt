@@ -135,7 +135,7 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 }  // namespace
 
-const void* GetPlatformServiceApi() {
+const void* GetPlatformServiceApiLinux() {
   return &kPlatformServiceApi;
 }
 

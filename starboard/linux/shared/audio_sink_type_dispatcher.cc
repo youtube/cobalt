@@ -17,9 +17,8 @@
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::linux {
-namespace starboard {
-namespace audio_sink {
+namespace starboard::shared::starboard::audio_sink {
+
 namespace {
 bool is_fallback_to_alsa = false;
 }  // namespace
@@ -47,6 +46,4 @@ void SbAudioSinkImpl::PlatformTearDown() {
   }
 }
 
-}  // namespace audio_sink
-}  // namespace starboard
-}  // namespace starboard::linux
+}  // namespace starboard::shared::starboard::audio_sink

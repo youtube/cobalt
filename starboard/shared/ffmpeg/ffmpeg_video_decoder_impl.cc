@@ -384,7 +384,7 @@ bool FfmpegVideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(
 
 void FfmpegVideoDecoderImpl<FFMPEG>::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
-  SbDecodeTarget decode_target = DecodeTargetCreate(
+  SbDecodeTarget decode_target = linux::DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
 
   // Lock only after the post to the renderer thread, to prevent deadlock.
@@ -462,8 +462,8 @@ void FfmpegVideoDecoderImpl<FFMPEG>::TeardownCodec() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     std::lock_guard lock(decode_target_and_frames_mutex_);
     if (SbDecodeTargetIsValid(decode_target_)) {
-      DecodeTargetRelease(decode_target_graphics_context_provider_,
-                          decode_target_);
+      linux::DecodeTargetRelease(decode_target_graphics_context_provider_,
+                                 decode_target_);
       decode_target_ = kSbDecodeTargetInvalid;
     }
   }
@@ -485,7 +485,7 @@ SbDecodeTarget FfmpegVideoDecoderImpl<FFMPEG>::GetCurrentDecodeTarget() {
   if (SbDecodeTargetIsValid(decode_target_)) {
     // Make a disposable copy, since the state is internally reused by this
     // class (to avoid recreating GL objects).
-    return DecodeTargetCopy(decode_target_);
+    return linux::DecodeTargetCopy(decode_target_);
   } else {
     return kSbDecodeTargetInvalid;
   }
