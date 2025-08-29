@@ -123,7 +123,7 @@ public class StarboardBridge {
 
     // Make sure the JNI stack is properly initialized first as there is a
     // race condition as soon as any of the following objects creates a new thread.
-    initJNI();
+    StarboardBridgeJni.get().initJNI(this);
 
     this.appContext = appContext;
     this.activityHolder = activityHolder;
@@ -153,10 +153,6 @@ public class StarboardBridge {
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
   }
 
-  private native boolean initJNI();
-
-  private native void closeNativeStarboard(long nativeApp);
-
   @NativeMethods
   interface Natives {
     void onStop();
@@ -168,10 +164,10 @@ public class StarboardBridge {
       String filesDir,
       String cacheDir,
       String nativeLibraryDir);
-    // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
-    // boolean initJNI();
 
-    // void closeNativeStarboard(long nativeApp);
+    boolean initJNI(StarboardBridge starboardBridge);
+
+    void closeNativeStarboard(long app);
 
     void initializePlatformAudioSink();
 
@@ -180,6 +176,8 @@ public class StarboardBridge {
     void setAndroidBuildFingerprint(String fingerprint);
     void setAndroidOSExperience(boolean isAmatiDevice);
     void setAndroidPlayServicesVersion(long version);
+
+    boolean isReleaseBuild();
   }
 
   protected void onActivityStart(Activity activity) {
@@ -203,7 +201,7 @@ public class StarboardBridge {
     if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
-      closeNativeStarboard(nativeApp);
+      StarboardBridgeJni.get().closeNativeStarboard(nativeApp);
       closeAllServices();
       System.exit(0);
     } else {
@@ -310,7 +308,9 @@ public class StarboardBridge {
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static native boolean isReleaseBuild();
+  public static boolean isReleaseBuild() {
+    return StarboardBridgeJni.get().isReleaseBuild();
+  }
 
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;
