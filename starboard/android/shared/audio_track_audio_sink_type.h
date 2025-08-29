@@ -102,6 +102,10 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 class AudioTrackAudioSink
     : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
  public:
+  struct Options {
+    bool is_web_audio = false;
+    bool skip_initial_audio = false;
+  };
   AudioTrackAudioSink(
       Type* type,
       int channels,
@@ -115,7 +119,7 @@ class AudioTrackAudioSink
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
-      bool is_web_audio,
+      Options options,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -149,6 +153,7 @@ class AudioTrackAudioSink
   const int64_t start_time_;  // microseconds
   const int max_frames_per_request_;
   void* const context_;
+  const bool skip_initial_audio_;
 
   AudioTrackBridge bridge_;
 

@@ -126,7 +126,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_time,
     int tunnel_mode_audio_session_id,
-    bool is_web_audio,
+    Options options,
     void* context)
     : type_(type),
       channels_(channels),
@@ -143,18 +143,20 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
+      skip_initial_audio_(options.skip_initial_audio),
       bridge_(kSbMediaAudioCodingTypePcm,
               sample_type,
               channels,
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
               tunnel_mode_audio_session_id,
-              is_web_audio) {
+              options.is_web_audio) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_
+               << ", options=" << options;
 
   if (!bridge_.is_valid()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -291,6 +293,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                      << ", frames_in_buffer=" << frames_in_buffer
                      << ", frames_in_buffer(msec)="
                      << (GetFramesDurationUs(frames_in_buffer) / 1'000);
+        if (skip_initial_audio_) {
+          SB_LOG(INFO) << "Skip initial audio";
+          // TODO: Implement skipping intial audio logic.
+        }
       }
       started = true;
     }
