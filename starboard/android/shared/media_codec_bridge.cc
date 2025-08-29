@@ -497,6 +497,14 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(
     jlong presentation_time_us,
     jlong render_at_system_time_ns) {
   handler_->OnMediaCodecFrameRendered(presentation_time_us);
+
+  int64_t rendered_ms = render_at_system_time_ns / 1'000'000;
+  if (rendered_frame_count_ < 10 && last_rendered_ms_) {
+    SB_LOG(INFO) << __func__
+                 << ": gap(msec)=" << (rendered_ms - *last_rendered_ms_);
+  }
+  last_rendered_ms_ = rendered_ms;
+  rendered_frame_count_++;
 }
 
 void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
