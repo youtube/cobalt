@@ -468,6 +468,15 @@ public abstract class CobaltActivity extends Activity {
       }
       mShouldReloadOnResume = false;
     }
+
+    View rootView = getWindow().getDecorView().getRootView();
+
+     if (rootView != null && rootView.isAttachedToWindow()) {
+    rootView.requestFocus();
+    Log.i(TAG, "Hao: Successfully requested focus on the root view during onResume.");
+  } else {
+    Log.w(TAG, "Hao: Root view is not ready to receive focus yet.");
+  }
   }
 
   @Override
