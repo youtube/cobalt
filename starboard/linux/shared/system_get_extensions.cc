@@ -52,10 +52,10 @@ const void* SbSystemGetExtension(const char* name) {
   }
 #endif
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return starboard::shared::GetPlatformServiceApi();
+    return starboard::linux::GetPlatformServiceApi();
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::shared::GetConfigurationApi();
+    return starboard::linux::GetConfigurationApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::common::GetCrashHandlerApi();
