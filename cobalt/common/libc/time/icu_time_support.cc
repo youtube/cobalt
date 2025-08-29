@@ -44,7 +44,7 @@ constexpr time_t kMinTimeValForStructTm =
     -67768040609712422;  // Thu Jan  1 00:00:00 -2147481748
 
 bool ExplodeTime(const time_t* time,
-                 const icu::TimeZone& zone,
+                 std::shared_ptr<const icu::TimeZone> zone,
                  struct tm* out_exploded) {
   if (!time || !out_exploded) {
     return false;
@@ -55,9 +55,8 @@ bool ExplodeTime(const time_t* time,
   }
 
   UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::TimeZone> cloned_zone(zone.clone());
   std::unique_ptr<icu::Calendar> calendar(
-      new icu::GregorianCalendar(*cloned_zone, status));
+      new icu::GregorianCalendar(*zone, status));
   if (!calendar || U_FAILURE(status)) {
     return false;
   }
@@ -93,12 +92,12 @@ bool ExplodeTime(const time_t* time,
     out_exploded->tm_isdst = -1;
   }
 
-  if (zone == icu::TimeZone::getUnknown()) {
+  if (*zone == icu::TimeZone::getUnknown()) {
     out_exploded->tm_gmtoff = 0;
     out_exploded->tm_zone = nullptr;
   } else {
     int32_t raw_offset, dst_offset;
-    zone.getOffset(udate, false, raw_offset, dst_offset, status);
+    zone->getOffset(udate, false, raw_offset, dst_offset, status);
     if (U_SUCCESS(status)) {
       out_exploded->tm_gmtoff = (raw_offset + dst_offset) / 1000;
       bool is_daylight = (dst_offset != 0);
@@ -112,15 +111,15 @@ bool ExplodeTime(const time_t* time,
   return U_SUCCESS(status);
 }
 
-time_t ImplodeTime(struct tm* exploded, const icu::TimeZone& zone) {
-  if (!exploded) {
+time_t ImplodeTime(struct tm* exploded,
+                   std::shared_ptr<const icu::TimeZone> zone) {
+  if (!exploded || !zone) {
     return -1;
   }
 
   UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::TimeZone> cloned_zone(zone.clone());
   std::unique_ptr<icu::Calendar> calendar(
-      new icu::GregorianCalendar(*cloned_zone, status));
+      new icu::GregorianCalendar(*zone, status));
   if (!calendar || U_FAILURE(status)) {
     return -1;
   }
@@ -170,7 +169,11 @@ bool IcuTimeSupport::ExplodeLocalTime(const time_t* time,
 
 bool IcuTimeSupport::ExplodeGmtTime(const time_t* time,
                                     struct tm* out_exploded) {
-  bool result = ExplodeTime(time, *icu::TimeZone::getGMT(), out_exploded);
+  bool result =
+      ExplodeTime(time,
+                  std::shared_ptr<const icu::TimeZone>(
+                      icu::TimeZone::getGMT(), [](const icu::TimeZone*) {}),
+                  out_exploded);
   if (result) {
     out_exploded->tm_zone = "UTC";
     out_exploded->tm_isdst = 0;  // UTC is never daylight savings time.
@@ -186,7 +189,9 @@ time_t IcuTimeSupport::ImplodeGmtTime(struct tm* exploded) {
   if (exploded) {
     exploded->tm_isdst = 0;  // UTC is never daylight savings time.
   }
-  return ImplodeTime(exploded, *icu::TimeZone::getGMT());
+  return ImplodeTime(exploded,
+                     std::shared_ptr<const icu::TimeZone>(
+                         icu::TimeZone::getGMT(), [](const icu::TimeZone*) {}));
 }
 
 }  // namespace time
