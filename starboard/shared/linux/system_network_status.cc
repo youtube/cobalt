@@ -127,7 +127,7 @@ void* NetworkNotifier::NotifierThreadEntry(void* context) {
   do {
     if (GetOnlineStatus(&is_online, netlink_fd)) {
       notifier->set_online(is_online);
-      auto* application = starboard::shared::starboard::Application::Get();
+      auto* application = starboard::Application::Get();
       if (is_online) {
         application->InjectOsNetworkConnectedEvent();
       } else {

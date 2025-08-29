@@ -35,7 +35,6 @@ struct SbDecodeTargetPrivate {
 };
 
 namespace starboard {
-namespace shared {
 
 // Outputs a video frame into a SbDecodeTarget.
 SbDecodeTarget DecodeTargetCreate(
@@ -58,7 +57,6 @@ void DecodeTargetRelease(SbDecodeTargetGraphicsContextProvider*
 
 SbDecodeTarget DecodeTargetCopy(SbDecodeTarget decode_target);
 
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_DECODE_TARGET_INTERNAL_H_

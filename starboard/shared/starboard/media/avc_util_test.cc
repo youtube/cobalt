@@ -19,10 +19,10 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard::media {
 namespace {
 
-using ::starboard::shared::starboard::media::ConvertAnnexBToAvcc;
+using ::starboard::media::ConvertAnnexBToAvcc;
 
 const auto kAnnexB = AvcParameterSets::kAnnexB;
 const auto kHeadless = AvcParameterSets::kHeadless;
@@ -552,4 +552,4 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard::media

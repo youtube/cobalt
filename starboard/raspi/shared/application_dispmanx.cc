@@ -32,7 +32,7 @@ namespace starboard {
 namespace raspi {
 namespace shared {
 
-using ::starboard::shared::dev_input::DevInput;
+using ::starboard::dev_input::DevInput;
 
 namespace {
 const int kVideoLayer = -1;
@@ -69,12 +69,12 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
 }
 
 void ApplicationDispmanx::Initialize() {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  ::starboard::audio_sink::SbAudioSinkImpl::Initialize();
 }
 
 void ApplicationDispmanx::Teardown() {
   ShutdownDispmanx();
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
+  ::starboard::audio_sink::SbAudioSinkImpl::TearDown();
 }
 
 void ApplicationDispmanx ::OnSuspend() {
@@ -110,13 +110,12 @@ bool ApplicationDispmanx::MayHaveSystemEvents() {
   return input_ != NULL;
 }
 
-::starboard::shared::starboard::Application::Event*
-ApplicationDispmanx::PollNextSystemEvent() {
+::starboard::Application::Event* ApplicationDispmanx::PollNextSystemEvent() {
   SB_DCHECK(input_);
   return input_->PollNextSystemEvent();
 }
 
-::starboard::shared::starboard::Application::Event*
+::starboard::Application::Event*
 ApplicationDispmanx::WaitForSystemEventWithTimeout(int64_t duration) {
   SB_DCHECK(input_);
   Event* event = input_->WaitForSystemEventWithTimeout(duration);

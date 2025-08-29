@@ -34,7 +34,7 @@ VideoRendererSinkImpl::VideoRendererSinkImpl(SbPlayer player)
 VideoRendererSinkImpl::~VideoRendererSinkImpl() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  ::starboard::shared::starboard::Application::Get()->HandleFrame(
+  ::starboard::Application::Get()->HandleFrame(
       player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
 }
 
@@ -74,8 +74,8 @@ VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
-  ::starboard::shared::starboard::Application::Get()->HandleFrame(
-      player_, frame, z_index_, x_, y_, width_, height_);
+  ::starboard::Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_,
+                                               width_, height_);
   return kNotReleased;
 }
 

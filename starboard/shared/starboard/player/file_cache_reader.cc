@@ -22,7 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard::player {
 
 namespace {
 
@@ -129,4 +129,4 @@ void FileCacheReader::RefillCacheIfEmpty() {
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard::player

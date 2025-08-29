@@ -17,11 +17,11 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::signal {
+namespace starboard::signal {
 
 void InstallSuspendSignalHandlers();
 void UninstallSuspendSignalHandlers();
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard::signal
 
 #endif  // STARBOARD_SHARED_SIGNAL_SUSPEND_SIGNALS_H_

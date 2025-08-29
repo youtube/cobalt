@@ -18,16 +18,15 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 class AudioRenderer {
  public:
-  typedef ::starboard::shared::starboard::player::filter::EndedCB EndedCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
-  typedef ::starboard::shared::starboard::player::filter::PrerolledCB
-      PrerolledCB;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
+  typedef ::starboard::player::filter::EndedCB EndedCB;
+  typedef ::starboard::player::filter::ErrorCB ErrorCB;
+  typedef ::starboard::player::filter::PrerolledCB PrerolledCB;
+  typedef ::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::player::InputBuffers InputBuffers;
 
   virtual ~AudioRenderer() {}
 
@@ -45,6 +44,6 @@ class AudioRenderer {
   virtual bool CanAcceptMoreData() const = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_

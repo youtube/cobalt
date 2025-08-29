@@ -42,12 +42,11 @@ namespace starboard::android::shared {
 //       output to eac3.  Consider pushing some silence at the very beginning so
 //       the sound at the very beginning won't get lost during the switching.
 class AudioRendererPassthrough
-    : public ::starboard::shared::starboard::player::filter::AudioRenderer,
-      public ::starboard::shared::starboard::player::filter::MediaTimeProvider,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+    : public ::starboard::player::filter::AudioRenderer,
+      public ::starboard::player::filter::MediaTimeProvider,
+      private ::starboard::player::JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
+  typedef ::starboard::media::AudioStreamInfo AudioStreamInfo;
 
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
@@ -80,9 +79,9 @@ class AudioRendererPassthrough
                               double* playback_rate) override;
 
  private:
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-  typedef ::starboard::shared::starboard::player::JobThread JobThread;
-  typedef ::starboard::shared::starboard::player::JobQueue::JobToken JobToken;
+  typedef ::starboard::player::DecodedAudio DecodedAudio;
+  typedef ::starboard::player::JobThread JobThread;
+  typedef ::starboard::player::JobQueue::JobToken JobToken;
 
   struct AudioTrackState {
     double volume = 1.0;
@@ -104,8 +103,7 @@ class AudioRendererPassthrough
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
   //       asynchronous, which comes with extra risks.
-  std::unique_ptr<::starboard::shared::starboard::player::filter::AudioDecoder>
-      decoder_;
+  std::unique_ptr<::starboard::player::filter::AudioDecoder> decoder_;
 
   // The following three variables are set in Initialize().
   ErrorCB error_cb_;

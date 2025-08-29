@@ -59,12 +59,11 @@ struct SbPlayerPrivate {
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
 };
 
-namespace starboard::shared::starboard::player {
+namespace starboard::player {
 
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
-  typedef ::starboard::shared::starboard::media::AudioSampleInfo
-      AudioSampleInfo;
+  typedef ::starboard::media::AudioSampleInfo AudioSampleInfo;
 
   static SbPlayerPrivate* CreateInstance(
       SbMediaAudioCodec audio_codec,
@@ -134,6 +133,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   static int number_of_players_;
 };
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard::player
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_

@@ -21,7 +21,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard::player {
 
 namespace {
 
@@ -98,4 +98,4 @@ void JobThread::RunLoop() {
   job_queue_.reset();
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard::player

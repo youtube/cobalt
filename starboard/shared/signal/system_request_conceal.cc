@@ -17,5 +17,5 @@
 #include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestConceal() {
-  starboard::shared::starboard::Application::Get()->Conceal(NULL, NULL);
+  starboard::Application::Get()->Conceal(NULL, NULL);
 }

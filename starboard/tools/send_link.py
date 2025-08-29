@@ -16,7 +16,7 @@
 """Send a link to a process running LinkReceiver.
 
 If a Starboard implementation instantiates
-starboard::shared::starboard::LinkReceiver, then it will write a file containing
+starboard::LinkReceiver, then it will write a file containing
 the port to the configured temporary directory. This script finds that file and
 sends the specified link to that service. It is up to the application to
 interpret that link content.

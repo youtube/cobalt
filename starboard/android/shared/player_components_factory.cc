@@ -71,8 +71,8 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
-class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
-                                     filter::AudioRendererSinkImpl {
+class AudioRendererSinkAndroid
+    : public ::starboard::player::filter::AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
@@ -88,8 +88,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
               auto type = static_cast<AudioTrackAudioSinkType*>(
-                  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
-                      GetPreferredType());
+                  ::starboard::audio_sink::SbAudioSinkImpl::GetPreferredType());
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
@@ -117,8 +116,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
 };
 
 class AudioRendererSinkCallbackStub
-    : public starboard::shared::starboard::player::filter::AudioRendererSink::
-          RenderCallback {
+    : public starboard::player::filter::AudioRendererSink::RenderCallback {
  public:
   bool error_occurred() const { return error_occurred_.load(); }
 
@@ -144,7 +142,7 @@ class AudioRendererSinkCallbackStub
 };
 
 class PlayerComponentsPassthrough
-    : public starboard::shared::starboard::player::filter::PlayerComponents {
+    : public starboard::player::filter::PlayerComponents {
  public:
   PlayerComponentsPassthrough(
       std::unique_ptr<AudioRendererPassthrough> audio_renderer,
@@ -165,26 +163,20 @@ class PlayerComponentsPassthrough
 };
 }  // namespace
 
-class PlayerComponentsFactory : public starboard::shared::starboard::player::
-                                    filter::PlayerComponents::Factory {
-  typedef starboard::shared::starboard::media::MimeType MimeType;
-  typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
-  typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
-      AdaptiveAudioDecoder;
-  typedef starboard::shared::starboard::player::filter::AudioDecoder
-      AudioDecoderBase;
-  typedef starboard::shared::starboard::player::filter::AudioRendererSink
-      AudioRendererSink;
-  typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
+class PlayerComponentsFactory
+    : public starboard::player::filter::PlayerComponents::Factory {
+  typedef starboard::media::MimeType MimeType;
+  typedef starboard::opus::OpusAudioDecoder OpusAudioDecoder;
+  typedef starboard::player::filter::AdaptiveAudioDecoder AdaptiveAudioDecoder;
+  typedef starboard::player::filter::AudioDecoder AudioDecoderBase;
+  typedef starboard::player::filter::AudioRendererSink AudioRendererSink;
+  typedef starboard::player::filter::AudioRendererSinkImpl
       AudioRendererSinkImpl;
-  typedef starboard::shared::starboard::player::filter::PlayerComponents
-      PlayerComponents;
-  typedef starboard::shared::starboard::player::filter::VideoDecoder
-      VideoDecoderBase;
-  typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
+  typedef starboard::player::filter::PlayerComponents PlayerComponents;
+  typedef starboard::player::filter::VideoDecoder VideoDecoderBase;
+  typedef starboard::player::filter::VideoRenderAlgorithm
       VideoRenderAlgorithmBase;
-  typedef starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
+  typedef starboard::player::filter::VideoRendererSink VideoRendererSink;
 
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
@@ -241,9 +233,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         << "The maximum size in bytes of a buffer of data is "
         << max_video_input_size;
 
-    std::unique_ptr<
-        ::starboard::shared::starboard::player::filter::VideoRenderer>
-        video_renderer;
+    std::unique_ptr<::starboard::player::filter::VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
@@ -253,7 +243,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                              kForceSecurePipelineUnderTunnelMode,
                              max_video_input_size, error_message);
       if (video_decoder) {
-        using starboard::shared::starboard::player::filter::VideoRendererImpl;
+        using starboard::player::filter::VideoRendererImpl;
 
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
@@ -379,7 +369,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      using starboard::shared::starboard::media::AudioStreamInfo;
+      using starboard::media::AudioStreamInfo;
       const bool enable_platform_opus_decoder =
           starboard::features::FeatureList::IsEnabled(
               starboard::features::kForcePlatformOpusDecoder);
@@ -670,7 +660,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
 }  // namespace starboard::android::shared
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
@@ -703,6 +693,6 @@ bool PlayerComponents::Factory::OutputModeSupported(
   return false;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_

@@ -21,7 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard::media {
 
 using ::starboard::android::shared::MaxMediaCodecOutputBuffersLookupTable;
 using ::starboard::android::shared::MediaCapabilitiesCache;
@@ -116,4 +116,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       frame_width, frame_height, bitrate, fps);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard::media

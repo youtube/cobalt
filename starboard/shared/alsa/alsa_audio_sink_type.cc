@@ -32,12 +32,12 @@
 #include "starboard/shared/alsa/alsa_util.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::alsa {
+namespace starboard::alsa {
 namespace {
 
-using ::starboard::shared::alsa::AlsaGetBufferedFrames;
-using ::starboard::shared::alsa::AlsaWriteFrames;
-using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
+using ::starboard::alsa::AlsaGetBufferedFrames;
+using ::starboard::alsa::AlsaWriteFrames;
+using ::starboard::audio_sink::SbAudioSinkImpl;
 
 // The maximum number of frames that can be written to ALSA once.  It must be a
 // power of 2.  It is also used as the ALSA polling size.  A small number will
@@ -226,7 +226,7 @@ void AlsaAudioSink::AudioThreadFunc() {
       sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
                                                      : SND_PCM_FORMAT_S16;
 
-  playback_handle_ = ::starboard::shared::alsa::AlsaOpenPlaybackDevice(
+  playback_handle_ = ::starboard::alsa::AlsaOpenPlaybackDevice(
       channels_, sampling_frequency_hz_, kFramesPerRequest,
       kALSABufferSizeInFrames, alsa_sample_type);
   {
@@ -248,7 +248,7 @@ void AlsaAudioSink::AudioThreadFunc() {
     }
   }
 
-  ::starboard::shared::alsa::AlsaCloseDevice(playback_handle_);
+  ::starboard::alsa::AlsaCloseDevice(playback_handle_);
   std::lock_guard lock(mutex_);
   playback_handle_ = NULL;
 }
@@ -466,4 +466,4 @@ void PlatformTearDown() {
   alsa_audio_sink_type_ = NULL;
 }
 
-}  // namespace starboard::shared::alsa
+}  // namespace starboard::alsa

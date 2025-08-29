@@ -23,8 +23,8 @@
 
 namespace starboard::android::shared {
 
-class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
-                                 filter::VideoRenderAlgorithm {
+class VideoRenderAlgorithm
+    : public ::starboard::player::filter::VideoRenderAlgorithm {
  public:
   VideoRenderAlgorithm(VideoDecoder* video_decoder,
                        VideoFrameTracker* frame_tracker);

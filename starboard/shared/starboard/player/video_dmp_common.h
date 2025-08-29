@@ -25,7 +25,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard::player::video_dmp {
 
 // Video dmp file format
 // File: <Byte Order Mark> <Record>*
@@ -130,6 +130,6 @@ void Write(const WriteCB& write_cb,
            SbMediaVideoCodec video_codec,
            const media::VideoSampleInfo& video_sample_info);
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard::player::video_dmp
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_COMMON_H_

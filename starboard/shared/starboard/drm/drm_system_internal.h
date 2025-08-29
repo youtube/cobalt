@@ -21,7 +21,7 @@
 
 struct SbDrmSystemPrivate {
  public:
-  typedef starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef starboard::player::InputBuffer InputBuffer;
   enum DecryptStatus { kSuccess, kRetry, kFailure };
 
   virtual ~SbDrmSystemPrivate() {}
