@@ -377,6 +377,7 @@ static_library("c_internal") {
     "src/network/res_init.c",
     "src/network/res_state.c",
     "src/prng/rand.c",
+    "src/prng/random.c",
     "src/regex/fnmatch.c",
     "src/sched/sched_cpucount.c",
     "src/signal/sigaddset.c",
