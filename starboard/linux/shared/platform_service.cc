@@ -28,7 +28,7 @@
 #include "starboard/elf_loader/evergreen_config.h"
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-namespace starboard::linux {
+namespace starboard {
 
 namespace {
 
@@ -139,4 +139,4 @@ const void* GetPlatformServiceApiLinux() {
   return &kPlatformServiceApi;
 }
 
-}  // namespace starboard::linux
+}  // namespace starboard
