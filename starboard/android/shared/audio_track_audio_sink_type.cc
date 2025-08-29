@@ -218,6 +218,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   int last_playback_head_position = 0;
 
+  bool started = false;
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -277,13 +279,22 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
 
     if (was_playing && !is_playing) {
-      was_playing = false;
       bridge_.Pause();
     } else if (!was_playing && is_playing) {
-      was_playing = true;
       last_playback_head_event_at = -1;
+      int64_t play_starting_us = CurrentMonotonicTime();
       bridge_.Play();
+      int64_t elapsed_us = CurrentMonotonicTime() - play_starting_us;
+      if (!started) {
+        SB_LOG(INFO) << "First Play() completed: elapsed(msec)="
+                     << (elapsed_us / 1'000)
+                     << ", frames_in_buffer=" << frames_in_buffer
+                     << ", frames_in_buffer(msec)="
+                     << (GetFramesDurationUs(frames_in_buffer) / 1'000);
+      }
+      started = true;
     }
+    was_playing = is_playing;
 
     if (!is_playing || frames_in_buffer == 0) {
       usleep(10'000);
