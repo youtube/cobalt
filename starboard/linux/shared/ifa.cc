@@ -19,7 +19,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
 
-namespace starboard::linux {
+namespace starboard {
 
 namespace {
 
@@ -61,4 +61,4 @@ const void* GetIfaApi() {
   return &kIfaApi;
 }
 
-}  // namespace starboard::linux
+}  // namespace starboard

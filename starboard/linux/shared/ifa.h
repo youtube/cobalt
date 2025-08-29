@@ -15,10 +15,10 @@
 #ifndef STARBOARD_LINUX_SHARED_IFA_H_
 #define STARBOARD_LINUX_SHARED_IFA_H_
 
-namespace starboard::linux {
+namespace starboard {
 
 const void* GetIfaApi();
 
-}  // namespace starboard::linux
+}  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_IFA_H_
