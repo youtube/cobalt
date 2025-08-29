@@ -36,10 +36,7 @@ class ScriptState;
 class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccRuntime final
-    // TODO: EventTargetWithInlineData should be replaced with EventTarget
-    // after Chromium base version update, see
-    // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_runtime::mojom::blink::DeepLinkListener {
   DEFINE_WRAPPERTYPEINFO();

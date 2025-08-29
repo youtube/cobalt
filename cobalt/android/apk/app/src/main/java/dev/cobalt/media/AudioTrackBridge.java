@@ -27,8 +27,8 @@ import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /**
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the

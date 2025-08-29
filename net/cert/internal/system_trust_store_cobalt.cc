@@ -11,7 +11,7 @@
 
 #include "net/cert/internal/trust_store_chrome.h"
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
 
 namespace net {
 
@@ -29,7 +29,6 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
       : trust_store_chrome_(std::move(trust_store_chrome)) {}
 
   TrustStore* GetTrustStore() override { return trust_store_chrome_.get(); }
-  bool UsesSystemTrustStore() const override { return false; }
   bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
     return trust_store_chrome_->Contains(trust_anchor);
   }
@@ -48,4 +47,4 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
 
 } // namespace net
 
-#endif // BUILDFLAG(IS_STARBOARD)
+#endif // BUILDFLAG(IS_COBALT)

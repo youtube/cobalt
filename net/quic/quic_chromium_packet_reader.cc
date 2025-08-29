@@ -113,7 +113,7 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
   }
   if (result < 0) {
     // Report all other errors to the visitor.
-    return visitor_->OnReadError(result, socket_);
+    return visitor_->OnReadError(result, socket_.get());
   }
 
   // Since we only work on connected sockets, the local and peer address don't

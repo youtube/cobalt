@@ -72,6 +72,10 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+  const std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
+
   InitializeHangWatcher();
 
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
@@ -88,7 +92,8 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore)
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 
   return absl::nullopt;
@@ -148,6 +153,6 @@ void CobaltMainDelegate::InitializeHangWatcher() {
     hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
   }
 
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type);
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type, false);
 }
 }  // namespace cobalt

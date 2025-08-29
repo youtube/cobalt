@@ -516,7 +516,7 @@ group("gn_all") {
         "//ui/compositor:compositor_unittests",
       ]
 
-      if (!is_ios) {
+      if (!is_ios && !is_cobalt) {
         deps += [
           "//base:build_utf8_validator_tables",
           "//base:check_example",
