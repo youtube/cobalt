@@ -1,0 +1,16 @@
+--- base/DEPS
++++ base/DEPS
+@@ -8,13 +8,9 @@
+   "+third_party/apple_apsl",
+   "+third_party/boringssl/src/include",
+   "+third_party/ced",
+-<<<<<<< HEAD
+   # We are moving the old jni_generator to jni_zero, some references will remain
+   # in //base.
+   "+third_party/jni_zero",
+-  "+third_party/libevent",
+-=======
+->>>>>>> 7b3b520a819 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+   "+third_party/libunwindstack/src/libunwindstack/include",
+   "+third_party/lss",
+   "+third_party/modp_b64",

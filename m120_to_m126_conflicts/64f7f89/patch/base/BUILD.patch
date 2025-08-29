@@ -1,0 +1,21 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -5449,7 +5449,6 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+ process_version("check_version_internal") {
+   template_file = "//base/check_version_internal.h.in"
+   output = "$target_gen_dir/check_version_internal.h"
+@@ -5479,10 +5478,7 @@
+   }
+ }
+ 
+-if (is_cobalt_hermetic_build) {
+-=======
+ if (enable_cobalt_hermetic_hacks) {
+->>>>>>> e153d47e7e6 (Remove zygote processes (#5680))
+   # TODO: b/413130400 - Cobalt: Remove this config 
+   # after removing base/starboard/linker_stub.h
+   config("base_starboard_linker_stub") {

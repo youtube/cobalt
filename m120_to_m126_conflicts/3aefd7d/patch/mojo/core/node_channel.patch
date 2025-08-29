@@ -1,0 +1,17 @@
+--- mojo/core/node_channel.cc
++++ mojo/core/node_channel.cc
+@@ -257,13 +257,8 @@
+     const ProcessErrorCallback& process_error_callback) {
+ #if BUILDFLAG(IS_NACL)
+   LOG(FATAL) << "Multi-process not yet supported on NaCl-SFI";
+-<<<<<<< HEAD
+-=======
+-  return nullptr;
+ #elif BUILDFLAG(IS_STARBOARD)
+-  LOG(ERROR) << "Multi-process not yet supported on Starboard";
+-  return nullptr;
+->>>>>>> b9bde7f4802 (Add a number of hermetic build targets (#5300))
++  LOG(FATAL) << "Multi-process not yet supported on Starboard";
+ #else
+   return new NodeChannel(delegate, std::move(connection_params),
+                          channel_handle_policy, io_task_runner,

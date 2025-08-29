@@ -1,0 +1,15 @@
+--- content/public/common/content_features.h
++++ content/public/common/content_features.h
+@@ -256,12 +256,9 @@
+ CONTENT_EXPORT BASE_DECLARE_FEATURE(kSmartZoom);
+ CONTENT_EXPORT BASE_DECLARE_FEATURE(kUserMediaScreenCapturing);
+ CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebNfc);
+-<<<<<<< HEAD
+ CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebViewSuppressTapDuringFling);
+-=======
+ // TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
+ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotGenerateChromiumA11yTree);
+->>>>>>> fb6459fbc9f (Stop creating a11y node provder for Chrobalt (#5271))
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+ #if BUILDFLAG(IS_CHROMEOS)

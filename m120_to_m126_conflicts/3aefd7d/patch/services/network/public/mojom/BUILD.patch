@@ -1,0 +1,32 @@
+--- services/network/public/mojom/BUILD.gn
++++ services/network/public/mojom/BUILD.gn
+@@ -528,13 +528,8 @@
+     enabled_features += [ "network_change_notifier_in_browser" ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux) {
+-    # TODO(crbug.com/40263697): Remove this once is_linux in the mojom IDL does
+-=======
+   if (is_linux && !is_cobalt_hermetic_build) {
+-    # TODO(crbug.com/1431866): Remove this once is_linux in the mojom IDL does
+->>>>>>> b9bde7f4802 (Add a number of hermetic build targets (#5300))
++    # TODO(crbug.com/40263697): Remove this once is_linux in the mojom IDL does
+     # not include lacros.
+     enabled_features += [ "use_network_interface_change_listener" ]
+   }
+@@ -1498,13 +1493,8 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux) {
+-    # TODO(crbug.com/40263697): Remove this once is_linux in the mojom IDL does
+-=======
+   if (is_linux && !is_cobalt_hermetic_build) {
+-    # TODO(crbug.com/1431866): Remove this once is_linux in the mojom IDL does
+->>>>>>> b9bde7f4802 (Add a number of hermetic build targets (#5300))
++    # TODO(crbug.com/40263697): Remove this once is_linux in the mojom IDL does
+     # not include lacros.
+     enabled_features += [ "use_network_interface_change_listener" ]
+   }

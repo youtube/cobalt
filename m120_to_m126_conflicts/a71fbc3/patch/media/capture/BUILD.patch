@@ -1,0 +1,18 @@
+--- media/capture/BUILD.gn
++++ media/capture/BUILD.gn
+@@ -482,15 +482,11 @@
+     "//ui/gfx:test_support",
+   ]
+ 
+-<<<<<<< HEAD
+   if (enable_video_effects) {
+     deps += [ "//components/viz/test:test_support" ]
+   }
+ 
+-  if (is_linux || is_chromeos_lacros) {
+-=======
+   if (is_linux && !is_cobalt_hermetic_build || is_chromeos_lacros) {
+->>>>>>> bf24c9c0d34 (Build almost all linux targets hermetically (#6097))
+     sources += [
+       "video/linux/v4l2_capture_delegate_unittest.cc",
+       "video/linux/video_capture_device_factory_v4l2_unittest.cc",

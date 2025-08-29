@@ -1,0 +1,17 @@
+--- content/public/android/java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java
++++ content/public/android/java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java
+@@ -1313,12 +1313,11 @@
+         void onHide(long nativeWebContentsAndroid);
+ 
+         void onShow(long nativeWebContentsAndroid);
+-<<<<<<< HEAD
+ 
+-=======
+         void onFreeze(long nativeWebContentsAndroid);
++
+         void onResume(long nativeWebContentsAndroid);
+->>>>>>> 30ed51f6029 (Add freeze and resume events on suspend/resume (#5613))
++
+         void setImportance(long nativeWebContentsAndroid, int importance);
+ 
+         void suspendAllMediaPlayers(long nativeWebContentsAndroid);

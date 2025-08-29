@@ -1,0 +1,19 @@
+--- content/public/renderer/content_renderer_client.cc
++++ content/public/renderer/content_renderer_client.cc
+@@ -310,16 +310,13 @@
+ }
+ #endif
+ 
+-<<<<<<< HEAD
+ std::unique_ptr<blink::WebLinkPreviewTriggerer>
+ ContentRendererClient::CreateLinkPreviewTriggerer() {
+   return nullptr;
+ }
+ 
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ void ContentRendererClient::GetStarboardRendererFactoryTraits(
+   media::RendererFactoryTraits* renderer_factory_traits) {}
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 73a1238456a ([media] Move StarboardRenderer to MojoRenderer (#5113))
+ }  // namespace content

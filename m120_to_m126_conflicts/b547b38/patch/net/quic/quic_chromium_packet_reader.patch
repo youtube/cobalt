@@ -1,0 +1,33 @@
+--- net/quic/quic_chromium_packet_reader.cc
++++ net/quic/quic_chromium_packet_reader.cc
+@@ -247,26 +247,22 @@
+     return visitor_->OnReadError(result, socket_.get());
+   }
+ 
+-<<<<<<< HEAD
+   quic::QuicEcnCodepoint ecn = quic::ECN_NOT_ECT;
+   if (report_ecn_) {
+     DscpAndEcn tos = socket_->GetLastTos();
+     ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
+   }
++#if BUILDFLAG(IS_COBALT)
++  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
++                                  clock_->ApproximateNow());
++#else
+   quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now(),
+                                   /*owns_buffer=*/false, /*ttl=*/0,
+                                   /*ttl_valid=*/true,
+                                   /*packet_headers=*/nullptr,
+                                   /*headers_length=*/0,
+                                   /*owns_header_buffer=*/false, ecn);
+-=======
+-#if BUILDFLAG(IS_COBALT)
+-  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
+-                                  clock_->ApproximateNow());
+-#else
+-  quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now());
+ #endif
+->>>>>>> bf70b3c8c4e (net/quic + third_party/quiche: Improving performance by removing histograms and using ApproximateNow (#6188))
+   IPEndPoint local_address;
+   IPEndPoint peer_address;
+   socket_->GetLocalAddress(&local_address);

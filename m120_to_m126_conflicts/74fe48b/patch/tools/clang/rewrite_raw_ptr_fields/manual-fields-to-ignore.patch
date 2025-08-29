@@ -1,0 +1,16 @@
+--- tools/clang/rewrite_raw_ptr_fields/manual-fields-to-ignore.txt
++++ tools/clang/rewrite_raw_ptr_fields/manual-fields-to-ignore.txt
+@@ -365,13 +365,8 @@
+ WeakLinkNode::list_
+ base::Location::program_counter_
+ base::MessagePump::Delegate::ScopedDoWorkItem::outer_
+-<<<<<<< HEAD
+ base::MessagePumpEpoll::RunState::delegate
+-base::MessagePumpLibevent::RunState::delegate
+-=======
+->>>>>>> 7b3b520a819 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ base::internal::OperationsController::OperationToken::outer_
+-base::MessagePumpEpoll::RunState::delegate
+ base::internal::SequenceLocalStorageMap::ValueDestructorPair::destructor_
+ base::internal::SequenceLocalStorageMap::ValueDestructorPair::value_
+ base::internal::TaskDestructionDetector::timer_

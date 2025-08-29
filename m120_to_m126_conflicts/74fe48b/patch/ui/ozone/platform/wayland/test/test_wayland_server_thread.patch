@@ -1,0 +1,14 @@
+--- ui/ozone/platform/wayland/test/test_wayland_server_thread.h
++++ ui/ozone/platform/wayland/test/test_wayland_server_thread.h
+@@ -86,11 +86,7 @@
+ 
+ class TestWaylandServerThread : public TestOutput::Delegate,
+                                 public base::Thread,
+-<<<<<<< HEAD
+-                                base::MessagePumpLibevent::FdWatcher {
+-=======
+                                 base::MessagePumpEpoll::FdWatcher {
+->>>>>>> 7b3b520a819 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+  public:
+   class OutputDelegate;
+ 

@@ -1,0 +1,22 @@
+--- content/public/common/content_features.cc
++++ content/public/common/content_features.cc
+@@ -1208,18 +1208,16 @@
+ // https://w3c.github.io/web-nfc/
+ BASE_FEATURE(kWebNfc, "WebNFC", base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+-<<<<<<< HEAD
+ // Kill switch for allowing webview to suppress tap immediately after fling,
+ // matching chrome behavior.
+ BASE_FEATURE(kWebViewSuppressTapDuringFling,
+              "WebViewSuppressTapDuringFling",
+              base::FEATURE_ENABLED_BY_DEFAULT);
+-=======
++
+ BASE_FEATURE(kDoNotGenerateChromiumA11yTree,
+              "DoNotGenerateChromiumA11yTree",
+              BUILDFLAG(IS_COBALT) ? base::FEATURE_ENABLED_BY_DEFAULT
+                                    : base::FEATURE_DISABLED_BY_DEFAULT);
+->>>>>>> fb6459fbc9f (Stop creating a11y node provder for Chrobalt (#5271))
+ 
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 

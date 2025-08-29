@@ -1,0 +1,23 @@
+--- content/gpu/BUILD.gn
++++ content/gpu/BUILD.gn
+@@ -92,20 +92,6 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-=======
+-  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
+-    sources += [
+-      "gpu_sandbox_hook_linux.cc",
+-      "gpu_sandbox_hook_linux.h",
+-    ]
+-
+-    if (use_v4l2_codec) {
+-      deps += [ "//media/gpu/v4l2" ]
+-    }
+-  }
+-
+->>>>>>> 7926add082c (Remove build failures related to //sandbox (#5128))
+   if (is_chromeos_ash) {
+     deps += [
+       "//components/services/font/public/cpp",

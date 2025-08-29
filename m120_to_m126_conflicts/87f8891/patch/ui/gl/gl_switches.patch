@@ -1,0 +1,28 @@
+--- ui/gl/gl_switches.cc
++++ ui/gl/gl_switches.cc
+@@ -11,12 +11,8 @@
+ #include "base/android/build_info.h"
+ #endif
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+-=======
+-#if BUILDFLAG(IS_LINUX)
+ #if !BUILDFLAG(IS_STARBOARD)
+->>>>>>> f5901178bb4 (Exclude vulkan headers from ui/gl. (#5212))
+ #include <vulkan/vulkan_core.h>
+ #endif  // !BUILDFLAG(IS_STARBOARD)
+ #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  // nogncheck
+@@ -305,11 +301,7 @@
+       base::android::SDK_VERSION_Q)
+     return false;
+ #endif  // BUILDFLAG(IS_ANDROID)
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+->>>>>>> f5901178bb4 (Exclude vulkan headers from ui/gl. (#5212))
++#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+   angle::SystemInfo system_info;
+   if (!angle::GetSystemInfoVulkan(&system_info))
+     return false;

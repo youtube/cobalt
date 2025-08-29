@@ -1,0 +1,35 @@
+--- content/shell/app/shell_main_delegate.cc
++++ content/shell/app/shell_main_delegate.cc
+@@ -96,7 +96,6 @@
+ 
+ namespace {
+ 
+-<<<<<<< HEAD
+ enum class LoggingDest {
+   kFile,
+   kStderr,
+@@ -105,10 +104,7 @@
+ #endif
+ };
+ 
+-#if !BUILDFLAG(IS_FUCHSIA)
+-=======
+ #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+->>>>>>> 596c2ec0e94 ([Cobalt] Remove unused crashpad library (#5281))
+ base::LazyInstance<content::ShellCrashReporterClient>::Leaky
+     g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
+ #endif
+@@ -276,13 +272,8 @@
+ 
+ // Disable platform crash handling and initialize the crash reporter, if
+ // requested.
+-<<<<<<< HEAD
+ // TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
+-#if !BUILDFLAG(IS_FUCHSIA)
+-=======
+-// TODO(crbug.com/1226159): Implement crash reporter integration for Fuchsia.
+ #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+->>>>>>> 596c2ec0e94 ([Cobalt] Remove unused crashpad library (#5281))
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+           switches::kEnableCrashReporter)) {
+     std::string process_type =

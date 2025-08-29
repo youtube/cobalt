@@ -1,0 +1,21 @@
+--- third_party/blink/renderer/platform/heap/thread_state_storage.cc
++++ third_party/blink/renderer/platform/heap/thread_state_storage.cc
+@@ -10,17 +10,12 @@
+ 
+ namespace blink {
+ 
+-<<<<<<< HEAD
+-constinit thread_local ThreadStateStorage* g_thread_specific_
+-=======
+ #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+ // TODO: b/412388549 - Cobalt: Fix this hack.
+ ThreadStateStorage* g_thread_specific_ = nullptr;
+ #else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+-thread_local ThreadStateStorage* g_thread_specific_ CONSTINIT
+->>>>>>> bbe826d5f2e (Build libcobalt.so hermetically (#5048))
++constinit thread_local ThreadStateStorage* g_thread_specific_
+     __attribute__((tls_model(BLINK_HEAP_THREAD_LOCAL_MODEL))) = nullptr;
+-
+ #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+ 
+ // static

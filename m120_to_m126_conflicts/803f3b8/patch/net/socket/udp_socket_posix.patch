@@ -1,0 +1,69 @@
+--- net/socket/udp_socket_posix.cc
++++ net/socket/udp_socket_posix.cc
+@@ -69,66 +69,15 @@
+ 
+ namespace {
+ 
+-<<<<<<< HEAD
+ constexpr int kBindRetries = 10;
+ constexpr int kPortStart = 1024;
+ constexpr int kPortEnd = 65535;
+-=======
+-const int kBindRetries = 10;
+-const int kPortStart = 1024;
+-const int kPortEnd = 65535;
+-const int kActivityMonitorBytesThreshold = 65535;
+-const int kActivityMonitorMinimumSamplesForThroughputEstimate = 2;
+-const base::TimeDelta kActivityMonitorMsThreshold = base::Milliseconds(100);
+ 
+ #if BUILDFLAG(IS_COBALT)
+ // Read in larger batches to minimize recvmmsg overhead.
+ inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+ #endif
+ 
+-#if BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
+-
+-// On macOS, the file descriptor is guarded to detect the cause of
+-// https://crbug.com/640281. The guard mechanism is a private interface, so
+-// these functions, types, and constants are not defined in any public header,
+-// but with these declarations, it's possible to link against these symbols and
+-// directly call into the functions that will be available at run time.
+-
+-// Declarations from 12.3 xnu-8020.101.4/bsd/sys/guarded.h (not in the SDK).
+-extern "C" {
+-
+-using guardid_t = uint64_t;
+-
+-const unsigned int GUARD_CLOSE = 1u << 0;
+-const unsigned int GUARD_DUP = 1u << 1;
+-
+-int guarded_close_np(int fd, const guardid_t* guard);
+-int change_fdguard_np(int fd,
+-                      const guardid_t* guard,
+-                      unsigned int guardflags,
+-                      const guardid_t* nguard,
+-                      unsigned int nguardflags,
+-                      int* fdflagsp);
+-
+-}  // extern "C"
+-
+-const guardid_t kSocketFdGuard = 0xD712BC0BC9A4EAD4;
+-
+-// Returns true if `socket` is connected to 0.0.0.0, false otherwise.
+-// For detecting slow socket close due to a MacOS bug
+-// (https://crbug.com/1194888).
+-bool PeerIsZeroIPv4(const UDPSocketPosix& socket) {
+-  IPEndPoint peer;
+-  // Note this may call `getpeername` if the address is not cached, adding some
+-  // overhead.
+-  if (socket.GetPeerAddress(&peer) != OK)
+-    return false;
+-  return peer.address().IsIPv4() && peer.address().IsZero();
+-}
+-
+-#endif  // BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
+->>>>>>> 7f84410ff20 (net/quic/ + net/socket/: Read multiple packets per call for QUIC connections (#6109))
+-
+ int GetSocketFDHash(int fd) {
+   return fd ^ 1595649551;
+ }

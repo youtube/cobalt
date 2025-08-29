@@ -1,0 +1,27 @@
+--- media/filters/source_buffer_stream.cc
++++ media/filters/source_buffer_stream.cc
+@@ -1853,7 +1853,6 @@
+   video_configs_.resize(video_configs_.size() + 1);
+   video_configs_[append_config_index_] = config;
+ 
+-<<<<<<< HEAD
+   if (memory_limit_overridden_) {
+     DVLOG(2)
+         << __func__
+@@ -1868,7 +1867,7 @@
+       memory_limit_ = new_memory_limit;
+     }
+   }
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Dynamically increase |memory_limit_| when video resolution goes up.
+   memory_limit_ = std::max(
+@@ -1876,7 +1875,6 @@
+       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                        &config));
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> c90ec1068a0 (Update DecoderBuffer memory budget on format change (#5421))
+ 
+   return true;
+ }

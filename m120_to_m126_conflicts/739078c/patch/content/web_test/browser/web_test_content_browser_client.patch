@@ -1,0 +1,23 @@
+--- content/web_test/browser/web_test_content_browser_client.cc
++++ content/web_test/browser/web_test_content_browser_client.cc
+@@ -644,11 +644,10 @@
+   sensor_provider_manager_->Bind(std::move(receiver));
+ }
+ 
+-<<<<<<< HEAD
+ void WebTestContentBrowserClient::ResetWebSensorProviderAutomation() {
+   sensor_provider_manager_.reset();
+ }
+-=======
++
+ #if BUILDFLAG(IS_COBALT)
+ void WebTestContentBrowserClient::BindH5vccRuntime(
+     RenderFrameHost* render_frame_host,
+@@ -658,7 +657,6 @@
+   stub_h5vcc_runtime_impl_->Bind(std::move(receiver));
+ }
+ #endif
+->>>>>>> 53dd9eea9f2 (Add binder for H5vccRuntime to fix other web tests (#5183))
+ 
+ std::unique_ptr<LoginDelegate> WebTestContentBrowserClient::CreateLoginDelegate(
+     const net::AuthChallengeInfo& auth_info,

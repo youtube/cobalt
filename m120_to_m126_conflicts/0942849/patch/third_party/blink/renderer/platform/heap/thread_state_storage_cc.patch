@@ -1,0 +1,21 @@
+--- third_party/blink/renderer/platform/heap/thread_state_storage.cc
++++ third_party/blink/renderer/platform/heap/thread_state_storage.cc
+@@ -10,18 +10,8 @@
+ 
+ namespace blink {
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+-// TODO: b/412388549 - Cobalt: Fix this hack.
+-ThreadStateStorage* g_thread_specific_ = nullptr;
+-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+ constinit thread_local ThreadStateStorage* g_thread_specific_
+     __attribute__((tls_model(BLINK_HEAP_THREAD_LOCAL_MODEL))) = nullptr;
+-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+-=======
+-thread_local ThreadStateStorage* g_thread_specific_ CONSTINIT
+-    __attribute__((tls_model(BLINK_HEAP_THREAD_LOCAL_MODEL))) = nullptr;
+->>>>>>> dfb264009ef (Fix the Blink heap tls model for Evergreen. (#5583))
+ 
+ // static
+ ThreadStateStorage ThreadStateStorage::main_thread_state_storage_;

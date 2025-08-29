@@ -1,0 +1,17 @@
+--- media/mojo/clients/BUILD.gn
++++ media/mojo/clients/BUILD.gn
+@@ -2,13 +2,11 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
+ 
+-<<<<<<< HEAD
+ import("//media/media_options.gni")
+-=======
++
+ if (is_cobalt) {
+   import("//starboard/build/buildflags.gni")
+ }
+->>>>>>> 73a1238456a ([media] Move StarboardRenderer to MojoRenderer (#5113))
+ 
+ # Implementations of media C++ interfaces using corresponding mojo services.
+ source_set("clients") {

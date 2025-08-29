@@ -1,0 +1,23 @@
+--- media/mojo/services/mojo_demuxer_stream_adapter.h
++++ media/mojo/services/mojo_demuxer_stream_adapter.h
+@@ -56,18 +56,13 @@
+  private:
+   void OnStreamReady(Type type,
+                      mojo::ScopedDataPipeConsumerHandle consumer_handle,
+-<<<<<<< HEAD
+                      const std::optional<AudioDecoderConfig>& audio_config,
+-                     const std::optional<VideoDecoderConfig>& video_config);
+-=======
+-                     const absl::optional<AudioDecoderConfig>& audio_config,
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-                     const absl::optional<VideoDecoderConfig>& video_config,
++                     const std::optional<VideoDecoderConfig>& video_config,
+                      const std::string& mime_type);
+ #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+-                     const absl::optional<VideoDecoderConfig>& video_config);
++                     const std::optional<VideoDecoderConfig>& video_config);
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 7a71b7745b8 ([media] Pass full mime type to SbPlayer via MojoRenderer (#6110))
+ 
+   // The callback from |demuxer_stream_| that a read operation has completed.
+   // |read_cb| is a callback from the client who invoked Read() on |this|.

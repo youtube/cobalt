@@ -1,0 +1,24 @@
+--- media/mojo/services/gpu_mojo_media_client.cc
++++ media/mojo/services/gpu_mojo_media_client.cc
+@@ -101,10 +101,6 @@
+       get_command_buffer_stub_cb(std::move(get_command_buffer_stub_cb)),
+       oop_video_decoder(std::move(oop_video_decoder)) {}
+ 
+-<<<<<<< HEAD
+-GpuMojoMediaClientTraits::~GpuMojoMediaClientTraits() = default;
+-GpuMojoMediaClientTraits::GpuMojoMediaClientTraits(
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ StarboardRendererTraits::~StarboardRendererTraits() = default;
+ StarboardRendererTraits::StarboardRendererTraits(
+@@ -126,8 +122,8 @@
+       client_extension_remote(std::move(client_extension_remote)) {}
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-GpuMojoMediaClient::GpuMojoMediaClient(
+->>>>>>> f70f74fd04a ([media] Refactor StarboardRenderer with StarboardRendererTraits (#5350))
++GpuMojoMediaClientTraits::~GpuMojoMediaClientTraits() = default;
++GpuMojoMediaClientTraits::GpuMojoMediaClientTraits(
+     const gpu::GpuPreferences& gpu_preferences,
+     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
+     const gpu::GpuFeatureInfo& gpu_feature_info,

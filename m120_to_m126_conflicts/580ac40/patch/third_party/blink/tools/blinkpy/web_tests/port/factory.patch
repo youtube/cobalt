@@ -1,0 +1,18 @@
+--- third_party/blink/tools/blinkpy/web_tests/port/factory.py
++++ third_party/blink/tools/blinkpy/web_tests/port/factory.py
+@@ -802,14 +802,8 @@
+         options.configuration = gn_configuration
+         return
+ 
+-<<<<<<< HEAD
+     if getattr(options, 'configuration', None):
+-=======
+-    # Cobalt: Use value from flag, code below assumes default Chromium targets.
+-    configuration = getattr(options, 'configuration', None)
+-    if configuration:
+-        options.configuration = configuration
+->>>>>>> 609a0693fe5 (Add the web-tests test job (#5267))
++        options.configuration = getattr(options, 'configuration', None)
+         return
+ 
+     if options.target in ('Debug', 'Debug_x64'):

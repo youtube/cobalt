@@ -1,0 +1,23 @@
+--- third_party/blink/renderer/core/html/media/html_video_element.h
++++ third_party/blink/renderer/core/html/media/html_video_element.h
+@@ -170,11 +170,10 @@
+ 
+   VideoWakeLock* wake_lock_for_tests() const { return wake_lock_.Get(); }
+ 
+-<<<<<<< HEAD
+   MediaVideoVisibilityTracker* visibility_tracker_for_tests() const {
+     return visibility_tracker_.Get();
+   }
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   void setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
+ 
+@@ -184,7 +183,6 @@
+ 
+   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> c980124afc0 (Implement custom API for HTMLVideoElement (#5648))
+ 
+  protected:
+   // EventTarget overrides.

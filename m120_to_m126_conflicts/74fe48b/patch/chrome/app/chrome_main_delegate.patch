@@ -1,0 +1,21 @@
+--- chrome/app/chrome_main_delegate.cc
++++ chrome/app/chrome_main_delegate.cc
+@@ -184,18 +184,11 @@
+ #include "base/environment.h"
+ #endif
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_LINUX)
+ #include "base/nix/scoped_xdg_activation_token_injector.h"
+ #include "ui/linux/display_server_utils.h"
+ #endif
+ 
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+-#include "base/message_loop/message_pump_libevent.h"
+-#endif
+-
+-=======
+->>>>>>> 7b3b520a819 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+     BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ #include "chrome/browser/policy/policy_path_parser.h"

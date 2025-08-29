@@ -1,0 +1,37 @@
+--- net/BUILD.gn
++++ net/BUILD.gn
+@@ -1609,17 +1609,16 @@
+     configs += [ "//build/config/compiler:optimize_max" ]
+   }
+ 
+-<<<<<<< HEAD
+   if (!is_cronet_build) {
+     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
+-=======
++  }
++
+   if (is_cobalt_hermetic_build) {
+     sources += [
+       "base/network_interfaces_starboard.cc",
+       "base/platform_mime_util_starboard.cc",
+       "base/network_change_notifier_starboard.h",
+     ]
+->>>>>>> fb2ab39342d (Allow hermetic net and net_unittests builds (#5157))
+   }
+ }
+ 
+@@ -3106,13 +3105,8 @@
+       "websockets/websocket_test_util.h",
+     ]
+ 
+-<<<<<<< HEAD
+-    if (!is_ios) {
+-      # TODO(crbug.com/40812029): iOS does not have support for the spawned test
+-=======
+     if (!is_ios && !is_starboard) {
+-      # TODO(crbug.com/1281277): iOS does not have support for the spawned test
+->>>>>>> fb2ab39342d (Allow hermetic net and net_unittests builds (#5157))
++      # TODO(crbug.com/40812029): iOS does not have support for the spawned test
+       # server, which is used by this test. The long term plan is to add
+       # websocket support to the embedded test server and when that happens,
+       # this test could be enabled.

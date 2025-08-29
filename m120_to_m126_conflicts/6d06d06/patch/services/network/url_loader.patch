@@ -1,0 +1,24 @@
+--- services/network/url_loader.cc
++++ services/network/url_loader.cc
+@@ -601,7 +601,6 @@
+       provide_data_use_updates_(context.DataUseUpdatesEnabled()) {
+   DCHECK(delete_callback_);
+ 
+-<<<<<<< HEAD
+   if (options_ & mojom::kURLLoadOptionReadAndDiscardBody) {
+     CHECK(!(options_ & mojom::kURLLoadOptionSniffMimeType))
+         << "options ReadAndDiscardBody and SniffMimeType cannot be used "
+@@ -615,12 +614,11 @@
+           base::MakeRefCounted<net::IOBufferWithSize>(kDiscardBufferSize);
+     }
+   }
+-=======
++
+ #if BUILDFLAG(IS_COBALT)
+   options_ |= mojom::kURLLoadOptionUseHeaderClient;
+   options_ |= mojom::kURLLoadOptionAsCorsPreflight;
+ #endif
+->>>>>>> cf54bebefc2 (Use TrustedHeaderClient to add Cobalt Client Hint header (#5102))
+ 
+   mojom::TrustedURLLoaderHeaderClient* url_loader_header_client =
+       context.GetUrlLoaderHeaderClient();

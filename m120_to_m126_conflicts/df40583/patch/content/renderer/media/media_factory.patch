@@ -1,0 +1,17 @@
+--- content/renderer/media/media_factory.cc
++++ content/renderer/media/media_factory.cc
+@@ -923,14 +923,8 @@
+ #if BUILDFLAG(IS_FUCHSIA)
+   DCHECK(interface_broker_);
+   cdm_factory_ = std::make_unique<media::FuchsiaCdmFactory>(
+-<<<<<<< HEAD
+       std::make_unique<media::MojoFuchsiaCdmProvider>(interface_broker_),
+       GetKeySystems());
+-#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+-  cdm_factory_ = std::make_unique<media::StarboardCdmFactory>();
+-=======
+-      std::make_unique<media::MojoFuchsiaCdmProvider>(interface_broker_));
+->>>>>>> 73a1238456a ([media] Move StarboardRenderer to MojoRenderer (#5113))
+ #elif BUILDFLAG(ENABLE_MOJO_CDM)
+   cdm_factory_ = std::make_unique<media::MojoCdmFactory>(
+       GetMediaInterfaceFactory(), GetKeySystems());

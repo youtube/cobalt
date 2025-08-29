@@ -1,0 +1,36 @@
+--- ui/events/keycodes/keyboard_codes_posix.h
++++ ui/events/keycodes/keyboard_codes_posix.h
+@@ -32,10 +32,8 @@
+ #define UI_EVENTS_KEYCODES_KEYBOARD_CODES_POSIX_H_
+ 
+ #include "build/build_config.h"
+-<<<<<<< HEAD
++
+ #include "build/chromeos_buildflags.h"
+-=======
+->>>>>>> 61138c54188 ([ATV] Add mapping for android captions button (#5846))
+ 
+ namespace ui {
+ 
+@@ -259,7 +257,6 @@
+   VKEY_DICTATE = 0xEE,
+   // All applications - this also triggers the launcher in Chrome OS.
+   VKEY_ALL_APPLICATIONS = 0xEF,
+-<<<<<<< HEAD
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+   VKEY_FUNCTION = 0xFF,
+@@ -285,12 +282,11 @@
+   VKEY_BUTTON_Y = 0xFF0E,
+   VKEY_BUTTON_Z = 0xFF0F,
+ #endif
+-=======
++
+ #if BUILDFLAG(IS_COBALT)
+   // Toggle subtitles
+   KEY_SUBTITLES = 0x1CC,
+ #endif  // BUILDFLAG(IS_COBALT)
+->>>>>>> 61138c54188 ([ATV] Add mapping for android captions button (#5846))
+ };
+ 
+ }  // namespace ui

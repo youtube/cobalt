@@ -6812,19 +6812,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "bdafc21a415fe9c9fef320134c64180f247685e9",
-    "original_hexsha": "c48e6c29482baf46f92ab5617d67d8a3b8d19973",
-    "author": "Collin Baker",
-    "datetime": "2023-08-28T17:09:40+00:00",
-    "summary": "Remove third_party/rust gnrt dependencies",
-    "stats": {
-      "files": 28,
-      "insertions": 0,
-      "deletions": 2286
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "f9a676356bcac89640d3b55e41e42f8a6f84b0a3",
     "original_hexsha": "580080b314d6e40cf7f25b02f80d0caf70f8fb67",
     "author": "Miguel Casas",

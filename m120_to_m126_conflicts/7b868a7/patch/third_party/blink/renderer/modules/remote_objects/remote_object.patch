@@ -1,0 +1,14 @@
+--- third_party/blink/renderer/modules/remote_objects/remote_object.cc
++++ third_party/blink/renderer/modules/remote_objects/remote_object.cc
+@@ -338,11 +338,6 @@
+     return;
+   }
+ 
+-<<<<<<< HEAD
+-  String method_name = ToCoreString(isolate, info.Data().As<v8::String>());
+-
+-=======
+->>>>>>> 0d85aceddbb (Add method name to Java Bridge error messages (#6091))
+   v8::Local<v8::Object> method_cache = GetMethodCache(
+       isolate, remote_object->GetWrapper(isolate).ToLocalChecked());
+   if (method_cache.IsEmpty())

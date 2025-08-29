@@ -1,0 +1,47 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -49,9 +49,6 @@
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ }
+ 
+-<<<<<<< HEAD
+-DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
+                              const uint8_t* data,
+@@ -79,10 +76,9 @@
+ }
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+->>>>>>> 1776bebbd06 ([media] Improve DecoderBufferAllocator logging (#5036))
++DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-  : DecoderBuffer(data.get(), size) {
++  : DecoderBuffer(data, size) {
+   // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+ }
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+@@ -121,7 +117,7 @@
+   //                     of using Mojo.
+   Initialize(DemuxerStream::UNKNOWN);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  data_.reset(new uint8_t[size_]);
++  data_ = base::HeapArray<uint8_t>::Uninit(size_);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ }
+ 
+@@ -137,12 +133,6 @@
+                                                       allocated_size_,
+                                                       alignment));
+   memset(data_ + size_, 0, padding);
+-<<<<<<< HEAD
+-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  data_ = base::HeapArray<uint8_t>::Uninit(size_);
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+->>>>>>> 1776bebbd06 ([media] Improve DecoderBufferAllocator logging (#5036))
+ }
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 

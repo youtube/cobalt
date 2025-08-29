@@ -1,0 +1,22 @@
+--- media/mojo/services/gpu_mojo_media_client.h
++++ media/mojo/services/gpu_mojo_media_client.h
+@@ -23,19 +23,11 @@
+ #include "media/base/supported_video_decoder_config.h"
+ #include "media/media_buildflags.h"
+ #include "media/mojo/services/mojo_media_client.h"
+-<<<<<<< HEAD
+-=======
+-#include "third_party/abseil-cpp/absl/types/optional.h"
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ #include "media/gpu/starboard/starboard_gpu_factory.h"
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-namespace gpu {
+-class GpuMemoryBufferFactory;
+-}  // namespace gpu
+->>>>>>> 5b72b80a289 ([media] Allow StarboardRenderer to Post Tasks on Gpu (#5712))
+-
+ namespace media {
+ 
+ class MediaGpuChannelManager;

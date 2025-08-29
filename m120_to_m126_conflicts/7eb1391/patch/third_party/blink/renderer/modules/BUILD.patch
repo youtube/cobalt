@@ -1,0 +1,26 @@
+--- third_party/blink/renderer/modules/BUILD.gn
++++ third_party/blink/renderer/modules/BUILD.gn
+@@ -653,7 +653,6 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+   if (!is_android && !is_ios) {
+     sources += [
+       # CaptureController is not Web-exposed on Android and iOS,
+@@ -663,14 +662,11 @@
+     ]
+   }
+ 
+-  if (media_use_openh264) {
+-=======
+   if (is_cobalt) {
+     sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+   }
+ 
+-  if (rtc_use_h264) {
+->>>>>>> b651e493f84 (Add tests for h_5_vcc_experiments. (#5773))
++  if (media_use_openh264) {
+     sources += [ "mediarecorder/h264_encoder_unittest.cc" ]
+   }
+ 

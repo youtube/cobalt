@@ -1,0 +1,15 @@
+--- skia/ext/SkMemory_new_handler.cpp
++++ skia/ext/SkMemory_new_handler.cpp
+@@ -82,11 +82,7 @@
+ 
+ void sk_free(void* p) {
+     if (p) {
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-=======
+-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+->>>>>>> ddd0dd6edb8 (Fix Skia memory management for Starboard (#5866))
++#if BUILDFLAG(IS_IOS) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+         free(p);
+ #else
+         base::UncheckedFree(p);

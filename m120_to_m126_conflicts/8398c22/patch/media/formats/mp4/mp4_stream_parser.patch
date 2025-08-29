@@ -1,0 +1,23 @@
+--- media/formats/mp4/mp4_stream_parser.cc
++++ media/formats/mp4/mp4_stream_parser.cc
+@@ -1120,12 +1120,6 @@
+   scoped_refptr<StreamParserBuffer> stream_buf;
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-<<<<<<< HEAD
+-  stream_buf =
+-      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
+-                                   buffer_type, runs_->track_id());
+-=======
+-  scoped_refptr<StreamParserBuffer> stream_buf;
+   if (frame_buf.empty()) {
+     stream_buf = StreamParserBuffer::CopyFrom(buf, sample_size, is_keyframe,
+                                               buffer_type, runs_->track_id());
+@@ -1134,7 +1128,6 @@
+                                               is_keyframe, buffer_type,
+                                               runs_->track_id());
+   }
+->>>>>>> 05545a41180 ([media] Reduce extra copying in MP4StreamParser (#5538))
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   if (auto* media_client = GetMediaClient()) {
+     if (auto* alloc = media_client->GetMediaAllocator()) {
