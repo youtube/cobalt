@@ -103,15 +103,10 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
-      String[] commandLineArgs =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_ARGS_KEY);
+      String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              shouldSetJNIPrefix,
-              VersionInfo.isOfficialBuild(),
-              commandLineArgs
-        ));
+              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
     }
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
@@ -171,6 +166,9 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
+                // Verbose code to differentiate different possible crash reasons
+                // for JNI crash on prime. Only the line number of the exception
+                // is output, hence the else/if block. b/439066169
                 if (isFinishing() || isDestroyed()) {
                   if ("ON_BACK_PRESSED".equals(diagnosticFinishReason)) {
                     throw new RuntimeException("Finish reason: ON_BACK_PRESSED");
@@ -358,7 +356,8 @@ public abstract class CobaltActivity extends Activity {
 
     videoSurfaceView = new VideoSurfaceView(this);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    addContentView(
+        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
 
   /**
@@ -680,7 +679,8 @@ public abstract class CobaltActivity extends Activity {
 
   public void toggleKeepScreenOn(boolean keepOn) {
     if (isKeepScreenOnEnabled != keepOn) {
-      runOnUiThread(new Runnable() {
+      runOnUiThread(
+          new Runnable() {
             @Override
             public void run() {
               if (keepOn) {
