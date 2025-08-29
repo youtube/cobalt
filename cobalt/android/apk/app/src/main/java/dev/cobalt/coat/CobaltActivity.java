@@ -301,7 +301,8 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     if (isCobaltUsingAndroidOverlay) {
-      Log.e(TAG, "Cobalt: Using Android Overlay, did not create videoSurfaceView.");
+      return;
+      // Log.e(TAG, "Cobalt: Using Android Overlay, did not create videoSurfaceView.");
     } else {
       videoSurfaceView = new VideoSurfaceView(this);
       a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);

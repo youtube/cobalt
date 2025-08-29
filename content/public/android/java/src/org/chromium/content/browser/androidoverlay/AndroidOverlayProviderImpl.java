@@ -21,13 +21,13 @@ import org.chromium.services.service_manager.InterfaceFactory;
  */
 @JNINamespace("content")
 public class AndroidOverlayProviderImpl implements AndroidOverlayProvider {
-    private static final String TAG = "AndroidOverlayProvider";
+    private static final String TAG = "starboard";
 
     // Maximum number of concurrent overlays that we allow.
     // Note: DialogOverlayImpl::CompleteInit() calls WebContentsDelegate::SetOverlayMode() directly,
     // because there can only be one overlay alive at a time. If we were to support multiple
     // concurrent overlays, we need to revisit this logic.
-    private static final int MAX_OVERLAYS = 1;
+    private static final int MAX_OVERLAYS = 4;
 
     // Number of AndroidOverlays that have been created but not released.
     private int mNumOverlays;
@@ -50,7 +50,7 @@ public class AndroidOverlayProviderImpl implements AndroidOverlayProvider {
         ThreadUtils.assertOnUiThread();
 
         // If this is no longer true, we need to update DialogOverlayImpl::CompleteInit().
-        assert MAX_OVERLAYS == 1;
+        assert MAX_OVERLAYS == 4;
 
         // Limit the number of concurrent surfaces.
         if (mNumOverlays >= MAX_OVERLAYS) {

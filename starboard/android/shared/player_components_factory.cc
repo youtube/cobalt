@@ -272,7 +272,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         << max_video_input_size;
 
     void* surface_view = creation_parameters.surface_view();
-    SB_LOG(INFO) << __func__ << "Cobalt: surface_view is at" << surface_view;
 
     std::unique_ptr<
         ::starboard::shared::starboard::player::filter::VideoRenderer>

@@ -814,11 +814,6 @@ void SbPlayerBridge::CreatePlayer() {
       player_set_video_surface_view_extension->version >= 1) {
     player_set_video_surface_view_extension
         ->SetVideoSurfaceViewForCurrentThread(surface_view_);
-
-    LOG(INFO)
-        << __func__
-        << "Cobalt: SetVideoSurfaceViewForCurrentThread to surface_view_: "
-        << surface_view_;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   player_ = sbplayer_interface_->Create(

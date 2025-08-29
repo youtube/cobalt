@@ -154,7 +154,7 @@ StarboardRenderer::~StarboardRenderer() {
 
   player_bridge_.reset();
 
-  LOG(INFO) << "SbPlayerBridge destructed.";
+  LOG(INFO) << "Cobalt: SbPlayerBridge destructed.";
 }
 
 void StarboardRenderer::Initialize(MediaResource* media_resource,
@@ -170,8 +170,6 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   DCHECK(init_cb);
 
   TRACE_EVENT0("media", "StarboardRenderer::Initialize");
-
-  LOG(INFO) << "Initializing StarboardRenderer.";
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the
@@ -479,6 +477,11 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+  if (overlay_) {
+    overlay_->ScheduleLayout(output_rect);
+    return;
+  }
+
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
 }
@@ -516,8 +519,6 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 
   overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
                                              std::move(config));
-  LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
-            << overlay_info.routing_token.value().ToString();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -913,12 +914,17 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       DCHECK(!player_bridge_initialized_);
       player_bridge_initialized_ = true;
 
+      LOG(INFO) << "Cobalt: kSbPlayerStateInitialized";
+
       if (playing_start_from_time_) {
         StartPlayingFrom(std::move(playing_start_from_time_).value());
       }
       break;
     case kSbPlayerStatePrerolling:
       DCHECK(player_bridge_initialized_);
+
+      LOG(INFO) << "Cobalt: kSbPlayerStatePrerolling";
+
       break;
     case kSbPlayerStatePresenting:
       DCHECK(player_bridge_initialized_);
@@ -997,13 +1003,6 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
 
   // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
   surface_view_ = overlay_->GetJavaSurface().obj();
-
-  if (!!cdm_context_) {
-    LOG(INFO) << __func__ << "Cobalt: cdm_context_ is valid.";
-  } else {
-    LOG(INFO) << __func__ << "Cobalt: cdm_context_ is not valid.";
-  }
-
   CreatePlayerBridge();
 }
 

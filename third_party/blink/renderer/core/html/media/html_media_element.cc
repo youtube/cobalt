@@ -4025,6 +4025,9 @@ void HTMLMediaElement::
   GetAudioSourceProvider().SetClient(nullptr);
   if (web_media_player_) {
     audio_source_provider_.Wrap(nullptr);
+
+    LOG(INFO) << "Cobalt: Destroying WebMediaPlayer.";
+
     web_media_player_.reset();
     // Do not clear `opener_document_` here; new players might still use it.
 

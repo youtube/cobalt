@@ -251,7 +251,7 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
 
 SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
   --number_of_players_;
-  SB_LOG(INFO) << "Destroying SbPlayerPrivateImpl. There are "
+  SB_LOG(INFO) << "Cobalt: Destroying SbPlayerPrivateImpl. There are "
                << number_of_players_ << " players.";
 }
 
