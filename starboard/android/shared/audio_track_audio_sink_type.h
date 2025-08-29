@@ -22,6 +22,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -163,6 +164,9 @@ class AudioTrackAudioSink
   std::mutex mutex_;
   double playback_rate_ = 1.0;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSink::Options& options);
 
 }  // namespace starboard::android::shared
 

@@ -135,7 +135,12 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
+        &MinRequiredFramesTester::ErrorFunc, 0, -1,
+        {
+            .is_web_audio = false,
+            .skip_initial_audio = false,
+        },
+        this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(
