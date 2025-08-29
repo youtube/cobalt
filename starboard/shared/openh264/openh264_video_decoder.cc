@@ -119,8 +119,8 @@ void OpenH264VideoDecoder::TeardownCodec() {
     }
 
     if (SbDecodeTargetIsValid(decode_target_to_release)) {
-      DecodeTargetRelease(decode_target_graphics_context_provider_,
-                          decode_target_to_release);
+      linux::DecodeTargetRelease(decode_target_graphics_context_provider_,
+                                 decode_target_to_release);
     }
   }
 }
@@ -286,7 +286,7 @@ void OpenH264VideoDecoder::DecodeEndOfStream() {
 
 void OpenH264VideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
-  SbDecodeTarget decode_target = DecodeTargetCreate(
+  SbDecodeTarget decode_target = linux::DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
 
   // Lock only after the post to the renderer thread, to prevent deadlock.
@@ -313,7 +313,7 @@ SbDecodeTarget OpenH264VideoDecoder::GetCurrentDecodeTarget() {
   if (SbDecodeTargetIsValid(decode_target_)) {
     // Make a disposable copy, since the state is internally reused by this
     // class (to avoid recreating GL objects).
-    return DecodeTargetCopy(decode_target_);
+    return linux::DecodeTargetCopy(decode_target_);
   } else {
     return kSbDecodeTargetInvalid;
   }

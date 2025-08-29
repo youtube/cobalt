@@ -330,8 +330,8 @@ SbDecodeTarget Decode(SbDecodeTargetGraphicsContextProvider* context_provider,
   auto height = info.image_height;
   jpeg_destroy_decompress(&info);
 
-  return DecodeTargetCreate(context_provider, decoded_data.data(), width,
-                            height, decode_target_format);
+  return linux::DecodeTargetCreate(context_provider, decoded_data.data(), width,
+                                   height, decode_target_format);
 }
 
 }  // namespace starboard::shared::libjpeg
