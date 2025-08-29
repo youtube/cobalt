@@ -24,7 +24,7 @@
 #include "starboard/shared/starboard/application.h"
 
 // Omit namespace 'linux' due to symbol name conflict with macro 'linux'
-namespace starboard::linux {
+namespace starboard {
 namespace {
 typedef struct PreAppRecommendationsPlatformServiceImpl
     : public PlatformServiceImpl {
@@ -188,4 +188,4 @@ const void* GetPreappRecommendationServiceApi() {
   return &kGetPreappRecommendationServiceApi;
 }
 
-}  // namespace starboard::linux
+}  // namespace starboard

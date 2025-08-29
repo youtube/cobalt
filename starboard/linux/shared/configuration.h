@@ -15,10 +15,10 @@
 #ifndef STARBOARD_LINUX_SHARED_CONFIGURATION_H_
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_H_
 
-namespace starboard::linux {
+namespace starboard {
 
 const void* GetConfigurationApi();
 
-}  // namespace starboard::linux
+}  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_CONFIGURATION_H_

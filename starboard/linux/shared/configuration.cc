@@ -17,7 +17,7 @@
 #include "starboard/common/configuration_defaults.h"
 #include "starboard/extension/configuration.h"
 
-namespace starboard::linux {
+namespace starboard {
 
 namespace {
 
@@ -63,4 +63,4 @@ const void* GetConfigurationApi() {
   return &kConfigurationApi;
 }
 
-}  // namespace starboard::linux
+}  // namespace starboard

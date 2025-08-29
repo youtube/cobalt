@@ -15,12 +15,12 @@
 #ifndef STARBOARD_LINUX_SHARED_SOFT_MIC_PLATFORM_SERVICE_H_
 #define STARBOARD_LINUX_SHARED_SOFT_MIC_PLATFORM_SERVICE_H_
 
-namespace starboard::linux {
+namespace starboard {
 
 const char* const kSoftMicPlatformServiceName = "com.google.youtube.tv.SoftMic";
 
 const void* GetSoftMicPlatformServiceApi();
 
-}  // namespace starboard::linux
+}  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_SOFT_MIC_PLATFORM_SERVICE_H_

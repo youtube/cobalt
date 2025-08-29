@@ -34,7 +34,7 @@ struct SbDecodeTargetPrivate {
   starboard::scoped_refptr<Data> data;
 };
 
-namespace starboard::linux {
+namespace starboard {
 
 // Outputs a video frame into a SbDecodeTarget.
 SbDecodeTarget DecodeTargetCreate(
@@ -57,6 +57,6 @@ void DecodeTargetRelease(SbDecodeTargetGraphicsContextProvider*
 
 SbDecodeTarget DecodeTargetCopy(SbDecodeTarget decode_target);
 
-}  // namespace starboard::linux
+}  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_DECODE_TARGET_INTERNAL_H_
