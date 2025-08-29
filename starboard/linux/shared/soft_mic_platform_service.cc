@@ -99,7 +99,7 @@ void* Send(PlatformServiceImpl* service,
     auto mic_gesture_tap = false;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-    using shared::starboard::Application;
+    using starboard::Application;
 
     // Check for explicit true or false switch value for kHasHardMicSupport,
     // kHasSoftMicSupport, kMicGestureHold, and kMicGestureTap optional target

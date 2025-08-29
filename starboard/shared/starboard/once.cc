@@ -18,8 +18,8 @@
 // Platform-independent SbOnce() implementation based on the functionality
 // declared by starboard/shared/lazy_initialization_internal.h which internally
 // uses atomics.
-using starboard::shared::starboard::EnsureInitialized;
-using starboard::shared::starboard::SetInitialized;
+using starboard::EnsureInitialized;
+using starboard::SetInitialized;
 
 bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
   if (once_control == NULL) {

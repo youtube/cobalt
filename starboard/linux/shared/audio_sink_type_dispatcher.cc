@@ -17,7 +17,7 @@
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard::audio_sink {
 
 namespace {
 bool is_fallback_to_alsa = false;
@@ -25,25 +25,24 @@ bool is_fallback_to_alsa = false;
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  ::starboard::shared::pulse::PlatformInitialize();
+  ::starboard::pulse::PlatformInitialize();
   if (GetPrimaryType()) {
     SB_LOG(INFO) << "Use PulseAudio";
   } else {
     SB_LOG(INFO) << "Use ALSA";
-    ::starboard::shared::alsa::PlatformInitialize();
+    ::starboard::alsa::PlatformInitialize();
     is_fallback_to_alsa = true;
   }
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
-      EnableFallbackToStub();
+  ::starboard::audio_sink::SbAudioSinkImpl::EnableFallbackToStub();
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
   if (is_fallback_to_alsa) {
-    ::starboard::shared::alsa::PlatformTearDown();
+    ::starboard::alsa::PlatformTearDown();
   } else {
-    ::starboard::shared::pulse::PlatformTearDown();
+    ::starboard::pulse::PlatformTearDown();
   }
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard::audio_sink

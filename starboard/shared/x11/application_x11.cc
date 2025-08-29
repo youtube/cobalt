@@ -42,9 +42,9 @@ namespace {
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
 }
 
-namespace starboard::shared::x11 {
+namespace starboard::x11 {
 
-using ::starboard::shared::dev_input::DevInput;
+using ::starboard::dev_input::DevInput;
 
 namespace {
 
@@ -688,7 +688,7 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
-using shared::starboard::player::filter::CpuVideoFrame;
+using starboard::player::filter::CpuVideoFrame;
 
 ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
     : QueueApplication(sb_event_handle_callback),
@@ -698,12 +698,12 @@ ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
       composite_event_id_(kSbEventIdInvalid),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  ::starboard::audio_sink::SbAudioSinkImpl::Initialize();
   NetworkNotifier::GetOrCreateInstance();
 }
 
 ApplicationX11::~ApplicationX11() {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
+  ::starboard::audio_sink::SbAudioSinkImpl::TearDown();
 }
 
 SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
@@ -873,11 +873,11 @@ bool ApplicationX11::MayHaveSystemEvents() {
   return display_ && !windows_.empty();
 }
 
-shared::starboard::Application::Event*
-ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
+starboard::Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
+    int64_t time) {
   SB_DCHECK(display_);
 
-  shared::starboard::Application::Event* pending_event = GetPendingEvent();
+  starboard::Application::Event* pending_event = GetPendingEvent();
   if (pending_event) {
     return pending_event;
   }
@@ -888,7 +888,7 @@ ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
     return nullptr;
   }
 
-  shared::starboard::Application::Event* evdev_event =
+  starboard::Application::Event* evdev_event =
       dev_input_->WaitForSystemEventWithTimeout(time);
 
   if (!evdev_event && XPending(display_) != 0) {
@@ -964,7 +964,7 @@ void ApplicationX11::StopX() {
   wm_change_state_atom_ = None;
 }
 
-shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
+starboard::Application::Event* ApplicationX11::GetPendingEvent() {
   typedef struct {
     SbKey key;
     unsigned int modifiers;
@@ -1156,8 +1156,7 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
                    &DeleteDestructor<SbInputData>);
 }
 
-shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
-    XEvent* x_event) {
+starboard::Application::Event* ApplicationX11::XEventToEvent(XEvent* x_event) {
   switch (x_event->type) {
     case ClientMessage: {
       const XClientMessageEvent* client_message =
@@ -1359,4 +1358,4 @@ SbWindow ApplicationX11::FindWindow(Window window) {
   return kSbWindowInvalid;
 }
 
-}  // namespace starboard::shared::x11
+}  // namespace starboard::x11

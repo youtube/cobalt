@@ -17,5 +17,5 @@
 #include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestFocus() {
-  starboard::shared::starboard::Application::Get()->Focus(NULL, NULL);
+  starboard::Application::Get()->Focus(NULL, NULL);
 }

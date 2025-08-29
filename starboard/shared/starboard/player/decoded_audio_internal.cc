@@ -23,13 +23,13 @@
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard::player {
 
 namespace {
 
-using ::starboard::shared::starboard::media::AudioDurationToFrames;
-using ::starboard::shared::starboard::media::AudioFramesToDuration;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
+using ::starboard::media::AudioDurationToFrames;
+using ::starboard::media::AudioFramesToDuration;
+using ::starboard::media::GetBytesPerSample;
 
 void ConvertSample(const int16_t* source, float* destination) {
   *destination = static_cast<float>(*source) / 32768.f;
@@ -360,4 +360,4 @@ std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio) {
             << ", frames: " << decoded_audio.frames();
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard::player

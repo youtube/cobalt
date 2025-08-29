@@ -36,13 +36,11 @@
 
 namespace starboard::android::shared {
 
-class AudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
-      private MediaDecoder::Host {
+class AudioDecoder : public ::starboard::player::filter::AudioDecoder,
+                     private ::starboard::player::JobQueue::JobOwner,
+                     private MediaDecoder::Host {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
+  typedef ::starboard::media::AudioStreamInfo AudioStreamInfo;
 
   AudioDecoder(const AudioStreamInfo& audio_stream_info,
                SbDrmSystem drm_system,
@@ -59,8 +57,7 @@ class AudioDecoder
   bool is_valid() const { return media_decoder_ != NULL; }
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::AudioFrameDiscarder
-      AudioFrameDiscarder;
+  typedef ::starboard::player::filter::AudioFrameDiscarder AudioFrameDiscarder;
 
   // The maximum amount of work that can exist in the union of |decoded_audios_|
   // and |media_decoder_->GetNumberOfPendingTasks()|.

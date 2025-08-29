@@ -17,5 +17,5 @@
 #include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestStop(int error_level) {
-  starboard::shared::starboard::Application::Get()->Stop(error_level);
+  starboard::Application::Get()->Stop(error_level);
 }

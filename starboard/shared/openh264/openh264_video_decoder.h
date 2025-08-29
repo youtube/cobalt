@@ -35,7 +35,7 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard::openh264 {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -64,8 +64,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
  private:
   static const int kDefaultOpenH264BitsDepth = 8;
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
+  typedef ::starboard::player::filter::CpuVideoFrame CpuVideoFrame;
   // Operator to compare CpuVideoFrame by timestamp.
   struct VideoFrameTimeStampGreater {
     bool operator()(const scoped_refptr<CpuVideoFrame>& left,
@@ -130,9 +129,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   int frames_being_decoded_ = 0;
 
   // Store current avc level profile and resolution.
-  std::optional<shared::starboard::media::VideoConfig> video_config_;
+  std::optional<starboard::media::VideoConfig> video_config_;
 };
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard::openh264
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_

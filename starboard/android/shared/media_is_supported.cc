@@ -21,7 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard::media {
 
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
@@ -66,4 +66,4 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
   return true;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard::media

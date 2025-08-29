@@ -18,10 +18,9 @@
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-using starboard::shared::media_session::kPaused;
-using starboard::shared::media_session::kPlaying;
-using starboard::shared::media_session::
-    UpdateActiveSessionPlatformPlaybackState;
+using starboard::media_session::kPaused;
+using starboard::media_session::kPlaying;
+using starboard::media_session::UpdateActiveSessionPlatformPlaybackState;
 
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {

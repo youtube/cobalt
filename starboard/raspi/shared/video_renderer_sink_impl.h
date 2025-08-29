@@ -28,8 +28,8 @@ namespace raspi {
 namespace shared {
 
 class VideoRendererSinkImpl
-    : public ::starboard::shared::starboard::player::filter::VideoRendererSink,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+    : public ::starboard::player::filter::VideoRendererSink,
+      private ::starboard::player::JobQueue::JobOwner {
  public:
   explicit VideoRendererSinkImpl(SbPlayer player);
   ~VideoRendererSinkImpl() override;

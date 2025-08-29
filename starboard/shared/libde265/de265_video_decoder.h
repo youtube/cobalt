@@ -34,7 +34,7 @@
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::de265 {
+namespace starboard::de265 {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -58,8 +58,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void Reset() override;
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
+  typedef ::starboard::player::filter::CpuVideoFrame CpuVideoFrame;
 
   void ReportError(const std::string& error_message);
 
@@ -108,6 +107,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::de265
+}  // namespace starboard::de265
 
 #endif  // STARBOARD_SHARED_LIBDE265_DE265_VIDEO_DECODER_H_

@@ -17,9 +17,9 @@
 
 #include <string.h>
 
-using starboard::shared::SetArmFeaturesInvalid;
-using starboard::shared::SetGeneralFeaturesInvalid;
-using starboard::shared::SetX86FeaturesInvalid;
+using starboard::SetArmFeaturesInvalid;
+using starboard::SetGeneralFeaturesInvalid;
+using starboard::SetX86FeaturesInvalid;
 
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));

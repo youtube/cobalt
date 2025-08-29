@@ -26,14 +26,14 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 // This class decodes encoded video stream into video frames.
 class VideoDecoder {
  public:
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
+  typedef ::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::player::InputBuffers InputBuffers;
+  typedef ::starboard::player::filter::VideoFrame VideoFrame;
 
   enum Status {
     kNeedMoreInput,    // Signals that more input is required to produce output.
@@ -53,7 +53,7 @@ class VideoDecoder {
   typedef std::function<void(Status status,
                              const scoped_refptr<VideoFrame>& frame)>
       DecoderStatusCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
+  typedef ::starboard::player::filter::ErrorCB ErrorCB;
 
   virtual ~VideoDecoder() {}
 
@@ -109,6 +109,6 @@ class VideoDecoder {
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_

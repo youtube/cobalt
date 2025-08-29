@@ -27,10 +27,10 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard::player::filter::testing {
 namespace {
 
-using ::starboard::shared::starboard::media::MimeType;
+using ::starboard::media::MimeType;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -260,7 +260,7 @@ AssertionResult AlmostEqualTime(int64_t time1, int64_t time2) {
 }
 
 media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
-  shared::starboard::media::VideoStreamInfo video_stream_info = {};
+  starboard::media::VideoStreamInfo video_stream_info = {};
 
   video_stream_info.codec = codec;
   video_stream_info.mime = "";
@@ -309,4 +309,4 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   return input_buffer;
 }
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard::player::filter::testing

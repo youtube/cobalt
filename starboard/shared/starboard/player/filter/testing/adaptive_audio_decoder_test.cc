@@ -39,7 +39,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard::player::filter::testing {
 namespace {
 
 using std::deque;
@@ -414,4 +414,4 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard::player::filter::testing

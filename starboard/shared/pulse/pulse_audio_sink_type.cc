@@ -49,11 +49,11 @@
 #include "starboard/common/check_op.h"
 #endif  // HAS_LEAK_SANITIZER
 
-namespace starboard::shared::pulse {
+namespace starboard::pulse {
 namespace {
 
+using ::starboard::audio_sink::SbAudioSinkImpl;
 using starboard::media::GetBytesPerSample;
-using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
 
 const int64_t kAudioIdleSleepIntervalUsec = 15'000;    // 15ms
 const int64_t kAudioRunningSleepIntervalUsec = 5'000;  // 5ms
@@ -620,4 +620,4 @@ void PlatformTearDown() {
   pulse_unload_library();
 }
 
-}  // namespace starboard::shared::pulse
+}  // namespace starboard::pulse

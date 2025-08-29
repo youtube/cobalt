@@ -28,12 +28,12 @@
 
 namespace {
 
-using starboard::shared::starboard::player::InputBuffer;
-using starboard::shared::starboard::player::InputBuffers;
-using starboard::shared::starboard::player::JobThread;
-using starboard::shared::starboard::player::filter::AudioRenderer;
-using starboard::shared::starboard::player::filter::PlayerComponents;
-using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
+using starboard::player::InputBuffer;
+using starboard::player::InputBuffers;
+using starboard::player::JobThread;
+using starboard::player::filter::AudioRenderer;
+using starboard::player::filter::PlayerComponents;
+using starboard::player::video_dmp::VideoDmpReader;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;

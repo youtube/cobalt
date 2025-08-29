@@ -52,9 +52,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
-        typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-        typedef ::starboard::shared::opus::OpusAudioDecoder
-            OpusAudioDecoderImpl;
+        typedef ::starboard::ffmpeg::AudioDecoder AudioDecoderImpl;
+        typedef ::starboard::opus::OpusAudioDecoder OpusAudioDecoderImpl;
 
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<OpusAudioDecoderImpl> opus_audio_decoder_impl(

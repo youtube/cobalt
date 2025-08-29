@@ -21,9 +21,8 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-using starboard::shared::media_session::kNone;
-using starboard::shared::media_session::
-    UpdateActiveSessionPlatformPlaybackState;
+using starboard::media_session::kNone;
+using starboard::media_session::UpdateActiveSessionPlatformPlaybackState;
 
 void SbPlayerDestroy(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
@@ -32,7 +31,7 @@ void SbPlayerDestroy(SbPlayer player) {
   UpdateActiveSessionPlatformPlaybackState(kNone);
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+  using ::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerDestroy(player);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 

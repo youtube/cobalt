@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_LOADER_APP_METRICS_H_
 #define STARBOARD_SHARED_STARBOARD_LOADER_APP_METRICS_H_
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 const void* GetLoaderAppMetricsApi();
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LOADER_APP_METRICS_H_

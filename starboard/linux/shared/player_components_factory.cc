@@ -42,11 +42,11 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 namespace {
 
-using ::starboard::shared::openh264::is_openh264_supported;
+using ::starboard::openh264::is_openh264_supported;
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
@@ -64,10 +64,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
-      typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
-      typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
-          FdkAacAudioDecoder;
+      typedef ::starboard::ffmpeg::AudioDecoder FfmpegAudioDecoder;
+      typedef ::starboard::opus::OpusAudioDecoder OpusAudioDecoder;
+      typedef ::starboard::libfdkaac::FdkAacAudioDecoder FdkAacAudioDecoder;
 
       auto decoder_creator =
           [](const media::AudioStreamInfo& audio_stream_info,
@@ -108,12 +107,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      typedef ::starboard::shared::libdav1d::VideoDecoder Av1VideoDecoderImpl;
-      typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
-      typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
-      typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
-      typedef ::starboard::shared::openh264::VideoDecoder
-          Openh264VideoDecoderImpl;
+      typedef ::starboard::libdav1d::VideoDecoder Av1VideoDecoderImpl;
+      typedef ::starboard::de265::VideoDecoder H265VideoDecoderImpl;
+      typedef ::starboard::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
+      typedef ::starboard::vpx::VideoDecoder VpxVideoDecoderImpl;
+      typedef ::starboard::openh264::VideoDecoder Openh264VideoDecoderImpl;
 
       const int64_t kVideoSinkRenderIntervalUsec = 10'000;
 
@@ -218,4 +216,4 @@ bool PlayerComponents::Factory::OutputModeSupported(
   return false;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter

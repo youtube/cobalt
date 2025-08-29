@@ -117,8 +117,7 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
+  typedef ::starboard::media::AudioStreamInfo AudioStreamInfo;
 
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.

@@ -33,8 +33,7 @@ namespace starboard::android::shared {
 
 using ::starboard::CommandLine;
 
-class ApplicationAndroid
-    : public ::starboard::shared::starboard::QueueApplication {
+class ApplicationAndroid : public ::starboard::QueueApplication {
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
                      base::android::ScopedJavaGlobalRef<jobject> asset_manager,
@@ -44,8 +43,7 @@ class ApplicationAndroid
   ~ApplicationAndroid();
 
   static ApplicationAndroid* Get() {
-    return static_cast<ApplicationAndroid*>(
-        ::starboard::shared::starboard::Application::Get());
+    return static_cast<ApplicationAndroid*>(::starboard::Application::Get());
   }
 
   int64_t app_start_with_android_fix() { return app_start_timestamp_; }

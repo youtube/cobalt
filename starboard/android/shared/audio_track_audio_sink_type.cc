@@ -39,7 +39,7 @@ namespace starboard::android::shared {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
+using ::starboard::media::GetBytesPerSample;
 
 // Whether to use continuous audio track sync, which keep feeding audio frames
 // into AudioTrack. Instead of callnig pause/play, it switches between silence
@@ -590,7 +590,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
 
 }  // namespace starboard::android::shared
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard::audio_sink {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
@@ -610,4 +610,4 @@ void SbAudioSinkImpl::PlatformTearDown() {
   audio_track_audio_sink_type_ = NULL;
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard::audio_sink

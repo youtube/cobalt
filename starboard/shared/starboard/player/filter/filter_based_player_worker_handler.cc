@@ -31,7 +31,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 namespace {
 
@@ -39,8 +39,7 @@ using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
-    HandlerResult;
+typedef starboard::player::PlayerWorker::Handler::HandlerResult HandlerResult;
 
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
@@ -550,4 +549,4 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter

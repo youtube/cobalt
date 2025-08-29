@@ -61,14 +61,14 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::common::GetCrashHandlerApi();
   }
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
-    return starboard::shared::posix::GetMemoryMappedFileApi();
+    return starboard::posix::GetMemoryMappedFileApi();
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
-    return starboard::shared::posix::GetFreeSpaceApi();
+    return starboard::posix::GetFreeSpaceApi();
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
-    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+    return starboard::GetLoaderAppMetricsApi();
   }
 #endif
   return NULL;

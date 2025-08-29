@@ -39,11 +39,10 @@ namespace raspi {
 namespace shared {
 namespace open_max {
 
-class VideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class VideoDecoder : public ::starboard::player::filter::VideoDecoder,
+                     private ::starboard::player::JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
+  typedef ::starboard::player::JobQueue JobQueue;
 
   explicit VideoDecoder(SbMediaVideoCodec video_codec);
   ~VideoDecoder() override;

@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::aom {
+namespace starboard::aom {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -56,8 +56,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void Reset() override;
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
+  typedef ::starboard::player::filter::CpuVideoFrame CpuVideoFrame;
 
   void ReportError(const std::string& error_message);
 
@@ -107,6 +106,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::aom
+}  // namespace starboard::aom
 
 #endif  // STARBOARD_SHARED_LIBAOM_AOM_VIDEO_DECODER_H_

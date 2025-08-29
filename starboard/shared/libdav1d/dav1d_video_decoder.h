@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::libdav1d {
+namespace starboard::libdav1d {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -59,8 +59,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void Reset() override;
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
+  typedef ::starboard::player::filter::CpuVideoFrame CpuVideoFrame;
   const int kDav1dSuccess = 0;
 
   const int kDav1dPlaneY = 0;
@@ -119,6 +118,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::libdav1d
+}  // namespace starboard::libdav1d
 
 #endif  // STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_

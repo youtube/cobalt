@@ -22,7 +22,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 typedef std::function<void(SbPlayerError error,
                            const std::string& error_message)>
@@ -30,7 +30,7 @@ typedef std::function<void(SbPlayerError error,
 typedef std::function<void()> PrerolledCB;
 typedef std::function<void()> EndedCB;
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define SB_PLAYER_FILTER_ENABLE_STATE_CHECK 1

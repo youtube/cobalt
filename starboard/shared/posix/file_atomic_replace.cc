@@ -45,8 +45,8 @@ bool SbFileAtomicReplace(const char* path,
   starboard::strlcpy(temp_path.data(), path, kSbFileMaxPath);
   starboard::strlcat(temp_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
-  if (!::starboard::shared::starboard::SbFileAtomicReplaceWriteFile(
-          temp_path.data(), data, data_size)) {
+  if (!::starboard::SbFileAtomicReplaceWriteFile(temp_path.data(), data,
+                                                 data_size)) {
     return false;
   }
   if (file_exists && unlink(path)) {

@@ -34,8 +34,8 @@ namespace nplb {
 struct PlayerCreationParam {
   SbDrmSystem drm_system = kSbDrmSystemInvalid;
 
-  shared::starboard::media::AudioStreamInfo audio_stream_info;
-  shared::starboard::media::VideoStreamInfo video_stream_info;
+  starboard::media::AudioStreamInfo audio_stream_info;
+  starboard::media::VideoStreamInfo video_stream_info;
 
   SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
 
@@ -57,9 +57,9 @@ struct PlayerCreationParam {
   }
 };
 
-shared::starboard::media::AudioStreamInfo CreateAudioStreamInfo(
+starboard::media::AudioStreamInfo CreateAudioStreamInfo(
     SbMediaAudioCodec codec);
-shared::starboard::media::VideoStreamInfo CreateVideoStreamInfo(
+starboard::media::VideoStreamInfo CreateVideoStreamInfo(
     SbMediaVideoCodec codec);
 PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
                                               SbMediaVideoCodec video_codec,

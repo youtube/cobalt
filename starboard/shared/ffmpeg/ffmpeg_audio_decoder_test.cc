@@ -22,11 +22,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard::ffmpeg {
 namespace {
 
 // The codecs tested by these tests were introduced in SB_API_VERSION 14.
-using ::starboard::shared::starboard::media::AudioStreamInfo;
+using ::starboard::media::AudioStreamInfo;
 using ::testing::NotNull;
 
 AudioStreamInfo CreateStreamInfoForCodec(SbMediaAudioCodec codec) {
@@ -38,16 +38,15 @@ AudioStreamInfo CreateStreamInfoForCodec(SbMediaAudioCodec codec) {
   return stream_info;
 }
 
-class FFmpegAudioDecoderTest
-    : public ::testing::Test,
-      public ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class FFmpegAudioDecoderTest : public ::testing::Test,
+                               public ::starboard::player::JobQueue::JobOwner {
  protected:
   FFmpegAudioDecoderTest() : JobOwner(kDetached) { AttachToCurrentThread(); }
 
   ~FFmpegAudioDecoderTest() override = default;
 
   // Create a JobQueue for use on the current thread.
-  ::starboard::shared::starboard::player::JobQueue job_queue_;
+  ::starboard::player::JobQueue job_queue_;
 };
 
 TEST_F(FFmpegAudioDecoderTest, SupportsMp3Codec) {
@@ -76,4 +75,4 @@ TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
 
 }  // namespace
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard::ffmpeg

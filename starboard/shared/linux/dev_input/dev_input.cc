@@ -43,10 +43,10 @@
 #include "starboard/key.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
-namespace starboard::shared::dev_input {
+namespace starboard::dev_input {
 namespace {
 
-using ::starboard::shared::starboard::Application;
+using ::starboard::Application;
 
 typedef int FileDescriptor;
 const FileDescriptor kInvalidFd = -ENODEV;
@@ -1313,4 +1313,4 @@ DevInput* DevInput::Create(SbWindow window, int wake_up_fd) {
   return new DevInputImpl(window, wake_up_fd);
 }
 
-}  // namespace starboard::shared::dev_input
+}  // namespace starboard::dev_input

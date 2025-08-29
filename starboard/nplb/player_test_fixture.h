@@ -102,7 +102,7 @@ class SbPlayerTestFixture {
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
   static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
 
-  typedef shared::starboard::player::video_dmp::VideoDmpReader VideoDmpReader;
+  typedef starboard::player::video_dmp::VideoDmpReader VideoDmpReader;
 
   typedef enum CallbackEventType {
     kEmptyEvent,
@@ -194,7 +194,7 @@ class SbPlayerTestFixture {
     return player_state_set_.find(state) != player_state_set_.end();
   }
 
-  shared::starboard::ThreadChecker thread_checker_;
+  starboard::ThreadChecker thread_checker_;
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;

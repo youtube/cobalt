@@ -25,18 +25,18 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 // This class decodes encoded audio stream into playable audio data.
 class AudioDecoder {
  public:
   typedef std::function<void()> ConsumedCB;
   typedef std::function<void()> OutputCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
+  typedef ::starboard::player::filter::ErrorCB ErrorCB;
 
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
+  typedef ::starboard::player::DecodedAudio DecodedAudio;
+  typedef ::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::player::InputBuffers InputBuffers;
 
   virtual ~AudioDecoder() {}
 
@@ -78,6 +78,6 @@ class AudioDecoder {
   virtual void Reset() = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_

@@ -24,7 +24,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 namespace {
 
@@ -423,4 +423,4 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
 
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter

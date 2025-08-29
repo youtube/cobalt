@@ -41,8 +41,8 @@ could look like:
 
 int main(int argc, char** argv) {
   ...
-  starboard::shared::signal::InstallCrashSignalHandlers();
-  starboard::shared::signal::InstallSuspendSignalHandlers();
+  starboard::signal::InstallCrashSignalHandlers();
+  starboard::signal::InstallSuspendSignalHandlers();
 
   std::string ca_certificates_path = starboard::common::GetCACertificatesPath();
   third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);

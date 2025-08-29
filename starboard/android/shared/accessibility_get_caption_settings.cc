@@ -29,10 +29,10 @@
 
 namespace starboard::android::shared::accessibility {
 
+using starboard::GetClosestCaptionColor;
+using starboard::GetClosestFontSizePercentage;
+using starboard::GetClosestOpacity;
 using starboard::android::shared::ScopedLocalJavaRef;
-using starboard::shared::starboard::GetClosestCaptionColor;
-using starboard::shared::starboard::GetClosestFontSizePercentage;
-using starboard::shared::starboard::GetClosestOpacity;
 
 namespace {
 

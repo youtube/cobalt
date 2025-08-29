@@ -35,7 +35,7 @@
 namespace starboard::android::shared {
 
 class ContinuousAudioTrackSink
-    : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
+    : public ::starboard::audio_sink::SbAudioSinkImpl {
  public:
   ContinuousAudioTrackSink(
       Type* type,

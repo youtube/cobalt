@@ -17,14 +17,14 @@
 #include "starboard/media.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard::media {
 
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
                       const char* key_system) {
-  using ::starboard::shared::widevine::DrmSystemWidevine;
+  using ::starboard::widevine::DrmSystemWidevine;
 
   return DrmSystemWidevine::IsKeySystemSupported(key_system);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard::media

@@ -33,14 +33,12 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-using ::starboard::shared::media_session::kPlaying;
-using ::starboard::shared::media_session::
-    UpdateActiveSessionPlatformPlaybackState;
-using ::starboard::shared::starboard::media::MimeType;
-using ::starboard::shared::starboard::player::PlayerWorker;
-using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
-using ::starboard::shared::starboard::player::filter::
-    FilterBasedPlayerWorkerHandler;
+using ::starboard::media::MimeType;
+using ::starboard::media_session::kPlaying;
+using ::starboard::media_session::UpdateActiveSessionPlatformPlaybackState;
+using ::starboard::player::PlayerWorker;
+using ::starboard::player::SbPlayerPrivateImpl;
+using ::starboard::player::filter::FilterBasedPlayerWorkerHandler;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
@@ -214,7 +212,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       player_status_func, player_error_func, context, std::move(handler));
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+  using ::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec, drm_system,
                                  &audio_stream_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
