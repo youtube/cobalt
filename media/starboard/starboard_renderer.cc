@@ -479,6 +479,12 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+#if BUILDFLAG(IS_ANDROID)
+  if (overlay_) {
+    overlay_->ScheduleLayout(output_rect);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
 }
