@@ -238,7 +238,6 @@ static_library("starboard_platform") {
               "//starboard/shared/uikit/application_window.mm",
               "//starboard/shared/uikit/audio_decoder.mm",
               "//starboard/shared/uikit/audio_queue_audio_sink_type.mm",
-              "//starboard/shared/uikit/audio_queue_buffer.mm",
               "//starboard/shared/uikit/audio_sink_get_max_channels.mm",
               "//starboard/shared/uikit/audio_sink_get_min_buffer_size_in_frames.cc",
               "//starboard/shared/uikit/audio_sink_get_nearest_supported_sample_frequency.mm",
