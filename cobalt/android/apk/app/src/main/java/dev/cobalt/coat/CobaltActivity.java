@@ -178,9 +178,12 @@ public abstract class CobaltActivity extends Activity {
                     throw new RuntimeException("Finish reason: ON_LOW_MEMORY");
                   } else if ("APP_INIT_FAILURE".equals(diagnosticFinishReason)) {
                     throw new RuntimeException("Finish reason: APP_INIT_FAILURE");
+                  } else if ("ON_DESTROY_UNKNOWN".equals(diagnosticFinishReason)) {
+                    throw new RuntimeException("Finish reason: ON_DESTROY_UNKNOWN");
                   } else {
                     throw new RuntimeException(
-                        "Callback called on finishing Activity. Finish reason unknown");
+                        "Callback called on finishing Activity. Finish reason: "
+                            + diagnosticFinishReason);
                   }
                 }
                 Log.i(TAG, "Browser process init succeeded");
@@ -193,9 +196,12 @@ public abstract class CobaltActivity extends Activity {
                     throw new RuntimeException("Finish reason: ON_LOW_MEMORY after init");
                   } else if ("APP_INIT_FAILURE".equals(diagnosticFinishReason)) {
                     throw new RuntimeException("Finish reason: APP_INIT_FAILURE after init");
+                  } else if ("ON_DESTROY_UNKNOWN".equals(diagnosticFinishReason)) {
+                    throw new RuntimeException("Finish reason: ON_DESTROY_UNKNOWN after init");
                   } else {
                     throw new RuntimeException(
-                        "Callback called on finishing Activity after init. Finish reason unknown");
+                        "Callback called on finishing Activity after init. Finish reason: "
+                            + diagnosticFinishReason);
                   }
                 }
                 getStarboardBridge().measureAppStartTimestamp();
@@ -455,6 +461,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    diagnosticFinishReason = "Unknown";
     if (mShouldReloadOnResume) {
       WebContents webContents = getActiveWebContents();
       if (webContents != null) {
@@ -470,6 +477,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    // If the reason is still unknown, it's likely a config change or system kill.
+    if ("Unknown".equals(diagnosticFinishReason)) {
+      diagnosticFinishReason = "ON_DESTROY_UNKNOWN";
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
