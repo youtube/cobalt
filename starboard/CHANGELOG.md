@@ -72,6 +72,12 @@ Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
 
+### Removed APIs deprecated in version 16
+* `SbMediaGetBufferAlignment`
+* `SbMediaGetBufferPadding`
+* `SbMediaGetBufferStorageType`
+* `SbMediaIsBufferUsingMemoryPool`
+
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to
