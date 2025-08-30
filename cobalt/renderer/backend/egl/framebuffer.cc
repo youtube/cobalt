@@ -79,6 +79,8 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   color_texture_.reset(new TextureEGL(graphics_context_, color_handle, size_,
                                       color_format, GL_TEXTURE_2D,
                                       base::Closure()));
+  LOG(WARNING) << "FramebufferEGL::FramebufferEGL new textureEGL: "
+               << color_texture_->gl_handle();
 
   // Create and attach a depth buffer if requested.
   depthbuffer_handle_ = 0;
