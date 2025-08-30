@@ -241,7 +241,8 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
   std::unique_ptr<ui::Event> ui_event;
 
-  if (input_data->device_type == kSbInputDeviceTypeKeyboard) {
+  if ((input_data->device_type == kSbInputDeviceTypeKeyboard) ||
+      (input_data->device_type == kSbInputDeviceTypeRemote)) {
     SbKey raw_key = input_data->key;
     if (raw_type != kSbInputEventTypePress &&
         raw_type != kSbInputEventTypeUnpress) {
