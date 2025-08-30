@@ -368,3 +368,4 @@ vs-chromium-project.txt
 
 # Intermediate Gradle outputs from builds
 starboard/android/apk/.gradle/
+cobalt/recipes/.recipe_deps/
