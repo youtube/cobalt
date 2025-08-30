@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,18 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
+#include "starboard/android/shared/exoplayer/exoplayer.h"
+#include "starboard/common/log.h"
 
-int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
-                                              SbMediaType sample_type) {
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    return 1;
+void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
+  if (!SbPlayerIsValid(player)) {
+    SB_DLOG(WARNING) << "player is invalid.";
+    return;
   }
-  return 256;
+
+  auto exoplayer =
+      starboard::android::shared::exoplayer::ExoPlayer::GetExoPlayerForSbPlayer(
+          player);
+  SB_DCHECK(exoplayer);
+  exoplayer->GetInfo(out_player_info);
 }
