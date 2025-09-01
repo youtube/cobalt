@@ -73,6 +73,8 @@ bool CreateDirectoryHierarchy(const std::wstring& wfull_path);
 
 bool DirectoryExistsOrCreated(const std::wstring& wpath);
 
+bool ClearOrDeleteDirectory(const std::wstring& wpath, bool deleteIt);
+
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard
