@@ -367,33 +367,32 @@ TEST_P(TimezoneStateParamTest, TimeZoneIsCorrect) {
   SetTimezone(param.tz.c_str());
 
   TimeZoneState state;
-  const icu::TimeZone& tz = state.GetTimeZone();
-
-  EXPECT_EQ(param.offset * 1000, tz.getRawOffset());
-  EXPECT_EQ(param.dst_start.has_value(), tz.useDaylightTime());
+  std::shared_ptr<const icu::TimeZone> tz = state.GetTimeZone();
+  EXPECT_EQ(param.offset * 1000, tz->getRawOffset());
+  EXPECT_EQ(param.dst_start.has_value(), tz->useDaylightTime());
 
   icu::UnicodeString id;
-  tz.getID(id);
+  tz->getID(id);
   EXPECT_EQ(param.id, ToString(id));
 
   if (param.dst_start) {
-    EXPECT_EQ(kSecondsInHour * 1000, tz.getDSTSavings());
+    EXPECT_EQ(kSecondsInHour * 1000, tz->getDSTSavings());
 
-    VerifyDateOffset(tz, *param.dst_start, param.offset + kSecondsInHour,
+    VerifyDateOffset(*tz, *param.dst_start, param.offset + kSecondsInHour,
                      "on daylight time start");
 
-    VerifyDateOffset(tz, GetDayBefore(tz, *param.dst_start), param.offset,
+    VerifyDateOffset(*tz, GetDayBefore(*tz, *param.dst_start), param.offset,
                      "before daylight time start");
 
-    VerifyDateOffset(tz, param.std_start, param.offset,
+    VerifyDateOffset(*tz, param.std_start, param.offset,
                      "on standard time start");
 
-    VerifyDateOffset(tz, GetDayBefore(tz, param.std_start),
+    VerifyDateOffset(*tz, GetDayBefore(*tz, param.std_start),
                      param.offset + kSecondsInHour,
                      "before standard time start");
 
   } else {
-    VerifyDateOffset(tz, param.std_start, param.offset, "standard time");
+    VerifyDateOffset(*tz, param.std_start, param.offset, "standard time");
   }
 }
 
