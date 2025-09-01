@@ -23,11 +23,13 @@
 #include <windows.graphics.display.core.h>
 #include <windows.h>
 #include <windows.system.display.h>
+#include <windows.applicationmodel.h>
 
 #include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "starboard/common/device_type.h"
 #include "starboard/common/file.h"
@@ -57,6 +59,7 @@
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/shared/win32/directory_internal.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -77,6 +80,10 @@ using shared::win32::stringToPlatformString;
 using shared::win32::wchar_tToUTF8;
 using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
+using namespace Windows::ApplicationModel;
+using namespace Windows::Storage;
+using namespace Windows::Foundation;
+using namespace Platform;
 using Windows::ApplicationModel::SuspendingDeferral;
 using Windows::ApplicationModel::SuspendingEventArgs;
 using Windows::ApplicationModel::Activation::ActivationKind;
@@ -858,6 +865,7 @@ ApplicationUwp::ApplicationUwp()
   SbWindowSetDefaultOptions(&options);
   window_size_ = options.size;
   analog_thumbstick_thread_.reset(new AnalogThumbstickThread(this));
+  ClearLocalCacheIfNeeded();
 }
 
 ApplicationUwp::~ApplicationUwp() {
@@ -1041,6 +1049,47 @@ void ApplicationUwp::ResetHdcpSession() {
     delete hdcp_session_;
     hdcp_session_ = nullptr;
   }
+}
+
+bool ApplicationUwp::ClearLocalCacheIfNeeded() {
+  // We compare saved app version (previous launch) and current version.
+  // If they are different, it means that this is the very first launch
+  // after install or after update.
+  // In both cases we clear LocalCacheFolder to ensure that the old saved
+  // data can't impact on new app version.
+  PackageVersion v = Package::Current->Id->Version;
+  std::string version =
+      std::to_string(v.Major) + "." + std::to_string(v.Minor) + "." +
+      std::to_string(v.Build) + "." + std::to_string(v.Revision);
+  SB_LOG(INFO) << "Current package version is " << version;
+
+  auto localFolder = ApplicationData::Current->LocalFolder;
+  std::wstring path = localFolder->Path->Data();
+  path += L"\\app_version.txt";
+
+  std::string prev_version;
+  std::fstream version_file(path.c_str(), std::ios_base::in);
+  version_file >> prev_version;
+  version_file.close();
+  if (version.compare(prev_version) != 0) {
+    SB_LOG(INFO) << "Previous version is " << prev_version
+                 << ". Trying to clear local cache.";
+    if (ClearLocalCacheFolder()) {
+      // Save current version
+      version_file.open(path.c_str(),
+                        std::ios_base::trunc | std::ios_base::out);
+      version_file << version;
+      version_file.close();
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ApplicationUwp::ClearLocalCacheFolder() {
+  auto cacheFolder = ApplicationData::Current->LocalCacheFolder;
+  std::wstring wpath = cacheFolder->Path->Data();
+  return ::starboard::shared::win32::ClearOrDeleteDirectory(wpath, false);
 }
 
 void ApplicationUwp::Inject(Application::Event* event) {
