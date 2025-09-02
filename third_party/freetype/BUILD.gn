@@ -159,5 +159,6 @@ source_set("freetype_source") {
   deps = [
     "//third_party/libpng",
     "//third_party/zlib",
+    "//third_party/brotli:dec",
   ]
 }
