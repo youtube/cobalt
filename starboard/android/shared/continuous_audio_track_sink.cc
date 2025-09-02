@@ -146,8 +146,20 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
+  bool is_initial_silence_feeding = true;
+  int initial_silence_frames = 0;
+  const int64_t start_us = CurrentMonotonicTime();
+  bridge_.Play();
+  const int64_t elapsed_us = CurrentMonotonicTime() - start_us;
+  SB_LOG(INFO) << "Initial Play complete time(msec)=" << elapsed_us / 1'000;
+
+  constexpr int kSilenceIntervalUs = 10'000;
+  const int kSilenceIntervalFrames =
+      kSilenceIntervalUs * sampling_frequency_hz_ / 1'000'000;
+  const std::vector<uint8_t> silence_frames(
+      channels_ * GetBytesPerSample(sample_type_) * kSilenceIntervalFrames);
   while (!quit_) {
-    int playback_head_position = 0;
+    int64_t playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
@@ -156,9 +168,21 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
 
-    if (was_playing) {
+    if (is_initial_silence_feeding) {
+      // Initial silence feeding.
+    } else if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
+      if (playback_head_position < initial_silence_frames) {
+        SB_LOG(INFO)
+            << "Still playing initial_silence_frames: playback_head_positions="
+            << playback_head_position
+            << ", initial_silence_frames=" << initial_silence_frames;
+        playback_head_position = 0;
+      } else {
+        playback_head_position -= initial_silence_frames;
+      }
+
       SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
       int frames_consumed =
@@ -210,7 +234,22 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      bridge_.Play();
+      if (is_initial_silence_feeding) {
+        is_initial_silence_feeding = false;
+        const int64_t initial_silence_us =
+            GetFramesDurationUs(initial_silence_frames);
+        SB_LOG(INFO) << "Switch to real audio: initial_silence(msec)="
+                     << initial_silence_us / 1'000;
+      } else {
+        bridge_.Play();
+      }
+    }
+
+    if (!is_playing && is_initial_silence_feeding) {
+      initial_silence_frames += kSilenceIntervalFrames;
+      WriteData(env, silence_frames.data(), kSilenceIntervalFrames);
+      usleep(10'000);
+      continue;
     }
 
     if (!is_playing || frames_in_buffer == 0) {
