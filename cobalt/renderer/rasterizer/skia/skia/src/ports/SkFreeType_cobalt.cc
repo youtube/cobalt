@@ -128,6 +128,7 @@ static unsigned long sk_freetype_cobalt_stream_io(  // NOLINT(runtime/int)
   SkStreamAsset* stream =
       static_cast<SkStreamAsset*>(ftStream->descriptor.pointer);
   stream->seek(offset);
+  LOG(INFO) << "in sk_freetype_cobalt_stream_io";
   return stream->read(buffer, count);
 }
 
@@ -163,8 +164,12 @@ bool ScanFont(SkStreamAsset* stream,
   args.stream = &streamRec;
 
   FT_Face face;
+  LOG(INFO) << "freetype_lib: " << freetype_lib;
+  LOG(INFO) << "face_index: " << face_index;
+  LOG(INFO) << "args.stream: " << args.stream;
   FT_Error err = FT_Open_Face(freetype_lib, &args, face_index, &face);
   if (err) {
+    LOG(ERROR) << "FT_Open_Face failed with error code: " << err;
     FT_Done_FreeType(freetype_lib);
     return false;
   }
