@@ -231,8 +231,6 @@ size_t SkFileMemoryChunkStream::read(void* buffer, size_t size) {
 
   // Iterate through all of the chunk indices included within the read. Each is
   // read into the buffer separately.
-  LOG(INFO) << "start_index: " << start_index;
-  LOG(INFO) << "end_index: " << end_index;
   for (size_t current_index = start_index; current_index <= end_index;
        ++current_index) {
     size_t current_index_end_stream_position =
@@ -272,18 +270,15 @@ size_t SkFileMemoryChunkStream::read(void* buffer, size_t size) {
       // the next read triggers a new seek, and break out.
       if (file_position_ != stream_position_ &&
           fseek(file_, stream_position_, SEEK_SET) != 0) {
-        LOG(INFO) << "In fseek1 break";
         file_position_ = std::numeric_limits<size_t>::max();
         break;
       }
-      LOG(INFO) << "didn't hit fseek1 break";
 
       // Note that by using |fread| vs. |sk_qread|, additional seeks are
       // avoided.  This is because |sk_qread|'s implementation does multiple
       // seeks to ensure that the file cursor is at the same position after the
       // |sk_qread| operation is done.
       index_actual_read_size = fread(buffer, 1, index_desired_read_size, file_);
-      LOG(INFO) << "index_actual_read_size: " << index_actual_read_size;
       file_position_ = stream_position_ + index_actual_read_size;
     }
 
@@ -356,10 +351,8 @@ bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
   if (file_position_ != index_position &&
       fseek(file_, index_position, SEEK_SET) != 0) {
     file_position_ = std::numeric_limits<size_t>::max();
-    LOG(INFO) << "in fseek2 break";
     return false;
   }
-  LOG(INFO) << "didn't hit fseek2 break";
 
   const size_t kChunkMaxReadSize = SkFileMemoryChunk::kSizeInBytes;
   size_t desired_read_size =
@@ -370,7 +363,6 @@ bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
   // seeks to ensure that the file cursor is at the same position after the
   // |sk_qread| operation is done.
   size_t actual_read_size = fread(chunk->memory, 1, desired_read_size, file_);
-  LOG(INFO) << "actual_read_size: " << actual_read_size;
   file_position_ = index_position + actual_read_size;
 
   return desired_read_size == actual_read_size;
