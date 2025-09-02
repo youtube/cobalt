@@ -11,7 +11,7 @@ that developers are free to rely upon. Some important patterns follow.
 
 ## Values for Common Variables per Cobalt Platform
 
-GN variable          | Chromium (all platforms)        | Cobalt Android TV (`is_androidtv`) |   Cobalt AppleTV tvOS (`is_ios_tvos`) | Cobalt 3P Evergreen/Modular                                                               | Cobalt AOSP
+GN variable          | Chromium (all platforms)        | Cobalt Android TV (`is_androidtv`) |   Cobalt AppleTV tvOS (`is_ios` + `target_platform == "tvos"`) | Cobalt 3P Evergreen/Modular                                                               | Cobalt AOSP
 -------------------  | ------------------------------- | -----------------------------------|-------------------------------------- |------------------------------------------------------------------------------------------ | ------------
 `is_cobalt`          | <p style='color: red'>false</p> | <p style='color: green'>true</p>   | <p style='color: green'>true</p>      | <p style='color: green'>true</p>                                                          | <p style='color: green'>true</p>
 `is_starboard`       | <p style='color: red'>false</p> | <p style='color: red'>false</p>    | <p style='color: red'>false</p>       | <p style='color: green'>true</p>                                                          | <p style='color: green'>true</p>
@@ -22,9 +22,9 @@ GN variable          | Chromium (all platforms)        | Cobalt Android TV (`is_
 `is_androidtv`       | <p style='color: red'>false</p> | <p style='color: green'>true</p>   | <p style='color: red'>false</p>       | <p style='color: red'>false</p>                                                           | <p style='color: green'>false</p>
 
 Most of these variables are specified in files under
-[//cobalt/build/configs](https://source.corp.google.com/h/github/youtube/cobalt/+/main:cobalt/build/configs)
+[//cobalt/build/configs](https://github.com/youtube/cobalt/tree/HEAD/cobalt/build/configs)
 and are propagated to Chromium's GN build configuration when using the
-[gn.py](https://source.corp.google.com/h/github/youtube/cobalt/+/main:cobalt/build/gn.py)
+[gn.py](https://github.com/youtube/cobalt/tree/HEAD/cobalt/build/gn.py)
 generator.
 
 After that point developers can use them in GN files (`is_bla`, `use_foo`) and
@@ -39,7 +39,7 @@ in a default Chromium build.
 
 Cobalt supports four configurations, which are summarized below from the source
 of truth in
-[gn.py](https://source.corp.google.com/h/github/youtube/cobalt/+/main:cobalt/build/gn.py;l=26).
+[gn.py](https://github.com/youtube/cobalt/tree/HEAD/cobalt/build/gn.py#L26).
 
 Cobalt flavor | is_debug                         | is_official_build                | Purpose
 ------------- | -------------------------------- | -------------------------------- | -------
@@ -83,7 +83,7 @@ If one is needed, follow the section
 #### Local to Cobalt/Starboard Code
 
 Local flags should use Chromium's
-[buildflag_header template](https://source.corp.google.com/h/github/youtube/cobalt/+/main:build/buildflag_header.gni;l=82?q=buildflag_header&sq=&ss=h%2Fgithub%2Fyoutube%2Fcobalt%2F%2B%2Frefs%2Fheads%2Fmain;drc=fd2b36a1fad77d113ffaba1cf35f988d860d70d9):
+[buildflag_header template](https://github.com/youtube/cobalt/tree/HEAD/cobalt/build/buildflag_header.gni;l=82?q=buildflag_header&sq=&ss=h%2Fgithub%2Fyoutube%2Fcobalt%2F%2B%2Frefs%2Fheads%2Fmain;drc=fd2b36a1fad77d113ffaba1cf35f988d860d70d9):
 
 ```gn
 # //cobalt/foo/BUILD.gn
@@ -120,7 +120,7 @@ All Cobalt/Starboard C++ buildflags that are used in Chromium code live in
 correspond to a GN variable of the same (or similar) name. To make a GN variable
 `variable_name` into a C++ buildflag, you need to define it globally for the
 build. This is usually done in `//cobalt/build/configs/BUILD.gn`
-([link](https://source.corp.google.com/h/github/youtube/cobalt/+/main:cobalt/build/configs/BUILD.gn;l=65)).
+([link](https://github.com/youtube/cobalt/tree/HEAD/cobalt/build/configs/BUILD.gn#L65)).
 You would then add a `BUILDFLAG` define in `//build/build_config.h`:
 
 ```gn
