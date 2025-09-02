@@ -1,0 +1,17 @@
+{
+  "docker_service": "rdk",
+  "platforms": [
+    "evergreen-arm-hardfp-rdk"
+  ],
+  "test_on_device": false,
+  "targets": [
+    "cobalt:gn_all",
+    "loader_app"
+  ],
+  "includes": [
+    {
+      "name": "arm-hardfp-rdk",
+      "platform": "evergreen-arm-hardfp-rdk"
+    }
+  ]
+}

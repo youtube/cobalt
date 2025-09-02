@@ -20,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -212,7 +213,7 @@ class PlayerWorker {
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
-  pthread_t thread_;
+  std::optional<pthread_t> thread_;
   std::unique_ptr<JobQueue> job_queue_;
 
   SbMediaAudioCodec audio_codec_;

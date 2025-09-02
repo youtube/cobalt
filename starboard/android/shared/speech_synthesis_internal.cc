@@ -21,8 +21,7 @@
 
 namespace starboard::android::shared {
 
-extern "C" SB_EXPORT_PLATFORM void
-JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
+void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
   // TODO: (cobalt b/392178584) clean up speech synthesis code, investigate if
   // this is still needed. ApplicationAndroid::Get()->SendTTSChangedEvent();
 }

@@ -18,6 +18,7 @@
 #include <mutex>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -44,11 +45,11 @@ typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {}
 
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
+#else  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {
   static const bool s_dump_input_hash =
@@ -67,7 +68,7 @@ void DumpInputHash(const InputBuffer* input_buffer) {
                                   0);
 }
 
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 }  // namespace
 

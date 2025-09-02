@@ -80,7 +80,10 @@ source_set("browser") {
   ]
 
   if (is_androidtv) {
-    deps += [ "//cobalt/android:jni_headers" ]
+    deps += [
+      "//cobalt/android:jni_headers",
+      "//cobalt/android/oom_intervention",
+    ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }

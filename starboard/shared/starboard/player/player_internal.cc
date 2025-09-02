@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -206,9 +207,9 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
 
   std::lock_guard lock(audio_configurations_mutex_);
   if (audio_configurations_.empty()) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     int64_t start = CurrentMonotonicTime();
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     for (int i = 0; i < 32; ++i) {
       SbMediaAudioConfiguration audio_configuration;
       if (SbMediaGetAudioConfiguration(i, &audio_configuration)) {
@@ -228,7 +229,7 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
         }
       }
     }
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     int64_t elapsed = CurrentMonotonicTime() - start;
     SB_LOG(INFO)
         << "GetAudioConfiguration(): Updating audio configurations takes "
@@ -238,7 +239,7 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
                    << GetMediaAudioConnectorName(audio_configuration.connector)
                    << ", channels " << audio_configuration.number_of_channels;
     }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
 
   if (index < static_cast<int>(audio_configurations_.size())) {

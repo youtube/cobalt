@@ -39,7 +39,7 @@ runs:
         FLAGS=""
         if [[ "${{ matrix.platform }}" == *android* ]]; then
           FLAGS="--archive-per-target --use-android-deps-path --flatten-deps"
-        elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
+        elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
           FLAGS="--archive-per-target --flatten-deps"
         fi
 

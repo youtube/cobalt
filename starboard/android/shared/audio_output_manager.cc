@@ -257,8 +257,7 @@ bool AudioOutputManager::GetAudioConfiguration(
   return true;
 }
 
-extern "C" SB_EXPORT_PLATFORM void JNI_AudioOutputManager_OnAudioDeviceChanged(
-    JNIEnv* env) {
+void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();

@@ -22,6 +22,8 @@ char g_ident[128];
 pthread_mutex_t g_ident_mutex = PTHREAD_MUTEX_INITIALIZER;
 }  // namespace
 
+extern "C" {
+
 void openlog(const char* ident, int option, int facility) {
   pthread_mutex_lock(&g_ident_mutex);
   if (ident) {
@@ -54,3 +56,5 @@ void closelog(void) {
   g_ident[0] = '\0';
   pthread_mutex_unlock(&g_ident_mutex);
 }
+
+}  // extern "C"

@@ -194,9 +194,9 @@ AlsaAudioSink::AlsaAudioSink(
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   std::unique_lock lock(mutex_);
-  pthread_create(&audio_out_thread_, nullptr, &AlsaAudioSink::ThreadEntryPoint,
-                 this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
+  const int result = pthread_create(&audio_out_thread_, nullptr,
+                                    &AlsaAudioSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
   creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }
 

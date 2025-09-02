@@ -105,18 +105,25 @@ public class PlatformError
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (errorType == CONNECTION_ERROR) {
+      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
       switch (whichButton) {
         case NETWORK_SETTINGS_BUTTON:
-          Activity activity = activityHolder.get();
-          if (activity != null) {
+          response = POSITIVE;
+          if (cobaltActivity != null) {
+            cobaltActivity.mShouldReloadOnResume = true;
             try {
-              activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+              cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
+          dialog.dismiss();
           break;
         case RETRY_BUTTON:
+          response = POSITIVE;
+          if (cobaltActivity != null) {
+            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+          }
           dialog.dismiss();
           break;
         default: // fall out
@@ -126,11 +133,12 @@ public class PlatformError
 
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
-    CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-    if (cobaltActivity != null) {
-      cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
-    }
     dialog = null;
+      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+      if (cobaltActivity != null && response == CANCELLED) {
+        cobaltActivity.mShouldReloadOnResume = true;
+        cobaltActivity.getStarboardBridge().requestSuspend();
+      }
   }
 
   /** Informs Starboard when the error is dismissed. */
