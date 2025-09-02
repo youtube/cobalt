@@ -23,8 +23,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace posix {
 
 class TestSemaphore {
@@ -196,7 +195,6 @@ class AbstractTestThread {
 };
 
 }  // namespace posix
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_THREAD_HELPERS_H_

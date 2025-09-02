@@ -30,9 +30,7 @@
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
-namespace starboard {
-namespace nplb {
-namespace nplb_evergreen_compat_tests {
+namespace starboard::nplb::nplb_evergreen_compat_tests {
 
 namespace {
 
@@ -84,6 +82,4 @@ TEST(StorageTest, VerifyStorageDirectory) {
 }
 
 }  // namespace
-}  // namespace nplb_evergreen_compat_tests
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb::nplb_evergreen_compat_tests

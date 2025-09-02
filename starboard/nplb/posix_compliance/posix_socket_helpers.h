@@ -23,8 +23,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 #if defined(SOMAXCONN)
 const int kMaxConn = SOMAXCONN;
@@ -68,7 +67,6 @@ struct trio_socket_fd {
   int* server_socket_fd_ptr;
 };
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_SOCKET_HELPERS_H_

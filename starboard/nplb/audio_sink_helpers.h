@@ -23,8 +23,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 // Helper class to manage frame buffers for audio sink.  When created without
 // sample type and storage type specified, it will pick any supported sample
@@ -117,7 +116,6 @@ class AudioSinkTestEnvironment {
   bool is_eos_reached_ = false;
 };
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_AUDIO_SINK_HELPERS_H_

@@ -40,12 +40,11 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixSymlinkTest, SuccessfulCreation) {
-  starboard::nplb::ScopedRandomFile target_file;
+  ScopedRandomFile target_file;
   const char* link_path = "success_link.tmp";
 
   // Create the symbolic link.
@@ -66,7 +65,7 @@ TEST(PosixSymlinkTest, SuccessfulCreation) {
 }
 
 TEST(PosixSymlinkTest, FailsIfNewPathExists) {
-  starboard::nplb::ScopedRandomFile existing_file;
+  ScopedRandomFile existing_file;
   const char* target_path = "some_target";
 
   // Attempt to create a symlink where the newpath already exists.
@@ -138,5 +137,4 @@ TEST(PosixSymlinkTest, FailsWithNullNewPath) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

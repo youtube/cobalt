@@ -18,8 +18,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixRwlockTest, BasicInitDestroy) {
@@ -175,5 +174,4 @@ TEST(PosixRwlockTest, TryWrLockFailsIfWriteLocked) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

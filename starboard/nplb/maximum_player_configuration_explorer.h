@@ -25,8 +25,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/testing/fake_graphics_context_provider.h"  // nogncheck
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 typedef const std::function<bool(const std::vector<int>&)> PosetSearchFunctor;
 typedef std::vector<SbPlayerTestConfig> SbPlayerMultiplePlayerTestConfig;
@@ -87,7 +86,6 @@ class MaximumPlayerConfigurationExplorer {
       const MaximumPlayerConfigurationExplorer& other) = delete;
 };
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_MAXIMUM_PLAYER_CONFIGURATION_EXPLORER_H_

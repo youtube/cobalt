@@ -21,8 +21,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixSocketCreateTest, ATonOfTcp) {
@@ -49,5 +48,4 @@ TEST(PosixSocketCreateTest, ManyTcpAtOnce) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

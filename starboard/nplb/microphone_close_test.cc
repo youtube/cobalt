@@ -16,8 +16,7 @@
 #include "starboard/nplb/microphone_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(SbMicrophoneCloseTest, SunnyDayCloseAreCalledMultipleTimes) {
@@ -73,5 +72,4 @@ TEST(SbMicrophoneCloseTest, RainyDayCloseWithInvalidMicrophone) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

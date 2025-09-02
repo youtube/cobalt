@@ -22,8 +22,7 @@
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -161,5 +160,4 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

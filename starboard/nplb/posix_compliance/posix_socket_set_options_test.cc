@@ -16,8 +16,7 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 class PosixSocketSetOptionsTest : public ::testing::TestWithParam<int> {
@@ -111,5 +110,4 @@ INSTANTIATE_TEST_SUITE_P(PosixSocketAddressTypes,
                          ::testing::Values(AF_INET, AF_INET6));
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

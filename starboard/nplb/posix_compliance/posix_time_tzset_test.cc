@@ -15,8 +15,7 @@
 #include <gtest/gtest.h>
 #include <time.h>
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 // Number of seconds in an hour.
@@ -65,5 +64,4 @@ TEST(PosixTzsetSimpleTest, MAYBE_EnvironmentChange) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

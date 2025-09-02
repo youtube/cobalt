@@ -16,8 +16,7 @@
 
 #include "starboard/shared/testing/no_inline.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 class Object {
@@ -58,5 +57,4 @@ TEST(SbUndefinedBehaviorTest, CallThisPointerIsNullRainyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

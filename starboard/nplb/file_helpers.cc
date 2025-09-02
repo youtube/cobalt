@@ -30,8 +30,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 namespace {
 // Size of appropriate path buffer.
@@ -210,5 +209,4 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
   return filename;
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

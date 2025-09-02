@@ -22,8 +22,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 // Sets up an empty test fixture, required for typed tests.
@@ -348,5 +347,4 @@ TYPED_TEST(PosixFileReadTest, PreadReadMore) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

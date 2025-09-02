@@ -34,8 +34,7 @@ These are also untested for epoll_create() for the same reasons.
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixEpollCreateTests, CreatesValidFileDescriptorOnSuccess) {
@@ -87,5 +86,4 @@ TEST(PosixEpollCreate1Tests, ErrorInvalidFlags) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

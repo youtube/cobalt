@@ -18,8 +18,7 @@
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
@@ -71,5 +70,4 @@ TEST_F(MadviseTest, SunnyDayRandom) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

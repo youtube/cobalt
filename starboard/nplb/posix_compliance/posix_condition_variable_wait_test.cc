@@ -19,8 +19,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
@@ -74,5 +73,4 @@ TEST(PosixConditionVariableWaitTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

@@ -19,8 +19,7 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 TEST(Semaphore, PutAndTake) {
   Semaphore semaphore;
@@ -168,5 +167,4 @@ TEST(Semaphore, ThreadPuts) {
   semaphore.Put();
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
