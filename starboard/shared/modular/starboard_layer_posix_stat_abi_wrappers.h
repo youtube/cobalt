@@ -105,6 +105,17 @@ struct musl_stat {
 #endif
 };
 
+// Special flags for utimensat.
+#define MUSL_AT_EMPTY_PATH 0x1000
+#define MUSL_AT_SYMLINK_NOFOLLOW 0x100
+
+// Special musl_timespec::nsec values.
+#define MUSL_UTIME_NOW 0x3fffffff
+#define MUSL_UTIME_OMIT 0x3ffffffe
+
+// Special file descriptor for utimensat
+#define MUSL_AT_FDCWD (-100)
+
 SB_EXPORT int __abi_wrap_fstat(int fildes, struct musl_stat* info);
 
 SB_EXPORT int __abi_wrap_lstat(const char* path, struct musl_stat* info);
@@ -112,6 +123,13 @@ SB_EXPORT int __abi_wrap_lstat(const char* path, struct musl_stat* info);
 SB_EXPORT int __abi_wrap_stat(const char* path, struct musl_stat* info);
 
 SB_EXPORT int __abi_wrap_chmod(const char* path, musl_mode_t mode);
+
+SB_EXPORT int __abi_wrap_fchmod(int fd, musl_mode_t mode);
+
+SB_EXPORT int __abi_wrap_utimensat(int fildes,
+                                   const char* path,
+                                   const struct musl_timespec times[2],
+                                   int musl_flag);
 
 #ifdef __cplusplus
 }  // extern "C"

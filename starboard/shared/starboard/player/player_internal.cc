@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -107,7 +108,7 @@ void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
 void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
                                        int number_of_sample_infos) {
   SB_DCHECK(sample_infos);
-  SB_DCHECK(number_of_sample_infos > 0);
+  SB_DCHECK_GT(number_of_sample_infos, 0);
 
   InputBuffers input_buffers;
   input_buffers.reserve(number_of_sample_infos);
@@ -144,7 +145,7 @@ void SbPlayerPrivateImpl::SetBounds(int z_index,
 }
 
 void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
-  SB_DCHECK(out_player_info != NULL);
+  SB_DCHECK(out_player_info);
 
   std::lock_guard lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
@@ -201,14 +202,14 @@ SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
 bool SbPlayerPrivateImpl::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
-  SB_DCHECK(index >= 0);
+  SB_DCHECK_GE(index, 0);
   SB_DCHECK(out_audio_configuration);
 
   std::lock_guard lock(audio_configurations_mutex_);
   if (audio_configurations_.empty()) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     int64_t start = CurrentMonotonicTime();
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     for (int i = 0; i < 32; ++i) {
       SbMediaAudioConfiguration audio_configuration;
       if (SbMediaGetAudioConfiguration(i, &audio_configuration)) {
@@ -228,7 +229,7 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
         }
       }
     }
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     int64_t elapsed = CurrentMonotonicTime() - start;
     SB_LOG(INFO)
         << "GetAudioConfiguration(): Updating audio configurations takes "
@@ -238,7 +239,7 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
                    << GetMediaAudioConnectorName(audio_configuration.connector)
                    << ", channels " << audio_configuration.number_of_channels;
     }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
 
   if (index < static_cast<int>(audio_configurations_.size())) {

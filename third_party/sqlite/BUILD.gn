@@ -27,6 +27,9 @@ config("common_sqlite3_compile_options") {
   # platforms.
   defines = sqlite_common_configuration_flags
 
+  if (is_starboard) {
+    defines += [ "SQLITE_TEMP_STORE=3" ]
+  } else {
   # The flags not baked in, but common for all platforms.
   defines += [
     # Skip writing transaction rollback journals on f2fs.
@@ -40,6 +43,7 @@ config("common_sqlite3_compile_options") {
     # about SQLite storing data in the operating system's temporary directory.
     "SQLITE_TEMP_STORE=3",
   ]
+  }
 
   # On OSX, SQLite has extra logic for detecting the use of network
   # filesystems (e.g., AFS, NFS) and for working around locking problems in

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
 #include "starboard/extension/enhanced_audio.h"
@@ -48,11 +49,11 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
 
   int64_t timestamp() const { return timestamp_; }
   const media::AudioSampleInfo& audio_sample_info() const {
-    SB_DCHECK(sample_type_ == kSbMediaTypeAudio);
+    SB_DCHECK_EQ(sample_type_, kSbMediaTypeAudio);
     return audio_sample_info_;
   }
   const media::VideoSampleInfo& video_sample_info() const {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
     return video_sample_info_;
   }
   const media::AudioStreamInfo& audio_stream_info() const {
@@ -114,14 +115,14 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
   if (sample_type_ == kSbMediaTypeAudio) {
     audio_sample_info_ = sample_info.audio_sample_info;
   } else {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
     video_sample_info_ = sample_info.video_sample_info;
   }
   TryToAssignDrmSampleInfo(sample_info.drm_info);
   if (sample_info.side_data_count > 0) {
-    SB_DCHECK(sample_info.side_data_count == 1);
+    SB_DCHECK_EQ(sample_info.side_data_count, 1);
     SB_DCHECK(sample_info.side_data);
-    SB_DCHECK(sample_info.side_data->type == kMatroskaBlockAdditional);
+    SB_DCHECK_EQ(sample_info.side_data->type, kMatroskaBlockAdditional);
     SB_DCHECK(sample_info.side_data->data);
     // Make a copy anyway as it is possible to release |data_| earlier in
     // SetDecryptedContent().

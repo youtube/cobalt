@@ -24,7 +24,6 @@ namespace switches {
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSystemFontCheck[];
-extern const char kExposeInternalsForTesting[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -32,11 +31,6 @@ extern const char kContentShellDevToolsTabTarget[];
 #endif
 extern const char kIsolatedContextOrigins[];
 extern const char kRemoteDebuggingAddress[];
-extern const char kRunWebTests[];
-
-// Helper that returns true if kRunWebTests is present in the command line,
-// meaning Content Shell is running in web test mode.
-bool IsRunWebTestsSwitchPresent();
 
 }  // namespace switches
 

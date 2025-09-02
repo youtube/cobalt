@@ -7,6 +7,10 @@ import("//build/config/arm.gni")
 import("//build/config/ui.gni")
 import("//media/media_options.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 
@@ -18,6 +22,10 @@ if (is_android) {
       "//media",
       "//media/filters",
     ]
+
+    if (is_cobalt && use_starboard_media) {
+      visibility += [ "//media/starboard" ]
+    }
 
     sources = [
       "android_cdm_factory.cc",

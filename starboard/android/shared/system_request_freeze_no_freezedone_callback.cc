@@ -14,27 +14,10 @@
 
 #include "starboard/system.h"
 
-#include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#include "starboard/loader_app/pending_restart.h"  // nogncheck
-#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-
 void SbSystemRequestFreeze() {
-#if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-  if (starboard::loader_app::IsPendingRestart()) {
-    SbLogRawFormatF("\nPending update restart . Stopping.\n");
-    SbLogFlush();
-    starboard::shared::starboard::Application::Get()->Stop(0);
-  } else {
-    // There is no FreezeDone callback for stopping all thread execution
-    // after fully transitioning into Frozen.
-    starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
-  }
-#else
   // There is no FreezeDone callback for stopping all thread execution
   // after fully transitioning into Frozen.
   starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }

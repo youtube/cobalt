@@ -19,8 +19,10 @@
 
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <queue>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
@@ -93,7 +95,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
     scoped_refptr<InputBuffer> input_buffer;
 
     explicit Event(EventType type = kInvalid) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
 
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
@@ -137,7 +139,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  pthread_t decoder_thread_;
+  std::optional<pthread_t> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;

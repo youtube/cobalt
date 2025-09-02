@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
@@ -36,7 +37,7 @@ namespace {
 static const int kAlignment = 32;
 
 size_t AlignUp(size_t size, int alignment) {
-  SB_DCHECK((alignment & (alignment - 1)) == 0);
+  SB_DCHECK_EQ((alignment & (alignment - 1)), 0);
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
@@ -109,7 +110,6 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
       av_frame_(NULL),
       stream_ended_(false),
       error_occurred_(false),
-      decoder_thread_(0),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -151,9 +151,9 @@ void VideoDecoderImpl<FFMPEG>::Initialize(
 
 void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     const InputBuffers& input_buffers) {
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
-  SB_DCHECK(queue_.Poll().type == kInvalid);
+  SB_DCHECK_EQ(queue_.Poll().type, kInvalid);
   SB_DCHECK(decoder_status_cb_);
 
   const auto& input_buffer = input_buffers[0];
@@ -163,10 +163,12 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     return;
   }
 
-  if (decoder_thread_ == 0) {
-    pthread_create(&decoder_thread_, nullptr,
-                   &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_DCHECK(decoder_thread_ != 0);
+  if (!decoder_thread_) {
+    pthread_t thread;
+    const int result = pthread_create(
+        &thread, nullptr, &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
+    SB_CHECK_EQ(result, 0);
+    decoder_thread_ = thread;
   }
   queue_.Put(Event(input_buffer));
 }
@@ -178,7 +180,7 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
 
-  if (decoder_thread_ == 0) {
+  if (!decoder_thread_) {
     // In case there is no WriteInputBuffers() call before WriteEndOfStream(),
     // don't create the decoder thread and send the EOS frame directly.
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
@@ -190,16 +192,16 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
 
 void VideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
-  if (decoder_thread_ != 0) {
+  if (decoder_thread_) {
     queue_.Put(Event(kReset));
-    pthread_join(decoder_thread_, NULL);
+    pthread_join(*decoder_thread_, nullptr);
   }
 
   if (codec_context_ != NULL) {
     ffmpeg_->avcodec_flush_buffers(codec_context_);
   }
 
-  decoder_thread_ = 0;
+  decoder_thread_ = std::nullopt;
   stream_ended_ = false;
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -253,7 +255,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
       DecodePacket(&packet);
       decoder_status_cb_(kNeedMoreInput, NULL);
     } else {
-      SB_DCHECK(event.type == kWriteEndOfStream);
+      SB_DCHECK_EQ(event.type, kWriteEndOfStream);
       // Stream has ended, try to decode any frames left in ffmpeg.
       AVPacket packet;
       do {
@@ -269,7 +271,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
 }
 
 bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
-  SB_DCHECK(packet != NULL);
+  SB_DCHECK(packet);
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
     ffmpeg_->av_frame_unref(av_frame_);
@@ -467,7 +469,7 @@ void VideoDecoderImpl<FFMPEG>::TeardownCodec() {
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoderImpl<FFMPEG>::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.
