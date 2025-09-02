@@ -48,7 +48,7 @@ bool IsOpenAppend(PlatformFile file) {
 }
 
 int CallFtruncate(PlatformFile file, int64_t length) {
-#if BUILDFLAG(IS_BSD) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_BSD) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FUCHSIA)
   static_assert(sizeof(off_t) >= sizeof(int64_t),
                 "off_t is not a 64-bit integer");
   return HANDLE_EINTR(ftruncate(file, length));
