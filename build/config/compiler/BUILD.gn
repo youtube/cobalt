@@ -403,7 +403,7 @@ config("compiler") {
       ldflags += [ "-Wl,--build-id" ]
     }
 
-    if (!is_android) {
+    if (!is_android && !is_starboard) {
       defines += [
         # _FILE_OFFSET_BITS=64 should not be set on Android in order to maintain
         # the behavior of the Android NDK from earlier versions.
