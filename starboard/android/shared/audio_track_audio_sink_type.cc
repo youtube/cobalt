@@ -248,6 +248,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       int frames_consumed =
           playback_head_position - last_playback_head_position;
       int64_t now = CurrentMonotonicTime();
+      if (!is_latency_measured_ && frames_consumed > 0) {
+        SB_CHECK(audio_feed_start_us_);
+        int64_t elapsed_media_time_us = GetFramesDurationUs(frames_consumed);
+        int64_t audio_render_start_us = now - elapsed_media_time_us;
+        SB_LOG(INFO) << __func__ << ": audio render latency(msec)="
+                     << (audio_render_start_us - *audio_feed_start_us_) / 1'000;
+        is_latency_measured_ = true;
+      }
 
       if (last_playback_head_event_at == -1) {
         last_playback_head_event_at = now;
@@ -308,14 +316,21 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                      << ", frames_in_buffer(msec)="
                      << (GetFramesDurationUs(frames_in_buffer) / 1'000);
         if (skip_initial_audio_) {
-          const int64_t discarded_chunk_us =
+          const int64_t initial_play_us =
               std::min(elapsed_us, GetFramesDurationUs(frames_in_buffer));
+          // const int64_t pipeline_latency_us = 150'000;
+          const int64_t pipeline_latency_us = 0;
+          const int64_t total_latency_us =
+              initial_play_us + pipeline_latency_us;
           SB_CHECK_EQ(discarded_frames, 0);
           discarded_frames =
-              discarded_chunk_us * sampling_frequency_hz_ / 1'000'000;
+              total_latency_us * sampling_frequency_hz_ / 1'000'000;
           offset_in_frames += discarded_frames;
-          SB_LOG(INFO) << "Discarded audio chunk: msec="
-                       << discarded_chunk_us / 1'000
+          SB_LOG(INFO) << "Discarded audio chunk: totol(msec)="
+                       << total_latency_us / 1'000
+                       << ", initial_play(msec)=" << initial_play_us / 1'000
+                       << ", pipeline_latency(msec)="
+                       << pipeline_latency_us / 1'000
                        << ", # frames=" << discarded_frames
                        << ", sample_hz=" << sampling_frequency_hz_;
         }
@@ -379,6 +394,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         << ", frames_in_buffer: " << frames_in_buffer
         << ", frames_in_audio_track: " << frames_in_audio_track
         << ", offset_in_frames: " << offset_in_frames;
+
+    if (!audio_feed_start_us_) {
+      audio_feed_start_us_ = CurrentMonotonicTime();
+    }
 
     int written_frames =
         WriteData(env,

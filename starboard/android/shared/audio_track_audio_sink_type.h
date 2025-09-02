@@ -163,6 +163,9 @@ class AudioTrackAudioSink
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;
+
+  std::optional<int64_t> audio_feed_start_us_;
+  bool is_latency_measured_ = false;
 };
 
 std::ostream& operator<<(std::ostream& os,
