@@ -30,6 +30,24 @@
 namespace starboard::android::shared {
 namespace {
 
+std::ostream& operator<<(std::ostream& os,
+                         const ContinuousAudioTrackSink::Timestamp& timestamp) {
+  os << "{frame_position=" << timestamp.frame_posiition
+     << ",rendered_at_us=" << timestamp.rendered_at_us << "}";
+  return os;
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const std::optional<ContinuousAudioTrackSink::Timestamp>& timestamp) {
+  if (timestamp) {
+    os << *timestamp;
+  } else {
+    os << "(n/a)";
+  }
+  return os;
+}
+
 using ::base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
@@ -78,12 +96,16 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
               /*tunnel_mode_audio_session_id=*/-1,
-              is_web_audio) {
+              is_web_audio),
+      initial_frames_(bridge_.GetStartThresholdInFrames()) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_
+               << ", initial_frames=" << initial_frames_
+               << ", initial_frames(msec)="
+               << GetFramesDurationUs(initial_frames_) / 1'000;
 
   if (!bridge_.is_valid()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -135,6 +157,24 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
+std::optional<ContinuousAudioTrackSink::Timestamp>
+ContinuousAudioTrackSink::GetTimestamp(JNIEnv* env) {
+  int64_t rendered_at_us;
+  int64_t frame_position = bridge_.GetAudioTimestamp(&rendered_at_us, env);
+  return frame_position == 0 ? std::optional<Timestamp>(std::nullopt)
+                             : Timestamp{frame_position, rendered_at_us};
+}
+
+int64_t ContinuousAudioTrackSink::EstimateFramePosition(
+    const std::optional<Timestamp>& timestamp) const {
+  if (!timestamp) {
+    // head_frame of 0 means that playback didn't start yet.
+    return 0;
+  }
+  int64_t elapsed_us = CurrentMonotonicTime() - timestamp->rendered_at_us;
+  return timestamp->frame_posiition + GetFrames(elapsed_us);
+}
+
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -156,6 +196,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   constexpr int kSilenceIntervalUs = 10'000;
   const int kSilenceIntervalFrames =
       kSilenceIntervalUs * sampling_frequency_hz_ / 1'000'000;
+  std::optional<Timestamp> last_timestamp;
   const std::vector<uint8_t> silence_frames(
       channels_ * GetBytesPerSample(sample_type_) * kSilenceIntervalFrames);
   while (!quit_) {
@@ -169,7 +210,8 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     }
 
     if (is_initial_silence_feeding) {
-      // Initial silence feeding.
+      last_timestamp = GetTimestamp(env);
+      SB_LOG(INFO) << "Silence feeding: last_timestamp=" << last_timestamp;
     } else if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
@@ -246,8 +288,42 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     }
 
     if (!is_playing && is_initial_silence_feeding) {
-      initial_silence_frames += kSilenceIntervalFrames;
-      WriteData(env, silence_frames.data(), kSilenceIntervalFrames);
+      if (!last_timestamp) {
+        if (initial_silence_frames >= initial_frames_) {
+          // SB_LOG(INFO) << "Reached max initial silence(msec)="
+          //             << GetFramesDurationUs(initial_silence_frames) / 1'000;
+        } else {
+          while (initial_silence_frames < initial_frames_) {
+            int frames_to_feed =
+                std::min(kSilenceIntervalFrames,
+                         initial_frames_ - initial_silence_frames);
+            WriteData(env, silence_frames.data(), frames_to_feed);
+            initial_silence_frames += frames_to_feed;
+          }
+          SB_LOG(INFO) << "Feeds initial silences(msec)="
+                       << GetFramesDurationUs(initial_silence_frames) / 1'000
+                       << ", frames=" << initial_silence_frames;
+        }
+      } else {
+        const int64_t silence_frame_head =
+            EstimateFramePosition(last_timestamp);
+        const int64_t initial_silence_us =
+            GetFramesDurationUs(initial_silence_frames);
+        const int64_t current_silence_us =
+            GetFramesDurationUs(silence_frame_head);
+        const int64_t silence_to_play_us =
+            initial_silence_us - current_silence_us;
+        if (silence_to_play_us > 10'000) {
+          // SB_LOG(INFO) << "Reached max running silence(msec)="
+          //             << silence_to_play_us / 1'000;
+        } else {
+          initial_silence_frames += kSilenceIntervalFrames;
+          WriteData(env, silence_frames.data(), kSilenceIntervalFrames);
+          SB_LOG(INFO) << "Feeds silences interval(msec)="
+                       << GetFramesDurationUs(kSilenceIntervalFrames) / 1'000
+                       << ", frames=" << initial_silence_frames;
+        }
+      }
       usleep(10'000);
       continue;
     }
@@ -371,8 +447,12 @@ void ContinuousAudioTrackSink::ReportError(bool capability_changed,
   }
 }
 
-int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int frames) const {
+int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int64_t frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
+}
+
+int64_t ContinuousAudioTrackSink::GetFrames(int64_t duration_us) const {
+  return duration_us * sampling_frequency_hz_ / 1'000'000;
 }
 
 void ContinuousAudioTrackSink::SetVolume(double volume) {
@@ -381,10 +461,6 @@ void ContinuousAudioTrackSink::SetVolume(double volume) {
 
 int ContinuousAudioTrackSink::GetUnderrunCount() {
   return bridge_.GetUnderrunCount();
-}
-
-int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
-  return bridge_.GetStartThresholdInFrames();
 }
 
 }  // namespace starboard::android::shared
