@@ -3186,6 +3186,10 @@ void HTMLMediaElement::SetLoop(bool b) {
 }
 
 bool HTMLMediaElement::ShouldShowControls() const {
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt targets TV specifically and does not support media control.
+  return false;
+#else
   // If the document is not active, then we should not show controls.
   if (!GetDocument().IsActive()) {
     return false;
@@ -3211,6 +3215,7 @@ bool HTMLMediaElement::ShouldShowControls() const {
     return true;
   }
   return false;
+#endif
 }
 
 bool HTMLMediaElement::ShouldShowAllControls() const {
