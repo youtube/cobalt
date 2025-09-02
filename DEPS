@@ -4950,6 +4950,7 @@ deps = {
   # Dependencies for RDK (starboard/contrib/rdk)
   'src/starboard/contrib/rdk': {
       'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
+      'condition': 'checkout_linux',
   },
 }
 
