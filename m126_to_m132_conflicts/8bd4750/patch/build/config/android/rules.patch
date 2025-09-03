@@ -1,0 +1,44 @@
+--- build/config/android/rules.gni
++++ build/config/android/rules.gni
+@@ -1981,7 +1981,6 @@
+       }
+       if (defined(invoker.version_code)) {
+         defines += [ "_VERSION_CODE=${invoker.version_code}" ]
+-<<<<<<< HEAD
+       } else {
+         defines += [ "_VERSION_CODE=$android_default_version_code" ]
+       }
+@@ -1995,16 +1994,6 @@
+           "_APK_ASSETS_SUFFIXED_LIST=${invoker.apk_assets_suffixed_list}",
+           "_APK_ASSETS_SUFFIX=${invoker.apk_assets_suffix}",
+         ]
+-=======
+-        if (defined(invoker.resources_version_variable)) {
+-          defines += [
+-            "_RESOURCES_VERSION_VARIABLE=${invoker.resources_version_variable}",
+-          ]
+-        }
+-      } else if (is_cronet_build && !is_java_debug) {
+-        # Cronet never uses use_final_fields=true, so make this a reasonable default.
+-        defines += [ "_DISABLE_DEBUG_LOGS" ]
+->>>>>>> 315472c47e6 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
+       }
+ 
+       _test_only = defined(testonly) && testonly
+@@ -2028,14 +2017,13 @@
+         defines += [ "_WRITE_CLANG_PROFILING_DATA" ]
+       }
+ 
+-<<<<<<< HEAD
+       if (defined(invoker.disable_strict_mode_context) &&
+           invoker.disable_strict_mode_context) {
+         defines += [ "_DISABLE_STRICT_MODE_CONTEXT" ]
+-=======
++      }
++
+       if (!is_java_debug && !_test_only) {
+         defines += [ "_DISABLE_DEBUG_LOGS" ]
+->>>>>>> 315472c47e6 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
+       }
+     }
+   }

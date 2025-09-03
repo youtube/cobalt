@@ -1,0 +1,14 @@
+--- components/performance_manager/service_worker_context_adapter.cc
++++ components/performance_manager/service_worker_context_adapter.cc
+@@ -90,11 +90,7 @@
+ 
+ void ServiceWorkerContextAdapterImpl::RunningServiceWorker::
+     RenderProcessHostDestroyed(content::RenderProcessHost* host) {
+-<<<<<<< HEAD
+   NOTREACHED();
+-=======
+-  NOTREACHED_NORETURN();
+->>>>>>> 313a7d7b017 (Add RenderProcessHostObserver::InProcessRendererExiting (#4896))
+ }
+ 
+ // ServiceWorkerContextAdapterImpl ---------------------------------------------

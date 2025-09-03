@@ -1,0 +1,19 @@
+--- third_party/abseil-cpp/absl/base/BUILD.gn
++++ third_party/abseil-cpp/absl/base/BUILD.gn
+@@ -56,16 +56,11 @@
+     ":errno_saver",
+     ":log_severity",
+   ]
+-<<<<<<< HEAD
+   visibility = [
+     "//third_party/abseil-cpp:absl_component_deps",
+     "//third_party/abseil-cpp/absl/*",
+   ]
+-  if (is_cobalt && is_cobalt_hermetic_build) {
+-=======
+-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+   if (is_cobalt_hermetic_build) {
+->>>>>>> 2eb8d0e51a6 (Set is_cobalt_hermetic_build false globally and to true in the toolchain args (#4852))
+     public_deps += [ "//starboard:starboard_headers_only" ]
+   }
+ }

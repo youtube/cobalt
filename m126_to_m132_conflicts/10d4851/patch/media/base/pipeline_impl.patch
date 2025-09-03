@@ -1,0 +1,39 @@
+--- media/base/pipeline_impl.cc
++++ media/base/pipeline_impl.cc
+@@ -1611,36 +1611,6 @@
+           base::BindPostTaskToCurrentDefault(std::move(cdm_attached_cb))));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-Pipeline::SetBoundsCB PipelineImpl::GetSetBoundsCB() {
+-  DCHECK(thread_checker_.CalledOnValidThread());
+-  return renderer_wrapper_->GetSetBoundsCB();
+-}
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-#define RETURN_STRING(state) \
+-  case state:                \
+-    return #state;
+-
+-// static
+-const char* PipelineImpl::GetStateString(State state) {
+-  switch (state) {
+-    RETURN_STRING(kCreated);
+-    RETURN_STRING(kStarting);
+-    RETURN_STRING(kSeeking);
+-    RETURN_STRING(kPlaying);
+-    RETURN_STRING(kStopping);
+-    RETURN_STRING(kStopped);
+-    RETURN_STRING(kSuspending);
+-    RETURN_STRING(kSuspended);
+-    RETURN_STRING(kResuming);
+-  }
+-  NOTREACHED_NORETURN();
+-}
+-
+-#undef RETURN_STRING
+->>>>>>> 534b789cefb (Add VideoGeometrySetter Service for Cobalt (#4810))
+ 
+ void PipelineImpl::AsyncCreateRenderer(
+     std::optional<RendererType> renderer_type,

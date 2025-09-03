@@ -1,0 +1,50 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -2809,23 +2809,6 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-if (use_nodebug_assertion) {
+-  # nodebug_assertion.cc has to be in its own source_set instead of being
+-  # included as a source in //base as otherwise its symbols won't be linked in
+-  # if they end up in an archive.
+-  source_set("nodebug_assertion") {
+-    defines = [ "BASE_IMPLEMENTATION" ]
+-    sources = [ "nodebug_assertion.cc" ]
+-    deps = [ ":base_static" ]
+-    if (is_starboard) {
+-      deps += ["//starboard:starboard_group"]
+-    }
+-  }
+-}
+-
+->>>>>>> 52d7f29e8d3 (Bring 25.lts.1+ base customizations to trunk (#4800))
+ component("i18n") {
+   output_name = "base_i18n"
+   sources = [
+@@ -3723,7 +3706,6 @@
+     "allocator/partition_allocator/src/partition_alloc:test_support",
+   ]
+ 
+-<<<<<<< HEAD
+   # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
+   #
+   # Note: This requires checking `build_with_chromium` because partition_alloc
+@@ -3736,13 +3718,13 @@
+ 
+   if (!is_nacl) {
+     deps += [ "//build/rust:cxx_cppdeps" ]
+-=======
++  }
++
+   if (is_starboard) {
+     deps += [
+       "//starboard:starboard_group",
+       "//starboard/common",
+     ]
+->>>>>>> 52d7f29e8d3 (Bring 25.lts.1+ base customizations to trunk (#4800))
+   }
+ 
+   data_deps = [
