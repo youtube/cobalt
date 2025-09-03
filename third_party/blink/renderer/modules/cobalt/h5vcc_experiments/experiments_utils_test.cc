@@ -56,6 +56,10 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   exp_ids_vector.push_back(1002);
   config->setExperimentIds(exp_ids_vector);
 
+  config->setActiveExperimentConfigData(String::FromUTF8("active_config_data"));
+  config->setLatestExperimentConfigHashData(
+      String::FromUTF8("latest_hash_data"));
+
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
 
   ASSERT_TRUE(result.has_value());
@@ -81,6 +85,14 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   ASSERT_EQ(2u, exp_ids_list->size());
   EXPECT_EQ(1001, (*exp_ids_list)[0].GetInt());
   EXPECT_EQ(1002, (*exp_ids_list)[1].GetInt());
+
+  const std::string active_config_data =
+      *dict.FindString(cobalt::kExperimentConfigActiveConfigData);
+  EXPECT_EQ("active_config_data", active_config_data);
+
+  const std::string latest_hash_data =
+      *dict.FindString(cobalt::kExperimentConfigLatestConfigHash);
+  EXPECT_EQ("latest_hash_data", latest_hash_data);
 }
 
 TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatures) {
@@ -135,6 +147,8 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
   config->setFeatureParams(
       HeapVector<std::pair<String, Member<V8UnionBooleanOrLongOrString>>>());
   config->setExperimentIds(Vector<uint32_t>());
+  config->setActiveExperimentConfigData(String::FromUTF8(""));
+  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
 
   std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
   ASSERT_TRUE(result.has_value());
@@ -154,6 +168,14 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
       dict.FindList(cobalt::kExperimentConfigExpIds);
   ASSERT_NE(nullptr, exp_ids_list);
   EXPECT_TRUE(exp_ids_list->empty());
+
+  const std::string active_config_data =
+      *dict.FindString(cobalt::kExperimentConfigActiveConfigData);
+  EXPECT_EQ("", active_config_data);
+
+  const std::string latest_hash_data =
+      *dict.FindString(cobalt::kExperimentConfigLatestConfigHash);
+  EXPECT_EQ("", latest_hash_data);
 }
 
 }  // namespace blink

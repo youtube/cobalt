@@ -99,6 +99,12 @@ void H5vccExperimentsImpl::ResetExperimentState(
   std::move(callback).Run();
 }
 
+void H5vccExperimentsImpl::GetActiveExperimentConfigData(
+    GetActiveExperimentConfigDataCallback callback) {
+  std::move(callback).Run(
+      cobalt::GlobalFeatures::GetInstance()->active_config_data());
+}
+
 void H5vccExperimentsImpl::GetActiveExperimentIds(
     GetActiveExperimentIdsCallback callback) {
   std::move(callback).Run(
@@ -116,6 +122,23 @@ void H5vccExperimentsImpl::GetFeatureParam(
   std::string param_value = base::GetFieldTrialParamValue(
       cobalt::kCobaltExperimentName, feature_param_name);
   std::move(callback).Run(param_value);
+}
+
+void H5vccExperimentsImpl::GetLatestExperimentConfigHashData(
+    GetLatestExperimentConfigHashDataCallback callback) {
+  std::move(callback).Run(
+      cobalt::GlobalFeatures::GetInstance()->latest_config_hash());
+}
+
+void H5vccExperimentsImpl::SetLatestExperimentConfigHashData(
+    const std::string& hash_data,
+    SetLatestExperimentConfigHashDataCallback callback) {
+  cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetString(
+      cobalt::kLatestConfigHash, hash_data);
+  cobalt::GlobalFeatures::GetInstance()
+      ->experiment_config()
+      ->CommitPendingWrite();
+  std::move(callback).Run();
 }
 
 }  // namespace h5vcc_experiments
