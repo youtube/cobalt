@@ -1,0 +1,16 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -1047,13 +1047,6 @@
+ 
+   if (is_starboard) {
+     deps += [ "//starboard($starboard_toolchain)" ]
+-<<<<<<< HEAD
+-=======
+-  }
+-
+-  if (build_rust_json_reader) {
+-    deps += [ "//third_party/rust/serde_json_lenient/v0_2/wrapper" ]
+->>>>>>> c620e7b3456 (Use the Starboard message pump. (#4772))
+   }
+ 
+   # native_unwinder_android is intended for use solely via a dynamic feature

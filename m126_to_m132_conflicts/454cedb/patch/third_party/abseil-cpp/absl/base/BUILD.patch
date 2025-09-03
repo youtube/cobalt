@@ -1,0 +1,20 @@
+--- third_party/abseil-cpp/absl/base/BUILD.gn
++++ third_party/abseil-cpp/absl/base/BUILD.gn
+@@ -59,17 +59,13 @@
+     ":errno_saver",
+     ":log_severity",
+   ]
+-<<<<<<< HEAD
+   visibility = [
+     "//third_party/abseil-cpp:absl_component_deps",
+     "//third_party/abseil-cpp/absl/*",
+   ]
+-=======
+-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+   if (is_cobalt && is_cobalt_hermetic_build) {
+     public_deps += [ "//starboard:starboard_headers_only" ]
+   }
+->>>>>>> 404a4c892e2 (Build nplb hermetically (#4587))
+ }
+ 
+ absl_source_set("spinlock_wait") {

@@ -1,0 +1,36 @@
+--- base/android/java/src/org/chromium/base/Log.java
++++ base/android/java/src/org/chromium/base/Log.java
+@@ -66,33 +66,15 @@
+     }
+ 
+     /**
+-<<<<<<< HEAD
+      * When BuildConfig.ENABLE_DEBUG_LOGS=true, returns true. Otherwise, forwards to {@link
+      * android.util.Log#isLoggable(String, int)} (which returns false for levels < INFO, unless
+      * configured otherwise by R8's -maximumremovedandroidloglevel).
+      *
+      * <p>https://stackoverflow.com/questions/7948204/does-log-isloggable-returns-wrong-values
+-=======
+-     * Returns a formatted log message, using the supplied format and arguments.
+-     * The message will be prepended with the filename and line number of the call.
+-     */
+-    private static String formatLogWithStack(
+-            String messageTemplate, Throwable tr, Object... params) {
+-        return "[" + getCallOrigin() + "] " + formatLog(messageTemplate, tr, params);
+-    }
+-
+-    /**
+-     * In debug: Forwards to {@link android.util.Log#isLoggable(String, int)}, but always
+-     * In release: Always returns false (via proguard rule).
+->>>>>>> 7ea5324d0bb (Android: Remove Log.isDebug())
+      */
+     @AlwaysInline
+     public static boolean isLoggable(String tag, int level) {
+-<<<<<<< HEAD
+         return BuildConfig.ENABLE_DEBUG_LOGS || android.util.Log.isLoggable(tag, level);
+-=======
+-        return android.util.Log.isLoggable(tag, level);
+->>>>>>> 7ea5324d0bb (Android: Remove Log.isDebug())
+     }
+ 
+     /**

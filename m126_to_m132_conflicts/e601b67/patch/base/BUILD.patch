@@ -1,0 +1,26 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -2806,23 +2806,6 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-if (use_nodebug_assertion) {
+-  # nodebug_assertion.cc has to be in its own source_set instead of being
+-  # included as a source in //base as otherwise its symbols won't be linked in
+-  # if they end up in an archive.
+-  source_set("nodebug_assertion") {
+-    defines = [ "BASE_IMPLEMENTATION" ]
+-    sources = [ "nodebug_assertion.cc" ]
+-    deps = [ ":base_static" ]
+-    if (is_starboard) {
+-      deps += [ "//starboard:starboard_group" ]
+-    }
+-  }
+-}
+-
+->>>>>>> 157669bbeda (Make is_starboard a global variable (#4791))
+ component("i18n") {
+   output_name = "base_i18n"
+   sources = [

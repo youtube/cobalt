@@ -1,0 +1,14 @@
+--- base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.cc
++++ base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.cc
+@@ -739,11 +739,7 @@
+ 
+ #endif  // !PA_BUILDFLAG(IS_APPLE) && !PA_BUILDFLAG(IS_ANDROID)
+ 
+-<<<<<<< HEAD
+ #if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
+-=======
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+->>>>>>> a019a910af7 (Add BUILDFLAG IS_COBALT_HERMETIC_BUILD (#4966))
+ SHIM_ALWAYS_EXPORT struct mallinfo mallinfo(void) __THROW {
+   partition_alloc::SimplePartitionStatsDumper allocator_dumper;
+   Allocator()->DumpStats("malloc", true, &allocator_dumper);

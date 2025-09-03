@@ -1,0 +1,15 @@
+--- base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_internals.h
++++ base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_internals.h
+@@ -9,11 +9,7 @@
+ 
+ #if defined(__GNUC__)
+ 
+-<<<<<<< HEAD
+-#if PA_BUILDFLAG(IS_POSIX)
+-=======
+-#if BUILDFLAG(IS_POSIX) && !defined(IS_COBALT_HERMETIC_BUILD)
+->>>>>>> 404a4c892e2 (Build nplb hermetically (#4587))
++#if PA_BUILDFLAG(IS_POSIX) && !defined(IS_COBALT_HERMETIC_BUILD)
+ #include <sys/cdefs.h>  // for __THROW
+ #endif
+ 

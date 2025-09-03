@@ -1,0 +1,35 @@
+--- third_party/boringssl/BUILD.gn
++++ third_party/boringssl/BUILD.gn
+@@ -138,19 +138,8 @@
+   # are all wrapped in processor checks for the corresponding target, so there
+   # is no need to add target conditions in the build.
+   source_set("boringssl_asm") {
+-<<<<<<< HEAD
+     visibility = [ ":*" ]
+     sources = rebase_path(bcm_sources_asm + crypto_sources_asm, ".", "src")
+-    include_dirs = [ "src/include" ]
+-  }
+-  source_set("test_support_asm") {
+-    visibility = [ ":*" ]
+-    sources = rebase_path(test_support_sources_asm, ".", "src")
+-    include_dirs = [ "src/include" ]
+-=======
+-    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+-
+-    sources = crypto_sources_asm
+     if (is_cobalt && is_cobalt_hermetic_build) {
+       include_dirs = [
+         "//cobalt/third_party/boringssl/src/include",
+@@ -159,7 +148,11 @@
+     } else {
+       include_dirs = [ "src/include" ]
+     }
+->>>>>>> 404a4c892e2 (Build nplb hermetically (#4587))
++  }
++  source_set("test_support_asm") {
++    visibility = [ ":*" ]
++    sources = rebase_path(test_support_sources_asm, ".", "src")
++    include_dirs = [ "src/include" ]
+   }
+ }
+ 

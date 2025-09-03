@@ -1,0 +1,21 @@
+--- base/android/java/src/org/chromium/base/Log.java
++++ base/android/java/src/org/chromium/base/Log.java
+@@ -66,18 +66,6 @@
+     }
+ 
+     /**
+-<<<<<<< HEAD
+-=======
+-     * Returns a formatted log message, using the supplied format and arguments.
+-     * The message will be prepended with the filename and line number of the call.
+-     */
+-    private static String formatLogWithStack(
+-            String messageTemplate, Throwable tr, Object... params) {
+-        return "[" + getCallOrigin() + "] " + formatLog(messageTemplate, tr, params);
+-    }
+-
+-    /**
+->>>>>>> 315472c47e6 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
+      * When BuildConfig.ENABLE_DEBUG_LOGS=true, returns true. Otherwise, forwards to {@link
+      * android.util.Log#isLoggable(String, int)} (which returns false for levels < INFO, unless
+      * configured otherwise by R8's -maximumremovedandroidloglevel).
