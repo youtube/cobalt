@@ -239,6 +239,7 @@ TEST(ExtensionTest, CrashHandler) {
 
   if (extension_api->version >= 2) {
     EXPECT_NE(extension_api->SetString, nullptr);
+    EXPECT_TRUE(extension_api->SetString("test", "test"));
   }
 
   const ExtensionApi* second_extension_api =
