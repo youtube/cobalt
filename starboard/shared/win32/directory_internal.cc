@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <locale>
+#include <codecvt>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
@@ -103,6 +105,49 @@ bool DirectoryExistsOrCreated(const std::wstring& wpath) {
   return DirectoryExists(wpath) || CreateDirectoryW(wpath.c_str(), NULL);
 }
 
+bool ClearOrDeleteDirectory(const std::wstring& wpath, bool deleteIt) {
+  if (!DirectoryExists(wpath)) {
+    return true;
+  }
+  std::wstring searchPath = wpath + L"\\*";
+
+  WIN32_FIND_DATAW ffd;
+  HANDLE hFind = FindFirstFileW(searchPath.c_str(), &ffd);
+  if (hFind == INVALID_HANDLE_VALUE) {
+    return false;
+  }
+
+  do {
+    std::wstring name = ffd.cFileName;
+
+    // skip"." and ".."
+    if (name == L"." || name == L"..")
+      continue;
+
+    std::wstring fullPath = wpath + L"\\" + name;
+
+    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      // recursively delete subdirectory
+      ClearOrDeleteDirectory(fullPath, true);
+    } else {
+      // remove read-only attribute if any
+      SetFileAttributesW(fullPath.c_str(), FILE_ATTRIBUTE_NORMAL);
+      if (!DeleteFileW(fullPath.c_str())) {
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+        std::string fullPathA(converter.to_bytes(fullPath));
+        SB_LOG(INFO) << "Unable to delete folder " << fullPathA;
+      }
+    }
+  } while (FindNextFile(hFind, &ffd) != 0);
+
+  FindClose(hFind);
+
+  // remove root folder
+  if (deleteIt) {
+    return RemoveDirectoryW(wpath.c_str()) != 0;
+  }
+  return true;
+}
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard
