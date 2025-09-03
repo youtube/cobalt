@@ -55,7 +55,7 @@ namespace shared {
 // Tunnel mode has to be enabled explicitly by the web app via mime attributes
 // "tunnelmode", set the following variable to true to force enabling tunnel
 // mode on all playbacks.
-constexpr bool kForceTunnelMode = false;
+constexpr bool kForceTunnelMode = true;
 
 // By default, the platform Opus decoder is only enabled for encrypted playback.
 // Set the following variable to true to force it for clear playback.
@@ -74,12 +74,12 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
-constexpr bool kForceFlushDecoderDuringReset = false;
+constexpr bool kForceFlushDecoderDuringReset = true;
 
 // By default, Cobalt teardowns AudioDecoder during Reset().
 // Set the following variable to true to force it reset audio decoder
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
-constexpr bool kForceResetAudioDecoder = false;
+constexpr bool kForceResetAudioDecoder = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
