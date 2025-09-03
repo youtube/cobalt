@@ -109,6 +109,8 @@ class MediaDecoder final
 
   void SetPlaybackRate(double playback_rate);
 
+  void Seek(int64_t seek_to_time);
+
   size_t GetNumberOfPendingInputs() const {
     return number_of_pending_inputs_.load();
   }

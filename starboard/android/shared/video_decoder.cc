@@ -233,6 +233,7 @@ class VideoFrameImpl : public VideoFrame {
 
 const int64_t kInitialPrerollTimeout = 250'000;                  // 250ms
 const int64_t kNeedMoreInputCheckIntervalInTunnelMode = 50'000;  // 50ms
+const int64_t kNonInitialPrerollTimeout = 2'000'000;             // 2000ms
 
 const int kInitialPrerollFrameCount = 8;
 const int kNonInitialPrerollFrameCount = 1;
@@ -302,8 +303,11 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
 // TODO: Merge this with VideoFrameTracker, maybe?
 class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
  public:
-  explicit VideoRenderAlgorithmTunneled(VideoFrameTracker* frame_tracker)
-      : frame_tracker_(frame_tracker) {
+  explicit VideoRenderAlgorithmTunneled(VideoDecoder * video_decoder,
+                                       VideoFrameTracker* frame_tracker)
+      : video_decoder_(video_decoder),
+       frame_tracker_(frame_tracker) {
+    SB_DCHECK(video_decoder_);
     SB_DCHECK(frame_tracker_);
   }
 
@@ -316,13 +320,14 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
     }
   }
   void Seek(int64_t seek_to_time) override {
-    frame_tracker_->Seek(seek_to_time);
+    video_decoder_->Seek(seek_to_time);
   }
   int GetDroppedFrames() override {
     return frame_tracker_->UpdateAndGetDroppedFrames();
   }
 
  private:
+  VideoDecoder* video_decoder_ = nullptr;
   VideoFrameTracker* frame_tracker_;
 };
 
@@ -386,6 +391,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      tunnel_mode_frame_rendered_(false),
       enable_flush_during_seek_(enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
                                                             : 0),
@@ -459,7 +465,7 @@ VideoDecoder::GetRenderAlgorithm() {
         this, video_frame_tracker_.get());
   }
   return std::make_unique<VideoRenderAlgorithmTunneled>(
-      video_frame_tracker_.get());
+      this, video_frame_tracker_.get());
 }
 
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -647,6 +653,7 @@ void VideoDecoder::Reset() {
   output_format_ = std::nullopt;
 
   tunnel_mode_prerolling_.store(true);
+  first_tunnel_frame_ready_.store(false);
   tunnel_mode_frame_rendered_.store(false);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
@@ -764,6 +771,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
           std::bind(&VideoDecoder::ReportError, this, _1, _2));
     }
     media_decoder_->SetPlaybackRate(playback_rate_);
+    media_decoder_->Seek(seek_to_time_);
 
     if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
       SB_DCHECK(!pending_input_buffers_.empty());
@@ -890,7 +898,7 @@ void VideoDecoder::WriteInputBuffersInternal(
             (input_buffer_written_ -
              media_decoder_->GetNumberOfPendingInputs()) >
                 kSeekingPrerollPendingWorkSizeInTunnelMode &&
-            max_timestamp >= video_frame_tracker_->seek_to_time();
+            max_timestamp >= seek_to_time_;
       }
 
       bool cache_full =
@@ -898,8 +906,25 @@ void VideoDecoder::WriteInputBuffersInternal(
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
-      if (prerolled) {
-        TryToSignalPrerollForTunnelMode();
+      if ((!IsFirstTunnelFrameReadyCallbackEnabled() ||
+           first_tunnel_frame_ready_.load()) &&
+           prerolled && tunnel_mode_prerolling_.exchange(false)) {
+         SB_LOG(INFO)
+             << "Tunnel mode preroll finished on enqueuing input buffer "
+             << max_timestamp << ", for seek time "
+            << seek_to_time_;
+        RemoveJobByToken(job_token_);
+        job_token_.ResetToInvalid();
+         decoder_status_cb_(
+             kNeedMoreInput,
+            new VideoFrame(seek_to_time_));
+        return;
+      }
+
+      if (prerolled && !job_token_.is_valid()) {
+        job_token_ =
+            Schedule(std::bind(&VideoDecoder::OnTunnelModePrerollTimeout, this),
+                     kNonInitialPrerollTimeout);
       }
     }
   }
@@ -1194,7 +1219,7 @@ void VideoDecoder::TryToSignalPrerollForTunnelMode() {
     //       when the video is rendered directly by the decoder, maybe by always
     //       sending placeholder frames.
     decoder_status_cb_(kNeedMoreInput,
-                       new VideoFrame(video_frame_tracker_->seek_to_time()));
+                       new VideoFrame(seek_to_time_));
   }
 }
 
@@ -1202,9 +1227,16 @@ bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
   return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
 
+bool VideoDecoder::IsFirstTunnelFrameReadyCallbackEnabled() {
+  return MediaCodecBridge::IsFirstTunnelFrameReadyCallbackEnabled() == JNI_TRUE;
+}
+
 void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
   SB_DCHECK(video_frame_tracker_);
+
+  RemoveJobByToken(job_token_);
+  job_token_.ResetToInvalid();
 
   if (tunnel_mode_audio_session_id_ != -1) {
     tunnel_mode_frame_rendered_.store(true);
@@ -1215,12 +1247,15 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 void VideoDecoder::OnFirstTunnelFrameReady() {
   SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
-  TryToSignalPrerollForTunnelMode();
+  first_tunnel_frame_ready_.store(true);
 }
 
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+
+  RemoveJobByToken(job_token_);
+  job_token_.ResetToInvalid();
 
   TryToSignalPrerollForTunnelMode();
 }
@@ -1278,6 +1313,16 @@ void VideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+void VideoDecoder::Seek(int64_t seek_to_time) {
+  seek_to_time_ = seek_to_time;
+  if (video_frame_tracker_) {
+    video_frame_tracker_->Seek(seek_to_time_);
+  }
+  if (media_decoder_) {
+    return media_decoder_->Seek(seek_to_time_);
+  }
 }
 
 }  // namespace starboard::android::shared

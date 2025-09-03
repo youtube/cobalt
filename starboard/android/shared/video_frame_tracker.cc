@@ -70,10 +70,6 @@ void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
 }
 }  // namespace
 
-int64_t VideoFrameTracker::seek_to_time() const {
-  return seek_to_time_;
-}
-
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
