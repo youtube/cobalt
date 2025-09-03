@@ -43,6 +43,7 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/version.h"
+#include "components/embedder_support/switches.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -55,6 +56,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "net/http/http_util.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -87,9 +89,32 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
+#if !defined(OFFICIAL_BUILD)
+std::optional<std::string> GetUserAgentFromCommandLine() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(embedder_support::kUserAgent)) {
+    std::string ua =
+        command_line->GetSwitchValueASCII(embedder_support::kUserAgent);
+    if (net::HttpUtil::IsValidHeaderValue(ua)) {
+      return ua;
+    }
+    LOG(WARNING) << "Ignored invalid value for flag --"
+                 << embedder_support::kUserAgent;
+  }
+  return std::nullopt;
+}
+#endif  // !defined(OFFICIAL_BUILD)
+
 }  // namespace
 
 std::string GetCobaltUserAgent() {
+#if !defined(OFFICIAL_BUILD)
+  const auto custom_ua = GetUserAgentFromCommandLine();
+  if (custom_ua.has_value()) {
+    return custom_ua.value();
+  }
+#endif  // !defined(OFFICIAL_BUILD)
+
   const UserAgentPlatformInfo platform_info;
   static const std::string user_agent_str = platform_info.ToString();
   return user_agent_str;
