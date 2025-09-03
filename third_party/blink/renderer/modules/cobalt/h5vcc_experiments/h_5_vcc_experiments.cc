@@ -111,21 +111,19 @@ const String& H5vccExperiments::getFeatureParam(
 }
 
 String H5vccExperiments::getActiveExperimentConfigData() {
-  // EnsureReceiverIsBound();
-  // String active_experiment_config_data;
-  // remote_h5vcc_experiments_->GetActiveExperimentConfigData(
-  //     &active_experiment_config_data);
-  // return active_experiment_config_data;
-  return "";
+  EnsureReceiverIsBound();
+  String active_experiment_config_data;
+  remote_h5vcc_experiments_->GetActiveExperimentConfigData(
+      &active_experiment_config_data);
+  return active_experiment_config_data;
 }
 
 String H5vccExperiments::getLatestExperimentConfigHashData() {
-  // EnsureReceiverIsBound();
-  // String latest_experiment_config_hash_data;
-  // remote_h5vcc_experiments_->GetLatestExperimentConfigHashData(
-  //     &latest_experiment_config_hash_data);
-  // return latest_experiment_config_hash_data;
-  return "";
+  EnsureReceiverIsBound();
+  String latest_experiment_config_hash_data;
+  remote_h5vcc_experiments_->GetLatestExperimentConfigHashData(
+      &latest_experiment_config_hash_data);
+  return latest_experiment_config_hash_data;
 }
 
 ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
@@ -139,10 +137,10 @@ ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
   EnsureReceiverIsBound();
 
   ongoing_requests_.insert(resolver);
-  // remote_h5vcc_experiments_->SetLatestExperimentConfigHashData(
-  //     hash_data,
-  //     WTF::BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
-  //                   WrapPersistent(this), WrapPersistent(resolver)));
+  remote_h5vcc_experiments_->SetLatestExperimentConfigHashData(
+      hash_data,
+      WTF::BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
+                    WrapPersistent(this), WrapPersistent(resolver)));
 
   return promise;
 }
