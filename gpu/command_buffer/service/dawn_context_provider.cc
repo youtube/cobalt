@@ -45,7 +45,8 @@
 #if BUILDFLAG(IS_WIN)
 #include <d3d11_4.h>
 
-#include "third_party/dawn/include/dawn/native/D3D11Backend.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "third_party/dawn/include/dawn/native/D3D11Backend.h"  // nogncheck
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
 #endif

@@ -5,7 +5,8 @@
 #include "services/passage_embeddings/passage_embeddings_service.h"
 
 #include "base/files/file.h"
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "components/optimization_guide/machine_learning_tflite_buildflags.h"  // nogncheck
 #include "services/passage_embeddings/passage_embedder.h"
 
 namespace passage_embeddings {

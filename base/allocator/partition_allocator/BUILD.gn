@@ -16,7 +16,3 @@ if (is_clang_or_gcc) {
     public_deps = [ "src/partition_alloc:partition_alloc" ]
   }
 }
-
-if (is_cobalt) {
-  import("//cobalt/build/configs/modular_variables.gni")
-}

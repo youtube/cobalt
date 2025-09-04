@@ -5,7 +5,8 @@
 #ifndef SERVICES_PASSAGE_EMBEDDINGS_PASSAGE_EMBEDDINGS_SERVICE_H_
 #define SERVICES_PASSAGE_EMBEDDINGS_PASSAGE_EMBEDDINGS_SERVICE_H_
 
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "components/optimization_guide/machine_learning_tflite_buildflags.h"  // nogncheck
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/passage_embeddings/public/mojom/passage_embeddings.mojom.h"
 

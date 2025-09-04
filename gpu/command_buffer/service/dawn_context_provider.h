@@ -17,7 +17,8 @@
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_preferences.h"
 #include "gpu/gpu_gles2_export.h"
-#include "third_party/dawn/include/dawn/native/DawnNative.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
 #include "third_party/skia/include/gpu/graphite/ContextOptions.h"
 #include "third_party/skia/include/gpu/graphite/dawn/DawnTypes.h"
 

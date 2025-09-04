@@ -1095,10 +1095,6 @@ component("base") {
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
 
-  if (is_starboard) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
-
   if (build_rust_json_reader) {
     deps += [ "//third_party/rust/serde_json_lenient/v0_2/wrapper" ]
   }
@@ -3706,17 +3702,18 @@ test("base_unittests") {
   ]
 
   if (is_starboard) {
+    data_deps = []
     deps += [
       "//starboard:starboard_group",
       "//starboard/common",
     ]
   } else {
-  data_deps = [
-    "//base/test:immediate_crash_test_helper",
-    "//base/test:test_child_process",
-    "//base/test:test_shared_library",
-    "//testing/buildbot/filters:base_unittests_filters",
-  ]
+    data_deps = [
+      "//base/test:immediate_crash_test_helper",
+      "//base/test:test_child_process",
+      "//base/test:test_shared_library",
+      "//testing/buildbot/filters:base_unittests_filters",
+    ]
   }
 
   if (is_android && enable_chrome_android_internal) {
@@ -4132,7 +4129,7 @@ test("base_unittests") {
       ]
       if (is_starboard) {
         sources -= [
-          "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+          "allocator/partition_allocator/src/partition_alloc/starscan/scan_loop_unittest.cc",
         ]
       }
     }
