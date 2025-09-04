@@ -14,27 +14,52 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
-TEST(PosixCompareNoCaseTest, SunnyDaySelf) {
+TEST(PosixStringCompareNoCaseTest, SunnyDaySelf) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, strcasecmp(kString, kString));
   EXPECT_EQ(0, strcasecmp("", ""));
 }
 
-TEST(PosixCompareNoCaseTest, SunnyDayEmptyLessThanNotEmpty) {
+TEST(PosixStringCompareNoCaseTest, SunnyDayEmptyLessThanNotEmpty) {
   const char kString[] = "0123456789";
   EXPECT_GT(0, strcasecmp("", kString));
 }
 
-TEST(PosixCompareNoCaseTest, SunnyDayCase) {
+TEST(PosixStringCompareNoCaseTest, SunnyDayCase) {
   const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
   const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, strcasecmp(kString1, kString2));
   EXPECT_EQ(0, strcasecmp(kString2, kString1));
 }
+
+TEST(PosixStringCompareNoCaseTest, SunnyDayOrdering) {
+  const char kString1[] = "abc";
+  const char kString2[] = "def";
+  const char kString3[] = "aBc";
+  const char kString4[] = "dEf";
+
+  // Test "less than"
+  EXPECT_GT(0, strcasecmp(kString1, kString2));
+  EXPECT_GT(0, strcasecmp(kString3, kString4));
+
+  // Test "greater than"
+  EXPECT_LT(0, strcasecmp(kString2, kString1));
+  EXPECT_LT(0, strcasecmp(kString4, kString3));
+}
+
+TEST(PosixStringCompareNoCaseTest, SunnyDayNonAlphabetic) {
+  const char kString1[] = "stRIng-123!";
+  const char kString2[] = "StriNG-123!";
+  const char kString3[] = "sTRing-124!";
+
+  EXPECT_EQ(0, strcasecmp(kString1, kString2));
+
+  EXPECT_GT(0, strcasecmp(kString1, kString3));
+  EXPECT_LT(0, strcasecmp(kString3, kString1));
+}
+
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
