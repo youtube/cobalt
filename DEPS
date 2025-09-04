@@ -2487,7 +2487,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_ads_identifier',
-              'version': 'version:2@18.1.0.cr1',
+              'version': 'version:2@18.2.0.cr1',
           },
       ],
       'condition': 'checkout_android',
