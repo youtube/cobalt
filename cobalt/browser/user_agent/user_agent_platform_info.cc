@@ -218,6 +218,8 @@ void UserAgentPlatformInfo::Initialize() {
 
   set_model(base::SysInfo::HardwareModelName());
 
+// TODO(mcasas): These are only implemented for ATV. Move here and bundle
+// with any other ATV specifics.
   set_original_design_manufacturer(
       base::starboard::SbSysInfo::OriginalDesignManufacturer());
   set_chipset_model_number(
