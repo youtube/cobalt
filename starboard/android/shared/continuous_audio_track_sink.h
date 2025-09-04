@@ -62,7 +62,7 @@ class ContinuousAudioTrackSink
   int GetStartThresholdInFrames();
 
   struct Timestamp {
-    int64_t frame_posiition;
+    int64_t frame_position;
     int64_t rendered_at_us;
   };
 
