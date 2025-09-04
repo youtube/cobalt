@@ -405,7 +405,8 @@ void UserAgentPlatformInfo::set_device_type(const std::string& device_type) {
 void UserAgentPlatformInfo::set_chipset_model_number(
     std::optional<std::string> chipset_model_number) {
   if (chipset_model_number) {
-    chipset_model_number_ = Sanitize(chipset_model_number, base::IsAsciiAlphaNumeric);
+    chipset_model_number_ =
+        Sanitize(chipset_model_number, base::IsAsciiAlphaNumeric);
   }
 }
 
