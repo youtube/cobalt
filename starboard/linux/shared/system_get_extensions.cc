@@ -21,6 +21,7 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/enhanced_audio.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -29,6 +30,7 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/configuration.h"
+#include "starboard/linux/shared/features_extension.h"
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
@@ -56,6 +58,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::shared::GetConfigurationApi();
+  }
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+    return starboard::linux::shared::GetFeaturesApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::common::GetCrashHandlerApi();

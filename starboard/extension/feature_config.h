@@ -98,7 +98,6 @@ FEATURE_LIST_START
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
@@ -128,7 +127,7 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
-#endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
