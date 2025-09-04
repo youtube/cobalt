@@ -87,7 +87,11 @@ StubAudioSink::~StubAudioSink() {
 
 // static
 void* StubAudioSink::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("stub_audio_out");
+#else
   pthread_setname_np(pthread_self(), "stub_audio_out");
+#endif
   SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);

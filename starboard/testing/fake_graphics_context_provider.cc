@@ -170,7 +170,11 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
 
 // static
 void* FakeGraphicsContextProvider::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("dt_context");
+#else
   pthread_setname_np(pthread_self(), "dt_context");
+#endif
   auto provider = static_cast<FakeGraphicsContextProvider*>(context);
   provider->RunLoop();
 

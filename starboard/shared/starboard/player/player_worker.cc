@@ -193,7 +193,11 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("player_worker");
+#else
   pthread_setname_np(pthread_self(), "player_worker");
+#endif
   SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param);
