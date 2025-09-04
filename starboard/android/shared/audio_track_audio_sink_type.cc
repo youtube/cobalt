@@ -113,6 +113,13 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSink::Options& options) {
+  return os << "{is_web_audio=" << (options.is_web_audio ? "true" : "false")
+            << ", skip_initial_audio="
+            << (options.skip_initial_audio ? "true" : "false") << "}";
+}
+
 AudioTrackAudioSink::AudioTrackAudioSink(
     Type* type,
     int channels,
@@ -126,7 +133,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_time,
     int tunnel_mode_audio_session_id,
-    bool is_web_audio,
+    Options options,
     void* context)
     : type_(type),
       channels_(channels),
@@ -143,18 +150,20 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
+      skip_initial_audio_(options.skip_initial_audio),
       bridge_(kSbMediaAudioCodingTypePcm,
               sample_type,
               channels,
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
               tunnel_mode_audio_session_id,
-              is_web_audio) {
+              options.is_web_audio) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_
+               << ", options=" << options;
 
   if (!bridge_.is_valid()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -218,6 +227,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   int last_playback_head_position = 0;
 
+  bool started = false;
+  int discarded_frames = 0;
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -236,6 +248,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       int frames_consumed =
           playback_head_position - last_playback_head_position;
       int64_t now = CurrentMonotonicTime();
+      if (!is_latency_measured_ && frames_consumed > 0) {
+        SB_CHECK(audio_feed_start_us_);
+        int64_t elapsed_media_time_us = GetFramesDurationUs(frames_consumed);
+        int64_t audio_render_start_us = now - elapsed_media_time_us;
+        SB_LOG(INFO) << __func__ << ": audio render latency(msec)="
+                     << (audio_render_start_us - *audio_feed_start_us_) / 1'000;
+        is_latency_measured_ = true;
+      }
 
       if (last_playback_head_event_at == -1) {
         last_playback_head_event_at = now;
@@ -256,9 +276,15 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       last_playback_head_position = playback_head_position;
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
-      if (frames_consumed != 0) {
-        SB_DCHECK_GE(frames_consumed, 0);
-        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+      const int frames_consumed_to_report = frames_consumed + discarded_frames;
+      if (discarded_frames != 0) {
+        SB_LOG(INFO) << "Reported discarded frames=" << discarded_frames;
+      }
+      discarded_frames = 0;
+      if (frames_consumed_to_report != 0) {
+        SB_CHECK_GE(frames_consumed_to_report, 0);
+        consume_frames_func_(frames_consumed_to_report, frames_consumed_at,
+                             context_);
         frames_in_audio_track -= frames_consumed;
       }
     }
@@ -277,13 +303,41 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
 
     if (was_playing && !is_playing) {
-      was_playing = false;
       bridge_.Pause();
     } else if (!was_playing && is_playing) {
-      was_playing = true;
       last_playback_head_event_at = -1;
+      int64_t play_starting_us = CurrentMonotonicTime();
       bridge_.Play();
+      int64_t elapsed_us = CurrentMonotonicTime() - play_starting_us;
+      if (!started) {
+        SB_LOG(INFO) << "First Play() completed: elapsed(msec)="
+                     << (elapsed_us / 1'000)
+                     << ", frames_in_buffer=" << frames_in_buffer
+                     << ", frames_in_buffer(msec)="
+                     << (GetFramesDurationUs(frames_in_buffer) / 1'000);
+        if (skip_initial_audio_) {
+          const int64_t initial_play_us =
+              std::min(elapsed_us, GetFramesDurationUs(frames_in_buffer));
+          // const int64_t pipeline_latency_us = 150'000;
+          const int64_t pipeline_latency_us = 0;
+          const int64_t total_latency_us =
+              initial_play_us + pipeline_latency_us;
+          SB_CHECK_EQ(discarded_frames, 0);
+          discarded_frames =
+              total_latency_us * sampling_frequency_hz_ / 1'000'000;
+          offset_in_frames += discarded_frames;
+          SB_LOG(INFO) << "Discarded audio chunk: totol(msec)="
+                       << total_latency_us / 1'000
+                       << ", initial_play(msec)=" << initial_play_us / 1'000
+                       << ", pipeline_latency(msec)="
+                       << pipeline_latency_us / 1'000
+                       << ", # frames=" << discarded_frames
+                       << ", sample_hz=" << sampling_frequency_hz_;
+        }
+      }
+      started = true;
     }
+    was_playing = is_playing;
 
     if (!is_playing || frames_in_buffer == 0) {
       usleep(10'000);
@@ -340,6 +394,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         << ", frames_in_buffer: " << frames_in_buffer
         << ", frames_in_audio_track: " << frames_in_audio_track
         << ", offset_in_frames: " << offset_in_frames;
+
+    if (!audio_feed_start_us_) {
+      audio_feed_start_us_ = CurrentMonotonicTime();
+    }
 
     int written_frames =
         WriteData(env,
@@ -512,7 +570,12 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,
       update_source_status_func, consume_frames_func, error_func,
-      start_media_time, tunnel_mode_audio_session_id, is_web_audio, context);
+      start_media_time, tunnel_mode_audio_session_id,
+      {
+          .is_web_audio = is_web_audio,
+          .skip_initial_audio = true,
+      },
+      context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

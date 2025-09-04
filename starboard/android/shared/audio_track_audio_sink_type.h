@@ -22,6 +22,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -102,6 +103,10 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 class AudioTrackAudioSink
     : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
  public:
+  struct Options {
+    bool is_web_audio = false;
+    bool skip_initial_audio = false;
+  };
   AudioTrackAudioSink(
       Type* type,
       int channels,
@@ -115,7 +120,7 @@ class AudioTrackAudioSink
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
-      bool is_web_audio,
+      Options options,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -149,6 +154,7 @@ class AudioTrackAudioSink
   const int64_t start_time_;  // microseconds
   const int max_frames_per_request_;
   void* const context_;
+  const bool skip_initial_audio_;
 
   AudioTrackBridge bridge_;
 
@@ -157,7 +163,13 @@ class AudioTrackAudioSink
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;
+
+  std::optional<int64_t> audio_feed_start_us_;
+  bool is_latency_measured_ = false;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSink::Options& options);
 
 }  // namespace starboard::android::shared
 
