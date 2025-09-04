@@ -188,6 +188,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
   bool is_initial_silence_feeding = true;
   int initial_silence_frames = 0;
+  int dropped_frames = 0;
   const int64_t start_us = CurrentMonotonicTime();
   bridge_.Play();
   const int64_t elapsed_us = CurrentMonotonicTime() - start_us;
@@ -211,15 +212,16 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
     if (is_initial_silence_feeding) {
       last_timestamp = GetTimestamp(env);
-      SB_LOG(INFO) << "Silence feeding: last_timestamp=" << last_timestamp;
+      // SB_LOG(INFO) << "Silence feeding: last_timestamp=" << last_timestamp;
     } else if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
       if (playback_head_position < initial_silence_frames) {
-        SB_LOG(INFO)
-            << "Still playing initial_silence_frames: playback_head_positions="
-            << playback_head_position
-            << ", initial_silence_frames=" << initial_silence_frames;
+        // SB_LOG(INFO)
+        //    << "Still playing initial_silence_frames:
+        //    playback_head_positions="
+        //    << playback_head_position
+        //    << ", initial_silence_frames=" << initial_silence_frames;
         playback_head_position = 0;
       } else {
         playback_head_position -= initial_silence_frames;
@@ -250,9 +252,16 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       last_playback_head_position = playback_head_position;
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
-      if (frames_consumed != 0) {
-        SB_DCHECK_GE(frames_consumed, 0);
-        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+      const int effective_frames_consumed = frames_consumed + dropped_frames;
+      if (dropped_frames != 0) {
+        SB_LOG(INFO) << "Reported discarded frames=" << dropped_frames;
+        dropped_frames = 0;
+      }
+
+      if (effective_frames_consumed != 0) {
+        SB_CHECK_GE(effective_frames_consumed, 0);
+        consume_frames_func_(effective_frames_consumed, frames_consumed_at,
+                             context_);
         frames_in_audio_track -= frames_consumed;
       }
     }
@@ -280,8 +289,18 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
         is_initial_silence_feeding = false;
         const int64_t initial_silence_us =
             GetFramesDurationUs(initial_silence_frames);
+        const int64_t not_played_slience_frames =
+            initial_silence_frames - EstimateFramePosition(last_timestamp);
+        SB_CHECK_GE(not_played_slience_frames, 0);
+
+        dropped_frames = not_played_slience_frames;
+        offset_in_frames += dropped_frames;
+
         SB_LOG(INFO) << "Switch to real audio: initial_silence(msec)="
-                     << initial_silence_us / 1'000;
+                     << initial_silence_us / 1'000
+                     << ", dropped_frames=" << dropped_frames
+                     << ", dropped_frames(msec)="
+                     << GetFramesDurationUs(dropped_frames) / 1'000;
       } else {
         bridge_.Play();
       }
