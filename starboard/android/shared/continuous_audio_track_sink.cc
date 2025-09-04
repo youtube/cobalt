@@ -289,7 +289,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
         is_initial_silence_feeding = false;
         const int64_t initial_silence_us =
             GetFramesDurationUs(initial_silence_frames);
-        const int64_t not_played_slience_frames =
+        const int64_t not_played_silence_frames =
             initial_silence_frames - EstimateFramePosition(last_timestamp);
         SB_CHECK_GE(not_played_slience_frames, 0);
 
