@@ -165,6 +165,7 @@ test("nplb") {
       "posix_compliance/posix_locale_helpers.cc",
       "posix_compliance/posix_locale_helpers.h",
       "posix_compliance/posix_locale_langinfo_test.cc",
+      "posix_compliance/posix_locale_langinfo_test_data.cc.inc",
       "posix_compliance/posix_locale_set_test.cc",
       "posix_compliance/posix_locale_thread_test.cc",
       "posix_compliance/posix_lstat_test.cc",
