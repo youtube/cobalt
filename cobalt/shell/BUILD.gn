@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/chromecast_build.gni")
+import("//build/config/cast.gni")
 import("//build/config/ui.gni")
 import("//starboard/build/buildflags.gni")
 
@@ -40,7 +40,6 @@ group("content_shell_lib_deps") {
     # content_shell_lib also exposes all public content APIs.
     "//base",
     "//base:base_static",
-    "//base/third_party/dynamic_annotations",
     "//cc/base",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
