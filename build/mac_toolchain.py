@@ -20,7 +20,7 @@ the full revision, e.g. 9A235.
 
 import argparse
 import os
-import pkg_resources
+from packaging import version
 import platform
 import plistlib
 import shutil
@@ -156,8 +156,8 @@ def InstallXcodeBinaries():
     current_license_plist = LoadPList(current_license_path)
     xcode_version = current_license_plist.get(
         'IDEXcodeVersionForAgreedToGMLicense')
-    if (xcode_version is not None and pkg_resources.parse_version(xcode_version)
-        >= pkg_resources.parse_version(cipd_xcode_version)):
+    if (xcode_version is not None and version.parse(xcode_version)
+        >= version.parse(cipd_xcode_version)):
       should_overwrite_license = False
 
   if not should_overwrite_license:
