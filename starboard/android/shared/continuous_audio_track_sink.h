@@ -94,6 +94,7 @@ class ContinuousAudioTrackSink
 
   AudioTrackBridge bridge_;
   const int initial_frames_;
+  bool playback_started_ = false;
 
   volatile bool quit_ = false;
   std::optional<pthread_t> audio_out_thread_;

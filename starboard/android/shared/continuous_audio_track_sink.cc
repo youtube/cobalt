@@ -231,6 +231,11 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
+      if (!playback_started_ && frames_consumed > 0) {
+        SB_LOG(INFO) << "audio playback started";
+        playback_started_ = true;
+      }
+
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
