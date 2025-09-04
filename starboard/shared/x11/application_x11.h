@@ -63,7 +63,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
  protected:
   void AcceptFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
+                   scoped_refptr<VideoFrame> frame,
                    int z_index,
                    int x,
                    int y,

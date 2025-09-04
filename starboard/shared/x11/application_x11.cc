@@ -797,7 +797,7 @@ void ApplicationX11::Composite() {
 }
 
 void ApplicationX11::AcceptFrame(SbPlayer player,
-                                 const scoped_refptr<VideoFrame>& frame,
+                                 scoped_refptr<VideoFrame> frame,
                                  int z_index,
                                  int x,
                                  int y,
@@ -810,7 +810,7 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
     next_video_frames_.erase(player);
     next_video_bounds_.erase(player);
   } else {
-    next_video_frames_[player] = frame;
+    next_video_frames_[player] = std::move(frame);
   }
 
   // Invalidate the cache of this player's current frame.
