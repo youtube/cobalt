@@ -1271,7 +1271,7 @@ class RenderProcessHostImpl::IOThreadHostImpl : public mojom::ChildProcessHost {
         return;
     }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
     if (auto font_receiver = receiver.As<font_service::mojom::FontService>()) {
       ConnectToFontService(std::move(font_receiver));
       return;
