@@ -22,7 +22,6 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
-import org.chromium.ui.base.ResourceBundle;
 
 /** Android Application hosting the Starboard application. */
 public class CobaltApplication extends Application implements StarboardBridge.HostApplication {
@@ -45,7 +44,6 @@ public class CobaltApplication extends Application implements StarboardBridge.Ho
       super.attachBaseContext(base);
       boolean isBrowserProcess = !ContextUtils.getProcessName().contains(":");
       ContextUtils.initApplicationContext(this);
-      ResourceBundle.setNoAvailableLocalePaks();
       LibraryLoader.getInstance().setLibraryProcessType(isBrowserProcess
                       ? LibraryProcessType.PROCESS_BROWSER
                       : LibraryProcessType.PROCESS_CHILD);
