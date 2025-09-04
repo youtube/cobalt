@@ -54,9 +54,6 @@ _OVERRIDES = [
      'https://androidx.dev/snapshots/builds/9668027/artifacts/repository/'
      'androidx/recyclerview/recyclerview/1.4.0-SNAPSHOT/'
      'recyclerview-1.4.0-20230228.234124-1.aar'),
-    ('androidx_credentials_credentials/credentials-1.0.0-SNAPSHOT.aar',
-     'https://dl.google.com/android/maven2/androidx/credentials/credentials/'
-     '1.2.0-alpha03/credentials-1.2.0-alpha03.aar'),
 ]
 
 
@@ -223,7 +220,7 @@ def _write_cipd_yaml(libs_dir, version, cipd_yaml_path, experimental=False):
     else:
         package = 'chromium/third_party/androidx'
     contents = [
-        '# Copyright 2021 The Chromium Authors. All rights reserved.',
+        '# Copyright 2021 The Chromium Authors',
         '# Use of this source code is governed by a BSD-style license that can be',
         '# found in the LICENSE file.',
         '# version: ' + version,
