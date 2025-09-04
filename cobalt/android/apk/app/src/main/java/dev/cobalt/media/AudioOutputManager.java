@@ -38,15 +38,15 @@ import org.chromium.base.annotations.NativeMethods;
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
 @JNINamespace("starboard::android::shared")
 public class AudioOutputManager {
-  private List<AudioTrackBridge> audioTrackBridgeList;
-  private Context context;
+  private List<AudioTrackBridge> mAudioTrackBridgeList;
+  private Context mContext;
 
-  AtomicBoolean hasAudioDeviceChanged = new AtomicBoolean(false);
-  boolean hasRegisteredAudioDeviceCallback = false;
+  AtomicBoolean mHasAudioDeviceChanged = new AtomicBoolean(false);
+  boolean mHasRegisteredAudioDeviceCallback = false;
 
   public AudioOutputManager(Context context) {
-    this.context = context;
-    audioTrackBridgeList = new ArrayList<AudioTrackBridge>();
+    this.mContext = context;
+    mAudioTrackBridgeList = new ArrayList<AudioTrackBridge>();
   }
 
   @CalledByNative
@@ -69,14 +69,14 @@ public class AudioOutputManager {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
       return null;
     }
-    audioTrackBridgeList.add(audioTrackBridge);
-    hasAudioDeviceChanged.set(false);
+    mAudioTrackBridgeList.add(audioTrackBridge);
+    mHasAudioDeviceChanged.set(false);
 
-    if (hasRegisteredAudioDeviceCallback || isWebAudio) {
+    if (mHasRegisteredAudioDeviceCallback || isWebAudio) {
       return audioTrackBridge;
     }
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     audioManager.registerAudioDeviceCallback(
         new AudioDeviceCallback() {
           // Since registering a callback triggers an immediate call to onAudioDevicesAdded() with
@@ -97,7 +97,7 @@ public class AudioOutputManager {
                     "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
                     info.getProductName(),
                     getDeviceTypeName(info.getType()));
-                hasAudioDeviceChanged.set(true);
+                mHasAudioDeviceChanged.set(true);
                 break;
               }
             }
@@ -123,14 +123,14 @@ public class AudioOutputManager {
           }
         },
         null);
-    hasRegisteredAudioDeviceCallback = true;
+    mHasRegisteredAudioDeviceCallback = true;
     return audioTrackBridge;
   }
 
   @CalledByNative
   void destroyAudioTrackBridge(AudioTrackBridge audioTrackBridge) {
     audioTrackBridge.release();
-    audioTrackBridgeList.remove(audioTrackBridge);
+    mAudioTrackBridgeList.remove(audioTrackBridge);
   }
 
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
@@ -159,7 +159,7 @@ public class AudioOutputManager {
       return false;
     }
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
     if (index >= 0 && index < deviceInfos.length) {
@@ -246,7 +246,7 @@ public class AudioOutputManager {
 
   /** Convert audio encodings in int[] to common separated values in String */
   private static String getEncodingNames(final int[] encodings) {
-    StringBuffer encodingsInString = new StringBuffer("[");
+    StringBuilder encodingsInString = new StringBuilder("[");
     for (int i = 0; i < encodings.length; ++i) {
       switch (encodings[i]) {
         case AudioFormat.ENCODING_DEFAULT:
@@ -296,7 +296,7 @@ public class AudioOutputManager {
   public void dumpAllOutputDevices() {
     Log.i(TAG, "Dumping all audio output devices:");
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
     for (AudioDeviceInfo info : deviceInfos) {
@@ -351,14 +351,14 @@ public class AudioOutputManager {
         return -1;
       }
     }
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     return audioManager.generateAudioSessionId();
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
   @CalledByNative
   boolean hasPassthroughSupportFor(int encoding) {
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
     // Some devices have issues on reporting playback capability and managing routing when Bluetooth
@@ -521,10 +521,10 @@ public class AudioOutputManager {
 
   @CalledByNative
   private boolean getAndResetHasAudioDeviceChanged() {
-    return hasAudioDeviceChanged.getAndSet(false);
+    return mHasAudioDeviceChanged.getAndSet(false);
   }
 
-  private static AudioDeviceCallback audioDeviceCallback =
+  private static AudioDeviceCallback sAudioDeviceCallback =
       new AudioDeviceCallback() {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
@@ -537,16 +537,16 @@ public class AudioOutputManager {
         }
       };
 
-  private static boolean audioDeviceListenerAdded = false;
+  private static boolean sAudioDeviceListenerAdded = false;
 
   public static void addAudioDeviceListener(Context context) {
-    if (audioDeviceListenerAdded) {
+    if (sAudioDeviceListenerAdded) {
       return;
     }
 
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-    audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
-    audioDeviceListenerAdded = true;
+    audioManager.registerAudioDeviceCallback(sAudioDeviceCallback, null);
+    sAudioDeviceListenerAdded = true;
   }
 
   @NativeMethods
