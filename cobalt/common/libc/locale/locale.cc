@@ -22,14 +22,14 @@
 #include "cobalt/common/libc/no_destructor.h"
 
 namespace {
-// See https://en.cppreference.com/w/c/locale/lconv.
+// The default locale is the C locale.
 const lconv* GetCLocaleConv() {
   static const lconv c_locale_conv = {
       .decimal_point = const_cast<char*>("."),
       .thousands_sep = const_cast<char*>(""),
       .grouping = const_cast<char*>(""),
       .int_curr_symbol = const_cast<char*>(""),
-      .currency_symbol = const_cast<char*>("C"),
+      .currency_symbol = const_cast<char*>(""),
       .mon_decimal_point = const_cast<char*>(""),
       .mon_thousands_sep = const_cast<char*>(""),
       .mon_grouping = const_cast<char*>(""),
@@ -49,10 +49,18 @@ const lconv* GetCLocaleConv() {
       .int_n_sep_by_space = CHAR_MAX,
       .int_p_sign_posn = CHAR_MAX,
       .int_n_sign_posn = CHAR_MAX,
-  };
+  };1
   return &c_locale_conv;
 }
+
+// The C locale can be referenced by this statically allocated object.
+const lconv* GetCLocale() {
+  static const NoDestructor<lconv> c_locale(*GetCLocaleConv());
+  return c_locale.get();
+}
+
 }  // namespace
+
 
 // The POSIX setlocale is not hermetic, so we must provide our own
 // implementation.
@@ -77,13 +85,14 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
     memcpy(new_lconv, reinterpret_cast<lconv*>(base), sizeof(lconv));
     freelocale(base);
   } else {
-    memcpy(new_lconv, GetCLocaleConv(), sizeof(lconv));
+    memcpy(new_lconv, GetCLocale(), sizeof(lconv));
   }
   return reinterpret_cast<locale_t>(new_lconv);
 }
 
 namespace {
-thread_local locale_t g_current_locale = LC_GLOBAL_LOCALE;
+thread_local locale_t g_current_locale =
+    reinterpret_cast<locale_t>(const_cast<lconv*>(GetCLocale()));
 }  // namespace
 
 locale_t uselocale(locale_t newloc) {
@@ -101,7 +110,7 @@ void freelocale(locale_t loc) {
 }
 
 struct lconv* localeconv(void) {
-  return const_cast<lconv*>(GetCLocaleConv());
+  return reinterpret_cast<lconv*>(g_current_locale);
 }
 
 locale_t duplocale(locale_t loc) {
@@ -125,7 +134,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 
   lconv* conv;
   if (locale == LC_GLOBAL_LOCALE) {
-    conv = const_cast<lconv*>(GetCLocaleConv());
+    conv = reinterpret_cast<lconv*>(g_current_locale);
   } else {
     conv = reinterpret_cast<lconv*>(locale);
   }
