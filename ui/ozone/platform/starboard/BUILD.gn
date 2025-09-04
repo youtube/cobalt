@@ -47,7 +47,6 @@ source_set("starboard") {
     "//starboard:starboard_headers_only",
     "//ui/base/ime",
     "//ui/display",
-    "//ui/display/fake",
     "//ui/events/ozone/layout:layout",
     "//ui/gfx:native_widget_types",
     "//ui/ozone:ozone_base",
