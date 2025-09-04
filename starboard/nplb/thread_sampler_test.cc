@@ -23,8 +23,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 class CountingThread : public posix::AbstractTestThread {
@@ -176,6 +175,5 @@ TEST(ThreadSamplerTest, SunnyDayThreadContextPointers) {
   SbThreadSamplerDestroy(sampler);
 }
 
-}  // namespace.
-}  // namespace nplb.
-}  // namespace starboard.
+}  // namespace
+}  // namespace starboard::nplb

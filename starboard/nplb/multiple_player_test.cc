@@ -24,8 +24,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 using shared::starboard::player::video_dmp::VideoDmpReader;
@@ -212,5 +211,4 @@ TEST_F(MultiplePlayerTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

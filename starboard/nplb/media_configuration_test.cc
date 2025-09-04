@@ -17,8 +17,7 @@
 #include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(SbMediaConfigurationTest, ValidatePerformance) {
@@ -37,5 +36,4 @@ TEST(SbMediaConfigurationTest, ValidatePerformance) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

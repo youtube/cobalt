@@ -21,8 +21,7 @@
 #include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 constexpr int kVideoResolutions[][2] = {
@@ -310,5 +309,4 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   }
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

@@ -26,8 +26,7 @@
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 struct PosixTestData {
@@ -231,5 +230,4 @@ INSTANTIATE_TEST_SUITE_P(PosixTimezoneTests,
                          ::testing::ValuesIn(PosixFormat::kAllTests),
                          GetTestName);
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

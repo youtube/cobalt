@@ -21,8 +21,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 static void CheckFileCanOpen(const std::string& filename, int flags) {
@@ -68,5 +67,4 @@ TEST(PosixFileCanOpenTest, ExistingStaticContentFileSucceeds) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

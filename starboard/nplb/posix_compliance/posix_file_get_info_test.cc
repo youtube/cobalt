@@ -44,7 +44,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
     int64_t time_usec = CurrentPosixTime();
 
     constexpr int kFileSize = 12;
-    starboard::nplb::ScopedRandomFile random_file(kFileSize);
+    ScopedRandomFile random_file(kFileSize);
     const std::string& filename = random_file.filename();
 
     int file = open(filename.c_str(), O_RDONLY);

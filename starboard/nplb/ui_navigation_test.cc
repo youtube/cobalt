@@ -16,8 +16,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 // This verifies that the UI navigation API is not implemented.
@@ -27,6 +26,5 @@ TEST(UiNavigationTest, GetInterface) {
   EXPECT_FALSE(interface != nullptr);
 }
 
-}  // namespace.
-}  // namespace nplb.
-}  // namespace starboard.
+}  // namespace
+}  // namespace starboard::nplb

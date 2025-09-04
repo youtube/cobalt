@@ -25,8 +25,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 struct SbPlayerTestConfig {
   SbPlayerTestConfig(const char* audio_filename,
@@ -120,7 +119,6 @@ bool IsPartialAudioSupported();
 
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config);
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_PLAYER_TEST_UTIL_H_

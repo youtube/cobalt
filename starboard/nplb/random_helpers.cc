@@ -19,8 +19,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 void TestProducesBothValuesOfAllBits(RandomFunction get_random) {
   const uint64_t kAllZeros = SB_UINT64_C(0);
@@ -72,5 +71,4 @@ void TestIsFairlyUniform(RandomFunction get_random) {
                                  << ", average ended at " << cumulative_average;
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

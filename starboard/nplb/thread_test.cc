@@ -20,8 +20,7 @@
 #include "starboard/common/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 class TestRunThread : public Thread {
@@ -55,6 +54,5 @@ TEST(Thread, TestRunThread) {
   EXPECT_TRUE(test_thread.join_called());
 }
 
-}  // namespace.
-}  // namespace nplb.
-}  // namespace starboard.
+}  // namespace
+}  // namespace starboard::nplb

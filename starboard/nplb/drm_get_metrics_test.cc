@@ -18,8 +18,7 @@
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(SbDrmGetMetricsTest, SunnyDay) {
@@ -41,5 +40,4 @@ TEST(SbDrmGetMetricsTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

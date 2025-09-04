@@ -16,8 +16,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 uint64_t GetRandom64Bits() {
@@ -35,5 +34,4 @@ TEST(SbSystemGetRandomDataTest, IsFairlyUniform) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

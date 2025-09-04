@@ -26,8 +26,7 @@
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 TEST(PosixTimezoneTests, HandlesUnsetTZEnvironmentVariable) {
   ScopedTzSet tz_manager(nullptr);
@@ -91,5 +90,4 @@ TEST(PosixTimezoneTests, HandlesInvalidTZStringGracefully) {
   EXPECT_EQ(timezone, 0L);
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

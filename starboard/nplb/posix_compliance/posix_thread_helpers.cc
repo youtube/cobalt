@@ -20,8 +20,7 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace posix {
 
 void DoNotYield() {
@@ -88,5 +87,4 @@ void WaiterContext::WaitForReturnSignal() {
 }
 
 }  // namespace posix
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

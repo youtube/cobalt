@@ -42,8 +42,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 // Helper function to create a pipe for testing I/O events.
@@ -208,5 +207,4 @@ TEST(PosixPollTest, ZeroTimeoutReturnsImmediately) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

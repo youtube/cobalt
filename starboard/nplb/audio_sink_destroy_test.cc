@@ -15,12 +15,10 @@
 #include "starboard/audio_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 TEST(SbAudioSinkDestroyTest, DestroyInvalidAudioSink) {
   SbAudioSinkDestroy(kSbAudioSinkInvalid);
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

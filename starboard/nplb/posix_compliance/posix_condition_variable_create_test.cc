@@ -16,8 +16,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 const int kALot = 128 * 1024;
@@ -55,5 +54,4 @@ TEST(PosixConditionVariableCreateTest, SunnyDayABunchAtOnce) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

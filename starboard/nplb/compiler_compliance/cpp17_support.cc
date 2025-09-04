@@ -22,8 +22,7 @@ constexpr int life() {
 
 }  // namespace starboard::foo::bar::baz
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 // Test Structured bindings support, P0217R3
@@ -82,5 +81,4 @@ static_assert(test_fallthrough(2) == 3,
               "[fallthrough]] attribute support is required");
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

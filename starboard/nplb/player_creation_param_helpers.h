@@ -24,8 +24,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 // Encapsulates all information contained in `SbPlayerCreationParam`.  It
 // doesn't aim to maintain the same binary layout as `SbPlayerCreationParam`,
@@ -70,7 +69,6 @@ PlayerCreationParam CreatePlayerCreationParam(const SbPlayerTestConfig& config);
 SbPlayerOutputMode GetPreferredOutputMode(
     const PlayerCreationParam& creation_param);
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_PLAYER_CREATION_PARAM_HELPERS_H_

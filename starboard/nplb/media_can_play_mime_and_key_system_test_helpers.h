@@ -15,8 +15,7 @@
 #ifndef STARBOARD_NPLB_MEDIA_CAN_PLAY_MIME_AND_KEY_SYSTEM_TEST_HELPERS_H_
 #define STARBOARD_NPLB_MEDIA_CAN_PLAY_MIME_AND_KEY_SYSTEM_TEST_HELPERS_H_
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 struct SbMediaCanPlayMimeAndKeySystemParam {
   const char* mime;
@@ -530,7 +529,6 @@ static SbMediaCanPlayMimeAndKeySystemParam kDrmQueryParams[] = {
      "com.widevine.alpha"},
 };
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
 
 #endif  // STARBOARD_NPLB_MEDIA_CAN_PLAY_MIME_AND_KEY_SYSTEM_TEST_HELPERS_H_

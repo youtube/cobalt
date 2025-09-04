@@ -15,8 +15,7 @@
 #include "starboard/microphone.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(SbMicrophoneDestroyTest, DestroyInvalidMicrophone) {
@@ -24,5 +23,4 @@ TEST(SbMicrophoneDestroyTest, DestroyInvalidMicrophone) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

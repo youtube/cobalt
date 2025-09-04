@@ -22,8 +22,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 
 namespace {
 
@@ -223,5 +222,4 @@ void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
   environment->OnConsumeFrames(frames_consumed);
 }
 
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
