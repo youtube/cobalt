@@ -368,7 +368,7 @@ public abstract class CobaltActivity extends Activity {
     Log.i(TAG, "initializeJavaBridge");
 
     WebContents webContents = getActiveWebContents();
-    if (webContents == null) {
+    if (true) {
       throw new RuntimeException(
           "webContents is null in initializeJavaBridge. This should never happen.");
     }
