@@ -154,13 +154,13 @@ if (is_android) {
       "//base:base_java_test_support",
       "//base:jni_java",
       "//cobalt/shell/android:cobalt_shell_browsertests_java",
+      "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
       "//components/viz/service:service_java",
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
       "//testing/android/native_test:native_test_java",
-      "//ui/android:ui_java",
     ]
   }
 

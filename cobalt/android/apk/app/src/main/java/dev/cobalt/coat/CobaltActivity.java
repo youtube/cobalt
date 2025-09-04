@@ -59,8 +59,8 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.ActivityWindowAndroid;
-import org.chromium.ui.base.IntentRequestTracker;
+import dev.cobalt.ui.base.ActivityWindowAndroid;
+import dev.cobalt.ui.base.IntentRequestTracker;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {

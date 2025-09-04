@@ -31,9 +31,9 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.BrowserStartupController.StartupCallback;
 import org.chromium.native_test.NativeBrowserTest;
 import org.chromium.native_test.NativeBrowserTestActivity;
-import org.chromium.ui.base.ActivityWindowAndroid;
-import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.ui.base.WindowAndroid;
+import dev.cobalt.ui.base.ActivityWindowAndroid;
+import dev.cobalt.ui.base.IntentRequestTracker;
+import dev.cobalt.ui.base.WindowAndroid;
 
 import java.io.File;
 
