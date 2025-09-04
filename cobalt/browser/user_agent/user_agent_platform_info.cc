@@ -381,8 +381,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 }
 }  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
-    : enable_skia_rasterizer_(enable_skia_rasterizer) {
+UserAgentPlatformInfo::UserAgentPlatformInfo() {
   InitializeUserAgentPlatformInfoFields(*this);
 }
 
