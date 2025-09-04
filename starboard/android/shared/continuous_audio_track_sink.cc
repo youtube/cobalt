@@ -32,7 +32,7 @@ namespace {
 
 std::ostream& operator<<(std::ostream& os,
                          const ContinuousAudioTrackSink::Timestamp& timestamp) {
-  os << "{frame_position=" << timestamp.frame_posiition
+  os << "{frame_position=" << timestamp.frame_position
      << ",rendered_at_us=" << timestamp.rendered_at_us << "}";
   return os;
 }
@@ -172,7 +172,7 @@ int64_t ContinuousAudioTrackSink::EstimateFramePosition(
     return 0;
   }
   int64_t elapsed_us = CurrentMonotonicTime() - timestamp->rendered_at_us;
-  return timestamp->frame_posiition + GetFrames(elapsed_us);
+  return timestamp->frame_position + GetFrames(elapsed_us);
 }
 
 // TODO: Break down the function into manageable pieces.
@@ -291,9 +291,9 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
             GetFramesDurationUs(initial_silence_frames);
         const int64_t not_played_silence_frames =
             initial_silence_frames - EstimateFramePosition(last_timestamp);
-        SB_CHECK_GE(not_played_slience_frames, 0);
+        SB_CHECK_GE(not_played_silence_frames, 0);
 
-        dropped_frames = not_played_slience_frames;
+        dropped_frames = not_played_silence_frames;
         offset_in_frames += dropped_frames;
 
         SB_LOG(INFO) << "Switch to real audio: initial_silence(msec)="
