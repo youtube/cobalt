@@ -23,60 +23,31 @@ namespace cobalt {
 
 namespace {
 
-UserAgentPlatformInfo CreateEmptyPlatformInfo() {
-  UserAgentPlatformInfo platform_info;
-  platform_info.set_starboard_version("");
-  platform_info.set_os_name_and_version("");
-  platform_info.set_original_design_manufacturer("");
-  platform_info.set_device_type("UNKNOWN");
-  platform_info.set_chipset_model_number("");
-  platform_info.set_model_year("");
-  platform_info.set_firmware_version("");
-  platform_info.set_brand("");
-  platform_info.set_model("");
-  platform_info.set_aux_field("");
-  platform_info.set_javascript_engine_version("");
-  platform_info.set_rasterizer_type("");
-  platform_info.set_evergreen_version("");
-  platform_info.set_evergreen_type("");
-  platform_info.set_evergreen_file_type("");
-  platform_info.set_cobalt_version("");
-  platform_info.set_cobalt_build_version_number("");
-  platform_info.set_build_configuration("");
-  return platform_info;
-}
-
-UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
-  UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
-  platform_info.set_os_name_and_version("GLaDOS 3.11");
-  return platform_info;
-}
-
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_StartsWithMozilla) {
   std::string user_agent_string =
-      CreateOnlyOSNameAndVersionPlatformInfo().ToString();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting().ToString();
   EXPECT_EQ(0UL, user_agent_string.find("Mozilla/5.0"));
 }
 
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_ContainsCobalt) {
   std::string user_agent_string =
-      CreateOnlyOSNameAndVersionPlatformInfo().ToString();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("Cobalt"));
 }
 
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_WithOSNameAndVersion) {
   std::string user_agent_string =
-      CreateOnlyOSNameAndVersionPlatformInfo().ToString();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("(GLaDOS 3.11)"));
 }
 
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_WithCobaltVersionAndConfiguration) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_cobalt_version("16");
   platform_info.set_cobalt_build_version_number("123456");
   platform_info.set_build_configuration("gold");
@@ -135,7 +106,7 @@ TEST(UserAgentStringTest, DISABLED_WithCobaltVersionAndConfiguration) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedStarboardVersion) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_starboard_version("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
                                       "Baz" NOT_TCHARORSLASH "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -146,7 +117,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedStarboardVersion) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedOsNameAndVersion) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_os_name_and_version("Foo()" NOT_VCHARORSPACE
                                         "Bar" VCHARORSPACE_EXCEPTPARENTHESES
                                         "Baz()" NOT_VCHARORSPACE "Qux");
@@ -159,7 +130,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedOsNameAndVersion) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedOriginalDesignManufacturer) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_original_design_manufacturer(
       "Foo" NOT_ALPHADIGIT "Bar" ALPHADIGIT "Baz" NOT_ALPHADIGIT "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -170,7 +141,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedOriginalDesignManufacturer) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedChipsetModelNumber) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_chipset_model_number("Foo" NOT_ALPHADIGIT "Bar" ALPHADIGIT
                                          "Baz" NOT_ALPHADIGIT "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -181,7 +152,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedChipsetModelNumber) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedModelYear) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_chipset_model_number("FooBar");
   platform_info.set_model_year(NOT_DIGIT DIGIT NOT_DIGIT DIGITREVERSED);
   platform_info.set_firmware_version("BazQux");
@@ -193,7 +164,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedModelYear) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedFirmwareVersion) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_firmware_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
                                      "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -203,7 +174,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedFirmwareVersion) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedBrand) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_brand("Foo()," NOT_VCHARORSPACE
                           "Bar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA
                           "Baz()," NOT_VCHARORSPACE "Qux");
@@ -216,7 +187,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedBrand) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedModel) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_model("Foo()," NOT_VCHARORSPACE
                           "Bar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA
                           "Baz()," NOT_VCHARORSPACE "Qux");
@@ -229,7 +200,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedModel) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedAuxField) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_aux_field("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
                               "Baz" NOT_TCHARORSLASH "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -240,7 +211,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedAuxField) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedJavascriptEngineVersion) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_javascript_engine_version(
       "Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH "Baz" NOT_TCHARORSLASH "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -251,7 +222,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedJavascriptEngineVersion) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedRasterizerType) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_rasterizer_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
                                     "Baz" NOT_TCHARORSLASH "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -262,7 +233,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedRasterizerType) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenVersion) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_evergreen_version("Foo" NOT_TCHAR "Bar" TCHAR
                                       "Baz" NOT_TCHAR "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -272,7 +243,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenVersion) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenType) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_evergreen_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
                                    "Baz" NOT_TCHARORSLASH "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -283,7 +254,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenType) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenFileType) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_evergreen_file_type(
       "Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH "Baz" NOT_TCHARORSLASH "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -294,7 +265,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenFileType) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedCobaltVersion) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_cobalt_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
                                    "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -304,7 +275,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedCobaltVersion) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedCobaltBuildVersionNumber) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_cobalt_build_version_number("Foo" NOT_TCHAR "Bar" TCHAR
                                                 "Baz" NOT_TCHAR "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -314,7 +285,7 @@ TEST(UserAgentStringTest, DISABLED_SanitizedCobaltBuildVersionNumber) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_SanitizedCobaltBuildConfiguration) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_build_configuration("Foo" NOT_TCHAR "Bar" TCHAR
                                         "Baz" NOT_TCHAR "Qux");
   const std::string user_agent_string = platform_info.ToString();
@@ -326,7 +297,7 @@ TEST(UserAgentStringTest, DISABLED_WithPlatformInfo) {
   // There are deliberately a variety of underscores, commas, slashes, and
   // parentheses in the strings below to ensure they get sanitized.
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_original_design_manufacturer("Aperture_Science_Innovators");
   platform_info.set_device_type("OTT");
   platform_info.set_chipset_model_number("P-body/Orange_Atlas/Blue");
@@ -345,7 +316,7 @@ TEST(UserAgentStringTest, DISABLED_WithPlatformInfo) {
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_WithOnlyBrandModelAndDeviceType) {
   UserAgentPlatformInfo platform_info =
-      CreateOnlyOSNameAndVersionPlatformInfo();
+      UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting();
   platform_info.set_device_type("OTT");
   platform_info.set_brand("Aperture Science");
   platform_info.set_model("GLaDOS");
@@ -358,7 +329,8 @@ TEST(UserAgentStringTest, DISABLED_WithOnlyBrandModelAndDeviceType) {
 
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_WithStarboardVersion) {
-  UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
+  UserAgentPlatformInfo platform_info =
+      UserAgentPlatformInfo::CreateEmptyForTesting();
   platform_info.set_starboard_version("Starboard/6");
   platform_info.set_device_type("OTT");
   const std::string user_agent_string = platform_info.ToString();
@@ -370,7 +342,8 @@ TEST(UserAgentStringTest, DISABLED_WithStarboardVersion) {
 
 // TODO(b/436368441): Investigate this test failure.
 TEST(UserAgentStringTest, DISABLED_WithJavaScriptVersion) {
-  UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
+  UserAgentPlatformInfo platform_info =
+      UserAgentPlatformInfo::CreateEmptyForTesting();
   platform_info.set_javascript_engine_version("V8/6.5.254.28");
   const std::string user_agent_string = platform_info.ToString();
 

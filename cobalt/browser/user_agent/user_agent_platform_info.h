@@ -26,8 +26,10 @@ void GetUserAgentInputMap(
 
 class UserAgentPlatformInfo {
  public:
-  explicit UserAgentPlatformInfo(bool enable_skia_rasterizer = false);
+  UserAgentPlatformInfo();
   ~UserAgentPlatformInfo() = default;
+
+  void Initialize();
 
   std::string ToString() const;
 
@@ -76,7 +78,11 @@ class UserAgentPlatformInfo {
     return build_configuration_;
   }
 
-  bool enable_skia_rasterizer() { return enable_skia_rasterizer_; }
+  static UserAgentPlatformInfo CreateEmptyForTesting();
+  static UserAgentPlatformInfo CreateWithOSNameAndVersionForTesting();
+
+ private:
+  friend class UserAgentStringTest;
 
   // Other: Setters that sanitize the strings where needed.
   //
@@ -108,7 +114,6 @@ class UserAgentPlatformInfo {
       const std::string& cobalt_build_version_number);
   void set_build_configuration(const std::string& build_configuration);
 
- private:
   std::string starboard_version_;
   std::string os_name_and_version_;
   std::optional<std::string> original_design_manufacturer_;
@@ -131,8 +136,6 @@ class UserAgentPlatformInfo {
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;
   std::string build_configuration_;
-
-  const bool enable_skia_rasterizer_;
 };
 
 }  // namespace cobalt
