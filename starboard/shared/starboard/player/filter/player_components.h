@@ -38,7 +38,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 // This class holds necessary media stack components required by
 // by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
@@ -46,12 +46,9 @@ namespace starboard::shared::starboard::player::filter {
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-  typedef ::starboard::shared::starboard::player::filter::AudioRenderer
-      AudioRenderer;
-  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
-      MediaTimeProvider;
-  typedef ::starboard::shared::starboard::player::filter::VideoRenderer
-      VideoRenderer;
+  typedef ::starboard::player::filter::AudioRenderer AudioRenderer;
+  typedef ::starboard::player::filter::MediaTimeProvider MediaTimeProvider;
+  typedef ::starboard::player::filter::VideoRenderer VideoRenderer;
 
   // This class creates PlayerComponents.
   class Factory {
@@ -216,6 +213,6 @@ class PlayerComponents {
   void operator=(const PlayerComponents&) = delete;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_

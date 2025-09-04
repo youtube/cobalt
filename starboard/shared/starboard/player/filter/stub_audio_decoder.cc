@@ -20,12 +20,12 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 namespace {
 
-using ::starboard::shared::starboard::media::AudioDurationToFrames;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
+using ::starboard::media::AudioDurationToFrames;
+using ::starboard::media::GetBytesPerSample;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
@@ -279,4 +279,4 @@ void StubAudioDecoder::DecodeEndOfStream() {
   Schedule(output_cb_);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter

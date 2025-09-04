@@ -27,7 +27,7 @@
 
 namespace starboard::android::shared {
 
-using ::starboard::shared::starboard::Application;
+using ::starboard::Application;
 typedef ::starboard::android::shared::InputEventsGenerator::Event Event;
 typedef ::starboard::android::shared::InputEventsGenerator::Events Events;
 

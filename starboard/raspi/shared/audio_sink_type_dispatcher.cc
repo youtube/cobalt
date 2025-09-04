@@ -22,14 +22,13 @@ namespace audio_sink {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  ::starboard::shared::alsa::PlatformInitialize();
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
-      EnableFallbackToStub();
+  ::starboard::alsa::PlatformInitialize();
+  ::starboard::audio_sink::SbAudioSinkImpl::EnableFallbackToStub();
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  ::starboard::shared::alsa::PlatformTearDown();
+  ::starboard::alsa::PlatformTearDown();
 }
 
 }  // namespace audio_sink

@@ -24,7 +24,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard::player::filter::testing {
 namespace {
 
 using ::testing::ValuesIn;
@@ -161,4 +161,4 @@ INSTANTIATE_TEST_CASE_P(
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard::player::filter::testing

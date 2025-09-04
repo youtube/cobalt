@@ -35,7 +35,7 @@
 
 using wv3cdm = ::widevine::Cdm;
 
-namespace starboard::shared::widevine {
+namespace starboard::widevine {
 namespace {
 
 const int kInitializationVectorSize = 16;
@@ -223,7 +223,7 @@ DrmSystemWidevine::DrmSystemWidevine(
   ON_INSTANCE_CREATED(DrmSystemWidevine);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  using shared::starboard::Application;
+  using starboard::Application;
 
   auto command_line = Application::Get()->GetCommandLine();
   auto value = command_line->GetSwitchValue("maximum_drm_session_updates");
@@ -796,4 +796,4 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
       message.c_str(), static_cast<int>(message.size()), NULL);
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard::widevine

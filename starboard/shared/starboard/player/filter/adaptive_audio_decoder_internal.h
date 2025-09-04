@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
@@ -95,6 +95,6 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool enable_reset_audio_decoder_ = false;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_ADAPTIVE_AUDIO_DECODER_INTERNAL_H_

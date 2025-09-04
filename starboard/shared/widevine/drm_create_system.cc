@@ -34,7 +34,7 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
-  using starboard::shared::widevine::DrmSystemWidevine;
+  using starboard::widevine::DrmSystemWidevine;
   if (!update_request_callback || !session_updated_callback) {
     return kSbDrmSystemInvalid;
   }

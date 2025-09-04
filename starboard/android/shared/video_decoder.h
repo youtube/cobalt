@@ -44,18 +44,15 @@
 
 namespace starboard::android::shared {
 
-class VideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private MediaDecoder::Host,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
-      private VideoSurfaceHolder {
+class VideoDecoder : public ::starboard::player::filter::VideoDecoder,
+                     private MediaDecoder::Host,
+                     private ::starboard::player::JobQueue::JobOwner,
+                     private VideoSurfaceHolder {
  public:
-  typedef ::starboard::shared::starboard::media::VideoStreamInfo
-      VideoStreamInfo;
-  typedef ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm
+  typedef ::starboard::media::VideoStreamInfo VideoStreamInfo;
+  typedef ::starboard::player::filter::VideoRenderAlgorithm
       VideoRenderAlgorithm;
-  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
+  typedef ::starboard::player::filter::VideoRendererSink VideoRendererSink;
 
   class Sink;
 

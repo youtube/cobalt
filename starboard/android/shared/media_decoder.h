@@ -39,15 +39,13 @@ namespace starboard::android::shared {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaDecoder final
-    : private MediaCodecBridge::Handler,
-      protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class MediaDecoder final : private MediaCodecBridge::Handler,
+                           protected ::starboard::player::JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
+  typedef ::starboard::media::AudioStreamInfo AudioStreamInfo;
+  typedef ::starboard::player::filter::ErrorCB ErrorCB;
+  typedef ::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::player::InputBuffers InputBuffers;
   typedef std::function<void(int64_t)> FrameRenderedCB;
   typedef std::function<void(void)> FirstTunnelFrameReadyCB;
 
@@ -179,7 +177,7 @@ class MediaDecoder final
   void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
   Host* host_;

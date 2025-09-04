@@ -25,7 +25,6 @@
 
 // Omit namespace 'linux' due to symbol name conflict with macro 'linux'
 namespace starboard {
-namespace shared {
 namespace {
 typedef struct PreAppRecommendationsPlatformServiceImpl
     : public PlatformServiceImpl {
@@ -189,5 +188,4 @@ const void* GetPreappRecommendationServiceApi() {
   return &kGetPreappRecommendationServiceApi;
 }
 
-}  // namespace shared
 }  // namespace starboard

@@ -28,11 +28,10 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/opus/src/include/opus_multistream.h"
 
-namespace starboard::shared::opus {
+namespace starboard::opus {
 
-class OpusAudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private starboard::player::JobQueue::JobOwner {
+class OpusAudioDecoder : public ::starboard::player::filter::AudioDecoder,
+                         private starboard::player::JobQueue::JobOwner {
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
 
@@ -73,6 +72,6 @@ class OpusAudioDecoder
   ConsumedCB consumed_cb_;
 };
 
-}  // namespace starboard::shared::opus
+}  // namespace starboard::opus
 
 #endif  // STARBOARD_SHARED_OPUS_OPUS_AUDIO_DECODER_H_

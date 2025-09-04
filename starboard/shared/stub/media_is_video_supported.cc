@@ -16,7 +16,7 @@
 
 #include "starboard/media.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard::media {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -34,4 +34,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   return false;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard::media

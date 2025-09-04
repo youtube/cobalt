@@ -28,10 +28,9 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-using starboard::shared::starboard::player::PlayerWorker;
-using starboard::shared::starboard::player::SbPlayerPrivateImpl;
-using starboard::shared::starboard::player::filter::
-    FilterBasedPlayerWorkerHandler;
+using starboard::player::PlayerWorker;
+using starboard::player::SbPlayerPrivateImpl;
+using starboard::player::filter::FilterBasedPlayerWorkerHandler;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,

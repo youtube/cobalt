@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 namespace {
 
@@ -161,7 +161,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   use_stub_video_decoder = ::starboard::features::FeatureList::IsEnabled(
       ::starboard::features::kUseStubVideoDecoder);
 #else
-  auto command_line = shared::starboard::Application::Get()->GetCommandLine();
+  auto command_line = starboard::Application::Get()->GetCommandLine();
   use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
   use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -299,4 +299,4 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter

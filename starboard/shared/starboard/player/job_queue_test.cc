@@ -23,7 +23,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard::player {
 
 namespace {
 
@@ -32,9 +32,8 @@ using ::testing::ElementsAre;
 // Require at least millisecond-level precision.
 const int64_t kPrecisionUsec = 1000;
 
-class JobQueueTest
-    : public ::testing::Test,
-      protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class JobQueueTest : public ::testing::Test,
+                     protected ::starboard::player::JobQueue::JobOwner {
  public:
   JobQueueTest() : JobOwner(kDetached) {}
   ~JobQueueTest() {}
@@ -176,4 +175,4 @@ TEST_F(JobQueueTest, QueueBelongsToCorrectThread) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard::player

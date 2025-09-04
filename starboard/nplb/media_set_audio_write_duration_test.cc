@@ -34,7 +34,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using starboard::player::video_dmp::VideoDmpReader;
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 

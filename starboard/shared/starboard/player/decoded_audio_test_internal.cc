@@ -21,10 +21,10 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard::player {
 namespace {
 
-using ::starboard::shared::starboard::media::GetBytesPerSample;
+using ::starboard::media::GetBytesPerSample;
 
 constexpr int kChannels = 2;
 constexpr int64_t kTimestampUsec = 1'000'000;
@@ -373,4 +373,4 @@ TEST(DecodedAudioTest, Clone) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard::player

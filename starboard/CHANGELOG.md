@@ -70,7 +70,7 @@ The existing code was migrated to C11 atomics.
 `SbMediaIsVideoSupported()` were never part of the Starboard interface.
 Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
-the global namespace into ::starboard::shared::starboard::media.
+the global namespace into ::starboard::media.
 
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
@@ -478,7 +478,7 @@ was added.
 values for both audio and video streams.
 
 ### Made `starboard::QueueApplication::DispatchAndDelete` private
-Since `starboard::shared::starboard::QueueApplication` has an event queue,
+Since `starboard::QueueApplication` has an event queue,
 `QueueApplication::Inject` should be used if an event just needs to be added to
 the queue or `QueueApplication::InjectAndProcess` if the event needs to be
 handled before returning. `QueueApplication::DispatchAndDelete` jumps the event

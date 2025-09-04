@@ -20,19 +20,19 @@
 namespace starboard {
 namespace nplb {
 
-using ::starboard::shared::starboard::drm::DummyServerCertificateUpdatedFunc;
-using ::starboard::shared::starboard::drm::DummySessionClosedFunc;
-using ::starboard::shared::starboard::drm::DummySessionKeyStatusesChangedFunc;
-using ::starboard::shared::starboard::drm::DummySessionUpdatedFunc;
-using ::starboard::shared::starboard::drm::DummySessionUpdateRequestFunc;
+using ::starboard::drm::DummyServerCertificateUpdatedFunc;
+using ::starboard::drm::DummySessionClosedFunc;
+using ::starboard::drm::DummySessionKeyStatusesChangedFunc;
+using ::starboard::drm::DummySessionUpdatedFunc;
+using ::starboard::drm::DummySessionUpdateRequestFunc;
 
-using ::starboard::shared::starboard::drm::CreateDummyDrmSystem;
+using ::starboard::drm::CreateDummyDrmSystem;
 
-using ::starboard::shared::starboard::drm::kEncryptionSchemes;
-using ::starboard::shared::starboard::drm::kKeySystems;
-using ::starboard::shared::starboard::drm::kWidevineCertificate;
+using ::starboard::drm::kEncryptionSchemes;
+using ::starboard::drm::kKeySystems;
+using ::starboard::drm::kWidevineCertificate;
 
-using ::starboard::shared::starboard::drm::kCencInitData;
+using ::starboard::drm::kCencInitData;
 
 }  // namespace nplb
 }  // namespace starboard

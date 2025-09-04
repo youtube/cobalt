@@ -16,7 +16,7 @@
 
 #include "starboard/shared/speechd/speechd_internal.h"
 
-using starboard::shared::speechd::SpeechDispatcher;
+using starboard::speechd::SpeechDispatcher;
 
 void SbSpeechSynthesisCancel() {
   SpeechDispatcher* speech_dispatcher = SpeechDispatcher::Get();

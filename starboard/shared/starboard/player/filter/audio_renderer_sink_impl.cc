@@ -21,7 +21,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard::player::filter {
 
 AudioRendererSinkImpl::AudioRendererSinkImpl()
     : create_audio_sink_func_(
@@ -188,4 +188,4 @@ void AudioRendererSinkImpl::ErrorFunc(bool capability_changed,
                                                  error_message);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard::player::filter

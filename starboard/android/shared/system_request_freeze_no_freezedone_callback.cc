@@ -19,5 +19,5 @@
 void SbSystemRequestFreeze() {
   // There is no FreezeDone callback for stopping all thread execution
   // after fully transitioning into Frozen.
-  starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
+  starboard::Application::Get()->Freeze(NULL, NULL);
 }

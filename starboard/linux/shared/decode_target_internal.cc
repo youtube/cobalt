@@ -29,7 +29,6 @@ SbDecodeTargetPrivate::Data::~Data() {
 }
 
 namespace starboard {
-namespace shared {
 
 namespace {
 
@@ -231,5 +230,4 @@ SbDecodeTarget DecodeTargetCopy(SbDecodeTarget decode_target) {
   return out_decode_target;
 }
 
-}  // namespace shared
 }  // namespace starboard
