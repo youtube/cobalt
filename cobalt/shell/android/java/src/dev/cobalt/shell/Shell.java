@@ -33,8 +33,8 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.ViewAndroidDelegate;
-import org.chromium.ui.base.WindowAndroid;
+import dev.cobalt.ui.base.ViewAndroidDelegate;
+import dev.cobalt.ui.base.WindowAndroid;
 
 /**
  *  Copied from org.chromium.content_shell.Shell.
