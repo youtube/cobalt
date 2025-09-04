@@ -26,7 +26,7 @@ void GetUserAgentInputMap(
 
 class UserAgentPlatformInfo {
  public:
-  explicit UserAgentPlatformInfo(bool enable_skia_rasterizer = false);
+  UserAgentPlatformInfo();
   ~UserAgentPlatformInfo() = default;
 
   std::string ToString() const;
@@ -75,8 +75,6 @@ class UserAgentPlatformInfo {
   const std::string& build_configuration() const {
     return build_configuration_;
   }
-
-  bool enable_skia_rasterizer() { return enable_skia_rasterizer_; }
 
   // Other: Setters that sanitize the strings where needed.
   //
@@ -131,8 +129,6 @@ class UserAgentPlatformInfo {
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;
   std::string build_configuration_;
-
-  const bool enable_skia_rasterizer_;
 };
 
 }  // namespace cobalt
