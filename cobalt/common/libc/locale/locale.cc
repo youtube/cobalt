@@ -14,8 +14,8 @@
 
 #include "cobalt/common/libc/locale/locale.h"
 
-#include <limits.h>
 #include <langinfo.h>
+#include <limits.h>
 #include <locale.h>
 #include <string.h>
 
@@ -49,8 +49,8 @@ const lconv* GetCLocaleConv() {
       .int_n_sep_by_space = CHAR_MAX,
       .int_p_sign_posn = CHAR_MAX,
       .int_n_sign_posn = CHAR_MAX,
-  };1
-  return &c_locale_conv;
+  };
+  1 return &c_locale_conv;
 }
 
 // The C locale can be referenced by this statically allocated object.
@@ -60,7 +60,6 @@ const lconv* GetCLocale() {
 }
 
 }  // namespace
-
 
 // The POSIX setlocale is not hermetic, so we must provide our own
 // implementation.
