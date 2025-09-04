@@ -72,7 +72,7 @@ crashpad_static_library("client") {
     sources += [ "crashpad_client_fuchsia.cc" ]
   }
 
-  if (enable_cobalt_hermetic_hacks) {
+  if (current_toolchain == default_toolchain && enable_cobalt_hermetic_hacks) {
     sources += [
       "cobalt/crashpad_client_hermetic_stub.cc",
       "cobalt/simulate_crash_hermetic_stub.h",
@@ -115,6 +115,10 @@ crashpad_static_library("client") {
       deps += [ "//sdk/lib/fdio" ]
     }
   }
+
+  if (is_starboard) {
+    public_deps += [ "//starboard/elf_loader:evergreen_info" ]
+  }
 }
 
 static_library("common") {
@@ -148,7 +152,8 @@ static_library("common") {
     ]
   }
 
-  if (enable_cobalt_hermetic_hacks) {
+  if (defined(cobalt_toolchain) && current_toolchain == cobalt_toolchain &&
+        enable_cobalt_hermetic_hacks) {
     sources += [ "cobalt/crash_report_database_hermetic_stub.cc" ]
   }
 
