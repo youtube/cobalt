@@ -173,10 +173,8 @@ std::optional<std::string> Sanitize(std::optional<std::string> str,
 
 }  // namespace
 
-// Queries system properties and Starboard and populates a
-// UserAgentPlatformInfo object based on those results.  This is de-coupled from
-// CreateUserAgentString() so that the common logic in CreateUserAgentString()
-// can be easily unit tested.
+// Queries system properties and Starboard and populates member variables
+// accordingly.
 void UserAgentPlatformInfo::Initialize() {
   // Below UA info fields can be retrieved directly from platform's native
   // system properties.
@@ -568,4 +566,36 @@ std::string UserAgentPlatformInfo::ToString() const {
   return user_agent;
 }
 
+// static
+UserAgentPlatformInfo CreateEmptyForTesting() {
+  UserAgentPlatformInfo platform_info;
+  platform_info.set_starboard_version("");
+  platform_info.set_os_name_and_version("");
+  platform_info.set_original_design_manufacturer("");
+  platform_info.set_device_type("UNKNOWN");
+  platform_info.set_chipset_model_number("");
+  platform_info.set_model_year("");
+  platform_info.set_firmware_version("");
+  platform_info.set_brand("");
+  platform_info.set_model("");
+  platform_info.set_aux_field("");
+  platform_info.set_javascript_engine_version("");
+  platform_info.set_rasterizer_type("");
+  platform_info.set_evergreen_version("");
+  platform_info.set_evergreen_type("");
+  platform_info.set_evergreen_file_type("");
+  platform_info.set_cobalt_version("");
+  platform_info.set_cobalt_build_version_number("");
+  platform_info.set_build_configuration("");
+  return platform_info;
+}
+
+// static
+UserAgentPlatformInfo
+UserAgentPlatformInfo::CreateWithOSNameAndVersionForTesting() {
+  UserAgentPlatformInfo platform_info =
+      UserAgentPlatformInfo::CreateEmptyPlatformInfo();
+  platform_info.set_os_name_and_version("GLaDOS 3.11");
+  return platform_info;
+}
 }  // namespace cobalt

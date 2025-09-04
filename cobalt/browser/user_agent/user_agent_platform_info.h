@@ -78,6 +78,12 @@ class UserAgentPlatformInfo {
     return build_configuration_;
   }
 
+  static UserAgentPlatformInfo CreateEmptyForTesting();
+  static UserAgentPlatformInfo CreateWithOSNameAndVersionForTesting();
+
+ private:
+  friend class UserAgentStringTest;
+
   // Other: Setters that sanitize the strings where needed.
   //
   void set_starboard_version(const std::string& starboard_version);
@@ -108,7 +114,6 @@ class UserAgentPlatformInfo {
       const std::string& cobalt_build_version_number);
   void set_build_configuration(const std::string& build_configuration);
 
- private:
   std::string starboard_version_;
   std::string os_name_and_version_;
   std::optional<std::string> original_design_manufacturer_;
