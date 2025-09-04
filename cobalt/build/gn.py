@@ -52,6 +52,7 @@ _CHROMIUM_PLATFORMS = [
     'chromium_android-arm',
     'chromium_android-arm64',
     'chromium_android-x86',
+    'chromium_mac-arm64',
 ]
 _COBALT_STARBOARD_PLATFORMS = [
     'evergreen-arm-hardfp-raspi',
@@ -71,6 +72,7 @@ _COBALT_ANDROID_PLATFORMS = [
 _COBALT_TVOS_PLATFORMS = [
     'tvos-arm64',
 ]
+
 
 def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
   """ Write args file, modifying settings for config"""
