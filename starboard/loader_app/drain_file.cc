@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -179,7 +180,7 @@ bool TryDrain(const char* dir, const char* app_key) {
   filename.append(std::to_string(PosixTimeToWindowsTime(CurrentPosixTime()) /
                                  kDrainFileAgeUnitUsec));
 
-  SB_DCHECK(filename.size() <= kSbFileMaxName);
+  SB_DCHECK_LE(filename.size(), kSbFileMaxName);
 
   std::string path(dir);
   path.append(kSbFileSepString);
@@ -187,8 +188,8 @@ bool TryDrain(const char* dir, const char* app_key) {
 
   int file = open(path.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 
-  SB_DCHECK(file >= 0);
-  SB_DCHECK(close(file) == 0);
+  SB_DCHECK_GE(file, 0);
+  SB_DCHECK_EQ(close(file), 0);
 
   SB_LOG(INFO) << "Created drain file at '" << path << "'";
 

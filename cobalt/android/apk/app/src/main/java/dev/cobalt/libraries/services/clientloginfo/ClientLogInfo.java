@@ -18,16 +18,16 @@ public class ClientLogInfo extends CobaltService {
   // The application uses this identifier to open the service.
   protected static final String SERVICE_NAME = "dev.cobalt.coat.clientloginfo";
 
-  private static String clientInfo = "";
-  private final long nativeService;
-  private final ThreadPoolExecutor executor;
+  private static String sClientInfo = "";
+  private final long mNativeService;
+  private final ThreadPoolExecutor mExecutor;
 
   public ClientLogInfo(Context appContext, long nativeService) {
     Log.i(TAG, "Opening ClientLogInfo");
-    this.nativeService = nativeService;
+    this.mNativeService = nativeService;
 
     // Create a ThreadPoolExecutor with a fixed number of threads
-    this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+    this.mExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
   }
 
   @Override
@@ -48,17 +48,17 @@ public class ClientLogInfo extends CobaltService {
     response.invalidState = false;
 
     final String responseString =
-        "displayRefreshRate:" + DisplayUtil.getDefaultDisplayRefreshRate() + ";" + clientInfo;
+        "displayRefreshRate:" + DisplayUtil.getDefaultDisplayRefreshRate() + ";" + sClientInfo;
 
     // synchronize response
     response.data = responseString.getBytes(UTF_8);
 
     // Submit a Runnable task to send async response
-    executor.execute(
+    mExecutor.execute(
       () -> {
         String asynResponseString = "async response: " + responseString;
         Log.i(TAG, "Platform service send async responseString:" + asynResponseString);
-        sendToClient(nativeService, asynResponseString.getBytes(UTF_8));
+        sendToClient(mNativeService, asynResponseString.getBytes(UTF_8));
       }
     );
 
@@ -70,6 +70,6 @@ public class ClientLogInfo extends CobaltService {
   public void close() {}
 
   public static void setClientInfo(String value) {
-    clientInfo = value;
+    sClientInfo = value;
   }
 }

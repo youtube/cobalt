@@ -209,6 +209,16 @@ ssize_t tee(int, int, size_t, unsigned);
 #define off64_t off_t
 #endif
 
+#if defined(STARBOARD)
+#define F_GETLK 5
+#define F_SETLK 6
+#define F_SETLKW 7
+#if defined(_LARGEFILE64_SOURCE)
+#define F_SETLK64 F_SETLK
+#define F_SETLKW64 F_SETLKW,
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif

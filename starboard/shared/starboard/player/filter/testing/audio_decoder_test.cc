@@ -21,13 +21,13 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -67,8 +67,8 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
   auto sample_type = decoded_audios.front()->sample_type();
 
   for (auto decoded_audio : decoded_audios) {
-    SB_DCHECK(decoded_audio->channels() == channels);
-    SB_DCHECK(decoded_audio->sample_type() == sample_type);
+    SB_DCHECK_EQ(decoded_audio->channels(), channels);
+    SB_DCHECK_EQ(decoded_audio->sample_type(), sample_type);
     SB_DCHECK(decoded_audio->storage_type() ==
               kSbMediaAudioFrameStorageTypeInterleaved);
     total_size_in_bytes += decoded_audio->size_in_bytes();
@@ -133,17 +133,17 @@ class AudioDecoderTest
   }
 
   void OnOutput() {
-    ScopedLock scoped_lock(event_queue_mutex_);
+    std::lock_guard lock(event_queue_mutex_);
     event_queue_.push_back(kOutput);
   }
 
   void OnError() {
-    ScopedLock scoped_lock(event_queue_mutex_);
+    std::lock_guard lock(event_queue_mutex_);
     event_queue_.push_back(kError);
   }
 
   void OnConsumed() {
-    ScopedLock scoped_lock(event_queue_mutex_);
+    std::lock_guard lock(event_queue_mutex_);
     event_queue_.push_back(kConsumed);
   }
 
@@ -152,7 +152,7 @@ class AudioDecoderTest
     while (CurrentMonotonicTime() - start < kWaitForNextEventTimeOut) {
       job_queue_.RunUntilIdle();
       {
-        ScopedLock scoped_lock(event_queue_mutex_);
+        std::lock_guard lock(event_queue_mutex_);
         if (!event_queue_.empty()) {
           *event = event_queue_.front();
           event_queue_.pop_front();
@@ -277,8 +277,8 @@ class AudioDecoderTest
   // The start_index will be updated to the new position.
   void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
-    SB_DCHECK(*start_index >= 0);
-    SB_DCHECK(*start_index < dmp_reader_.number_of_audio_buffers());
+    SB_DCHECK_GE(*start_index, 0);
+    SB_DCHECK_LT(*start_index, dmp_reader_.number_of_audio_buffers());
     ASSERT_NO_FATAL_FAILURE(
         WriteSingleInput(static_cast<size_t>(*start_index)));
     SB_DCHECK(last_input_buffer_);
@@ -344,7 +344,7 @@ class AudioDecoderTest
     decoded_audio_sample_rate_ = 0;
     first_output_received_ = false;
     {
-      ScopedLock scoped_lock(event_queue_mutex_);
+      std::lock_guard lock(event_queue_mutex_);
       event_queue_.clear();
     }
   }
@@ -468,7 +468,7 @@ class AudioDecoderTest
     ASSERT_LE(abs(expected_output_frames - GetTotalFrames(decoded_audios_)), 1);
   }
 
-  Mutex event_queue_mutex_;
+  std::mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
 
   // Test parameter for the filename to load with the VideoDmpReader.

@@ -68,16 +68,6 @@ void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
   }
 }
 
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
-bool DirectoryExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
-}
-
 TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
   BasicTest(kSbSystemPathContentDirectory, true, true, __LINE__);
   BasicTest(kSbSystemPathCacheDirectory, true, true, __LINE__);

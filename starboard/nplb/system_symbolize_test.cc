@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

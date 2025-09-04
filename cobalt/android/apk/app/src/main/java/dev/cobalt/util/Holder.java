@@ -18,18 +18,18 @@ import androidx.annotation.Nullable;
 
 /** Holds a mutable reference to an object, or null. */
 public class Holder<T> {
-  private T instance;
+  private T mInstance;
 
   public Holder() {
-    this.instance = null;
+    this.mInstance = null;
   }
 
   public void set(@Nullable T instance) {
-    this.instance = instance;
+    this.mInstance = instance;
   }
 
   @Nullable
   public T get() {
-    return instance;
+    return mInstance;
   }
 }

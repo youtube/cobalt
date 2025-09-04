@@ -9,6 +9,11 @@ services:
       context: cobalt/docker/raspi
     image: "${DOCKER_COMPOSE_IMAGE:-raspi}"
     platform: linux/amd64
+  rdk:
+    build:
+      context: cobalt/docker/rdk
+    image: "${DOCKER_COMPOSE_IMAGE:-rdk}"
+    platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest

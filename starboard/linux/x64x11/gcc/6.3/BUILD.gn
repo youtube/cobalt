@@ -29,10 +29,6 @@ static_library("starboard_platform") {
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  # This is needed at link time, but not directly linked in
-  data_deps =
-      [ "//starboard/linux/x64x11/shared:starboard_egl_wrapped_functions" ]
 }
 
 if (build_with_separate_cobalt_toolchain) {

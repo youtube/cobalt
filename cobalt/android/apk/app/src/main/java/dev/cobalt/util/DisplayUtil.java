@@ -31,8 +31,8 @@ public class DisplayUtil {
 
   private DisplayUtil() {}
 
-  private static Display defaultDisplay;
-  private static DisplayMetrics cachedDisplayMetrics = null;
+  private static Display sDefaultDisplay;
+  private static DisplayMetrics sCachedDisplayMetrics = null;
 
   public static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
 
@@ -46,11 +46,11 @@ public class DisplayUtil {
   @Nullable
   public static Display getDefaultDisplay() {
     synchronized (DisplayUtil.class) {
-      if (defaultDisplay != null && !defaultDisplay.isValid()) {
+      if (sDefaultDisplay != null && !sDefaultDisplay.isValid()) {
         return null;
       }
 
-      return defaultDisplay;
+      return sDefaultDisplay;
     }
   }
 
@@ -67,8 +67,8 @@ public class DisplayUtil {
   public static void cacheDefaultDisplay(Context context) {
     Display display = getDisplayFromContext(context);
     synchronized (DisplayUtil.class) {
-      defaultDisplay = display;
-      cachedDisplayMetrics = ((Activity) context).getResources().getDisplayMetrics();
+      sDefaultDisplay = display;
+      sCachedDisplayMetrics = ((Activity) context).getResources().getDisplayMetrics();
     }
   }
 
@@ -147,10 +147,10 @@ public class DisplayUtil {
   }
 
   private static DisplayMetrics getDisplayMetrics() {
-    return cachedDisplayMetrics;
+    return sCachedDisplayMetrics;
   }
 
-  private static DisplayListener displayerListener =
+  private static DisplayListener sDisplayerListener =
       new DisplayListener() {
         @Override
         public void onDisplayAdded(int displayId) {
@@ -168,16 +168,16 @@ public class DisplayUtil {
         }
       };
 
-  private static boolean displayerListenerAdded = false;
+  private static boolean sDisplayerListenerAdded = false;
 
   public static void addDisplayListener(Context context) {
-    if (displayerListenerAdded) {
+    if (sDisplayerListenerAdded) {
       return;
     }
 
     DisplayManager displayManager = context.getSystemService(DisplayManager.class);
-    displayManager.registerDisplayListener(displayerListener, null);
-    displayerListenerAdded = true;
+    displayManager.registerDisplayListener(sDisplayerListener, null);
+    sDisplayerListenerAdded = true;
 
     // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
     // Display created.
