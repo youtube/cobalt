@@ -73,6 +73,9 @@ _COBALT_TVOS_PLATFORMS = [
     'tvos-arm64-simulator',
 ]
 
+_COBALT_TVOS_PLATFORMS = [
+    'tvos-arm64',
+]
 
 def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
   """ Write args file, modifying settings for config"""
