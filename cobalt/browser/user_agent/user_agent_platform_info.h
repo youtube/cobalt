@@ -29,6 +29,8 @@ class UserAgentPlatformInfo {
   UserAgentPlatformInfo();
   ~UserAgentPlatformInfo() = default;
 
+  void Initialize();
+
   std::string ToString() const;
 
   const std::string& starboard_version() const { return starboard_version_; }
