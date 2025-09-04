@@ -60,7 +60,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
     "//ui/android:ui_java",
-    "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
 
@@ -148,7 +147,6 @@ android_library("cobalt_apk_java") {
   deps = [
     ":cobalt_main_java",
     "//base:base_java",
-    "//ui/android:ui_no_recycler_view_java",
   ]
 
   sources = [
