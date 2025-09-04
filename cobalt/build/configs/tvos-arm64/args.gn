@@ -1,0 +1,3 @@
+import("//cobalt/build/configs/common.gn")
+
+use_system_xcode = true
