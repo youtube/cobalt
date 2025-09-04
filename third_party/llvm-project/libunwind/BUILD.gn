@@ -46,8 +46,6 @@ if (is_apple) {
 config("common_unwind_dependents_config") {
   include_dirs = [ "include" ]
   defines = [
-    # Ensure that __external_threading is used for threading support.
-    "_LIBCPP_HAS_THREAD_API_EXTERNAL",
     "LLVM_PATH=" +
         rebase_path("//third_party/llvm-project/llvm/", root_build_dir),
   ]

@@ -110,8 +110,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerErrorFunc player_error_func,
                            SbPlayer player,
                            void* context)
-    : thread_(0),
-      audio_codec_(audio_codec),
+    : audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),
       update_media_info_cb_(update_media_info_cb),
@@ -194,7 +193,11 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("player_worker");
+#else
   pthread_setname_np(pthread_self(), "player_worker");
+#endif
   SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param);

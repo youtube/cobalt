@@ -183,7 +183,11 @@ class AbstractTestThread {
 
  private:
   static void* ThreadEntryPoint(void* ptr) {
+#if defined(__APPLE__)
+    pthread_setname_np("AbstractTestThread");
+#else
     pthread_setname_np(pthread_self(), "AbstractTestThread");
+#endif
     AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
     this_ptr->Run();
     return NULL;
