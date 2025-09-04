@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -181,13 +182,13 @@ int MimeType::GetParamCount() const {
 }
 
 MimeType::ParamType MimeType::GetParamType(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   return params_[index].type;
 }
 
 const std::string& MimeType::GetParamName(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   return params_[index].name;
 }
@@ -202,7 +203,7 @@ int MimeType::GetParamIndexByName(const char* name) const {
 }
 
 int MimeType::GetParamIntValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeInteger) {
     return params_[index].int_value;
@@ -211,7 +212,7 @@ int MimeType::GetParamIntValue(int index) const {
 }
 
 float MimeType::GetParamFloatValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeInteger) {
     return params_[index].int_value;
@@ -223,13 +224,13 @@ float MimeType::GetParamFloatValue(int index) const {
 }
 
 const std::string& MimeType::GetParamStringValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   return params_[index].string_value;
 }
 
 bool MimeType::GetParamBoolValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeBoolean) {
     return params_[index].bool_value;
@@ -344,52 +345,50 @@ bool MimeType::ValidateBoolParameter(const char* name) const {
   return type == kParamTypeBoolean;
 }
 
-std::string MimeType::ToString() const {
-  if (!is_valid()) {
-    return "{ InvalidMimeType }; ";
+std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
+  if (!mime_type.is_valid()) {
+    return os << "{ InvalidMimeType }; ";
   }
-  std::stringstream ss;
-  ss << "{ type: " << type();
-  ss << ", subtype: " << subtype();
-  ss << ", codecs: ";
-  if (codecs_.empty()) {
-    ss << "null";
+  os << "{ type: " << mime_type.type();
+  os << ", subtype: " << mime_type.subtype();
+  os << ", codecs: ";
+  if (mime_type.codecs_.empty()) {
+    os << "null";
   } else {
-    ss << codecs_[0];
-    for (size_t i = 1; i < codecs_.size(); i++) {
-      ss << "|" << codecs_[i];
+    const char* sep = "";
+    for (const auto& codec : mime_type.codecs_) {
+      os << sep << codec;
+      sep = "|";
     }
   }
-  ss << ", params: ";
-  if (params_.empty()) {
-    ss << "null";
+  os << ", params: ";
+  if (mime_type.params_.empty()) {
+    os << "null";
   } else {
-    ss << "{ ";
-    for (size_t i = 0; i < params_.size(); i++) {
-      const Param& param = params_[i];
-      if (i != 0) {
-        ss << ",";
-      }
-      ss << param.name << "=";
+    os << "{ ";
+    const char* sep = "";
+    for (const auto& param : mime_type.params_) {
+      os << sep << param.name << "=";
+      sep = ",";
       switch (param.type) {
-        case kParamTypeInteger:
-          ss << "(int)" << param.int_value;
+        case MimeType::kParamTypeInteger:
+          os << "(int)" << param.int_value;
           break;
-        case kParamTypeFloat:
-          ss << "(float)" << param.float_value;
+        case MimeType::kParamTypeFloat:
+          os << "(float)" << param.float_value;
           break;
-        case kParamTypeString:
-          ss << "(string)" << param.string_value;
+        case MimeType::kParamTypeString:
+          os << "(string)" << param.string_value;
           break;
-        case kParamTypeBoolean:
-          ss << "(bool)" << (param.bool_value ? "true" : "false");
+        case MimeType::kParamTypeBoolean:
+          os << "(bool)" << (param.bool_value ? "true" : "false");
           break;
       }
     }
-    ss << " }";
+    os << " }";
   }
-  ss << " }";
-  return ss.str();
+  os << " }";
+  return os;
 }
 
 }  // namespace starboard::shared::starboard::media

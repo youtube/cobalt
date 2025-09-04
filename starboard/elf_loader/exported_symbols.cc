@@ -55,6 +55,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
@@ -232,13 +233,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(epoll_create);
   REGISTER_SYMBOL(epoll_create1);
   REGISTER_SYMBOL(epoll_ctl);
   REGISTER_SYMBOL(epoll_wait);
-  REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
@@ -247,6 +248,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
+  REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
@@ -270,6 +272,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rand);
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
@@ -306,7 +309,9 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
 
   REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
+  REGISTER_WRAPPER(chmod);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
   REGISTER_WRAPPER(clock_nanosleep);
@@ -317,6 +322,9 @@ ExportedSymbols::ExportedSymbols() {
     REGISTER_SYMBOL(__errno_location);
   }
   REGISTER_WRAPPER(eventfd);
+  REGISTER_WRAPPER(fchmod);
+  REGISTER_WRAPPER(fchown);
+  REGISTER_WRAPPER(fcntl);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
@@ -326,7 +334,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
-  REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
 
   // TODO: Cobalt - b/424001809.
@@ -406,6 +413,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_post);
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
+  REGISTER_WRAPPER(sendmsg);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
@@ -413,6 +421,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(statvfs);
   REGISTER_WRAPPER(sysconf);
   REGISTER_WRAPPER(uname);
+  REGISTER_WRAPPER(utimensat);
   REGISTER_WRAPPER(writev);
 
 }  // NOLINT

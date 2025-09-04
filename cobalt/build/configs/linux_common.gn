@@ -111,3 +111,6 @@ enable_ppapi = false
 
 # Disable D-Bus
 use_dbus = false
+
+# Embed ICU data in the cobalt binary
+icu_use_data_file = false

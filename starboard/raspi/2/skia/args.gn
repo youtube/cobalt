@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_platform = "raspi-2-skia"
+starboard_target_platform = "raspi-2-skia"
 target_os = "linux"
 target_cpu = "arm"
 is_clang = false

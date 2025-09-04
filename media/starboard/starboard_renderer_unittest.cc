@@ -124,7 +124,12 @@ class StarboardRendererTest : public testing::Test {
     renderer_->SetSbPlayerInterfaceForTesting(&mock_sbplayer_interface_);
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
-        /*update_starboard_rendering_mode_cb=*/base::DoNothing());
+        /*update_starboard_rendering_mode_cb=*/base::DoNothing()
+#if BUILDFLAG(IS_ANDROID)
+            ,
+        /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+    );
 
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
@@ -176,7 +181,13 @@ class StarboardRendererTest : public testing::Test {
           /*overlay_plane_id=*/base::UnguessableToken::Create(),
           /*audio_write_duration_local=*/base::Seconds(1),
           /*audio_write_duration_remote=*/base::Seconds(1),
-          /*max_video_capabilities=*/"");
+          /*max_video_capabilities=*/"",
+          /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+              ,
+          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+      );
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;

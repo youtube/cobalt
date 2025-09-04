@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/mutex.h"
+#include "build/build_config.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
@@ -192,10 +192,10 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::mutex unblock_key_retry_mutex_;
   std::optional<int64_t> unblock_key_retry_start_time_;
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   int number_of_session_updates_sent_ = 0;
   int maximum_number_of_session_updates_ = std::numeric_limits<int>::max();
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   std::atomic_bool first_update_session_received_{false};
 };

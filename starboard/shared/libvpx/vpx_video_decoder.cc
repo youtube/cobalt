@@ -14,6 +14,7 @@
 
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
@@ -26,15 +27,13 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
-    : current_frame_width_(0),
-      current_frame_height_(0),
-      stream_ended_(false),
+    : stream_ended_(false),
       error_occurred_(false),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecVp9);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecVp9);
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -56,7 +55,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
 
@@ -139,8 +138,8 @@ void VideoDecoder::InitializeCodec() {
 
   context_.reset(new vpx_codec_ctx);
   vpx_codec_dec_cfg_t vpx_config = {0};
-  vpx_config.w = current_frame_width_;
-  vpx_config.h = current_frame_height_;
+  vpx_config.w = current_frame_size_.width;
+  vpx_config.h = current_frame_size_.height;
   vpx_config.threads = 8;
 
   vpx_codec_err_t status =
@@ -182,10 +181,8 @@ void VideoDecoder::DecodeOneBuffer(
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
-  if (!context_ || stream_info.frame_width != current_frame_width_ ||
-      stream_info.frame_height != current_frame_height_) {
-    current_frame_width_ = stream_info.frame_width;
-    current_frame_height_ = stream_info.frame_height;
+  if (!context_ || stream_info.frame_size != current_frame_size_) {
+    current_frame_size_ = stream_info.frame_size;
     TeardownCodec();
     InitializeCodec();
   }
@@ -236,9 +233,9 @@ void VideoDecoder::DecodeOneBuffer(
     return;
   }
 
-  SB_DCHECK(vpx_image->stride[VPX_PLANE_U] == vpx_image->stride[VPX_PLANE_V]);
-  SB_DCHECK(vpx_image->planes[VPX_PLANE_Y] < vpx_image->planes[VPX_PLANE_U]);
-  SB_DCHECK(vpx_image->planes[VPX_PLANE_U] < vpx_image->planes[VPX_PLANE_V]);
+  SB_DCHECK_EQ(vpx_image->stride[VPX_PLANE_U], vpx_image->stride[VPX_PLANE_V]);
+  SB_DCHECK_LT(vpx_image->planes[VPX_PLANE_Y], vpx_image->planes[VPX_PLANE_U]);
+  SB_DCHECK_LT(vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
 
   if (vpx_image->stride[VPX_PLANE_U] != vpx_image->stride[VPX_PLANE_V] ||
       vpx_image->planes[VPX_PLANE_Y] >= vpx_image->planes[VPX_PLANE_U] ||
@@ -251,10 +248,10 @@ void VideoDecoder::DecodeOneBuffer(
   // Each component of a pixel takes one byte and they are in their own planes.
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      vpx_image->bit_depth, current_frame_width_, current_frame_height_,
-      vpx_image->stride[VPX_PLANE_Y], vpx_image->stride[VPX_PLANE_U], timestamp,
-      vpx_image->planes[VPX_PLANE_Y], vpx_image->planes[VPX_PLANE_U],
-      vpx_image->planes[VPX_PLANE_V]);
+      vpx_image->bit_depth, current_frame_size_.width,
+      current_frame_size_.height, vpx_image->stride[VPX_PLANE_Y],
+      vpx_image->stride[VPX_PLANE_U], timestamp, vpx_image->planes[VPX_PLANE_Y],
+      vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     std::lock_guard lock(decode_target_mutex_);
     frames_.push(frame);
@@ -274,7 +271,7 @@ void VideoDecoder::DecodeEndOfStream() {
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.

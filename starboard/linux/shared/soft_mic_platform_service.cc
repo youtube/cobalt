@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -99,7 +100,7 @@ void* Send(PlatformServiceImpl* service,
     auto mic_gesture_hold = false;
     auto mic_gesture_tap = false;
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     using shared::starboard::Application;
 
     // Check for explicit true or false switch value for kHasHardMicSupport,
@@ -126,7 +127,7 @@ void* Send(PlatformServiceImpl* service,
     auto mic_gesture_switch_value = command_line->GetSwitchValue(kMicGesture);
     mic_gesture_hold = mic_gesture_switch_value == "hold";
     mic_gesture_tap = mic_gesture_switch_value == "tap";
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     auto mic_gesture = "null";
     if (mic_gesture_hold) {

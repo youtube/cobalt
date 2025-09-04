@@ -11,8 +11,6 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("BUILD.generated.gni")
 import("BUILD.generated_tests.gni")
 
-import("//cobalt/build/configs/hacks.gni")
-
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen.gni")
@@ -20,14 +18,7 @@ if (enable_rust) {
 
 # Config for us and everybody else depending on BoringSSL.
 config("external_config") {
-  if (is_cobalt_hermetic_build) {
-    include_dirs = [
-      "//cobalt/third_party/boringssl/src/include",
-      "src/include",
-    ]
-  } else {
-    include_dirs = [ "src/include" ]
-  }
+  include_dirs = [ "src/include" ]
   if (is_component_build) {
     defines = [ "BORINGSSL_SHARED_LIBRARY" ]
   }
@@ -119,14 +110,7 @@ if (is_win && !is_msan && current_cpu != "arm64") {
 
     sources = []
     asmflags = []
-    if (is_cobalt_hermetic_build) {
-      include_dirs = [
-        "//cobalt/third_party/boringssl/src/include",
-        "src/include",
-      ]
-    } else {
-      include_dirs = [ "src/include" ]
-    }
+    include_dirs = [ "src/include" ]
 
     if (is_msan) {
       public_configs = [ ":no_asm_config" ]
@@ -208,9 +192,6 @@ component("boringssl") {
       "//starboard:starboard_headers_only",
       "//starboard/common",
     ]
-  }
-  if (enable_cobalt_hermetic_hacks) {
-    sources += [ "src/crypto/thread_starboard.c" ]
   }
 }
 

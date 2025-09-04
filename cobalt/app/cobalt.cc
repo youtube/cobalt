@@ -147,24 +147,25 @@ void SbEventHandle(const SbEvent* event) {
     }
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleFocusEvent(event);
+      break;
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
       break;
     case kSbEventTypeInput:
-      if (g_platform_event_source) {
-        g_platform_event_source->HandleEvent(event);
-      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleEvent(event);
       break;
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
-      if (g_platform_event_source) {
-        g_platform_event_source->HandleWindowSizeChangedEvent(event);
-      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleWindowSizeChangedEvent(event);
       break;
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
@@ -173,6 +174,8 @@ void SbEventHandle(const SbEvent* event) {
   }
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
+#endif

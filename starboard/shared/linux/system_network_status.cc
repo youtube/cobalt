@@ -23,12 +23,13 @@
 #include <cstring>
 
 #include "build/build_config.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/linux/system_network_status.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
+#include "starboard/thread.h"
 
 namespace {
 
@@ -36,7 +37,7 @@ namespace {
 // Cobalt application is kill. This function checks kernel message for IP
 // address changes.
 bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
-  SB_DCHECK(is_online_ptr != NULL);
+  SB_DCHECK(is_online_ptr);
 
   struct sockaddr_nl sa;
   memset(&sa, 0, sizeof(sa));
@@ -44,7 +45,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
   sa.nl_groups = RTMGRP_IPV4_IFADDR;
   sa.nl_pid = getpid();
   int bind_result = bind(netlink_fd, (struct sockaddr*)&sa, sizeof(sa));
-  SB_DCHECK(bind_result == 0);
+  SB_DCHECK_EQ(bind_result, 0);
 
   char buf[8192];
   struct iovec iov;
@@ -63,7 +64,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
   status = recvmsg(netlink_fd, &msg, MSG_DONTWAIT);
   bool has_message = false;
   while (status >= 0) {
-    SB_DCHECK(msg.msg_namelen == sizeof(sa));
+    SB_DCHECK_EQ(msg.msg_namelen, sizeof(sa));
 
     struct nlmsghdr* header;
 
@@ -71,8 +72,8 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
       int len = header->nlmsg_len;
       int l = len - sizeof(*header);
 
-      SB_DCHECK(l >= 0);
-      SB_DCHECK(len <= status);
+      SB_DCHECK_GE(l, 0);
+      SB_DCHECK_LE(len, status);
 
       switch (header->nlmsg_type) {
         case RTM_DELADDR:
@@ -98,7 +99,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 }  // namespace
 
 bool NetworkNotifier::Initialize() {
-  SB_DCHECK(notifier_thread_ == 0);
+  SB_DCHECK(!notifier_thread_);
 
   pthread_attr_t attributes;
   int result = pthread_attr_init(&attributes);
@@ -107,17 +108,19 @@ bool NetworkNotifier::Initialize() {
   }
 
   pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-  pthread_create(&notifier_thread_, &attributes,
-                 &NetworkNotifier::NotifierThreadEntry, this);
+  pthread_t thread;
+  const int create_result = pthread_create(
+      &thread, &attributes, &NetworkNotifier::NotifierThreadEntry, this);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK(notifier_thread_ != 0);
+  SB_CHECK_EQ(create_result, 0);
+  notifier_thread_ = thread;
   return true;
 }
 
 void* NetworkNotifier::NotifierThreadEntry(void* context) {
   pthread_setname_np(pthread_self(), "NetworkNotifier");
-  starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLow);
+  SbThreadSetPriority(kSbThreadPriorityLow);
   auto* notifier = static_cast<NetworkNotifier*>(context);
   int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   bool is_online;
