@@ -25,12 +25,15 @@
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "cobalt/browser/user_agent/sys_info_starboard.h"
-#include "build/build_config.h"
 #include "starboard/extension/platform_info.h"
 
 #include "cobalt/cobalt_build_id.h"  // Generated
 #include "cobalt/version.h"
 #include "v8/include/v8-version-string.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include <sys/system_properties.h>
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace cobalt {
 
@@ -166,36 +169,97 @@ std::optional<std::string> Sanitize(std::optional<std::string> str,
   }
   return std::optional<std::string>(clean);
 }
-} // namespace
+#if BUILDFLAG(IS_ANDROID)
+std::string OriginalDesignManufacturer() {
+  char original_design_manufacturer_str[PROP_VALUE_MAX];
+  __system_property_get("ro.product.manufacturer",
+                        original_design_manufacturer_str);
+  return std::string(original_design_manufacturer_str);
+}
 
-void UserAgentPlatformInfo::InitializePlatformDependentFields() {
+std::string ChipsetModelNumber() {
+  char chipset_model_number_str[PROP_VALUE_MAX];
+  __system_property_get("ro.board.platform", chipset_model_number_str);
+  return std::string(chipset_model_number_str);
+}
+
+std::string ModelYear() {
+  const std::string kUnknownValue = "unknown";
+
+  char model_year_cstr[PROP_VALUE_MAX];
+  __system_property_get("ro.oem.key1", model_year_cstr);
+  std::string model_year_str(model_year_cstr);
+
+  if (model_year_str == kUnknownValue || model_year_str.length() < 10) {
+    return model_year_str;
+  }
+
+  // See
+  // https://support.google.com/androidpartners_androidtv/answer/9351639?hl=en
+  // for the format of |model_year_str|.
+  std::string year_str = "20";
+  year_str += model_year_cstr[9];
+  year_str += model_year_cstr[10];
+  return year_str;
+}
+
+std::string Brand() {
+  char brand_str[PROP_VALUE_MAX];
+  __system_property_get("ro.product.brand", brand_str);
+  return std::string(brand_str);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+}  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
   std::string os_name = base::SysInfo::OperatingSystemName();
   std::string os_version = base::SysInfo::OperatingSystemVersion();
 
-#if BUILDFLAG(IS_ANDROID)
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
   set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
 
-  set_device_type("ATV");
   set_firmware_version(base::SysInfo::GetAndroidBuildID());
-  set_original_design_manufacturer(SbSysInfo::OriginalDesignManufacturer());
-  set_chipset_model_number(SbSysInfo::ChipsetModelNumber());
-  set_model_year(SbSysInfo::ModelYear());
-  set_brand(SbSysInfo::Brand());
-#else
-  set_os_name_and_version(
-      base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
-  set_device_type("TV");
-  // TODO(cobalt, b/374213479): figure out firmware version for other platforms.
-#endif
+  set_original_design_manufacturer(OriginalDesignManufacturer());
+  set_chipset_model_number(ChipsetModelNumber());
+  set_model_year(ModelYear());
+  set_brand(Brand());
+  auto platform_info_extension =
+      static_cast<const CobaltExtensionPlatformInfoApi*>(
+          SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
+  if (platform_info_extension) {
+    if (platform_info_extension->version >= 1) {
+      char build_fingerprint[1024];
+      if (platform_info_extension->GetFirmwareVersionDetails(build_fingerprint,
+                                                             1024)) {
+        set_android_build_fingerprint(build_fingerprint);
+      }
+      set_android_os_experience(platform_info_extension->GetOsExperience());
+    }
+    if (platform_info_extension->version >= 2) {
+      int64_t ver = platform_info_extension->GetCoreServicesVersion();
+      if (ver != 0) {
+        std::string sver = std::to_string(ver);
+        set_android_play_services_version(sver);
+      }
+    }
+  }
 }
+#else
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsEvergreen() {
+  set_os_name_and_version(base::SysInfo::OperatingSystemName() + " " +
+                          base::SysInfo::OperatingSystemVersion());
+  // TODO(cobalt, b/374213479): figure out firmware version for other platforms.
+}
+#endif
 
 void UserAgentPlatformInfo::Initialize() {
-  // Below UA info fields can be retrieved directly from platform's native
-  // system properties.
-
-  InitializePlatformDependentFields();
+#if BUILDFLAG(IS_ANDROID)
+  InitializePlatformDependentFieldsAndroid();
+#else
+  InitializePlatformDependentFieldsEvergreen();
+#endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   // Because we add Cobalt's user agent string to Crashpad before we actually
@@ -212,6 +276,7 @@ void UserAgentPlatformInfo::Initialize() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   set_model(base::SysInfo::HardwareModelName());
+  set_device_type("TV");
 
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
@@ -239,31 +304,7 @@ void UserAgentPlatformInfo::Initialize() {
   //   set_evergreen_type("Lite");
   // #endif
 
-  // Retrieve additional platform info.
-  auto platform_info_extension =
-      static_cast<const CobaltExtensionPlatformInfoApi*>(
-          SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
-  if (platform_info_extension) {
-    if (platform_info_extension->version >= 1) {
-      char build_fingerprint[1024];
-      if (platform_info_extension->GetFirmwareVersionDetails(build_fingerprint,
-                                                             1024)) {
-        set_android_build_fingerprint(build_fingerprint);
-      }
-      set_android_os_experience(
-          platform_info_extension->GetOsExperience());
-    }
-    if (platform_info_extension->version >= 2) {
-      int64_t ver = platform_info_extension->GetCoreServicesVersion();
-      if (ver != 0) {
-        std::string sver = std::to_string(ver);
-        set_android_play_services_version(sver);
-      }
-    }
-  }
-
-  set_starboard_version(
-      base::StringPrintf("Starboard/%d", SB_API_VERSION));
+  set_starboard_version(base::StringPrintf("Starboard/%d", SB_API_VERSION));
   set_cobalt_version(COBALT_VERSION);
   set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
 
@@ -490,7 +531,7 @@ void UserAgentPlatformInfo::set_build_configuration(
 }
 
 // Official Youtube certification on user agent:
-// https://developers.google.com/youtube/devices/living-room/2025/software-certification-2025#device-id-certification
+// https://developers.google.com/youtube/devices/living-room/2025/software-certification-2025#device_id-user-agent-characterization
 std::string UserAgentPlatformInfo::ToString() const {
   // Cobalt's user agent contains the following sections:
   //   Mozilla/5.0 (ChromiumStylePlatform)

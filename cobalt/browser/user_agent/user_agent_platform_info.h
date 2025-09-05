@@ -18,6 +18,8 @@
 #include <map>
 #include <string>
 
+#include "build/build_config.h"
+
 namespace cobalt {
 
 void GetUserAgentInputMap(
@@ -108,7 +110,11 @@ class UserAgentPlatformInfo {
 
  private:
   void Initialize();
-  void InitializePlatformDependentFields();
+#if BUILDFLAG(IS_ANDROID)
+  void InitializePlatformDependentFieldsAndroid();
+#else
+  void InitializePlatformDependentFieldsEvergreen();
+#endif
 
   std::string starboard_version_;
   std::string os_name_and_version_;

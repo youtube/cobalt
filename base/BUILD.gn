@@ -40,9 +40,9 @@ import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//build/timestamp.gni")
 import("//build_overrides/build.gni")
+import("//cobalt/build/configs/hacks.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
-import("//cobalt/build/configs/hacks.gni")
 
 if (is_mac) {
   # Used to generate fuzzer corpus :base_mach_port_rendezvous_convert_corpus.
@@ -934,7 +934,6 @@ component("base") {
     "vlog.h",
   ]
 
-
   if (is_cobalt_hermetic_build) {
     sources += [
       "base_paths_starboard.cc",
@@ -1009,9 +1008,7 @@ component("base") {
       "files/file_path_watcher_inotify.h",
     ]
   } else if (is_starboard) {
-    sources += [
-      "files/file_path_watcher_stub.cc",
-    ]
+    sources += [ "files/file_path_watcher_stub.cc" ]
   }
 
   all_dependent_configs = []
@@ -1093,7 +1090,8 @@ component("base") {
   # Needed for <atomic> if using newer C++ library than sysroot, except if
   # building inside the cros_sdk environment - use host_toolchain as a
   # more robust check for this.
-  if (!use_sysroot && (is_android || is_chromeos || (is_linux && !is_cobalt_hermetic_build && !is_castos)) &&
+  if (!use_sysroot && (is_android || is_chromeos ||
+                       (is_linux && !is_cobalt_hermetic_build && !is_castos)) &&
       host_toolchain != "//build/toolchain/cros:host") {
     libs += [ "atomic" ]
   }
@@ -1668,8 +1666,8 @@ component("base") {
       ]
 
       if (is_starboard) {
-        sources -= ["native_library_posix.cc"]
-        sources += ["native_library_starboard.cc"]
+        sources -= [ "native_library_posix.cc" ]
+        sources += [ "native_library_starboard.cc" ]
       }
     }
 
@@ -3520,12 +3518,12 @@ test("base_unittests") {
       "//starboard/common",
     ]
   } else {
-  data_deps = [
-    "//base/test:immediate_crash_test_helper",
-    "//base/test:test_child_process",
-    "//base/test:test_shared_library",
-    "//testing/buildbot/filters:base_unittests_filters",
-  ]
+    data_deps = [
+      "//base/test:immediate_crash_test_helper",
+      "//base/test:test_child_process",
+      "//base/test:test_shared_library",
+      "//testing/buildbot/filters:base_unittests_filters",
+    ]
   }
 
   if (is_android && enable_chrome_android_internal) {
@@ -3706,9 +3704,7 @@ test("base_unittests") {
       "posix/unix_domain_socket_unittest.cc",
     ]
     if (is_starboard) {
-      sources -= [
-        "posix/unix_domain_socket_unittest.cc",
-      ]
+      sources -= [ "posix/unix_domain_socket_unittest.cc" ]
     }
     if (!is_nacl && !is_apple && !is_starboard) {
       sources += [
@@ -3888,7 +3884,6 @@ test("base_unittests") {
       "allocator/partition_allocator/thread_cache_unittest.cc",
     ]
 
-
     # TODO: b/402471389 Cobalt: - try to enable these tests.
     if (enable_cobalt_hermetic_hacks) {
       sources -= [
@@ -3907,6 +3902,7 @@ test("base_unittests") {
       if (is_starboard) {
         sources -= [
           "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+
           # TODO: b/402471389 Cobalt: - try to enable these tests.
           "allocator/partition_allocator/thread_cache_unittest.cc",
         ]
@@ -5043,9 +5039,9 @@ source_set("partition_alloc_test_support") {
 }
 
 if (enable_cobalt_hermetic_hacks) {
-  # TODO: b/413130400 - Cobalt: Remove this config 
+  # TODO: b/413130400 - Cobalt: Remove this config
   # after removing base/starboard/linker_stub.h
   config("base_starboard_linker_stub") {
-    cflags = ["-Wno-unreachable-code-break"]
+    cflags = [ "-Wno-unreachable-code-break" ]
   }
 }
