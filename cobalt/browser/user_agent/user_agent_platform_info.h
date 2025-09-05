@@ -107,6 +107,9 @@ class UserAgentPlatformInfo {
   void set_build_configuration(const std::string& build_configuration);
 
  private:
+  void Initialize();
+  void InitializePlatformDependentFields();
+
   std::string starboard_version_;
   std::string os_name_and_version_;
   std::optional<std::string> original_design_manufacturer_;
