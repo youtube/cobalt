@@ -997,8 +997,7 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   // Check that the passed overlay and overlay_ point to the same object.
   DCHECK_EQ(overlay, overlay_.get());
 
-  // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
-
+  surface_view_ = overlay_->GetJavaSurface().obj();
   CreatePlayerBridge();
 }
 
