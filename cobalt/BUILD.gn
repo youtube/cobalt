@@ -92,6 +92,7 @@ if (!is_android) {
       "//components/crash/core/app:chrome_crashpad_handler",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
+    data_deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
 
   if (!is_cobalt_hermetic_build) {
