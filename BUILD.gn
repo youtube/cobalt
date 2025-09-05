@@ -408,7 +408,9 @@ group("gn_all") {
           "//chrome/browser/android/examples/partner_browser_customizations_provider:partner_browser_customizations_example_apk",
           "//content/shell/android:content_shell_test_apk",
         ]
-
+        if (is_cobalt) {
+          deps -= [ "//chrome/android:chrome_junit_tests" ]
+        }
         if (android_sdk_release == "tprivacysandbox") {
           deps += [ "//android_webview/tools/sdk_sandbox" ]
         }
