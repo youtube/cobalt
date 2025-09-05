@@ -36,6 +36,7 @@
 //                  release is cut.
 //.
 
+#define COBALT_MAJOR_VERSION "26"
 #define COBALT_VERSION "26.master.0"
 
 #endif  // COBALT_VERSION_H_
