@@ -28,7 +28,6 @@
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/browser/shell_download_manager_delegate.h"
-#include "cobalt/shell/browser/shell_federated_permission_context.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_permission_manager.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -213,33 +212,6 @@ ContentIndexProvider* ShellBrowserContext::GetContentIndexProvider() {
     content_index_provider_ = std::make_unique<ShellContentIndexProvider>();
   }
   return content_index_provider_.get();
-}
-
-FederatedIdentityApiPermissionContextDelegate*
-ShellBrowserContext::GetFederatedIdentityApiPermissionContext() {
-  if (!federated_permission_context_) {
-    federated_permission_context_ =
-        std::make_unique<ShellFederatedPermissionContext>();
-  }
-  return federated_permission_context_.get();
-}
-
-FederatedIdentityAutoReauthnPermissionContextDelegate*
-ShellBrowserContext::GetFederatedIdentityAutoReauthnPermissionContext() {
-  if (!federated_permission_context_) {
-    federated_permission_context_ =
-        std::make_unique<ShellFederatedPermissionContext>();
-  }
-  return federated_permission_context_.get();
-}
-
-FederatedIdentityPermissionContextDelegate*
-ShellBrowserContext::GetFederatedIdentityPermissionContext() {
-  if (!federated_permission_context_) {
-    federated_permission_context_ =
-        std::make_unique<ShellFederatedPermissionContext>();
-  }
-  return federated_permission_context_.get();
 }
 
 ReduceAcceptLanguageControllerDelegate*

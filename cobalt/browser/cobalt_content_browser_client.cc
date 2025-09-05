@@ -168,16 +168,6 @@ std::string CobaltContentBrowserClient::GetUserAgent() {
   return GetCobaltUserAgent();
 }
 
-std::string CobaltContentBrowserClient::GetFullUserAgent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return GetCobaltUserAgent();
-}
-
-std::string CobaltContentBrowserClient::GetReducedUserAgent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return GetCobaltUserAgent();
-}
-
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgentMetadata();
@@ -218,7 +208,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
-  network_context_params->quic_user_agent_id = "";
   network_context_params->accept_language = GetApplicationLocale();
 
   // Always enable the HTTP cache.
@@ -232,11 +221,11 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // Configure on-disk storage for non-off-the-record profiles. Off-the-record
   // profiles just use default behavior (in memory storage, default sizes).
   if (!in_memory) {
-    network_context_params->http_cache_directory =
-        base_cache_path.Append(kCacheDirname);
-
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
+
+    network_context_params->file_paths->http_cache_directory =
+        base_cache_path.Append(kCacheDirname);
 
     network_context_params->file_paths->data_directory =
         path.Append(kNetworkDataDirname);
@@ -265,9 +254,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
-  // All consumers of the main NetworkContext must provide NetworkIsolationKeys
-  // / IsolationInfos, so storage can be isolated on a per-site basis.
-  network_context_params->require_network_isolation_key = true;
+  // All consumers of the main NetworkContext must provide
+  // NetworkAnonymizationKeys / IsolationInfos, so storage can be isolated on a
+  // per-site basis.
+  network_context_params->require_network_anonymization_key = true;
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
@@ -338,7 +328,8 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
         header_client,
     bool* bypass_redirect_checks,
     bool* disable_secure_dns,
-    network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
+    network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+    scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
   if (header_client) {
     auto receiver = header_client->InitWithNewPipeAndPassReceiver();
     auto cobalt_header_client =

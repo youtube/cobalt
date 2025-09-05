@@ -91,7 +91,7 @@ CSPCheckResult CSPSourceListAllows(
   if (source_list.cobalt_insecure_local_network) {
     // Allow websocket connection to host ip within the local network.
     if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
-      return IsIPInLocalNetwork(url.Host().Utf8());
+      return CSPCheckResult(IsIPInLocalNetwork(url.Host().Utf8()));
     }
   }
 #endif
