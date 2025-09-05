@@ -374,7 +374,6 @@ TEST_F(UserAgentStringTest, AndroidSpecificFieldsCannotBeEmpty) {
 }
 #endif
 
-
 class GetUserAgentInputMapTest : public testing::Test {
  public:
   void SetUp() override {
