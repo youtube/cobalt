@@ -1,0 +1,18 @@
+import("//cobalt/build/configs/common.gn")
+
+# Required tvOS arguments.
+target_os = "ios"
+target_platform = "tvos"
+use_blink = true
+
+# This flag comes from ios/features.gni
+# This override can be removed once https://crrev.com/c/6700528 lands in the
+# tree.
+ios_build_chrome = false
+
+# Disable Chrome Remote Desktop
+enable_remoting = false
+
+# This flag comes from build/config/compiler/compiler.gni
+# TODO(b/432508012): Remove this flag after resolving build errors.
+treat_warnings_as_errors = false
