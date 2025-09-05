@@ -255,6 +255,17 @@ void HttpStreamFactory::JobController::OnStreamReady(
   std::unique_ptr<HttpStream> stream = job->ReleaseStream();
   DCHECK(stream);
 
+  {
+    const char* jobtypename[] = {"main", "alternative", "dns_alpn_h3", "preconnect",
+                           "preconnect_dns_alpn_h3"};
+    LOG(INFO) << __FUNCTION__ << " negotiated_protocol = "
+              << NextProtoToString(job->negotiated_protocol())
+              << " was_alpn_negotiated=" << job->was_alpn_negotiated()
+              << " using_spdy=" << job->using_spdy()
+              << " using_quic=" << job->using_quic()
+              << " job_type=" << jobtypename[(int)job->job_type()] << " "
+              << job->origin_url().spec();
+  }
   MarkRequestComplete(job->was_alpn_negotiated(), job->negotiated_protocol(),
                       job->using_spdy());
 
