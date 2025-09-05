@@ -61,7 +61,7 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       << "sb_event_handle_callback_ has not been set.";
   Application* old_instance = nullptr;
   g_instance.compare_exchange_strong(old_instance, this,
-                                     std::memory_order_acquire);
+                                     std::memory_order_acq_rel);
   SB_CHECK(!old_instance);
 }
 
