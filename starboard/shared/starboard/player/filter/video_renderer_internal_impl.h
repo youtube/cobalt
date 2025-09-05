@@ -54,6 +54,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   int GetDroppedFrames() const override {
     return algorithm_->GetDroppedFrames();
   }
+  int GetNumberOfFrames() const override { return number_of_frames_.load(); }
 
   void WriteSamples(const InputBuffers& input_buffers) override;
 

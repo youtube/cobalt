@@ -501,6 +501,10 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt pauses playback when audio/video underflow.
+BASE_FEATURE(kCobaltPausePlaybackWhenUnderflow,
+             "CobaltPausePlaybackWhenUnderflow",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // When disabled, Cobalt rejects progressive video formats.
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
