@@ -19,6 +19,8 @@ static_library("libc") {
   ]
   if (is_cobalt_hermetic_build) {
     sources += [
+      "locale/locale.cc",
+      "locale/locale.h",
       "stdlib/environment.cc",
       "time/gmtime.cc",
       "time/icu_time_support.cc",
