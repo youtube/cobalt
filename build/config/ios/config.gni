@@ -30,20 +30,14 @@ if (target_environment == "") {
 assert(target_environment == "simulator" || target_environment == "device" ||
        target_environment == "catalyst")
 
-if (is_ios) {
-  _target_platforms += [
-    "iphoneos",
-    "tvos",
-  ]
-  assert(filter_include([ target_platform ], _target_platforms) != [],
-         "target_platform '$target_platform' does not match a target value: " +
-         "$_target_platforms")
-  # Sanity check: tvOS builds require `use_blink`.
-  if (target_platform == "tvos") {
-    assert(use_blink, "tvOS builds require use_blink=true")
-  }
-} else {
-  # On host toolchains, checking this value does not make sense. Set it to
-  # something invalid to prevent checks for specific values from passing.
-  target_platform = ""
+_target_platforms = [
+  "iphoneos",
+  "tvos",
+]
+assert(filter_include([ target_platform ], _target_platforms) != [],
+       "target_platform '$target_platform' does not match a target value: " +
+       "$_target_platforms")
+# Sanity check: tvOS builds require `use_blink`.
+if (target_platform == "tvos") {
+  assert(use_blink, "tvOS builds require use_blink=true")
 }
