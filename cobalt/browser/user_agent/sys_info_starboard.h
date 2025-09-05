@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef BASE_SYSTEM_SYS_INFO_STARBOARD_H_
-#define BASE_SYSTEM_SYS_INFO_STARBOARD_H_
+#ifndef COBALT_BROWSER_USER_AGENT_SYS_INFO_STARBOARD_H_
+#define COBALT_BROWSER_USER_AGENT_SYS_INFO_STARBOARD_H_
 
 #include <string>
 
-#include "base/base_export.h"
+namespace cobalt {
 
-namespace base {
-namespace starboard {
-
-class BASE_EXPORT SbSysInfo {
+class SbSysInfo {
  public:
   static std::string OriginalDesignManufacturer();
 
@@ -33,7 +30,6 @@ class BASE_EXPORT SbSysInfo {
   static std::string Brand();
 };
 
-}  // namespace starboard
-}  // namespace base
+}  // namespace cobalt
 
-#endif  // BASE_SYSTEM_SYS_INFO_STARBOARD_H_
+#endif  // COBALT_BROWSER_USER_AGENT_SYS_INFO_STARBOARD_H_

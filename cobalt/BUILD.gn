@@ -178,6 +178,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/browser/user_agent/sys_info_starboard_unittest.cc",
   ]
 
   if (is_starboard) {

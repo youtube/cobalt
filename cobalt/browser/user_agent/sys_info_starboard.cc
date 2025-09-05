@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/system/sys_info_starboard.h"
+#include "cobalt/browser/user_agent/sys_info_starboard.h"
 
 #include "build/build_config.h"
 
@@ -23,8 +23,7 @@
 #include "base/notreached.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-namespace base {
-namespace starboard {
+namespace cobalt {
 
 #if BUILDFLAG(IS_ANDROID)
 std::string SbSysInfo::OriginalDesignManufacturer() {
@@ -44,12 +43,12 @@ std::string SbSysInfo::ModelYear() {
 
   char model_year_cstr[PROP_VALUE_MAX];
   __system_property_get("ro.oem.key1", model_year_cstr);
-  std::string model_year_str(model_year_cstr); 
-  
+  std::string model_year_str(model_year_cstr);
+
   if (model_year_str == kUnknownValue || model_year_str.length() < 10) {
-    return model_year_str; 
-  } 
-  
+    return model_year_str;
+  }
+
   // See
   // https://support.google.com/androidpartners_androidtv/answer/9351639?hl=en
   // for the format of |model_year_str|.
@@ -90,5 +89,4 @@ std::string SbSysInfo::Brand() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-}  // namespace starboard
-}  // namespace base
+}  // namespace cobalt

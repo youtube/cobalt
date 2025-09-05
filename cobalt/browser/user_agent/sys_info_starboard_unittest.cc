@@ -14,13 +14,12 @@
 
 #include <string>
 
-#include "base/system/sys_info_starboard.h"
+#include "cobalt/browser/user_agent/sys_info_starboard.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-namespace base {
-namespace starboard {
+namespace cobalt {
 
 #if BUILDFLAG(IS_ANDROID)
 
@@ -48,5 +47,4 @@ TEST_F(SbSysInfoTest, Brand) {
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
-}  // namespace starboard
-}  // namespace base
+}  // namespace cobalt

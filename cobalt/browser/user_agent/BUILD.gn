@@ -20,6 +20,8 @@ static_library("user_agent") {
   sources = [
     "user_agent_platform_info.cc",
     "user_agent_platform_info.h",
+    "sys_info_starboard.cc",
+    "sys_info_starboard.h",
   ]
 
   public_deps = [

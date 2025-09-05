@@ -24,7 +24,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
-#include "base/system/sys_info_starboard.h"
+#include "cobalt/browser/user_agent/sys_info_starboard.h"
 #include "build/build_config.h"
 #include "starboard/extension/platform_info.h"
 
@@ -214,12 +214,10 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 
   info.set_model(base::SysInfo::HardwareModelName());
 
-  info.set_original_design_manufacturer(
-      base::starboard::SbSysInfo::OriginalDesignManufacturer());
-  info.set_chipset_model_number(
-      base::starboard::SbSysInfo::ChipsetModelNumber());
-  info.set_model_year(base::starboard::SbSysInfo::ModelYear());
-  info.set_brand(base::starboard::SbSysInfo::Brand());
+  info.set_original_design_manufacturer(SbSysInfo::OriginalDesignManufacturer());
+  info.set_chipset_model_number(SbSysInfo::ChipsetModelNumber());
+  info.set_model_year(SbSysInfo::ModelYear());
+  info.set_brand(SbSysInfo::Brand());
 
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
