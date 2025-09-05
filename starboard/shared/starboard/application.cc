@@ -66,9 +66,9 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
 }
 
 Application::~Application() {
-  Application* old_instance = nullptr;
+  Application* old_instance = this;
   g_instance.compare_exchange_strong(old_instance, nullptr,
-                                     std::memory_order_acquire);
+                                     std::memory_order_acq_rel);
   SB_CHECK_EQ(old_instance, this);
   free(start_link_);
 }
