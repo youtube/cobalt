@@ -67,7 +67,7 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
 }
 
 Application::~Application() {
-  Application* expected = nullptr;
+  Application* expected = this;
   SB_CHECK(g_instance.compare_exchange_strong(expected, /*desired=*/nullptr,
                                               std::memory_order_acq_rel));
   free(start_link_);
