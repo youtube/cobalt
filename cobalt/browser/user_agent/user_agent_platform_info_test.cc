@@ -367,10 +367,10 @@ TEST_F(UserAgentStringTest, WithJavaScriptVersion) {
 // etc) are not null. This applies to both AndroidTVs and AOSP devices.
 TEST_F(UserAgentStringTest, AndroidSpecificFieldsCannotBeEmpty) {
   UserAgentPlatformInfo platform_info;
-  EXPECT_FALSE(platform_info.original_design_manufacturer().empty());
-  EXPECT_FALSE(platform_info.chipset_model_number().empty());
-  EXPECT_FALSE(platform_info.model_year().empty());
-  EXPECT_FALSE(platform_info.brand().empty());
+  EXPECT_FALSE(platform_info->original_design_manufacturer().empty());
+  EXPECT_FALSE(platform_info->chipset_model_number().empty());
+  EXPECT_FALSE(platform_info->model_year().empty());
+  EXPECT_FALSE(platform_info->brand().empty());
 }
 #endif
 
