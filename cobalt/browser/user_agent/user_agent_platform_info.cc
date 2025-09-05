@@ -224,6 +224,7 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
   set_chipset_model_number(ChipsetModelNumber());
   set_model_year(ModelYear());
   set_brand(Brand());
+  set_device_type("ATV");
   auto platform_info_extension =
       static_cast<const CobaltExtensionPlatformInfoApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
@@ -245,19 +246,32 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
     }
   }
 }
-#else
-void UserAgentPlatformInfo::InitializePlatformDependentFieldsEvergreen() {
+#elif BUILDFLAG(IS_STARBOARD)
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   set_os_name_and_version(base::SysInfo::OperatingSystemName() + " " +
                           base::SysInfo::OperatingSystemVersion());
+  set_device_type("TV");
   // TODO(cobalt, b/374213479): figure out firmware version for other platforms.
+
+
+  // #if BUILDFLAG(IS_EVERGREEN)
+  // TODO(cobalt, b/374213479): Retrieve Evergreen
+  //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
+  //       updater::GetCurrentEvergreenLibraryMetadata();
+  //   set_evergreen_version(evergreen_library_metadata.version);
+  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
+  //   set_evergreen_type("Lite");
+  // #endif
 }
 #endif
 
 void UserAgentPlatformInfo::Initialize() {
+// TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
+// platforms, which are IS_ANDROID but also IS_STARBOARD.
 #if BUILDFLAG(IS_ANDROID)
   InitializePlatformDependentFieldsAndroid();
-#else
-  InitializePlatformDependentFieldsEvergreen();
+#elif BUILDFLAG(IS_STARBOARD)
+  InitializePlatformDependentFieldsStarboard();
 #endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -275,7 +289,6 @@ void UserAgentPlatformInfo::Initialize() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   set_model(base::SysInfo::HardwareModelName());
-  set_device_type("TV");
 
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
@@ -294,14 +307,6 @@ void UserAgentPlatformInfo::Initialize() {
   // Rasterizer type is gles for both Linux and Android.
   set_rasterizer_type("gles");
 
-  // TODO(cobalt, b/374213479): Retrieve Evergreen
-  // #if BUILDFLAG(IS_EVERGREEN)
-  //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
-  //       updater::GetCurrentEvergreenLibraryMetadata();
-  //   set_evergreen_version(evergreen_library_metadata.version);
-  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
-  //   set_evergreen_type("Lite");
-  // #endif
 
   set_starboard_version(base::StringPrintf("Starboard/%d", SB_API_VERSION));
   set_cobalt_version(COBALT_VERSION);
