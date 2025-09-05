@@ -924,6 +924,9 @@ void WebFrameWidgetImpl::HandleMouseLeave(LocalFrame& local_root,
 }
 
 void WebFrameWidgetImpl::MouseContextMenu(const WebMouseEvent& event) {
+#if BUILDFLAG(IS_COBALT)
+  return;
+#else
   GetPage()->GetContextMenuController().ClearContextMenu();
 
   WebMouseEvent transformed_event =
@@ -955,6 +958,7 @@ void WebFrameWidgetImpl::MouseContextMenu(const WebMouseEvent& event) {
   }
   // Actually showing the context menu is handled by the ContextMenuClient
   // implementation...
+#endif
 }
 
 WebInputEventResult WebFrameWidgetImpl::HandleMouseUp(
@@ -1090,6 +1094,9 @@ WebInputEventResult WebFrameWidgetImpl::HandleGestureEvent(
         }
       }
 
+#if BUILDFLAG(IS_COBALT)
+      break;
+#else
       GetPage()->GetContextMenuController().ClearContextMenu();
       {
         ContextMenuAllowedScope scope;
@@ -1098,6 +1105,7 @@ WebInputEventResult WebFrameWidgetImpl::HandleGestureEvent(
       }
 
       break;
+#endif
     case WebInputEvent::Type::kGestureTapDown:
       // Touch pinch zoom and scroll on the page (outside of a popup) must hide
       // the popup. In case of a touch scroll or pinch zoom, this function is
@@ -1959,6 +1967,9 @@ bool WebFrameWidgetImpl::IsPointerLocked() {
 void WebFrameWidgetImpl::ShowContextMenu(
     ui::mojom::blink::MenuSourceType source_type,
     const gfx::Point& location) {
+#if BUILDFLAG(IS_COBALT)
+  return;
+#else
   host_context_menu_location_ = location;
 
   if (!GetPage())
@@ -1973,6 +1984,7 @@ void WebFrameWidgetImpl::ShowContextMenu(
     }
   }
   host_context_menu_location_.reset();
+#endif
 }
 
 void WebFrameWidgetImpl::SetViewportIntersection(
