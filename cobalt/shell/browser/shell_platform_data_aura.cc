@@ -19,24 +19,30 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
-#include "ui/aura/client/cursor_shape_client.h"
 #include "ui/aura/client/default_capture_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/layout_manager.h"
-#include "ui/aura/test/test_focus_client.h"
-#include "ui/aura/test/test_window_parenting_client.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/base/ime/init/input_method_factory.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/platform_window/platform_window_init_properties.h"
-#include "ui/wm/core/cursor_loader.h"
 #include "ui/wm/core/default_activation_client.h"
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/aura/screen_ozone.h"
 #endif
+
+#if defined(RUN_BROWSER_TESTS)
+#include "ui/aura/client/cursor_shape_client.h"         // nogncheck
+#include "ui/aura/test/test_focus_client.h"             // nogncheck
+#include "ui/aura/test/test_window_parenting_client.h"  // nogncheck
+#include "ui/wm/core/cursor_loader.h"                   // nogncheck
+#else
+#include "ui/wm/core/base_focus_rules.h"
+#include "ui/wm/core/focus_controller.h"
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 
@@ -85,6 +91,22 @@ class FillLayout : public aura::LayoutManager {
   bool has_bounds_;
 };
 
+#if !defined(RUN_BROWSER_TESTS)
+class FocusRules : public wm::BaseFocusRules {
+ public:
+  FocusRules() = default;
+  FocusRules(const FocusRules&) = delete;
+  FocusRules& operator=(const FocusRules&) = delete;
+  ~FocusRules() override = default;
+
+ private:
+  // wm::BaseFocusRules:
+  bool SupportsChildActivation(const aura::Window* window) const override {
+    return true;
+  }
+};
+#endif  // !defined(RUN_BROWSER_TESTS)
+
 }  // namespace
 
 ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size) {
@@ -104,20 +126,30 @@ ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size) {
   host_->window()->SetLayoutManager(
       std::make_unique<FillLayout>(host_->window()));
 
+#if defined(RUN_BROWSER_TESTS)
   focus_client_ =
       std::make_unique<aura::test::TestFocusClient>(host_->window());
 
   new wm::DefaultActivationClient(host_->window());
+#else
+  // Reference void AuraContext::InitializeWindowTreeHost(aura::WindowTreeHost*
+  // host) from ui/webui/examples/browser/ui/aura/aura_context.cc
+  focus_client_ = std::make_unique<wm::FocusController>(new FocusRules());
+  aura::client::SetFocusClient(host_->window(), focus_client_.get());
+#endif  // defined(RUN_BROWSER_TESTS)
+
   capture_client_ =
       std::make_unique<aura::client::DefaultCaptureClient>(host_->window());
+
+#if defined(RUN_BROWSER_TESTS)
   window_parenting_client_ =
       std::make_unique<aura::test::TestWindowParentingClient>(host_->window());
-
   // TODO(https://crbug.com/1336055): this is needed for
   // mouse_cursor_overlay_controller_browsertest.cc on cast_shell_linux as
   // currently, when is_castos = true, the views toolkit isn't used.
   cursor_shape_client_ = std::make_unique<wm::CursorLoader>();
   aura::client::SetCursorShapeClient(cursor_shape_client_.get());
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 ShellPlatformDataAura::~ShellPlatformDataAura() {
