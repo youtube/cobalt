@@ -24,7 +24,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
-#include "cobalt/browser/user_agent/sys_info_starboard.h"
 #include "starboard/extension/platform_info.h"
 
 #include "cobalt/cobalt_build_id.h"  // Generated
