@@ -60,17 +60,16 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
   Application* old_instance = nullptr;
-  g_instance.compare_exchange_weak(old_instance, this,
-                                   std::memory_order_acquire);
-  SB_DCHECK(!old_instance);
+  g_instance.compare_exchange_strong(old_instance, this,
+                                     std::memory_order_acquire);
+  SB_CHECK(!old_instance);
 }
 
 Application::~Application() {
-  Application* old_instance = this;
-  g_instance.compare_exchange_weak(old_instance, NULL,
-                                   std::memory_order_acquire);
-  SB_DCHECK(old_instance);
-  SB_DCHECK_EQ(old_instance, this);
+  Application* old_instance = nullptr;
+  g_instance.compare_exchange_strong(old_instance, nullptr,
+                                     std::memory_order_acquire);
+  SB_CHECK_EQ(old_instance, this);
   free(start_link_);
 }
 
