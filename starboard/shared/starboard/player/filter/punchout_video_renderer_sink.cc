@@ -93,7 +93,11 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
 
 // static
 void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("punchoutvidsink");
+#else
   pthread_setname_np(pthread_self(), "punchoutvidsink");
+#endif
   PunchoutVideoRendererSink* this_ptr =
       static_cast<PunchoutVideoRendererSink*>(context);
   this_ptr->RunLoop();
