@@ -189,6 +189,8 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   bool is_initial_silence_feeding = true;
   int initial_silence_frames = 0;
   int dropped_frames = 0;
+  int reported_dropped_frames = 0;
+  int64_t silence_fed_at_us = 0;
   const int64_t start_us = CurrentMonotonicTime();
   bridge_.Play();
   const int64_t elapsed_us = CurrentMonotonicTime() - start_us;
@@ -232,7 +234,16 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       int frames_consumed =
           playback_head_position - last_playback_head_position;
       if (!playback_started_ && frames_consumed > 0) {
-        SB_LOG(INFO) << "audio playback started";
+        // SB_CHECK_NE(silence_fed_at_us, 0);
+        int64_t elapsed_ms =
+            silence_fed_at_us > 0
+                ? (CurrentMonotonicTime() - silence_fed_at_us) / 1'000
+                : 0;
+        SB_LOG(INFO) << "audio playback started: frames_consumed="
+                     << FormatNumber(frames_consumed)
+                     << ", elased after silence feed(msec)="
+                     << (elapsed_ms != 0 ? std::to_string(elapsed_ms)
+                                         : "(null)");
         playback_started_ = true;
       }
 
@@ -257,11 +268,24 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       last_playback_head_position = playback_head_position;
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
-      const int effective_frames_consumed = frames_consumed + dropped_frames;
-      if (dropped_frames != 0) {
-        SB_LOG(INFO) << "Reported discarded frames=" << dropped_frames;
-        dropped_frames = 0;
+      SB_CHECK(started_us_);
+      int to_report_dropped_frames = 0;
+      if (reported_dropped_frames < dropped_frames) {
+        const int max_dropped_frames =
+            std::min<int>(GetFrames(now - *started_us_), dropped_frames);
+        SB_CHECK_GE(max_dropped_frames, reported_dropped_frames);
+        to_report_dropped_frames = max_dropped_frames - reported_dropped_frames;
+        SB_LOG_IF(INFO, to_report_dropped_frames > 0)
+            << "to_report_dropped_frames="
+            << FormatNumber(to_report_dropped_frames)
+            << ", dropped_frames=" << FormatNumber(dropped_frames)
+            << ", reported_dropped_frames="
+            << FormatNumber(reported_dropped_frames);
+        reported_dropped_frames += to_report_dropped_frames;
       }
+
+      const int effective_frames_consumed =
+          frames_consumed + to_report_dropped_frames;
 
       if (effective_frames_consumed != 0) {
         SB_CHECK_GE(effective_frames_consumed, 0);
@@ -291,6 +315,10 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       was_playing = true;
       last_playback_head_event_at = -1;
       if (is_initial_silence_feeding) {
+        if (!started_us_) {
+          started_us_ = CurrentMonotonicTime();
+        }
+
         is_initial_silence_feeding = false;
         const int64_t initial_silence_us =
             GetFramesDurationUs(initial_silence_frames);
@@ -321,12 +349,15 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
             int frames_to_feed =
                 std::min(kSilenceIntervalFrames,
                          initial_frames_ - initial_silence_frames);
-            WriteData(env, silence_frames.data(), frames_to_feed);
-            initial_silence_frames += frames_to_feed;
+            frames_to_feed = kSilenceIntervalFrames;
+            int written = WriteData(env, silence_frames.data(), frames_to_feed);
+            // SB_CHECK_EQ(written, frames_to_feed);
+            initial_silence_frames += written;
           }
           SB_LOG(INFO) << "Feeds initial silences(msec)="
                        << GetFramesDurationUs(initial_silence_frames) / 1'000
                        << ", frames=" << initial_silence_frames;
+          silence_fed_at_us = CurrentMonotonicTime();
         }
       } else {
         const int64_t silence_frame_head =
@@ -459,7 +490,7 @@ int ContinuousAudioTrackSink::WriteData(JNIEnv* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK_EQ(samples_written % channels_, 0);
+  SB_CHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 
