@@ -361,6 +361,9 @@ public class MediaDrmBridge {
       Log.e(TAG, "Failed to retrieve DRM Metrics.");
       return null;
     }
+    if (metrics.length == 0) {
+      metrics = "None".getBytes();
+    }
     return Base64.encode(metrics, Base64.NO_PADDING | Base64.NO_WRAP | Base64.URL_SAFE);
   }
 
