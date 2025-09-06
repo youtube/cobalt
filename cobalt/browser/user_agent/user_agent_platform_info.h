@@ -143,7 +143,6 @@ class UserAgentPlatformInfo {
   std::string android_build_fingerprint_;      // Only via Client Hints
   std::string android_os_experience_;          // Only via Client Hints
   std::string android_play_services_version_;  // Only via Client Hints
-
 };
 
 }  // namespace cobalt

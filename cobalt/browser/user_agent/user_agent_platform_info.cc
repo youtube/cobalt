@@ -253,7 +253,6 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   set_device_type("TV");
   // TODO(cobalt, b/374213479): figure out firmware version for other platforms.
 
-
   // #if BUILDFLAG(IS_EVERGREEN)
   // TODO(cobalt, b/374213479): Retrieve Evergreen
   //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
@@ -306,7 +305,6 @@ void UserAgentPlatformInfo::Initialize() {
 
   // Rasterizer type is gles for both Linux and Android.
   set_rasterizer_type("gles");
-
 
   set_starboard_version(base::StringPrintf("Starboard/%d", SB_API_VERSION));
   set_cobalt_version(COBALT_VERSION);
