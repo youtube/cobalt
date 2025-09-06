@@ -2286,13 +2286,6 @@ component("base") {
     frameworks += [ "UIKit.framework" ]
   }
 
-  if (is_cobalt) {
-    sources += [
-      "system/sys_info_starboard.cc",
-      "system/sys_info_starboard.h",
-    ]
-  }
-
   if (use_blink) {
     sources += [
       "files/file_path_watcher.cc",
@@ -3479,10 +3472,6 @@ test("base_unittests") {
     "version_unittest.cc",
     "vlog_unittest.cc",
   ]
-
-  if (is_cobalt) {
-    sources += [ "system/sys_info_starboard_unittest.cc" ]
-  }
 
   if (!is_cronet_build) {
     # location_unittest.cc fails gn check for tracing-shimmed Cronet builds.

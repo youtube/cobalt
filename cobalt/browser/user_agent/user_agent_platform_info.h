@@ -18,6 +18,8 @@
 #include <map>
 #include <string>
 
+#include "build/build_config.h"
+
 namespace cobalt {
 
 void GetUserAgentInputMap(
@@ -107,28 +109,40 @@ class UserAgentPlatformInfo {
   void set_build_configuration(const std::string& build_configuration);
 
  private:
+  void Initialize();
+// TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
+// platforms, which are IS_ANDROID but also IS_STARBOARD. Consider using
+// IS_ANDROIDTV as well.
+#if BUILDFLAG(IS_ANDROID)
+  void InitializePlatformDependentFieldsAndroid();
+#elif BUILDFLAG(IS_STARBOARD)
+  void InitializePlatformDependentFieldsStarboard();
+#endif
+
+  // Platform-agnostic fields.
   std::string starboard_version_;
   std::string os_name_and_version_;
-  std::optional<std::string> original_design_manufacturer_;
+  std::string aux_field_;
+  std::string javascript_engine_version_;
+  std::string rasterizer_type_;
+  std::string cobalt_version_;
+  std::string cobalt_build_version_number_;
+  std::string build_configuration_;
+
+  // Platform-dependent fields.
   std::string device_type_string_;
+  std::optional<std::string> original_design_manufacturer_;
   std::optional<std::string> chipset_model_number_;
   std::optional<std::string> model_year_;
   std::optional<std::string> firmware_version_;
   std::optional<std::string> brand_;
   std::optional<std::string> model_;
-  std::string aux_field_;
-  std::string javascript_engine_version_;
-  std::string rasterizer_type_;
   std::string evergreen_type_;
   std::string evergreen_file_type_;
   std::string evergreen_version_;
   std::string android_build_fingerprint_;      // Only via Client Hints
   std::string android_os_experience_;          // Only via Client Hints
   std::string android_play_services_version_;  // Only via Client Hints
-
-  std::string cobalt_version_;
-  std::string cobalt_build_version_number_;
-  std::string build_configuration_;
 };
 
 }  // namespace cobalt
