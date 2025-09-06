@@ -61,6 +61,11 @@ class ContinuousAudioTrackSink
   int GetUnderrunCount();
   int GetStartThresholdInFrames();
 
+  struct Timestamp {
+    int64_t frame_position;
+    int64_t rendered_at_us;
+  };
+
  private:
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
@@ -69,7 +74,11 @@ class ContinuousAudioTrackSink
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
-  int64_t GetFramesDurationUs(int frames) const;
+  std::optional<Timestamp> GetTimestamp(JNIEnv* env);
+  int64_t EstimateFramePosition(
+      const std::optional<Timestamp>& timestamp) const;
+  int64_t GetFramesDurationUs(int64_t frames) const;
+  int64_t GetFrames(int64_t duration_us) const;
 
   Type* const type_;
   const int channels_;
@@ -84,6 +93,9 @@ class ContinuousAudioTrackSink
   void* const context_;
 
   AudioTrackBridge bridge_;
+  const int initial_frames_;
+  bool playback_started_ = false;
+  std::optional<int64_t> started_us_;
 
   volatile bool quit_ = false;
   std::optional<pthread_t> audio_out_thread_;
