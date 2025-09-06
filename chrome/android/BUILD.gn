@@ -766,6 +766,7 @@ if (current_toolchain == default_toolchain) {
     ]
   }
 
+  if (!is_cobalt) {
   robolectric_binary("chrome_junit_tests") {
     # Needed by androidx.test.core.app.ActivityScenario
     android_manifest = "//chrome/android/junit/AndroidManifest.xml"
@@ -1091,6 +1092,7 @@ if (current_toolchain == default_toolchain) {
     ]
 
     deps += chrome_junit_test_java_deps
+  }
   }
 
   generate_jni("chrome_test_util_jni_headers") {
