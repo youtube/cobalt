@@ -365,7 +365,7 @@ TEST_F(UserAgentStringTest, WithJavaScriptVersion) {
 #if BUILDFLAG(IS_ANDROID)
 // Verifies that fields coming from system properties (ro.product.manufacturer,
 // etc) are not null. This applies to both AndroidTVs and AOSP devices.
-TEST(UserAgentStringTest, AndroidSpecificFieldsCannotBeEmpty) {
+TEST(UserAgentStringTestAndroid, AndroidSpecificFieldsCannotBeEmpty) {
   UserAgentPlatformInfo platform_info;
   EXPECT_FALSE(platform_info.original_design_manufacturer()->empty());
   EXPECT_FALSE(platform_info.chipset_model_number()->empty());
