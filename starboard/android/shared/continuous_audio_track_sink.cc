@@ -202,6 +202,8 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   std::optional<Timestamp> last_timestamp;
   const std::vector<uint8_t> silence_frames(
       channels_ * GetBytesPerSample(sample_type_) * kSilenceIntervalFrames);
+
+  int64_t last_real_frame_head = 0;
   while (!quit_) {
     int64_t playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -211,6 +213,22 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       ReportError(true, "Audio device capability changed");
       break;
     }
+
+    int64_t ignore_us;
+    int real_frame_head = bridge_.GetAudioTimestamp(&ignore_us, env);
+    if (!playback_started_ && real_frame_head != last_real_frame_head) {
+      // SB_CHECK_NE(silence_fed_at_us, 0);
+      int64_t elapsed_ms =
+          silence_fed_at_us > 0
+              ? (CurrentMonotonicTime() - silence_fed_at_us) / 1'000
+              : 0;
+      SB_LOG(INFO) << "audio playback started: frames_consumed="
+                   << FormatNumber(real_frame_head - last_real_frame_head)
+                   << ", elased after silence feed(msec)="
+                   << (elapsed_ms != 0 ? std::to_string(elapsed_ms) : "(null)");
+      playback_started_ = true;
+    }
+    last_real_frame_head = real_frame_head;
 
     if (is_initial_silence_feeding) {
       last_timestamp = GetTimestamp(env);
@@ -233,19 +251,6 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
-      if (!playback_started_ && frames_consumed > 0) {
-        // SB_CHECK_NE(silence_fed_at_us, 0);
-        int64_t elapsed_ms =
-            silence_fed_at_us > 0
-                ? (CurrentMonotonicTime() - silence_fed_at_us) / 1'000
-                : 0;
-        SB_LOG(INFO) << "audio playback started: frames_consumed="
-                     << FormatNumber(frames_consumed)
-                     << ", elased after silence feed(msec)="
-                     << (elapsed_ms != 0 ? std::to_string(elapsed_ms)
-                                         : "(null)");
-        playback_started_ = true;
-      }
 
       int64_t now = CurrentMonotonicTime();
 
