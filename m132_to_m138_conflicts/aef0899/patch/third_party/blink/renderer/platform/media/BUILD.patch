@@ -1,0 +1,61 @@
+--- third_party/blink/renderer/platform/media/BUILD.gn
++++ third_party/blink/renderer/platform/media/BUILD.gn
+@@ -3,7 +3,6 @@
+ # found in the LICENSE file.
+ 
+ import("//media/media_options.gni")
+-<<<<<<< HEAD
+ import("//third_party/blink/renderer/platform/platform.gni")
+ 
+ # TODO(https://crbug.com/40760651): temporary workaround while the code is being
+@@ -26,10 +25,10 @@
+     "//url",
+   ]
+   deps = [ "//third_party/blink/renderer/platform:allow_discouraged_type" ]
+-=======
++}
++
+ if (is_cobalt) {
+   import("//starboard/build/buildflags.gni")
+->>>>>>> 07602b26205 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+ }
+ 
+ component("media") {
+@@ -126,35 +125,9 @@
+     "//third_party/blink/renderer/platform:platform",
+   ]
+ 
+-<<<<<<< HEAD
+-  # if (is_cobalt) {
+-  #   deps += [ "//starboard/build:starboard_buildflags" ]
+-  # }
+-=======
+-  if (media_use_ffmpeg || !is_android) {
+-    sources += [
+-      "buffered_data_source_host_impl.cc",
+-      "buffered_data_source_host_impl.h",
+-      "learning_experiment_helper.cc",
+-      "learning_experiment_helper.h",
+-      "multi_buffer_data_source.cc",
+-      "multi_buffer_data_source.h",
+-      "smoothness_helper.cc",
+-      "smoothness_helper.h",
+-      "web_media_player_impl.cc",
+-      "web_media_player_impl.h",
+-    ]
+-    public_deps += [
+-      "//media/learning/common",
+-      "//services/media_session/public/cpp:base_cpp",
+-    ]
+-    deps += [
+-      "//cc",
+-      "//media/learning/mojo/public/cpp",
+-      "//third_party/blink/public/strings:strings_grit",
+-    ]
++  if (is_cobalt) {
++    deps += [ "//starboard/build:starboard_buildflags" ]
+   }
+->>>>>>> 07602b26205 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+ 
+   if (enable_hls_demuxer) {
+     sources += [

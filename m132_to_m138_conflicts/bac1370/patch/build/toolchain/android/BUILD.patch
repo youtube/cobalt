@@ -1,0 +1,46 @@
+--- build/toolchain/android/BUILD.gn
++++ build/toolchain/android/BUILD.gn
+@@ -61,21 +61,12 @@
+     toolchain_args = {
+       current_cpu = "arm"
+       starboard_toolchain = "//build/toolchain/android:android_clang_arm"
+-<<<<<<< HEAD
+       starboard_target_platform = "android-arm"
+     }
+   } else {
+     toolchain_args = {
+       current_cpu = "arm"
+     }
+-=======
+-      target_platform = "android-arm"
+-    }
+-  } else {
+-  toolchain_args = {
+-    current_cpu = "arm"
+->>>>>>> f6f1f6476bb (Fix starboard toolchain when multiple are used (#4322))
+-  }
+   }
+ }
+ 
+@@ -96,21 +87,12 @@
+     toolchain_args = {
+       current_cpu = "arm64"
+       starboard_toolchain = "//build/toolchain/android:android_clang_arm64"
+-<<<<<<< HEAD
+       starboard_target_platform = "android-arm64"
+     }
+   } else {
+     toolchain_args = {
+       current_cpu = "arm64"
+     }
+-=======
+-      target_platform = "android-arm64"
+-    }
+-  } else {
+-  toolchain_args = {
+-    current_cpu = "arm64"
+->>>>>>> f6f1f6476bb (Fix starboard toolchain when multiple are used (#4322))
+-  }
+   }
+ }
+ 

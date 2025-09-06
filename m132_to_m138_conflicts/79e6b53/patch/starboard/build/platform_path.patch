@@ -1,0 +1,20 @@
+--- starboard/build/platform_path.gni
++++ starboard/build/platform_path.gni
+@@ -18,7 +18,6 @@
+ 
+ if (starboard_path == "") {
+   declare_args() {
+-<<<<<<< HEAD
+     starboard_target_platform = ""
+   }
+ 
+@@ -45,9 +44,6 @@
+       # Default to linux-x64x11 for chromium toolchains.
+       starboard_target_platform = "linux-x64x11"
+     }
+-=======
+-    target_platform = "linux-x64x11"
+->>>>>>> 79d4c8600e4 (Revert "Revert "Build starboard shared library for linux-x64x11 (#4215)"" (#4247))
+   }
+ 
+   starboard_path = exec_script("//starboard/build/platforms.py",

@@ -1,0 +1,24 @@
+--- third_party/blink/renderer/modules/mediasource/media_source.cc
++++ third_party/blink/renderer/modules/mediasource/media_source.cc
+@@ -542,21 +542,11 @@
+                                   const String& type) {
+   bool result = IsTypeSupportedInternal(
+       context, type, true /* Require fully specified mime and codecs */);
+-<<<<<<< HEAD
+   DVLOG(2) << __func__ << "(" << type << ") -> " << base::ToString(result);
+-#if BUILDFLAG(IS_COBALT)
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   LOG(INFO) << __func__ << "(" << type << ") -> "
+             << base::ToString(result);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-#endif // BUILDFLAG(IS_COBALT)
+-=======
+-  DVLOG(2) << __func__ << "(" << type << ") -> " << (result ? "true" : "false");
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-  LOG(INFO) << __func__ << "(" << type << ") -> "
+-            << (result ? "true" : "false");
+-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 2d54274c952 (Clean up existing media buildflags (#4393))
+   return result;
+ }
+ 

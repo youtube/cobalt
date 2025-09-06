@@ -1,0 +1,19 @@
+--- .gn
++++ .gn
+@@ -169,15 +169,9 @@
+       "//tools/gritsettings/BUILD.gn",
+     ]
+ 
+-<<<<<<< HEAD
+-import("//chrobalt/build/configs/chrobalt.gni")
+-if (chrobalt) {
+-  exec_script_allowlist += [
+-=======
+ import("//cobalt/build/configs/cobalt.gni")
+ if (is_cobalt) {
+-  exec_script_whitelist += [
+->>>>>>> 3ebbec552fd (Rename Chrobalt to Cobalt. (#4276))
++  exec_script_allowlist += [
+     "//starboard/tools/BUILD.gn",
+     "//starboard/build/config/sabi/BUILD.gn",
+     "//starboard/build/platform_path.gni",

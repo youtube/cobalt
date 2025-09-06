@@ -1,0 +1,44 @@
+--- build/config/clang/clang.gni
++++ build/config/clang/clang.gni
+@@ -14,15 +14,11 @@
+   # coding guidelines, etc. Only used when compiling with Chrome's Clang, not
+   # Chrome OS's.
+   clang_use_chrome_plugins =
+-      is_clang && !is_nacl && current_os != "zos" &&
+-<<<<<<< HEAD
++      is_clang && !is_nacl && current_os != "zos" && !chrobalt &&
+       default_toolchain != "//build/toolchain/cros:target" &&
+       # TODO(https://crbug.com/351909443): Remove this after fixing performance
+       # of Clang modules build.
+       !use_libcxx_modules
+-=======
+-      default_toolchain != "//build/toolchain/cros:target" && !chrobalt
+->>>>>>> b80977bcd89 (Add starboard build to android (#4259))
+ 
+   # Use this instead of clang_use_chrome_plugins to enable just the raw-ptr-plugin.
+   clang_use_raw_ptr_plugin = false
+@@ -30,22 +26,14 @@
+   enable_check_raw_ptr_fields =
+       build_with_chromium && !is_official_build &&
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_mac ||
+-<<<<<<< HEAD
+-       is_ios || is_win || is_chromeos)
+-=======
+-       is_ios || is_win || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+->>>>>>> b80977bcd89 (Add starboard build to android (#4259))
++       is_ios || is_win || is_chromeos) && !chrobalt
+ 
+   # TODO(crbug.com/40268473): Merge with enable_check_raw_ptr_fields once both
+   # checks are activated on the same set of platforms.
+   enable_check_raw_ref_fields =
+       build_with_chromium && !is_official_build &&
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win ||
+-<<<<<<< HEAD
+-       is_mac || is_ios || is_chromeos)
+-=======
+-       is_mac || is_ios || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+->>>>>>> b80977bcd89 (Add starboard build to android (#4259))
++       is_mac || is_ios || is_chromeos) && !chrobalt
+ 
+   clang_base_path = default_clang_base_path
+ 
