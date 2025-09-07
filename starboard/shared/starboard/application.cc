@@ -75,17 +75,10 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       sb_event_handle_callback_(sb_event_handle_callback) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-<<<<<<< HEAD
-  Application* old_instance = NULL;
-  g_instance.compare_exchange_weak(old_instance, this,
-                                   std::memory_order_acquire);
-  SB_DCHECK(!old_instance);
-=======
   Application* expected = nullptr;
   SB_CHECK(g_instance.compare_exchange_strong(expected,
                                               /*desired=*/this,
                                               std::memory_order_acq_rel));
->>>>>>> 8ae3d8a1e8d (starboard: Fix crash caused by compare_exchange_weak (#7087))
 }
 
 Application::~Application() {
