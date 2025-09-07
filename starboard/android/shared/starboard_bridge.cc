@@ -98,8 +98,6 @@ jlong JNI_StarboardBridge_StartNativeStarboard(
         ConvertJavaStringToUTF8(env, j_files_dir),
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
-    // Ensure application init happens here
-    ApplicationAndroid::Get();
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
