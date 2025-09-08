@@ -15,9 +15,9 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_
 #define MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_
 
+#include <optional>
 #include <utility>
 
-#include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "ui/gfx/geometry/rect.h"
@@ -26,15 +26,16 @@ namespace media {
 
 class SbPlayerBridge;
 
-class SbPlayerSetBoundsHelper
-    : public base::RefCountedThreadSafe<SbPlayerSetBoundsHelper> {
+class SbPlayerSetBoundsHelper {
  public:
-  SbPlayerSetBoundsHelper() {}
+  SbPlayerSetBoundsHelper() = default;
 
   void SetPlayerBridge(SbPlayerBridge* player_bridge);
   bool SetBounds(int x, int y, int width, int height);
 
  private:
+  // TODO(mcasas): Probably unneeded if this class is only owned
+  // by StarboardRenderer and accessed from a single TaskRunner.
   base::Lock lock_;
   SbPlayerBridge* player_bridge_ GUARDED_BY(lock_) = nullptr;
   std::optional<gfx::Rect> rect_ GUARDED_BY(lock_);
