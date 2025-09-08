@@ -35,9 +35,9 @@ void SbPlayerSetBoundsHelper::SetPlayerBridge(SbPlayerBridge* player_bridge) {
   }
 }
 
-bool SbPlayerSetBoundsHelper::SetBounds(int x, int y, int width, int height) {
+bool SbPlayerSetBoundsHelper::SetBounds(const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
-  rect_ = gfx::Rect(x, y, width, height);
+  rect_ = rect;
   if (player_bridge_) {
     player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
   }

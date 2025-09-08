@@ -31,7 +31,7 @@ class SbPlayerSetBoundsHelper {
   SbPlayerSetBoundsHelper() = default;
 
   void SetPlayerBridge(SbPlayerBridge* player_bridge);
-  bool SetBounds(int x, int y, int width, int height);
+  bool SetBounds(const gfx::Rect& rect);
 
  private:
   // TODO(mcasas): Probably unneeded if this class is only owned

@@ -477,8 +477,7 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  set_bounds_helper_.SetBounds(output_rect.x(), output_rect.y(),
-                               output_rect.width(), output_rect.height());
+  set_bounds_helper_.SetBounds(output_rect);
 }
 
 #if BUILDFLAG(IS_ANDROID)
