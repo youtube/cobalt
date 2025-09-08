@@ -44,7 +44,7 @@ constexpr int kTunnelModeAudioSessionId = -1;
 // The ExoPlayer implementation is based on
 // https://www.etsi.org/deliver/etsi_ts/102300_102399/102366/01.04.01_60/ts_102366v010401p.pdf.
 int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
-  SB_DCHECK(buffer);
+  SB_CHECK(buffer);
 
   constexpr int kAudioSamplesPerAudioBlock = 256;
   // Each syncframe has 6 blocks that provide 256 new audio samples. See
