@@ -36,6 +36,7 @@ class SbPlayerSetBoundsHelper {
  private:
   // TODO(mcasas): Probably unneeded if this class is only owned
   // by StarboardRenderer and accessed from a single TaskRunner.
+  // Enforce via task_runner_ latched on ctor and CHECK()ed.
   base::Lock lock_;
   SbPlayerBridge* player_bridge_ GUARDED_BY(lock_) = nullptr;
   std::optional<gfx::Rect> rect_ GUARDED_BY(lock_);

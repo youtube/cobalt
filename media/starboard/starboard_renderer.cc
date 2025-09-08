@@ -476,7 +476,7 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
   set_bounds_helper_.SetBounds(output_rect);
 }
 
