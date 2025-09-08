@@ -1,1 +1,2 @@
-import("//cobalt/build/configs/common.gn")
+target_os = "mac"
+target_cpu = "arm64"
