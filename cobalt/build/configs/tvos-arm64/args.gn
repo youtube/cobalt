@@ -1,5 +1,8 @@
 import("//cobalt/build/configs/common.gn")
 
-# TODO: b/442920572 - Temporarily fallback to use_system_xcode for now until
-# hermetic xcode is available.
+# TODO: b/443797654 - Temporarily use "ios" until rebase is complete.
+target_os = "ios"
+target_cpu = "arm64"
+
+# System xcode is default in upstream Chromium and CI infra.
 use_system_xcode = true
