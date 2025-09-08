@@ -1,0 +1,30 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -53,27 +53,8 @@
+ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
+     : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
+ 
+-<<<<<<< HEAD
+ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
+     : data_(std::move(data)) {}
+-=======
+-DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-    : DecoderBuffer(data.get(), size, nullptr, 0) {
+-      // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+-    }
+-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-    : data_(std::move(data)), size_(size) {}
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-
+-DecoderBuffer::DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping,
+-                             size_t size)
+-    : size_(size), read_only_mapping_(std::move(mapping)) {}
+-
+-DecoderBuffer::DecoderBuffer(base::WritableSharedMemoryMapping mapping,
+-                             size_t size)
+-    : size_(size), writable_mapping_(std::move(mapping)) {}
+->>>>>>> b8845551f94 ([media] Refine DecoderBuffer ctor (#5322))
+ 
+ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
+     : external_memory_(std::move(external_memory)) {}

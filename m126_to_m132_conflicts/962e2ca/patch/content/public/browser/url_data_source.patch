@@ -1,0 +1,16 @@
+--- content/public/browser/url_data_source.cc
++++ content/public/browser/url_data_source.cc
+@@ -108,13 +108,9 @@
+     case network::mojom::CSPDirectiveName::TreatAsPublicAddress:
+     case network::mojom::CSPDirectiveName::WorkerSrc:
+     case network::mojom::CSPDirectiveName::ReportTo:
+-<<<<<<< HEAD
+-=======
+-    case network::mojom::CSPDirectiveName::NavigateTo:
+ #if BUILDFLAG(IS_COBALT)
+     case network::mojom::CSPDirectiveName::CobaltLocationSrc:
+ #endif
+->>>>>>> 24e6ac706ab (Add h5vcc-location-src custom CSP directive (#5016))
+     case network::mojom::CSPDirectiveName::Unknown:
+       return std::string();
+   }

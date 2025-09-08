@@ -1,0 +1,52 @@
+--- mojo/core/BUILD.gn
++++ mojo/core/BUILD.gn
+@@ -150,40 +150,8 @@
+ 
+   if (is_fuchsia) {
+     sources += [ "channel_fuchsia.cc" ]
+-
+-<<<<<<< HEAD
+     public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fdio" ]
+   }
+-=======
+-    if (is_fuchsia) {
+-      sources += [ "channel_fuchsia.cc" ]
+-
+-      public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fdio" ]
+-    }
+-
+-    if (is_posix && !mojo_use_apple_channel) {
+-      if (!is_nacl) {
+-        sources += [
+-          "broker_posix.cc",
+-          "channel_posix.cc",
+-          "channel_posix.h",
+-        ]
+-      }
+-
+-      if ((is_linux || is_chromeos || is_android) && !is_nacl && !is_starboard) {
+-        sources += [
+-          "channel_linux.cc",
+-          "channel_linux.h",
+-        ]
+-
+-        public += [ "channel_linux.h" ]
+-      }
+-    }
+-
+-    if (mojo_use_apple_channel) {
+-      sources += [ "channel_mac.cc" ]
+-    }
+->>>>>>> ecde1742f5a (Add a number of hermetic build targets (#5300))
+ 
+   if (is_posix && !mojo_use_apple_channel) {
+     if (!is_nacl) {
+@@ -194,7 +162,7 @@
+       ]
+     }
+ 
+-    if ((is_linux || is_chromeos || is_android) && !is_nacl) {
++    if ((is_linux || is_chromeos || is_android) && !is_nacl && !is_starboard) {
+       sources += [
+         "channel_linux.cc",
+         "channel_linux.h",

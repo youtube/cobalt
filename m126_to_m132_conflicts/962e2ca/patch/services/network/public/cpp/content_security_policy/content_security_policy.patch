@@ -1,0 +1,53 @@
+--- services/network/public/cpp/content_security_policy/content_security_policy.cc
++++ services/network/public/cpp/content_security_policy/content_security_policy.cc
+@@ -152,18 +152,12 @@
+   if (base::EqualsCaseInsensitiveASCII(name, "report-to")) {
+     return CSPDirectiveName::ReportTo;
+   }
+-<<<<<<< HEAD
+-=======
+-  if (base::EqualsCaseInsensitiveASCII(name, "navigate-to")) {
+-    return CSPDirectiveName::NavigateTo;
+-  }
+ #if BUILDFLAG(IS_COBALT)
+   if (base::EqualsCaseInsensitiveASCII(name, "h5vcc-location-src")
+       || base::EqualsCaseInsensitiveASCII(name, "cobalt-location-src")) {
+     return CSPDirectiveName::CobaltLocationSrc;
+   }
+ #endif
+->>>>>>> 24e6ac706ab (Add h5vcc-location-src custom CSP directive (#5016))
+ 
+   return CSPDirectiveName::Unknown;
+ }
+@@ -1571,14 +1565,10 @@
+       CSPDirectiveName::StyleSrcAttr,   CSPDirectiveName::StyleSrcElem,
+       CSPDirectiveName::WorkerSrc,      CSPDirectiveName::BaseURI,
+       CSPDirectiveName::FrameAncestors, CSPDirectiveName::FormAction,
+-<<<<<<< HEAD
+-      CSPDirectiveName::FencedFrameSrc};
+-=======
+ #if BUILDFLAG(IS_COBALT)
+       CSPDirectiveName::CobaltLocationSrc,
+ #endif
+-      CSPDirectiveName::NavigateTo,     CSPDirectiveName::FencedFrameSrc};
+->>>>>>> 24e6ac706ab (Add h5vcc-location-src custom CSP directive (#5016))
++      CSPDirectiveName::FencedFrameSrc};
+ 
+   return base::ranges::all_of(directives, [&](CSPDirectiveName directive) {
+     auto required = GetSourceList(directive, policy_a);
+@@ -1662,15 +1652,10 @@
+       return "worker-src";
+     case CSPDirectiveName::ReportTo:
+       return "report-to";
+-<<<<<<< HEAD
+-=======
+-    case CSPDirectiveName::NavigateTo:
+-      return "navigate-to";
+ #if BUILDFLAG(IS_COBALT)
+     case CSPDirectiveName::CobaltLocationSrc:
+       return "h5vcc-location-src";
+ #endif
+->>>>>>> 24e6ac706ab (Add h5vcc-location-src custom CSP directive (#5016))
+     case CSPDirectiveName::Unknown:
+       return "";
+   }

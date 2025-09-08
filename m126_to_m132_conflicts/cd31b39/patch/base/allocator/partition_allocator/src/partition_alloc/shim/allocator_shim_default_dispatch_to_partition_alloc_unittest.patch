@@ -1,0 +1,28 @@
+--- base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc_unittest.cc
++++ base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc_unittest.cc
+@@ -29,11 +29,7 @@
+ #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+ 
+ // Platforms on which we override weak libc symbols.
+-<<<<<<< HEAD
+-#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+->>>>>>> 61f3855da9c (Build base_unittests hermetically. (#4935))
++#if PA_BUILDFLAG(IS_LINUX) && !PA_BUILDFLAG(IS_STARBOARD) || PA_BUILDFLAG(IS_CHROMEOS)
+ 
+ PA_NOINLINE void FreeForTest(void* data) {
+   free(data);
+@@ -93,11 +89,7 @@
+ #endif
+ }
+ 
+-<<<<<<< HEAD
+-#endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+-=======
+-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+->>>>>>> 61f3855da9c (Build base_unittests hermetically. (#4935))
++#endif  // PA_BUILDFLAG(IS_LINUX) && !PA_BUILDFLAG(IS_STARBOARD) || PA_BUILDFLAG(IS_CHROMEOS)
+ 
+ #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+ 

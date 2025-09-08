@@ -1,0 +1,22 @@
+--- mojo/core/channel_posix.cc
++++ mojo/core/channel_posix.cc
+@@ -703,7 +703,6 @@
+     ConnectionParams connection_params,
+     HandlePolicy handle_policy,
+     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner) {
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_ANDROID)
+   if (connection_params.endpoint().platform_handle().is_valid_binder()) {
+     return base::MakeRefCounted<ChannelBinder>(
+@@ -711,10 +710,8 @@
+         std::move(io_task_runner));
+   }
+ #endif
+-#if !BUILDFLAG(IS_NACL) && \
+-=======
++
+ #if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD) && \
+->>>>>>> ecde1742f5a (Add a number of hermetic build targets (#5300))
+     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
+   return new ChannelLinux(delegate, std::move(connection_params), handle_policy,
+                           io_task_runner);

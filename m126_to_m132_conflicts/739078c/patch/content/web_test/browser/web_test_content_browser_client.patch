@@ -1,0 +1,49 @@
+--- content/web_test/browser/web_test_content_browser_client.cc
++++ content/web_test/browser/web_test_content_browser_client.cc
+@@ -569,7 +569,6 @@
+   map->Add<blink::test::mojom::WebSensorProviderAutomation>(base::BindRepeating(
+       &WebTestContentBrowserClient::BindWebSensorProviderAutomation,
+       base::Unretained(this)));
+-<<<<<<< HEAD
+ 
+ #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+   map->Add<blink::test::mojom::WebPressureManagerAutomation>(
+@@ -577,12 +576,11 @@
+           &WebTestContentBrowserClient::BindWebPressureManagerAutomation,
+           base::Unretained(this)));
+ #endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+-=======
++
+ #if BUILDFLAG(IS_COBALT)
+   map->Add<h5vcc_runtime::mojom::H5vccRuntime>(base::BindRepeating(
+       &WebTestContentBrowserClient::BindH5vccRuntime, base::Unretained(this)));
+ #endif
+->>>>>>> 7ea7d6bdb46 (Add binder for H5vccRuntime to fix other web tests (#5183))
+ }
+ 
+ bool WebTestContentBrowserClient::CanAcceptUntrustedExchangesIfNeeded() {
+@@ -664,7 +662,6 @@
+   sensor_provider_manager_.reset();
+ }
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+ void WebTestContentBrowserClient::BindWebPressureManagerAutomation(
+     RenderFrameHost* render_frame_host,
+@@ -675,7 +672,7 @@
+       ->Bind(std::move(receiver));
+ }
+ #endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+-=======
++
+ #if BUILDFLAG(IS_COBALT)
+ void WebTestContentBrowserClient::BindH5vccRuntime(
+     RenderFrameHost* render_frame_host,
+@@ -685,7 +682,6 @@
+   stub_h5vcc_runtime_impl_->Bind(std::move(receiver));
+ }
+ #endif
+->>>>>>> 7ea7d6bdb46 (Add binder for H5vccRuntime to fix other web tests (#5183))
+ 
+ std::unique_ptr<LoginDelegate> WebTestContentBrowserClient::CreateLoginDelegate(
+     const net::AuthChallengeInfo& auth_info,

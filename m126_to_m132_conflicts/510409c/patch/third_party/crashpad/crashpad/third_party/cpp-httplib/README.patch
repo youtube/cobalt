@@ -1,0 +1,15 @@
+--- third_party/crashpad/crashpad/third_party/cpp-httplib/README.crashpad
++++ third_party/crashpad/crashpad/third_party/cpp-httplib/README.crashpad
+@@ -1,12 +1,8 @@
+ Name: cpp-httplib
+ Short Name: cpp-httplib
+ URL: https://github.com/yhirose/cpp-httplib
+-<<<<<<< HEAD
+ Version: 0.18.0 (+15 commits)
+ Revision: 0cc1ca9a8dcff402891582dda4da34a5d1687adc
+-=======
+-Revision: 6a848b1a16437fe216cb26a14ee9fcb5c5785464
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ License: MIT
+ License File: cpp-httplib/LICENSE
+ Security Critical: no (test only)

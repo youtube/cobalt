@@ -1,0 +1,18 @@
+--- content/shell/browser/shell_platform_delegate_views.cc
++++ content/shell/browser/shell_platform_delegate_views.cc
+@@ -371,15 +371,11 @@
+       gfx::Rect(initial_size));
+ #else
+   shell_data.window_widget = new views::Widget();
+-<<<<<<< HEAD
+   views::Widget::InitParams params(
+       views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+-=======
+-  views::Widget::InitParams params;
+ #if BUILDFLAG(IS_STARBOARD)
+   params.type = views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
+ #endif // BUILDFLAG(IS_STARBOARD)
+->>>>>>> bbeca049b95 ([Ozone] Remove content border and hide toolbar (#5199))
+   params.bounds = gfx::Rect(initial_size);
+   params.delegate = delegate.release();
+   params.wm_class_class = "chromium-content_shell";
