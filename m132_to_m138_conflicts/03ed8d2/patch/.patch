@@ -1,0 +1,22 @@
+--- .gn
++++ .gn
+@@ -171,18 +171,8 @@
+ 
+ # TODO(b/378960295): Try to remove the allowlisted files.
+ import("//cobalt/build/configs/cobalt.gni")
+-<<<<<<< HEAD
+-if (is_cobalt) {
+-  exec_script_allowlist += [
+-    "//starboard/tools/BUILD.gn",
+-    "//starboard/build/config/sabi/BUILD.gn",
+-    "//starboard/build/platform_path.gni",
+-  ]
+-}
+-=======
+-exec_script_whitelist += [
++exec_script_allowlist += [
+   "//starboard/tools/BUILD.gn",
+   "//starboard/build/config/sabi/BUILD.gn",
+   "//starboard/build/platform_path.gni",
+ ]
+->>>>>>> dc1adadcd1b (Set is_cobalt = false by default (#4445))

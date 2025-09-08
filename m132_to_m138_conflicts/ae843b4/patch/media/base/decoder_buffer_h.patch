@@ -1,0 +1,19 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -353,16 +353,11 @@
+   DecoderBuffer(DecoderBufferType decoder_buffer_type,
+                 std::optional<ConfigVariant> next_config);
+ 
+-<<<<<<< HEAD
+-=======
+-  virtual ~DecoderBuffer();
+-
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Encoded data, allocated from DecoderBuffer::Allocator.
+   uint8_t* data_ = nullptr;
+   size_t allocated_size_ = 0;
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 672d4f2b4e8 ([media] Support DecoderBufferAllocator (#4348))
+   // Encoded data, if it is stored on the heap.
+   const base::HeapArray<uint8_t> data_;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)

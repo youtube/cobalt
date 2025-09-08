@@ -1,0 +1,20 @@
+--- build/config/clang/clang.gni
++++ build/config/clang/clang.gni
+@@ -15,16 +15,7 @@
+   # coding guidelines, etc. Only used when compiling with Chrome's Clang, not
+   # Chrome OS's.
+   clang_use_chrome_plugins =
+-<<<<<<< HEAD
+-      is_clang && !is_nacl && current_os != "zos" && !is_cobalt &&
+-      default_toolchain != "//build/toolchain/cros:target" &&
+-      # TODO(https://crbug.com/351909443): Remove this after fixing performance
+-      # of Clang modules build.
+-      !use_libcxx_modules
+-=======
+-      is_clang && !is_nacl && current_os != "zos" &&
+-      default_toolchain != "//build/toolchain/cros:target"
+->>>>>>> 8f3a564585b (Set certain upstream GN flags correctly in args.gn (#4419))
++      is_clang && current_os != "zos" && !is_cobalt
+ 
+   # Use this instead of clang_use_chrome_plugins to enable just the raw-ptr-plugin.
+   clang_use_raw_ptr_plugin = false

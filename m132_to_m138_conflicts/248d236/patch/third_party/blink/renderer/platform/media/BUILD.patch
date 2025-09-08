@@ -1,0 +1,36 @@
+--- third_party/blink/renderer/platform/media/BUILD.gn
++++ third_party/blink/renderer/platform/media/BUILD.gn
+@@ -125,33 +125,8 @@
+     "//third_party/blink/renderer/platform:platform",
+   ]
+ 
+-<<<<<<< HEAD
+   if (is_cobalt) {
+     deps += [ "//starboard/build:starboard_buildflags" ]
+-=======
+-  if (media_use_ffmpeg || !is_android || is_cobalt) {
+-    sources += [
+-      "buffered_data_source_host_impl.cc",
+-      "buffered_data_source_host_impl.h",
+-      "learning_experiment_helper.cc",
+-      "learning_experiment_helper.h",
+-      "multi_buffer_data_source.cc",
+-      "multi_buffer_data_source.h",
+-      "smoothness_helper.cc",
+-      "smoothness_helper.h",
+-      "web_media_player_impl.cc",
+-      "web_media_player_impl.h",
+-    ]
+-    public_deps += [
+-      "//media/learning/common",
+-      "//services/media_session/public/cpp:base_cpp",
+-    ]
+-    deps += [
+-      "//cc",
+-      "//media/learning/mojo/public/cpp",
+-      "//third_party/blink/public/strings:strings_grit",
+-    ]
+->>>>>>> 96d8ae8f05d ([media] Remove //third_party/ffmpeg from build (#4425))
+   }
+ 
+   if (enable_hls_demuxer) {

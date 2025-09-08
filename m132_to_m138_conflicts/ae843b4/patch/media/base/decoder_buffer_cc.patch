@@ -1,0 +1,25 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -74,7 +74,6 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
+                              base::span<const uint8_t> data)
+     : DecoderBuffer(std::move(data)) {}
+@@ -92,14 +91,12 @@
+                              std::optional<ConfigVariant> next_config)
+     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
+ 
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ DecoderBuffer::~DecoderBuffer() {
+   DCHECK(s_allocator);
+   s_allocator->Free(data_, allocated_size_);
+ }
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 672d4f2b4e8 ([media] Support DecoderBufferAllocator (#4348))
+ DecoderBuffer::~DecoderBuffer() = default;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 

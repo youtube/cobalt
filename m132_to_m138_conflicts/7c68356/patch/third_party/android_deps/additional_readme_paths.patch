@@ -1,0 +1,23 @@
+--- third_party/android_deps/additional_readme_paths.json
++++ third_party/android_deps/additional_readme_paths.json
+@@ -4,20 +4,7 @@
+     "libs/com_android_tools_layoutlib_layoutlib_api",
+     "libs/com_android_tools_sdk_common",
+     "libs/com_google_android_apps_common_testing_accessibility_framework_accessibility_test_framework",
+-<<<<<<< HEAD
+-=======
+-    "libs/com_google_android_datatransport_transport_api",
+     "libs/com_google_android_gms_play_services_ads_identifier",
+-    "libs/com_google_android_gms_play_services_auth",
+-    "libs/com_google_android_gms_play_services_auth_api_phone",
+-    "libs/com_google_android_gms_play_services_auth_base",
+-    "libs/com_google_android_gms_play_services_auth_blockstore",
+-    "libs/com_google_android_gms_play_services_base",
+-    "libs/com_google_android_gms_play_services_basement",
+-    "libs/com_google_android_gms_play_services_cast",
+-    "libs/com_google_android_gms_play_services_cast_framework",
+-    "libs/com_google_android_gms_play_services_clearcut",
+->>>>>>> d5eb8f7f2c6 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
+     "libs/com_google_android_gms_play_services_cloud_messaging",
+     "libs/com_google_ar_impress",
+     "libs/com_google_code_gson_gson",
