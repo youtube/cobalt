@@ -218,11 +218,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
-<<<<<<< HEAD
-  SB_DCHECK(samples_written != NULL);
-=======
   SB_CHECK(samples_written);
->>>>>>> fa40ab1eda5 (Refactor: Replace SB_DCHECK with SB_CHECK (#7093))
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
   }
