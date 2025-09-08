@@ -52,6 +52,8 @@ _CHROMIUM_PLATFORMS = [
     'chromium_android-arm',
     'chromium_android-arm64',
     'chromium_android-x86',
+    'chromium_ios-arm64',
+    'chromium_mac-arm64',
 ]
 _COBALT_STARBOARD_PLATFORMS = [
     'evergreen-arm-hardfp-raspi',
