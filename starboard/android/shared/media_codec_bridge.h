@@ -235,13 +235,8 @@ class MediaCodecBridge {
   explicit MediaCodecBridge(Handler* handler);
   void Initialize(jobject j_media_codec_bridge);
 
-<<<<<<< HEAD
-  Handler* handler_ = NULL;
-  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
-=======
   Handler* const handler_;
-  base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
->>>>>>> fa40ab1eda5 (Refactor: Replace SB_DCHECK with SB_CHECK (#7093))
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
