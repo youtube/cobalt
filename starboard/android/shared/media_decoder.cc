@@ -86,14 +86,9 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
-<<<<<<< HEAD
       flush_delay_usec_(0),
       condition_variable_(mutex_) {
-  SB_DCHECK(host_);
-=======
-      flush_delay_usec_(0) {
   SB_CHECK(host_);
->>>>>>> fa40ab1eda5 (Refactor: Replace SB_DCHECK with SB_CHECK (#7093))
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
