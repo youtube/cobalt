@@ -102,7 +102,7 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
 
 void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
-  SB_DCHECK(media_drm_bridge);
+  SB_CHECK(media_drm_bridge);
   media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
