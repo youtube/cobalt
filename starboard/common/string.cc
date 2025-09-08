@@ -50,7 +50,7 @@ std::string FormatNumber(int64_t number) {
       continue;
     }
     if (digit_count > 0 && digit_count % 3 == 0) {
-      reversed_result.push_back(',');
+      reversed_result.push_back('\'');
     }
     reversed_result.push_back(str[i]);
     digit_count++;

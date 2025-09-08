@@ -54,6 +54,8 @@ std::string HexEncode(const void* data,
                       int size,
                       const char* delimiter = nullptr);
 
+// Formats a number as a string with single-quote thousands separators
+// (e.g., 1'234'567).
 std::string FormatNumber(int64_t);
 
 template <typename CHAR>

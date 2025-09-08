@@ -154,22 +154,22 @@ TEST(FormatNumberTest, FormatsZero) {
 
 TEST(FormatNumberTest, FormatsPositiveNumber) {
   EXPECT_EQ("123", FormatNumber(123));
-  EXPECT_EQ("1,234", FormatNumber(1234));
-  EXPECT_EQ("12,345", FormatNumber(12345));
-  EXPECT_EQ("123,456", FormatNumber(123456));
-  EXPECT_EQ("1,234,567", FormatNumber(1234567));
-  EXPECT_EQ("12,345,678", FormatNumber(12345678));
-  EXPECT_EQ("123,456,789", FormatNumber(123456789));
+  EXPECT_EQ("1'234", FormatNumber(1234));
+  EXPECT_EQ("12'345", FormatNumber(12345));
+  EXPECT_EQ("123'456", FormatNumber(123456));
+  EXPECT_EQ("1'234'567", FormatNumber(1234567));
+  EXPECT_EQ("12'345'678", FormatNumber(12345678));
+  EXPECT_EQ("123'456'789", FormatNumber(123456789));
 }
 
 TEST(FormatNumberTest, FormatsNegativeNumber) {
   EXPECT_EQ("-123", FormatNumber(-123));
-  EXPECT_EQ("-1,234", FormatNumber(-1234));
-  EXPECT_EQ("-12,345", FormatNumber(-12345));
-  EXPECT_EQ("-123,456", FormatNumber(-123456));
-  EXPECT_EQ("-1,234,567", FormatNumber(-1234567));
-  EXPECT_EQ("-12,345,678", FormatNumber(-12345678));
-  EXPECT_EQ("-123,456,789", FormatNumber(-123456789));
+  EXPECT_EQ("-1'234", FormatNumber(-1234));
+  EXPECT_EQ("-12'345", FormatNumber(-12345));
+  EXPECT_EQ("-123'456", FormatNumber(-123456));
+  EXPECT_EQ("-1'234'567", FormatNumber(-1234567));
+  EXPECT_EQ("-12'345'678", FormatNumber(-12345678));
+  EXPECT_EQ("-123'456'789", FormatNumber(-123456789));
 }
 
 }  // namespace
