@@ -25,6 +25,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
+#include "build/build_config.h"
 #include "starboard/extension/platform_info.h"
 
 #include "cobalt/cobalt_build_id.h"  // Generated
@@ -101,10 +102,6 @@ void GetUserAgentInputMap(
 
 namespace {
 
-static bool isAsciiAlphaDigit(int c) {
-  return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
-}
-
 // https://datatracker.ietf.org/doc/html/rfc5234#appendix-B.1
 static bool isVCHARorSpace(int c) {
   return c >= 0x20 && c <= 0x7E;
@@ -112,7 +109,7 @@ static bool isVCHARorSpace(int c) {
 
 // https://datatracker.ietf.org/doc/html/rfc7230#section-3.2.6
 static bool isTCHAR(int c) {
-  if (isAsciiAlphaDigit(c)) {
+  if (base::IsAsciiAlphaNumeric(c)) {
     return true;
   }
   switch (c) {
@@ -289,7 +286,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 #endif
 
 // Apply overrides from command line
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (!base::CommandLine::InitializedForCurrentProcess()) {
     return;
   }
@@ -380,8 +377,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 }
 }  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
-    : enable_skia_rasterizer_(enable_skia_rasterizer) {
+UserAgentPlatformInfo::UserAgentPlatformInfo() {
   InitializeUserAgentPlatformInfoFields(*this);
 }
 
@@ -398,7 +394,7 @@ void UserAgentPlatformInfo::set_original_design_manufacturer(
     std::optional<std::string> original_design_manufacturer) {
   if (original_design_manufacturer) {
     original_design_manufacturer_ =
-        Sanitize(original_design_manufacturer, isAsciiAlphaDigit);
+        Sanitize(original_design_manufacturer, base::IsAsciiAlphaNumeric);
   }
 }
 
@@ -409,7 +405,8 @@ void UserAgentPlatformInfo::set_device_type(const std::string& device_type) {
 void UserAgentPlatformInfo::set_chipset_model_number(
     std::optional<std::string> chipset_model_number) {
   if (chipset_model_number) {
-    chipset_model_number_ = Sanitize(chipset_model_number, isAsciiAlphaDigit);
+    chipset_model_number_ =
+        Sanitize(chipset_model_number, base::IsAsciiAlphaNumeric);
   }
 }
 

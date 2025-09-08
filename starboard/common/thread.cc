@@ -48,10 +48,9 @@ void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
-  pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
-
-  // pthread_create() above produced an invalid thread handle.
-  SB_DCHECK_NE(d_->thread_, static_cast<pthread_t>(0));
+  const int result =
+      pthread_create(&d_->thread_, nullptr, ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
 }
 
 void Thread::Sleep(int64_t microseconds) {
@@ -80,7 +79,11 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
+#if defined(__APPLE__)
+  pthread_setname_np(this_ptr->d_->name_.c_str());
+#else
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
+#endif
   this_ptr->Run();
   return NULL;
 }

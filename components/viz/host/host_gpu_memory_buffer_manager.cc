@@ -190,7 +190,7 @@ void HostGpuMemoryBufferManager::AllocateGpuMemoryBuffer(
                                                                  format)) {
     buffer_handle = gpu::GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
         id, size, format, usage);
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     DCHECK_EQ(gfx::SHARED_MEMORY_BUFFER, buffer_handle.type);
 #endif
     AllocatedBufferInfo buffer_info(buffer_handle, size, format);

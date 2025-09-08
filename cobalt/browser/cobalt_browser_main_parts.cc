@@ -24,6 +24,7 @@
 #include "content/public/browser/browser_thread.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #endif
 
@@ -36,6 +37,10 @@ namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
+#if BUILDFLAG(IS_ANDROIDTV)
+  base::android::MemoryPressureListenerAndroid::Initialize(
+      base::android::AttachCurrentThread());
+#endif
   return ShellBrowserMainParts::PreCreateThreads();
 }
 

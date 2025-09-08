@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 #include "starboard/audio_sink.h"
@@ -165,7 +166,7 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
   std::mutex mutex_;
-  pthread_t audio_thread_ = 0;
+  std::optional<pthread_t> audio_thread_;
   bool destroying_ = false;  // Guarded by |mutex_|.
 };
 
@@ -375,12 +376,12 @@ void PulseAudioSink::HandleRequest(size_t length) {
 PulseAudioSinkType::PulseAudioSinkType() {}
 
 PulseAudioSinkType::~PulseAudioSinkType() {
-  if (audio_thread_ != 0) {
+  if (audio_thread_) {
     {
       std::lock_guard lock(mutex_);
       destroying_ = true;
     }
-    pthread_join(audio_thread_, NULL);
+    pthread_join(*audio_thread_, nullptr);
   }
   SB_DCHECK(sinks_.empty());
   if (context_) {
@@ -476,16 +477,18 @@ bool PulseAudioSinkType::Initialize() {
     context_ = NULL;
     return false;
   }
-  pthread_create(&audio_thread_, nullptr, &PulseAudioSinkType::ThreadEntryPoint,
-                 this);
-  SB_DCHECK_NE(audio_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &PulseAudioSinkType::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  audio_thread_ = thread;
 
   return true;
 }
 
 bool PulseAudioSinkType::BelongToAudioThread() {
-  SB_DCHECK_NE(audio_thread_, 0);
-  return pthread_equal(pthread_self(), audio_thread_);
+  SB_DCHECK(audio_thread_);
+  return pthread_equal(pthread_self(), *audio_thread_);
 }
 
 pa_stream* PulseAudioSinkType::CreateNewStream(

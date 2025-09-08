@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -95,16 +96,18 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     return;
   }
 
-  pthread_create(&audio_out_thread_, nullptr,
-                 &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &ContinuousAudioTrackSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  audio_out_thread_ = thread;
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
-  if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+  if (audio_out_thread_) {
+    pthread_join(*audio_out_thread_, nullptr);
   }
 }
 
@@ -134,8 +137,7 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
-  // TODO(b/418059619): consolidate JniEnvExt and JNIEnv
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
@@ -144,11 +146,10 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
-  JNIEnv* env_jni = AttachCurrentThread();
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env_jni)) {
+    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
       ReportError(true, "Audio device capability changed");
@@ -300,7 +301,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   bridge_.PauseAndFlush();
 }
 
-int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
+int ContinuousAudioTrackSink::WriteData(JNIEnv* env,
                                         const void* buffer,
                                         int expected_written_frames) {
   const int samples_to_write = expected_written_frames * channels_;

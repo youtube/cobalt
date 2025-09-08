@@ -83,18 +83,9 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 }  // namespace
 
 std::string GetCobaltUserAgent() {
-// TODO: (cobalt b/375243230) enable UserAgentPlatformInfo on Linux.
-#if BUILDFLAG(IS_ANDROID)
   const UserAgentPlatformInfo platform_info;
   static const std::string user_agent_str = platform_info.ToString();
   return user_agent_str;
-#else
-  return std::string(
-      "Mozilla/5.0 (X11; Linux x86_64) Cobalt/26.lts.0-qa (unlike Gecko) "
-      "v8/unknown gles Starboard/17, "
-      "SystemIntegratorName_DESKTOP_ChipsetModelNumber_2025/FirmwareVersion "
-      "(BrandName, ModelName)");
-#endif
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
@@ -458,10 +449,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
-  LOG(INFO) << "CobaltCommandLine "
-            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
-  LOG(INFO) << "CobaltCommandLine "
-            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+  LOG(INFO) << "CobaltCommandLine: enable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
+            << "], disable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "]";
 
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();

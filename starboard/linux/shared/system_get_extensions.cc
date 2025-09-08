@@ -31,7 +31,6 @@
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/platform_service.h"
-#include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"

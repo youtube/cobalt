@@ -14,4 +14,7 @@ third_party {
     day: 1
   }
   license_type: NOTICE
+  security {
+    mitigated_security_patch: "CVE-2025-26519"  # Cherry-picked patches
+  }
 }
