@@ -32,7 +32,7 @@ const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 // Android.
 void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
                                     std::vector<int64_t>* rendered_frames) {
-  SB_DCHECK(rendered_frames);
+  SB_CHECK(rendered_frames);
   if (rendered_frames->empty()) {
     return;
   }

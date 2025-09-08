@@ -96,9 +96,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   // All parameters have to be valid.
   SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(update_media_info_cb);
-  SB_DCHECK(get_player_state_cb);
-  SB_DCHECK(update_player_state_cb);
+  SB_CHECK(update_media_info_cb);
+  SB_CHECK(get_player_state_cb);
+  SB_CHECK(update_player_state_cb);
 
   AttachToCurrentThread();
 
@@ -218,7 +218,11 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
+<<<<<<< HEAD
   SB_DCHECK(samples_written != NULL);
+=======
+  SB_CHECK(samples_written);
+>>>>>>> fa40ab1eda5 (Refactor: Replace SB_DCHECK with SB_CHECK (#7093))
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
   }
