@@ -188,6 +188,7 @@ test("nplb") {
       "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
+      "posix_compliance/posix_setpriority_test.cc",
       "posix_compliance/posix_signal_test.cc",
       "posix_compliance/posix_sleep_test.cc",
       "posix_compliance/posix_socket_accept_test.cc",
