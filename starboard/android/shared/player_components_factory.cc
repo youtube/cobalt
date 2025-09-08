@@ -196,7 +196,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   std::unique_ptr<PlayerComponents> CreateComponents(
       const CreationParameters& creation_parameters,
       std::string* error_message) override {
-    SB_DCHECK(error_message);
+    SB_CHECK(error_message);
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
@@ -279,7 +279,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::unique_ptr<VideoRenderAlgorithmBase>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
-    SB_DCHECK(error_message);
+    SB_CHECK(error_message);
 
     const std::string audio_mime =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
@@ -467,8 +467,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   void GetAudioRendererParams(const CreationParameters& creation_parameters,
                               int* max_cached_frames,
                               int* min_frames_per_append) const override {
-    SB_DCHECK(max_cached_frames);
-    SB_DCHECK(min_frames_per_append);
+    SB_CHECK(max_cached_frames);
+    SB_CHECK(min_frames_per_append);
     SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
               0);
     *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;

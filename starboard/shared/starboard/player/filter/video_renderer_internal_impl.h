@@ -80,7 +80,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void OnSeekTimeout();
 
   MediaTimeProvider* const media_time_provider_;
-  std::unique_ptr<VideoRenderAlgorithm> algorithm_;
+  const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
 
