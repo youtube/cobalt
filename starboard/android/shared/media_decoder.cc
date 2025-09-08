@@ -166,7 +166,6 @@ MediaDecoder::~MediaDecoder() {
     }
     // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
     media_codec_bridge_->Stop();
-    host_ = NULL;
   }
 }
 
