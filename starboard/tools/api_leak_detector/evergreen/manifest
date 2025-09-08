@@ -36,7 +36,6 @@ rewind
 sched_getaffinity
 sdallocx
 setlocale
-setpriority
 setvbuf
 stderr
 stdin
