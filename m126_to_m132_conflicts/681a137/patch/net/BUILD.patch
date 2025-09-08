@@ -1,0 +1,21 @@
+--- net/BUILD.gn
++++ net/BUILD.gn
+@@ -2139,7 +2139,6 @@
+     "url_request/url_request_test_util.h",
+   ]
+ 
+-<<<<<<< HEAD
+   if (is_win) {
+     sources += [
+       "test/win/fake_network_cost_manager.cc",
+@@ -2147,10 +2146,7 @@
+     ]
+   }
+ 
+-  if (is_linux || is_chromeos || is_android) {
+-=======
+   if ((is_linux || is_chromeos || is_android) && !is_starboard) {
+->>>>>>> cfe597b12ef (Allow hermetic net and net_unittests builds (#5157))
+     sources += [
+       "base/address_tracker_linux_test_util.cc",
+       "base/address_tracker_linux_test_util.h",

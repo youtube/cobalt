@@ -1,0 +1,128 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -100,23 +100,6 @@
+ assert(!is_win || is_clang,
+        "only clang-cl is supported on Windows, see https://crbug.com/988071")
+ 
+-<<<<<<< HEAD
+-=======
+-# Whether we should provide a `__libcpp_verbose_abort` handler that discards
+-# `__VA_ARGS__` and just calls base::ImmediateCrash() for hardening failures.
+-# This conditional matches `defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()` in
+-# base/check.h. I.e. we optimize `::std::__libcpp_verbose_abort(__VA_ARGS__)`
+-# to discard `__VA_ARGS__` when we disable logging from CHECK() failures.
+-use_nodebug_assertion =
+-    use_custom_libcxx && is_official_build && !is_debug && !dcheck_always_on
+-
+-# Determines whether libevent should be dep.
+-dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+-
+-# Determines whether message_pump_libevent should be used.
+-use_libevent = dep_libevent && !is_ios
+-
+->>>>>>> 61f3855da9c (Build base_unittests hermetically. (#4935))
+ if (is_android || is_robolectric) {
+   import("//build/config/android/rules.gni")
+   import("//third_party/jni_zero/jni_zero.gni")
+@@ -3735,11 +3718,9 @@
+     "//base/test:test_shared_library",
+     "//testing/buildbot/filters:base_unittests_filters",
+   ]
+-<<<<<<< HEAD
++  }
+   if (is_ios) {
+     deps += [ "//base/test:test_shared_library_ios+bundle" ]
+-=======
+->>>>>>> 61f3855da9c (Build base_unittests hermetically. (#4935))
+   }
+ 
+   if (is_android && enable_chrome_android_internal) {
+@@ -4114,88 +4095,6 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+-=======
+-  if (use_partition_alloc) {
+-    sources += [
+-      "allocator/partition_allocator/src/partition_alloc/address_pool_manager_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/address_space_randomization_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/compressed_pointer_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/freeslot_bitmap_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/hardening_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/lightweight_quarantine_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/memory_reclaimer_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/page_allocator_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/bits_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/component_export_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/cpu_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/logging_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/no_destructor_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/rand_util_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/scoped_clear_last_error_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/strings/cstring_builder_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/strings/safe_sprintf_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/strings/string_util_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/strings/stringprintf_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/thread_annotations_pa_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_lock_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/reverse_bytes_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/thread_cache_unittest.cc",
+-      "allocator/partition_allocator/src/partition_alloc/use_death_tests.h",
+-    ]
+-
+-    if (is_starboard) {
+-      sources -= [
+-        "allocator/partition_allocator/page_allocator_unittest.cc",
+-      ]
+-    }
+-    if (use_starscan) {
+-      sources += [
+-        "allocator/partition_allocator/src/partition_alloc/stack/stack_unittest.cc",
+-        "allocator/partition_allocator/src/partition_alloc/starscan/pcscan_scheduling_unittest.cc",
+-        "allocator/partition_allocator/src/partition_alloc/starscan/pcscan_unittest.cc",
+-        "allocator/partition_allocator/src/partition_alloc/starscan/scan_loop_unittest.cc",
+-        "allocator/partition_allocator/src/partition_alloc/starscan/state_bitmap_unittest.cc",
+-      ]
+-    }
+-
+-    if ((is_android || is_linux) && target_cpu == "arm64") {
+-      cflags = [
+-        "-Xclang",
+-        "-target-feature",
+-        "-Xclang",
+-        "+mte",
+-      ]
+-    }
+-
+-    if (is_android) {
+-      sources += [
+-        "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/files/file_path_pa_unittest.cc",
+-        "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/native_library_pa_unittest.cc",
+-      ]
+-    } else if (is_fuchsia) {
+-      sources += [ "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/fuchsia/fuchsia_logging_pa_unittest.cc" ]
+-    }
+-
+-    if (enable_pkeys && is_debug && !is_component_build) {
+-      # This test requires RELRO, which is not enabled in component builds.
+-      # Also, require a debug build, since we only disable stack protectors in
+-      # debug builds in PartitionAlloc (see below why it's needed).
+-      sources += [ "allocator/partition_allocator/src/partition_alloc/thread_isolation/pkey_unittest.cc" ]
+-
+-      # We want to test the pkey code without access to memory that is not
+-      # pkey-tagged. This will allow us to catch unintended memory accesses
+-      # that could break our security assumptions. The stack protector reads a
+-      # value from the TLS which won't be pkey-tagged, hence disabling it for
+-      # the test.
+-      configs += [ ":no_stack_protector" ]
+-    }
+-
+-    deps += [ ":partition_alloc_test_support" ]
+-  }
+-
+->>>>>>> 61f3855da9c (Build base_unittests hermetically. (#4935))
+   if (is_mac) {
+     sources += [ "message_loop/message_pump_kqueue_unittest.cc" ]
+     frameworks += [

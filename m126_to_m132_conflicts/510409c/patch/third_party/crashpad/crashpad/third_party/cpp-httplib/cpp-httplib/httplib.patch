@@ -1,0 +1,63 @@
+--- third_party/crashpad/crashpad/third_party/cpp-httplib/cpp-httplib/httplib.h
++++ third_party/crashpad/crashpad/third_party/cpp-httplib/cpp-httplib/httplib.h
+@@ -8,11 +8,7 @@
+ #ifndef CPPHTTPLIB_HTTPLIB_H
+ #define CPPHTTPLIB_HTTPLIB_H
+ 
+-<<<<<<< HEAD
+ #define CPPHTTPLIB_VERSION "0.18.0"
+-=======
+-#define CPPHTTPLIB_VERSION "0.16.0"
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ /*
+  * Configuration
+@@ -22,17 +18,12 @@
+ #define CPPHTTPLIB_KEEPALIVE_TIMEOUT_SECOND 5
+ #endif
+ 
+-<<<<<<< HEAD
+ #ifndef CPPHTTPLIB_KEEPALIVE_TIMEOUT_CHECK_INTERVAL_USECOND
+ #define CPPHTTPLIB_KEEPALIVE_TIMEOUT_CHECK_INTERVAL_USECOND 10000
+ #endif
+ 
+ #ifndef CPPHTTPLIB_KEEPALIVE_MAX_COUNT
+ #define CPPHTTPLIB_KEEPALIVE_MAX_COUNT 100
+-=======
+-#ifndef CPPHTTPLIB_KEEPALIVE_MAX_COUNT
+-#define CPPHTTPLIB_KEEPALIVE_MAX_COUNT 5
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+ #ifndef CPPHTTPLIB_CONNECTION_TIMEOUT_SECOND
+@@ -43,7 +34,6 @@
+ #define CPPHTTPLIB_CONNECTION_TIMEOUT_USECOND 0
+ #endif
+ 
+-<<<<<<< HEAD
+ #ifndef CPPHTTPLIB_SERVER_READ_TIMEOUT_SECOND
+ #define CPPHTTPLIB_SERVER_READ_TIMEOUT_SECOND 5
+ #endif
+@@ -74,22 +64,6 @@
+ 
+ #ifndef CPPHTTPLIB_CLIENT_WRITE_TIMEOUT_USECOND
+ #define CPPHTTPLIB_CLIENT_WRITE_TIMEOUT_USECOND 0
+-=======
+-#ifndef CPPHTTPLIB_READ_TIMEOUT_SECOND
+-#define CPPHTTPLIB_READ_TIMEOUT_SECOND 5
+-#endif
+-
+-#ifndef CPPHTTPLIB_READ_TIMEOUT_USECOND
+-#define CPPHTTPLIB_READ_TIMEOUT_USECOND 0
+-#endif
+-
+-#ifndef CPPHTTPLIB_WRITE_TIMEOUT_SECOND
+-#define CPPHTTPLIB_WRITE_TIMEOUT_SECOND 5
+-#endif
+-
+-#ifndef CPPHTTPLIB_WRITE_TIMEOUT_USECOND
+-#define CPPHTTPLIB_WRITE_TIMEOUT_USECOND 0
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+ #ifndef CPPHTTPLIB_IDLE_INTERVAL_SECOND

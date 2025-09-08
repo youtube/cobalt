@@ -1,0 +1,15 @@
+--- content/public/android/java/src/org/chromium/content_public/browser/ContentFeatureList.java
++++ content/public/android/java/src/org/chromium/content_public/browser/ContentFeatureList.java
+@@ -30,11 +30,9 @@
+ 
+     public static final String MOUSE_AND_TRACKPAD_DROPDOWN_MENU = "MouseAndTrackpadDropdownMenu";
+ 
+-<<<<<<< HEAD
+     public static final String INPUT_ON_VIZ = "InputOnViz";
+-=======
++
+     public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+->>>>>>> 85a0545f88b (Stop creating a11y node provder for Chrobalt (#5271))
+ 
+     public static final String OPTIMIZE_IMM_HIDE_CALLS = "OptimizeImmHideCalls";
+ 
