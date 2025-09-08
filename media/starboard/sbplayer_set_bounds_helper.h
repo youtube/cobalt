@@ -18,9 +18,14 @@
 #include <optional>
 #include <utility>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "ui/gfx/geometry/rect.h"
+
+namespace base {
+class SequencedTaskRunner;
+}
 
 namespace media {
 
@@ -28,18 +33,16 @@ class SbPlayerBridge;
 
 class SbPlayerSetBoundsHelper {
  public:
-  SbPlayerSetBoundsHelper() = default;
+  SbPlayerSetBoundsHelper();
 
   void SetPlayerBridge(SbPlayerBridge* player_bridge);
   bool SetBounds(const gfx::Rect& rect);
 
  private:
-  // TODO(mcasas): Probably unneeded if this class is only owned
-  // by StarboardRenderer and accessed from a single TaskRunner.
-  // Enforce via task_runner_ latched on ctor and CHECK()ed.
-  base::Lock lock_;
-  SbPlayerBridge* player_bridge_ GUARDED_BY(lock_) = nullptr;
-  std::optional<gfx::Rect> rect_ GUARDED_BY(lock_);
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+
+  SbPlayerBridge* player_bridge_ = nullptr;
+  std::optional<gfx::Rect> rect_;
 
   SbPlayerSetBoundsHelper(const SbPlayerSetBoundsHelper&) = delete;
   void operator=(const SbPlayerSetBoundsHelper&) = delete;
