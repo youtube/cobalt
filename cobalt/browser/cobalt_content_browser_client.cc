@@ -38,6 +38,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/version.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -91,15 +92,12 @@ std::string GetCobaltUserAgent() {
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   blink::UserAgentMetadata metadata;
-
-#define COBALT_BRAND_NAME "Cobalt"
-#define COBALT_MAJOR_VERSION "26"
-#define COBALT_VERSION "26.lts.0-qa"
-  metadata.brand_version_list.emplace_back(COBALT_BRAND_NAME,
+  const UserAgentPlatformInfo platform_info;
+  metadata.brand_version_list.emplace_back(platform_info.brand().value_or(""),
                                            COBALT_MAJOR_VERSION);
-  metadata.brand_full_version_list.emplace_back(COBALT_BRAND_NAME,
-                                                COBALT_VERSION);
-  metadata.full_version = COBALT_VERSION;
+  metadata.brand_full_version_list.emplace_back(
+      platform_info.brand().value_or(""), platform_info.cobalt_version());
+  metadata.full_version = platform_info.cobalt_version();
   metadata.platform = "Starboard";
   metadata.architecture = embedder_support::GetCpuArchitecture();
   metadata.model = embedder_support::BuildModelInfo();

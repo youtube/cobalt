@@ -26,6 +26,7 @@
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
 #include "build/build_config.h"
+#include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
 
 #include "cobalt/cobalt_build_id.h"  // Generated
@@ -201,15 +202,14 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-#if BUILDFLAG(IS_ANDROID)
-  info.set_device_type("ATV");
-#else
-  info.set_device_type("TV");
-#endif  // BUILDFLAG(IS_ANDROID)
+  info.set_device_type(
+      starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
 
-// TODO(cobalt, b/374213479): figure out firmware version for other platforms.
 #if BUILDFLAG(IS_ANDROID)
   info.set_firmware_version(base::SysInfo::GetAndroidBuildID());
+#elif BUILDFLAG(IS_STARBOARD)
+  info.set_firmware_version(
+      starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
 #endif  // BUILDFLAG(IS_ANDROID)
 
   info.set_model(base::SysInfo::HardwareModelName());
@@ -224,12 +224,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
 
-  char value[1024];
-  bool result =
-      SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value, 1024);
-  if (result) {
-    info.set_aux_field(value);
-  }
+  info.set_aux_field(
+      starboard::GetSystemPropertyString(kSbSystemPropertyUserAgentAuxField));
 
   // We only support JIT for both Linux and Android.
   info.set_javascript_engine_version(

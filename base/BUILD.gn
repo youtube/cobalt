@@ -2424,6 +2424,8 @@ component("base") {
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]
+
+    deps += [ "//starboard/common:common_headers_only" ]
   }
 
   if (use_blink) {
@@ -6089,7 +6091,7 @@ process_version("check_version_internal") {
 }
 
 if (enable_cobalt_hermetic_hacks) {
-  # TODO: b/413130400 - Cobalt: Remove this config 
+  # TODO: b/413130400 - Cobalt: Remove this config
   # after removing base/starboard/linker_stub.h
   config("base_starboard_linker_stub") {
     cflags = ["-Wno-unreachable-code-break"]
