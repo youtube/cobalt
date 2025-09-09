@@ -179,7 +179,6 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
   set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
 
   set_firmware_version(base::SysInfo::GetAndroidBuildID());
-
 }
 #elif BUILDFLAG(IS_STARBOARD)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
@@ -198,7 +197,6 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   //   set_evergreen_file_type(evergreen_library_metadata.file_type);
   //   set_evergreen_type("Lite");
   // #endif
-
 }
 #endif
 
