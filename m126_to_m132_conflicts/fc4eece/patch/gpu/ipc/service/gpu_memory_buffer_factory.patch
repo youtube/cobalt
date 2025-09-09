@@ -1,0 +1,20 @@
+--- gpu/ipc/service/gpu_memory_buffer_factory.cc
++++ gpu/ipc/service/gpu_memory_buffer_factory.cc
+@@ -66,17 +66,12 @@
+ #if BUILDFLAG(IS_APPLE)
+   return std::make_unique<GpuMemoryBufferFactoryIOSurface>();
+ #elif BUILDFLAG(IS_ANDROID)
+-<<<<<<< HEAD
+   // Android does not support creating native GMBs (i.e., from
+   // AHardwareBuffers), but the codebase is structured such that it is necessary
+   // to have a factory that vends invalid GMB handles rather than having no
+   // factory at all.
+   return std::make_unique<GpuMemoryBufferFactoryStub>();
+-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+-=======
+-  return std::make_unique<GpuMemoryBufferFactoryAndroidHardwareBuffer>();
+ #elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+->>>>>>> 1ab7778b2a5 (Fix remaining compiler issues in hermetic cobalt (#5316))
+   return std::make_unique<GpuMemoryBufferFactoryNativePixmap>(
+       vulkan_context_provider);
+ #elif BUILDFLAG(IS_WIN)

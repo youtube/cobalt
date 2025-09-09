@@ -1,0 +1,16 @@
+--- content/browser/media/session/media_session_impl.cc
++++ content/browser/media/session/media_session_impl.cc
+@@ -143,12 +143,8 @@
+   return check_size;
+ }
+ 
+-<<<<<<< HEAD
+-std::u16string SanitizeMediaTitle(const std::u16string& title) {
+-=======
+ #if !BUILDFLAG(IS_COBALT)
+-std::u16string SanitizeMediaTitle(const std::u16string title) {
+->>>>>>> b2d9fabfdca (Fix broken web tests configuration (#5475))
++std::u16string SanitizeMediaTitle(const std::u16string& title) {
+   std::u16string out;
+   base::TrimString(title, u" ", &out);
+   return out;

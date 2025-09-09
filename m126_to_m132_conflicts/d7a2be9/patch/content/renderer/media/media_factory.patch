@@ -1,0 +1,19 @@
+--- content/renderer/media/media_factory.cc
++++ content/renderer/media/media_factory.cc
+@@ -439,16 +439,11 @@
+   auto factory_selector = CreateRendererFactorySelector(
+       player_id, media_log.get(), url,
+       render_frame_->GetRenderFrameMediaPlaybackOptions(),
+-<<<<<<< HEAD
+       decoder_factory_.get(), client->RemotePlaybackClientWrapper(),
+-=======
+-      decoder_factory_.get(),
+-      std::make_unique<blink::RemotePlaybackClientWrapperImpl>(client),
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+       &media_observer, client->GetElementId(), 
+       client->getMaxVideoCapabilities());
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 89be8fe2ff0 ([media] Send maxVideoCapabilities to StarboardRenderer (#5756))
+       &media_observer, client->GetElementId());
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 

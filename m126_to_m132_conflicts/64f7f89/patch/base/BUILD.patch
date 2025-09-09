@@ -1,0 +1,73 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -5633,70 +5633,6 @@
+   ]
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-# TODO(crbug.com/40158212): Temporarily move test_support from
+-# //base/allocator/partition_allocator/src/partition_alloc/BUILD.gn to //base/BUILD.gn. After
+-# fixing partition_allocator tests issue, we will move test_support to
+-# //base/allocator/partition_allocator/src/partition_alloc/BUILD.gn again.
+-source_set("partition_alloc_test_support") {
+-  testonly = true
+-
+-  sources = [
+-    "allocator/partition_allocator/src/partition_alloc/extended_api.cc",
+-    "allocator/partition_allocator/src/partition_alloc/extended_api.h",
+-    "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_for_testing.h",
+-    "allocator/partition_allocator/src/partition_alloc/partition_alloc_for_testing.h",
+-    "allocator/partition_allocator/src/partition_alloc/pointers/raw_ptr_counting_impl_for_test.h",
+-  ]
+-  if (is_posix) {
+-    sources += [ "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_posix_for_testing.cc" ]
+-  }
+-  if (is_fuchsia) {
+-    sources += [
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_fuchsia_for_testing.cc",
+-      "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_posix_for_testing.cc",
+-    ]
+-  }
+-  if (is_win) {
+-    sources += [ "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_win_for_testing.cc" ]
+-  }
+-  if (is_apple) {
+-    sources += [ "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_apple_for_testing.mm" ]
+-  }
+-  if (is_linux || is_chromeos) {
+-    sources += [ "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_linux_for_testing.cc" ]
+-  }
+-  if (is_android) {
+-    sources += [ "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_android_for_testing.cc" ]
+-  }
+-  public_deps = [
+-    "allocator/partition_allocator:buildflags",
+-    "//build:branding_buildflags",
+-    "//build/config/compiler:compiler_buildflags",
+-  ]
+-  public_configs = []
+-  if (is_fuchsia) {
+-    public_deps += [
+-      "//third_party/fuchsia-sdk/sdk/pkg/fit",
+-      "//third_party/fuchsia-sdk/sdk/pkg/sync",
+-      "//third_party/fuchsia-sdk/sdk/pkg/zx",
+-    ]
+-
+-    # Needed for users of spinning_mutex.h, which for performance reasons,
+-    # contains inlined calls to `libsync` inside the header file.
+-    # It appends an entry to the "libs" section of the dependent target.
+-    public_configs += [ ":fuchsia_sync_lib" ]
+-  }
+-  deps = [ ":base" ]
+-
+-  if (!is_debug) {
+-    configs -= [ "//build/config/compiler:default_optimization" ]
+-    configs += [ "//build/config/compiler:optimize_speed" ]
+-  }
+-}
+-
+->>>>>>> ecdd1a61d81 (Remove zygote processes (#5680))
+ if (enable_base_tracing) {
+   # This group makes visible those targets in subdirectories that are not
+   # explicitly depended on.

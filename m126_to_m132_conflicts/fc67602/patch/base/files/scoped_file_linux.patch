@@ -1,0 +1,12 @@
+--- base/files/scoped_file_linux.cc
++++ base/files/scoped_file_linux.cc
+@@ -113,8 +113,5 @@
+ }
+ 
+ }  // extern "C"
+-<<<<<<< HEAD
+-#endif  // !defined(COMPONENT_BUILD)
+-=======
+ #endif  // !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 5a88e6e1b77 (Disable the scoped_file close intercept (#5954))
++#endif  // !defined(COMPONENT_BUILD)

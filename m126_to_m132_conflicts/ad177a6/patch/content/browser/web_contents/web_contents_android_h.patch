@@ -1,0 +1,16 @@
+--- content/browser/web_contents/web_contents_android.h
++++ content/browser/web_contents/web_contents_android.h
+@@ -98,13 +98,8 @@
+ 
+   void ResumeLoadingCreatedWebContents(JNIEnv* env);
+ 
+-<<<<<<< HEAD
+-=======
+-  void OnHide(JNIEnv* env);
+-  void OnShow(JNIEnv* env);
+   void OnFreeze(JNIEnv* env);
+   void OnResume(JNIEnv* env);
+->>>>>>> 206d5743ac9 (Add freeze and resume events on suspend/resume (#5613))
+   void SetImportance(JNIEnv* env, jint importance);
+   void SuspendAllMediaPlayers(JNIEnv* env);
+   void SetAudioMuted(JNIEnv* env, jboolean mute);

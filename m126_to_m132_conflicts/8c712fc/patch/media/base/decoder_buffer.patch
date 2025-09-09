@@ -1,0 +1,28 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -110,17 +110,6 @@
+ DecoderBuffer::~DecoderBuffer() = default;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-<<<<<<< HEAD
+-=======
+-void DecoderBuffer::Initialize() {
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-  // This is used by Mojo.
+-  Initialize(DemuxerStream::UNKNOWN);
+-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  data_ = base::HeapArray<uint8_t>::Uninit(size_);
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-}
+-
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+   DCHECK(s_allocator);
+@@ -136,7 +125,6 @@
+ }
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+->>>>>>> 156b8fdf9c5 ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
+ // static
+ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
+     base::span<const uint8_t> data) {

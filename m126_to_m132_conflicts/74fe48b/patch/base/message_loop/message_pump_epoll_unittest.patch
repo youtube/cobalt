@@ -1,0 +1,23 @@
+--- base/message_loop/message_pump_epoll_unittest.cc
++++ base/message_loop/message_pump_epoll_unittest.cc
+@@ -97,20 +97,6 @@
+ 
+ namespace {
+ 
+-<<<<<<< HEAD
+-=======
+-// Concrete implementation of MessagePumpEpoll::FdWatcher that does
+-// nothing useful.
+-class StupidWatcher : public MessagePumpEpoll::FdWatcher {
+- public:
+-  ~StupidWatcher() override = default;
+-
+-  // base:MessagePumpEpoll::FdWatcher interface
+-  void OnFileCanReadWithoutBlocking(int fd) override {}
+-  void OnFileCanWriteWithoutBlocking(int fd) override {}
+-};
+-
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ TEST_F(MessagePumpEpollTest, QuitOutsideOfRun) {
+   auto pump = std::make_unique<MessagePumpEpoll>();
+   ASSERT_DCHECK_DEATH(pump->Quit());

@@ -1,0 +1,30 @@
+--- base/features.cc
++++ base/features.cc
+@@ -9,13 +9,10 @@
+ #include "base/threading/platform_thread.h"
+ #include "build/buildflag.h"
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+ #include "base/message_loop/message_pump_epoll.h"
+ #endif
+ 
+-=======
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ #if BUILDFLAG(IS_APPLE)
+ #include "base/files/file.h"
+ #include "base/message_loop/message_pump_apple.h"
+@@ -126,13 +123,10 @@
+   sequence_manager::internal::ThreadController::InitializeFeatures(
+       emit_thread_controller_profiler_metadata);
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+   MessagePumpEpoll::InitializeFeatures();
+ #endif
+ 
+-=======
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ #if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_CHROMEOS)
+   PlatformThread::InitializeFeatures();
+ #endif

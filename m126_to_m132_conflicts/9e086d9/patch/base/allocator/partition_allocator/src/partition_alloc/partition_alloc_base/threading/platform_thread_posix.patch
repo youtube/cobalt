@@ -1,0 +1,24 @@
+--- base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_posix.cc
++++ base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_posix.cc
+@@ -13,6 +13,7 @@
+ #include <cstddef>
+ #include <cstdint>
+ 
++#include "build/build_config.h"
+ #include "partition_alloc/build_config.h"
+ #include "partition_alloc/buildflags.h"
+ #include "partition_alloc/partition_alloc_base/logging.h"
+@@ -82,13 +83,9 @@
+   // into the kernel.
+ #if PA_BUILDFLAG(IS_APPLE)
+   return pthread_mach_thread_np(pthread_self());
+-<<<<<<< HEAD
+ #elif PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+-=======
+-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ 
+ #if !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 341f18f31b1 ([POSIX] Remove unnecessary pthread_atfork call (#5924))
+   static InitAtFork init_at_fork;
+ #endif // !BUILDFLAG(IS_STARBOARD)
+   if (g_thread_id == -1 ||

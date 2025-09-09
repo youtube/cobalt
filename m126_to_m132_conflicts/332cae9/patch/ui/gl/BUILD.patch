@@ -1,0 +1,15 @@
+--- ui/gl/BUILD.gn
++++ ui/gl/BUILD.gn
+@@ -188,11 +188,7 @@
+   }
+ 
+   if (use_ozone) {
+-<<<<<<< HEAD
+-    if (!is_fuchsia) {
+-=======
+-    if (use_egl && !is_fuchsia && !is_cobalt_hermetic_build) {
+->>>>>>> 7670fab6bf6 (Remove sysroot from linux hermetic builds (#5734))
++    if (!is_fuchsia && !is_cobalt_hermetic_build) {
+       data_deps += [
+         "//third_party/angle:libEGL",
+         "//third_party/angle:libGLESv2",

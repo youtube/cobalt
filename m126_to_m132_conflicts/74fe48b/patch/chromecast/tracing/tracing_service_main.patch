@@ -1,0 +1,17 @@
+--- chromecast/tracing/tracing_service_main.cc
++++ chromecast/tracing/tracing_service_main.cc
+@@ -108,13 +108,8 @@
+   }
+ 
+   // base::MessagePumpEpoll::FdWatcher:
+-<<<<<<< HEAD
+   void OnFileCanReadWithoutBlocking(int fd) override { NOTREACHED(); }
+-=======
+-  void OnFileCanReadWithoutBlocking(int fd) override {
+-    NOTREACHED_IN_MIGRATION();
+-  }
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
++  
+   void OnFileCanWriteWithoutBlocking(int fd) override {
+     DCHECK_EQ(out_fd_.get(), fd);
+     CopyTraceData();

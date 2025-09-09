@@ -1,0 +1,41 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -342,21 +342,13 @@
+   // default to false.
+   explicit DecoderBuffer(base::span<const uint8_t> data);
+ 
+-<<<<<<< HEAD
+-  explicit DecoderBuffer(base::HeapArray<uint8_t> data);
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   DecoderBuffer(DemuxerStream::Type type,
+                 const uint8_t* data,
+                 size_t size);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-  DecoderBuffer(base::HeapArray<uint8_t> data, size_t size);
+-
+-  DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping, size_t size);
+-
+-  DecoderBuffer(base::WritableSharedMemoryMapping mapping, size_t size);
+->>>>>>> 4ea0c656a96 ([media] Improve DecoderBufferAllocator logging (#5036))
++  explicit DecoderBuffer(base::HeapArray<uint8_t> data);
+ 
+   explicit DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory);
+ 
+@@ -400,15 +392,11 @@
+   bool is_key_frame_ : 1 = false;
+ 
+   // Whether the buffer represent the end of stream.
+-<<<<<<< HEAD
+   const bool is_end_of_stream_ : 1 = false;
+-=======
+-  const bool is_end_of_stream_ = false;
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   void Initialize(DemuxerStream::Type type);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 4ea0c656a96 ([media] Improve DecoderBufferAllocator logging (#5036))
+ };
+ 
+ }  // namespace media

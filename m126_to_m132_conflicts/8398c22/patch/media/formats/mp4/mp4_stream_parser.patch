@@ -1,0 +1,24 @@
+--- media/formats/mp4/mp4_stream_parser.cc
++++ media/formats/mp4/mp4_stream_parser.cc
+@@ -1032,19 +1032,15 @@
+   // opposite of what the coded frame contains.
+   bool is_keyframe = runs_->is_keyframe();
+ 
+-<<<<<<< HEAD
+   // `frame_buf` or `heap_frame_buf` should be used for post-processing buffer
+   // storage if [buf, buf + sample_size] needs any kind of processing before
+   // being put in a StreamParserBuffer. Prefer `heap_frame_buf` where possible.
+-  std::vector<uint8_t> frame_buf;
+-  base::HeapArray<uint8_t> heap_frame_buf;
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   std::vector<uint8_t> frame_buf;
+ #else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  std::vector<uint8_t> frame_buf(buf, buf + sample_size);
++  std::vector<uint8_t> frame_buf;
++  base::HeapArray<uint8_t> heap_frame_buf;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 5aeab6a69b9 ([media] Reduce extra copying in MP4StreamParser (#5538))
+   if (video) {
+     if (runs_->video_description().video_info.codec == VideoCodec::kH264 ||
+         runs_->video_description().video_info.codec == VideoCodec::kHEVC ||

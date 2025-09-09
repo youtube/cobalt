@@ -1,0 +1,18 @@
+--- media/base/stream_parser_buffer.cc
++++ media/base/stream_parser_buffer.cc
+@@ -105,15 +105,8 @@
+     : DecoderBuffer(
+           // TODO(crbug.com/40284755): Convert `StreamBufferParser` to
+           // `size_t` and `base::span`.
+-<<<<<<< HEAD
+           UNSAFE_TODO(base::span(data, base::checked_cast<size_t>(data_size)))),
+-=======
+-          UNSAFE_BUFFERS(
+-              base::span(data, base::checked_cast<size_t>(data_size)))),
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-      decode_timestamp_(kNoDecodeTimestamp),
+-      config_id_(kInvalidConfigId),
+->>>>>>> 4ea0c656a96 ([media] Improve DecoderBufferAllocator logging (#5036))
+       type_(type),
+       track_id_(track_id) {
+   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and

@@ -1,0 +1,15 @@
+--- content/shell/browser/shell_web_contents_view_delegate_views.cc
++++ content/shell/browser/shell_web_contents_view_delegate_views.cc
+@@ -100,12 +100,8 @@
+       web_contents_->GetTopLevelNativeWindow());
+   context_menu_runner_->RunMenuAt(
+       widget, nullptr, gfx::Rect(screen_point, gfx::Size()),
+-<<<<<<< HEAD
+       views::MenuAnchorPosition::kTopRight, ui::mojom::MenuSourceType::kNone);
+-=======
+-      views::MenuAnchorPosition::kTopRight, ui::MENU_SOURCE_NONE);
+ #endif
+->>>>>>> 2586fb0e126 (Initial decoupling of content shell to Cobalt (#5974))
+ }
+ 
+ }  // namespace content
