@@ -99,6 +99,30 @@ FEATURE_LIST_START
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+<<<<<<< HEAD
+=======
+// By default, Cobalt recreates MediaCodec when Reset() during Seek().
+// Set the following variable to true to force it Flush() MediaCodec
+// during Seek().
+STARBOARD_FEATURE(kForceFlushDecoderDuringReset,
+                  "ForceFlushDecoderDuringReset",
+                  false)
+
+// By default, the platform Opus decoder is only enabled for encrypted playback.
+// Set the following variable to true to force it for clear playback.
+STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
+
+// By default, Cobalt teardowns AudioDecoder during Reset().
+// Set the following variable to true to force it reset audio decoder
+// during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
+STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
+
+// By default, tunnel mode has to be enabled explicitly by the web app via the
+// mime attribute "tunnelmode=true". Set the following variable to true to force
+// enabling tunnel mode on all playbacks.
+STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
+
+>>>>>>> d7b023ecdc4 (Starboard: Add starboard experiment to Tunnel Mode (#7099))
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
