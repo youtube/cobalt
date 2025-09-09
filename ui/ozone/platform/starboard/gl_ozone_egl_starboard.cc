@@ -261,21 +261,21 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     const gl::GLImplementationParts& implementation) {
   DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLANGLE)
       << "Not supported: " << implementation.ToString();
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   gl::GLGetProcAddressProc gl_proc =
       [](const char* name) -> gl::GLFunctionPointerType {
-    gl::GLFunctionPointerType proc =
-        reinterpret_cast<gl::GLFunctionPointerType>(
-            SbGetEglInterface()->eglGetProcAddress(name));
+    // Retrieve EGL core functions from the SbEglInterface, since
+    // some EGL functions might be overridden by the Starboard
+    // implementation. If that fails then fallback on direct call to
+    // eglGetProcAddress.
+    const SbEglInterface* egl = SbGetEglInterface();
+    gl::GLFunctionPointerType proc = GetEglInterfaceProcAddress(name, egl);
     if (proc) {
       return proc;
     }
-    // For EGL 1.4, eglGetProcAddress might not return pointers to EGL core
-    // functions. In this case, we need to retrieve them from the
-    // SbEglInterface.
-    // If eglGetProcAddress fails, try to retrieve EGL core functions directly
-    // from the SbEglInterface.
-    const SbEglInterface* egl = SbGetEglInterface();
-    proc = GetEglInterfaceProcAddress(name, egl);
+
+    proc = reinterpret_cast<gl::GLFunctionPointerType>(
+        SbGetEglInterface()->eglGetProcAddress(name));
     if (proc) {
       return proc;
     }
@@ -283,13 +283,12 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     // If still not found, try to retrieve GLES2 functions directly from the
     // SbGlesInterface as a fallback.
     const SbGlesInterface* gles = SbGetGlesInterface();
-    proc = GetGlesInterfaceProcAddress(name, gles);
-    if (proc) {
-      return proc;
-    }
-
-    return nullptr;
+    return GetGlesInterfaceProcAddress(name, gles);
   };
+#else
+  gl::GLGetProcAddressProc gl_proc = reinterpret_cast<gl::GLGetProcAddressProc>(
+      SbGetEglInterface()->eglGetProcAddress);
+#endif
 
   if (!gl_proc) {
     LOG(ERROR) << "GLOzoneEglStarboard::LoadGLES2Bindings no gl_proc";

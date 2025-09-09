@@ -19,6 +19,5 @@ media_tests_sources = [
   "//starboard/shared/starboard/media/mime_type_test.cc",
   "//starboard/shared/starboard/media/mime_util_test.cc",
   "//starboard/shared/starboard/media/parsed_mime_info_test.cc",
-  "//starboard/shared/starboard/media/video_capabilities_test.cc",
   "//starboard/shared/starboard/media/vp9_util_test.cc",
 ]

@@ -13,25 +13,29 @@
 // limitations under the License.
 
 #include "starboard/android/shared/video_decoder.h"
-#include "starboard/common/check_op.h"
 
 #include <android/api-level.h>
 #include <jni.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <limits>
 #include <list>
 
+#include "base/android/jni_android.h"
+#include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/size.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
@@ -112,12 +116,11 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
 }
 
 void ParseMaxResolution(const std::string& max_video_capabilities,
-                        int frame_width,
-                        int frame_height,
+                        const Size& frame_size,
                         std::optional<int>* max_width,
                         std::optional<int>* max_height) {
-  SB_DCHECK_GT(frame_width, 0);
-  SB_DCHECK_GT(frame_height, 0);
+  SB_DCHECK_GT(frame_size.width, 0);
+  SB_DCHECK_GT(frame_size.height, 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
@@ -158,31 +161,29 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
     return;
   }
 
-  if (frame_width <= 0 || frame_height <= 0) {
+  if (frame_size.width <= 0 || frame_size.height <= 0) {
     // We DCHECK() above, but just be safe.
     SB_LOG(WARNING)
         << "Failed to parse max resolutions due to invalid frame resolutions ("
-        << frame_width << ", " << frame_height << ").";
+        << frame_size << ").";
     return;
   }
 
   if (width > 0) {
     *max_width = width;
-    *max_height = max_width->value() * frame_height / frame_width;
+    *max_height = max_width->value() * frame_size.height / frame_size.width;
     SB_LOG(INFO) << "Inferred max height (" << *max_height
                  << ") from max_width (" << *max_width
-                 << ") and frame resolution @ (" << frame_width << ", "
-                 << frame_height << ").";
+                 << ") and frame resolution @ (" << frame_size << ").";
     return;
   }
 
   if (height > 0) {
     *max_height = height;
-    *max_width = max_height->value() * frame_width / frame_height;
+    *max_width = max_height->value() * frame_size.width / frame_size.height;
     SB_LOG(INFO) << "Inferred max width (" << *max_width
                  << ") from max_height (" << *max_height
-                 << ") and frame resolution @ (" << frame_width << ", "
-                 << frame_height << ").";
+                 << ") and frame resolution @ (" << frame_size << ").";
   }
 }
 
@@ -391,9 +392,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
-      surface_condition_variable_(surface_destroy_mutex_),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
@@ -654,7 +654,7 @@ void VideoDecoder::Reset() {
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
@@ -715,11 +715,11 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       }
       j_output_surface = decode_target->surface();
 
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target->surface_texture(),
-                                 "setOnFrameAvailableListener", "(J)V", this);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      JniCallVoidMethodOrAbort(env, decode_target->surface_texture(),
+                               "setOnFrameAvailableListener", "(J)V", this);
 
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
     } break;
     case kSbPlayerOutputModeInvalid: {
@@ -740,12 +740,12 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
-  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
-                     video_stream_info.frame_height, &max_width, &max_height);
+  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
+                     &max_width, &max_height);
 
   media_decoder_.reset(new MediaDecoder(
-      this, video_stream_info.codec, video_stream_info.frame_width,
-      video_stream_info.frame_height, max_width, max_height, video_fps_,
+      this, video_stream_info.codec, video_stream_info.frame_size.width,
+      video_stream_info.frame_size.height, max_width, max_height, video_fps_,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
@@ -786,13 +786,13 @@ void VideoDecoder::TeardownCodec() {
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
-    ScopedLock lock(decode_target_mutex_);
+    std::lock_guard lock(decode_target_mutex_);
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target_->surface_texture(),
-                                 "removeOnFrameAvailableListener", "()V");
+      JNIEnv* env = base::android::AttachCurrentThread();
+      JniCallVoidMethodOrAbort(env, decode_target_->surface_texture(),
+                               "removeOnFrameAvailableListener", "()V");
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -934,7 +934,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(media_codec_bridge->GetOutputSize());
 
@@ -949,9 +949,9 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     output_format_ = std::nullopt;
     return;
   }
-  output_format_ = VideoOutputFormat(
-      video_codec_, frame_sizes_.back().display_width(),
-      frame_sizes_.back().display_height(), (color_metadata_ ? true : false));
+  output_format_ =
+      VideoOutputFormat(video_codec_, frame_sizes_.back().display_size(),
+                        color_metadata_.has_value());
   first_output_format_changed_ = true;
   auto max_output_buffers =
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
@@ -976,18 +976,18 @@ void VideoDecoder::OnFlushing() {
 namespace {
 
 void updateTexImage(jobject surface_texture) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(surface_texture, "updateTexImage", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniCallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   jfloatArray java_array = env->NewFloatArray(16);
   SB_DCHECK(java_array);
 
-  env->CallVoidMethodOrAbort(surface_texture, "getTransformMatrix", "([F)V",
-                             java_array);
+  JniCallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix", "([F)V",
+                           java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
@@ -1000,8 +1000,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
 // the pixel data is valid.  Note that the width and height of this region may
 // be negative to indicate that that axis should be flipped.
 SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
-    int width,
-    int height,
+    const Size& size,
     const float* matrix4x4) {
   // Ensure that this matrix contains no rotations or shears.  In other words,
   // make sure that we can convert it to a decode target content region without
@@ -1043,13 +1042,13 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
 
   SbDecodeTargetInfoContentRegion content_region;
 
-  content_region.left = origin_x * width;
-  content_region.right = extent_x * width;
+  content_region.left = origin_x * size.width;
+  content_region.right = extent_x * size.width;
 
   // Note that in GL coordinates, the origin is the bottom and the extent
   // is the top.
-  content_region.top = extent_y * height;
-  content_region.bottom = origin_y * height;
+  content_region.top = extent_y * size.height;
+  content_region.bottom = origin_y * size.height;
 
   return content_region;
 }
@@ -1061,7 +1060,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   // We must take a lock here since this function can be called from a separate
   // thread.
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
@@ -1087,14 +1086,13 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values()) {
-      decode_target_->set_dimension(frame_size.texture_width,
-                                    frame_size.texture_height);
+      decode_target_->set_dimension(frame_size.texture_size);
 
       float matrix4x4[16];
       getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
       auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          frame_size.texture_width, frame_size.texture_height, matrix4x4);
+          frame_size.texture_size, matrix4x4);
       decode_target_->set_content_region(content_region);
 
       // Now we have two crop rectangles, one from the MediaFormat, one from the
@@ -1107,25 +1105,24 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           std::abs(content_region.bottom - content_region.top) + 1;
       // Using 2 as epsilon, as the texture may get clipped by one pixel from
       // each side.
+      const auto display_size = frame_size.display_size();
       bool are_crop_values_matching =
-          std::abs(content_region_width - frame_size.display_width()) <= 2 &&
-          std::abs(content_region_height - frame_size.display_height()) <= 2;
+          std::abs(content_region_width - display_size.width) <= 2 &&
+          std::abs(content_region_height - display_size.height) <= 2;
       if (are_crop_values_matching) {
         return;
       }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // If we failed to find any matching clip regions, the crop values
       // returned from the platform may be inconsistent.
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size.texture_width << "x" << frame_size.texture_height
-          << " - (" << content_region.left << ", " << content_region.top << ", "
-          << content_region.right << ", " << content_region.bottom << "), ("
-          << frame_size.crop_left << "), (" << frame_size.crop_top << "), ("
-          << frame_size.crop_right << "), (" << frame_size.crop_bottom << ")";
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+          << frame_size << " - (" << content_region.left << ", "
+          << content_region.top << ", " << content_region.right << ", "
+          << content_region.bottom << ")";
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
     }
@@ -1151,15 +1148,13 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  decode_target_->set_dimension(frame_sizes_.back().display_width(),
-                                frame_sizes_.back().display_height());
+  decode_target_->set_dimension(frame_sizes_.back().display_size());
 
   float matrix4x4[16];
   getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
   decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
-      frame_sizes_.back().display_width(), frame_sizes_.back().display_height(),
-      matrix4x4));
+      frame_sizes_.back().display_size(), matrix4x4));
 }
 
 void VideoDecoder::SetPlaybackRate(double playback_rate) {
@@ -1244,16 +1239,22 @@ void VideoDecoder::OnVideoFrameRelease() {
 void VideoDecoder::OnSurfaceDestroyed() {
   if (!BelongsToCurrentThread()) {
     // Wait until codec is stopped.
-    ScopedLock lock(surface_destroy_mutex_);
+    std::unique_lock lock(surface_destroy_mutex_);
+    surface_destroyed_ = false;
     Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
-    surface_condition_variable_.WaitTimed(1'000'000);
+    surface_condition_variable_.wait_for(lock,
+                                         std::chrono::microseconds(1'000'000),
+                                         [this] { return surface_destroyed_; });
     return;
   }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
   TeardownCodec();
-  ScopedLock lock(surface_destroy_mutex_);
-  surface_condition_variable_.Signal();
+  {
+    std::lock_guard lock(surface_destroy_mutex_);
+    surface_destroyed_ = true;
+  }
+  surface_condition_variable_.notify_one();
 }
 
 void VideoDecoder::ReportError(SbPlayerError error,

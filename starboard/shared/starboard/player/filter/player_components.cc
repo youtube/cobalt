@@ -17,9 +17,11 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -82,7 +84,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     const media::AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info), drm_system_(drm_system) {
-  SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+  SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
@@ -100,9 +102,9 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
-  SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+  SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
-  SB_DCHECK(output_mode_ != kSbPlayerOutputModeInvalid);
+  SB_DCHECK_NE(output_mode_, kSbPlayerOutputModeInvalid);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
@@ -143,7 +145,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     std::string* error_message) {
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   std::unique_ptr<AudioDecoder> audio_decoder;
   std::unique_ptr<AudioRendererSink> audio_renderer_sink;
@@ -151,11 +153,18 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
 
+  bool use_stub_audio_decoder = false;
+  bool use_stub_video_decoder = false;
+#if BUILDFLAG(IS_ANDROID)
+  use_stub_audio_decoder = ::starboard::features::FeatureList::IsEnabled(
+      ::starboard::features::kUseStubAudioDecoder);
+  use_stub_video_decoder = ::starboard::features::FeatureList::IsEnabled(
+      ::starboard::features::kUseStubVideoDecoder);
+#else
   auto command_line = shared::starboard::Application::Get()->GetCommandLine();
-  bool use_stub_audio_decoder =
-      command_line->HasSwitch("use_stub_audio_decoder");
-  bool use_stub_video_decoder =
-      command_line->HasSwitch("use_stub_video_decoder");
+  use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
+  use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (use_stub_audio_decoder && use_stub_video_decoder) {
     CreateStubAudioComponents(creation_parameters, &audio_decoder,
@@ -234,8 +243,8 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
     const CreationParameters& creation_parameters,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-  SB_DCHECK(audio_decoder);
-  SB_DCHECK(audio_renderer_sink);
+  SB_CHECK(audio_decoder);
+  SB_CHECK(audio_renderer_sink);
 
   auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
@@ -254,9 +263,9 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
     scoped_refptr<VideoRendererSink>* video_renderer_sink) {
   const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 
-  SB_DCHECK(video_decoder);
-  SB_DCHECK(video_render_algorithm);
-  SB_DCHECK(video_renderer_sink);
+  SB_CHECK(video_decoder);
+  SB_CHECK(video_render_algorithm);
+  SB_CHECK(video_renderer_sink);
 
   *video_decoder = std::make_unique<StubVideoDecoder>();
   *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
@@ -268,8 +277,8 @@ void PlayerComponents::Factory::GetAudioRendererParams(
     const CreationParameters& creation_parameters,
     int* max_cached_frames,
     int* min_frames_per_append) const {
-  SB_DCHECK(max_cached_frames);
-  SB_DCHECK(min_frames_per_append);
+  SB_CHECK(max_cached_frames);
+  SB_CHECK(min_frames_per_append);
   SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
             0);
   *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;

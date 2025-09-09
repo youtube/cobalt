@@ -22,13 +22,14 @@
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <vector>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/pulse/pulse_dynamic_load_dispatcher.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -45,6 +46,7 @@
 
 #if HAS_LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
+#include "starboard/common/check_op.h"
 #endif  // HAS_LEAK_SANITIZER
 
 namespace starboard::shared::pulse {
@@ -160,12 +162,12 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  std::vector<PulseAudioSink*> sinks_;
+  std::vector<PulseAudioSink*> sinks_;  // Guarded by |mutex_|.
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
-  Mutex mutex_;
-  pthread_t audio_thread_ = 0;
-  bool destroying_ = false;
+  std::mutex mutex_;
+  std::optional<pthread_t> audio_thread_;
+  bool destroying_ = false;  // Guarded by |mutex_|.
 };
 
 PulseAudioSink::PulseAudioSink(
@@ -212,8 +214,8 @@ void PulseAudioSink::SetPlaybackRate(double playback_rate) {
 }
 
 void PulseAudioSink::SetVolume(double volume) {
-  SB_DCHECK(volume >= 0.0);
-  SB_DCHECK(volume <= 1.0);
+  SB_DCHECK_GE(volume, 0.0);
+  SB_DCHECK_LE(volume, 1.0);
   if (volume_.exchange(volume) != volume) {
     volume_updated_.store(true);
   }
@@ -227,7 +229,7 @@ bool PulseAudioSink::Initialize(pa_context* context) {
   sample_spec_.format = sample_type_ == kSbMediaAudioSampleTypeFloat32
                             ? PA_SAMPLE_FLOAT32LE
                             : PA_SAMPLE_S16LE;
-  SB_DCHECK(pa_frame_size(&sample_spec_) == bytes_per_frame_);
+  SB_DCHECK_EQ(pa_frame_size(&sample_spec_), bytes_per_frame_);
 
   buf_attr_.fragsize = ~0;
   buf_attr_.maxlength = kPulseBufferSizeInFrames * bytes_per_frame_;
@@ -258,7 +260,7 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
         &cvol, channels_,
         (PA_VOLUME_NORM - PA_VOLUME_MUTED) * volume_.load() + PA_VOLUME_MUTED);
     uint32_t sink_input_index = pa_stream_get_index(stream_);
-    SB_DCHECK(sink_input_index != PA_INVALID_INDEX);
+    SB_DCHECK_NE(sink_input_index, PA_INVALID_INDEX);
     pa_operation* op = pa_context_set_sink_input_volume(
         context, sink_input_index, &cvol, NULL, NULL);
     SB_DCHECK(op);
@@ -276,7 +278,7 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
       // |total_frames_written_|.
       new_total_frames_played =
           std::min(new_total_frames_played, total_frames_written_);
-      SB_DCHECK(total_frames_played_ <= new_total_frames_played);
+      SB_DCHECK_LE(total_frames_played_, new_total_frames_played);
       int64_t consume = new_total_frames_played - total_frames_played_;
       if (consume > 0) {
         consume_frames_func_(consume, CurrentMonotonicTime(), context_);
@@ -322,8 +324,8 @@ void PulseAudioSink::WriteFrames(const uint8_t* buffer,
   SB_DCHECK(type_->BelongToAudioThread());
   SB_DCHECK(buffer);
   SB_DCHECK(frames_to_write);
-  SB_DCHECK(pa_stream_writable_size(stream_) == last_request_size_);
-  SB_DCHECK(frames_to_write * bytes_per_frame_ <= last_request_size_);
+  SB_DCHECK_EQ(pa_stream_writable_size(stream_), last_request_size_);
+  SB_DCHECK_LE(frames_to_write * bytes_per_frame_, last_request_size_);
 
   int frames_to_buffer_end = frames_per_channel_ - offset_in_frames;
   // Buffer is circular. Truncate frames if exceeds buffer end.
@@ -343,7 +345,7 @@ void PulseAudioSink::WriteFrames(const uint8_t* buffer,
 
 void PulseAudioSink::Cork(bool pause) {
   SB_DCHECK(type_->BelongToAudioThread());
-  SB_DCHECK(pa_stream_get_state(stream_) == PA_STREAM_READY);
+  SB_DCHECK_EQ(pa_stream_get_state(stream_), PA_STREAM_READY);
 
   pa_operation* op = pa_stream_cork(stream_, pause ? 1 : 0, NULL, NULL);
   SB_DCHECK(op);
@@ -374,12 +376,12 @@ void PulseAudioSink::HandleRequest(size_t length) {
 PulseAudioSinkType::PulseAudioSinkType() {}
 
 PulseAudioSinkType::~PulseAudioSinkType() {
-  if (audio_thread_ != 0) {
+  if (audio_thread_) {
     {
-      ScopedLock lock(mutex_);
+      std::lock_guard lock(mutex_);
       destroying_ = true;
     }
-    pthread_join(audio_thread_, NULL);
+    pthread_join(*audio_thread_, nullptr);
   }
   SB_DCHECK(sinks_.empty());
   if (context_) {
@@ -410,7 +412,7 @@ SbAudioSink PulseAudioSinkType::Create(
     delete audio_sink;
     return kSbAudioSinkInvalid;
   }
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   sinks_.push_back(audio_sink);
   return audio_sink;
 }
@@ -426,7 +428,7 @@ void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
   PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
   {
     {
-      ScopedLock lock(mutex_);
+      std::lock_guard lock(mutex_);
       auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
       SB_DCHECK(it != sinks_.end());
       sinks_.erase(it);
@@ -475,16 +477,18 @@ bool PulseAudioSinkType::Initialize() {
     context_ = NULL;
     return false;
   }
-  pthread_create(&audio_thread_, nullptr, &PulseAudioSinkType::ThreadEntryPoint,
-                 this);
-  SB_DCHECK(audio_thread_ != 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &PulseAudioSinkType::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  audio_thread_ = thread;
 
   return true;
 }
 
 bool PulseAudioSinkType::BelongToAudioThread() {
-  SB_DCHECK(audio_thread_ != 0);
-  return pthread_equal(pthread_self(), audio_thread_);
+  SB_DCHECK(audio_thread_);
+  return pthread_equal(pthread_self(), *audio_thread_);
 }
 
 pa_stream* PulseAudioSinkType::CreateNewStream(
@@ -509,7 +513,7 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     channel_map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
   }
 
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
 
   pa_stream* stream =
       pa_stream_new(context_, "cobalt_stream", sample_spec,
@@ -529,7 +533,7 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
 }
 
 void PulseAudioSinkType::DestroyStream(pa_stream* stream) {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   pa_stream_set_write_callback(stream, NULL, NULL);
   pa_stream_disconnect(stream);
   pa_stream_unref(stream);
@@ -553,7 +557,7 @@ void PulseAudioSinkType::StateCallback(pa_context* context, void* userdata) {
 void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "pulse_audio");
 
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);
   PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);
@@ -567,7 +571,7 @@ void PulseAudioSinkType::AudioThreadFunc() {
       bool has_running_sink = false;
       {
         // TODO: The scope of the lock is too wide.
-        ScopedLock lock(mutex_);
+        std::lock_guard lock(mutex_);
         if (destroying_) {
           break;
         }
@@ -608,7 +612,7 @@ void PlatformInitialize() {
 // static
 void PlatformTearDown() {
   SB_DCHECK(pulse_audio_sink_type_);
-  SB_DCHECK(pulse_audio_sink_type_ == SbAudioSinkImpl::GetPrimaryType());
+  SB_DCHECK_EQ(pulse_audio_sink_type_, SbAudioSinkImpl::GetPrimaryType());
 
   SbAudioSinkImpl::SetPrimaryType(NULL);
   delete pulse_audio_sink_type_;

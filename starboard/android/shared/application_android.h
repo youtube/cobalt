@@ -15,19 +15,13 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
-#include <atomic>
-#include <memory>
 #include <string>
-#include <vector>
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
-#include "starboard/types.h"
 
 namespace starboard::android::shared {
 
@@ -37,7 +31,7 @@ class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
-                     ScopedJavaGlobalRef<jobject> asset_manager,
+                     base::android::ScopedJavaGlobalRef<jobject> asset_manager,
                      const std::string& files_dir,
                      const std::string& cache_dir,
                      const std::string& native_library_dir);

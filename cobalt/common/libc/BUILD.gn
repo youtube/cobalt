@@ -15,7 +15,52 @@
 static_library("libc") {
   sources = [
     "no_destructor.h",
-    "stdlib/environment.cc",
     "syslog/syslog.cc",
+  ]
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "stdlib/environment.cc",
+      "time/gmtime.cc",
+      "time/icu_time_support.cc",
+      "time/icu_time_support.h",
+      "time/localtime.cc",
+      "time/mktime.cc",
+      "time/time_zone_state.cc",
+      "time/time_zone_state.h",
+      "time/timegm.cc",
+      "time/tzset.cc",
+    ]
+  }
+  deps = [
+    "//cobalt/common/libc/tz",
+    "//starboard:starboard_headers_only",
+    "//starboard/common:common_headers_only",
+    "//third_party/icu:icui18n",
+    "//third_party/icu:icuuc_public",
+  ]
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//cobalt/common/icu_init" ]
+  }
+}
+
+source_set("libc_test") {
+  testonly = true
+
+  if (is_cobalt_hermetic_build) {
+    sources = [
+      "time/icu_time_support_test.cc",
+      "time/time_zone_state_test.cc",
+      "time/tzset_test.cc",
+    ]
+  }
+
+  deps = [
+    ":libc",
+    "//cobalt/common/libc/tz:tz_test",
+    "//starboard/common:common_headers_only",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/icu:icui18n",
+    "//third_party/icu:icuuc_public",
   ]
 }

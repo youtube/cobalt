@@ -15,10 +15,12 @@
 #include "starboard/android/shared/audio_decoder.h"
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 // Can be locally set to |1| for verbose audio decoding.  Verbose audio
@@ -49,12 +51,11 @@
 #endif
 
 namespace starboard::android::shared {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-
-namespace {
-
+using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -211,7 +212,7 @@ void AudioDecoder::ProcessOutputBuffer(
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
-  SB_DCHECK(dequeue_output_result.index >= 0);
+  SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   if (dequeue_output_result.num_bytes > 0) {
     ScopedJavaLocalRef<jobject> byte_buffer(

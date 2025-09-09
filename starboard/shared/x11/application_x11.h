@@ -51,12 +51,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   // Make the current GL layer and video layer visible.
   void Composite();
 
-  // Call this function before updating the GL layer.
-  void SwapBuffersBegin();
-
-  // Call this function after the GL layer has been updated.
-  void SwapBuffersEnd();
-
   // This is called immediately when SbPlayerSetBounds is called. The
   // application will queue the new bounds until the UI frame using these
   // bounds is rendered.

@@ -33,17 +33,17 @@ public class ArtworkLoader {
     void onArtworkLoaded(Bitmap bitmap);
   }
 
-  @NonNull private volatile String requestedArtworkUrl = "";
-  @NonNull private volatile String currentArtworkUrl = "";
-  private volatile Bitmap currentArtwork = null;
+  @NonNull private volatile String mRequestedArtworkUrl = "";
+  @NonNull private volatile String mCurrentArtworkUrl = "";
+  private volatile Bitmap mCurrentArtwork = null;
 
-  private final Handler handler = new Handler(Looper.getMainLooper());
-  private final ArtworkDownloader artworkDownloader;
-  private final Callback callback;
+  private final Handler mHandler = new Handler(Looper.getMainLooper());
+  private final ArtworkDownloader mArtworkDownloader;
+  private final Callback mCallback;
 
   public ArtworkLoader(Callback callback, ArtworkDownloader artworkDownloader) {
-    this.callback = callback;
-    this.artworkDownloader = artworkDownloader;
+    this.mCallback = callback;
+    this.mArtworkDownloader = artworkDownloader;
   }
 
   /**
@@ -51,7 +51,7 @@ public class ArtworkLoader {
    * the background, and then when ready the callback will be called with the image.
    */
   public synchronized Bitmap getOrLoadArtwork(List<MediaImage> images) {
-    if (images == null || images.isEmpty() == true) {
+    if (images == null || images.isEmpty()) {
       return null;
     }
 
@@ -59,13 +59,13 @@ public class ArtworkLoader {
     String url = image.getSrc().getSpec();
 
     // Check if this artwork is already loaded or requested.
-    if (url.equals(currentArtworkUrl)) {
-      return currentArtwork;
-    } else if (url.equals(requestedArtworkUrl)) {
+    if (url.equals(mCurrentArtworkUrl)) {
+      return mCurrentArtwork;
+    } else if (url.equals(mRequestedArtworkUrl)) {
       return null;
     }
 
-    requestedArtworkUrl = url;
+    mRequestedArtworkUrl = url;
     new DownloadArtworkThread(url, this).start();
     return null;
   }
@@ -110,17 +110,17 @@ public class ArtworkLoader {
   public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
-    if (url.equals(requestedArtworkUrl)) {
-      requestedArtworkUrl = "";
+    if (url.equals(mRequestedArtworkUrl)) {
+      mRequestedArtworkUrl = "";
       if (bitmap != null) {
-        currentArtworkUrl = url;
-        currentArtwork = bitmap;
+        mCurrentArtworkUrl = url;
+        mCurrentArtwork = bitmap;
 
-        handler.post(
+        mHandler.post(
             new Runnable() {
               @Override
               public void run() {
-                callback.onArtworkLoaded(bitmap);
+                mCallback.onArtworkLoaded(bitmap);
               }
             });
       }
@@ -129,18 +129,18 @@ public class ArtworkLoader {
 
   private class DownloadArtworkThread extends Thread {
 
-    private final String url;
-    private final ArtworkLoader artworkLoader;
+    private final String mUrl;
+    private final ArtworkLoader mArtworkLoader;
 
     DownloadArtworkThread(String url, ArtworkLoader artworkLoader) {
       super("ArtworkLoader");
-      this.url = url;
-      this.artworkLoader = artworkLoader;
+      this.mUrl = url;
+      this.mArtworkLoader = artworkLoader;
     }
 
     @Override
     public void run() {
-      artworkDownloader.downloadArtwork(url, artworkLoader);
+      mArtworkDownloader.downloadArtwork(mUrl, mArtworkLoader);
     }
   }
 }

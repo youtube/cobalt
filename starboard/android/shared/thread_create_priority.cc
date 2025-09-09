@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 #include <sched.h>
 #include <sys/resource.h>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
 namespace {
@@ -45,10 +46,6 @@ SbThreadPriority NiceToSbPriority(int nice) {
   return kSbThreadPriorityNormal;
 }
 
-}  // namespace
-
-namespace starboard::shared::pthread {
-
 void SetNiceValue(int nice) {
   int result = setpriority(PRIO_PROCESS, 0, nice);
   if (result != 0) {
@@ -56,9 +53,11 @@ void SetNiceValue(int nice) {
   }
 }
 
-void ThreadSetPriority(SbThreadPriority priority) {
+}  // namespace
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
   if (!kSbHasThreadPrioritySupport) {
-    return;
+    return false;
   }
 
   // Nice value settings are selected from looking at:
@@ -87,12 +86,6 @@ void ThreadSetPriority(SbThreadPriority priority) {
       SB_NOTREACHED();
       break;
   }
-}
-
-}  // namespace starboard::shared::pthread
-
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  starboard::shared::pthread::ThreadSetPriority(priority);
   return true;
 }
 

@@ -1,12 +1,20 @@
 #include <string.h>
 #include <stdint.h>
 
-#if defined(STARBOARD)
+#if defined (STARBOARD)
 #include "atomic.h"
+#include "starboard/system.h"
 #else
 #include "pthread_impl.h"
+#endif // define(STARBOARD)
 
 uintptr_t __stack_chk_guard;
+
+#if defined(STARBOARD)
+void init_stack_guard() {
+  __stack_chk_guard = (uintptr_t)SbSystemGetRandomUInt64();
+}
+#else // define(STARBOARD)
 
 void __init_ssp(void *entropy)
 {

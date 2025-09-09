@@ -36,6 +36,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -50,15 +51,14 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard::android::shared {
+namespace {
+
+using base::android::AttachCurrentThread;
 
 // Tunnel mode has to be enabled explicitly by the web app via mime attributes
 // "tunnelmode", set the following variable to true to force enabling tunnel
 // mode on all playbacks.
 constexpr bool kForceTunnelMode = false;
-
-// By default, the platform Opus decoder is only enabled for encrypted playback.
-// Set the following variable to true to force it for clear playback.
-constexpr bool kForcePlatformOpusDecoder = false;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -69,22 +69,6 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 // Forces video surface to reset after tunnel mode playbacks. This prevents
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
-
-// By default, Cobalt recreates MediaCodec when Reset() during Seek().
-// Set the following variable to true to force it Flush() MediaCodec
-// during Seek().
-constexpr bool kForceFlushDecoderDuringReset = false;
-
-// By default, Cobalt teardowns AudioDecoder during Reset().
-// Set the following variable to true to force it reset audio decoder
-// during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
-constexpr bool kForceResetAudioDecoder = false;
-
-// By default, Cobalt restarts MediaCodec after stops/flushes during
-// Reset()/Flush(). Set the following variable to > 0 to force it to
-// wait during Reset()/Flush().
-constexpr int64_t kResetDelayUsecOverride = 0;
-constexpr int64_t kFlushDelayUsecOverride = 0;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -179,6 +163,7 @@ class PlayerComponentsPassthrough
   std::unique_ptr<AudioRendererPassthrough> audio_renderer_;
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
+}  // namespace
 
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
@@ -211,7 +196,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   std::unique_ptr<PlayerComponents> CreateComponents(
       const CreationParameters& creation_parameters,
       std::string* error_message) override {
-    SB_DCHECK(error_message);
+    SB_CHECK(error_message);
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
@@ -234,22 +219,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       }
     }
 
-    bool enable_flush_during_seek = false;
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
-        !creation_parameters.video_mime().empty()) {
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
-    }
-
-    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
-      SB_LOG(INFO)
-          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-          << " audio passthrough decoder during Reset().";
-      enable_flush_during_seek = true;
-    }
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
+    SB_LOG_IF(INFO, enable_flush_during_seek)
+        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+        << " audio passthrough decoder during Reset().";
 
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
@@ -305,7 +279,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::unique_ptr<VideoRenderAlgorithmBase>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
-    SB_DCHECK(error_message);
+    SB_CHECK(error_message);
 
     const std::string audio_mime =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
@@ -327,8 +301,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     MimeType video_mime_type(video_mime);
     if (!video_mime.empty()) {
       if (!video_mime_type.is_valid() ||
-          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+          !video_mime_type.ValidateBoolParameter("tunnelmode")) {
         *error_message =
             "Invalid video MIME: '" + std::string(video_mime) + "'";
         return false;
@@ -390,49 +363,36 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     bool enable_reset_audio_decoder =
-        video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
-    SB_LOG(INFO) << "Reset AudioDecoder during Reset(): "
-                 << (enable_reset_audio_decoder ? "enabled. " : "disabled. ")
-                 << "Video mime parameter \"enableresetaudiodecoder\" value: "
-                 << video_mime_type.GetParamStringValue(
-                        "enableresetaudiodecoder", "<not provided>")
-                 << ".";
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceResetAudioDecoder);
+    SB_LOG_IF(INFO, enable_reset_audio_decoder)
+        << "`kForceResetAudioDecoder` is set to true, force resetting"
+        << " audio decoder during Reset().";
 
-    if (kForceResetAudioDecoder && !enable_reset_audio_decoder) {
-      SB_LOG(INFO)
-          << "`kForceResetAudioDecoder` is set to true, force resetting"
-          << " audio decoder during Reset().";
-      enable_reset_audio_decoder = true;
-    }
-
-    bool enable_flush_during_seek =
-        video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-    SB_LOG(INFO) << "Flush MediaCodec during Reset(): "
-                 << (enable_flush_during_seek ? "enabled. " : "disabled. ")
-                 << "Video mime parameter \"enableflushduringseek\" value: "
-                 << video_mime_type.GetParamStringValue("enableflushduringseek",
-                                                        "<not provided>")
-                 << ".";
-
-    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
-      SB_LOG(INFO)
-          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-          << " audio decoder during Reset().";
-      enable_flush_during_seek = true;
-    }
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
+    SB_LOG_IF(INFO, enable_flush_during_seek)
+        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+        << " audio decoder during Reset().";
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
       using starboard::shared::starboard::media::AudioStreamInfo;
+      const bool enable_platform_opus_decoder =
+          starboard::features::FeatureList::IsEnabled(
+              starboard::features::kForcePlatformOpusDecoder);
+      SB_LOG_IF(INFO, enable_platform_opus_decoder)
+          << "kForcePlatformOpusDecoder is set to true, force using "
+          << "platform opus codec instead of libopus.";
       auto decoder_creator =
-          [enable_flush_during_seek](
+          [enable_flush_during_seek, enable_platform_opus_decoder](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoderBase> {
         bool use_libopus_decoder =
             audio_stream_info.codec == kSbMediaAudioCodecOpus &&
-            !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
+            !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
         if (use_libopus_decoder) {
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(audio_stream_info);
@@ -507,8 +467,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   void GetAudioRendererParams(const CreationParameters& creation_parameters,
                               int* max_cached_frames,
                               int* min_frames_per_append) const override {
-    SB_DCHECK(max_cached_frames);
-    SB_DCHECK(min_frames_per_append);
+    SB_CHECK(max_cached_frames);
+    SB_CHECK(min_frames_per_append);
     SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
               0);
     *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
@@ -536,9 +496,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek = false;
-    int64_t reset_delay_usec = 0;
-    int64_t flush_delay_usec = 0;
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
+    int64_t flush_delay_usec = starboard::features::kFlushDelayUsec.Get();
+    int64_t reset_delay_usec = starboard::features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -553,31 +514,21 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                 /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
       if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
         force_reset_surface =
             video_mime_type.GetParamBoolValue("forceresetsurface", true);
       }
     }
-    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
-      SB_LOG(INFO)
-          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-          << " video decoder during Reset().";
-      enable_flush_during_seek = true;
-    }
-    if (kResetDelayUsecOverride > 0) {
-      reset_delay_usec = kResetDelayUsecOverride;
-      SB_LOG(INFO) << "`kResetDelayUsecOverride` is set to > 0, force a delay"
-                   << " of " << reset_delay_usec << "us during Reset().";
-    }
-    if (kFlushDelayUsecOverride > 0) {
-      flush_delay_usec = kFlushDelayUsecOverride;
-      SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
-                   << " of " << flush_delay_usec << "us during Flush().";
-    }
+
+    SB_LOG_IF(INFO, enable_flush_during_seek)
+        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+        << " video decoder during Reset().";
+    SB_LOG_IF(INFO, flush_delay_usec > 0)
+        << "`kFlushDelayUsec` is set to > 0, force a delay of "
+        << flush_delay_usec << "us during Flush().";
+    SB_LOG_IF(INFO, reset_delay_usec > 0)
+        << "`kResetDelayUsec` is set to > 0, force a delay of "
+        << reset_delay_usec << "us during Reset().";
 
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),

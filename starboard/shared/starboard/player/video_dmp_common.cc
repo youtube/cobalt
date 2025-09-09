@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #include <limits>
+#include "starboard/common/check_op.h"
 
 namespace starboard::shared::starboard::player::video_dmp {
 
@@ -70,8 +71,8 @@ void Read(const ReadCB& read_cb, void* buffer, size_t size) {
     return;
   }
   int bytes_to_read = static_cast<int>(size);
-  int bytes_read = read_cb(buffer, bytes_to_read);
-  SB_DCHECK(bytes_read == bytes_to_read);
+  [[maybe_unused]] int bytes_read = read_cb(buffer, bytes_to_read);
+  SB_DCHECK_EQ(bytes_read, bytes_to_read);
 }
 
 void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
@@ -79,8 +80,8 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
     return;
   }
   int bytes_to_write = static_cast<int>(size);
-  int bytes_written = write_cb(buffer, bytes_to_write);
-  SB_DCHECK(bytes_written == bytes_to_write);
+  [[maybe_unused]] int bytes_written = write_cb(buffer, bytes_to_write);
+  SB_DCHECK_EQ(bytes_written, bytes_to_write);
 }
 
 void Read(const ReadCB& read_cb,
@@ -195,8 +196,8 @@ void Read(const ReadCB& read_cb,
   Read(read_cb, reverse_byte_order, &video_stream_info->codec);
 
   Read(read_cb, reverse_byte_order, &video_sample_info->is_key_frame);
-  Read(read_cb, reverse_byte_order, &video_stream_info->frame_width);
-  Read(read_cb, reverse_byte_order, &video_stream_info->frame_height);
+  Read(read_cb, reverse_byte_order, &video_stream_info->frame_size.width);
+  Read(read_cb, reverse_byte_order, &video_stream_info->frame_size.height);
 
   auto& color_metadata = video_stream_info->color_metadata;
 
@@ -248,8 +249,8 @@ void Write(const WriteCB& write_cb,
 
   Write(write_cb, video_codec);
   Write(write_cb, video_sample_info.is_key_frame);
-  Write(write_cb, video_stream_info.frame_width);
-  Write(write_cb, video_stream_info.frame_height);
+  Write(write_cb, video_stream_info.frame_size.width);
+  Write(write_cb, video_stream_info.frame_size.height);
 
   const auto& color_metadata = video_stream_info.color_metadata;
 

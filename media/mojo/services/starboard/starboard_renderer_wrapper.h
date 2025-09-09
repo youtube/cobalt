@@ -32,6 +32,10 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android_overlay_mojo_factory.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace base {
 class TimeDelta;
 }  // namespace base
@@ -78,6 +82,9 @@ class StarboardRendererWrapper : public Renderer,
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
   void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
+#if BUILDFLAG(IS_ANDROID)
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   StarboardRenderer* GetRenderer();
   base::SequenceBound<StarboardGpuFactory>* GetGpuFactory();
@@ -95,6 +102,10 @@ class StarboardRendererWrapper : public Renderer,
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
+#if BUILDFLAG(IS_ANDROID)
+  void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
+#endif  // BUILDFLAG(IS_ANDROID)
+
   void ContinueInitialization(MediaResource* media_resource,
                               RendererClient* client,
                               PipelineStatusCallback init_cb);

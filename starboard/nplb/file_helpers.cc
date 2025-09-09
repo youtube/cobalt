@@ -14,6 +14,7 @@
 
 #include "starboard/nplb/file_helpers.h"
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -117,6 +118,56 @@ void ScopedRandomFile::ExpectPattern(int pattern_offset,
     EXPECT_EQ(static_cast<char>((i + pattern_offset) & 0xFF), char_buffer[i])
         << "original line=" << line;
   }
+}
+
+// Helper function to clean up a directory and its contents
+bool RemoveFileOrDirectoryRecursively(const std::string& path) {
+  struct stat st;
+
+  if (lstat(path.c_str(), &st) != 0) {
+    return errno == ENOENT;  // File doesn't exist, do nothing.
+  }
+
+  if (!S_ISDIR(st.st_mode)) {
+    return unlink(path.c_str()) == 0;  // Remove file or symlink.
+  }
+
+  DIR* dir = opendir(path.c_str());
+  if (!dir) {
+    return false;
+  }
+
+  bool success = true;
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
+
+    std::string entry_path = path + kSbFileSepString + entry->d_name;
+    if (!RemoveFileOrDirectoryRecursively(entry_path)) {
+      success = false;
+      break;  // Stop on the first error.
+    }
+  }
+
+  closedir(dir);
+
+  if (success) {
+    return rmdir(path.c_str()) == 0;
+  }
+
+  return false;
+}
+
+bool FileExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0;
+}
+
+bool DirectoryExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 // static

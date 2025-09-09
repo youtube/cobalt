@@ -23,6 +23,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
@@ -80,8 +81,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
 
-  int current_frame_width_;
-  int current_frame_height_;
+  Size current_frame_size_;
   std::unique_ptr<vpx_codec_ctx> context_;
 
   bool stream_ended_;

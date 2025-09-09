@@ -23,10 +23,6 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaGlobalRef;
-
 class CobaltTextToSpeechHelper {
  public:
   // Return the singleton.
@@ -42,7 +38,7 @@ class CobaltTextToSpeechHelper {
  private:
   friend struct base::DefaultSingletonTraits<CobaltTextToSpeechHelper>;
   // Java CobaltTextToSpeechHelper instance.
-  ScopedJavaGlobalRef<jobject> j_text_to_speech_helper_;
+  base::android::ScopedJavaGlobalRef<jobject> j_text_to_speech_helper_;
 
   CobaltTextToSpeechHelper() = default;
   ~CobaltTextToSpeechHelper() = default;

@@ -27,10 +27,13 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-
 namespace {
+
+using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
+
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
 constexpr int TYPE_AUX_LINE = 19;
@@ -254,8 +257,7 @@ bool AudioOutputManager::GetAudioConfiguration(
   return true;
 }
 
-extern "C" SB_EXPORT_PLATFORM void JNI_AudioOutputManager_OnAudioDeviceChanged(
-    JNIEnv* env) {
+void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();

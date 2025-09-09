@@ -21,6 +21,8 @@ namespace starboard::android::shared {
 
 namespace {
 
+using base::android::ScopedJavaGlobalRef;
+
 // Definitions of any functions included as components in the extension
 // are added here.
 

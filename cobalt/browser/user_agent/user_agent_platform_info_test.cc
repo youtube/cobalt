@@ -16,6 +16,7 @@
 
 #include <map>
 
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -23,7 +24,7 @@ namespace cobalt {
 namespace {
 
 UserAgentPlatformInfo CreateEmptyPlatformInfo() {
-  UserAgentPlatformInfo platform_info;
+  UserAgentPlatformInfo platform_info(/*for_testing=*/true);
   platform_info.set_starboard_version("");
   platform_info.set_os_name_and_version("");
   platform_info.set_original_design_manufacturer("");
@@ -51,25 +52,27 @@ UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
   return platform_info;
 }
 
-TEST(UserAgentStringTest, StartsWithMozilla) {
+class UserAgentStringTest : public testing::Test {};
+
+TEST_F(UserAgentStringTest, StartsWithMozilla) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_EQ(0UL, user_agent_string.find("Mozilla/5.0"));
 }
 
-TEST(UserAgentStringTest, ContainsCobalt) {
+TEST_F(UserAgentStringTest, ContainsCobalt) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("Cobalt"));
 }
 
-TEST(UserAgentStringTest, WithOSNameAndVersion) {
+TEST_F(UserAgentStringTest, WithOSNameAndVersion) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("(GLaDOS 3.11)"));
 }
 
-TEST(UserAgentStringTest, WithCobaltVersionAndConfiguration) {
+TEST_F(UserAgentStringTest, WithCobaltVersionAndConfiguration) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_version("16");
@@ -127,7 +130,7 @@ TEST(UserAgentStringTest, WithCobaltVersionAndConfiguration) {
 
 #define NOT_VCHARORSPACE CONTROL DEL HIGH_ASCII
 
-TEST(UserAgentStringTest, SanitizedStarboardVersion) {
+TEST_F(UserAgentStringTest, SanitizedStarboardVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_starboard_version("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -137,7 +140,7 @@ TEST(UserAgentStringTest, SanitizedStarboardVersion) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedOsNameAndVersion) {
+TEST_F(UserAgentStringTest, SanitizedOsNameAndVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_os_name_and_version("Foo()" NOT_VCHARORSPACE
@@ -149,7 +152,7 @@ TEST(UserAgentStringTest, SanitizedOsNameAndVersion) {
       user_agent_string.find("FooBar" VCHARORSPACE_EXCEPTPARENTHESES "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedOriginalDesignManufacturer) {
+TEST_F(UserAgentStringTest, SanitizedOriginalDesignManufacturer) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_original_design_manufacturer(
@@ -159,7 +162,7 @@ TEST(UserAgentStringTest, SanitizedOriginalDesignManufacturer) {
             user_agent_string.find("FooBar" ALPHADIGIT "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedChipsetModelNumber) {
+TEST_F(UserAgentStringTest, SanitizedChipsetModelNumber) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_chipset_model_number("Foo" NOT_ALPHADIGIT "Bar" ALPHADIGIT
@@ -169,7 +172,7 @@ TEST(UserAgentStringTest, SanitizedChipsetModelNumber) {
             user_agent_string.find("FooBar" ALPHADIGIT "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedModelYear) {
+TEST_F(UserAgentStringTest, SanitizedModelYear) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_chipset_model_number("FooBar");
@@ -180,7 +183,7 @@ TEST(UserAgentStringTest, SanitizedModelYear) {
             user_agent_string.find("FooBar_" DIGIT DIGITREVERSED "/BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedFirmwareVersion) {
+TEST_F(UserAgentStringTest, SanitizedFirmwareVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_firmware_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
@@ -189,7 +192,7 @@ TEST(UserAgentStringTest, SanitizedFirmwareVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedBrand) {
+TEST_F(UserAgentStringTest, SanitizedBrand) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_brand("Foo()," NOT_VCHARORSPACE
@@ -201,7 +204,7 @@ TEST(UserAgentStringTest, SanitizedBrand) {
                 "FooBar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedModel) {
+TEST_F(UserAgentStringTest, SanitizedModel) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_model("Foo()," NOT_VCHARORSPACE
@@ -213,7 +216,7 @@ TEST(UserAgentStringTest, SanitizedModel) {
                 "FooBar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedAuxField) {
+TEST_F(UserAgentStringTest, SanitizedAuxField) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_aux_field("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -223,7 +226,7 @@ TEST(UserAgentStringTest, SanitizedAuxField) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedJavascriptEngineVersion) {
+TEST_F(UserAgentStringTest, SanitizedJavascriptEngineVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_javascript_engine_version(
@@ -233,7 +236,7 @@ TEST(UserAgentStringTest, SanitizedJavascriptEngineVersion) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedRasterizerType) {
+TEST_F(UserAgentStringTest, SanitizedRasterizerType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_rasterizer_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -243,7 +246,7 @@ TEST(UserAgentStringTest, SanitizedRasterizerType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedEvergreenVersion) {
+TEST_F(UserAgentStringTest, SanitizedEvergreenVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_version("Foo" NOT_TCHAR "Bar" TCHAR
@@ -252,7 +255,7 @@ TEST(UserAgentStringTest, SanitizedEvergreenVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedEvergreenType) {
+TEST_F(UserAgentStringTest, SanitizedEvergreenType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -262,7 +265,7 @@ TEST(UserAgentStringTest, SanitizedEvergreenType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedEvergreenFileType) {
+TEST_F(UserAgentStringTest, SanitizedEvergreenFileType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_file_type(
@@ -272,7 +275,7 @@ TEST(UserAgentStringTest, SanitizedEvergreenFileType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedCobaltVersion) {
+TEST_F(UserAgentStringTest, SanitizedCobaltVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
@@ -281,7 +284,7 @@ TEST(UserAgentStringTest, SanitizedCobaltVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedCobaltBuildVersionNumber) {
+TEST_F(UserAgentStringTest, SanitizedCobaltBuildVersionNumber) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_build_version_number("Foo" NOT_TCHAR "Bar" TCHAR
@@ -290,7 +293,7 @@ TEST(UserAgentStringTest, SanitizedCobaltBuildVersionNumber) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedCobaltBuildConfiguration) {
+TEST_F(UserAgentStringTest, SanitizedCobaltBuildConfiguration) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_build_configuration("Foo" NOT_TCHAR "Bar" TCHAR
@@ -299,7 +302,7 @@ TEST(UserAgentStringTest, SanitizedCobaltBuildConfiguration) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, WithPlatformInfo) {
+TEST_F(UserAgentStringTest, WithPlatformInfo) {
   // There are deliberately a variety of underscores, commas, slashes, and
   // parentheses in the strings below to ensure they get sanitized.
   UserAgentPlatformInfo platform_info =
@@ -319,7 +322,7 @@ TEST(UserAgentStringTest, WithPlatformInfo) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
-TEST(UserAgentStringTest, WithOnlyBrandModelAndDeviceType) {
+TEST_F(UserAgentStringTest, WithOnlyBrandModelAndDeviceType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_device_type("OTT");
@@ -332,7 +335,7 @@ TEST(UserAgentStringTest, WithOnlyBrandModelAndDeviceType) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
-TEST(UserAgentStringTest, WithStarboardVersion) {
+TEST_F(UserAgentStringTest, WithStarboardVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_starboard_version("Starboard/6");
   platform_info.set_device_type("OTT");
@@ -343,7 +346,7 @@ TEST(UserAgentStringTest, WithStarboardVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
-TEST(UserAgentStringTest, WithJavaScriptVersion) {
+TEST_F(UserAgentStringTest, WithJavaScriptVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_javascript_engine_version("V8/6.5.254.28");
   const std::string user_agent_string = platform_info.ToString();
@@ -351,7 +354,9 @@ TEST(UserAgentStringTest, WithJavaScriptVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(" V8/6.5.254.28"));
 }
 
-TEST(GetUserAgentInputMapTest, DelimitParamsBySemicolon) {
+class GetUserAgentInputMapTest : public testing::Test {};
+
+TEST_F(GetUserAgentInputMapTest, DelimitParamsBySemicolon) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "model_year=2049;starboard_version=Starboard/"
@@ -367,7 +372,7 @@ TEST(GetUserAgentInputMapTest, DelimitParamsBySemicolon) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, HandleSpecialChar) {
+TEST_F(GetUserAgentInputMapTest, HandleSpecialChar) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "aux_field=foo.bar.baz.qux/"
@@ -381,7 +386,7 @@ TEST(GetUserAgentInputMapTest, HandleSpecialChar) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, EscapeSemicolonInValue) {
+TEST_F(GetUserAgentInputMapTest, EscapeSemicolonInValue) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "os_name_and_version=Foo bar-v7a\\; Baz 7.1.2\\; Qux OS "
@@ -395,7 +400,7 @@ TEST(GetUserAgentInputMapTest, EscapeSemicolonInValue) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, OmitEscapeSemicolonInField) {
+TEST_F(GetUserAgentInputMapTest, OmitEscapeSemicolonInField) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input = "foo//;bar=baz";
 
@@ -407,7 +412,7 @@ TEST(GetUserAgentInputMapTest, OmitEscapeSemicolonInField) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, HandleEmptyFieldValue) {
+TEST_F(GetUserAgentInputMapTest, HandleEmptyFieldValue) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "evergreen_type=;device_type=GAME;evergreen_version=";
@@ -421,7 +426,7 @@ TEST(GetUserAgentInputMapTest, HandleEmptyFieldValue) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, FailSafeWithInvalidInput) {
+TEST_F(GetUserAgentInputMapTest, FailSafeWithInvalidInput) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       ";model;aux_field=;=dummy;device_type=GAME;invalid_field";

@@ -23,6 +23,11 @@
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android/android_overlay.h"
+#include "media/base/android_overlay_config.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
 
 namespace {
@@ -114,7 +119,13 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    const gfx::Size& viewport_size
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+    )
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -123,7 +134,13 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      viewport_size_(viewport_size)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
+#endif  // BUILDFLAG(IS_ANDROID)
+{
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -135,18 +152,9 @@ StarboardRenderer::~StarboardRenderer() {
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
-  // Explicitly reset |player_bridge_| before destroying it.
-  // Some functions in this class using `player_bridge_` can be called
-  // asynchronously on arbitrary threads (e.g. `GetMediaTime()`), this ensures
-  // that they won't access `player_bridge_` when it's being destroyed.
-  decltype(player_bridge_) player_bridge;
-  if (player_bridge_) {
-    base::AutoLock auto_lock(lock_);
-    player_bridge = std::move(player_bridge_);
-  }
-  player_bridge.reset();
+  player_bridge_.reset();
 
-  LOG(INFO) << "StarboardRenderer destructed.";
+  LOG(INFO) << "SbPlayerBridge destructed.";
 }
 
 void StarboardRenderer::Initialize(MediaResource* media_resource,
@@ -224,6 +232,24 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled.
+    if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
+      // Set |restart_for_transitions| to false due to devices are
+      // isSetOutputSurfaceSupported() in
+      // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+      request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+      return;
+    }
+    // When CobaltUsingAndroidOverlay is enabled, both request_overlay_info_cb_
+    // and android_overlay_factory_cb_ should not be null.
+    NOTREACHED();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   CreatePlayerBridge();
 }
 
@@ -322,10 +348,7 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   // decide when to delay.
   audio_read_delayed_ = false;
 
-  {
-    base::AutoLock auto_lock(lock_);
-    seek_time_ = time;
-  }
+  seek_time_ = time;
 
   if (state_ != STATE_FLUSHED) {
     DCHECK_EQ(state_, STATE_ERROR);
@@ -390,10 +413,8 @@ void StarboardRenderer::SetVolume(float volume) {
   }
 }
 
-// Note: Renderer::GetMediaTime() could be called on both main and media
-// threads.
 TimeDelta StarboardRenderer::GetMediaTime() {
-  base::AutoLock auto_lock(lock_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (!player_bridge_) {
     StoreMediaTime(TimeDelta());
@@ -443,16 +464,62 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
 void StarboardRenderer::SetStarboardRendererCallbacks(
     PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    RequestOverlayInfoCallBack request_overlay_info_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
   update_starboard_rendering_mode_cb_ =
       std::move(update_starboard_rendering_mode_cb);
+#if BUILDFLAG(IS_ANDROID)
+  request_overlay_info_cb_ = std::move(request_overlay_info_cb);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
+  // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
+  // Check if the the overlay_info has stayed the same --> do not request
+  // AndroidOverlay.
+  bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  if (!overlay_changed) {
+    return;
+  }
+
+  if (android_overlay_factory_cb_.is_null()) {
+    LOG(ERROR) << " AndroidOverlayMojoFactoryCB is NULL.";
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PipelineStatus(
+          DECODER_ERROR_NOT_SUPPORTED, "AndroidOverlayMojoFactoryCB is null"));
+    }
+    return;
+  }
+
+  overlay_info_ = overlay_info;
+
+  AndroidOverlayConfig config;
+  config.ready_cb = base::BindOnce(&StarboardRenderer::OnOverlayReady,
+                                   weak_factory_.GetWeakPtr());
+  config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
+                                    weak_factory_.GetWeakPtr());
+  config.rect = gfx::Rect(viewport_size_);
+  config.secure = false;
+  config.power_efficient = false;
+
+  overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
+                                             std::move(config));
+  LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
+            << overlay_info.routing_token.value().ToString();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
   if (test_sbplayer_interface_) {
@@ -498,48 +565,45 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   std::string error_message;
 
-  {
-    base::AutoLock auto_lock(lock_);
-    DCHECK(!player_bridge_);
+  DCHECK(!player_bridge_);
 
-    // In the unexpected case that CreatePlayerBridge() is called when a
-    // |player_bridge_| is set, reset the existing player first to reduce the
-    // number of active players.
+  // In the unexpected case that CreatePlayerBridge() is called when a
+  // |player_bridge_| is set, reset the existing player first to reduce the
+  // number of active players.
+  player_bridge_.reset();
+
+  LOG(INFO) << "Creating SbPlayerBridge.";
+
+  player_bridge_.reset(new SbPlayerBridge(
+      GetSbPlayerInterface(), task_runner_,
+      // TODO(b/375070492): Implement decode-to-texture support
+      SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
+      audio_config, audio_mime_type, video_config, video_mime_type,
+      // TODO(b/326497953): Support suspend/resume.
+      // TODO(b/326508279): Support background mode.
+      kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
+      // TODO(b/326497953): Support suspend/resume.
+      false,
+      // TODO(b/326825450): Revisit 360 videos.
+      kSbPlayerOutputModeInvalid, max_video_capabilities_,
+      // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+      -1));
+  if (player_bridge_->IsValid()) {
+    // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
+    // returns no audio configurations, update the write durations again
+    // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+    audio_write_duration_for_preroll_ = audio_write_duration_ =
+        HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+            ? audio_write_duration_remote_
+            : audio_write_duration_local_;
+    LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+              << audio_write_duration_for_preroll_
+              << " and with max_video_capabilities_ at "
+              << max_video_capabilities_;
+  } else {
+    error_message = player_bridge_->GetPlayerCreationErrorMessage();
     player_bridge_.reset();
-
-    LOG(INFO) << "Creating SbPlayerBridge.";
-
-    player_bridge_.reset(new SbPlayerBridge(
-        GetSbPlayerInterface(), task_runner_,
-        // TODO(b/375070492): Implement decode-to-texture support
-        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config, audio_mime_type, video_config, video_mime_type,
-        // TODO(b/326497953): Support suspend/resume.
-        // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
-        // TODO(b/326497953): Support suspend/resume.
-        false,
-        // TODO(b/326825450): Revisit 360 videos.
-        kSbPlayerOutputModeInvalid, max_video_capabilities_,
-        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1));
-    if (player_bridge_->IsValid()) {
-      // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
-      // returns no audio configurations, update the write durations again
-      // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-      audio_write_duration_for_preroll_ = audio_write_duration_ =
-          HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
-      LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-                << audio_write_duration_for_preroll_
-                << " and with max_video_capabilities_ at "
-                << max_video_capabilities_;
-    } else {
-      error_message = player_bridge_->GetPlayerCreationErrorMessage();
-      player_bridge_.reset();
-      LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
-    }
+    LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
@@ -599,7 +663,6 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    base::AutoLock auto_lock(lock_);
     player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
@@ -762,15 +825,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     if (!is_video_eos_written_ && time_ahead_of_playback_for_preroll >
                                       adjusted_write_duration_for_preroll) {
       TimeDelta time_ahead_of_playback;
-      {
-        base::AutoLock auto_lock(lock_);
-        TimeDelta time_since_last_update =
-            Time::Now() - last_time_media_time_retrieved_;
-        // The estimated time ahead of playback may be negative if no audio has
-        // been written.
-        time_ahead_of_playback = timestamp_of_last_written_audio_ -
-                                 (last_media_time_ + time_since_last_update);
-      }
+      TimeDelta time_since_last_update =
+          Time::Now() - last_time_media_time_retrieved_;
+      // The estimated time ahead of playback may be negative if no audio has
+      // been written.
+      time_ahead_of_playback = timestamp_of_last_written_audio_ -
+                               (last_media_time_ + time_since_last_update);
 
       auto adjusted_write_duration = AdjustWriteDurationForPlaybackRate(
           audio_write_duration_, playback_rate_);
@@ -920,6 +980,29 @@ void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
   last_media_time_ = media_time;
   last_time_media_time_retrieved_ = Time::Now();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
+  // Check that the passed overlay and overlay_ point to the same object.
+  DCHECK_EQ(overlay, overlay_.get());
+
+  // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
+
+  CreatePlayerBridge();
+}
+
+void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
+  DCHECK_EQ(overlay, overlay_.get());
+  overlay_ = nullptr;
+  state_ = STATE_ERROR;
+  if (init_cb_) {
+    std::move(init_cb_).Run(PipelineStatus(
+        DECODER_ERROR_NOT_SUPPORTED,
+        "StarboardRenderer::OnOverlayFailed() failed to create a "
+        "valid AndroidOverlay"));
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,
                                             TimeDelta duration_to_write,
