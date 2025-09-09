@@ -58,7 +58,7 @@ std::string HexEncode(const void* data,
 // (e.g., 1'234'567).
 // NOTE: This function is for logging and debugging purposes only. It should not
 // be used in any UI, as it does not handle internationalization (i18n).
-std::string FormatWithDigitSeparators(int64_t);
+std::string FormatWithDigitSeparators(int64_t number);
 
 template <typename CHAR>
 static SB_C_FORCE_INLINE int strlcpy(CHAR* dst, const CHAR* src, int dst_size) {
