@@ -209,6 +209,7 @@ class MediaCodecBridge {
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
   void SetPlaybackRate(double playback_rate);
+  void Seek(int64_t seek_to_time);
   bool Restart();
   jint Flush();
   void Stop();
@@ -229,6 +230,7 @@ class MediaCodecBridge {
   void OnMediaCodecFirstTunnelFrameReady();
 
   static jboolean IsFrameRenderedCallbackEnabled();
+  static jboolean IsFirstTunnelFrameReadyCallbackEnabled();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
