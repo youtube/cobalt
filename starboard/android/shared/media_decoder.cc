@@ -393,15 +393,9 @@ void MediaDecoder::TerminateDecoderThread() {
     condition_variable_.Signal();
   }
 
-<<<<<<< HEAD
   if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, nullptr);
-    decoder_thread_ = 0;
-=======
-  if (decoder_thread_) {
     SB_CHECK_EQ(pthread_join(*decoder_thread_, nullptr), 0);
-    decoder_thread_ = std::nullopt;
->>>>>>> fb82fe8a504 (starboard: Check pthread_join completes successfully (#7110))
+    decoder_thread_ = 0;
   }
 }
 
