@@ -34,6 +34,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+<<<<<<< HEAD
+=======
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+>>>>>>> 17c399389c5 (android: Update out of date comment (#6955))
 
 /** Utility functions for dealing with MediaCodec related things. */
 public class MediaCodecUtil {
@@ -528,8 +533,7 @@ public class MediaCodecUtil {
   }
 
   /**
-   * The same as hasVideoDecoderFor, returns the name of the video decoder if it is found, or ""
-   * otherwise.
+   * Returns the name of the video decoder if it is found, or "" otherwise.
    *
    * <p>NOTE: This code path is called repeatedly by the player to determine the decoding
    * capabilities of the device. To ensure speedy playback the code below should be kept performant.
@@ -713,11 +717,16 @@ public class MediaCodecUtil {
     return "";
   }
 
+<<<<<<< HEAD
   /**
    * The same as hasAudioDecoderFor, only return the name of the audio decoder if it is found, and
    * "" otherwise.
    */
   @UsedByNative
+=======
+  /** Return the name of the audio decoder if it is found, and "" otherwise. */
+  @CalledByNative
+>>>>>>> 17c399389c5 (android: Update out of date comment (#6955))
   public static String findAudioDecoder(String mimeType, int bitrate) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -729,8 +738,15 @@ public class MediaCodecUtil {
           continue;
         }
         String name = info.getName();
+<<<<<<< HEAD
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         AudioCapabilities audioCapabilities = codecCapabilities.getAudioCapabilities();
+=======
+        MediaCodecInfo.CodecCapabilities codecCapabilities =
+            info.getCapabilitiesForType(supportedType);
+        MediaCodecInfo.AudioCapabilities audioCapabilities =
+            codecCapabilities.getAudioCapabilities();
+>>>>>>> 17c399389c5 (android: Update out of date comment (#6955))
         Range<Integer> bitrateRange =
             Range.create(0, audioCapabilities.getBitrateRange().getUpper());
         if (!bitrateRange.contains(bitrate)) {
