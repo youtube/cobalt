@@ -148,28 +148,28 @@ TEST(StrlcatTest, ConcatenatesEmptyString) {
   EXPECT_EQ(4, len);
 }
 
-TEST(FormatNumberTest, FormatsZero) {
-  EXPECT_EQ("0", FormatNumber(0));
+TEST(StringTest, FormatWithDigitSeparators_Zero) {
+  EXPECT_EQ("0", FormatWithDigitSeparators(0));
 }
 
-TEST(FormatNumberTest, FormatsPositiveNumber) {
-  EXPECT_EQ("123", FormatNumber(123));
-  EXPECT_EQ("1'234", FormatNumber(1234));
-  EXPECT_EQ("12'345", FormatNumber(12345));
-  EXPECT_EQ("123'456", FormatNumber(123456));
-  EXPECT_EQ("1'234'567", FormatNumber(1234567));
-  EXPECT_EQ("12'345'678", FormatNumber(12345678));
-  EXPECT_EQ("123'456'789", FormatNumber(123456789));
+TEST(StringTest, FormatWithDigitSeparators_PositiveNumber) {
+  EXPECT_EQ("123", FormatWithDigitSeparators(123));
+  EXPECT_EQ("1'234", FormatWithDigitSeparators(1234));
+  EXPECT_EQ("12'345", FormatWithDigitSeparators(12345));
+  EXPECT_EQ("123'456", FormatWithDigitSeparators(123456));
+  EXPECT_EQ("1'234'567", FormatWithDigitSeparators(1234567));
+  EXPECT_EQ("12'345'678", FormatWithDigitSeparators(12345678));
+  EXPECT_EQ("123'456'789", FormatWithDigitSeparators(123456789));
 }
 
-TEST(FormatNumberTest, FormatsNegativeNumber) {
-  EXPECT_EQ("-123", FormatNumber(-123));
-  EXPECT_EQ("-1'234", FormatNumber(-1234));
-  EXPECT_EQ("-12'345", FormatNumber(-12345));
-  EXPECT_EQ("-123'456", FormatNumber(-123456));
-  EXPECT_EQ("-1'234'567", FormatNumber(-1234567));
-  EXPECT_EQ("-12'345'678", FormatNumber(-12345678));
-  EXPECT_EQ("-123'456'789", FormatNumber(-123456789));
+TEST(StringTest, FormatWithDigitSeparators_NegativeNumber) {
+  EXPECT_EQ("-123", FormatWithDigitSeparators(-123));
+  EXPECT_EQ("-1'234", FormatWithDigitSeparators(-1234));
+  EXPECT_EQ("-12'345", FormatWithDigitSeparators(-12345));
+  EXPECT_EQ("-123'456", FormatWithDigitSeparators(-123456));
+  EXPECT_EQ("-1'234'567", FormatWithDigitSeparators(-1234567));
+  EXPECT_EQ("-12'345'678", FormatWithDigitSeparators(-12345678));
+  EXPECT_EQ("-123'456'789", FormatWithDigitSeparators(-123456789));
 }
 
 }  // namespace

@@ -56,7 +56,7 @@ std::string HexEncode(const void* data,
 
 // Formats a number as a string with single-quote thousands separators
 // (e.g., 1'234'567).
-std::string FormatNumber(int64_t);
+std::string FormatWithDigitSeparators(int64_t);
 
 template <typename CHAR>
 static SB_C_FORCE_INLINE int strlcpy(CHAR* dst, const CHAR* src, int dst_size) {

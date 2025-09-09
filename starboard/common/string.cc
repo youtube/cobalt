@@ -36,7 +36,7 @@ std::string HexEncode(const void* data, int size, const char* delimiter) {
   return result;
 }
 
-std::string FormatNumber(int64_t number) {
+std::string FormatWithDigitSeparators(int64_t number) {
   if (number == 0) {
     return "0";
   }
