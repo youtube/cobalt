@@ -1,0 +1,17 @@
+--- base/threading/hang_watcher.cc
++++ base/threading/hang_watcher.cc
+@@ -463,14 +463,11 @@
+   g_threadpool_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
+   g_io_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
+   g_main_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
+-<<<<<<< HEAD
+   g_shutting_down.store(false, std::memory_order_relaxed);
+-=======
+ #if BUILDFLAG(IS_COBALT)
+   g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
+                                                     std::memory_order_relaxed);
+ #endif
+->>>>>>> 4fdbc4fd42b (Register main thread and in-process renderer thread in HangWatcher (#5406))
+ }
+ 
+ // static

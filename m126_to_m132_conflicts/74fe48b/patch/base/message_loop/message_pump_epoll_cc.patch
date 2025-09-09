@@ -1,0 +1,19 @@
+--- base/message_loop/message_pump_epoll.cc
++++ base/message_loop/message_pump_epoll.cc
+@@ -30,7 +30,6 @@
+ 
+ namespace base {
+ 
+-<<<<<<< HEAD
+ namespace {
+ 
+ // Under this feature native work is batched.
+@@ -56,8 +55,6 @@
+ }
+ }  // namespace
+ 
+-=======
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ // Parameters used to construct and describe an interest.
+ struct MessagePumpEpoll::InterestParams {
+   // The file descriptor of interest.

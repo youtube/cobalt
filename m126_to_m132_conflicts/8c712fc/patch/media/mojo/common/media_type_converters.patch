@@ -1,0 +1,86 @@
+--- media/mojo/common/media_type_converters.cc
++++ media/mojo/common/media_type_converters.cc
+@@ -119,7 +119,14 @@
+     return media::mojom::DecoderBuffer::NewEos(std::move(eos));
+   }
+ 
+-<<<<<<< HEAD
++#if BUILDFLAG(USE_STARBOARD_MEDIA)
++  // Reuse the existing DecoderBuffer to avoid allocating
++  // a new DecoderBuffer with MojoRenderer. This increases
++  // ref-count of DecoderBuffer to ensure it is not released
++  // before MojoRenderer has it.
++  mojo_buffer->address = reinterpret_cast<uint64_t>(&input);
++  input.AddRef();
++#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   auto data_buffer = media::mojom::DataDecoderBuffer::New();
+   data_buffer->timestamp = input.timestamp();
+   data_buffer->duration = input.duration();
+@@ -129,26 +136,6 @@
+     data_buffer->side_data =
+         media::mojom::DecoderBufferSideData::From(*input.side_data());
+   }
+-=======
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-  // Reuse the existing DecoderBuffer to avoid allocating
+-  // a new DecoderBuffer with MojoRenderer. This increases
+-  // ref-count of DecoderBuffer to ensure it is not released
+-  // before MojoRenderer has it.
+-  mojo_buffer->address = reinterpret_cast<uint64_t>(&input);
+-  input.AddRef();
+-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  mojo_buffer->is_end_of_stream = false;
+-  mojo_buffer->timestamp = input.timestamp();
+-  mojo_buffer->duration = input.duration();
+-  mojo_buffer->is_key_frame = input.is_key_frame();
+-  mojo_buffer->data_size = base::checked_cast<uint32_t>(input.size());
+-  mojo_buffer->front_discard = input.discard_padding().first;
+-  mojo_buffer->back_discard = input.discard_padding().second;
+-
+-  mojo_buffer->side_data =
+-      media::mojom::DecoderBufferSideData::From(input.side_data());
+->>>>>>> 156b8fdf9c5 ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
+ 
+   if (input.decrypt_config()) {
+     data_buffer->decrypt_config =
+@@ -182,11 +169,6 @@
+     return media::DecoderBuffer::CreateEOSBuffer();
+   }
+ 
+-<<<<<<< HEAD
+-  const auto& mojo_buffer = input->get_data();
+-  auto buffer = base::MakeRefCounted<media::DecoderBuffer>(
+-      base::strict_cast<size_t>(mojo_buffer->data_size));
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   // Reuse the existing DecoderBuffer to avoid allocating
+   // a new DecoderBuffer. Note that DecoderBuffer is released
+@@ -196,9 +178,9 @@
+       reinterpret_cast<media::DecoderBuffer*>(input->address));
+   buffer->Release();
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  scoped_refptr<media::DecoderBuffer> buffer(
+-      new media::DecoderBuffer(base::strict_cast<size_t>(input->data_size)));
+->>>>>>> 156b8fdf9c5 ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
++  const auto& mojo_buffer = input->get_data();
++  auto buffer = base::MakeRefCounted<media::DecoderBuffer>(
++      base::strict_cast<size_t>(mojo_buffer->data_size));
+ 
+   if (mojo_buffer->side_data) {
+     buffer->set_side_data(
+@@ -215,15 +197,8 @@
+         mojo_buffer->decrypt_config
+             .To<std::unique_ptr<media::DecryptConfig>>());
+   }
+-
+-<<<<<<< HEAD
+-=======
+-  media::DecoderBuffer::DiscardPadding discard_padding(input->front_discard,
+-                                                       input->back_discard);
+-  buffer->set_discard_padding(discard_padding);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+->>>>>>> 156b8fdf9c5 ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
+   // TODO(dalecurtis): We intentionally do not deserialize the data section of
+   // the DecoderBuffer here; this must instead be done by clients via their
+   // own DataPipe.  See http://crbug.com/432960

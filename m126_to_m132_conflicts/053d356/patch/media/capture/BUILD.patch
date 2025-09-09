@@ -1,0 +1,28 @@
+--- media/capture/BUILD.gn
++++ media/capture/BUILD.gn
+@@ -273,25 +273,10 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-=======
+-  # Establish GPU Channel
+-  if (is_linux || is_win || is_chromeos_ash || is_mac) {
+-    sources += [
+-      "video/video_capture_gpu_channel_host.cc",
+-      "video/video_capture_gpu_channel_host.h",
+-    ]
+-    deps += [
+-      "//gpu/command_buffer/client",
+-      "//gpu/ipc/client",
+-    ]
+-  }
+-
+   if (is_cobalt_hermetic_build) {
+     sources += ["video/linux/video_capture_device_factory_linux_stub.cc"]
+   }
+ 
+->>>>>>> e4b9f59f7f4 (Add media changes to build cobalt hermetically (#5499))
+   if (is_chromeos_ash) {
+     sources += [
+       "video/chromeos/camera_3a_controller.cc",

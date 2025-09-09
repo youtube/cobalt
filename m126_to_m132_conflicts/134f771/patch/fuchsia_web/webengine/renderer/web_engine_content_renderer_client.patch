@@ -1,0 +1,14 @@
+--- fuchsia_web/webengine/renderer/web_engine_content_renderer_client.cc
++++ fuchsia_web/webengine/renderer/web_engine_content_renderer_client.cc
+@@ -306,11 +306,6 @@
+     base::RepeatingCallback<media::GpuVideoAcceleratorFactories*()>
+         get_gpu_factories_cb,
+     int element_id) {
+-<<<<<<< HEAD
+-=======
+-  auto* interface_broker = render_frame->GetBrowserInterfaceBroker();
+-
+->>>>>>> 80e27f0e4c0 (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
+   mojo::Remote<mojom::WebEngineMediaResourceProvider> media_resource_provider;
+   render_frame->GetBrowserInterfaceBroker().GetInterface(
+       media_resource_provider.BindNewPipeAndPassReceiver());

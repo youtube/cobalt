@@ -1,0 +1,24 @@
+--- chrome/BUILD.gn
++++ chrome/BUILD.gn
+@@ -58,7 +58,6 @@
+   import("//third_party/icu/config.gni")
+ }
+ 
+-<<<<<<< HEAD
+ # b/365489014: CrOS' chrome.sections_embedded target breaks on component builds;
+ # there's no clear value of supporting it there, so disable it.
+ _cros_generate_embed_section_target = is_chromeos && !is_component_build
+@@ -66,12 +65,11 @@
+ if (_cros_generate_embed_section_target) {
+   import("//build/chromeos/embed_sections.gni")
+ }
+-=======
++
+ if (is_cobalt) {
+   import("//third_party/angle/gni/angle.gni")
+ }
+ import("//cobalt/build/configs/hacks.gni")
+->>>>>>> 1ab7778b2a5 (Fix remaining compiler issues in hermetic cobalt (#5316))
+ 
+ declare_args() {
+   # On macOS, `is_chrome_branded` builds that have been signed locally will not

@@ -1,0 +1,57 @@
+--- net/http/http_cache_transaction.cc
++++ net/http/http_cache_transaction.cc
+@@ -4018,54 +4018,7 @@
+     return true;
+   }
+ 
+-<<<<<<< HEAD
+   return false;
+-=======
+-#if BUILDFLAG(IS_COBALT)
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("cobalt-custom-should-disable-http-caching")) {
+-    // Similar to the mime-type allow list in Cobalt 25, except images are not
+-    // cacheable. Consider making this configurable perhaps with command-line
+-    // switches.
+-    std::string mime_type;
+-    headers.GetMimeType(&mime_type);
+-    if (mime_type == "text/css" ||
+-        base::StartsWith(mime_type, "font/", base::CompareCase::INSENSITIVE_ASCII)) {
+-      return false;
+-    }
+-    if (mime_type == "text/javascript" || mime_type == "application/javascript" ||
+-        mime_type == "text/html") {
+-      static constexpr int kMinCacheableContentSize = 1024;
+-      return headers.GetContentLength() < kMinCacheableContentSize;
+-    }
+-    return true;
+-  }
+-#endif  // BUILDFLAG(IS_COBALT)
+-
+-  bool disable_caching = false;
+-  if (base::FeatureList::IsEnabled(
+-          features::kTurnOffStreamingMediaCachingAlways) ||
+-      (base::FeatureList::IsEnabled(
+-           features::kTurnOffStreamingMediaCachingOnBattery) &&
+-       IsOnBatteryPower())) {
+-    // If the feature is always enabled or enabled while we're running on
+-    // battery, and the acquired content is 'large' and not already cached, and
+-    // we have a MIME type of audio or video, then disable the cache for this
+-    // response. We based our initial definition of 'large' on the disk cache
+-    // maximum block size of 16K, which we observed captures the majority of
+-    // responses from various MSE implementations.
+-    static constexpr int kMaxContentSize = 4096 * 4;
+-    std::string mime_type;
+-    base::CompareCase insensitive_ascii = base::CompareCase::INSENSITIVE_ASCII;
+-    if (headers.GetContentLength() > kMaxContentSize &&
+-        headers.response_code() != net::HTTP_NOT_MODIFIED &&
+-        headers.GetMimeType(&mime_type) &&
+-        (base::StartsWith(mime_type, "video", insensitive_ascii) ||
+-         base::StartsWith(mime_type, "audio", insensitive_ascii))) {
+-      disable_caching = true;
+-    }
+-  }
+-  return disable_caching;
+->>>>>>> eb619d5d7f5 (Reduce caching usage. (#5557))
+ }
+ 
+ void HttpCache::Transaction::UpdateSecurityHeadersBeforeForwarding() {

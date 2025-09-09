@@ -1,0 +1,19 @@
+--- third_party/blink/renderer/core/html/media/html_video_element.h
++++ third_party/blink/renderer/core/html/media/html_video_element.h
+@@ -290,16 +290,13 @@
+   // Used to fulfill blink::Image requests (CreateImage(),
+   // GetSourceImageForCanvas(), etc). Created on demand.
+   std::unique_ptr<CanvasResourceProvider> resource_provider_;
+-<<<<<<< HEAD
+   SkImageInfo resource_provider_info_;
+   bool allow_accelerated_images_ = true;
+   HeapTaskRunnerTimer<HTMLVideoElement> cache_deleting_timer_;
+-=======
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   std::string max_video_capabilities_;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 6f123179f73 (Implement custom API for HTMLVideoElement (#5648))
+ };
+ 
+ }  // namespace blink

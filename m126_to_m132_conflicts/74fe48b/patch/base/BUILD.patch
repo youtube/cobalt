@@ -1,0 +1,20 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -97,17 +97,6 @@
+ assert(!is_win || is_clang,
+        "only clang-cl is supported on Windows, see https://crbug.com/988071")
+ 
+-<<<<<<< HEAD
+-=======
+-# Whether we should provide a `__libcpp_verbose_abort` handler that discards
+-# `__VA_ARGS__` and just calls base::ImmediateCrash() for hardening failures.
+-# This conditional matches `defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()` in
+-# base/check.h. I.e. we optimize `::std::__libcpp_verbose_abort(__VA_ARGS__)`
+-# to discard `__VA_ARGS__` when we disable logging from CHECK() failures.
+-use_nodebug_assertion =
+-    use_custom_libcxx && is_official_build && !is_debug && !dcheck_always_on
+-
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+ if (is_android || is_robolectric) {
+   import("//build/config/android/rules.gni")
+   import("//third_party/jni_zero/jni_zero.gni")

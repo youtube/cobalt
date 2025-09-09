@@ -1,0 +1,14 @@
+--- ui/events/keycodes/keyboard_codes_posix.h
++++ ui/events/keycodes/keyboard_codes_posix.h
+@@ -32,11 +32,6 @@
+ #define UI_EVENTS_KEYCODES_KEYBOARD_CODES_POSIX_H_
+ 
+ #include "build/build_config.h"
+-<<<<<<< HEAD
+-=======
+-
+-#include "build/chromeos_buildflags.h"
+->>>>>>> 8fced72a4a9 ([ATV] Add mapping for android captions button (#5846))
+ 
+ namespace ui {
+ 

@@ -1,0 +1,14 @@
+--- content/common/features.gni
++++ content/common/features.gni
+@@ -23,11 +23,3 @@
+   # Pepper usage.
+   content_enable_legacy_ipc = is_android || enable_ppapi
+ }
+-<<<<<<< HEAD
+-=======
+-
+-declare_args() {
+-enable_screen_capture =
+-    is_linux || is_chromeos || is_mac || is_win || is_android || is_fuchsia
+-}
+->>>>>>> 8b6ea5292e8 (cobalt/build: Set enable_screen_capture = false to all builds (#5655))

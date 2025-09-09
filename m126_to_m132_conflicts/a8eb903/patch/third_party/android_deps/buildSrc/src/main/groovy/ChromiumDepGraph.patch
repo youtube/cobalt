@@ -1,0 +1,14 @@
+--- third_party/android_deps/buildSrc/src/main/groovy/ChromiumDepGraph.groovy
++++ third_party/android_deps/buildSrc/src/main/groovy/ChromiumDepGraph.groovy
+@@ -165,11 +165,7 @@
+             licenseUrl: 'https://raw.githubusercontent.com/google/conscrypt/master/LICENSE',
+             licenseName: 'Apache 2.0'),
+         org_hamcrest_hamcrest: new PropertyOverride(
+-<<<<<<< HEAD
+             licenseUrl: 'https://raw.githubusercontent.com/hamcrest/JavaHamcrest/master/LICENSE',
+-=======
+-            licenseUrl: 'https://raw.githubusercontent.com/hamcrest/JavaHamcrest/refs/heads/master/LICENSE',
+->>>>>>> 2e65a38ecd0 (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
+             licenseName: 'BSD'),
+         org_jsoup_jsoup: new PropertyOverride(
+             cpePrefix: 'cpe:/a:jsoup:jsoup:1.14.3',

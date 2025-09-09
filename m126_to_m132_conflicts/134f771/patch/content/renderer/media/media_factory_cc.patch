@@ -1,0 +1,27 @@
+--- content/renderer/media/media_factory.cc
++++ content/renderer/media/media_factory.cc
+@@ -439,12 +439,7 @@
+   auto factory_selector = CreateRendererFactorySelector(
+       player_id, media_log.get(), url,
+       render_frame_->GetRenderFrameMediaPlaybackOptions(),
+-<<<<<<< HEAD
+       decoder_factory_.get(), client->RemotePlaybackClientWrapper(),
+-=======
+-      decoder_factory_.get(),
+-      std::make_unique<blink::RemotePlaybackClientWrapperImpl>(client),
+->>>>>>> 80e27f0e4c0 (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
+       &media_observer, client->GetElementId());
+ 
+ #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
+@@ -542,11 +537,7 @@
+     blink::WebURL url,
+     const RenderFrameMediaPlaybackOptions& renderer_media_playback_options,
+     media::DecoderFactory* decoder_factory,
+-<<<<<<< HEAD
+     media::RemotePlaybackClientWrapper* client_wrapper,
+-=======
+-    std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
+->>>>>>> 80e27f0e4c0 (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
+     base::WeakPtr<media::MediaObserver>* out_media_observer,
+     int element_id) {
+   using media::RendererType;

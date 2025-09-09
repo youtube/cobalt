@@ -1,0 +1,18 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -993,15 +993,7 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux || is_chromeos || is_android) {
+-=======
+-  if (is_chromeos_ash) {
+-    sources += [ "feature_visitor.h" ]
+-  }
+-
+   if ((is_linux && !is_starboard) || is_chromeos || is_android) {
+->>>>>>> fb39fa3972a ([POSIX] Remove filesystem monitoring functions from Cobalt (#6061))
+     sources += [
+       "files/file_path_watcher_inotify.cc",
+       "files/file_path_watcher_inotify.h",

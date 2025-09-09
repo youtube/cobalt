@@ -1,0 +1,41 @@
+--- base/allocator/partition_allocator/src/partition_alloc/partition_root.cc
++++ base/allocator/partition_allocator/src/partition_alloc/partition_root.cc
+@@ -44,11 +44,7 @@
+ #include "wow64apiset.h"
+ #endif
+ 
+-<<<<<<< HEAD
+-#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+-=======
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 341f18f31b1 ([POSIX] Remove unnecessary pthread_atfork call (#5924))
++#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+ #include <pthread.h>
+ #if PA_CONFIG(ENABLE_SHADOW_METADATA)
+ #include <sys/mman.h>
+@@ -297,11 +293,7 @@
+     return;
+   }
+ 
+-<<<<<<< HEAD
+-#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+-=======
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 341f18f31b1 ([POSIX] Remove unnecessary pthread_atfork call (#5924))
++#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+   // When fork() is called, only the current thread continues to execute in the
+   // child process. If the lock is held, but *not* by this thread when fork() is
+   // called, we have a deadlock.
+@@ -326,11 +318,7 @@
+   int err =
+       pthread_atfork(BeforeForkInParent, AfterForkInParent, AfterForkInChild);
+   PA_CHECK(err == 0);
+-<<<<<<< HEAD
+-#endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+-=======
+-#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 341f18f31b1 ([POSIX] Remove unnecessary pthread_atfork call (#5924))
++#endif  // (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+ }
+ 
+ }  // namespace

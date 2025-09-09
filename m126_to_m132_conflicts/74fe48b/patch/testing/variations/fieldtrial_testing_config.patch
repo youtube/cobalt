@@ -1,0 +1,19 @@
+--- testing/variations/fieldtrial_testing_config.json
++++ testing/variations/fieldtrial_testing_config.json
+@@ -14055,7 +14055,6 @@
+                     "disable_features": [
+                         "MemoryPurgeInBackground"
+                     ]
+-<<<<<<< HEAD
+                 },
+                 {
+                     "name": "DisableGC",
+@@ -14089,8 +14088,6 @@
+                     "disable_features": [
+                         "ReleaseResourceDecodedDataOnMemoryPressure"
+                     ]
+-=======
+->>>>>>> 4127ea17e95 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
+                 }
+             ]
+         }

@@ -1,0 +1,22 @@
+--- testing/test.gni
++++ testing/test.gni
+@@ -1296,16 +1296,12 @@
+ 
+ # Test defaults.
+ set_defaults("test") {
+-<<<<<<< HEAD
+-  if (is_android) {
+-    # Should be kept in sync with set_defaults("cronet_test") in
+-    # //components/cronet/android/cronet_test_templates.gni
+-    # LINT.IfChange
+-=======
+   if (is_cobalt_hermetic_build) {
+     configs = default_shared_library_configs
+   } else if (is_android) {
+->>>>>>> 45c9b23ee41 (Add modular_executable template (#5686))
++    # Should be kept in sync with set_defaults("cronet_test") in
++    # //components/cronet/android/cronet_test_templates.gni
++    # LINT.IfChange
+     configs = default_shared_library_configs
+     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+     configs += [ "//build/config/android:hide_all_but_jni" ]
