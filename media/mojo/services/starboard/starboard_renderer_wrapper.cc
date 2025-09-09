@@ -21,17 +21,25 @@
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
+#include "ui/gl/gl_bindings.h"
 
 namespace media {
 
 StarboardRendererWrapper::StarboardRendererWrapper(
+#if BUILDFLAG(IS_ANDROID)
+    StarboardRendererTraits traits,
+    scoped_refptr<gpu::RefCountedLock> drdc_lock)
+    : gpu::RefCountedLockHelperDrDc(std::move(drdc_lock)),
+#else   // BUILDFLAG(IS_ANDROID)
     StarboardRendererTraits traits)
-    : renderer_extension_receiver_(
+    :
+#endif  // BUILDFLAG(IS_ANDROID)
+      renderer_extension_receiver_(
           this,
           std::move(traits.renderer_extension_receiver)),
       client_extension_remote_(std::move(traits.client_extension_remote),
                                traits.task_runner),
-      renderer_(
+      renderer_(std::make_unique<StarboardRenderer>(
           traits.task_runner,
           std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
                                          traits.task_runner),
@@ -44,15 +52,20 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           ,
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
-      ) {
+              )) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
       std::move(traits.get_starboard_command_buffer_stub_cb));
   gpu_factory_ = std::move(gpu_factory_impl);
+  gpu_task_runner_ = std::move(traits.gpu_task_runner);
 }
 
-StarboardRendererWrapper::~StarboardRendererWrapper() = default;
+StarboardRendererWrapper::~StarboardRendererWrapper() {
+  // StarboardRenderer must be destroyed before StarboardRendererWrapper is
+  // destroyed in order to clear the SurfaceView through Chromium's GPU thread.
+  renderer_.reset();
+}
 
 void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
                                           RendererClient* client,
@@ -170,7 +183,7 @@ StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
   if (test_renderer_) {
     return test_renderer_;
   }
-  return &renderer_;
+  return renderer_.get();
 }
 
 base::SequenceBound<StarboardGpuFactory>*
@@ -188,6 +201,15 @@ void StarboardRendererWrapper::ContinueInitialization(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(init_cb);
   // TODO(b/375070492): add |decode_target_graphics_context_provider_|.
+
+  is_gpu_factory_initialized_ = true;
+  decode_target_graphics_context_provider_.gles_context_runner_context = this;
+  decode_target_graphics_context_provider_.gles_context_runner =
+      &StarboardRendererWrapper::GraphicsContextRunner;
+  GetRenderer()->set_decode_target_graphics_context_provider(
+      base::BindRepeating(
+          &StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider,
+          base::Unretained(this)));
 
   GetRenderer()->Initialize(media_resource, client, std::move(init_cb));
 }
@@ -211,5 +233,41 @@ void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard(
   client_extension_remote_->RequestOverlayInfo(restart_for_transitions);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+SbDecodeTargetGraphicsContextProvider*
+StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider() {
+  return &decode_target_graphics_context_provider_;
+}
+
+// static
+void StarboardRendererWrapper::GraphicsContextRunner(
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context) {
+  StarboardRendererWrapper* provider =
+      reinterpret_cast<StarboardRendererWrapper*>(
+          graphics_context_provider->gles_context_runner_context);
+
+  if (!provider->is_gpu_factory_initialized_) {
+    return;
+  }
+  if (provider->gpu_task_runner_->RunsTasksInCurrentSequence()) {
+    // If it is on the gpu thread, post target_function() directly on it.
+    target_function(target_function_context);
+  } else if (provider->gpu_factory_) {
+    // If it is not on the gpu thread, post target_function() with
+    // |gpu_factory_|.
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    provider->gpu_factory_
+        .AsyncCall(&StarboardGpuFactory::RunClearNativeWindowFunctionOnGpu)
+        .WithArgs(target_function, target_function_context, &done_event);
+    // Blocking is okay here to allow SbPlayer to post |target_function|
+    // on gpu thread, and StarboardRenderer waits for the execution.
+    base::ScopedAllowBaseSyncPrimitives allow_wait;
+    done_event.Wait();
+  }
+}
 
 }  // namespace media

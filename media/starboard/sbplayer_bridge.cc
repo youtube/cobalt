@@ -168,7 +168,6 @@ SbPlayerBridge::SbPlayerBridge(
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
-    DecodeTargetProvider* const decode_target_provider,
     std::string pipeline_identifier)
     : url_(url),
       sbplayer_interface_(interface),
@@ -183,7 +182,6 @@ SbPlayerBridge::SbPlayerBridge(
 #endif
       on_encrypted_media_init_data_encountered_cb_(
           on_encrypted_media_init_data_encountered_cb),
-      decode_target_provider_(decode_target_provider),
       cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
       is_url_based_(true) {
@@ -218,9 +216,6 @@ SbPlayerBridge::SbPlayerBridge(
     SbPlayerSetBoundsHelper* set_bounds_helper,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-    DecodeTargetProvider* const decode_target_provider,
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
     int max_video_input_size
 #if COBALT_MEDIA_ENABLE_CVAL
@@ -242,9 +237,6 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       audio_config_(audio_config),
       video_config_(video_config),
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-      decode_target_provider_(decode_target_provider),
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
       // TODO: b/326654546 - Reorder this variable once enabled.
       max_video_input_size_(max_video_input_size),
@@ -257,15 +249,10 @@ SbPlayerBridge::SbPlayerBridge(
       is_url_based_(false)
 #endif  // SB_HAS(PLAYER_WITH_URL
           max_video_capabilities_(max_video_capabilities) {
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  DCHECK(decode_target_provider_);
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   audio_stream_info_.codec = kSbMediaAudioCodecNone;
   video_stream_info_.codec = kSbMediaVideoCodecNone;
@@ -297,12 +284,6 @@ SbPlayerBridge::~SbPlayerBridge() {
 
   callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayerBridge(NULL);
-
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  decode_target_provider_->SetOutputMode(
-      DecodeTargetProvider::kOutputModeInvalid);
-  decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   if (SbPlayerIsValid(player_)) {
 #if COBALT_MEDIA_ENABLE_CVAL
@@ -605,12 +586,6 @@ void SbPlayerBridge::Suspend() {
 
   state_ = kSuspended;
 
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  decode_target_provider_->SetOutputMode(
-      DecodeTargetProvider::kOutputModeInvalid);
-  decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
 #if COBALT_MEDIA_ENABLE_CVAL
   cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
@@ -718,15 +693,10 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
-        &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
     LOG(INFO) << "Playing in decode-to-texture mode.";
   } else {
     LOG(INFO) << "Playing in punch-out mode.";
   }
-
-  decode_target_provider_->SetOutputMode(
-      ToVideoFrameProviderOutputMode(output_mode_));
 
   set_bounds_helper_->SetPlayerBridge(this);
 
@@ -797,11 +767,7 @@ void SbPlayerBridge::CreatePlayer() {
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       get_decode_target_graphics_context_provider_func_.Run());
-#else   // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-      nullptr);
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 #if COBALT_MEDIA_ENABLE_CVAL
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
@@ -815,19 +781,11 @@ void SbPlayerBridge::CreatePlayer() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
-        &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     LOG(INFO) << "Playing in decode-to-texture mode.";
   } else {
     LOG(INFO) << "Playing in punch-out mode.";
   }
 
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  decode_target_provider_->SetOutputMode(
-      ToVideoFrameProviderOutputMode(output_mode_));
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   set_bounds_helper_->SetPlayerBridge(this);
 
   UpdateBounds();
