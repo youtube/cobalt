@@ -1,5 +1,5543 @@
 [
   {
+    "hexsha": "e2c9f09438f362c5ebcb70a9b589c3245b660ac4",
+    "original_hexsha": "9a69c6a6b1364e6f7b69d475fda5030a4bf738c4",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-30T14:30:54-07:00",
+    "summary": "Build raspi-2 hermetically. (#6216)",
+    "stats": {
+      "files": 15,
+      "insertions": 41,
+      "deletions": 27
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "877c3bb4016afd6a3175f789515d8c2ceea46621",
+    "original_hexsha": "52d4383ff7066ef7d9946f53bc694e7c790837b9",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-30T14:11:00-07:00",
+    "summary": "Add musl header files to the BUILD.gn (#6207)",
+    "stats": {
+      "files": 2,
+      "insertions": 397,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "89846a9e2031c25e75f511d96c0879baec8ce74c",
+    "original_hexsha": "f852a3410111d66fc6c181d46d7628a0377d6e8d",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-30T14:10:50-07:00",
+    "summary": "Remove the COBALT_MUSL_W_GLIBC_HEADERS macro (#6209)",
+    "stats": {
+      "files": 4,
+      "insertions": 0,
+      "deletions": 34
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "237f8e87ef3ca9d2d7ccee7846db0919d519c06b",
+    "original_hexsha": "5142c914f989234516a1e20bbdacff6562bd144b",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-30T16:49:45-04:00",
+    "summary": "Change SbThreadSampler to void* (#6228)",
+    "stats": {
+      "files": 5,
+      "insertions": 7,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b3238d88b6593bec1a6cf3202ab0bf4a991e0281",
+    "original_hexsha": "6ba29adb10ae2862203e31bdfada94f980259f49",
+    "author": "johnx",
+    "datetime": "2025-06-30T12:56:26-07:00",
+    "summary": "Avoid bundling content shell res files (#6227)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "18afba275d8cc88adfdb075cdf7a082522579c44",
+    "original_hexsha": "eb6e9c4e03bbd9bd6400fa34f5754e81dc623024",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-30T12:47:12-07:00",
+    "summary": "[media] Add unit tests for StarboardRendererClient (#6203)",
+    "stats": {
+      "files": 3,
+      "insertions": 259,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "17b00ca32429617e7fe6ca70f264ba44c8739ecd",
+    "original_hexsha": "77f5f36638c79ef247861061310ff08f75da9bcf",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-30T09:43:23-07:00",
+    "summary": "[android] Enable media_unittests (#6223)",
+    "stats": {
+      "files": 4,
+      "insertions": 54,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cd1691fe2126edd11ed905b713ae6ab2035b307a",
+    "original_hexsha": "3310ffb52c21c2600ba7e84cb242dfc414683318",
+    "author": "Charley Kim",
+    "datetime": "2025-06-28T05:20:42+00:00",
+    "summary": "base/task + base/threading: Remove RecordQueuingDelayedTaskMetrics and TLS lookups (#6212)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e56123238b194a9405e43447777f99fae05e3d9c",
+    "original_hexsha": "d3804dbc1fca2157719da2e95d275bca3040f569",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-27T17:19:44-07:00",
+    "summary": "[media] Only Start VideoRendererSink after StartPlayingFrom() is Called (#6204)",
+    "stats": {
+      "files": 1,
+      "insertions": 13,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a13175a25348d857630f1ef6da25a4e30f2e085d",
+    "original_hexsha": "68e31a670d9b6c14927ccfac1f93d7e82a60b03b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-27T15:44:15-07:00",
+    "summary": "Make all JNI method calls to StarboardBridge go through starboard_bridge.h (#6157)",
+    "stats": {
+      "files": 4,
+      "insertions": 61,
+      "deletions": 41
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6853e03237ec62fc8532c7f060c70e9fce2683d4",
+    "original_hexsha": "f85b135c8a6c0bcea65e16fd462327d00a97d9aa",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-27T14:13:42-07:00",
+    "summary": "Add gdb stack trace support to the symbolize.py script (#6202)",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c091025ba6f18412c718846a89d1215a40c3bd94",
+    "original_hexsha": "879a02aa4a80bf4457568b5ea445ab5193cb6d7f",
+    "author": "Sherry Zhou",
+    "datetime": "2025-06-27T13:29:22-07:00",
+    "summary": "[POSIX]Implement signal functions in Starboard (#6033)",
+    "stats": {
+      "files": 13,
+      "insertions": 926,
+      "deletions": 27
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c62646398531801695d4d4c1925adfa768358d02",
+    "original_hexsha": "69d4151e8503e61f10c9935ae943bb5839f73eb1",
+    "author": "Kaido Kert",
+    "datetime": "2025-06-27T13:15:21-07:00",
+    "summary": "[Kokoro]: Attempt to work around file limits (#6206)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9e8e57b81b8c96e5382c5c868706ce307524d25b",
+    "original_hexsha": "c0cacb3b1fec21ce89407d4c7dd038da4271ea44",
+    "author": "Hao",
+    "datetime": "2025-06-27T16:12:12-04:00",
+    "summary": "Update copyrights in cobalt/shell/browser (#6208)",
+    "stats": {
+      "files": 49,
+      "insertions": 639,
+      "deletions": 147
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cf142c964817d66e5ac948c02e664fbc9decbd18",
+    "original_hexsha": "b547b3837356edb553195fdae9da792ad1f13de6",
+    "author": "Charley Kim",
+    "datetime": "2025-06-27T19:32:37+00:00",
+    "summary": "net/quic + third_party/quiche: Improving performance by removing histograms and using ApproximateNow (#6188)",
+    "stats": {
+      "files": 7,
+      "insertions": 84,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "38d4ad6d93058a2ce7ae94953bc26425d3601801",
+    "original_hexsha": "e48a1e7e62b6d67a3d08962accfca6c6b7035d54",
+    "author": "billybw",
+    "datetime": "2025-06-28T03:24:34+08:00",
+    "summary": "Modify build targets in draft_build.md (#6196)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "185cb75917b2e91ebce85a8fd461b2f0892d5de7",
+    "original_hexsha": "6e22ee64548c3de6f6b565d4496657fda276c409",
+    "author": "Holden Warriner",
+    "datetime": "2025-06-27T14:05:35-04:00",
+    "summary": "Add (ABI-wrapped) socketpair symbol to Starboard (#6144)",
+    "stats": {
+      "files": 12,
+      "insertions": 492,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6a9fa271ea900a98d915feeb664dda50db3eb543",
+    "original_hexsha": "9664ce0aa86e46347432c65d531aaf23e119657d",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-27T02:02:41-07:00",
+    "summary": "[Refactor] Replace starboard::mutex in starboad codecs (#6039)",
+    "stats": {
+      "files": 12,
+      "insertions": 36,
+      "deletions": 30
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ecf849749048b465e888d7885f6bca940e1439fd",
+    "original_hexsha": "56af979a58ad7327f634084981072fe22b869f90",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-26T19:26:02-07:00",
+    "summary": "[media] Disable sending |max_video_capabilities| to SbPlayer (#6193)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3dda5ec316d60422e3c1bb493cf3886e09ba8318",
+    "original_hexsha": "3e76123f4e3e44ef9559cb8daa6a2712e882f865",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-26T16:41:16-07:00",
+    "summary": "[media] Add unit tests for StarboardRenderer and StarboardRendererWrapper (#6171)",
+    "stats": {
+      "files": 4,
+      "insertions": 381,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9aff4e86edec97baa926411e95c4c15a45c4bd7a",
+    "original_hexsha": "16a9ea961d355ddd03875b922305c2becae4378e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-26T15:20:38-07:00",
+    "summary": "Add unit test for Queue and Semahore (#6148)",
+    "stats": {
+      "files": 4,
+      "insertions": 623,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "adf51f4d1072ef5fd6a7291f0d65f5e0229d2e11",
+    "original_hexsha": "6228dcf2f718120f9ee7ca34243e2a1960093f13",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-26T15:15:09-07:00",
+    "summary": "[Cleanup] Remove deprecated `SbThreadYield` impl. (#6154)",
+    "stats": {
+      "files": 6,
+      "insertions": 0,
+      "deletions": 42
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e50ffe947067a75e28fca7bf5bf55626d077f382",
+    "original_hexsha": "20af1a19b3447677e63629ccc8699326ce2fde6a",
+    "author": "Kaido Kert",
+    "datetime": "2025-06-26T14:40:41-07:00",
+    "summary": "Add temporary draft build instructions (#6159)",
+    "stats": {
+      "files": 1,
+      "insertions": 117,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "82a86f2fc62e527984f48c693e377af7a25924e5",
+    "original_hexsha": "ca5fd1cb3c071722522c6eded231ea0bcc8d411b",
+    "author": "Hao",
+    "datetime": "2025-06-26T15:10:12-04:00",
+    "summary": "Fix copyrights in cobalt/shell/renderer (#6163)",
+    "stats": {
+      "files": 6,
+      "insertions": 78,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aa3f8ffe7b115b6fe5a2cb4ea51e383b47b1c556",
+    "original_hexsha": "1ef77efbdd6f0fcef821f57dc790b1eab675296e",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-26T11:05:46-07:00",
+    "summary": "[media] Reject CDM Switching if |cdm_context_| is valid (#6177)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "16cbd824f42d4459ac8f698c510f81597cb75b6a",
+    "original_hexsha": "803f3b8886d03bd7dda48aafcc65c33786ddf7fe",
+    "author": "Charley Kim",
+    "datetime": "2025-06-26T18:04:17+00:00",
+    "summary": "net/quic/ + net/socket/: Read multiple packets per call for QUIC connections (#6109)",
+    "stats": {
+      "files": 10,
+      "insertions": 376,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b8043806825c557a2e8a76fb02a519c2d3c2f653",
+    "original_hexsha": "d62704bf388eed03867c9cbeb2699a7004c4bf76",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-25T20:46:24-07:00",
+    "summary": "[media] Fix nullptr in StarboardRenderer::Initialize() (#6172)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b02f91082fdbd71a8c493b95954691828b5b70cd",
+    "original_hexsha": "531f5c0ec95d20c68de3160006480c8b0708e47a",
+    "author": "xiaomings",
+    "datetime": "2025-06-25T17:59:09-07:00",
+    "summary": "Remove some unused functions in //starboard/ (#6142)",
+    "stats": {
+      "files": 6,
+      "insertions": 1,
+      "deletions": 230
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e947f6dc7758a75311b9ae4c8eaf1da2aecf321c",
+    "original_hexsha": "4bb9dd4b2fa3a4c634c4dc117133ac2c907bb02b",
+    "author": "Brian Ting",
+    "datetime": "2025-06-25T17:45:00-07:00",
+    "summary": "Revert \"Clean up runtime deps for modular build \" (#6167)",
+    "stats": {
+      "files": 1,
+      "insertions": 18,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4981ba5bb4a23071b24d6e8564e131dae1c244cf",
+    "original_hexsha": "46a414c22f4aa20608fe5f13be0d7b607c8a4436",
+    "author": "johnx",
+    "datetime": "2025-06-25T14:43:59-07:00",
+    "summary": "reportFullyDrawn() to Android Performance Console (#6162)",
+    "stats": {
+      "files": 4,
+      "insertions": 121,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "601edd71e3e0808405e691dd31989598d4143377",
+    "original_hexsha": "a27c24e082e574be71bff9b9edc89fc10a0cef87",
+    "author": "Adam Walls",
+    "datetime": "2025-06-25T20:35:54+00:00",
+    "summary": "Revert \"cobalt/shell: Removing dependency on ShellContentBrowserClient (#6076)\" (#6164)",
+    "stats": {
+      "files": 16,
+      "insertions": 1128,
+      "deletions": 201
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8a44fa260ef82643c374a129fbec97176332f248",
+    "original_hexsha": "bdd978633a0b015f29d44b90e6e3f6ee140c3e05",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-25T12:35:19-07:00",
+    "summary": "[media] Add SbPlayerInterface for Testing StarboardRenderer (#6160)",
+    "stats": {
+      "files": 2,
+      "insertions": 17,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0c7836cc23128304871eb3cf54b38bb60c530223",
+    "original_hexsha": "e76d19ceb2df78c2db897a09c2541055d7b7cb7c",
+    "author": "Hao",
+    "datetime": "2025-06-25T13:42:37-04:00",
+    "summary": "Copy content/shell/renderer/ to cobalt/shell/renderer (#6150)",
+    "stats": {
+      "files": 9,
+      "insertions": 528,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7b9521ae4ccbfd5542e39ee582abba815d433d70",
+    "original_hexsha": "1176e32edccbe55e6d1e3241a66daaedfcec258b",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-25T11:24:09-04:00",
+    "summary": "Partially fix stack traces for Evergreen (#6145)",
+    "stats": {
+      "files": 5,
+      "insertions": 24,
+      "deletions": 26
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8ff8685d8991d817171fc0befcb10712771aac63",
+    "original_hexsha": "449f86d8d2b0a9e10f1b37f165450f7b3f11a3b8",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-24T18:01:14-04:00",
+    "summary": "Add nplb for evergreen (#6132)",
+    "stats": {
+      "files": 8,
+      "insertions": 69,
+      "deletions": 66
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "581b077fc0c23935d6eadd6312b507b9dd3acb4d",
+    "original_hexsha": "e0bef94f28e3c0e744c1337104dd3573c246fe89",
+    "author": "Colin Liang",
+    "datetime": "2025-06-24T14:43:27-07:00",
+    "summary": "Keep screen saver the same as Cobalt 25. (#6153)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c8026f479343ac75750be25ad515849ee24b0491",
+    "original_hexsha": "3d599eec5a0fb544eceb552c5b6f2f49672e6620",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-24T14:22:22-07:00",
+    "summary": "[Cleanup] Remove `starboard/.../concurrency_debug.h` (#6038)",
+    "stats": {
+      "files": 3,
+      "insertions": 0,
+      "deletions": 194
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e10247bc6f925b73e504147872a69b14ac226dfd",
+    "original_hexsha": "b41e0b7bdbc2471f7171d4a0f81e2af5d804018e",
+    "author": "Arjun Menon",
+    "datetime": "2025-06-24T13:25:12-07:00",
+    "summary": "Remove starboard-only default switches code from non-SB builds (#6125)",
+    "stats": {
+      "files": 1,
+      "insertions": 11,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7553abdf205a0532ad5eace9c71066b5ac18d15d",
+    "original_hexsha": "38323d10c71209c651fd57a15828999203373352",
+    "author": "johnx",
+    "datetime": "2025-06-24T13:21:43-07:00",
+    "summary": "Remove Shell and ShellManager from native UI (#6074)",
+    "stats": {
+      "files": 5,
+      "insertions": 22,
+      "deletions": 81
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "70f7c68dc9ce3e49066605ed7c56406f452fcb8d",
+    "original_hexsha": "e9ec26be6d835eabeddc1f043c8724a676f6a212",
+    "author": "Adam Walls",
+    "datetime": "2025-06-24T20:20:28+00:00",
+    "summary": "cobalt/shell: Removing dependency on ShellContentBrowserClient (#6076)",
+    "stats": {
+      "files": 16,
+      "insertions": 201,
+      "deletions": 1128
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8885c69e8ad64171551603da8f8f8d28cd3e7e3e",
+    "original_hexsha": "e8a1f7db7379ce424418404195d230894aad538a",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-23T18:14:19-04:00",
+    "summary": "Remove clang warning suppressions (#6139)",
+    "stats": {
+      "files": 16,
+      "insertions": 56,
+      "deletions": 114
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cf77c52d101385e46ba0502e9fcd2f4a413d0101",
+    "original_hexsha": "47f1cc235d628917477f68af0c09172b69c4dd11",
+    "author": "johnx",
+    "datetime": "2025-06-23T14:24:10-07:00",
+    "summary": "Revert \"Fix missing Feature flags initialization\" (#6092)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 46
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1e8e742ba4e6073b1e5a4e9b227556dcd254bbae",
+    "original_hexsha": "274beb9dd42dc6c7d7dd3ff9415a41e1393f0133",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-23T17:05:44-04:00",
+    "summary": "Fix clang warnings for linux builds (#6140)",
+    "stats": {
+      "files": 81,
+      "insertions": 320,
+      "deletions": 358
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "633062acf5a8ecc8718193b45ed19498967889fe",
+    "original_hexsha": "4f4cd5752ad884352d2ed528dea8e1f1d05ec380",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-23T15:50:14-04:00",
+    "summary": "Fix clang warnings for android builds (#6141)",
+    "stats": {
+      "files": 37,
+      "insertions": 85,
+      "deletions": 155
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ff8f63dd85e67ed37e1097e277ef29d33955ac07",
+    "original_hexsha": "0a2814651624933756dca7940e214d27dada0077",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-23T15:45:11-04:00",
+    "summary": "Fix clang warnings for modular builds (#6138)",
+    "stats": {
+      "files": 58,
+      "insertions": 225,
+      "deletions": 224
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "20c62d5b90ea1178c948bab7f6eac70b0156c48c",
+    "original_hexsha": "806681ec584a68bda8b41b9200a6ae86bd036c81",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-21T14:06:57-07:00",
+    "summary": "[media] Include Header Explicitly for usleep (#6137)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e0925cb52268944d86467d02bd933fe81bbc9e4e",
+    "original_hexsha": "a71fbc37a4e7344a70f88d257b6700ceaad98ca0",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-21T16:17:44-04:00",
+    "summary": "Build almost all linux targets hermetically (#6097)",
+    "stats": {
+      "files": 18,
+      "insertions": 158,
+      "deletions": 65
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d5433fec7ace5c94ba9ab83883c414d770980120",
+    "original_hexsha": "9939e020d61177a11012571b4454f79d262bf765",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-20T17:04:59-07:00",
+    "summary": "[android] Add a delay for MediaCodec during Reset() and Flush() (#6068)",
+    "stats": {
+      "files": 5,
+      "insertions": 46,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "40a2f9d5612873a76d038e9ad133706d407a802f",
+    "original_hexsha": "567bd038629dd9f0ea881d28800b59954f14d0ce",
+    "author": "xiaomings",
+    "datetime": "2025-06-20T15:20:40-07:00",
+    "summary": "[atv] Refine type/function names in MediaDecoder (#6134)",
+    "stats": {
+      "files": 4,
+      "insertions": 93,
+      "deletions": 84
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e60fb4f720fee44dbc3c4867639cacbd619cc9d1",
+    "original_hexsha": "ab136fd36d46c4426458d92b878a6a4b068f1189",
+    "author": "Hao",
+    "datetime": "2025-06-20T18:12:31-04:00",
+    "summary": "Migrate AudioTrackBridge to jni_generator (#6010)",
+    "stats": {
+      "files": 4,
+      "insertions": 116,
+      "deletions": 73
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0a614e2e82ddd6b6b55aabc60a21ae2cf0d49de1",
+    "original_hexsha": "e438a1b1d98eb9df2165d39d2616980a33f75b36",
+    "author": "Hao",
+    "datetime": "2025-06-20T15:41:02-04:00",
+    "summary": "Remove contentview_holder FrameLayout (#6100)",
+    "stats": {
+      "files": 2,
+      "insertions": 10,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4b941f002eddcaa34406b3776848192f658ccf97",
+    "original_hexsha": "086682109462707c4f6ae159bee6bb5228cee4f5",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-20T10:11:16-04:00",
+    "summary": "Fix gold UA condition (#6122)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "af8e523deafa3fb79631a5411ee616c7f39eb499",
+    "original_hexsha": "b6627d4232fd5da3f876e8d6126ca6a10b11c160",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-19T11:03:38-04:00",
+    "summary": "Add api_leak_detector to CI jobs (#6022)",
+    "stats": {
+      "files": 8,
+      "insertions": 174,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0e531189e76bdbdfbaadb842d7b00ad41aaaffc8",
+    "original_hexsha": "005f796476cdb6db0e959924267967d2cc451e5f",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-06-18T19:07:54-07:00",
+    "summary": "Remove duplicated code by redefining function name (#6111)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 764
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2c4b63871ea59a29515b20bdbf4fbaff0e2fd449",
+    "original_hexsha": "8360708cbb79aaee1c541e23888c10622baead12",
+    "author": "Hao",
+    "datetime": "2025-06-18T18:34:40-04:00",
+    "summary": "CobaltA11yHelper always reports focus to WebContent (#6123)",
+    "stats": {
+      "files": 1,
+      "insertions": 8,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fdd3343a9f509f608575d5c3a76a02f8edc29e64",
+    "original_hexsha": "d55e1cd5ff22c9cdb3f8aa98850a8bba20889328",
+    "author": "Colin Liang",
+    "datetime": "2025-06-18T14:08:45-07:00",
+    "summary": "Refactor StarboardBridge JNI: Streamline System Property Retrieval (#6112)",
+    "stats": {
+      "files": 7,
+      "insertions": 79,
+      "deletions": 111
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2a20a8d367c33609ac62f3dfcfddf07eb738ff42",
+    "original_hexsha": "55fb3d0e4bf54d99e214fd85ff0038a262ffa709",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-18T16:43:32-04:00",
+    "summary": "Clean up runtime deps for modular build  (#6066)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "05073bf126ea961a99426596144a550d082779e7",
+    "original_hexsha": "b2258bd6c5699825183bb99b3a4272253f83a4be",
+    "author": "Miguel Casas",
+    "datetime": "2025-06-18T12:22:34-07:00",
+    "summary": ".github/CODEOWNERS: Update some folders and categories. (#6121)",
+    "stats": {
+      "files": 1,
+      "insertions": 25,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7bc578c3f9552e72f35037311d8e75f620793e6c",
+    "original_hexsha": "6a0a908558b261e54b8bc159f088bded4d36c736",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-17T20:58:37-07:00",
+    "summary": "[POSIX] Add fstatfs stub in //third_party/musl (#6099)",
+    "stats": {
+      "files": 3,
+      "insertions": 13,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fe4ac899650d4e04ad45aeaf847441ac8fefc5e3",
+    "original_hexsha": "734fa922b9f38eba281a304b624e3c66531bbe19",
+    "author": "johnx",
+    "datetime": "2025-06-17T19:25:14-07:00",
+    "summary": "Disable concurrent-marking through gn args (#6120)",
+    "stats": {
+      "files": 2,
+      "insertions": 7,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c1e41a5835b002cf9c816bb0a515a4d88a5a5560",
+    "original_hexsha": "f97e61d58bda8c999aeb3fe7fb9fca522c74cc9d",
+    "author": "Charley Kim",
+    "datetime": "2025-06-17T21:32:41+00:00",
+    "summary": "Secure nav throttle unit tests and HTTPS switch (#5962)",
+    "stats": {
+      "files": 4,
+      "insertions": 161,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3e9e6df220a222f031a94ab7498f9a070b35fe1d",
+    "original_hexsha": "bc6ee5c3f35aaf1ffd61ae1ead3662afc6902f9f",
+    "author": "John Ocampo",
+    "datetime": "2025-06-17T21:32:27+00:00",
+    "summary": "[POSIX] Add perror from musl to Chrobalt (#6052)",
+    "stats": {
+      "files": 3,
+      "insertions": 16,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ffb11d4e0284cdf4264778f53def703a9122329e",
+    "original_hexsha": "7dda0fb6894b9133c8d35dcc9d4ce1047bbaf801",
+    "author": "Brian Ting",
+    "datetime": "2025-06-17T14:20:39-07:00",
+    "summary": "Remove json Cobalt license format (#6104)",
+    "stats": {
+      "files": 4,
+      "insertions": 22,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e00912c603f06249c879519b0313f7d0fed33690",
+    "original_hexsha": "263f64b124403276ee682941df3eda8056115af8",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-17T14:09:45-07:00",
+    "summary": "[media] Pass full mime type to SbPlayer via MojoRenderer (#6110)",
+    "stats": {
+      "files": 4,
+      "insertions": 37,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3a7655e39e3db517a45ad416a1e375899085781b",
+    "original_hexsha": "1098191fdd3849ad387c017470507b827f866284",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-06-17T13:52:42-07:00",
+    "summary": "Add evergreen raspi build config (#6051)",
+    "stats": {
+      "files": 12,
+      "insertions": 112,
+      "deletions": 112
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4ff2db34a87270e7110a57f7224f079e30e13c2a",
+    "original_hexsha": "62f96da2c2889b9e2d0b75646e8c79a4d76d4431",
+    "author": "Yijia Zhang",
+    "datetime": "2025-06-17T13:30:43-07:00",
+    "summary": "Reject pending promises in H5vccExperiments when mojo disconnect (#5864)",
+    "stats": {
+      "files": 9,
+      "insertions": 147,
+      "deletions": 51
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "07646b8b012907b9af6cf2976f8e4cfd37c5ea75",
+    "original_hexsha": "990bafc94c19d23eade75535584031902892acbd",
+    "author": "Charley Kim",
+    "datetime": "2025-06-17T17:27:43+00:00",
+    "summary": "Improve network error dialog UI (#5984)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "25f83524b5c201b0b46bdbdeac88b8b01a31d84e",
+    "original_hexsha": "a8eb903611d219a4758e982fba76f6c09929c5c7",
+    "author": "Charley Kim",
+    "datetime": "2025-06-17T17:19:31+00:00",
+    "summary": "Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077)",
+    "stats": {
+      "files": 13,
+      "insertions": 256,
+      "deletions": 3992
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "20c5266bd6bf80b9c2ef16e037a0a2eb101000d2",
+    "original_hexsha": "3f9826fefc847782d7d3da6710a79adc41d99735",
+    "author": "Miguel Casas",
+    "datetime": "2025-06-17T10:01:24-07:00",
+    "summary": "cobalt: merge common/shell_switches into cobalt/browser/switches (#6098)",
+    "stats": {
+      "files": 5,
+      "insertions": 6,
+      "deletions": 34
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7ad50918a718a3f743745ffd49a7b5df2e50997a",
+    "original_hexsha": "47c337fd7102f8b66af8bc91213fab9fa7b3f969",
+    "author": "Holden Warriner",
+    "datetime": "2025-06-17T12:45:47-04:00",
+    "summary": "Use condition variable to optimize pipe2 test (#6069)",
+    "stats": {
+      "files": 1,
+      "insertions": 63,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "13423eae53d9acb9344e5297c77418cb607de3ef",
+    "original_hexsha": "33498e3284addb1d84c8dcceeccd46853b8781b9",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-16T16:10:26-07:00",
+    "summary": "[media] Enable RenderCallback::Render() with decode-to-texture Mode (#5762)",
+    "stats": {
+      "files": 5,
+      "insertions": 318,
+      "deletions": 51
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b174622399fafc8596c8b103fa5b12c7d52e9ee5",
+    "original_hexsha": "0118b11790ac4f61d4b2d6e0a4c2a7cf6858f5ba",
+    "author": "Arjun Menon",
+    "datetime": "2025-06-16T14:32:36-07:00",
+    "summary": "Rename switch defaults src to state it's for linux (#6046)",
+    "stats": {
+      "files": 9,
+      "insertions": 441,
+      "deletions": 425
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "acb3fb84cdfd698da155518a76c6acc0aea1839b",
+    "original_hexsha": "7b868a7cebbe3248ab0c7d80f2a371f4f85f22dc",
+    "author": "Austin Osagie",
+    "datetime": "2025-06-16T12:23:45-07:00",
+    "summary": "Add method name to Java Bridge error messages (#6091)",
+    "stats": {
+      "files": 2,
+      "insertions": 31,
+      "deletions": 15
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ec652823b5c0c11fcf6a60951660061830453cf8",
+    "original_hexsha": "ab79526cf99a30ae71f65975f186c144fcad6b33",
+    "author": "Colin Liang",
+    "datetime": "2025-06-13T15:45:26-07:00",
+    "summary": "Add more logs to debug View hierarchy (#6086)",
+    "stats": {
+      "files": 6,
+      "insertions": 96,
+      "deletions": 15
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "17af104ebf28e6fdf4163e3c2395dc63c66badc7",
+    "original_hexsha": "0d719d9ca429261069d602a714fd812517ffb1bb",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-13T15:28:01-07:00",
+    "summary": "[media] Allow StarboardRenderer to Post Tasks on Gpu (#5712)",
+    "stats": {
+      "files": 14,
+      "insertions": 564,
+      "deletions": 425
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "721b778fb654d552d581f96a23cdbfec4bd67d71",
+    "original_hexsha": "ce87942c95ae4cea3372d4c6558979a120f8689f",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-13T16:24:48-04:00",
+    "summary": "Package modular content to work out of the box (#6085)",
+    "stats": {
+      "files": 5,
+      "insertions": 44,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a9e819db101fe607c4ba195228f0be5aa78a7cf1",
+    "original_hexsha": "43a1c5d8ee4d9cab0a53377283376700b6b5c8ba",
+    "author": "Austin Osagie",
+    "datetime": "2025-06-13T12:26:48-07:00",
+    "summary": "[media] Generate MediaCodecStatus at build time (#6072)",
+    "stats": {
+      "files": 6,
+      "insertions": 10,
+      "deletions": 728
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "46e1a1f8c53b1f6865427c0798f1485c48ee443e",
+    "original_hexsha": "5840392d751301a9af528322419f29ae918e8775",
+    "author": "Jelle Foks",
+    "datetime": "2025-06-13T08:20:08-07:00",
+    "summary": "Add setenv/getenv/environ (#5903)",
+    "stats": {
+      "files": 6,
+      "insertions": 821,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "011e75e862e56c3932f321448e30d57b133c2d47",
+    "original_hexsha": "81b63c22983ce5b50c55c53a30d6db3eb9a5002a",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-13T07:17:01-07:00",
+    "summary": "[starboard] Fix a Missing a Return Value (#6089)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7fb5a3f9ac43b89a7319b40a6134791b13df944c",
+    "original_hexsha": "6c0d986e4641b950c12500f4c56b90dd9a35bc89",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-12T21:01:15-07:00",
+    "summary": "Revert \"cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient\" (#6088)",
+    "stats": {
+      "files": 5,
+      "insertions": 86,
+      "deletions": 41
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6bf2179fca96f43a1a3fa9621242e8bca9d001d9",
+    "original_hexsha": "917470658a95d7f9d6f4d245df57d3c251343d9b",
+    "author": "Brian Ting",
+    "datetime": "2025-06-12T19:17:36-07:00",
+    "summary": "Only write Cobalt licenses if it does not exist. (#6057)",
+    "stats": {
+      "files": 2,
+      "insertions": 50,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "34ec9cb72b1961f322a57a952df2e8d10d31a47a",
+    "original_hexsha": "64aef14e98c0da4d19fa5c0311b48f3176545e5b",
+    "author": "Adam Walls",
+    "datetime": "2025-06-13T00:00:16+00:00",
+    "summary": "cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient (#6070)",
+    "stats": {
+      "files": 5,
+      "insertions": 41,
+      "deletions": 86
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bb1d8d1331cbac3e6b78b6d1857efd703ba99197",
+    "original_hexsha": "70c8bd60435f5a3d29703140fb75ba08325e0ac4",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-12T15:55:56-07:00",
+    "summary": "[POSIX] Implement sysconf in Starboard API (#6037)",
+    "stats": {
+      "files": 9,
+      "insertions": 1131,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9020e2dfd5ff8f0013ff72a1aeb6e7558545fb20",
+    "original_hexsha": "e8ab4dbf36b4e46295de392414ac9d7187ab4ab4",
+    "author": "Colin Liang",
+    "datetime": "2025-06-12T13:12:51-07:00",
+    "summary": "Add logs to debug FrameLayout Views (#6082)",
+    "stats": {
+      "files": 1,
+      "insertions": 15,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f592c834a955d18c0d217168688250315b1b8e41",
+    "original_hexsha": "a0faaf6184eef82f8ce7ab3080628663220fc439",
+    "author": "Colin Liang",
+    "datetime": "2025-06-12T11:08:19-07:00",
+    "summary": "Ensure ApplicationAndroid is a singleton (#6079)",
+    "stats": {
+      "files": 1,
+      "insertions": 14,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3f449bd9cc3ff18d1a1c495034fd6944bcfae8d1",
+    "original_hexsha": "248e684eaa1f836bbdd4af5791e8257f47a11335",
+    "author": "Hao",
+    "datetime": "2025-06-12T12:17:28-04:00",
+    "summary": "[Cobalt Shell] Remove unsupported platforms from cobalt_shell (#6073)",
+    "stats": {
+      "files": 31,
+      "insertions": 38,
+      "deletions": 1792
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9029acb6fcde54a5123ea2fa05f1a21f5fd8513d",
+    "original_hexsha": "12646df90bb206868d1458425a683e950f503e86",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-11T16:45:12-07:00",
+    "summary": "Remove program_invocation_short_name (#6065)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d573b50733027a989acd48e8d4a5a814c26e234f",
+    "original_hexsha": "a4576a234587ac9ca7385396d3fda992725d70e5",
+    "author": "Hao",
+    "datetime": "2025-06-11T16:46:56-04:00",
+    "summary": "Copy content/shell/browser/ to cobalt/shell/browser (#5978)",
+    "stats": {
+      "files": 76,
+      "insertions": 9871,
+      "deletions": 79
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a51402917a81e4dd612ed3e7a4c01c518c18036c",
+    "original_hexsha": "dfdd523fbd256e988c76159f0a0352e547ac6774",
+    "author": "Joel Martinez",
+    "datetime": "2025-06-11T12:32:44-07:00",
+    "summary": "Fix CobaltMetricsLogUploader file naming (#6067)",
+    "stats": {
+      "files": 11,
+      "insertions": 485,
+      "deletions": 484
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "040000317cd01577560a5fcd8a043eb7e931e4eb",
+    "original_hexsha": "4d3a2e4ac7260ada0bd51656c68461bbce83116e",
+    "author": "Sherry Zhou",
+    "datetime": "2025-06-11T09:51:59-07:00",
+    "summary": "[POSIX] Remove filesystem monitoring functions from Cobalt (#6061)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8d782badb737d61f86a4d03ae88b3d07afabf96f",
+    "original_hexsha": "2bef937029747e024911351eac897bc3f63c6ce7",
+    "author": "Adam Walls",
+    "datetime": "2025-06-10T23:22:39+00:00",
+    "summary": "cobalt/android: Reduce GPU mem & image decode cache size (#6063)",
+    "stats": {
+      "files": 2,
+      "insertions": 11,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "063db0b07e6594219053686cc30a06feb6f3a01b",
+    "original_hexsha": "3b2e15145e472ab40771f44058bd173644e71f3e",
+    "author": "Austin Osagie",
+    "datetime": "2025-06-10T15:43:01-07:00",
+    "summary": "Update canPlayType Java Bridge method (#6058)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a1fece15ac61a5ecde6e93106a77ae5994650dc1",
+    "original_hexsha": "85f9d7801a645eed47501ce82023fbc71837576c",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-06-10T14:06:35-07:00",
+    "summary": "ui/events: Add a mapping for android search (#5998)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a84fea0ab791fbefe275c72e91fa80ff70207e53",
+    "original_hexsha": "b98699d2e866b1088d6fa516e9bf5cbb2ab8e586",
+    "author": "Austin Osagie",
+    "datetime": "2025-06-10T12:35:31-07:00",
+    "summary": "[media] Update 4k vertical test file (#5443)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "05a44341dfa410857cdc00d31c926e13e1fa33f6",
+    "original_hexsha": "abaec3daa5307fd1cb51daae82075c693ca240ff",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-10T14:40:02-04:00",
+    "summary": "Add partial debug builds (#6030)",
+    "stats": {
+      "files": 7,
+      "insertions": 38,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "492071cb18f971539d0376a9e8b20b28bab63fca",
+    "original_hexsha": "29c0519a3c3e002c46e705734b698349f715b216",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-09T17:38:21-07:00",
+    "summary": "Add __stack_chk_fail from musl (#6035)",
+    "stats": {
+      "files": 2,
+      "insertions": 7,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "253c36d4a3f2bbe4773700b2593dbf3893d09847",
+    "original_hexsha": "a2c10c351071eca0e3f80f3e6efb6f37909d5bc7",
+    "author": "Jason",
+    "datetime": "2025-06-09T15:52:20-07:00",
+    "summary": "[android] Support OnFirstTunnelFrameReady callback (#5996)",
+    "stats": {
+      "files": 7,
+      "insertions": 100,
+      "deletions": 34
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "79cfb72dee2f13f5d6569350a0f461902f151497",
+    "original_hexsha": "142e601cd351280e45381930b00e7875687f3cd8",
+    "author": "Holden Warriner",
+    "datetime": "2025-06-09T18:52:02-04:00",
+    "summary": "Add non-blocking-write compliance test for pipe2 (#6044)",
+    "stats": {
+      "files": 1,
+      "insertions": 75,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eb3d9ebdf6c5682bc65f0cf03d0539c60324894f",
+    "original_hexsha": "f9ce2d7aa06bcf8ac2f8fa1f39c3f44950c290a3",
+    "author": "Eric Zhang",
+    "datetime": "2025-06-09T15:33:44-07:00",
+    "summary": "Add diff workflow to Cobalt GitHub workflows. (#5812)",
+    "stats": {
+      "files": 3,
+      "insertions": 224,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "89f9c14504f7dcb406105ccee45d1c24a8ce40f0",
+    "original_hexsha": "4de5efb5f05352412984632b394fe388a7281efa",
+    "author": "aee",
+    "datetime": "2025-06-09T14:31:38-07:00",
+    "summary": "[Android] update default locale when updated in android settings. (#5830)",
+    "stats": {
+      "files": 2,
+      "insertions": 16,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "80d9064b17a720dd57fb4e6d1d5de7e6467502a3",
+    "original_hexsha": "39c6b0a9ead98684cdf3de5160c2900cd8565e18",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-09T11:21:54-07:00",
+    "summary": "Fix crash in the ElfLoader dtor (#6036)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4fb5c7916c093430d785baba30dd1ac52ffbb574",
+    "original_hexsha": "bfa727891699bcff48e498320a4647a4b78ed9cb",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-09T11:20:42-07:00",
+    "summary": "Fix deadlock in the pthread_once wrapper (#6043)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "56cc3f23a1e281c84ce80fa961d062cada482834",
+    "original_hexsha": "38f7803b7e03d198a2c2f9f0d02acace42fb5695",
+    "author": "Holden Warriner",
+    "datetime": "2025-06-09T10:55:17-04:00",
+    "summary": "Add (ABI-wrapped) pipe2 symbol to Starboard (#5973)",
+    "stats": {
+      "files": 7,
+      "insertions": 267,
+      "deletions": 39
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "562b581ce01d9c565356274a01351e93971cba1f",
+    "original_hexsha": "bf6ddf45e67d722c3b94cfdd935b2e7322140d82",
+    "author": "Miguel Casas",
+    "datetime": "2025-06-06T16:54:23-07:00",
+    "summary": "cobalt: Remove Chrome command line switches (#5960)",
+    "stats": {
+      "files": 5,
+      "insertions": 9,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "01f242d8fae349ad9796dc180510397f0242ea0f",
+    "original_hexsha": "c7287a138c3ba8b49679648d3843429df5539c85",
+    "author": "Sherry Zhou",
+    "datetime": "2025-06-06T15:47:01-07:00",
+    "summary": "Add EGL 1.4 fallback for eglGetPlatformDisplay in nplb tests (#5950)",
+    "stats": {
+      "files": 1,
+      "insertions": 42,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "accff564b5d4e7355a8b64517b39035d9907db42",
+    "original_hexsha": "b7cfcb3d3a482e6c729f605f89a53b950c93ee76",
+    "author": "Sherry Zhou",
+    "datetime": "2025-06-06T15:25:41-07:00",
+    "summary": "[POSIX] Implement semaphore in Starboard (#5972)",
+    "stats": {
+      "files": 8,
+      "insertions": 352,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3aea24d0013b737cef973ad1a0bd5eaedfba6011",
+    "original_hexsha": "61e80f331aacabdf8cee7c4434c7ad6b57aefed5",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-06T13:26:42-07:00",
+    "summary": "Improve log message of starboard_cdm (#5834)",
+    "stats": {
+      "files": 7,
+      "insertions": 263,
+      "deletions": 40
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fc2e85eebdfd0bceb66a6439a3d9dc28cbdfc42c",
+    "original_hexsha": "e14ff26cbe7397f233e85fd77551c53ea977b1bf",
+    "author": "Miguel Casas",
+    "datetime": "2025-06-06T12:49:34-07:00",
+    "summary": "BACKPORT: blink: Return CUTOFF_ALLOW_NICE_TO_HAVE for all GpuMemoryPolicy paths (#6024)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "09cf9a6465d0d066d3c783f939e8333608aaa462",
+    "original_hexsha": "07d8b58cac074a7acde9d457ccd42165169da160",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-06T12:35:26-07:00",
+    "summary": "Remove unnecessary @SuppressWarnings(\"unused\") annotation (#6004)",
+    "stats": {
+      "files": 5,
+      "insertions": 0,
+      "deletions": 41
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "64ff26130f87243144cc1fef7f0432165d7072bd",
+    "original_hexsha": "cc763420a1f0548fad88090f7caec7efacfe38e6",
+    "author": "Austin Osagie",
+    "datetime": "2025-06-06T12:18:25-07:00",
+    "summary": "Add isatty symbol to Starboard (#5919)",
+    "stats": {
+      "files": 3,
+      "insertions": 322,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cee9d400e347a660c992b9c4ec750459c5c92a05",
+    "original_hexsha": "49b869b2166b7f42eca5bd74dc74fce2da0f9921",
+    "author": "Hao",
+    "datetime": "2025-06-06T14:43:51-04:00",
+    "summary": "Centralize functionalities in AudioOutputManager Fully migrate to jni_generator (#5999)",
+    "stats": {
+      "files": 5,
+      "insertions": 181,
+      "deletions": 169
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7c9441c46bf3acece7b6e865074eef0308dd7b58",
+    "original_hexsha": "d62a67f6910475b188e2c99e2d4c9e5a8e05743e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-06T11:39:48-07:00",
+    "summary": "Make wsola_internal not use scoped_refptr. (#5939)",
+    "stats": {
+      "files": 3,
+      "insertions": 15,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ec38252fa4f6a7476d607d0b8c731276df6239f2",
+    "original_hexsha": "fe9595e486cd4f4ac3a6df13c2f76cef38ca353e",
+    "author": "Adam Walls",
+    "datetime": "2025-06-06T18:18:51+00:00",
+    "summary": "Initial decoupling of content shell to Cobalt (#5974)",
+    "stats": {
+      "files": 8,
+      "insertions": 445,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "87fc6f2abcf0ce78b8bf6b1eebd702f863b9519b",
+    "original_hexsha": "55e7b6b26c9b2fe5df28c4dcc776be1e34896b06",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-06-06T10:21:44-07:00",
+    "summary": "Add aligned_alloc to starboard (#5896)",
+    "stats": {
+      "files": 4,
+      "insertions": 142,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8297d94e47f61ee035361bd1ad40d0d46f4ad4dd",
+    "original_hexsha": "179a6c1ad538c7ad07347a2be80e4f3b6cf1dd11",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-06T09:54:59-07:00",
+    "summary": "[Refactor] Replace starboard::mutex in starboard/android (#6019)",
+    "stats": {
+      "files": 17,
+      "insertions": 71,
+      "deletions": 71
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2728184dd2e350a8f75fe771eea683675451ecae",
+    "original_hexsha": "e2dd35f23d4020c04ff726871706df24ae95e6f6",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-06T11:57:30-04:00",
+    "summary": "Move runtime_deps to top level target (#6011)",
+    "stats": {
+      "files": 2,
+      "insertions": 5,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d191e71ea8e31fb6db4caed31164ae4d58b7a430",
+    "original_hexsha": "b81f8f0b4e2cd4c60cfe9b513c7d1a8d720f7e0b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-06T08:52:06-07:00",
+    "summary": "[Refactor] Replace starboard::mutex in starboard/player/filter (#6018)",
+    "stats": {
+      "files": 13,
+      "insertions": 43,
+      "deletions": 42
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "187794d5721e948424901a94d6f1469ad304b654",
+    "original_hexsha": "5954b1d7677b80284703341ca5ad72df6d70301d",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-06T07:53:51-07:00",
+    "summary": "[Refactor] Replace starboard::mutex in starboard/media (#5993)",
+    "stats": {
+      "files": 3,
+      "insertions": 14,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f1f89c227ef0d6898a5b57071e2ca3a4ed5077a",
+    "original_hexsha": "56873be0788c37d90ea2e6abd7fe3602924c9f52",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-06T06:57:41-07:00",
+    "summary": "Exported Symbols cleanup (#6001)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1e1744739f43ab2dc2582eea041db06706aa4309",
+    "original_hexsha": "24319a5e5f67f0cb5bd94a89224e8b119e09ac40",
+    "author": "Jason",
+    "datetime": "2025-06-05T15:24:30-07:00",
+    "summary": "[android] Explicitly enable KEY_TUNNEL_PEEK (#6000)",
+    "stats": {
+      "files": 1,
+      "insertions": 28,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6665a84513071490f2e67ea8afcfdcba2ee132ee",
+    "original_hexsha": "1179c1455a3f7dff1952632f6cf4b1615200dfd8",
+    "author": "Hao",
+    "datetime": "2025-06-05T17:45:42-04:00",
+    "summary": "Migrate microphone functions to jni_generator (#5781)",
+    "stats": {
+      "files": 12,
+      "insertions": 156,
+      "deletions": 58
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "832e100cade05eb0cf695327a35727c23fda2698",
+    "original_hexsha": "d24d3bf5b9c3f6404a1dfed4dbc760a380d0afab",
+    "author": "xiaomings",
+    "datetime": "2025-06-05T13:43:50-07:00",
+    "summary": "[android] Refine MediaDecoder thread termination (#6007)",
+    "stats": {
+      "files": 2,
+      "insertions": 22,
+      "deletions": 20
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4b1f09e35120f99da58e7d2d8a8c5a43ef3bd884",
+    "original_hexsha": "7f639fec443c3ea8671629c8e65466c65a1a4943",
+    "author": "Adam Walls",
+    "datetime": "2025-06-05T20:41:13+00:00",
+    "summary": "Refactor to Split Parsing for Feature flags and CLI Switches (#5937)",
+    "stats": {
+      "files": 5,
+      "insertions": 351,
+      "deletions": 61
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "255144e5f1168aba7bc046a86ae0dee9f48a0a85",
+    "original_hexsha": "8de827eb6c730eddc5bcfcafd48a0a7fec292292",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-06-05T12:56:29-07:00",
+    "summary": "[media] Don't Move the Ownership of |task_runner| to StarboardRenderer (#6008)",
+    "stats": {
+      "files": 3,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5daab2d549a2b3d7446408d6b140db8bccd152a2",
+    "original_hexsha": "b73d579c60a804a4aab34afd7c602c396a5770db",
+    "author": "Jason",
+    "datetime": "2025-06-05T10:43:10-07:00",
+    "summary": "[android] Clear video output frames on tunnel mode (#5983)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6a1082e336c885a3141bd671d03c08d93c1ef251",
+    "original_hexsha": "53f563923b73e0ed455b66fa5a945b8be1cb7af3",
+    "author": "John Ocampo",
+    "datetime": "2025-06-05T15:57:19+00:00",
+    "summary": "third_party/blink: Fix include path and build blink_unittests for linux (#5747)",
+    "stats": {
+      "files": 7,
+      "insertions": 177,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "73db19f8d89caf5b76cafa9e472e95f1ec05f8e6",
+    "original_hexsha": "d018315c05e97deccd5d7d774d76987907824739",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-05T10:38:45-04:00",
+    "summary": "Don't compile with starboard flags for android build (#5963)",
+    "stats": {
+      "files": 3,
+      "insertions": 22,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "04f2e9e4f6a945befe1c0926536d0b560f25272b",
+    "original_hexsha": "9e086d9a06ff90ebcbcdd2d25744c50ba81d789c",
+    "author": "Sherry Zhou",
+    "datetime": "2025-06-04T15:05:46-07:00",
+    "summary": "[POSIX] Remove unnecessary pthread_atfork call (#5924)",
+    "stats": {
+      "files": 6,
+      "insertions": 19,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bc4e55f2aad9a2cc4c0c7c55f28c7813405f3b3d",
+    "original_hexsha": "5e44727408d76180afa966cd551d6c1018486ad5",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-04T14:02:55-07:00",
+    "summary": "[Refactor] Improve readability of media drm bridge (#5991)",
+    "stats": {
+      "files": 4,
+      "insertions": 122,
+      "deletions": 127
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a256921de0d89bde73bd049e5b5a42efa1cefbfa",
+    "original_hexsha": "e84d4df5d93258b730d065288bcf2a337fdbca1a",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-06-04T13:09:44-07:00",
+    "summary": "ui/events: Swap to using Cobalt's keymappings (#5982)",
+    "stats": {
+      "files": 3,
+      "insertions": 8,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "327ca60aa8d8642177e21d9ba9f3a099c4bbc5b8",
+    "original_hexsha": "ca53fae0fb07b52b53d8b464dac5149102f227be",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-04T14:35:07-04:00",
+    "summary": "Switch platform configuration by platform (#5988)",
+    "stats": {
+      "files": 1,
+      "insertions": 20,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a22b1816378b5dc0166e2b204c2a45a0e307ac13",
+    "original_hexsha": "0bd8ac940fd25197e1a76cc57fc45d7b53ff31f3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-04T10:54:27-07:00",
+    "summary": "Call CallDrmSessionKeyStatusesChangedCallback on MediaDrmBridge::OnKeyStatusChange (#5992)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b3e9b74fe4c8d1630a114d0e5839202d16d5e93b",
+    "original_hexsha": "0ce83ed405040e0bbc5bb0faaa54d506bb177499",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-04T10:51:03-07:00",
+    "summary": "Remove DCHECK on `j_mdia_crypto_` (#5869)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9c6f1caf16b6b99d648fcc52df58e9336b5bbb11",
+    "original_hexsha": "83eb0af4896c6905555c796d4733dc85c52180e3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-04T09:06:40-07:00",
+    "summary": "Replace starboard/optional with std::optional (#5986)",
+    "stats": {
+      "files": 30,
+      "insertions": 82,
+      "deletions": 1610
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a8a7328eb64386a4ea66efa7a9a0a5c53712aeb0",
+    "original_hexsha": "2b0ea0b118f3ed1a18d4c26c0f7b17217828caa1",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-04T09:03:24-07:00",
+    "summary": "Fix regression in widevine namespace change in  (#5955)",
+    "stats": {
+      "files": 6,
+      "insertions": 2,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fa8f3963ba2a28e000cff1944f27587e6af316ec",
+    "original_hexsha": "8c05fedae41ff69cffe37539e5cd3a19b000765f",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-06-04T04:00:00+00:00",
+    "summary": "Require issue IDs in Git trailers",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4d6a1f82731ecbb6cfa0f0d388d98a7d35b93dcc",
+    "original_hexsha": "cb4bf3c25112ab82a6b2923e93114117516c4001",
+    "author": "Austin Osagie",
+    "datetime": "2025-06-03T15:46:38-07:00",
+    "summary": "[media] Migrate MediaDrmBridge methods to jni generator (#5833)",
+    "stats": {
+      "files": 8,
+      "insertions": 477,
+      "deletions": 307
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e30355d92b5193ca498b2d20180ca785e03c3a21",
+    "original_hexsha": "5e5dd28d309f74aca55cdd0804f325417bef66fb",
+    "author": "Jason",
+    "datetime": "2025-06-03T15:37:31-07:00",
+    "summary": "Add converted audio input into |audio_inputs_| (#5976)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bfe0917dcaf0bf43d62dc538558a4241770c40ae",
+    "original_hexsha": "219f6387f7bbd7eb40fc764b3800c50b7c4f7a9d",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-03T14:38:08-07:00",
+    "summary": "Relaxed some of the stub asserts to get Cobalt running (#5965)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "031d44887e2ffb0b2d55938ec14f8bd0a70fc89b",
+    "original_hexsha": "78c10c900c5e22713ea0dbcf6cc69c24b3bf60ec",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-06-03T13:58:57-07:00",
+    "summary": "Copy Chromium keycode mapping file to Cobalt file (#5957)",
+    "stats": {
+      "files": 1,
+      "insertions": 781,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "150b82e3b4e05c6836ac2c77fa32dc3bbfe3b9ec",
+    "original_hexsha": "281eefb67209bf3accd86b11176b55b2c9e0d910",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-03T16:30:32-04:00",
+    "summary": "Remove 3P owners from //starboard (#5971)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bf519152a7623d20b1a5226c6d7abea781f00137",
+    "original_hexsha": "83515363a2fc98efb8be9f84426a03244aa1843f",
+    "author": "Andrew Savage",
+    "datetime": "2025-06-03T16:19:46-04:00",
+    "summary": "Don't propagate configs in hermetic builds (#5968)",
+    "stats": {
+      "files": 6,
+      "insertions": 9,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "570bc9f4b507f49d651813876fc145e319aef3ac",
+    "original_hexsha": "59eae1bd40ebac60a5a8a55cd968ec53558ad556",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-03T13:18:42-07:00",
+    "summary": "Disable the libc sandbox interceptor (#5951)",
+    "stats": {
+      "files": 5,
+      "insertions": 8,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fdf3f4d6984367f55080051906da28df971a831b",
+    "original_hexsha": "6c642883cb71228fdf04a2533217c1cf1b0f886a",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-03T13:14:17-07:00",
+    "summary": "Add unit tests for wsola_internal (#5946)",
+    "stats": {
+      "files": 5,
+      "insertions": 208,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ee5018ca345cd2122fa38311dc1595629d8b2499",
+    "original_hexsha": "b9d62cd04992dfed54ead9d421a39814c73aea53",
+    "author": "Jelle Foks",
+    "datetime": "2025-06-03T11:02:27-07:00",
+    "summary": "Add clock() and time() from musl. (#5792)",
+    "stats": {
+      "files": 14,
+      "insertions": 1066,
+      "deletions": 59
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4b3aaf01558c8e42040d524d6e4c4f45d5bae146",
+    "original_hexsha": "9bc18d10a8e61879b05c0fd6b29908117ced2d1a",
+    "author": "Miguel Casas",
+    "datetime": "2025-06-03T10:27:52-07:00",
+    "summary": "cobalt 3P: Enable low-end-device-mode (w/ caveats) and zero-copy (#5958)",
+    "stats": {
+      "files": 1,
+      "insertions": 11,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4d9523ddd7d97ff638afa3b12035baff72376c41",
+    "original_hexsha": "69b2dbbaf27bc9e367e63e3513b619c2cc09cae4",
+    "author": "Yijia Zhang",
+    "datetime": "2025-06-03T10:24:27-07:00",
+    "summary": "Fix missing Feature flags initialization (#5897)",
+    "stats": {
+      "files": 2,
+      "insertions": 46,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "50b4f4c2fc7456a848085274cdcfc285656fa0c4",
+    "original_hexsha": "fc676029d77c8211306109811d5d841c59a43680",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-03T10:07:41-07:00",
+    "summary": "Disable the scoped_file close intercept (#5954)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fee002b2afee9f0711424f89307b0469540cad33",
+    "original_hexsha": "d2d2cb336d65e4becc7172d0df5ba9352b7d70a1",
+    "author": "Jelle Foks",
+    "datetime": "2025-06-03T09:37:13-07:00",
+    "summary": "This adds various sleep functions. (#5795)",
+    "stats": {
+      "files": 16,
+      "insertions": 1199,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "73eb8e3f414fdab6e406eaa720bbe8215a1ede11",
+    "original_hexsha": "2cb286a42bab2fe40ba5309d89281203168e6ad6",
+    "author": "Miguel Casas",
+    "datetime": "2025-06-02T22:54:31-07:00",
+    "summary": "Compositor: Reduce image cache and tile manager memory size (#5945)",
+    "stats": {
+      "files": 1,
+      "insertions": 11,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "46f5248466c3a25a80d7f85385984ea7fee7fc30",
+    "original_hexsha": "ade491e8ba27fe8336272c71eda217b6959fd7c0",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-06-02T20:13:35-07:00",
+    "summary": "Build starboard shared library for hermetic raspi builds (#5735)",
+    "stats": {
+      "files": 20,
+      "insertions": 79,
+      "deletions": 91
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "27d73dc9ac1c5783e875384e459e3e58e9ef710b",
+    "original_hexsha": "13fb4999e692608c3d604c52ce15fa2e24368bb0",
+    "author": "Yijia Zhang",
+    "datetime": "2025-06-02T14:47:45-07:00",
+    "summary": "Add unit tests for global features class. (#5775)",
+    "stats": {
+      "files": 6,
+      "insertions": 106,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bf49aaee27acfd78d868d6012765a5b8564589e6",
+    "original_hexsha": "d4589aaa01d1d58ed276991ac4835f58ce805c79",
+    "author": "Sherry Zhou",
+    "datetime": "2025-06-02T14:24:47-07:00",
+    "summary": "[POSIX] Remove pthread_rwlock_init() call from rwlock lazy initialization (#5918)",
+    "stats": {
+      "files": 1,
+      "insertions": 7,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8e654c90087b77d2398c6e61d1940934d998129a",
+    "original_hexsha": "1fd7a03cd03fa1275fe1a575a90cc19ef5931eed",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-06-02T14:14:02-07:00",
+    "summary": "ElfLoader changes to run Cobalt (#5949)",
+    "stats": {
+      "files": 2,
+      "insertions": 23,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0212ec0e17cc61a131ba7441dfaa0bac947c697f",
+    "original_hexsha": "51936ed9d64b9c48cdb7826869c309ba80b0f77b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-06-02T13:47:45-07:00",
+    "summary": "Use nested namespace in starboard/shared (#5948)",
+    "stats": {
+      "files": 253,
+      "insertions": 548,
+      "deletions": 1986
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d8d7796725910c0d3968a8d05a560bbda9f2d677",
+    "original_hexsha": "6e406d3baf63e9bd05d7180b7c22cd25ee52631d",
+    "author": "Charley Kim",
+    "datetime": "2025-06-02T20:23:52+00:00",
+    "summary": "CSP Headers enforcement (#5879)",
+    "stats": {
+      "files": 7,
+      "insertions": 148,
+      "deletions": 88
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "de156b40f65514b4fafe2db98e70cd43f3f07533",
+    "original_hexsha": "1ab2d6be07a831c34baf247ea8ce90d029d8e951",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-30T16:51:56-07:00",
+    "summary": "[Android] Switch to use passthrough command decoder (#5904)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a3fc2cfb447e4e2936efd8194aad855ad15fd7c0",
+    "original_hexsha": "74329bc22914e70c3985f26a68949e8985f33b88",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-05-30T14:24:56-07:00",
+    "summary": "Add unittests for Android keycode conversions (#5871)",
+    "stats": {
+      "files": 3,
+      "insertions": 177,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e5187eddfb5826424af2fda11a10421cbec1b5d8",
+    "original_hexsha": "28408ba489c39772322133c969c58d5d02ad628d",
+    "author": "Miguel Casas",
+    "datetime": "2025-05-30T11:03:50-07:00",
+    "summary": "cobalt/app: Add switches::kNoZygote (#5905)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9bd27722814b5154e282bcaaa58d83409c7da318",
+    "original_hexsha": "5bd9922c21067ef9914096b05cc0988ef7a4b95d",
+    "author": "xiaomings",
+    "datetime": "2025-05-29T17:08:13-07:00",
+    "summary": "Refine usage of StarboardRenderer in its wrapper (#5923)",
+    "stats": {
+      "files": 5,
+      "insertions": 20,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ef0141a3a15e5b3dc203538d7ab0c6681f789e20",
+    "original_hexsha": "43946c6f733f37b10fddf38c186f7ffe58b23dd4",
+    "author": "thorsten sideb0ard",
+    "datetime": "2025-05-30T08:56:50+09:00",
+    "summary": "Add check for cdm_ before calling getMetrics (#5883)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "89be81fd8af785aa51e7f17cd783281cafe23568",
+    "original_hexsha": "9de196062709bb4bfe20d50a883668d368539f7e",
+    "author": "Kaido Kert",
+    "datetime": "2025-05-29T15:56:03-07:00",
+    "summary": "Disable default Gemini reviews (#5927)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "68ad84ecde5910c5ee08dbc8ead0e7ba4a122041",
+    "original_hexsha": "2a0fa1fa8753f5516ed46695e0ac69e3ed99d159",
+    "author": "Kaido Kert",
+    "datetime": "2025-05-29T14:25:05-07:00",
+    "summary": "Define Starboard owners and extend Media owners (#5912)",
+    "stats": {
+      "files": 1,
+      "insertions": 7,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4499b6100f2df6abe3e45e4f75adb1e761efcffc",
+    "original_hexsha": "5aed1beb8d9208274190f1de207ee072ab16eb9d",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-29T11:51:12-07:00",
+    "summary": "Fix regression in namespace (#5917)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2fb4023a6a4c8ef2d77f8235d59cc00e24608d88",
+    "original_hexsha": "748a7f041ad2959c9cab6dc73182f4f0227c402e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-29T10:28:11-07:00",
+    "summary": "Use nested namespace (#5908)",
+    "stats": {
+      "files": 98,
+      "insertions": 199,
+      "deletions": 608
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ae5053947f72c1adc456d7c35b87bfe686bf7bdd",
+    "original_hexsha": "1c478c94cfeec6584d5caa80eb9c2d187fa20a9c",
+    "author": "Holden Warriner",
+    "datetime": "2025-05-29T11:07:47-04:00",
+    "summary": "Update measureUsedCpuMemory comments to match impl (#5910)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5956e84330c949ef5516fd26ab920b4a72d74816",
+    "original_hexsha": "696e693529617a315876e16a20ab2770e6c5c5db",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-29T00:11:22-07:00",
+    "summary": "Remove unnecessary annotation (#5907)",
+    "stats": {
+      "files": 5,
+      "insertions": 0,
+      "deletions": 39
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "06252b70a45389d27f9ba3648df7b8fc9e3ee0a6",
+    "original_hexsha": "cc63091511f16f248aa3c9a7df811d3afadee152",
+    "author": "Miguel Casas",
+    "datetime": "2025-05-28T18:04:14-07:00",
+    "summary": "cobalt: Move top-level //cobalt files to //cobalt/app (#5892)",
+    "stats": {
+      "files": 15,
+      "insertions": 853,
+      "deletions": 833
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d2ee849a5e2644926e18b0af9efc00ad55501af3",
+    "original_hexsha": "b10ee56b431cf8d3467f2f16e335fc9062270852",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-05-28T14:54:55-07:00",
+    "summary": "Set use_custom_libcxx only for chromium toolchains (#5889)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0ec4f26ec689f50df96f907113efa887077ee711",
+    "original_hexsha": "e7cdbfe90d61ff78c99d8a0b5d17db3740309fbf",
+    "author": "Holden Warriner",
+    "datetime": "2025-05-28T17:18:31-04:00",
+    "summary": "Add pipe symbol to Starboard (#5894)",
+    "stats": {
+      "files": 4,
+      "insertions": 135,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "00fea18806f90bc03eb1561f81e255accb739e08",
+    "original_hexsha": "5b83cdbdf34e65324e1a5343c9b147ce69312724",
+    "author": "Eric Zhang",
+    "datetime": "2025-05-28T13:45:22-07:00",
+    "summary": "Expand variables with quotes and curly braces. (#5900)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2d4445791d6676d139ed676b79b39f4d226fb047",
+    "original_hexsha": "aafe65a58d8856a10ebc6d106236494bbd2aa697",
+    "author": "Hao",
+    "datetime": "2025-05-28T15:43:44-04:00",
+    "summary": "Get JNI env outside audio thread loop (#5898)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e03b728ac9955d543ff5b9fd25df40925bbff578",
+    "original_hexsha": "21ce67e5add8b384ba7f5e2a8a46fb9d4097e15e",
+    "author": "Eric Zhang",
+    "datetime": "2025-05-28T11:49:32-07:00",
+    "summary": "Fixed a typo in the branch creation step. (#5895)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c47b51689d453f5f21febc1278b8482ed0753212",
+    "original_hexsha": "126f324edde27691d82eaf6cfd6015ed197b61b6",
+    "author": "Hao",
+    "datetime": "2025-05-28T14:30:33-04:00",
+    "summary": "Implement singleton AudioOutputManager with proper JNI lifecycle management (#5832)",
+    "stats": {
+      "files": 11,
+      "insertions": 192,
+      "deletions": 113
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1231f742b9e4f97caff668e6e3b50cfdd8360e26",
+    "original_hexsha": "9dc898e0c0640275fd3a2c15d4986a4fa4351576",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-28T10:54:39-07:00",
+    "summary": "Fix the pthread_rwlock_t wrapper (#5893)",
+    "stats": {
+      "files": 3,
+      "insertions": 41,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6943cb16d91110f5c3706ddc43de9f6c41f8d766",
+    "original_hexsha": "211d55adef0890ab92f6ee1c80e3c852f4e3551d",
+    "author": "Miguel Casas",
+    "datetime": "2025-05-28T10:33:32-07:00",
+    "summary": "cobalt: Fold //cobalt/configuration under  //cobalt/browser/h5vcc_system (#5891)",
+    "stats": {
+      "files": 7,
+      "insertions": 118,
+      "deletions": 138
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "80829f2c5d0514372c33054eec3aafc1acb54213",
+    "original_hexsha": "efefc6a84ecf3d02814b4537920bd596e4111d53",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-05-28T08:59:32-07:00",
+    "summary": "Add evergreen platform (#5822)",
+    "stats": {
+      "files": 28,
+      "insertions": 706,
+      "deletions": 341
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dcb975d9c1bd3786e092fecaf719c5621abeee81",
+    "original_hexsha": "c4642cbdcf3971e70c812712798b367742b6bf11",
+    "author": "Eric Zhang",
+    "datetime": "2025-05-27T16:11:27-07:00",
+    "summary": "Add chromium milestones for m132 and m138. (#5888)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9e168c84eab5cdb897764758371f56eabf2d3283",
+    "original_hexsha": "beb13f3de574903b7a8a373d0b0dfc84295beb8b",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-05-27T14:48:59-07:00",
+    "summary": "Tests and ABI wrap for readdir (#5632)",
+    "stats": {
+      "files": 9,
+      "insertions": 635,
+      "deletions": 231
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5693096f9df301eafa14ff4358a9b4aac7aef3ff",
+    "original_hexsha": "5bc5b730b6de8193ac1461a0906eaac67dae1796",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-27T12:37:27-07:00",
+    "summary": "Fix potential alignment issue in the pthread wrappers (#5880)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5a9c1f396587916c95c9672368675b8fab66a424",
+    "original_hexsha": "8f4cf19542677063073e90cfa1deaaaa117bb62a",
+    "author": "johnx",
+    "datetime": "2025-05-27T12:36:59-07:00",
+    "summary": "Correct Java format to set V8 flags (#5875)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e9dda718cc510711755f9546ea72e03cde77d100",
+    "original_hexsha": "4bded05b0dec638a71a1da0ce881fb3e4212f28e",
+    "author": "Eric Zhang",
+    "datetime": "2025-05-27T12:35:34-07:00",
+    "summary": "Add ability to add new branches if milestones are missing to sync chromium workflow. (#5811)",
+    "stats": {
+      "files": 1,
+      "insertions": 24,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f10753b08bc5c1c39abc10bb7fbf82ab1f4629ac",
+    "original_hexsha": "7c6e18fa7cf015729ab11e7187fcc1da75369372",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-27T11:18:45-07:00",
+    "summary": "Fix Skia memory management for Starboard (#5866)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5604a8a2afe969649953ba339f0faafc81e67ab4",
+    "original_hexsha": "0e162daabcfe7e1a88092c7a9869390680046b92",
+    "author": "iuriionishchenko",
+    "datetime": "2025-05-27T20:54:09+03:00",
+    "summary": "Improve starboard::shared::starboard::media::AvcParameterSets class to handle optional parameters (#5590)",
+    "stats": {
+      "files": 3,
+      "insertions": 46,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0fe5c8ee97d040e98092a80bfed4e037eb34d69f",
+    "original_hexsha": "7eb139166784c85f0d907efe42eca99455635ea8",
+    "author": "Yijia Zhang",
+    "datetime": "2025-05-27T10:23:53-07:00",
+    "summary": "Add tests for h_5_vcc_experiments. (#5773)",
+    "stats": {
+      "files": 15,
+      "insertions": 350,
+      "deletions": 92
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0043ef6f17c9aa612c2db2519cc19f80322bcc4b",
+    "original_hexsha": "9f7deb5063f5303bd8524fb22cc0c7e75849c4eb",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-27T09:33:05-07:00",
+    "summary": "Fix the gtest output for hermetic builds (#5873)",
+    "stats": {
+      "files": 1,
+      "insertions": 31,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c144eac659f8e110fc9bdd0c9b12589c9df0106f",
+    "original_hexsha": "239dcd61ef249b5bbd6611f3e6f13067de440ab6",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-05-27T08:23:20-07:00",
+    "summary": "Add tests for epoll (#5354)",
+    "stats": {
+      "files": 7,
+      "insertions": 656,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b129e230a3412c32848f6545fa52d7393bd147a7",
+    "original_hexsha": "06a1217e5ed0a0fb1d29ce25f71d7fc12f696fb3",
+    "author": "John Ocampo",
+    "datetime": "2025-05-27T03:45:49+00:00",
+    "summary": "[media] [cleanup] Tidy up maxVideoCapabilities implementation (#5827)",
+    "stats": {
+      "files": 6,
+      "insertions": 13,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "762fc735ef7d1e1b62ee9b4711031164983e9a0e",
+    "original_hexsha": "c7aea16cdaa68e01e496f585a122458220b43a2d",
+    "author": "Kaido Kert",
+    "datetime": "2025-05-26T08:57:23-07:00",
+    "summary": "Add initial Gemini config (#5872)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cff764d408b33287bafdd10fc9c77d040dc59d85",
+    "original_hexsha": "0c88bd1b6a320eb0c517db516913b74c6f2ac17c",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-05-23T23:42:42+00:00",
+    "summary": "Make merge conflicts more visible (#5853)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3c7f86ee1b7688da3b5d29e62799a04b56e69db2",
+    "original_hexsha": "a65b6f619598e735ca596881cce3cba4ceeb0c10",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-23T12:11:10-07:00",
+    "summary": "third_party/musl: Use system buffered I/O (#5863)",
+    "stats": {
+      "files": 11,
+      "insertions": 0,
+      "deletions": 139
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "88a4b5cf9291b03ea4a2e100c8dc56f180aea242",
+    "original_hexsha": "920f927a511fc14c60a19c23a7fe98269afe2c2f",
+    "author": "Miguel Casas",
+    "datetime": "2025-05-23T11:44:33-07:00",
+    "summary": "cobalt: Move //cobalt/user_agent to //cobalt/browser/user_agent (#5862)",
+    "stats": {
+      "files": 11,
+      "insertions": 1191,
+      "deletions": 1191
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e7e51963a6616a6d7223001e914d7c432c5e2e8a",
+    "original_hexsha": "ed8dc2e100b586fc4d621a3962637b0af0c8e6d4",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-05-23T09:08:32-07:00",
+    "summary": "Update musl implementation of rand, add tests (#5807)",
+    "stats": {
+      "files": 6,
+      "insertions": 181,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6481230192dd19316a491cac2c18dbb1ce63b923",
+    "original_hexsha": "de87b8f2ebecd565a19b42a086cfe8660e32830f",
+    "author": "Andrew Savage",
+    "datetime": "2025-05-23T11:55:16-04:00",
+    "summary": "Add template for evergreen final targets (#5831)",
+    "stats": {
+      "files": 4,
+      "insertions": 52,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3b2849bb3c42be7297d6e508dffccf03cc9c62be",
+    "original_hexsha": "f1f20931e3ba7c90bc8909ae25c20277647887af",
+    "author": "Brian Ting",
+    "datetime": "2025-05-22T20:39:19-07:00",
+    "summary": "Add Cobalt.apk to uncompressed release package (#5855)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3443d465bd904f6d0a18416d3a6a7bf168a51e1c",
+    "original_hexsha": "6d600e7e8dccb2d9301c798c59011a0e0026ab51",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-05-22T18:25:06-07:00",
+    "summary": "[ATV] Add mapping for android captions button (#5846)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "109f84e64133804b0040481cdff1ee2340b97739",
+    "original_hexsha": "e970b32f73ef06b927e61f9e684594b7790fcabc",
+    "author": "Brian Ting",
+    "datetime": "2025-05-22T17:59:45-07:00",
+    "summary": "Removes license file generation from CI (#5854)",
+    "stats": {
+      "files": 4,
+      "insertions": 26,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9950278423487444a19317f64f6c517fb4d60c20",
+    "original_hexsha": "9f4a4be88cae3b02f5be8027b6427cacf98076d7",
+    "author": "Brian Ting",
+    "datetime": "2025-05-22T17:00:03-07:00",
+    "summary": "Writes licenses_cobalt.txt as a GN action (#5850)",
+    "stats": {
+      "files": 2,
+      "insertions": 19,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5a9fd43f6f98ce87195a5606debce8bf077d68e3",
+    "original_hexsha": "d578728b1f4abbe026e57e1b3bc29dcc6a204a60",
+    "author": "Adam Walls",
+    "datetime": "2025-05-22T21:21:22+00:00",
+    "summary": "Allow navigations to chrome schemed sites (#5845)",
+    "stats": {
+      "files": 1,
+      "insertions": 9,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9f5c2f646928efcab8e9fc3d8f3124498d747e16",
+    "original_hexsha": "3e5ec50dfb759e0d8b3b40cf9da795d45417d003",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-05-22T13:59:50-07:00",
+    "summary": "Alphabetize wrappers (#5842)",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d1ab830956f26d8e123d661486321bc6ef6d3487",
+    "original_hexsha": "d76d0a84ef781612b7ceab7e0bb28a00ae6e11ad",
+    "author": "Colin Liang",
+    "datetime": "2025-05-22T09:43:22-07:00",
+    "summary": "[cobalt/android] Prevent screen from dimming when in use. (#5838)",
+    "stats": {
+      "files": 1,
+      "insertions": 13,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "57b477dfe4bfc5387546db6fe911cd7614d81607",
+    "original_hexsha": "c6509031e09acd0f9ae22385e5cca162db291b84",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-21T16:44:59-07:00",
+    "summary": "Resolve H5vccMetrics Promises on connection close. (#5801)",
+    "stats": {
+      "files": 2,
+      "insertions": 37,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "371e152842cf9238d3da8278d74bdd0db3468a56",
+    "original_hexsha": "7ed10cb8f68983afb9a538e9130d8228bf8d16f2",
+    "author": "thorsten sideb0ard",
+    "datetime": "2025-05-22T06:59:48+09:00",
+    "summary": "Add check for DRM server certificate updatability before applying SetServerCertificate() (#5835)",
+    "stats": {
+      "files": 1,
+      "insertions": 8,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6f9b598514dce9452646bd2c4134d13a1fd1477c",
+    "original_hexsha": "e926920b3eeda4499f70093035e00ca45495dcab",
+    "author": "Andrew Savage",
+    "datetime": "2025-05-21T13:46:34-04:00",
+    "summary": "Correct definition for cobalt_toolchain (#5772)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8533c0cdc91f3d8bb952f4daa032ddfd7e3dd459",
+    "original_hexsha": "ee6105bba67ea6b2435e30c8df148608a7ead523",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-20T18:54:55-07:00",
+    "summary": "Use REGISTER_WRAPPER macro for wrappers (#5826)",
+    "stats": {
+      "files": 1,
+      "insertions": 81,
+      "deletions": 135
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "be72c40880fe504d9475dabd2b646ac83be9e512",
+    "original_hexsha": "34254c5e4e627b50cf4e243477961049b2f15002",
+    "author": "Adam Walls",
+    "datetime": "2025-05-21T00:07:12+00:00",
+    "summary": "Make monitoring script more modular (#5823)",
+    "stats": {
+      "files": 7,
+      "insertions": 633,
+      "deletions": 320
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "997e239cbbda3a9cc74977ef722d6500728fb427",
+    "original_hexsha": "12126d7ecca94f5b3c68fc043440cda28f20f1a3",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-20T16:21:43-07:00",
+    "summary": "[media] Send maxVideoCapabilities to SbPlayer (#5825)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "223417036c23377c71e95b00ff576925b94a94be",
+    "original_hexsha": "b086d0144dec6f1b6d15e8d0607161f0f5928702",
+    "author": "johnx",
+    "datetime": "2025-05-20T16:07:51-07:00",
+    "summary": "Disable V8 concurrent marking (#5805)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8b876c44b1ed43f123389ed7f46e88be231ff72f",
+    "original_hexsha": "a3bf3081ae3bb89abe15c8a9a07764e193610321",
+    "author": "Adam Walls",
+    "datetime": "2025-05-20T22:32:01+00:00",
+    "summary": "Add separate configuration class to make monitoring script more modular (#5813)",
+    "stats": {
+      "files": 2,
+      "insertions": 148,
+      "deletions": 73
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "448326391f3fd4da9ef0a55ad7a1d04209274b68",
+    "original_hexsha": "df2afa666dde1db9a0afb8a4d3c25fa7f2ca0010",
+    "author": "Hao",
+    "datetime": "2025-05-20T15:30:15-07:00",
+    "summary": "Create singleton class AudioOutputManager in native (#5810)",
+    "stats": {
+      "files": 6,
+      "insertions": 132,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc98c2871bf1bdeb57b5a851f05e0b0dc68257f5",
+    "original_hexsha": "e749dc18fcbc8c7e481f70119a0e72241364780a",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-20T14:31:08-07:00",
+    "summary": "cobalt/browser: add comment for revisiting SetOverlayMode() (#5817)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12de56138c8baf7df150ec95584cd9528e00cd0f",
+    "original_hexsha": "458f25083146cb5d7995e90ac64c58e34fbe991e",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-05-20T14:09:39-07:00",
+    "summary": "Avoid running raspi for presubmit checks (#5820)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "573345b7f3a86755b235c927845ddd1ed7db7d20",
+    "original_hexsha": "fa6d1ceb6dc58895f44de4c9bdf5d92f9b6349b4",
+    "author": "Hao",
+    "datetime": "2025-05-20T13:53:26-07:00",
+    "summary": "Migrate StarboardBridge to jni_generator (#5803)",
+    "stats": {
+      "files": 8,
+      "insertions": 93,
+      "deletions": 53
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1e9c4498635cd34801837d88e32ca7adada2fbbc",
+    "original_hexsha": "d7a2be9c132c2b9cd4871151444e22e3256c1ffc",
+    "author": "John Ocampo",
+    "datetime": "2025-05-20T20:07:49+00:00",
+    "summary": "[media] Send maxVideoCapabilities to StarboardRenderer (#5756)",
+    "stats": {
+      "files": 15,
+      "insertions": 59,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6e997aec899deb38b8d68a9edc201179b384d21d",
+    "original_hexsha": "1fbbf3abdcb45286aff9d3b008a6ca4fc784b1b0",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-20T10:47:51-07:00",
+    "summary": "[android] Ensure to SetOverlayMode() after WebContents is created (#5749)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "569fe6ab411969a68456ac80a2cb0d515e9eaf3a",
+    "original_hexsha": "9720c3842c30644f1c78910b9e1091d798886b10",
+    "author": "Charley Kim",
+    "datetime": "2025-05-20T16:51:39+00:00",
+    "summary": "HTTPS Enforcement in Chrobalt (#5766)",
+    "stats": {
+      "files": 5,
+      "insertions": 91,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "070b000bc8db9f4f141ffabf3887c68d12fbdfa0",
+    "original_hexsha": "48714311ea26e8ad6d52e4673551e877d6e012b0",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-05-19T16:45:28-07:00",
+    "summary": "Add raspi github workflow (#5793)",
+    "stats": {
+      "files": 4,
+      "insertions": 124,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "94aff90da6e2a5ae449676427996286a8ff33580",
+    "original_hexsha": "0f86730de3985ad451d64f244c1e28e9c8d1714d",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-19T15:55:10-07:00",
+    "summary": "[Refactor] Use dedicated ctor for Success/Failure UpdateSessionResult (#5798)",
+    "stats": {
+      "files": 1,
+      "insertions": 22,
+      "deletions": 24
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bdeaf64b52cc9bb3809661a8d7afa185f8060b26",
+    "original_hexsha": "3344b2e5c95f16e8a0845ecfb5543e95983fcd2d",
+    "author": "Jelle Foks",
+    "datetime": "2025-05-19T15:10:38-07:00",
+    "summary": "Move eztime out of Starboard (#5765)",
+    "stats": {
+      "files": 33,
+      "insertions": 896,
+      "deletions": 1061
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3ec661b1350a5150207f4fe576e96a6060e525e8",
+    "original_hexsha": "81c41e255c536e014c14a5eb98f714edef9ab0ae",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-19T14:43:44-07:00",
+    "summary": "[POSIX] Add a few missing symbol to api_leak_detector.py (#5804)",
+    "stats": {
+      "files": 1,
+      "insertions": 50,
+      "deletions": 44
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "98631ce5a4858ea374df40ab6fb696e594de6450",
+    "original_hexsha": "33cdb9f2cf7c541c5855e45fc1b5a3584b6207de",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-19T13:30:01-07:00",
+    "summary": "[Refactor] Extract repeated codes to close drm session into `closeMediaDrmSession` (#5799)",
+    "stats": {
+      "files": 1,
+      "insertions": 25,
+      "deletions": 36
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "307e67aa10df569d1662427b2c322fe10133674e",
+    "original_hexsha": "1bf76fa70031fb6207c16f9801846e36b58a392d",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-05-19T18:46:58+00:00",
+    "summary": "Add rate limit info to workflow debug action (#5730)",
+    "stats": {
+      "files": 1,
+      "insertions": 9,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6cdf3b189b0fc43b0f32ddb78136512b2013cc7e",
+    "original_hexsha": "62167171b2dc2f4b7217e99d52e7cc4250a57666",
+    "author": "Jelle Foks",
+    "datetime": "2025-05-19T11:03:40-07:00",
+    "summary": "Move gettimeofday from Starboard into musl (#5791)",
+    "stats": {
+      "files": 6,
+      "insertions": 4,
+      "deletions": 25
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b20a3905f73f78a1ab5d4e254384a8f2f7f2e0fc",
+    "original_hexsha": "ef42df206f690be2660ccc9203c2b3a0e6713913",
+    "author": "Adam Walls",
+    "datetime": "2025-05-19T17:14:38+00:00",
+    "summary": "Add unit testing for ADB commands in perf monitoring script (#5785)",
+    "stats": {
+      "files": 5,
+      "insertions": 264,
+      "deletions": 99
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9f76fe5906d620654dd9826d4b9efa7f56842f75",
+    "original_hexsha": "972672cdfa46f15fef0c158a33e5c13f72678923",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-19T10:06:59-07:00",
+    "summary": "[POSIX] Implement pthread_set/getschedparam and pthread_getattr_np (#5768)",
+    "stats": {
+      "files": 9,
+      "insertions": 466,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a0cdb80ace039de9065adeda224a82a3be8580cf",
+    "original_hexsha": "2fb39b5cdb95fab00a9adabb66bec1e9480a879f",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-16T20:38:07-07:00",
+    "summary": "Log session_id for MediaDrm as string (#5787)",
+    "stats": {
+      "files": 1,
+      "insertions": 20,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "812564802e22d978b7f098dcb69ec5d530a27ede",
+    "original_hexsha": "217e538c40c0478d40e1a7e6a56048ed393d54d7",
+    "author": "xiaomings",
+    "datetime": "2025-05-16T14:40:18-07:00",
+    "summary": "[media] Optimize DecoderBufferAllocator (#5627)",
+    "stats": {
+      "files": 15,
+      "insertions": 537,
+      "deletions": 337
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d78672aded6261b69112d228262ae083276ed2ad",
+    "original_hexsha": "5b055eaa55e81e766d6789d00aa603f258981df1",
+    "author": "xiaomings",
+    "datetime": "2025-05-16T12:43:44-07:00",
+    "summary": "Enable 4k/8k playback on linux-x64x11 (#5780)",
+    "stats": {
+      "files": 4,
+      "insertions": 27,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b2b4565df29a297bf78261fca64f9bfe2a5680d8",
+    "original_hexsha": "0f21751625a183e782163d32ca9fb2e9b93a8b9e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-16T12:22:30-07:00",
+    "summary": "[Cleanup] Remove duplicated log (#5784)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "164d14e440c68eafe25fab5c3a636126afd4e551",
+    "original_hexsha": "332cae9e6b91d900d8b4d0d068fba39193e35443",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-05-16T11:09:44-07:00",
+    "summary": "Remove sysroot from linux hermetic builds (#5734)",
+    "stats": {
+      "files": 32,
+      "insertions": 65,
+      "deletions": 36
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "291503b44703a4b8857a692b1295fc3ba52a70aa",
+    "original_hexsha": "f6f98e545362cda8eeeb1da4dd68eb12630bff01",
+    "author": "Adam Walls",
+    "datetime": "2025-05-16T15:43:31+00:00",
+    "summary": "Add support for chrome://flags during app load (#5779)",
+    "stats": {
+      "files": 2,
+      "insertions": 33,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a0e97f93258b4ee00193f2de34bb322ac38e3b03",
+    "original_hexsha": "4125405b66a981843afc7e27d6205ca02c31b87f",
+    "author": "Adam Walls",
+    "datetime": "2025-05-15T23:48:56+00:00",
+    "summary": "Increase precision for Android Monitoring script (#5776)",
+    "stats": {
+      "files": 2,
+      "insertions": 22,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "40479d0e9601a13e2bebd66bbd0fe43b87671881",
+    "original_hexsha": "194103a7b829b8a8b3fc4dc2dd0de6cc3e2b2f2e",
+    "author": "Austin Osagie",
+    "datetime": "2025-05-15T15:15:36-07:00",
+    "summary": "Change MemoryInfo attributes to functions (#5753)",
+    "stats": {
+      "files": 10,
+      "insertions": 50,
+      "deletions": 40
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3dfc6d98ae4b9adbd57b696060e6b5dca1c78856",
+    "original_hexsha": "0d78da6ff85eec9f99262ed1fdb16c5ae247fc30",
+    "author": "aee",
+    "datetime": "2025-05-15T15:13:55-07:00",
+    "summary": "Removing h5vcc.storage, no longer needed for YTS tests. (#5748)",
+    "stats": {
+      "files": 21,
+      "insertions": 0,
+      "deletions": 686
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "01408719e5f2aca45f090c9483ef09f011c8cdf3",
+    "original_hexsha": "61eae160cc96a8fa6b284d75bdbabb02aef4c9dc",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-15T13:21:40-07:00",
+    "summary": "[POSIX] Implement pthread_rwlock functions in Starboard API (#5755)",
+    "stats": {
+      "files": 7,
+      "insertions": 403,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "22a04dfa9a4cb9af527e5aee3626b6e8d1d97315",
+    "original_hexsha": "9f4bc7837d8835bfb2458e88e41c4ba810d94783",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-15T12:00:55-07:00",
+    "summary": "Add UMA histogram metadata XML files. (#5770)",
+    "stats": {
+      "files": 2,
+      "insertions": 66,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fdaf90669ddda52609c4bb30c92c4985d345168f",
+    "original_hexsha": "d04f0cd980e53761d6be04e0c3a246452b2c9d27",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-14T15:56:27-07:00",
+    "summary": "Fix UMA idle bug. (#5764)",
+    "stats": {
+      "files": 3,
+      "insertions": 155,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "13ac9fbbd34bef8fd4150d2a4d2608dca4b2e9b7",
+    "original_hexsha": "7f1f63bc95b0edbcd250d516f4a427b9e5e5e8ab",
+    "author": "Holden Warriner",
+    "datetime": "2025-05-14T14:57:59-04:00",
+    "summary": "Add dup and dup2 POSIX symbols to Starboard (#5752)",
+    "stats": {
+      "files": 4,
+      "insertions": 157,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f18cd8ba69775da6dd92c219dccfca3cbf6921b7",
+    "original_hexsha": "ae1dd5a2a10e2a80d1a6b1dfd4e568c20cac0fcd",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-14T11:11:20-07:00",
+    "summary": "[POSIX] Implement pthread_attr in Starboard API (#5737)",
+    "stats": {
+      "files": 7,
+      "insertions": 361,
+      "deletions": 15
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e3e8023f054e600c085d5b3c4149030c2c634f3c",
+    "original_hexsha": "019ae9dc758eb00edc9790a2846d579cb7bce9ba",
+    "author": "Andrew Savage",
+    "datetime": "2025-05-14T12:39:52-04:00",
+    "summary": "Add modular_executable template (#5686)",
+    "stats": {
+      "files": 15,
+      "insertions": 348,
+      "deletions": 327
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "11a0b75b2ff863bfa9fc95aa1975102cdcccdf39",
+    "original_hexsha": "54b86bf1b24d6a5e594ee001f6629e2e5a10ba02",
+    "author": "xiaomings",
+    "datetime": "2025-05-13T17:41:38-07:00",
+    "summary": "Reduce decoded image cache size to 32 mb (#5740)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "095d760832b30d4428ef0f03c4c400c4b87f1452",
+    "original_hexsha": "99c5a0ea754f22277a3e10452bb7e3bfd6a6cf80",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-05-14T00:05:51+00:00",
+    "summary": "Print test result summary in logs job (#5673)",
+    "stats": {
+      "files": 5,
+      "insertions": 256,
+      "deletions": 17
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6807e55b09049e48dcb2da0f492e3cc8ff1da529",
+    "original_hexsha": "c0d7c3b4a71d32f0ed9dc2e0be042816763ca557",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-05-13T22:05:17+00:00",
+    "summary": "Add ref to concurrency string (#5744)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "02711afc6aff3598256c94b52f6e0bdee3880f08",
+    "original_hexsha": "4c89c01bbc83eece53d8d35170680633aafbe4bc",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-13T14:43:32-07:00",
+    "summary": "Fix memory leak in cobalt_metrics_services_manager. (#5751)",
+    "stats": {
+      "files": 4,
+      "insertions": 24,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1c1d69629adba7efd73c72bf6ccd7c842a9292e8",
+    "original_hexsha": "6f380c97254628c4cb153827aa43fb9c507cd0db",
+    "author": "Arjun Menon",
+    "datetime": "2025-05-13T12:15:52-07:00",
+    "summary": "Fix screen size init with temp workaround via command-line (#5750)",
+    "stats": {
+      "files": 3,
+      "insertions": 44,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8685779f3897c368d531a01c865f300fa3537199",
+    "original_hexsha": "eb24f005e9b3a89e0ae69a35183a44f139d19ea2",
+    "author": "Eric Zhang",
+    "datetime": "2025-05-13T10:26:20-07:00",
+    "summary": "Fixing the position of the permissions field in the Chromium sync workflow (#5736)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a5f3437d85badf493f9f812ea28a192aaf066b61",
+    "original_hexsha": "690cf8848032b1c5bfc29cbf6844a6e3d0b94a9d",
+    "author": "Andrew Savage",
+    "datetime": "2025-05-13T12:22:34-04:00",
+    "summary": "Only log gn error in gn.py (#5341)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "60eef261c0f17edc8eee7c0fb9eb0a7faa56ce9e",
+    "original_hexsha": "7865054c642dcdf7fa410aef6b559f65a6fcb342",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-13T09:11:11-07:00",
+    "summary": "[media] Fix class comment in StarboardRendererWrapper (#5738)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0af366bce3a2506d9fc0b0dee688fa02badf4995",
+    "original_hexsha": "85e6b6e1ff33a781ac54c90e58804f7c8346a2db",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-13T07:26:01-07:00",
+    "summary": "Re-enable media unitttests, previously disabled due to missing ffmpeg. (#5677)",
+    "stats": {
+      "files": 3,
+      "insertions": 4,
+      "deletions": 18
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7c51e308bf9e6ce9fd479479e7d3be82cab7f3d1",
+    "original_hexsha": "7d203ce7e44ef6b0be1f3e6e4ef07ae7daea0054",
+    "author": "Adam",
+    "datetime": "2025-05-13T03:24:34+00:00",
+    "summary": "Add Cobalt Android Monitoring Script Usage (#5739)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "86f33d9e95933f7c61af8ce323fe1ef74fd22dc5",
+    "original_hexsha": "6c593e01072b8102ad1e6897c329280f7b1d94de",
+    "author": "John Ocampo",
+    "datetime": "2025-05-13T02:09:52+00:00",
+    "summary": "Implement custom API for HTMLVideoElement (#5648)",
+    "stats": {
+      "files": 10,
+      "insertions": 231,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "340119989e529704d8396853678123a8ca2804d6",
+    "original_hexsha": "94fdf5c3a3cf1585e5a29300bdb27ef46ba4dcb3",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-12T16:50:14-07:00",
+    "summary": "[android] Copy surface_texture_gl_owner.* (#5732)",
+    "stats": {
+      "files": 2,
+      "insertions": 376,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "079e2ac574c431a830d618e20386038a9975f3db",
+    "original_hexsha": "2a4488cc81d0d87a227b05dccbb320fbf014d4cc",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-12T15:36:38-07:00",
+    "summary": "Build elf_loader_sys_sandbox target (#5729)",
+    "stats": {
+      "files": 3,
+      "insertions": 10,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "740ba2cc986ab6e4829a4134c426b42398f81867",
+    "original_hexsha": "9c84748fd2fea0701d40d38f9853434ab2fec53f",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-12T15:10:07-07:00",
+    "summary": "Trim unnecessary files from ffmpeg_includes. (#5702)",
+    "stats": {
+      "files": 1613,
+      "insertions": 0,
+      "deletions": 322502
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7d3b9924001ccf152e444611c3d85cf5b000e2f3",
+    "original_hexsha": "7702cfb0543d0659e910bfa3ede1184981caa52c",
+    "author": "Adam",
+    "datetime": "2025-05-12T21:45:03+00:00",
+    "summary": "Add Android monitoring tooling and README (#5728)",
+    "stats": {
+      "files": 2,
+      "insertions": 843,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eb7b937675c5be854aa038352f65df076fecd920",
+    "original_hexsha": "30b4226a8e1d5fd82ca2528425fc613b8da6dc0e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-12T14:27:14-07:00",
+    "summary": "Install ffmpeg on unittest image and re-enable unittests (#5717)",
+    "stats": {
+      "files": 8,
+      "insertions": 3,
+      "deletions": 48
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bc53d656195e667755e2acb7d3ee1498daf328b6",
+    "original_hexsha": "ff59766671e0af64ca6114c0edf444c8c380daa7",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-12T13:35:30-07:00",
+    "summary": "Initialize the musl hardware capabilities (#5726)",
+    "stats": {
+      "files": 2,
+      "insertions": 17,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2418accd68b1f1b34ef3bb8dde8c2a8d971fc881",
+    "original_hexsha": "259da3ad55a7903e2dae104113e92c35c4cffa5d",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-12T13:34:27-07:00",
+    "summary": "Remove FD stub used in x11/wayland (#5727)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 28
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e33ccf5af9b37e9456e2b7e3c0558111bb5296bb",
+    "original_hexsha": "b268e63d8cb8f2e8f989c7897dc105bd206d7baf",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-05-12T13:33:41-07:00",
+    "summary": "Register the ftruncate wrapper and cleanup read/write. (#5725)",
+    "stats": {
+      "files": 3,
+      "insertions": 2,
+      "deletions": 22
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "560080a6dbba2e686c61077f4d47f8171435d800",
+    "original_hexsha": "c7db839cac976f6d1321118f6a784bc9d6585854",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-12T12:14:14-07:00",
+    "summary": "[nplb] Enhanced posix_file tests with improved error logging (#5715)",
+    "stats": {
+      "files": 5,
+      "insertions": 129,
+      "deletions": 66
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a9d9b4af394bc511cc3e74ea05e22a95a6ca86cf",
+    "original_hexsha": "ad177a6fbd6499fd5ce6a558e5f7f53c1143fea3",
+    "author": "johnx",
+    "datetime": "2025-05-12T11:27:51-07:00",
+    "summary": "Add freeze and resume events on suspend/resume (#5613)",
+    "stats": {
+      "files": 5,
+      "insertions": 42,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "57ec23477dc222346e71e49017887e1c056a60a1",
+    "original_hexsha": "9ddb0c70e8e7db860df85a0bc5ac629c3d9bddfa",
+    "author": "Arjun Menon",
+    "datetime": "2025-05-12T11:06:45-07:00",
+    "summary": "Fix screen size initialization for PlatformScreenStarboard (#5637)",
+    "stats": {
+      "files": 3,
+      "insertions": 42,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12ed69f7c542f4e4479bc709f2ee025ff2f28799",
+    "original_hexsha": "73c67cf0769544c2eee97532fbbda8e1f5e789b5",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-12T10:34:10-07:00",
+    "summary": "[POSIX] Implement pthread_mutexattr_gettype/getshared and testing (#5711)",
+    "stats": {
+      "files": 8,
+      "insertions": 211,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2f56b9cb7dc5a22452b52f501fbf0e565cc8536f",
+    "original_hexsha": "ea93c0b71090745ec69526fa1ecdf36ce9f2471f",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-12T10:11:39-07:00",
+    "summary": "Add CobaltMetricsService* unit tests (#5679)",
+    "stats": {
+      "files": 8,
+      "insertions": 642,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6252afda469c10fa532641ec9dff1158ec9b1eaa",
+    "original_hexsha": "fe553ff7ad484c16c30b946d8932c6f276e957e3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-12T09:33:31-07:00",
+    "summary": "Fix kAVFormatDoesNotHaveRegisterAll. (#5718)",
+    "stats": {
+      "files": 2,
+      "insertions": 30,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "27c611b326440603603a7e2b07acbf55c8f1a856",
+    "original_hexsha": "2cf165066b1daf2b8ee129611f5e13249810214b",
+    "author": "Miguel Casas",
+    "datetime": "2025-05-09T18:02:00-07:00",
+    "summary": "starboard: improve player_components_factory.cc error logging (#5714)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "11a9bac98c86a128fb3e6bbf4310be070223821b",
+    "original_hexsha": "292316c92e28b11f96ec2a9e5a8344dbc2e4b0df",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-09T16:44:45-07:00",
+    "summary": "[POSIX] Implement writev in Starboard API (#5697)",
+    "stats": {
+      "files": 6,
+      "insertions": 186,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1196157042171caeeade33323d8364c64323089c",
+    "original_hexsha": "95f25745d4f63f5d5f7a4a84c109bdc205f30487",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-09T10:38:37-07:00",
+    "summary": "[media] Report video mode from SbPlayer to StarboardRendererClient (#5333)",
+    "stats": {
+      "files": 14,
+      "insertions": 204,
+      "deletions": 28
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "59514796b751bda3cae9ab201355a769f58ca212",
+    "original_hexsha": "04040754b4d537e69a911673bb09d37d7498ac50",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-09T09:16:14-07:00",
+    "summary": "Make ffmeg decoder/audio compatible with ffmpeg-7.1.1 (#5700)",
+    "stats": {
+      "files": 5,
+      "insertions": 43,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0cd491b357b5dbd5f8c5af76ab23a70cb8d7854d",
+    "original_hexsha": "b607b2a4dd64e7e06fe07e3e12fc9faaf68c0a43",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-09T08:06:51-07:00",
+    "summary": "Add ffmpeg-7.1.1 to third_party/ffmpeg_includes (#5699)",
+    "stats": {
+      "files": 108,
+      "insertions": 28323,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a1b214aa460694fa1b81d3fee0fcdffbd2e8b5fc",
+    "original_hexsha": "5754cf47c14d369d1e9ff394c670dbaf4067e147",
+    "author": "xiaomings",
+    "datetime": "2025-05-08T22:17:21-07:00",
+    "summary": "[media] Recapture DecoderBufferAllocator test files (#5701)",
+    "stats": {
+      "files": 2,
+      "insertions": 192266,
+      "deletions": 244180
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "925a32fc2f58f81779f4e4ec8967a5963e2b80d3",
+    "original_hexsha": "db5935c36c7d7699d9b7cb649bc7ec0b286b82d2",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-05-08T15:21:51-07:00",
+    "summary": "Add tests for malloc_usable_size (#5618)",
+    "stats": {
+      "files": 4,
+      "insertions": 65,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e3edb66bcf215209cc3c91c8b0316c6ef8f23e3d",
+    "original_hexsha": "052fd392dfeb3b8bf8747b136b2110c7cc3c78cd",
+    "author": "Madhura Jayaraman",
+    "datetime": "2025-05-08T12:22:53-07:00",
+    "summary": "Tests for madvise (#5657)",
+    "stats": {
+      "files": 4,
+      "insertions": 78,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "03ddc44afdbe75fa4abfa434fe67228dec40eece",
+    "original_hexsha": "9af4389bbd15720c248561d97ee0ad4143590805",
+    "author": "Eric Zhang",
+    "datetime": "2025-05-08T10:56:54-07:00",
+    "summary": "Add workflow to automatically rebase the chromium sync branches. (#5570)",
+    "stats": {
+      "files": 1,
+      "insertions": 47,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "577b76b3d72f3b36b14effcb7cdc4687b942e79b",
+    "original_hexsha": "b21f222c1b168cb22bbf698eed78510f4157a99e",
+    "author": "Yijia Zhang",
+    "datetime": "2025-05-08T09:47:26-07:00",
+    "summary": "Add h5vcc experiment APIs. (#5190)",
+    "stats": {
+      "files": 29,
+      "insertions": 832,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c89b8ec5f1b8d367888286130d0d3ab96b868911",
+    "original_hexsha": "e8cb37ced5530a0f834d8744aaecd46e57b8da00",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-08T09:07:39-07:00",
+    "summary": " Write unit tests for CobaltMetricsLogsUploader. (#5660)",
+    "stats": {
+      "files": 3,
+      "insertions": 319,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "00c0f08773bf3669d1d290242abb04756fac1da6",
+    "original_hexsha": "8c712fcc0c1adb0470178d1248a0180126ac4033",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-07T15:37:17-07:00",
+    "summary": "[media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464)",
+    "stats": {
+      "files": 6,
+      "insertions": 61,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8036b945504324ba0468c850c5310069449c1e6e",
+    "original_hexsha": "3a9005bb81f11180612b2994d937b633eb9ab1ba",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-07T14:03:41-07:00",
+    "summary": "[POSIX] Register pread and pwrite in Starboard API (#5681)",
+    "stats": {
+      "files": 3,
+      "insertions": 372,
+      "deletions": 171
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "014447b295bc3a054c18fede268d79ae804562e8",
+    "original_hexsha": "64f7f8947d1d1c7c4928a928fcbb9470403af768",
+    "author": "Andrew Savage",
+    "datetime": "2025-05-07T15:24:25-04:00",
+    "summary": "Remove zygote processes (#5680)",
+    "stats": {
+      "files": 9,
+      "insertions": 184,
+      "deletions": 27
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ba1758919b83bcde176d7836f4854f96e9cfff13",
+    "original_hexsha": "559f89aea2a443374625615ec8babcd25da43be6",
+    "author": "Austin Osagie",
+    "datetime": "2025-05-06T17:38:04-07:00",
+    "summary": "[media] Delay player seek while media sample read are in progress (#5467)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c1a44b5627b12c3024f469ac228afb52b6964b98",
+    "original_hexsha": "f8a8684da617982b65a720373c225c4ceb7875cb",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-06T15:48:55-07:00",
+    "summary": "[POSIX] Register mkdtemp, mkstemp, and mkostemp in Starboard API (#5669)",
+    "stats": {
+      "files": 3,
+      "insertions": 180,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b79616859c1f466e7df94e97af81d79fbe0164a9",
+    "original_hexsha": "fab76cfbc97e0fc1e72a25cdb995da75c22897f5",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-06T14:58:11-07:00",
+    "summary": "[android] Ensure to setOverlayVideoMode() after WebContents is created (#5683)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c41409832d01547af5935d66d488afe8ed4e0db5",
+    "original_hexsha": "815be012da8590e255bb91ea344c555b17329adb",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-05-06T11:36:23-07:00",
+    "summary": "[media] Refactor initializing StarboardRenderer via StarboardRendererConfig (#5473)",
+    "stats": {
+      "files": 29,
+      "insertions": 209,
+      "deletions": 83
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2bee5d94778d8924f1b78e1a7095dec344c259f9",
+    "original_hexsha": "d049d6c82c0473a11595cae3c88372fe5a92e1bd",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-06T10:05:48-07:00",
+    "summary": "Switch Android to use passthrough command decoder (#5661)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3d1fa74db8a67e9cfad5b1a80dbc04be5a5a5dec",
+    "original_hexsha": "a6ac2b2b72d5f1722705fe0748756d5a4186c05d",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-06T06:57:14-07:00",
+    "summary": "Persist UMA enablement state across app lifecycles. (#5646)",
+    "stats": {
+      "files": 9,
+      "insertions": 164,
+      "deletions": 35
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c2ab210bf940a4270c7191dee363cfb287409645",
+    "original_hexsha": "c7466c2807115f55fab08f728197e54440c704b2",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-05-02T07:00:00-07:00",
+    "summary": "Allow current line endings in certain files",
+    "stats": {
+      "files": 2,
+      "insertions": 5,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e50e7d3ae12776d2232de20b41b87bfb32637706",
+    "original_hexsha": "36fb2d5ad625f77398306c4ec4c9e07ac373cc54",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-05-05T16:18:47-07:00",
+    "summary": "Bandaid fix unresolvable reference error (#5666)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 15
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d8913d9df32a3141ee3b13e127a0e6ee88eef093",
+    "original_hexsha": "2d17073d851d8cfa540c4c7c0c1ec7fcd7396735",
+    "author": "Austin Osagie",
+    "datetime": "2025-05-05T15:00:33-07:00",
+    "summary": "Add Cobalt demos folder (#5623)",
+    "stats": {
+      "files": 148,
+      "insertions": 14569,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e515f8392b9c341ada71bc0752a3612f1b156ca9",
+    "original_hexsha": "d306ccb9e516ca60950f210e58757352088f55b5",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-05-05T21:12:44+00:00",
+    "summary": "Revert \"Pin depot_tools in kokoro to commit before bundled python (#5208)\" (#5664)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7565c86c12363bf09f6a7b1029dbb0bfd4f23edb",
+    "original_hexsha": "48abcdc431933758ddf17dfe84c27f80cafd882a",
+    "author": "Miguel Casas",
+    "datetime": "2025-05-05T12:30:06-07:00",
+    "summary": "cobalt/build: Set enable_screen_capture = false to all builds (#5655)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "76d0e14b48c25b165f7571b76197ab25621b79f0",
+    "original_hexsha": "021c3dae1e202ebabe13c550604c66301940b3f1",
+    "author": "Hao",
+    "datetime": "2025-05-05T15:29:16-04:00",
+    "summary": "Implement window.close() for Chrobalt ATV (#5640)",
+    "stats": {
+      "files": 6,
+      "insertions": 30,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7c75eab3013f38de993ba4933664ee9aa0d5c660",
+    "original_hexsha": "5435b303bf606dc9b8e64ca120102fdbbf477607",
+    "author": "aee",
+    "datetime": "2025-05-05T12:13:45-07:00",
+    "summary": "Reduce caching usage. (#5557)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ef4012a3fe9a19ba931585364052d0a26abcd8d8",
+    "original_hexsha": "b2a9072ebdfb9555be501527b0388fef9130185b",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-05-05T05:00:00-07:00",
+    "summary": "Remove list of revisions to ignore in git-blame",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 744
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c98aa6a7dab330b5d36c6769873cacf470093df6",
+    "original_hexsha": "ad388a0d8cf3e3dc19768064ed4a28a9ba39d682",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-02T18:21:49-07:00",
+    "summary": "[Cleanup] Remove tunnel-mode codes from ContinuousAudioTrackSink (#5653)",
+    "stats": {
+      "files": 3,
+      "insertions": 19,
+      "deletions": 55
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "049d83dd435ec7f0d2002a304c240a31b47eca0b",
+    "original_hexsha": "60ddfabb15270fb628be7e8061b7f49d7859d888",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-02T15:59:20-07:00",
+    "summary": "Add stub `ContinuousAudioTrackSink` (#5630)",
+    "stats": {
+      "files": 4,
+      "insertions": 515,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "66cc4ea0add72a23e3e0ea9230c537ff58836857",
+    "original_hexsha": "3981727035b413aae8bb81fb210c24af2f46ec9e",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-05-02T12:00:00-07:00",
+    "summary": "Revert commit 81259c86",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6553973cf5e35bb0e23c9cb01bfa0463058b95f2",
+    "original_hexsha": "00e2d209743f988a3f8b81a42c123edf93d830dd",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-05-02T12:00:00-07:00",
+    "summary": "Revert commit a325dc40",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "96f3e75ac7220e513b2d4c154125d95edf5fbdde",
+    "original_hexsha": "38c00d08fcf4eaaced216c3feaf0e2cba8c1629d",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-02T12:47:08-07:00",
+    "summary": "Fixes bug with UMA logs uploader across page refreshes. (#5645)",
+    "stats": {
+      "files": 4,
+      "insertions": 54,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cc1028ad6619bda054526a1aa5f6c57ee6076e6b",
+    "original_hexsha": "a325dc40156dad937b23f13120af7059b549acd9",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-05-02T10:55:57-07:00",
+    "summary": "Revert commit 81259c86 (#5647)",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8849add5f9648c5900ed0f61dd338d3cff798319",
+    "original_hexsha": "fede180fceec5ff14634a2246cf70651ef998e0a",
+    "author": "Sherry Zhou",
+    "datetime": "2025-05-02T10:30:33-07:00",
+    "summary": "[POSIX] Implement Socket Shutdown in Starboard API (#5625)",
+    "stats": {
+      "files": 6,
+      "insertions": 99,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b55d91252f6535972323ac7ece5cb9b37b8d8847",
+    "original_hexsha": "6ff7f2866261ab391b849786cbed804a0d6b7d57",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-02T07:06:44-07:00",
+    "summary": "Early return for UMA service type. (#5635)",
+    "stats": {
+      "files": 1,
+      "insertions": 20,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a5380fd836cac971884698b21649fcd21bacb0fb",
+    "original_hexsha": "b1727f5c0288583eb4ce0ff7b16c173ae6b58b3f",
+    "author": "Dana Dahlstrom",
+    "datetime": "2025-04-24T12:00:00-07:00",
+    "summary": "Get remote URL from local repository",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f4800779544b19eab5bae9a37cf1f88752d712e5",
+    "original_hexsha": "f2d9f057269925d692f0958d0221005b8fb35088",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-05-01T23:28:58+00:00",
+    "summary": "Enable always on tests for android-arm (#5389)",
+    "stats": {
+      "files": 3,
+      "insertions": 9,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f88c84d2b3fe422cf8f0fb2d33fe4f803532eef1",
+    "original_hexsha": "bf17b400b75827a911532f94d3b013c747f3ae14",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-01T14:44:51-07:00",
+    "summary": "Remove unnecessary CHECK (#5634)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "558770c598bb87a01f05122c16aec49707840e4b",
+    "original_hexsha": "169b2afb4389ac75009c1d8a3ca774f8ebc32cd8",
+    "author": "Kyujung Youn",
+    "datetime": "2025-05-01T13:34:34-07:00",
+    "summary": "[Refactor] Use make_unique instead of raw new (#5587)",
+    "stats": {
+      "files": 3,
+      "insertions": 43,
+      "deletions": 48
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d13c69f3a52ae6e76c31a598e11ff946723ba381",
+    "original_hexsha": "3e052be1da4a53e5fda758dc4a4c9481cb09e83a",
+    "author": "Joel Martinez",
+    "datetime": "2025-05-01T11:24:30-07:00",
+    "summary": "Wire up H5vccMetrics (#5549)",
+    "stats": {
+      "files": 23,
+      "insertions": 421,
+      "deletions": 63
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6f9efa060e39d9deb2e723a588da3c301d6c246d",
+    "original_hexsha": "a916d7930b3ef4fa660cb9ee05fc11bf61d18772",
+    "author": "Joel Martinez",
+    "datetime": "2025-04-30T14:40:56-07:00",
+    "summary": "Cleanup unused includes. (#5614)",
+    "stats": {
+      "files": 3,
+      "insertions": 0,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e7a28e67b6284501d8ce48e9569ea9834daee06a",
+    "original_hexsha": "c11a120ce43270d7c061563b81e43cf1ce59fa3b",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-30T11:49:21-07:00",
+    "summary": "Enable viz_unittests and cc_unittests in CI (#5556)",
+    "stats": {
+      "files": 3,
+      "insertions": 139,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "92ce82ddb72904a2aacc091dc71edcab2995a394",
+    "original_hexsha": "602bcc49892ff83a51400bfbd9045a21b0e215ba",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-30T09:58:01-07:00",
+    "summary": "[Refactor] Return nullptr instead of empty unique_ptr (#5585)",
+    "stats": {
+      "files": 5,
+      "insertions": 23,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "333eed3c91a73318f70a6b3f9186d8ccbdd44a23",
+    "original_hexsha": "ff86cd68ef180b116f923954bfca56f089fe760e",
+    "author": "aee",
+    "datetime": "2025-04-29T14:11:11-07:00",
+    "summary": "Limit javascript code cache usage to 3MB. (#5605)",
+    "stats": {
+      "files": 2,
+      "insertions": 13,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f94b8a2b323f4813fc0dd7a1b1f5768f90350266",
+    "original_hexsha": "7193853b44840ee1601f4b4c06971b6bd6a175b7",
+    "author": "aee",
+    "datetime": "2025-04-29T14:10:42-07:00",
+    "summary": "Do not cache GPU shaders to disk. (#5604)",
+    "stats": {
+      "files": 3,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4471807ba42bd03153aa0eef821a1dcc77b3ff0a",
+    "original_hexsha": "c967dc6b661ed9bcf48610a5f5708cdccff738ee",
+    "author": "Hao",
+    "datetime": "2025-04-29T13:29:13-04:00",
+    "summary": "Deprecate MediaCodecBridgeEradicator (#5446)",
+    "stats": {
+      "files": 10,
+      "insertions": 4,
+      "deletions": 433
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3e73e485ffc6b5b495883dd6c0dac4507ed14798",
+    "original_hexsha": "f0f80deacc66ee277f5500b29cf3c1fe6a62f93e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-29T10:07:05-07:00",
+    "summary": "[Cleanup] Remove not-used variables in AudioSink (#5596)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "70c0cf1c513286b3331a291db3eb475c384108e4",
+    "original_hexsha": "7608697557153a49ca3d32f63d63417756cd300e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-29T09:24:13-07:00",
+    "summary": "Add `GetFramesDurationUs` in AudioSink (#5597)",
+    "stats": {
+      "files": 2,
+      "insertions": 11,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "847ae2e32f0f75a44cfb9a73a8ab8726c7ec51ab",
+    "original_hexsha": "76f8a0ade556033b00d1b84673a19c76bb0a9240",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-28T17:22:32-07:00",
+    "summary": "Use bundled python from depot tools (#5504)",
+    "stats": {
+      "files": 3,
+      "insertions": 7,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1f59322285a2803e9640592bce626497475da2ea",
+    "original_hexsha": "510ea3fe6ed393a9c662fb6bf6ebec566f5037bf",
+    "author": "Miguel Casas",
+    "datetime": "2025-04-28T16:44:44-07:00",
+    "summary": "blink/h5vcc_metrics: Make it EventTarget, minor cleanups (#5594)",
+    "stats": {
+      "files": 3,
+      "insertions": 33,
+      "deletions": 25
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aab84e79bff6d6cd1e36d63dfe92df4ed96f48ea",
+    "original_hexsha": "213fed03094aa4fb953bc1b9fc265ed3a49f07ed",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-28T16:26:23-07:00",
+    "summary": "Upload cobalt.apk to test artifacts GCS (#5577)",
+    "stats": {
+      "files": 1,
+      "insertions": 5,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "15043d91722ceec90a100a77b7e322c2054751ea",
+    "original_hexsha": "31f8d07c533bd1bf1f9299fb705197918088df80",
+    "author": "Joel Martinez",
+    "datetime": "2025-04-28T15:43:23-07:00",
+    "summary": "Move global_features to its own BUILD rule. (#5591)",
+    "stats": {
+      "files": 1,
+      "insertions": 23,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b2ad9537d317b97b4ff6aee9c345a7a1f7a7ec32",
+    "original_hexsha": "0b021574e296ac05526fb5bedf0834a6d818b95d",
+    "author": "Igor Sarkisov",
+    "datetime": "2025-04-28T14:13:34-07:00",
+    "summary": "Expand ARM test devices and add retries (#5364)",
+    "stats": {
+      "files": 4,
+      "insertions": 19,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fcf93b1541ced945c808000804834d31708a1503",
+    "original_hexsha": "094284980ca8890aaad0c8ebd9305575f16aec09",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-04-28T11:44:57-07:00",
+    "summary": "Fix the Blink heap tls model for Evergreen. (#5583)",
+    "stats": {
+      "files": 3,
+      "insertions": 1,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b588b2bb43061760731c66c248cc0d220eaa8500",
+    "original_hexsha": "8c5ccd2fc732f6df83f05c85efe631fe3cc50410",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-28T11:36:56-07:00",
+    "summary": "[Refactor] Remove unnecessry member variable. (#5593)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a0d59d5f03246adf2cc652828b3db3f00884edd3",
+    "original_hexsha": "be07ba71126225ed6528906c3494d06193cab055",
+    "author": "xiaomings",
+    "datetime": "2025-04-27T18:23:12-07:00",
+    "summary": "[media] Create in_place_reuse_allocator_base.* (#5586)",
+    "stats": {
+      "files": 2,
+      "insertions": 689,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "855ebc5c32efe365a041510a47277bd3e6f227d2",
+    "original_hexsha": "a90758b8e59b815bcaf67c061f75b5b7e674a2d8",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-04-25T18:45:40-07:00",
+    "summary": "Enable building loader_app/elf_loader_sandbox (#5563)",
+    "stats": {
+      "files": 10,
+      "insertions": 36,
+      "deletions": 24
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3bd185e5d2f4dec93c44dc003c854b27d4e1b7f1",
+    "original_hexsha": "63d723d5f10b199be59e30a4130d56bceb46b54b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-25T17:33:46-07:00",
+    "summary": "Rename player_components_factory.h to .cc (#5579)",
+    "stats": {
+      "files": 4,
+      "insertions": 747,
+      "deletions": 753
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7c593b33674127727bb59e4283aa533d3f42f023",
+    "original_hexsha": "ccf16136da076d9c2a24edb0aa9d04c256741f35",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-25T23:20:14+00:00",
+    "summary": "Fix target names being built according to alphabetical order (#5580)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9ad9c0700ac9796754c0aaac9a6b18440ac9274b",
+    "original_hexsha": "277d2c2b49260c207932aab7fd886121dc034639",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-25T22:36:45+00:00",
+    "summary": "Build libcobalt.so hermetically (#5048)",
+    "stats": {
+      "files": 7,
+      "insertions": 128,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b8711c420e7d59f866aa59a4dd87cfa2d3d2c49d",
+    "original_hexsha": "8705fb92eb4261efc4994e15a3eb9746b8499e20",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-25T15:28:12-07:00",
+    "summary": "Merge player_components_factory.cc into .h file (#5569)",
+    "stats": {
+      "files": 4,
+      "insertions": 42,
+      "deletions": 64
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "346b6dbbe123a371a51311ca5dde5515e59fc26f",
+    "original_hexsha": "741df2953f0ef54304213bf4edeba8fae98ccb84",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-04-25T21:41:44+00:00",
+    "summary": "Set background color to match the app theme at launch (#5555)",
+    "stats": {
+      "files": 1,
+      "insertions": 22,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b143d349ddb6bb02530342997a122b6dfbdc1954",
+    "original_hexsha": "25c5064bb611bcadb54160854f3523453f3f8dab",
+    "author": "Hao",
+    "datetime": "2025-04-25T16:38:40-04:00",
+    "summary": "Revert \"[Cobalt] Remove unused ApplicationStatus field\" (#5573)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2ae43e1f1ad1e2830d5815eeff932d312b61b46e",
+    "original_hexsha": "81259c8611b88d0fe54bbdd2c95fd5e7ba67d575",
+    "author": "Adam",
+    "datetime": "2025-04-25T19:16:59+00:00",
+    "summary": "[Cobalt] Fixing typo causing script breakage (#5552)",
+    "stats": {
+      "files": 1,
+      "insertions": 16,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fbd1d484a5a1ed2e00a19f71246d5f8a8fd8c1af",
+    "original_hexsha": "96d32a831cce496e195bdc7cfa0adf709bd2b631",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-25T10:57:55-07:00",
+    "summary": "Validate param values before reading them (#5550)",
+    "stats": {
+      "files": 1,
+      "insertions": 15,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f39b7a935f69c36b065052682c51380a7044aa99",
+    "original_hexsha": "5b20d44ae0455963af62523f73a9bcf5990eb7e8",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-25T14:39:25+00:00",
+    "summary": "Fix stub linker error (#5558)",
+    "stats": {
+      "files": 2,
+      "insertions": 18,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f9b5c49087086d63a06586cf115770822696495d",
+    "original_hexsha": "25a785ae8ff19706f0ba33bd7c4b98f6317dd882",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-04-24T19:56:15-07:00",
+    "summary": "Fix the API leak detector command invocation for Chrobalt (#5547)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a9ab25db35836f1ce1e686aa836ce215310ce64b",
+    "original_hexsha": "f79d26f5fd02a40fbe4803ecca73e4addda953ff",
+    "author": "Adam",
+    "datetime": "2025-04-25T01:24:17+00:00",
+    "summary": "[Cobalt] Remove unused ApplicationStatus field (#5554)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "98dae7aa7e60566350e5d957cabbcc80bcd337a2",
+    "original_hexsha": "e8c0a71e31613538948de242f6b8eedbb2b8109e",
+    "author": "Anton",
+    "datetime": "2025-04-24T18:13:30-07:00",
+    "summary": "Register main thread and in-process renderer thread in HangWatcher (#5406)",
+    "stats": {
+      "files": 6,
+      "insertions": 101,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "650f683003004246b8ad7a766fd84fe989574a15",
+    "original_hexsha": "3626644f29f5fb5b8fca9ff83adc22b09d6b2775",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-24T17:11:44-07:00",
+    "summary": "[Ozone] Add basic unit tests for platform_window_starboard (#5528)",
+    "stats": {
+      "files": 8,
+      "insertions": 111,
+      "deletions": 64
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cd5d409e30d527c5ef675e18b084aa2cda775454",
+    "original_hexsha": "c5a3458a9d4c9cad70dd03cee66580cb7ddd53e7",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-24T22:46:51+00:00",
+    "summary": "Add COBALT_LINKER_STUB (#5537)",
+    "stats": {
+      "files": 12,
+      "insertions": 235,
+      "deletions": 187
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7f93be48caebe265f2e1651400854cbf5cf58758",
+    "original_hexsha": "e26e73a7311dd76277537c8e02c1b48de08780e5",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-04-24T15:25:42-07:00",
+    "summary": "Move CommandLine from starboard/shared to starboard/common (#5553)",
+    "stats": {
+      "files": 21,
+      "insertions": 318,
+      "deletions": 333
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f82f707e3acdac66e7c37ba9e0270b9f61a55c14",
+    "original_hexsha": "6e176d4365836fa160350d12c90ee79ec63a593f",
+    "author": "Adam",
+    "datetime": "2025-04-24T18:26:26+00:00",
+    "summary": "[Cobalt] Make Chrobalt profileable for certain channels (#5512)",
+    "stats": {
+      "files": 2,
+      "insertions": 7,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9d5eb079442a6755695120e33e108eb823459774",
+    "original_hexsha": "2d06659be8890d825c72bda8c2b25aec86aa0f42",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-24T11:21:45-07:00",
+    "summary": "Add starboard wrapper to viz and cc unittests (#5539)",
+    "stats": {
+      "files": 2,
+      "insertions": 44,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a5dbc64020c46ce45e30f60deaa2663b95363114",
+    "original_hexsha": "cb5543afd569a5d1550142fb651e27a2c745c42d",
+    "author": "xiaomings",
+    "datetime": "2025-04-24T11:19:28-07:00",
+    "summary": "[media] Fix and enable ChunkDemuxerTest.* (#5530)",
+    "stats": {
+      "files": 3,
+      "insertions": 8,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "288e5c396882c652904d6f1367b608b0e7857d0a",
+    "original_hexsha": "815853da862c2939d05cacbbbd1d7b8490f1418a",
+    "author": "Joel Martinez",
+    "datetime": "2025-04-24T06:43:49-07:00",
+    "summary": "Clean up resolved TODO. (#5534)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7031f26ffda2bd6c7c6d1f99fbd27c07a2329581",
+    "original_hexsha": "afa02398ad33516cf5a7c901047539e04ee1f75c",
+    "author": "Jason",
+    "datetime": "2025-04-23T17:11:31-07:00",
+    "summary": "Call MediaSession.release() before setting to null (#5532)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "503d59b3187402816dc1733fe468ec1bc1bccf8c",
+    "original_hexsha": "8398c22dcc143c74f7ff66685f536045e650420d",
+    "author": "xiaomings",
+    "datetime": "2025-04-23T16:59:00-07:00",
+    "summary": "[media] Reduce extra copying in MP4StreamParser (#5538)",
+    "stats": {
+      "files": 1,
+      "insertions": 18,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "76ed86694d4e1c02ef5bad2269ec0a9abfb60092",
+    "original_hexsha": "cb7ef3ab80217bba4874726292965f2877684dff",
+    "author": "Holden Warriner",
+    "datetime": "2025-04-23T18:35:08-04:00",
+    "summary": "Fwd port fix for build ids containing a zero byte (#5502)",
+    "stats": {
+      "files": 2,
+      "insertions": 11,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "49b3de304891fb48c30f68f05b7a8c1316f79607",
+    "original_hexsha": "75b93605e04ab0d3d2b5375f12af907fbb980165",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-04-23T22:19:49+00:00",
+    "summary": "Set android:background to transparent (#5535)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "19dcaa6baf3d99db5c7b24bec3a5a8681b5c81b3",
+    "original_hexsha": "4987636555312e1ba6c5fac39bf0e9f308215ac8",
+    "author": "Miguel Casas",
+    "datetime": "2025-04-23T14:22:52-07:00",
+    "summary": "cobalt: Disable WebXR support throughout (#5519)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "78202d862c956567f1a3f2d50951c384c24a9954",
+    "original_hexsha": "bf98c962071e9f252e05572802375d8e9ed2b0af",
+    "author": "xiaomings",
+    "datetime": "2025-04-23T13:44:25-07:00",
+    "summary": "[media] Add perf data to DecoderBufferAllocatorTest (#5526)",
+    "stats": {
+      "files": 1,
+      "insertions": 19,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "840b6bcca50d12a98f41dec066df2bcc031e568c",
+    "original_hexsha": "bce645dd078d9feaef5f1ec96eab47f578520f89",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-23T13:25:02-07:00",
+    "summary": "Replace git clones with cached directories (#5476)",
+    "stats": {
+      "files": 4,
+      "insertions": 44,
+      "deletions": 27
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3eb946c33e22d1161b7bdfaaefef69f4bd0d1c60",
+    "original_hexsha": "9186353537a298995f33f59543dc878ed85f5ee3",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-04-23T19:34:30+00:00",
+    "summary": "[ATV] Reduce the number of rapid screen color changes on startup (#5453)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9238ba35080de6a08c89210d699bfccd424cd373",
+    "original_hexsha": "142b81ac331f7566bdbe0ab86b874574d169d958",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-23T18:34:27+00:00",
+    "summary": "Add base/ changes to build cobalt hermetically (#5514)",
+    "stats": {
+      "files": 3,
+      "insertions": 51,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "299cf7ce3691bb87e2fe5484aa4faae7d6568e8c",
+    "original_hexsha": "760bdf0f1360019b5865cd9d481f1a409cb69ace",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-23T17:47:53+00:00",
+    "summary": "content/ changes to build cobalt (#5517)",
+    "stats": {
+      "files": 3,
+      "insertions": 12,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "361eec9d3c2dc7696ae71250a28f201e4c8e0d91",
+    "original_hexsha": "c55c13e3d7e3f6f1cb31c97c37c28a0ebd3da481",
+    "author": "xiaomings",
+    "datetime": "2025-04-23T10:40:08-07:00",
+    "summary": "[media] Refine ReuseAllocatorBase statistics (#5507)",
+    "stats": {
+      "files": 1,
+      "insertions": 39,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4c1a9e644960ac911ac607960424893089f04ee5",
+    "original_hexsha": "4143404a718e44d4f4e083e2a8f85b07064ed1e2",
+    "author": "Charley Kim",
+    "datetime": "2025-04-23T09:46:03-07:00",
+    "summary": "Fixing unusable app after network error popup (#5513)",
+    "stats": {
+      "files": 2,
+      "insertions": 5,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "56ea8084294cc33a1cabd64cd0c20ede63558ac2",
+    "original_hexsha": "c3930f9dc2bb0a359f522ca303f7236ee627ad39",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-04-22T23:42:37+00:00",
+    "summary": "Fix missing dependency (#5510)",
+    "stats": {
+      "files": 2,
+      "insertions": 6,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "efed9d53a4b3213f7cd4b7766cec3971aaf296ac",
+    "original_hexsha": "053d356e5b7a4e4101b7a06677518be5dbb38229",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-22T22:42:42+00:00",
+    "summary": "Add media changes to build cobalt hermetically (#5499)",
+    "stats": {
+      "files": 3,
+      "insertions": 56,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "97cb2e71355b3c9c2bf72b453600298aa0b2decc",
+    "original_hexsha": "2392c53e7595899c224d7025b889244b9bee14e4",
+    "author": "xiaomings",
+    "datetime": "2025-04-22T14:20:37-07:00",
+    "summary": "[android] Fix crashes on accessing RRO values (#5492)",
+    "stats": {
+      "files": 8,
+      "insertions": 112,
+      "deletions": 110
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "30ddebb5dd0736af71963915bccaa52cc284fc39",
+    "original_hexsha": "abfceadd6e74cc2877011465d0e1b3d6708418cb",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-22T10:25:25-07:00",
+    "summary": "[Ozone] Remove stub_window Dependency from Platform_starboard_window (#5491)",
+    "stats": {
+      "files": 3,
+      "insertions": 171,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ac5f4cded37989b4c42fdce5907681edecc73ede",
+    "original_hexsha": "94d3dd8e0e0d93acb3be14bc461a228fe3660cee",
+    "author": "Austin Osagie",
+    "datetime": "2025-04-22T10:16:37-07:00",
+    "summary": "[media] Reset ended status on seek (#5501)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7a724ef4c1926a284ad42fe9bd00761420e79509",
+    "original_hexsha": "9876b2320b376cd0260571eebdc133c4f823bf13",
+    "author": "johnx",
+    "datetime": "2025-04-22T10:09:30-07:00",
+    "summary": "Return app start duration for performance.getAppStartupTime() (#5488)",
+    "stats": {
+      "files": 4,
+      "insertions": 32,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "18053d5cca0bbeb7b12d0b20d5a4ff851385eb45",
+    "original_hexsha": "ee69f081d62a42e19aa387734755b1941ea20033",
+    "author": "Jason",
+    "datetime": "2025-04-21T16:00:48-07:00",
+    "summary": "Update MediaSession state via setLifecycleCallback (#5482)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "62c83f3da88c9831ff27c0bf75a3e9ae13844fca",
+    "original_hexsha": "93aadee50c68264b90df1f6017dff60e830f1f6f",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-21T15:03:49-07:00",
+    "summary": "Add sandbox related symbol stubs to build cobalt (#5472)",
+    "stats": {
+      "files": 3,
+      "insertions": 113,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f02e8d7d645597c9199043bf799d2159e76cfff6",
+    "original_hexsha": "0091352f06de82b78d79dc54a2d3d7ced2a43e5f",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-21T14:46:15-07:00",
+    "summary": "[Ozone] Updating Bounds on Resize via SetBoundsInPixels()  (#5336)",
+    "stats": {
+      "files": 12,
+      "insertions": 489,
+      "deletions": 367
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4493dd4f6abf16e176ec0803c14e0e7dad074601",
+    "original_hexsha": "1e4a1d89351e7de45c85791c0189c51f9e89aca2",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-04-22T06:45:23+09:00",
+    "summary": "Turn off D-Bus support (#5484)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1c827a267a4b54e195cab5e2257c9fc28f50bd3c",
+    "original_hexsha": "9494a46908fc721c9b9dd06ff2688f90009c9b3f",
+    "author": "Miguel Casas",
+    "datetime": "2025-04-21T13:54:04-07:00",
+    "summary": "starboard/nplb: Ignore X errors on shutdown (#5478)",
+    "stats": {
+      "files": 1,
+      "insertions": 12,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7b79ccf9cb0adc8cccef6606c29b991dcf287b4f",
+    "original_hexsha": "5d9887ac0c647ac6bf0edf47fe67b440082b34e4",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-21T13:04:54-07:00",
+    "summary": "Add the missing ENABLE_VALIDATING_COMMAND_DECODER build flag (#5439)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c09964541b50993955edda0c75df64efba3d24e8",
+    "original_hexsha": "c82d91eaa6d7466ed25a943315510fff628eb9e2",
+    "author": "Yijia Zhang",
+    "datetime": "2025-04-21T11:54:56-07:00",
+    "summary": "Add Global Features class. (#5477)",
+    "stats": {
+      "files": 7,
+      "insertions": 266,
+      "deletions": 137
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e4c2870b81ddd5188de5c503823a97081909f378",
+    "original_hexsha": "74fe48bd2636b17173b34bcb06f125d30f1a9212",
+    "author": "Kaido Kert",
+    "datetime": "2025-04-21T10:50:52-07:00",
+    "summary": "Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420)",
+    "stats": {
+      "files": 3,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "53e7d87101e3fe03e37eda6cf8bc06872da3b059",
+    "original_hexsha": "9157bd1db5f3aabd87d918c4fbb18291a0f06967",
+    "author": "Jason",
+    "datetime": "2025-04-21T10:38:14-07:00",
+    "summary": "Fix broken web tests configuration (#5475)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f67cad3aae7d82f899ac203f5fdc423cbc39238d",
+    "original_hexsha": "d3e4b7b09f6b24fd5d170b5c851ad81506b70fbd",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-18T16:03:45-07:00",
+    "summary": "Fix nplb SbPlayerTest* (#5468)",
+    "stats": {
+      "files": 4,
+      "insertions": 42,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "216759ecedf10c3f164820de85202bee99c13191",
+    "original_hexsha": "2f35ddd47c46f660b3ff9e8fc4db81dc52a3c52b",
+    "author": "Jason",
+    "datetime": "2025-04-18T11:34:40-07:00",
+    "summary": "Allow media session title to be empty (#5428)",
+    "stats": {
+      "files": 2,
+      "insertions": 60,
+      "deletions": 24
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f5f89e7e58b90463c42a34c4c269afa7685b3abe",
+    "original_hexsha": "caa9c7d860d147eaf9c0be9e13e01dcad642c473",
+    "author": "Adam",
+    "datetime": "2025-04-18T09:37:39-07:00",
+    "summary": "[Cobalt ]Updating license gen to text-only file (#5458)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "efda87c5bf9ba2c848d1eb71c36026b249058370",
+    "original_hexsha": "a40bfe3f1a8dca3cb15eeb3eef4b3cff563b2d7f",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-17T16:31:23-07:00",
+    "summary": "Disable Pepper API for linux builds (#5461)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6eac0f4782536e436deeabe822ba121ca5e40e14",
+    "original_hexsha": "24f5f4ab83424fcdd21201fd0de9e1242bc69c05",
+    "author": "xiaomings",
+    "datetime": "2025-04-17T14:47:55-07:00",
+    "summary": "Abstract allocator out of DecoderBufferAllocator (#5454)",
+    "stats": {
+      "files": 9,
+      "insertions": 201,
+      "deletions": 101
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b3689d79e966ddf622cfe91d6c7f086becf7085b",
+    "original_hexsha": "72b0923be265ab84ed0b56639840111977d858c6",
+    "author": "johnx",
+    "datetime": "2025-04-17T14:30:41-07:00",
+    "summary": "Add debugging log for navigation redirects (#5429)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4462837ffc425cf36299421add791b435c86536d",
+    "original_hexsha": "580ac4028c4918e02f3526b0324a1e8941f57dca",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-17T12:58:00-07:00",
+    "summary": "Add the web-tests test job (#5267)",
+    "stats": {
+      "files": 12,
+      "insertions": 202,
+      "deletions": 24
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "92970a21ad4a05bc68747251117bdda667c6d4e5",
+    "original_hexsha": "4cb5d7a79d76fbc0055ab9217f1a528d06fd7ef9",
+    "author": "Kaido Kert",
+    "datetime": "2025-04-17T09:45:57-07:00",
+    "summary": "Remove unused Kokoro scripts (#5450)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 144
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aff49705371cab64d46e600b456eec3975e1a141",
+    "original_hexsha": "f72c8758b7bea409a10f336bcd655f3999b35634",
+    "author": "Kaido Kert",
+    "datetime": "2025-04-16T15:34:45-07:00",
+    "summary": "Fix generated license path (#5445)",
+    "stats": {
+      "files": 3,
+      "insertions": 7,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "915dd0cafec322513a194a7ff520808d21b4119a",
+    "original_hexsha": "6fd75ec1e1515ba583488c6e5bae30abcfb16c38",
+    "author": "johnx",
+    "datetime": "2025-04-16T14:11:36-07:00",
+    "summary": "Remove crashpad dependency from Cobalt.apk (#5430)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cb688b769265170db10f401bfb300402d17b2b2e",
+    "original_hexsha": "86a8627806a2f3fe27e40a50c3e5d6712d25d369",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-16T13:15:38-07:00",
+    "summary": "Re-enable PosixFileRead for linux-evergreen-nplb tests (#5435)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9849e8690f3e742b279e4b75c974118716bd6450",
+    "original_hexsha": "8c1ad3331bde0906c005edf58460111e694e2a85",
+    "author": "Hao",
+    "datetime": "2025-04-16T15:35:38-04:00",
+    "summary": "Migrate MediaCodec (#5405)",
+    "stats": {
+      "files": 5,
+      "insertions": 49,
+      "deletions": 74
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5584172c22c061c818fb67b71fca6a59050bf4e3",
+    "original_hexsha": "2e21bfcd79da33762b3a534f008de63dffcb6d8b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-16T12:23:33-07:00",
+    "summary": "Re-enable SbAudioSinkTest (#5431)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9a34bfa3b299382982c89ceede5c84bb513a1162",
+    "original_hexsha": "2878c2ce30972fd62f9aa5d40fc93e2056361ded",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-16T12:18:19-07:00",
+    "summary": "[android] Support multiple punchout players via video holes (#5422)",
+    "stats": {
+      "files": 4,
+      "insertions": 11,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6211bf56fe9391cbaa9ac8eaa766e2b416cff037",
+    "original_hexsha": "08a06b5ce0741a7c0eacba848a14a74538e457b9",
+    "author": "Kaido Kert",
+    "datetime": "2025-04-16T12:05:07-07:00",
+    "summary": "Follow-up Kokoro license build fix (#5438)",
+    "stats": {
+      "files": 2,
+      "insertions": 7,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a6bddbdf777c80fde41d0877c4b3369284e29a40",
+    "original_hexsha": "56612188e7d48081bc3471bfdeeb92fb1768d323",
+    "author": "Kaido Kert",
+    "datetime": "2025-04-16T10:08:57-07:00",
+    "summary": "Add license gen to Kokoro build as well (#5436)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e5383fb44f06e2b5f88eeeb5998a5e33947ad982",
+    "original_hexsha": "bed0df881ddbcfea253102901cc8ee01e6c67735",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-16T08:13:00-07:00",
+    "summary": "Remove invalid rendered frames when calculating dropped frames (#5313)",
+    "stats": {
+      "files": 1,
+      "insertions": 44,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8f375d2d77c6cce373ac63de4a6db8b9cd80b0d6",
+    "original_hexsha": "111005a23630e3e7884e48db792c8dd0d5a07b59",
+    "author": "Andrew Savage",
+    "datetime": "2025-04-16T12:35:18+09:00",
+    "summary": "Change cobalt to shlib for hermetic builds (#5380)",
+    "stats": {
+      "files": 1,
+      "insertions": 15,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f7c9696e325a4aa78afee37bc7a7b03943fc2613",
+    "original_hexsha": "780277b21604eeb7bf2f7c6b7cca4cf8caf6d2ee",
+    "author": "Andrew Savage",
+    "datetime": "2025-04-16T10:57:22+09:00",
+    "summary": "Fix lastchange calculation for Cobalt (#5395)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fcce38814ae098bda6ea9aa20a34799624830e10",
+    "original_hexsha": "fd37659cd2af7cf414a6b7a8c8c823ee174a6eb0",
+    "author": "xiaomings",
+    "datetime": "2025-04-15T16:33:34-07:00",
+    "summary": "[media] Optimize DecoderBufferAllocator (#5412)",
+    "stats": {
+      "files": 4,
+      "insertions": 115,
+      "deletions": 35
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f4b52a7172f4a55a2d252bd485141e8f960f623a",
+    "original_hexsha": "6ba0467da90f79a408de32f2f7943d08d08ebe19",
+    "author": "Colin Liang",
+    "datetime": "2025-04-15T16:07:58-07:00",
+    "summary": "Add logs to track deeplink urls (#5417)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "072ee7b3dba630983e7d99dfdb2b7297484fbf82",
+    "original_hexsha": "14107bcfce4f80555eef01d8862aa3a4c9b8121a",
+    "author": "xiaomings",
+    "datetime": "2025-04-15T14:31:11-07:00",
+    "summary": "Update DecoderBuffer memory budget on format change (#5421)",
+    "stats": {
+      "files": 1,
+      "insertions": 8,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "147f752caf55827df062ccc0daca5642a2f20d57",
+    "original_hexsha": "88a3fafeb6e8421ffd2ff0fd2f451bee6caf6878",
+    "author": "Colin Liang",
+    "datetime": "2025-04-15T14:15:56-07:00",
+    "summary": "Remove implementation for GetDisplaySettings() (#5314)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 34
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bbd491488f9b70cafb0147a20c0141a689e2dc55",
+    "original_hexsha": "a5ccce13df1f56c48ddbe6f2a7cb53598118391e",
+    "author": "Kaido Kert",
+    "datetime": "2025-04-15T12:18:17-07:00",
+    "summary": "Remove EGL/GLES from linux package (#5419)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "91fc1b2c5c9b1d2ac01a9d7edec391ccfad43778",
+    "original_hexsha": "d6e3445cd70ba7fdf103a72b2e6c86de1c17041c",
+    "author": "Jelle Foks",
+    "datetime": "2025-04-15T11:03:36-07:00",
+    "summary": "Rename libcobalt_content_shell_content_view (#5382)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b85c31dcaf3eb129314c308d32bfa07b984390ea",
+    "original_hexsha": "4eee7fcd8d7d9e975a66fa76e95bc59331c3069d",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-15T00:26:13-07:00",
+    "summary": "Focus output of print logs steps on test logs (#5407)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8310473d4a662380ca2e110f7b03182d86ece320",
+    "original_hexsha": "6291f7006665d1e1b312508962a403e58e9aa823",
+    "author": "Kyujung Youn",
+    "datetime": "2025-04-14T16:40:12-07:00",
+    "summary": "Fix occaional crash after StarboardRenderer is destroyed (#5392)",
+    "stats": {
+      "files": 2,
+      "insertions": 20,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6e6d951c7d322c4f9ab1c2261cf883a3179f4c19",
+    "original_hexsha": "82430e30b3b9c269dca0f888893a7bcff3359490",
+    "author": "Miguel Casas",
+    "datetime": "2025-04-14T16:27:31-07:00",
+    "summary": "starboard: roll up the remaining unittest targets (#5127)",
+    "stats": {
+      "files": 17,
+      "insertions": 130,
+      "deletions": 52
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "57b8c099dca1cc4e6d7962fae94ac8bb49e6b030",
+    "original_hexsha": "24999cedd9ca467a1ad9bd586dcb756861a28a3d",
+    "author": "xiaomings",
+    "datetime": "2025-04-14T16:09:16-07:00",
+    "summary": "[media] Refine DecoderBufferAllocatorTest (#5394)",
+    "stats": {
+      "files": 4,
+      "insertions": 251052,
+      "deletions": 102
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4cfc119037249c4a11a2bdddb071ecb8d5c5acb5",
+    "original_hexsha": "63e701c586c22510ef286b04d098428a82c22aa7",
+    "author": "Adam",
+    "datetime": "2025-04-14T15:50:34-07:00",
+    "summary": "[Cobalt] Add license file generation to builds (#5381)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2bbf46b5ac9a26d35080f0adbb1b8ac2e3b96f1d",
+    "original_hexsha": "dff52abe7ac6b86a9ec28458086486059347e165",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-14T15:34:00-07:00",
+    "summary": "[media] Simplify initializing StarboardRenderer (#5400)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12e026b95a02eef004d19fcd20d1eda7e7cd6b8e",
+    "original_hexsha": "0e2f008fef96889a514d1704818599627a4b2f9b",
+    "author": "Felipe Javier Mira Bocca",
+    "datetime": "2025-04-14T15:07:51-07:00",
+    "summary": "ODT gateway change (#5401)",
+    "stats": {
+      "files": 2,
+      "insertions": 4,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12b729d63fd4af6ee043203cae8569da0e93c815",
+    "original_hexsha": "61d5ac9ab381f2e6176c8df8626317d7058335f4",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-14T14:05:14-07:00",
+    "summary": "Replace pattern used to find last valid commit for build timestamp (#5404)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6e058ef6205da60bf2093255d70d26cf08470516",
+    "original_hexsha": "1d566b4b11531343d0b29e09ef7daaf3b0024130",
+    "author": "thorsten sideb0ard",
+    "datetime": "2025-04-14T11:15:40-07:00",
+    "summary": "Add support for stereo wav file to Audio Decoder (#5345)",
+    "stats": {
+      "files": 1,
+      "insertions": 31,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "35f05691a2a64609921d0da32eb18dcbc24f9539",
+    "original_hexsha": "4b39860937b31687933fd211fce27c40f95eed9a",
+    "author": "Hao",
+    "datetime": "2025-04-14T13:38:59-04:00",
+    "summary": "CobaltA11yHelper requests focus on WebContents (#5388)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2a225aaab843a910a9ad22aeff3106ddca720305",
+    "original_hexsha": "3bf3101bb98d6affd3dd219cd50214f487595098",
+    "author": "Tyler Holcombe",
+    "datetime": "2025-04-14T16:51:42+00:00",
+    "summary": "Fix white screen on CoAT launch (#5383)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5b6e27a9b689845e13b1523bf2086fb97ee7ce50",
+    "original_hexsha": "bdaba2e27461bcdcd66cc84b4ff61cbe7023ccd7",
+    "author": "Miguel Casas",
+    "datetime": "2025-04-11T19:32:50-07:00",
+    "summary": "starboard: Create starboard_unittest_wrapper (#5031)",
+    "stats": {
+      "files": 4,
+      "insertions": 40,
+      "deletions": 26
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3bb600ab288f2ffecbfc0bb9faa1752fca546b5f",
+    "original_hexsha": "088ed67ab6c13dfcee903ee0e232b58c021edc62",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-11T18:00:01-07:00",
+    "summary": "Bump lint workflow timeout (#5390)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "af68005572a9101c3d5e5382f3a45285bcf07923",
+    "original_hexsha": "a8e3038b5b388b0e63e792d2757c51d723a2ff32",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-11T16:47:30-07:00",
+    "summary": "[media] Acquire GpuChannelToken for StarboardRenderer (#5320)",
+    "stats": {
+      "files": 9,
+      "insertions": 148,
+      "deletions": 28
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "29c15ddfba78174d948e4fed86fcb582304e641d",
+    "original_hexsha": "3cc85518f3422b6dc121b783a290e9a717b66b44",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-11T15:01:45-07:00",
+    "summary": "[blink_unittests] Fix unimplemented CreateStarboardRenderer (#5384)",
+    "stats": {
+      "files": 2,
+      "insertions": 26,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cb07b92af309abe1010211f59330bef152f63eef",
+    "original_hexsha": "b39efaede6eaeb76a9efb42bbf00c70c0540b626",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-11T14:49:09-07:00",
+    "summary": "Install missing libs and unfilter net_unittests (#5370)",
+    "stats": {
+      "files": 2,
+      "insertions": 38,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6da716cbd8c944fb628d69bf402d5b04fdb6f8c2",
+    "original_hexsha": "fde6ae71fd72437219fd4ba13a15ef57a408534f",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-11T13:59:40-07:00",
+    "summary": "[media] Retrieve RRO values on the same thread without mutex lock (#5371)",
+    "stats": {
+      "files": 5,
+      "insertions": 95,
+      "deletions": 57
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc4ef42e215a91e59270f8b4ca6bd758661b4886",
+    "original_hexsha": "24c20e587fbbf65b965194eaecbb5d37530ef63f",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-04-11T12:15:15-07:00",
+    "summary": "Fix compiler error building cobalt (#5365)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3dfa6e59a7714eded3902ca386ebbff60ac4883b",
+    "original_hexsha": "638d7e667efe280d31e3bcc9e0fea24c9c2a10bc",
+    "author": "Holden Warriner",
+    "datetime": "2025-04-11T13:29:13-04:00",
+    "summary": "Resolve crashpad-related linker errors with stubs (#5379)",
+    "stats": {
+      "files": 6,
+      "insertions": 133,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2f5e446e51e4c88be6f2c7657d693f48813afefc",
+    "original_hexsha": "2bfd4ab1b18a406f4b3ada4cf3e8d42b4117967d",
+    "author": "Holden Warriner",
+    "datetime": "2025-04-11T12:35:25-04:00",
+    "summary": "Add @youtube/cobalt-web-api code owners coverage (#5327)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e75db81ec2c56842e549d6795804257a7be7e4b9",
+    "original_hexsha": "c73382ea80ed717146e74bb864198268e85bffc9",
+    "author": "johnx",
+    "datetime": "2025-04-10T15:36:40-07:00",
+    "summary": "Remove unnecessary testonly tags from cobalt_apk (#5288)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7b1576cd871a08499dfb65a4ab40ba3d053ed17e",
+    "original_hexsha": "3a2b2fd436b6639af2867a37bd3731b4c0e70ed1",
+    "author": "aee",
+    "datetime": "2025-04-10T15:09:57-07:00",
+    "summary": "Ensure localStorage is flushed at most 1 second after mutation. (#5359)",
+    "stats": {
+      "files": 2,
+      "insertions": 8,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8c7c5aa9c957be138ec115c72c19cfbdf5bc4fa0",
+    "original_hexsha": "6492576d2bcae6b802da03b05a8010900ba0ee5a",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-10T14:52:20-07:00",
+    "summary": "Reduce spammy logging around test run (#5330)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7ccceb0ce526464fbf8f6f81e31aaadd01d9dc9e",
+    "original_hexsha": "5e636148c0ae4384e91906773ae5d3347a6a0b89",
+    "author": "Sherry Zhou",
+    "datetime": "2025-04-10T13:34:00-07:00",
+    "summary": "Fix Ozone_demo link error Undefined base::UnloadNativeLibrary (#5363)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f0e617805707ffa5262f7962c9cb4547ce90faeb",
+    "original_hexsha": "b833e4d41a8aa6f68ac487076dff4985786ac723",
+    "author": "Hao",
+    "datetime": "2025-04-10T14:22:57-04:00",
+    "summary": "Add TODO for window.accessibility test (#5361)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f1e047a95b2654aea45e84a3ce758dc356eb8244",
+    "original_hexsha": "5b8bae07dddd63ca2411014b9009bdae1085f859",
+    "author": "Oscar Vestlie",
+    "datetime": "2025-04-10T11:13:59-07:00",
+    "summary": "Remove certifi (#5329)",
+    "stats": {
+      "files": 2,
+      "insertions": 1,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "75ca827d1a340636e200dc096d4200c21fe564d6",
+    "original_hexsha": "c9fc4e79508fae37546e56a07622b01747cf4e7c",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-10T09:53:44-07:00",
+    "summary": "[media] Reset player state after pending flushes (#5353)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9346cfcd21335410327a7e3e8b352417a8a493fd",
+    "original_hexsha": "fc4eececa338fdf37f8cde75ddd6f3faf1dfa6e6",
+    "author": "Andrew Savage",
+    "datetime": "2025-04-10T11:52:07-04:00",
+    "summary": "Fix remaining compiler issues in hermetic cobalt (#5316)",
+    "stats": {
+      "files": 34,
+      "insertions": 131,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b6b173d0dbc4c7313932695c0839daf00e3f37ff",
+    "original_hexsha": "e50cb8ff1b696d6f4dae3e7226c026fef681cbda",
+    "author": "aee",
+    "datetime": "2025-04-09T16:26:49-07:00",
+    "summary": "Move audio input permission check to getUserMedia(). (#5296)",
+    "stats": {
+      "files": 8,
+      "insertions": 160,
+      "deletions": 40
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6d64ddc952bf14cfe25b18d2fe2063577f9c7740",
+    "original_hexsha": "11786bcc58ad39cf1d33710f1fb7ac2644177510",
+    "author": "Yijia Zhang",
+    "datetime": "2025-04-09T14:19:59-07:00",
+    "summary": "Initialize Finch (#5187)",
+    "stats": {
+      "files": 8,
+      "insertions": 207,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2b2ba355b88ffea4f713d9ab244bf5633b24c9f1",
+    "original_hexsha": "1fe838980e93a3ae0ed8449266b2afb8fcabc1c4",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-04-09T14:18:46-07:00",
+    "summary": "[media] Refactor StarboardRenderer with StarboardRendererTraits (#5350)",
+    "stats": {
+      "files": 5,
+      "insertions": 66,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "79502333f29a1fd5a43d12bbda326a5b7468019f",
+    "original_hexsha": "987ce29f7f55aac7c1da1907ace4ba69e04befd7",
+    "author": "xiaomings",
+    "datetime": "2025-04-09T13:10:09-07:00",
+    "summary": "[media] Improve DecoderBufferAllocator logging (#5036)",
+    "stats": {
+      "files": 15,
+      "insertions": 149087,
+      "deletions": 67
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "18b1d8cf18be6c96fcdff4289e29b312004e7400",
     "original_hexsha": "f5d3c29a1e7e179c60928c39b14b16ea031b6391",
     "author": "Adam",
