@@ -26,7 +26,7 @@ void GetUserAgentInputMap(
 
 class UserAgentPlatformInfo {
  public:
-  UserAgentPlatformInfo();
+  explicit UserAgentPlatformInfo(bool for_testing = false);
   ~UserAgentPlatformInfo() = default;
 
   std::string ToString() const;
@@ -107,6 +107,8 @@ class UserAgentPlatformInfo {
   void set_build_configuration(const std::string& build_configuration);
 
  private:
+  void InitializeUserAgentPlatformInfoFields();
+
   std::string starboard_version_;
   std::string os_name_and_version_;
   std::optional<std::string> original_design_manufacturer_;
@@ -129,6 +131,8 @@ class UserAgentPlatformInfo {
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;
   std::string build_configuration_;
+
+  bool avoid_access_to_starboard_for_testing_ = false;
 };
 
 }  // namespace cobalt
