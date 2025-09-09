@@ -55,11 +55,6 @@ namespace {
 
 using base::android::AttachCurrentThread;
 
-// Tunnel mode has to be enabled explicitly by the web app via mime attributes
-// "tunnelmode", set the following variable to true to force enabling tunnel
-// mode on all playbacks.
-constexpr bool kForceTunnelMode = false;
-
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -330,9 +325,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << ". Tunnel mode is disabled.";
     }
 
-    if (kForceTunnelMode && !enable_tunnel_mode) {
-      SB_LOG(INFO) << "`kForceTunnelMode` is set to true, force enabling tunnel"
-                   << " mode.";
+    const bool force_tunnel_mode = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceTunnelMode);
+
+    if (force_tunnel_mode && !enable_tunnel_mode) {
+      SB_LOG(INFO)
+          << "`force_tunnel_mode` is set to true, force enabling tunnel"
+          << " mode.";
       enable_tunnel_mode = true;
     }
 
