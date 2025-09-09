@@ -226,6 +226,12 @@ android_library("content_full_java") {
     "//ui/gfx/geometry/mojom:mojom_java",
     "//url:gurl_java",
   ]
+
+  # TODO(b/443992661): Add a GN flag to conditionally disable or enable shape detection.
+  if(is_cobalt) {
+    deps -= [ "//services/shape_detection:shape_detection_java" ]
+  }
+  
   srcjar_deps = [
     ":content_jni_headers",
     ":is_ready_to_pay_service_aidl",
