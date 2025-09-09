@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -285,7 +286,8 @@ void VideoRendererImpl::OnDecoderStatus(
         seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       SB_LOG(INFO) << "Video preroll takes "
-                   << CurrentMonotonicTime() - first_input_written_at_
+                   << FormatWithDigitSeparators(CurrentMonotonicTime() -
+                                                first_input_written_at_)
                    << " microseconds.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
