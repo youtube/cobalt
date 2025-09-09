@@ -172,13 +172,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
-<<<<<<< HEAD
   if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
-=======
-  if (audio_out_thread_) {
     SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
->>>>>>> fb82fe8a504 (starboard: Check pthread_join completes successfully (#7110))
+    pthread_join(audio_out_thread_, NULL);
   }
 }
 
