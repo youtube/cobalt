@@ -10,7 +10,6 @@ permissions: read-all
 
 jobs:
   trigger_linearize:
-    # runs-on: ubuntu-latest
     runs-on: [self-hosted, chrobalt-linux-runner]
     permissions:
       contents: write
@@ -55,7 +54,8 @@ jobs:
 
           # Create new commits json for m114
           python main.py commits --repo-path=${GITHUB_WORKSPACE} --source-branch=origin/automated/linear_main \
-            --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=$REV --output-file=automated_commits_m114.json
+            --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=$REV --output-file=${GITHUB_WORKSPACE}/automated_commits_m114.json
+          git checkout experimental/rebase_tools
           git add automated_commits_m114.json
           git commit -m "Linearization refresh on $(date +'%Y-%m-%d')."
           git push --force origin experimental/rebase_tools:experimental/rebase_tools
