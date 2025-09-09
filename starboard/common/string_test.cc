@@ -21,50 +21,50 @@ namespace {
 
 constexpr int kDestSize = 10;
 
-TEST(FormatStringTest, HandlesEmptyFormatString) {
+TEST(StringTest, FormatString_Empty) {
   EXPECT_EQ("", FormatString(""));
 }
 
-TEST(FormatStringTest, HandlesFormatStringWithNoArguments) {
+TEST(StringTest, FormatString_NoArguments) {
   EXPECT_EQ("Hello", FormatString("Hello"));
 }
 
-TEST(FormatStringTest, FormatsStringWithSingleStringArgument) {
+TEST(StringTest, FormatString_StringArgument) {
   EXPECT_EQ("Hello, World!", FormatString("Hello, %s!", "World"));
 }
 
-TEST(FormatStringTest, FormatsStringWithSingleIntegerArgument) {
+TEST(StringTest, FormatString_IntegerArgument) {
   EXPECT_EQ("Value: 42", FormatString("Value: %d", 42));
 }
 
-TEST(FormatStringTest, FormatsStringWithMultipleArguments) {
+TEST(StringTest, FormatString_MultipleArguments) {
   EXPECT_EQ("Test: a, 1, b", FormatString("Test: %c, %d, %c", 'a', 1, 'b'));
 }
 
-TEST(FormatStringTest, HandlesEmptyStringArgument) {
+TEST(StringTest, FormatString_EmptyArgument) {
   EXPECT_EQ("", FormatString("%s", ""));
 }
 
-TEST(HexEncodeTest, EncodesDataWithoutDelimiter) {
+TEST(StringTest, HexEncode_NoDelimiter) {
   const uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};
   EXPECT_EQ("deadbeef", HexEncode(data, sizeof(data)));
 }
 
-TEST(HexEncodeTest, EncodesDataWithDelimiter) {
+TEST(StringTest, HexEncode_WithDelimiter) {
   const uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};
   EXPECT_EQ("de:ad:be:ef", HexEncode(data, sizeof(data), ":"));
 }
 
-TEST(HexEncodeTest, HandlesEmptyData) {
+TEST(StringTest, HexEncode_Empty) {
   EXPECT_EQ("", HexEncode(nullptr, 0));
 }
 
-TEST(HexEncodeTest, EncodesSingleByte) {
+TEST(StringTest, HexEncode_SingleByte) {
   const uint8_t data[] = {0xFF};
   EXPECT_EQ("ff", HexEncode(data, sizeof(data)));
 }
 
-TEST(StrlcpyTest, CopiesFullStringSuccessfully) {
+TEST(StringTest, Strlcpy_Success) {
   char dest[kDestSize];
 
   int len = strlcpy(dest, "test", kDestSize);
@@ -73,7 +73,7 @@ TEST(StrlcpyTest, CopiesFullStringSuccessfully) {
   EXPECT_EQ(4, len);
 }
 
-TEST(StrlcpyTest, TruncatesWhenSourceIsTooLong) {
+TEST(StringTest, Strlcpy_Truncates) {
   char dest[kDestSize];
 
   int len = strlcpy(dest, "this is too long", kDestSize);
@@ -82,7 +82,7 @@ TEST(StrlcpyTest, TruncatesWhenSourceIsTooLong) {
   EXPECT_EQ(16, len);
 }
 
-TEST(StrlcpyTest, HandlesEmptySourceString) {
+TEST(StringTest, Strlcpy_EmptySource) {
   char dest[kDestSize];
 
   int len = strlcpy(dest, "", kDestSize);
@@ -91,7 +91,7 @@ TEST(StrlcpyTest, HandlesEmptySourceString) {
   EXPECT_EQ(0, len);
 }
 
-TEST(StrlcpyTest, HandlesZeroSizedDestination) {
+TEST(StringTest, Strlcpy_ZeroSizeDestination) {
   char dest[1];  // Dummy buffer, won't be written to.
 
   int len = strlcpy(dest, "non-empty", 0);
@@ -99,7 +99,7 @@ TEST(StrlcpyTest, HandlesZeroSizedDestination) {
   EXPECT_EQ(9, len);
 }
 
-TEST(StrlcpyTest, HandlesDestinationSizeOfOne) {
+TEST(StringTest, Strlcpy_DestinationSizeOne) {
   char dest[1];
 
   int len = strlcpy(dest, "test", 1);
@@ -108,7 +108,7 @@ TEST(StrlcpyTest, HandlesDestinationSizeOfOne) {
   EXPECT_EQ(4, len);
 }
 
-TEST(StrlcatTest, ConcatenatesSuccessfully) {
+TEST(StringTest, Strlcat_Success) {
   char dest[kDestSize];
   strlcpy(dest, "abc", kDestSize);
 
@@ -118,7 +118,7 @@ TEST(StrlcatTest, ConcatenatesSuccessfully) {
   EXPECT_EQ(6, len);
 }
 
-TEST(StrlcatTest, TruncatesWhenResultIsTooLong) {
+TEST(StringTest, Strlcat_Truncates) {
   char dest[kDestSize];
   strlcpy(dest, "12345", kDestSize);
 
@@ -128,7 +128,7 @@ TEST(StrlcatTest, TruncatesWhenResultIsTooLong) {
   EXPECT_EQ(13, len);
 }
 
-TEST(StrlcatTest, ConcatenatesToEmptyString) {
+TEST(StringTest, Strlcat_ToEmpty) {
   char dest[kDestSize];
   dest[0] = '\0';
 
@@ -138,7 +138,7 @@ TEST(StrlcatTest, ConcatenatesToEmptyString) {
   EXPECT_EQ(4, len);
 }
 
-TEST(StrlcatTest, ConcatenatesEmptyString) {
+TEST(StringTest, Strlcat_FromEmpty) {
   char dest[kDestSize];
   strlcpy(dest, "test", kDestSize);
 
@@ -152,7 +152,7 @@ TEST(StringTest, FormatWithDigitSeparators_Zero) {
   EXPECT_EQ("0", FormatWithDigitSeparators(0));
 }
 
-TEST(StringTest, FormatWithDigitSeparators_PositiveNumber) {
+TEST(StringTest, FormatWithDigitSeparators_Positive) {
   EXPECT_EQ("123", FormatWithDigitSeparators(123));
   EXPECT_EQ("1'234", FormatWithDigitSeparators(1234));
   EXPECT_EQ("12'345", FormatWithDigitSeparators(12345));
@@ -162,7 +162,7 @@ TEST(StringTest, FormatWithDigitSeparators_PositiveNumber) {
   EXPECT_EQ("123'456'789", FormatWithDigitSeparators(123456789));
 }
 
-TEST(StringTest, FormatWithDigitSeparators_NegativeNumber) {
+TEST(StringTest, FormatWithDigitSeparators_Negative) {
   EXPECT_EQ("-123", FormatWithDigitSeparators(-123));
   EXPECT_EQ("-1'234", FormatWithDigitSeparators(-1234));
   EXPECT_EQ("-12'345", FormatWithDigitSeparators(-12345));
