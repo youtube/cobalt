@@ -149,7 +149,7 @@ MediaDecoder::MediaDecoder(
 }
 
 MediaDecoder::~MediaDecoder() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
 
@@ -170,7 +170,7 @@ MediaDecoder::~MediaDecoder() {
 }
 
 void MediaDecoder::Initialize(const ErrorCB& error_cb) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
@@ -182,7 +182,7 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
 }
 
 void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -213,7 +213,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void MediaDecoder::WriteEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
   std::lock_guard lock(mutex_);
@@ -388,7 +388,7 @@ void MediaDecoder::DecoderThreadFunc() {
 }
 
 void MediaDecoder::TerminateDecoderThread() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
@@ -705,7 +705,7 @@ void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
 }
 
 bool MediaDecoder::Flush() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
