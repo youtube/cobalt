@@ -17,6 +17,22 @@
 
 #include <android/native_window.h>
 #include <jni.h>
+#include "starboard/decode_target.h"
+
+struct ClearNativeWindowGraphicsContextProvider;
+
+typedef void (*ClearNativeWindowGlesContextRunnerTarget)(
+    void* gles_context_runner_target_context);
+
+typedef void (*ClearNativeWindowGlesContextRunner)(
+    ClearNativeWindowGraphicsContextProvider* provider,
+    ClearNativeWindowGlesContextRunnerTarget target_function,
+    void* target_function_context);
+
+typedef struct ClearNativeWindowGraphicsContextProvider {
+  ClearNativeWindowGlesContextRunner gles_context_runner;
+  void* gles_context_runner_context;
+} ClearNativeWindowGraphicsContextProvider;
 
 namespace starboard::android::shared {
 
@@ -47,6 +63,17 @@ class VideoSurfaceHolder {
 
   // Clear the video window by painting it Black.
   void ClearVideoWindow(bool force_reset_surface);
+
+  void SetGpuProvider(SbDecodeTargetGraphicsContextProvider* gpu_provider);
+
+  // void ClearNativeWindow(ANativeWindow* native_window);
+
+  // GraphicsContextRunner
+  // ClearNativeWindowGlesContextRunner gles_context_runner_;
+
+  // Should probably include the egl filese in here
+  // starboardrendererwrapper
+  // void* gles_context_runner_context_;
 };
 
 }  // namespace starboard::android::shared

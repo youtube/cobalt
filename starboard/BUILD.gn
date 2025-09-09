@@ -151,6 +151,7 @@ source_set("starboard_headers_only") {
 
   sources = [
     "audio_sink.h",
+    "clear_video_target.h",
     "configuration.h",
     "configuration_constants.h",
     "cpu_features.h",
