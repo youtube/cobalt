@@ -341,6 +341,10 @@ target(link_target_type, "renderer") {
     deps += [
       "//cobalt/media/audio:audio_decoder",
     ]
+
+    deps -= [
+      "//media/capture",
+    ]
   }
 
   if (is_android) {

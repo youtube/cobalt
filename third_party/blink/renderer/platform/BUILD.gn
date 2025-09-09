@@ -1675,6 +1675,9 @@ component("platform") {
     "//ui/base/cursor",
     "//ui/gfx",
   ]
+  if(is_cobalt) {
+    public_deps -= [ "//media/capture:capture_lib" ]
+  }
   deps = [
     "//base:base_static",
     "//base/allocator:buildflags",
@@ -1729,6 +1732,12 @@ component("platform") {
     "//ui/native_theme",
   ]
 
+  if (is_cobalt) {
+    deps -= [
+      "//media/capture:capture_switches",
+    "//media/capture/mojom:video_capture",
+    ]
+  }
   if (is_android) {
     deps += [ "//third_party/android_ndk:cpu_features" ]
     sources += [

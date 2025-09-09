@@ -38,6 +38,12 @@ blink_modules_sources("breakout_box") {
     "//third_party/blink/renderer/modules/mediastream:mediastream",
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
   ]
+  
+  if (is_cobalt) {
+    deps -= [
+      "//third_party/blink/renderer/modules/mediastream:mediastream"
+    ]
+  }
 }
 
 source_set("unit_tests") {

@@ -13,4 +13,8 @@ blink_modules_sources("srcobject") {
     "//third_party/blink/renderer/modules/mediasource",
     "//third_party/blink/renderer/modules/mediastream",
   ]
+
+  if (is_cobalt) {
+    deps -= [ "//third_party/blink/renderer/modules/mediastream"]
+  }
 }

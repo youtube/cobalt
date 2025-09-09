@@ -74,6 +74,13 @@ source_set("utility") {
     "//url",
   ]
 
+  if (is_cobalt) {
+    deps -= [
+      "//services/video_capture:lib",
+      "//services/video_capture/public/mojom:constants",
+    ]
+  }
+
   # When library CDMs are supported, we support running the CDM in the utility
   # process using mojo MediaService. On Windows, we use MediaFoundationService.
   if (enable_library_cdms || is_win) {

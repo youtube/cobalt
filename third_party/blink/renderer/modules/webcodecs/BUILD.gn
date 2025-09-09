@@ -116,6 +116,9 @@ blink_modules_sources("webcodecs") {
     deps += [ "//media/fuchsia/video" ]
   }
   public_deps = [ "//third_party/blink/renderer/modules/webaudio:webaudio" ]
+  if (is_cobalt) {
+    public_deps -= [ "//third_party/blink/renderer/modules/webaudio:webaudio" ]
+  }
 }
 
 source_set("unit_tests") {
