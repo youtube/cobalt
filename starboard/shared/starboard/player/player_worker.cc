@@ -91,8 +91,13 @@ PlayerWorker::~PlayerWorker() {
 
   if (thread_ != 0) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
+<<<<<<< HEAD
     pthread_join(thread_, NULL);
     thread_ = 0;
+=======
+    SB_CHECK_EQ(pthread_join(*thread_, nullptr), 0);
+    thread_ = std::nullopt;
+>>>>>>> fb82fe8a504 (starboard: Check pthread_join completes successfully (#7110))
 
     // Now the whole pipeline has been torn down and no callback will be called.
     // The caller can ensure that upon the return of SbPlayerDestroy() all side
