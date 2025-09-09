@@ -111,13 +111,8 @@ source_set("common_test") {
     "player_test.cc",
     "queue_test.cc",
     "semaphore_test.cc",
-<<<<<<< HEAD
-    "test_main.cc",
-=======
-    "size_test.cc",
-    "starboard_common_time_test.cc",
     "string_test.cc",
->>>>>>> 98a1f71fdcb (starboard: Add FormatWithDigitSeparators method for logging numbers (#7072))
+    "test_main.cc",
   ]
   deps = [
     ":common",
