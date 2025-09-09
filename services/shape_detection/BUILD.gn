@@ -96,6 +96,11 @@ source_set("lib") {
     "//services/shape_detection/public/mojom",
   ]
 
+  # TODO: remove after rebase
+  if(is_cobalt) {
+    public_deps -= [ "//media/capture" ]
+  }
+
   if (is_android) {
     deps += [ ":shape_detection_jni_headers" ]
   }

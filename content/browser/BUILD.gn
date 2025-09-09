@@ -227,9 +227,6 @@ source_set("browser") {
     "//services/tracing/public/cpp:traced_process",
     "//services/tracing/public/cpp/background_tracing",
     "//services/tracing/public/mojom",
-    "//services/video_capture:lib",
-    "//services/video_capture/public/cpp",
-    "//services/video_capture/public/mojom:constants",
     "//services/viz/privileged/mojom",
     "//services/viz/public/cpp/gpu",
     "//services/viz/public/mojom",
@@ -301,6 +298,16 @@ source_set("browser") {
     "//ui/touch_selection",
     "//v8:v8_version",
   ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//media/capture",
+      "//media/capture:capture_switches",
+      "//services/video_capture:lib",
+      "//services/video_capture/public/cpp",
+      "//services/video_capture/public/mojom:constants",
+    ]
+  }
 
   public_deps = [
     "//base",
@@ -3167,6 +3174,12 @@ source_set("browser") {
       "//url:gurl_android",
       "//url:origin_android",
     ]
+    if(is_cobalt) {
+      deps -= [
+        "//media/capture/content/android",
+      "//media/capture/video/android",
+      ]
+    }
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan/init" ]
     }

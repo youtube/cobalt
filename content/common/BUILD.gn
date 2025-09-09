@@ -262,6 +262,13 @@ source_set("common") {
     "//url/ipc:url_ipc",
   ]
 
+  if (is_cobalt) {
+    deps -= [ 
+      "//media/capture",
+      "//services/video_capture/public/mojom",
+    ]
+  }
+
   defines = []
   include_dirs = []
   libs = []
@@ -643,6 +650,13 @@ mojom("mojo_bindings") {
     "//url/mojom:url_mojom_gurl",
     "//url/mojom:url_mojom_origin",
   ]
+
+  if (is_cobalt) {
+    public_deps -= [
+      "//media/capture/mojom:video_capture",
+      "//services/video_capture/public/mojom",
+    ]
+  }
 
   if (is_mac) {
     sources += [

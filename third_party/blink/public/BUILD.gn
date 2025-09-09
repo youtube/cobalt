@@ -469,6 +469,13 @@ source_set("blink_headers") {
     "//ui/base:base",
     "//v8:v8_headers",
   ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//media/capture:capture_base",
+    "//media/capture:capture_lib",
+    ]
+  }
 }
 
 blink_python_runner("runtime_features_for_public") {

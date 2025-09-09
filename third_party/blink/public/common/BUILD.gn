@@ -383,6 +383,12 @@ source_set("headers") {
     public_deps += [ "//media/mojo/mojom" ]
   }
 
+  if(is_cobalt) {
+    deps -= [ "//media/capture:capture_lib" ]
+
+    sources -= ["media/video_capture.h"]
+  }
+
   if (is_android || is_win) {
     sources += [
       "font_unique_name_lookup/font_table_matcher.h",

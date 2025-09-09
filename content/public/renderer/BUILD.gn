@@ -78,6 +78,10 @@ target(link_target_type, "renderer_sources") {
     "//v8",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//media/capture" ]
+  }
+
   allow_circular_includes_from = [
     # This target is a pair with content/renderer. They always go together and
     # include headers from each other.
