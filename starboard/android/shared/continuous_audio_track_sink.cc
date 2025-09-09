@@ -107,7 +107,7 @@ ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    pthread_join(*audio_out_thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
   }
 }
 

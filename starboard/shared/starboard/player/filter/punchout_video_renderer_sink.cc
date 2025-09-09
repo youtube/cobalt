@@ -42,7 +42,7 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
   if (thread_ != 0) {
     stop_requested_.store(true);
-    pthread_join(thread_, NULL);
+    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
   }
 }
 
