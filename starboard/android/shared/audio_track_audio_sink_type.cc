@@ -522,9 +522,10 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
       [&](int number_of_channels, SbMediaAudioSampleType sample_type,
           int sample_rate, int min_required_frames) {
         bool has_remote_audio_output = HasRemoteAudioOutput();
-        SB_LOG(INFO) << "Received min required frames " << min_required_frames
+        SB_LOG(INFO) << "Received min required frames "
+                     << FormatWithDigitSeparators(min_required_frames)
                      << " for " << number_of_channels << " channels, "
-                     << sample_rate << "hz, with "
+                     << FormatWithDigitSeparators(sample_rate) << "hz, with "
                      << (has_remote_audio_output ? "remote" : "local")
                      << " audio output device.";
         std::lock_guard lock(min_required_frames_map_mutex_);
