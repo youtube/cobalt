@@ -88,7 +88,7 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_) {
-  SB_DCHECK(host_);
+  SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
@@ -173,7 +173,6 @@ MediaDecoder::~MediaDecoder() {
     }
     // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
     media_codec_bridge_->Stop();
-    host_ = NULL;
   }
 }
 
@@ -238,7 +237,7 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
 
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_DCHECK(context);
+  SB_CHECK(context);
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
   if (decoder->media_type_ == kSbMediaTypeAudio) {

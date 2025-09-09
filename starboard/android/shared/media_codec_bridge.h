@@ -235,7 +235,7 @@ class MediaCodecBridge {
   explicit MediaCodecBridge(Handler* handler);
   void Initialize(jobject j_media_codec_bridge);
 
-  Handler* handler_ = NULL;
+  Handler* const handler_;
   ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,

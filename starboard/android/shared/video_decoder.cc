@@ -399,7 +399,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
@@ -660,7 +660,7 @@ void VideoDecoder::Reset() {
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
