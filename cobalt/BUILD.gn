@@ -96,6 +96,7 @@ if (is_ios && target_platform == "tvos") {
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
+      "//starboard:starboard_group",
     ]
     bundle_deps = [
       ":cobalt_shell_framework_resources",

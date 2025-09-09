@@ -21,6 +21,7 @@
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/queue_application.h"
 #import "starboard/tvos/shared/media/drm_manager.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 #import "starboard/tvos/shared/media/player_manager.h"
@@ -61,12 +62,33 @@ struct ApplicationDarwin::ObjCStorage {
   ObjCApplication* __strong objc_application;
 };
 
+class ApplicationDarwin::ApplicationDarwinInternal final
+    : public shared::starboard::QueueApplication {
+ public:
+  explicit ApplicationDarwinInternal(
+      std::unique_ptr<::starboard::CommandLine> command_line)
+      : QueueApplication(EmptyHandleCallback) {
+    SetCommandLine(std::move(command_line));
+  }
+
+  ~ApplicationDarwinInternal() override = default;
+
+ protected:
+  // QueueApplication overrides.
+  bool IsStartImmediate() override { return false; }
+  bool MayHaveSystemEvents() override { return false; }
+  shared::starboard::Application::Event* WaitForSystemEventWithTimeout(
+      int64_t time) override {
+    return nullptr;
+  }
+  void WakeSystemEventWait() override {}
+};
+
 ApplicationDarwin::ApplicationDarwin(
     std::unique_ptr<::starboard::CommandLine> command_line)
-    : QueueApplication(EmptyHandleCallback),
-      objc_storage_(std::make_unique<ObjCStorage>()) {
-  SetCommandLine(std::move(command_line));
-
+    : objc_storage_(std::make_unique<ObjCStorage>()),
+      application_darwin_internal_(std::make_unique<ApplicationDarwinInternal>(
+          std::move(command_line))) {
   objc_storage_->objc_application = [[ObjCApplication alloc] init];
   SB_CHECK(objc_storage_->objc_application);
   g_starboard_application_ = objc_storage_->objc_application;
