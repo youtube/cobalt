@@ -56,6 +56,8 @@ std::string HexEncode(const void* data,
 
 // Formats a number as a string with single-quote thousands separators
 // (e.g., 1'234'567).
+// NOTE: This function is for logging and debugging purposes only. It should not
+// be used in any UI, as it does not handle internationalization (i18n).
 std::string FormatWithDigitSeparators(int64_t);
 
 template <typename CHAR>
