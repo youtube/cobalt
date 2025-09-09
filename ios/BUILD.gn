@@ -39,6 +39,8 @@ group("all") {
       "//ios/web/shell/test:all_tests",
       "//ios/web_view:all_tests",
     ]
+  } else {
+    deps = []
   }
 
   # Force dependency on symupload because official builder wants to build this
