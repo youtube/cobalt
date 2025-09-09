@@ -51,18 +51,10 @@
 
 namespace starboard::android::shared {
 
-<<<<<<< HEAD
-// Tunnel mode has to be enabled explicitly by the web app via mime attributes
-// "tunnelmode", set the following variable to true to force enabling tunnel
-// mode on all playbacks.
-constexpr bool kForceTunnelMode = false;
-
 // By default, the platform Opus decoder is only enabled for encrypted playback.
 // Set the following variable to true to force it for clear playback.
 constexpr bool kForcePlatformOpusDecoder = false;
 
-=======
->>>>>>> d7b023ecdc4 (Starboard: Add starboard experiment to Tunnel Mode (#7099))
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
