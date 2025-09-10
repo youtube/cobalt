@@ -17,12 +17,13 @@
 #include "starboard/media.h"
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
-  SB_DCHECK(output_index >= 0);
+  SB_DCHECK_GE(output_index, 0);
   SB_DCHECK(out_configuration);
 
   if (output_index != 0) {

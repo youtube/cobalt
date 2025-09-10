@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -45,7 +46,7 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
 AudioRendererSinkImpl::AudioRendererSinkImpl(
     CreateAudioSinkFunc create_audio_sink_func)
     : create_audio_sink_func_(create_audio_sink_func) {
-  SB_DCHECK(create_audio_sink_func_);
+  SB_CHECK(create_audio_sink_func_);
 }
 
 AudioRendererSinkImpl::~AudioRendererSinkImpl() {
@@ -85,12 +86,12 @@ void AudioRendererSinkImpl::Start(
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
   SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
-  SB_DCHECK(sampling_frequency_hz > 0);
+  SB_DCHECK_GT(sampling_frequency_hz, 0);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
   SB_DCHECK(
       SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type));
   SB_DCHECK(frame_buffers);
-  SB_DCHECK(frames_per_channel > 0);
+  SB_DCHECK_GT(frames_per_channel, 0);
 
   Stop();
   render_callback_ = render_callback;
@@ -150,8 +151,8 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
                                                    void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
-  SB_DCHECK(audio_renderer_sink);
-  SB_DCHECK(audio_renderer_sink->render_callback_);
+  SB_CHECK(audio_renderer_sink);
+  SB_CHECK(audio_renderer_sink->render_callback_);
   SB_DCHECK(frames_in_buffer);
   SB_DCHECK(offset_in_frames);
   SB_DCHECK(is_playing);
@@ -167,8 +168,8 @@ void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
                                               void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
-  SB_DCHECK(audio_renderer_sink);
-  SB_DCHECK(audio_renderer_sink->render_callback_);
+  SB_CHECK(audio_renderer_sink);
+  SB_CHECK(audio_renderer_sink->render_callback_);
 
   audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
                                                        frames_consumed_at);
@@ -180,8 +181,8 @@ void AudioRendererSinkImpl::ErrorFunc(bool capability_changed,
                                       void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
-  SB_DCHECK(audio_renderer_sink);
-  SB_DCHECK(audio_renderer_sink->render_callback_);
+  SB_CHECK(audio_renderer_sink);
+  SB_CHECK(audio_renderer_sink->render_callback_);
 
   audio_renderer_sink->render_callback_->OnError(capability_changed,
                                                  error_message);

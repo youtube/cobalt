@@ -43,12 +43,12 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
       mojo_renderer_factory_(std::move(mojo_renderer_factory)),
       get_gpu_factories_cb_(get_gpu_factories_cb),
       audio_write_duration_local_(
-          base::FeatureList::IsEnabled(kCobaltAudioWriteDurationLocal)
-              ? base::Microseconds(kAudioWriteDurationLocal.Get())
+          base::FeatureList::IsEnabled(kCobaltAudioWriteDuration)
+              ? kAudioWriteDurationLocal.Get()
               : traits->audio_write_duration_local),
       audio_write_duration_remote_(
-          base::FeatureList::IsEnabled(kCobaltAudioWriteDurationRemote)
-              ? base::Microseconds(kAudioWriteDurationRemote.Get())
+          base::FeatureList::IsEnabled(kCobaltAudioWriteDuration)
+              ? kAudioWriteDurationRemote.Get()
               : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
       viewport_size_(traits->viewport_size),

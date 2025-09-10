@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -66,7 +67,7 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
     if (sample_size == 2) {
       *(reinterpret_cast<int16_t*>(decoded_audio->data()) + j) = j;
     } else {
-      SB_DCHECK(sample_size == 4);
+      SB_DCHECK_EQ(sample_size, 4);
       *(reinterpret_cast<float*>(decoded_audio->data()) + j) =
           ((j % 1024) - 512) / 512.0f;
     }

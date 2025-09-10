@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
@@ -41,7 +42,7 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
   if (thread_ != 0) {
     stop_requested_.store(true);
-    pthread_join(thread_, NULL);
+    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
   }
 }
 
@@ -82,7 +83,7 @@ void PunchoutVideoRendererSink::RunLoop() {
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
     const scoped_refptr<VideoFrame>& frame,
     int64_t release_time_in_nanoseconds) {
-  SB_DCHECK(release_time_in_nanoseconds == 0);
+  SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(player_, frame, z_index_,
@@ -92,7 +93,11 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
 
 // static
 void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("punchoutvidsink");
+#else
   pthread_setname_np(pthread_self(), "punchoutvidsink");
+#endif
   PunchoutVideoRendererSink* this_ptr =
       static_cast<PunchoutVideoRendererSink*>(context);
   this_ptr->RunLoop();

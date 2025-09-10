@@ -31,11 +31,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # GitHub's actions/checkout action, by default, checks out the merge commit when
+          # a pull request event triggers a workflow. This merge commit represents the state
+          # of the code as if the pull request had been merged into the base branch.
+          # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
+          # HEAD commit from the base branch (i.e. HEAD~1).
+          fetch-depth: 2
       - name: Run pre-commit
         run: |
           pre-commit install --hook-type pre-commit --hook-type pre-push
-          pre-commit run --show-diff-on-failure --color=always --from-ref ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.before }} --to-ref HEAD
+          pre-commit run --show-diff-on-failure --color=always --from-ref HEAD~1 --to-ref HEAD
   check-bug-id:
     name: Bug ID Check
     runs-on: ubuntu-latest

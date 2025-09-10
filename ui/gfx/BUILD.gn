@@ -621,7 +621,7 @@ source_set("memory_buffer_sources") {
     deps += [ "//build/config/linux/libdrm" ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if (is_linux && !is_starboard || is_chromeos || is_android) {
     deps += [ "//third_party/libsync" ]
   }
 

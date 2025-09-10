@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -84,9 +85,9 @@ AudioRendererPcm::AudioRendererPcm(
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
-  SB_DCHECK(decoder_ != NULL);
-  SB_DCHECK(min_frames_per_append_ > 0);
-  SB_DCHECK(max_cached_frames_ >= min_frames_per_append_ * 2);
+  SB_DCHECK(decoder_);
+  SB_DCHECK_GT(min_frames_per_append_, 0);
+  SB_DCHECK_GE(max_cached_frames_, min_frames_per_append_ * 2);
 
   frame_buffers_[0] = &frame_buffer_[0];
 
@@ -222,7 +223,7 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
 
 void AudioRendererPcm::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(seek_to_time >= 0);
+  SB_DCHECK_GE(seek_to_time, 0);
 
   audio_renderer_sink_->Stop();
 

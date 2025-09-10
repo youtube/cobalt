@@ -28,6 +28,7 @@ extern "C" {
 // clang-format off
 #include "third_party/libjpeg_turbo/jpeglib.h"
 #include "third_party/libjpeg_turbo/jpegint.h"
+#include "starboard/common/check_op.h"
 // clang-format on
 }
 
@@ -228,7 +229,7 @@ bool DecodeProgressiveJPEG(jpeg_decompress_struct* info,
       // The output scan number is the notional scan being processed by the
       // output side. The decompressor will not allow output scan number to get
       // ahead of input scan number.
-      SB_DCHECK(info->input_scan_number >= info->output_scan_number);
+      SB_DCHECK_GE(info->input_scan_number, info->output_scan_number);
       // This scan pass is done, so reset the output scanline.
       info->output_scanline = 0;
       if (info->input_scan_number == info->output_scan_number) {

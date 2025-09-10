@@ -15,10 +15,11 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
 
+#include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
+#include "starboard/event.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
-
-#include "starboard/event.h"
 
 namespace ui {
 
@@ -31,6 +32,8 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
       delete;
 
   void HandleEvent(const SbEvent* event);
+  void HandleFocusEvent(const SbEvent* event);
+  void DispatchFocusEvent(bool is_focused);
 
   ~PlatformEventSourceStarboard() override;
 
@@ -44,7 +47,12 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
   void DispatchWindowSizeChanged(int width, int height);
 
  private:
-  base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_;
+  base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  SEQUENCE_CHECKER(sequence_checker_);
+
+  base::WeakPtrFactory<PlatformEventSourceStarboard> weak_factory_{this};
 };
 
 }  // namespace ui

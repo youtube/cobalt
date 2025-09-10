@@ -24,7 +24,6 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/extension/loader_app_metrics.h"
 #endif
-#include "starboard/linux/shared/time_zone.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
 #include "starboard/shared/starboard/crash_handler.h"

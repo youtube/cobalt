@@ -25,6 +25,8 @@
 #include <limits>
 #include <list>
 
+#include "base/android/jni_android.h"
+#include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -391,7 +393,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
@@ -652,7 +654,7 @@ void VideoDecoder::Reset() {
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(error_message);
+  SB_CHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
@@ -713,9 +715,9 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       }
       j_output_surface = decode_target->surface();
 
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target->surface_texture(),
-                                 "setOnFrameAvailableListener", "(J)V", this);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      JniCallVoidMethodOrAbort(env, decode_target->surface_texture(),
+                               "setOnFrameAvailableListener", "(J)V", this);
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -788,9 +790,9 @@ void VideoDecoder::TeardownCodec() {
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
-      JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target_->surface_texture(),
-                                 "removeOnFrameAvailableListener", "()V");
+      JNIEnv* env = base::android::AttachCurrentThread();
+      JniCallVoidMethodOrAbort(env, decode_target_->surface_texture(),
+                               "removeOnFrameAvailableListener", "()V");
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -974,18 +976,18 @@ void VideoDecoder::OnFlushing() {
 namespace {
 
 void updateTexImage(jobject surface_texture) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(surface_texture, "updateTexImage", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JniCallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   jfloatArray java_array = env->NewFloatArray(16);
   SB_DCHECK(java_array);
 
-  env->CallVoidMethodOrAbort(surface_texture, "getTransformMatrix", "([F)V",
-                             java_array);
+  JniCallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix", "([F)V",
+                           java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
@@ -1111,7 +1113,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
         return;
       }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // If we failed to find any matching clip regions, the crop values
       // returned from the platform may be inconsistent.
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
@@ -1120,7 +1122,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           << frame_size << " - (" << content_region.left << ", "
           << content_region.top << ", " << content_region.right << ", "
           << content_region.bottom << ")";
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
     }

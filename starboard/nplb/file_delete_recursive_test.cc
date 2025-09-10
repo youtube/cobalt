@@ -43,16 +43,6 @@ const char* kFiles[kFileCount] = {
     "test2/file3",
 };
 
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
-bool DirectoryExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
-}
-
 TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
   std::string path;
   const std::string& tmp = GetTempDir();

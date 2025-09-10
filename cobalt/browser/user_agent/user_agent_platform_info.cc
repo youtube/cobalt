@@ -25,6 +25,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
+#include "build/build_config.h"
+#include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
 
 #include "cobalt/cobalt_build_id.h"  // Generated
@@ -101,10 +103,6 @@ void GetUserAgentInputMap(
 
 namespace {
 
-static bool isAsciiAlphaDigit(int c) {
-  return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
-}
-
 // https://datatracker.ietf.org/doc/html/rfc5234#appendix-B.1
 static bool isVCHARorSpace(int c) {
   return c >= 0x20 && c <= 0x7E;
@@ -112,7 +110,7 @@ static bool isVCHARorSpace(int c) {
 
 // https://datatracker.ietf.org/doc/html/rfc7230#section-3.2.6
 static bool isTCHAR(int c) {
-  if (isAsciiAlphaDigit(c)) {
+  if (base::IsAsciiAlphaNumeric(c)) {
     return true;
   }
   switch (c) {
@@ -169,12 +167,9 @@ std::optional<std::string> Sanitize(std::optional<std::string> str,
   }
   return std::optional<std::string>(clean);
 }
+}  // namespace
 
-// Function that will query system properties and Starboard and populate a
-// UserAgentPlatformInfo object based on those results.  This is de-coupled from
-// CreateUserAgentString() so that the common logic in CreateUserAgentString()
-// can be easily unit tested.
-void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
+void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   // Below UA info fields can be retrieved directly from platform's native
   // system properties.
 
@@ -184,9 +179,9 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 #if BUILDFLAG(IS_ANDROID)
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
-  info.set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
+  set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
 #else
-  info.set_os_name_and_version(
+  set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
 #endif
 
@@ -198,98 +193,96 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
     const char kUserAgentOsNameVersion[] = "user_agent_os_name_version";
     if (command_line->HasSwitch(kUserAgentOsNameVersion)) {
-      info.set_os_name_and_version(
+      set_os_name_and_version(
           command_line->GetSwitchValueASCII(kUserAgentOsNameVersion));
     }
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+  if (!avoid_access_to_starboard_for_testing_) {
+    set_device_type(
+        starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
+  }
+
 #if BUILDFLAG(IS_ANDROID)
-  info.set_device_type("ATV");
-#else
-  info.set_device_type("TV");
+  set_firmware_version(base::SysInfo::GetAndroidBuildID());
+#elif BUILDFLAG(IS_STARBOARD)
+  set_firmware_version(
+      starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
 #endif  // BUILDFLAG(IS_ANDROID)
 
-// TODO(cobalt, b/374213479): figure out firmware version for other platforms.
-#if BUILDFLAG(IS_ANDROID)
-  info.set_firmware_version(base::SysInfo::GetAndroidBuildID());
-#endif  // BUILDFLAG(IS_ANDROID)
+  set_model(base::SysInfo::HardwareModelName());
 
-  info.set_model(base::SysInfo::HardwareModelName());
-
-  info.set_original_design_manufacturer(
+  set_original_design_manufacturer(
       base::starboard::SbSysInfo::OriginalDesignManufacturer());
-  info.set_chipset_model_number(
-      base::starboard::SbSysInfo::ChipsetModelNumber());
-  info.set_model_year(base::starboard::SbSysInfo::ModelYear());
-  info.set_brand(base::starboard::SbSysInfo::Brand());
+  set_chipset_model_number(base::starboard::SbSysInfo::ChipsetModelNumber());
+  set_model_year(base::starboard::SbSysInfo::ModelYear());
+  set_brand(base::starboard::SbSysInfo::Brand());
 
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
 
-  char value[1024];
-  bool result =
-      SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value, 1024);
-  if (result) {
-    info.set_aux_field(value);
+  if (!avoid_access_to_starboard_for_testing_) {
+    set_aux_field(
+        starboard::GetSystemPropertyString(kSbSystemPropertyUserAgentAuxField));
   }
 
   // We only support JIT for both Linux and Android.
-  info.set_javascript_engine_version(
+  set_javascript_engine_version(
       base::StringPrintf("v8/%s-jit", V8_VERSION_STRING));
 
   // Rasterizer type is gles for both Linux and Android.
-  info.set_rasterizer_type("gles");
+  set_rasterizer_type("gles");
 
-  // TODO(cobalt, b/374213479): Retrieve Evergreen info.
+  // TODO(cobalt, b/374213479): Retrieve Evergreen
   // #if BUILDFLAG(IS_EVERGREEN)
   //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
   //       updater::GetCurrentEvergreenLibraryMetadata();
-  //   info.set_evergreen_version(evergreen_library_metadata.version);
-  //   info.set_evergreen_file_type(evergreen_library_metadata.file_type);
-  //   info.set_evergreen_type("Lite");
+  //   set_evergreen_version(evergreen_library_metadata.version);
+  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
+  //   set_evergreen_type("Lite");
   // #endif
 
-  // Retrieve additional platform info.
-  auto platform_info_extension =
-      static_cast<const CobaltExtensionPlatformInfoApi*>(
-          SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
-  if (platform_info_extension) {
-    if (platform_info_extension->version >= 1) {
-      char build_fingerprint[1024];
-      if (platform_info_extension->GetFirmwareVersionDetails(build_fingerprint,
-                                                             1024)) {
-        info.set_android_build_fingerprint(build_fingerprint);
+  if (!avoid_access_to_starboard_for_testing_) {
+    // Retrieve additional platform
+    auto platform_info_extension =
+        static_cast<const CobaltExtensionPlatformInfoApi*>(
+            SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
+    if (platform_info_extension) {
+      if (platform_info_extension->version >= 1) {
+        char build_fingerprint[1024];
+        if (platform_info_extension->GetFirmwareVersionDetails(
+                build_fingerprint, 1024)) {
+          set_android_build_fingerprint(build_fingerprint);
+        }
+        set_android_os_experience(platform_info_extension->GetOsExperience());
       }
-      info.set_android_os_experience(
-          platform_info_extension->GetOsExperience());
-    }
-    if (platform_info_extension->version >= 2) {
-      int64_t ver = platform_info_extension->GetCoreServicesVersion();
-      if (ver != 0) {
-        std::string sver = std::to_string(ver);
-        info.set_android_play_services_version(sver);
+      if (platform_info_extension->version >= 2) {
+        int64_t ver = platform_info_extension->GetCoreServicesVersion();
+        if (ver != 0) {
+          std::string sver = std::to_string(ver);
+          set_android_play_services_version(sver);
+        }
       }
     }
   }
 
-  info.set_starboard_version(
-      base::StringPrintf("Starboard/%d", SB_API_VERSION));
-  info.set_cobalt_version(COBALT_VERSION);
-  info.set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
+  set_starboard_version(base::StringPrintf("Starboard/%d", SB_API_VERSION));
+  set_cobalt_version(COBALT_VERSION);
+  set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
 
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  info.set_build_configuration("gold");
+  set_build_configuration("gold");
 #elif defined(OFFICIAL_BUILD)
-  info.set_build_configuration("qa");
+  set_build_configuration("qa");
 #elif !defined(NDEBUG)
-  info.set_build_configuration("debug");
+  set_build_configuration("debug");
 #else
-  info.set_build_configuration("devel");
+  set_build_configuration("devel");
 #endif
 
 // Apply overrides from command line
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (!base::CommandLine::InitializedForCurrentProcess()) {
     return;
   }
@@ -308,68 +301,68 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
       LOG(INFO) << "Overriding " << input.first << " to " << input.second;
 
       if (!input.first.compare("starboard_version")) {
-        info.set_starboard_version(input.second);
+        set_starboard_version(input.second);
         LOG(INFO) << "Setting starboard version to " << input.second;
       } else if (!input.first.compare("os_name_and_version")) {
-        info.set_os_name_and_version(input.second);
+        set_os_name_and_version(input.second);
         LOG(INFO) << "Setting os name and version to " << input.second;
       } else if (!input.first.compare("original_design_manufacturer")) {
-        info.set_original_design_manufacturer(input.second);
+        set_original_design_manufacturer(input.second);
         LOG(INFO) << "Setting original design manufacturer to " << input.second;
       } else if (!input.first.compare("device_type")) {
-        info.set_device_type(input.second);
+        set_device_type(input.second);
         LOG(INFO) << "Setting device type to " << input.second;
       } else if (!input.first.compare("chipset_model_number")) {
-        info.set_chipset_model_number(input.second);
+        set_chipset_model_number(input.second);
         LOG(INFO) << "Setting chipset model to " << input.second;
       } else if (!input.first.compare("model_year")) {
-        info.set_model_year(input.second);
+        set_model_year(input.second);
         LOG(INFO) << "Setting model year to " << input.second;
       } else if (!input.first.compare("firmware_version")) {
-        info.set_firmware_version(input.second);
+        set_firmware_version(input.second);
         LOG(INFO) << "Setting firmware version to " << input.second;
       } else if (!input.first.compare("brand")) {
-        info.set_brand(input.second);
+        set_brand(input.second);
         LOG(INFO) << "Setting brand to " << input.second;
       } else if (!input.first.compare("model")) {
-        info.set_model(input.second);
+        set_model(input.second);
         LOG(INFO) << "Setting model to " << input.second;
       } else if (!input.first.compare("aux_field")) {
-        info.set_aux_field(input.second);
+        set_aux_field(input.second);
         LOG(INFO) << "Setting aux field to " << input.second;
       } else if (!input.first.compare("javascript_engine_version")) {
-        info.set_javascript_engine_version(input.second);
+        set_javascript_engine_version(input.second);
         LOG(INFO) << "Setting javascript engine version to " << input.second;
       } else if (!input.first.compare("rasterizer_type")) {
-        info.set_rasterizer_type(input.second);
+        set_rasterizer_type(input.second);
         LOG(INFO) << "Setting rasterizer type to " << input.second;
       } else if (!input.first.compare("evergreen_type")) {
-        info.set_evergreen_type(input.second);
+        set_evergreen_type(input.second);
         LOG(INFO) << "Setting evergreen type to " << input.second;
       } else if (!input.first.compare("evergreen_file_type")) {
-        info.set_evergreen_file_type(input.second);
+        set_evergreen_file_type(input.second);
         LOG(INFO) << "Setting evergreen file type to " << input.second;
       } else if (!input.first.compare("evergreen_version")) {
-        info.set_evergreen_version(input.second);
+        set_evergreen_version(input.second);
         LOG(INFO) << "Setting evergreen version to " << input.second;
       } else if (!input.first.compare("android_build_fingerprint")) {
-        info.set_android_build_fingerprint(input.second);
+        set_android_build_fingerprint(input.second);
         LOG(INFO) << "Setting android build fingerprint to " << input.second;
       } else if (!input.first.compare("android_os_experience")) {
-        info.set_android_os_experience(input.second);
+        set_android_os_experience(input.second);
         LOG(INFO) << "Setting android os experience to " << input.second;
       } else if (!input.first.compare("android_play_services_version")) {
-        info.set_android_play_services_version(input.second);
+        set_android_play_services_version(input.second);
         LOG(INFO) << "Setting android play services version to "
                   << input.second;
       } else if (!input.first.compare("cobalt_version")) {
-        info.set_cobalt_version(input.second);
+        set_cobalt_version(input.second);
         LOG(INFO) << "Setting cobalt type to " << input.second;
       } else if (!input.first.compare("cobalt_build_version_number")) {
-        info.set_cobalt_build_version_number(input.second);
+        set_cobalt_build_version_number(input.second);
         LOG(INFO) << "Setting cobalt build version to " << input.second;
       } else if (!input.first.compare("build_configuration")) {
-        info.set_build_configuration(input.second);
+        set_build_configuration(input.second);
         LOG(INFO) << "Setting build configuration to " << input.second;
       } else {
         LOG(WARNING) << "Unsupported user agent field: " << input.first;
@@ -378,11 +371,10 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   }
 #endif
 }
-}  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
-    : enable_skia_rasterizer_(enable_skia_rasterizer) {
-  InitializeUserAgentPlatformInfoFields(*this);
+UserAgentPlatformInfo::UserAgentPlatformInfo(bool for_testing) {
+  avoid_access_to_starboard_for_testing_ = for_testing;
+  InitializeUserAgentPlatformInfoFields();
 }
 
 void UserAgentPlatformInfo::set_starboard_version(
@@ -398,7 +390,7 @@ void UserAgentPlatformInfo::set_original_design_manufacturer(
     std::optional<std::string> original_design_manufacturer) {
   if (original_design_manufacturer) {
     original_design_manufacturer_ =
-        Sanitize(original_design_manufacturer, isAsciiAlphaDigit);
+        Sanitize(original_design_manufacturer, base::IsAsciiAlphaNumeric);
   }
 }
 
@@ -409,7 +401,8 @@ void UserAgentPlatformInfo::set_device_type(const std::string& device_type) {
 void UserAgentPlatformInfo::set_chipset_model_number(
     std::optional<std::string> chipset_model_number) {
   if (chipset_model_number) {
-    chipset_model_number_ = Sanitize(chipset_model_number, isAsciiAlphaDigit);
+    chipset_model_number_ =
+        Sanitize(chipset_model_number, base::IsAsciiAlphaNumeric);
   }
 }
 

@@ -129,7 +129,7 @@ source_set("utility") {
     deps += [ "//services/proxy_resolver:lib" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       "//content/utility/speech:speech_recognition_sandbox_hook",
       "//services/network:network_sandbox_hook",
@@ -139,15 +139,8 @@ source_set("utility") {
     }
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [ "//components/services/screen_ai:screen_ai_sandbox_hook" ]
-  }
-
-  if (is_starboard) {
-    deps -= [ 
-      "//content/utility/speech:speech_recognition_sandbox_hook",
-      "//components/services/screen_ai:screen_ai_sandbox_hook",
-    ]
   }
 
   if (enable_accessibility_service) {

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -146,7 +147,7 @@ bool OpusAudioDecoder::DecodeInternal(
     // When the following check fails, it indicates that |frames_per_au_| is
     // greater than or equal to |kMaxOpusFramesPerAU|, which should never happen
     // for Opus.
-    SB_DCHECK(decoded_frames != OPUS_BUFFER_TOO_SMALL);
+    SB_DCHECK_NE(decoded_frames, OPUS_BUFFER_TOO_SMALL);
 
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << kDecodeFunctionName
@@ -207,7 +208,7 @@ void OpusAudioDecoder::InitializeCodec() {
     decoder_ = NULL;
     return;
   }
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
 }
 
 void OpusAudioDecoder::TeardownCodec() {

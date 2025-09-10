@@ -18,8 +18,10 @@
 #include <functional>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <queue>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
@@ -64,7 +66,7 @@ class VideoDecoder
   struct Event {
     enum Type { kWriteInputBuffer, kWriteEOS, kReset };
     explicit Event(const Type type) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
@@ -88,7 +90,7 @@ class VideoDecoder
   bool eos_written_;
   bool first_input_written_ = false;
 
-  pthread_t thread_;
+  std::optional<pthread_t> thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 

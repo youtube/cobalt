@@ -66,7 +66,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_media3_media3_exoplayer_java",
     "//third_party/androidx:androidx_media_media_java",
     "//ui/android:ui_java",
-    "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
 
@@ -160,7 +159,6 @@ android_library("cobalt_apk_java") {
   deps = [
     ":cobalt_main_java",
     "//base:base_java",
-    "//ui/android:ui_no_recycler_view_java",
   ]
 
   sources = [
@@ -236,7 +234,6 @@ android_apk("cobalt_apk") {
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
-    "//services/shape_detection:shape_detection_java",
     "//third_party/mesa_headers",
     "//ui/android:ui_java",
   ]

@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 
+#include <chrono>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -49,19 +51,15 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
     : max_required_frames_(max_required_frames),
       required_frames_increment_(required_frames_increment),
       min_stable_played_frames_(min_stable_played_frames),
-      condition_variable_(mutex_),
       destroying_(false) {}
 
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
-  if (tester_thread_ != 0) {
-    {
-      ScopedLock scoped_lock(mutex_);
-      condition_variable_.Signal();
-    }
-    pthread_join(tester_thread_, NULL);
-    tester_thread_ = 0;
+  if (tester_thread_) {
+    test_complete_cv_.notify_one();
+    pthread_join(*tester_thread_, nullptr);
+    tester_thread_ = std::nullopt;
   }
 }
 
@@ -73,7 +71,7 @@ void MinRequiredFramesTester::AddTest(
     int default_required_frames) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester doesn't support to add test after starts.
-  SB_DCHECK_EQ(tester_thread_, 0);
+  SB_DCHECK(!tester_thread_);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
@@ -82,11 +80,13 @@ void MinRequiredFramesTester::AddTest(
 void MinRequiredFramesTester::Start() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester only supports to start once.
-  SB_DCHECK_EQ(tester_thread_, 0);
+  SB_DCHECK(!tester_thread_);
 
-  pthread_create(&tester_thread_, nullptr,
-                 &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_DCHECK_NE(tester_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &MinRequiredFramesTester::TesterThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  tester_thread_ = thread;
 }
 
 // static
@@ -123,6 +123,10 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     total_consumed_frames_ = 0;
     last_underrun_count_ = -1;
     last_total_consumed_frames_ = 0;
+    {
+      std::lock_guard lock(mutex_);
+      is_test_complete_ = false;
+    }
 
     audio_sink_ = new AudioTrackAudioSink(
         NULL, task.number_of_channels, task.sample_rate, task.sample_type,
@@ -133,8 +137,11 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         &MinRequiredFramesTester::ConsumeFramesFunc,
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
-      ScopedLock scoped_lock(mutex_);
-      wait_timeout = !condition_variable_.WaitTimed(5'000'000);
+      std::unique_lock lock(mutex_);
+      bool notified = test_complete_cv_.wait_for(
+          lock, std::chrono::seconds(5),
+          [this] { return is_test_complete_ || destroying_; });
+      wait_timeout = !notified;
     }
 
     // Get start threshold before release the audio sink.
@@ -260,8 +267,11 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
     // |min_required_frames_| reached maximum, or playback is stable and
     // doesn't have underruns. Stop the test.
     last_total_consumed_frames_ = INT_MAX;
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
+    {
+      std::lock_guard lock(mutex_);
+      is_test_complete_ = true;
+    }
+    test_complete_cv_.notify_one();
   }
 }
 

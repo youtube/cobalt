@@ -45,12 +45,6 @@ if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
-group("browser_tests") {
-  testonly = true
-
-  deps = [ ":cobalt_browsertests" ]
-}
-
 # browsertest_support can be used by targets that run cobalt_shell based
 # browser tests.
 static_library("browsertest_support") {
@@ -179,6 +173,7 @@ if (is_android) {
   }
 }
 
+# Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
 
@@ -346,7 +341,7 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "data/",
+    "//content/test/data/",
     "//media/test/data/",
   ]
 
@@ -355,6 +350,11 @@ test("cobalt_browsertests") {
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
+
+  # official builds do not include this in content_shell_lib
+  if (is_official_build) {
+    deps += [ "//cobalt/shell:browsertests_sources" ]
+  }
 
   if (is_android) {
     deps += [

@@ -17,7 +17,6 @@
 #include <atomic>
 #include <limits>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"

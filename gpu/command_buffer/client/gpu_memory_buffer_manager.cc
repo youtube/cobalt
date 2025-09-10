@@ -23,7 +23,7 @@ GpuMemoryBufferManager::AllocatedBufferInfo::AllocatedBufferInfo(
     : buffer_id_(handle.id),
       type_(handle.type),
       size_in_bytes_(gfx::BufferSizeForBufferFormat(size, format)) {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   DCHECK_NE(gfx::EMPTY_BUFFER, type_);
 #endif
 

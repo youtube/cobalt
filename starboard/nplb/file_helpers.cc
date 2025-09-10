@@ -160,6 +160,16 @@ bool RemoveFileOrDirectoryRecursively(const std::string& path) {
   return false;
 }
 
+bool FileExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0;
+}
+
+bool DirectoryExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
+}
+
 // static
 std::string ScopedRandomFile::MakeRandomFilePath() {
   std::ostringstream filename_stream;

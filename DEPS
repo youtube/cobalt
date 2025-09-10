@@ -286,6 +286,7 @@ vars = {
   'skia_git': 'https://skia.googlesource.com',
   'swiftshader_git': 'https://swiftshader.googlesource.com',
   'webrtc_git': 'https://webrtc.googlesource.com',
+  'rdk_starboard_git': 'https://cobalt.googlesource.com',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
@@ -3980,6 +3981,12 @@ deps = {
     }],
     'dep_type': 'cipd',
     'condition': 'checkout_mac',
+  },
+
+  # Dependencies for RDK (starboard/contrib/rdk)
+  'src/starboard/contrib/rdk': {
+      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
+      'condition': 'checkout_linux',
   },
 }
 

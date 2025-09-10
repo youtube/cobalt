@@ -18,14 +18,7 @@ if (enable_rust) {
 
 # Config for us and everybody else depending on BoringSSL.
 config("external_config") {
-  if (is_cobalt_hermetic_build) {
-    include_dirs = [
-      "//cobalt/third_party/boringssl/src/include",
-      "src/include",
-    ]
-  } else {
-    include_dirs = [ "src/include" ]
-  }
+  include_dirs = [ "src/include" ]
   if (is_component_build) {
     defines = [ "BORINGSSL_SHARED_LIBRARY" ]
   }
@@ -117,14 +110,7 @@ if (is_win && !is_msan && current_cpu != "arm64") {
 
     sources = []
     asmflags = []
-    if (is_cobalt_hermetic_build) {
-      include_dirs = [
-        "//cobalt/third_party/boringssl/src/include",
-        "src/include",
-      ]
-    } else {
-      include_dirs = [ "src/include" ]
-    }
+    include_dirs = [ "src/include" ]
 
     if (is_msan) {
       public_configs = [ ":no_asm_config" ]

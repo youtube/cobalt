@@ -207,6 +207,7 @@ void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
 }
 
 void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (event->type != kSbEventTypeInput) {
     return;
   }
@@ -240,7 +241,8 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
   std::unique_ptr<ui::Event> ui_event;
 
-  if (input_data->device_type == kSbInputDeviceTypeKeyboard) {
+  if ((input_data->device_type == kSbInputDeviceTypeKeyboard) ||
+      (input_data->device_type == kSbInputDeviceTypeRemote)) {
     SbKey raw_key = input_data->key;
     if (raw_type != kSbInputEventTypePress &&
         raw_type != kSbInputEventTypeUnpress) {
@@ -308,33 +310,51 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
       FROM_HERE, base::BindOnce(&DeliverEventHandler, std::move(ui_event)));
 }
 
-PlatformEventSourceStarboard::PlatformEventSourceStarboard() {}
+void PlatformEventSourceStarboard::HandleFocusEvent(const SbEvent* event) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (event->type != kSbEventTypeFocus && event->type != kSbEventTypeBlur) {
+    return;
+  }
+  const bool is_focused = event->type == kSbEventTypeFocus;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&PlatformEventSourceStarboard::DispatchFocusEvent,
+                     weak_factory_.GetWeakPtr(), is_focused));
+}
+
+void PlatformEventSourceStarboard::DispatchFocusEvent(bool is_focused) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (PlatformEventObserverStarboard& observer : sb_observers_) {
+    observer.ProcessFocusEvent(is_focused);
+  }
+}
+
+PlatformEventSourceStarboard::PlatformEventSourceStarboard() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
 
 uint32_t PlatformEventSourceStarboard::DeliverEvent(
     std::unique_ptr<ui::Event> ui_event) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return DispatchEvent(ui_event.get());
 }
 
 void PlatformEventSourceStarboard::AddPlatformEventObserverStarboard(
     PlatformEventObserverStarboard* observer) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(observer);
   sb_observers_.AddObserver(observer);
 }
 
 void PlatformEventSourceStarboard::RemovePlatformEventObserverStarboard(
     PlatformEventObserverStarboard* observer) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   sb_observers_.RemoveObserver(observer);
-}
-
-void DispatchWindowSizeChangedHandler(int width, int height) {
-  CHECK(ui::PlatformEventSource::GetInstance());
-  static_cast<PlatformEventSourceStarboard*>(
-      ui::PlatformEventSource::GetInstance())
-      ->DispatchWindowSizeChanged(width, height);
 }
 
 void PlatformEventSourceStarboard::DispatchWindowSizeChanged(int width,
                                                              int height) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   for (PlatformEventObserverStarboard& observer : sb_observers_) {
     observer.ProcessWindowSizeChangedEvent(width, height);
   }
@@ -342,6 +362,7 @@ void PlatformEventSourceStarboard::DispatchWindowSizeChanged(int width,
 
 void PlatformEventSourceStarboard::HandleWindowSizeChangedEvent(
     const SbEvent* event) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (event->type != kSbEventTypeWindowSizeChanged) {
     return;
   }
@@ -352,11 +373,14 @@ void PlatformEventSourceStarboard::HandleWindowSizeChangedEvent(
 
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
-      base::BindOnce(&DispatchWindowSizeChangedHandler, input_data->size.width,
+      base::BindOnce(&PlatformEventSourceStarboard::DispatchWindowSizeChanged,
+                     weak_factory_.GetWeakPtr(), input_data->size.width,
                      input_data->size.height));
   return;
 }
 
-PlatformEventSourceStarboard::~PlatformEventSourceStarboard() {}
+PlatformEventSourceStarboard::~PlatformEventSourceStarboard() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
 
 }  // namespace ui

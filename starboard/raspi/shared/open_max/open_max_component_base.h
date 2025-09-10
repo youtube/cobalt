@@ -23,11 +23,11 @@
 #include <interface/vcos/vcos_logging.h>
 #include <interface/vmcs_host/vchost.h>
 
+#include <condition_variable>
+#include <mutex>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -126,9 +126,9 @@ class OpenMaxComponentBase {
   int output_port_;
 
  private:
-  Mutex mutex_;
-  ConditionVariable event_condition_variable_;
-  EventDescriptions event_descriptions_;
+  std::mutex mutex_;
+  std::condition_variable event_condition_variable_;
+  EventDescriptions event_descriptions_;  // Guarded by |mutex_|.
 };
 
 }  // namespace open_max

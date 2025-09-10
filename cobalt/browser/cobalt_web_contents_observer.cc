@@ -18,9 +18,11 @@
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
 using starboard::android::shared::StarboardBridge;
@@ -36,6 +38,12 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
       std::make_unique<js_injection::JsCommunicationHost>(web_contents);
 
   RegisterInjectedJavaScript();
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (OomInterventionTabHelper::IsEnabled()) {
+    OomInterventionTabHelper::CreateForWebContents(web_contents);
+  }
+#endif
 }
 
 void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
@@ -88,6 +96,13 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     starboard_bridge->RaisePlatformError(env, jni_error_type, data);
   }
 #endif
+}
+
+void CobaltWebContentsObserver::DidStopLoading() {
+  // Set initial focus to the web content.
+  if (web_contents()->GetRenderWidgetHostView()) {
+    web_contents()->GetRenderWidgetHostView()->Focus();
+  }
 }
 
 }  // namespace cobalt

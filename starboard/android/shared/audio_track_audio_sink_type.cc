@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -166,21 +167,23 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  pthread_create(&audio_out_thread_, nullptr,
-                 &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &AudioTrackAudioSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  audio_out_thread_ = thread;
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
-  if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+  if (audio_out_thread_) {
+    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
   }
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(playback_rate >= 0.0);
+  SB_DCHECK_GE(playback_rate, 0.0);
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
                            "currently supported.";
@@ -204,8 +207,7 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
-  // TODO(cobalt, b/418059619): consolidate JniEnvExt and JNIEnv
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
@@ -216,11 +218,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   int last_playback_head_position = 0;
 
-  JNIEnv* env_jni = AttachCurrentThread();
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env_jni)) {
+    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
       ReportError(true, "Audio device capability changed");
@@ -230,7 +231,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+      SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -256,7 +257,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {
-        SB_DCHECK(frames_consumed >= 0);
+        SB_DCHECK_GE(frames_consumed, 0);
         consume_frames_func_(frames_consumed, frames_consumed_at, context_);
         frames_in_audio_track -= frames_consumed;
       }
@@ -329,7 +330,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       usleep(10'000);
       continue;
     }
-    SB_DCHECK(expected_written_frames > 0);
+    SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
         start_time_ + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
@@ -380,7 +381,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   bridge_.PauseAndFlush();
 }
 
-int AudioTrackAudioSink::WriteData(JniEnvExt* env,
+int AudioTrackAudioSink::WriteData(JNIEnv* env,
                                    const void* buffer,
                                    int expected_written_frames,
                                    int64_t sync_time) {
@@ -484,7 +485,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
-  SB_DCHECK(frames_per_channel >= min_required_frames);
+  SB_DCHECK_GE(frames_per_channel, min_required_frames);
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
   if (kUseContinuousAudioTrackSink) {
@@ -526,9 +527,10 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
       [&](int number_of_channels, SbMediaAudioSampleType sample_type,
           int sample_rate, int min_required_frames) {
         bool has_remote_audio_output = HasRemoteAudioOutput();
-        SB_LOG(INFO) << "Received min required frames " << min_required_frames
+        SB_LOG(INFO) << "Received min required frames "
+                     << FormatWithDigitSeparators(min_required_frames)
                      << " for " << number_of_channels << " channels, "
-                     << sample_rate << "hz, with "
+                     << FormatWithDigitSeparators(sample_rate) << "hz, with "
                      << (has_remote_audio_output ? "remote" : "local")
                      << " audio output device.";
         std::lock_guard lock(min_required_frames_map_mutex_);

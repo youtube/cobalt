@@ -26,8 +26,6 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -184,7 +182,7 @@ class MediaDecoder final
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
-  Host* host_;
+  Host* const host_;
   DrmSystem* const drm_system_;
   const FrameRenderedCB frame_rendered_cb_;
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
@@ -205,8 +203,8 @@ class MediaDecoder final
 
   std::atomic<int32_t> number_of_pending_inputs_{0};
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
@@ -215,7 +213,7 @@ class MediaDecoder final
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  pthread_t decoder_thread_ = 0;
+  std::optional<pthread_t> decoder_thread_;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

@@ -33,59 +33,59 @@ class ErrorDialog extends Dialog {
 
   public static final int MAX_BUTTONS = 3;
 
-  private final Params params;
+  private final Params mParams;
 
   private static class Params {
-    private int messageId;
-    private int numButtons = 0;
-    private int[] buttonIds = new int[MAX_BUTTONS];
-    private int[] buttonLabelIds = new int[MAX_BUTTONS];
-    private OnClickListener buttonClickListener;
-    private OnDismissListener dismissListener;
+    private int mMessageId;
+    private int mNumButtons = 0;
+    private int[] mButtonIds = new int[MAX_BUTTONS];
+    private int[] mButtonLabelIds = new int[MAX_BUTTONS];
+    private OnClickListener mButtonClickListener;
+    private OnDismissListener mDismissListener;
   }
 
   public static class Builder {
 
-    private Context context;
-    private Params params = new Params();
+    private Context mContext;
+    private Params mParams = new Params();
 
     public Builder(Context context) {
-      this.context = context;
+      this.mContext = context;
     }
 
     public Builder setMessage(int messageId) {
-      params.messageId = messageId;
+      mParams.mMessageId = messageId;
       return this;
     }
 
     public Builder addButton(int id, int labelId) {
-      if (params.numButtons >= MAX_BUTTONS) {
+      if (mParams.mNumButtons >= MAX_BUTTONS) {
         throw new IllegalArgumentException("Too many buttons");
       }
-      params.buttonIds[params.numButtons] = id;
-      params.buttonLabelIds[params.numButtons] = labelId;
-      params.numButtons++;
+      mParams.mButtonIds[mParams.mNumButtons] = id;
+      mParams.mButtonLabelIds[mParams.mNumButtons] = labelId;
+      mParams.mNumButtons++;
       return this;
     }
 
     public Builder setButtonClickListener(OnClickListener buttonClickListener) {
-      params.buttonClickListener = buttonClickListener;
+      mParams.mButtonClickListener = buttonClickListener;
       return this;
     }
 
     public Builder setOnDismissListener(OnDismissListener dismissListener) {
-      params.dismissListener = dismissListener;
+      mParams.mDismissListener = dismissListener;
       return this;
     }
 
     public ErrorDialog create() {
-      return new ErrorDialog(context, params);
+      return new ErrorDialog(mContext, mParams);
     }
   }
 
   private ErrorDialog(Context context, Params params) {
     super(context);
-    this.params = params;
+    this.mParams = params;
   }
 
   @Override
@@ -101,27 +101,27 @@ class ErrorDialog extends Dialog {
     imageView.setImageDrawable(drawable);
 
     TextView messageView = (TextView) findViewById(R.id.message);
-    messageView.setText(params.messageId);
+    messageView.setText(mParams.mMessageId);
 
     Button button = (Button) findViewById(R.id.button_1);
     ViewGroup container = (ViewGroup) button.getParent();
     int buttonIndex = container.indexOfChild(button);
 
-    for (int i = 0; i < params.numButtons; i++) {
+    for (int i = 0; i < mParams.mNumButtons; i++) {
       button = (Button) container.getChildAt(buttonIndex + i);
-      button.setText(params.buttonLabelIds[i]);
+      button.setText(mParams.mButtonLabelIds[i]);
       button.setVisibility(View.VISIBLE);
 
-      final int buttonId = params.buttonIds[i];
+      final int buttonId = mParams.mButtonIds[i];
       button.setOnClickListener(
           new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-              params.buttonClickListener.onClick(ErrorDialog.this, buttonId);
+              mParams.mButtonClickListener.onClick(ErrorDialog.this, buttonId);
             }
           });
     }
 
-    setOnDismissListener(params.dismissListener);
+    setOnDismissListener(mParams.mDismissListener);
   }
 }

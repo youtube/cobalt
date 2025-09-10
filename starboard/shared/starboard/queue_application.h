@@ -21,7 +21,6 @@
 #include <mutex>
 #include <set>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/queue.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"

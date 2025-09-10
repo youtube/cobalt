@@ -15,6 +15,8 @@
 #ifndef COBALT_COMMON_LIBC_TIME_ICU_TIME_SUPPORT_H_
 #define COBALT_COMMON_LIBC_TIME_ICU_TIME_SUPPORT_H_
 
+#include <time.h>
+
 #include "cobalt/common/libc/no_destructor.h"
 #include "cobalt/common/libc/time/time_zone_state.h"
 
@@ -33,6 +35,18 @@ class IcuTimeSupport {
   void GetPosixTimezoneGlobals(long& out_timezone,
                                int& out_daylight,
                                char** out_tzname);
+
+  // Converts a time_t to a struct tm in the local timezone.
+  bool ExplodeLocalTime(const time_t* time, struct tm* out_exploded);
+
+  // Converts a time_t to a struct tm in the GMT timezone.
+  bool ExplodeGmtTime(const time_t* time, struct tm* out_exploded);
+
+  // Converts a struct tm (in local time) to a time_t.
+  time_t ImplodeLocalTime(struct tm* exploded);
+
+  // Converts a struct tm (in GMT) to a time_t.
+  time_t ImplodeGmtTime(struct tm* exploded);
 
  private:
   friend class cobalt::common::libc::NoDestructor<IcuTimeSupport>;

@@ -31,10 +31,18 @@
 #include "unicode/putil.h"
 #include "unicode/udata.h"
 
+#define UNSUPPORTED_ICU_CONFIG_ERROR_MSG                           \
+  "Initialize ICU properly in this case. Ensure the GN flags and " \
+  "corresponding C++ macros related to ICU are set correctly."
+
 namespace cobalt {
 namespace common {
 namespace icu_init {
 
+#if (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC)
+static bool g_icu_is_initialized = false;
+
+#elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
 
 constexpr std::string_view kIcuDataFileName = "icudtl.dat";
@@ -143,7 +151,17 @@ bool IcuInit() {
 // initializers.
 static bool g_icu_is_initialized = IcuInit();
 
+#else
+#error UNSUPPORTED_ICU_CONFIG_ERROR_MSG
+#endif
+
 void EnsureInitialized() {
+#if (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC)
+  // No special ICU initialization is needed if the icu data is linked
+  // statically in the binary. To see more details refer to
+  // ICU_UTIL_DATA_STATIC in base/i18n/icu_util.cc
+  g_icu_is_initialized = true;
+#elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
   // Even though IcuInit() is called before main() is called, when the static
   // initializers are called, the order of execution of static initializers is
   // undefined. This function allows functions that may use ICU from static
@@ -153,6 +171,9 @@ void EnsureInitialized() {
   if (!g_icu_is_initialized) {
     g_icu_is_initialized = IcuInit();
   }
+#else
+#error UNSUPPORTED_ICU_CONFIG_ERROR_MSG
+#endif
 }
 
 }  // namespace icu_init

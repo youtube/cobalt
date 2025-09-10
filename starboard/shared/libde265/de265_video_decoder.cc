@@ -14,6 +14,7 @@
 
 #include "starboard/shared/libde265/de265_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
@@ -30,7 +31,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
     : output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecH265);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH265);
   SB_DCHECK(is_de265_supported());
 }
 
@@ -53,7 +54,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
 
@@ -140,7 +141,7 @@ void VideoDecoder::InitializeCodec() {
 
   const int kNumberOfThreads = 8;
   de265_error error = de265_start_worker_threads(context_, kNumberOfThreads);
-  SB_DCHECK(error == DE265_OK);
+  SB_DCHECK_EQ(error, DE265_OK);
 }
 
 void VideoDecoder::TeardownCodec() {
@@ -148,7 +149,7 @@ void VideoDecoder::TeardownCodec() {
 
   if (context_) {
     de265_error error = de265_free_decoder(context_);
-    SB_DCHECK(error == DE265_OK);
+    SB_DCHECK_EQ(error, DE265_OK);
     context_ = nullptr;
   }
 
@@ -194,7 +195,7 @@ void VideoDecoder::DecodeEndOfStream() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   auto status = de265_flush_data(context_);
-  SB_DCHECK(status == DE265_OK);
+  SB_DCHECK_EQ(status, DE265_OK);
 
   ProcessDecodedImage(true);
 }
@@ -248,7 +249,7 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   }
 
   for (int i = 0; i < kImagePlanes; ++i) {
-    SB_DCHECK(bit_depth == de265_get_bits_per_pixel(image, i));
+    SB_DCHECK_EQ(bit_depth, de265_get_bits_per_pixel(image, i));
 
     widths[i] = de265_get_image_width(image, i);
     heights[i] = de265_get_image_height(image, i);
@@ -256,9 +257,9 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
     SB_DCHECK(planes[i]);
   }
 
-  SB_DCHECK(widths[kYPlane] == widths[kUPlane] * 2);
-  SB_DCHECK(widths[kUPlane] == widths[kVPlane]);
-  SB_DCHECK(strides[kUPlane] == strides[kVPlane]);
+  SB_DCHECK_EQ(widths[kYPlane], widths[kUPlane] * 2);
+  SB_DCHECK_EQ(widths[kUPlane], widths[kVPlane]);
+  SB_DCHECK_EQ(strides[kUPlane], strides[kVPlane]);
 
   // Create a VideoFrame from decoded frame data. The data is in YV12 format.
   // Each component of a pixel takes one byte and they are in their own planes.
@@ -282,7 +283,7 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.

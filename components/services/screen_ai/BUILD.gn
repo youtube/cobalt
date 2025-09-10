@@ -29,7 +29,7 @@ source_set("screen_ai") {
   ]
 }
 
-if (is_linux || is_chromeos) {
+if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
   source_set("screen_ai_sandbox_hook") {
     sources = [
       "sandbox/screen_ai_sandbox_hook_linux.cc",
