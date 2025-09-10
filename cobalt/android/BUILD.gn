@@ -58,10 +58,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
-    "//third_party/androidx:androidx_media3_media3_common_java",
-    "//third_party/androidx:androidx_media3_media3_datasource_java",
-    "//third_party/androidx:androidx_media3_media3_decoder_java",
-    "//third_party/androidx:androidx_media3_media3_exoplayer_java",
     "//third_party/androidx:androidx_media_media_java",
     "//ui/android:ui_java",
     "//url:gurl_java",
@@ -142,6 +138,15 @@ android_library("cobalt_main_java") {
   }
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
+  if (use_exoplayer_library) {
+    deps += [
+      "//third_party/androidx:androidx_media3_media3_common_java",
+      "//third_party/androidx:androidx_media3_media3_datasource_java",
+      "//third_party/androidx:androidx_media3_media3_decoder_java",
+      "//third_party/androidx:androidx_media3_media3_exoplayer_java",
+    ]
+  }
 }
 
 android_library("cobalt_apk_java") {

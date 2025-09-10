@@ -32,6 +32,8 @@ declare_args() {
   build_with_separate_cobalt_toolchain = target_os != "android"
 
   use_evergreen = false
+
+  use_exoplayer_library = false
 }
 
 assert(!(is_starboard && is_native_target_build),
