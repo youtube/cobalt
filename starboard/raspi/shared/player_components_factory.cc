@@ -80,17 +80,16 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      using VideoDecoderImpl =
-          ::starboard::raspi::shared::open_max::VideoDecoder;
       using ::starboard::raspi::shared::VideoRendererSinkImpl;
+      using ::starboard::raspi::shared::open_max::OpenMaxVideoDecoder;
 
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
 
-      video_decoder->reset(
-          new VideoDecoderImpl(creation_parameters.video_codec()));
-      video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+      *video_decoder = std::make_unique<OpenMaxVideoDecoder>(
+          creation_parameters.video_codec());
+      *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
       *video_renderer_sink =
           new VideoRendererSinkImpl(creation_parameters.player());
     }
