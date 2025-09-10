@@ -36,6 +36,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
