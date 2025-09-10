@@ -33,7 +33,7 @@ declare_args() {
 
   use_evergreen = false
 
-  use_exoplayer_library = false
+  build_with_exoplayer = false
 }
 
 assert(!(is_starboard && is_native_target_build),

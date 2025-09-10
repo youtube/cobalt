@@ -139,7 +139,7 @@ android_library("cobalt_main_java") {
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 
-  if (use_exoplayer_library) {
+  if (build_with_exoplayer) {
     deps += [
       "//third_party/androidx:androidx_media3_media3_common_java",
       "//third_party/androidx:androidx_media3_media3_datasource_java",
