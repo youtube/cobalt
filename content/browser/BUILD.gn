@@ -2398,6 +2398,10 @@ source_set("browser") {
   if (is_cobalt_hermetic_build) {
     sources -= [
       "child_process_launcher_helper_linux.cc",
+      "font_access/font_enumeration_data_source_linux.cc",
+      "font_access/font_enumeration_data_source_linux.h",
+      "font_service.cc",
+      "font_service.h",
       "sandbox_host_linux.cc",
       "sandbox_host_linux.h",
       "sandbox_ipc_linux.cc",
@@ -2407,14 +2411,6 @@ source_set("browser") {
     ]
     sources += [
       "child_process_launcher_helper_starboard.cc",
-    ]
-  }
-  if (is_starboard) {
-    sources -= [
-      "font_access/font_enumeration_data_source_linux.cc",
-      "font_access/font_enumeration_data_source_linux.h",
-      "font_service.cc",
-      "font_service.h",
     ]
     public_deps -= [ "//components/services/font/public/mojom" ]
     deps -= [ "//components/services/font:lib" ]
@@ -2952,7 +2948,7 @@ source_set("browser") {
     }
   }
 
-  if ((is_linux && !is_starboard || is_chromeos) && use_aura) {
+  if ((is_linux && !is_cobalt_hermetic_build || is_chromeos) && use_aura) {
     deps += [ "//third_party/fontconfig" ]
   }
 

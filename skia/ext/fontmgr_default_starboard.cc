@@ -14,7 +14,6 @@
 
 #include "skia/ext/fontmgr_default.h"
 
-#include "base/base_paths_starboard.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"

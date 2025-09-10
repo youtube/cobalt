@@ -147,7 +147,7 @@ static_library("libxml") {
     "//third_party/libxslt",
     "//third_party/maldoca/*",
   ]
-  if (is_starboard) {
+  if (is_cobalt_hermetic_build) {
     visibility += [ "//skia" ]
   }
   if (is_ios) {

@@ -439,7 +439,7 @@ component("skia") {
     ]
   }
 
-  if (is_starboard) {
+  if (is_cobalt_hermetic_build) {
     sources += [
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h",
@@ -464,7 +464,7 @@ component("skia") {
     ]
   }
 
-  if (is_linux && !is_starboard || is_chromeos || is_android) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos || is_android) {
     sources += [
       # Retain the files for the SkFontMgr_Android on linux to emulate android
       # fonts. See content/zygote/zygote_main_linux.cc
@@ -533,7 +533,7 @@ component("skia") {
     ]
   }
 
-  if (is_linux && !is_starboard || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       "//third_party/expat",
       "//third_party/fontconfig",

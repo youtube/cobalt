@@ -355,7 +355,7 @@ target(link_target_type, "renderer") {
     ]
   }
 
-  if (is_linux && !is_starboard || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [ "//components/services/font/public/cpp" ]
   }
 

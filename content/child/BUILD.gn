@@ -115,7 +115,7 @@ target(link_target_type, "child") {
     "//v8",
   ]
 
-  if (is_linux && !is_starboard || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "child_process_sandbox_support_impl_linux.cc",
       "child_process_sandbox_support_impl_linux.h",
