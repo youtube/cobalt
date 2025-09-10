@@ -443,6 +443,9 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     EvergreenInfo evergreen_info;
     GetEvergreenInfo(&evergreen_info);
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    // TODO: b/406511608 - enable crashpad when evergreen is run using the
+    // loader_app (as opposed to elf_loader_sandbox).
     if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
             evergreen_info)) {
       SB_LOG(ERROR)
@@ -450,6 +453,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     } else {
       SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
     }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
     auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
         library_loader->Resolve("GetEvergreenSabiString"));
@@ -477,6 +481,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
       starboard::strlcpy(buffer.data(), get_user_agent_func(),
                          USER_AGENT_STRING_MAX_SIZE);
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
               third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
               buffer.data())) {
@@ -484,6 +489,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       } else {
         SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
       }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     }
 
     SB_DLOG(INFO) << "Successfully loaded Cobalt!\n";

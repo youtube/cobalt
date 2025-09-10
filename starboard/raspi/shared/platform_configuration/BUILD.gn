@@ -43,8 +43,27 @@ config("common_flags") {
     "EGL_static",
     "GLESv2_static",
   ]
+  cflags = []
+  cflags_cc = []
   if (cobalt_pending_clean_up) {
     cflags = [ "-Wno-multichar" ]
+  }
+
+  if (current_toolchain == native_target || current_toolchain == starboard_toolchain) {
+    cflags += [
+      # Raspi toolchain doesn't understand that exhaustive switch is exhaustive
+      # (e.g., in //base/functional/callback_internal.h).
+      "-Wno-return-type",
+      # Maybe attribute ignored in base/task/common/task_annotator.h.
+      "-Wno-ignored-attributes",
+      "-Wno-attributes",
+      "-Wno-dangling-else",
+    ]
+
+    cflags_cc += [
+      # For offsetof() in base/allocator/partition_allocator/partition_page.h
+      "-Wno-invalid-offsetof",
+    ]
   }
 }
 

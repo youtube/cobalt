@@ -17,6 +17,7 @@
 #include <malloc.h>
 #include <time.h>
 
+#include "build/build_config.h"
 #include "starboard/configuration.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/event.h"
@@ -32,8 +33,14 @@
 #include "starboard/shared/x11/application_x11.h"
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+// The Crashpad client's dependency on //base, which is configured to use
+// PartitionAlloc, is causing this call to mallopt to fail.
+// TODO: b/406511608 - Cobalt: determine if we want to use PartitionAlloc, the
+// allocator shim, etc. when //base is built with the starboard toolchain.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
   mallopt(M_ARENA_MAX, 2);
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();

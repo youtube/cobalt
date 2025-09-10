@@ -5,6 +5,8 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_ALLOC_BASE_CXX20_IS_CONSTANT_EVALUATED_H_
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_ALLOC_BASE_CXX20_IS_CONSTANT_EVALUATED_H_
 
+#include "build/build_config.h"
+
 namespace partition_alloc::internal::base {
 
 // std::is_constant_evaluated was introduced in C++20. PartitionAlloc's minimum
@@ -17,6 +19,20 @@ using std::is_constant_evaluated;
 
 #else
 
+#if __cplusplus <= 201811L && (BUILDFLAG(IS_NATIVE_TARGET_BUILD) || BUILDFLAG(IS_STARBOARD_TOOLCHAIN))
+constexpr bool is_constant_evaluated() noexcept {
+    struct C {};
+    struct M : C { int a; };
+    struct N : C { int a; };
+    // At compile-time, &M::a != static_cast<int C::*>(&N::a) is true
+    // because the exact member pointers are compared.
+    // At runtime, the comparison might be false because only offsets are considered.
+    // This difference allows detection of constant evaluation.
+    return &M::a != static_cast<int C::*>(&N::a);
+}
+
+#else
+
 // Implementation of C++20's std::is_constant_evaluated.
 //
 // References:
@@ -25,6 +41,8 @@ using std::is_constant_evaluated;
 constexpr bool is_constant_evaluated() noexcept {
   return __builtin_is_constant_evaluated();
 }
+
+#endif
 
 #endif
 

@@ -29,8 +29,14 @@
 #endif
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+// The Crashpad client's dependency on //base, which is configured to use
+// PartitionAlloc, is causing this call to mallopt to fail.
+// TODO: b/406511608 - Cobalt: determine if we want to use PartitionAlloc, the
+// allocator shim, etc. when //base is built with the starboard toolchain.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
   SB_CHECK(mallopt(M_ARENA_MAX, 2));
+#endif
   tzset();
 
   starboard::shared::signal::InstallCrashSignalHandlers();
@@ -49,7 +55,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
   }
 
-  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
+  //third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
   starboard::raspi::shared::ApplicationDispmanx application(callback);

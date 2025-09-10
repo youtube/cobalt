@@ -188,6 +188,10 @@ void Usage(const base::FilePath& me) {
   // clang-format on
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+"      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
+"                              the address of a EvegreenInfo struct.\n"
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
       // clang-format off
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
 "                              only if uploads are enabled for the database\n"
@@ -235,6 +239,9 @@ struct Options {
   VMAddress sanitization_information_address;
   int initial_client_fd;
   bool shared_client_connection;
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+  VMAddress evergreen_information_address;
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 #if BUILDFLAG(IS_ANDROID)
   bool write_minidump_to_log;
   bool write_minidump_to_database;
@@ -621,6 +628,9 @@ int HandlerMain(int argc,
     kOptionSharedClientConnection,
     kOptionTraceParentWithException,
 #endif
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+    kOptionEvergreenInformaton,
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     kOptionURL,
 #if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
     kOptionUseCrosCrashReporter,
@@ -705,6 +715,12 @@ int HandlerMain(int argc,
      kOptionTraceParentWithException},
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+    {"evergreen-information",
+     required_argument,
+     nullptr,
+     kOptionEvergreenInformaton},
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     {"url", required_argument, nullptr, kOptionURL},
 #if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
     {"use-cros-crash-reporter",
@@ -875,6 +891,17 @@ int HandlerMain(int argc,
       }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+      case kOptionEvergreenInformaton: {
+        if (!StringToNumber(optarg,
+                            &options.evergreen_information_address)) {
+          ToolSupport::UsageHint(me,
+                                 "failed to parse --evergreen-information");
+          return ExitFailure();
+        }
+        break;
+      }
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
       case kOptionURL: {
         options.url = optarg;
         break;
@@ -1093,6 +1120,10 @@ int HandlerMain(int argc,
     info.exception_information_address = options.exception_information_address;
     info.sanitization_information_address =
         options.sanitization_information_address;
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+    info.evergreen_information_address =
+        options.evergreen_information_address;
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     return exception_handler->HandleException(getppid(), geteuid(), info)
                ? EXIT_SUCCESS
                : ExitFailure();

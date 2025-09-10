@@ -12,6 +12,7 @@
 
 #include "base/base_export.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace trace_event {
@@ -52,6 +53,11 @@ bool BASE_EXPORT operator != (const StackFrame& lhs, const StackFrame& rhs);
 
 struct BASE_EXPORT Backtrace {
   Backtrace();
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD) || BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+  // The copy constructor is for some reason getting deleted with our
+  // C++17 GCC compiler for raspi.
+  Backtrace(const Backtrace& other);
+#endif
 
   // If the stack is higher than what can be stored here, the top frames
   // (the ones further from main()) are stored. Depth of 12 is enough for most
