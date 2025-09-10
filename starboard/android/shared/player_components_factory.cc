@@ -36,6 +36,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -50,11 +51,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard::android::shared {
-
-// Tunnel mode has to be enabled explicitly by the web app via mime attributes
-// "tunnelmode", set the following variable to true to force enabling tunnel
-// mode on all playbacks.
-constexpr bool kForceTunnelMode = false;
 
 // By default, the platform Opus decoder is only enabled for encrypted playback.
 // Set the following variable to true to force it for clear playback.
@@ -357,9 +353,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << ". Tunnel mode is disabled.";
     }
 
-    if (kForceTunnelMode && !enable_tunnel_mode) {
-      SB_LOG(INFO) << "`kForceTunnelMode` is set to true, force enabling tunnel"
-                   << " mode.";
+    const bool force_tunnel_mode = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceTunnelMode);
+
+    if (force_tunnel_mode && !enable_tunnel_mode) {
+      SB_LOG(INFO)
+          << "`force_tunnel_mode` is set to true, force enabling tunnel"
+          << " mode.";
       enable_tunnel_mode = true;
     }
 
