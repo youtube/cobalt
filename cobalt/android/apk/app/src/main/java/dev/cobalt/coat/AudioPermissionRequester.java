@@ -28,14 +28,14 @@ import org.chromium.base.annotations.CalledByNative;
 
 /** Helper class that requests the record audio permission. */
 public class AudioPermissionRequester {
-  private final Context context;
-  private final Holder<Activity> activityHolder;
+  private final Context mContext;
+  private final Holder<Activity> mActivityHolder;
   // Only use in synchronized methods.
-  private boolean requestAudioPermissionStarted;
+  private boolean mRequestAudioPermissionStarted;
 
   public AudioPermissionRequester(Context context, Holder<Activity> activityHolder) {
-    this.context = context;
-    this.activityHolder = activityHolder;
+    this.mContext = context;
+    this.mActivityHolder = activityHolder;
   }
 
   /**
@@ -45,7 +45,7 @@ public class AudioPermissionRequester {
   @SuppressWarnings("unused")
   @CalledByNative
   public synchronized boolean requestRecordAudioPermission() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity == null) {
       return false;
     }
@@ -55,10 +55,10 @@ public class AudioPermissionRequester {
       return true;
     }
 
-    if (!requestAudioPermissionStarted) {
+    if (!mRequestAudioPermissionStarted) {
       ActivityCompat.requestPermissions(
           activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
-      requestAudioPermissionStarted = true;
+      mRequestAudioPermissionStarted = true;
     }
 
     return false;
@@ -70,7 +70,7 @@ public class AudioPermissionRequester {
     if (requestCode == R.id.rc_record_audio) {
       boolean success = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
       Log.i(TAG, "RECORD_AUDIO permission request " + (success ? "GRANTED" : "DENIED"));
-      requestAudioPermissionStarted = false;
+      mRequestAudioPermissionStarted = false;
     }
   }
 }

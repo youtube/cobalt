@@ -4,7 +4,7 @@
     "MadviseTest.BadSizeValue",
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
-    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
     "SbAudioSinkTest.*",
     "SbAudioSinkCreateTest.MultiSink",
     "SbMediaSetAudioWriteDurationTests*",

@@ -504,7 +504,7 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
-  SB_DCHECK(handler_);
+  SB_CHECK(handler_);
 }
 
 void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {

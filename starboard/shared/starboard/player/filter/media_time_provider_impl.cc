@@ -24,7 +24,7 @@ namespace starboard::shared::starboard::player::filter {
 MediaTimeProviderImpl::MediaTimeProviderImpl(
     std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider)
     : system_time_provider_(std::move(system_time_provider)) {
-  SB_DCHECK(system_time_provider_);
+  SB_CHECK(system_time_provider_);
 }
 
 void MediaTimeProviderImpl::Play() {

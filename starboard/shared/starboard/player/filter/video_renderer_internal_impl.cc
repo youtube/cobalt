@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -44,8 +45,8 @@ VideoRendererImpl::VideoRendererImpl(
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)) {
-  SB_DCHECK(decoder_);
-  SB_DCHECK(algorithm_);
+  SB_CHECK(decoder_);
+  SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
   SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
@@ -214,7 +215,7 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   // FilterBasedPlayerWorkerHandler::Stop() ensures that this function won't be
   // called right before VideoRenderer dtor is called and |decoder_| is set to
   // NULL inside the dtor.
-  SB_DCHECK(decoder_);
+  SB_CHECK(decoder_);
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   auto start = CurrentMonotonicTime();
@@ -285,7 +286,8 @@ void VideoRendererImpl::OnDecoderStatus(
         seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       SB_LOG(INFO) << "Video preroll takes "
-                   << CurrentMonotonicTime() - first_input_written_at_
+                   << FormatWithDigitSeparators(CurrentMonotonicTime() -
+                                                first_input_written_at_)
                    << " microseconds.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
