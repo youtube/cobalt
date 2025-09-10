@@ -1,0 +1,19 @@
+--- ui/gl/init/gl_display_initializer.cc
++++ ui/gl/init/gl_display_initializer.cc
+@@ -59,15 +59,11 @@
+ 
+   std::string requested_renderer =
+       force_software_gl
+-<<<<<<< HEAD
+-          ? default_software_renderer
+-=======
+ #if BUILDFLAG(IS_STARBOARD)
+           ? kANGLEImplementationOpenGLESEGLName
+ #else
+-          ? kANGLEImplementationSwiftShaderName
++          ? default_software_renderer
+ #endif
+->>>>>>> 25e95f2a72b ([Ozone] Remove angle_use_x11 flag (#5238))
+           : command_line->GetSwitchValueASCII(switches::kUseANGLE);
+ 
+   bool use_angle_default =

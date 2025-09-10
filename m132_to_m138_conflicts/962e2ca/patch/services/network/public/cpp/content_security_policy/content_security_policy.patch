@@ -1,0 +1,19 @@
+--- services/network/public/cpp/content_security_policy/content_security_policy.cc
++++ services/network/public/cpp/content_security_policy/content_security_policy.cc
+@@ -42,16 +42,7 @@
+ namespace {
+ 
+ bool IsDirectiveNameCharacter(char c) {
+-<<<<<<< HEAD
+   return base::IsAsciiAlphaNumeric(c) || c == '-';
+-=======
+-#if BUILDFLAG(IS_COBALT)
+-  // To accomodate "h5vcc".
+-  return base::IsAsciiAlpha(c) || c == '-' || c == '5';
+-#else
+-  return base::IsAsciiAlpha(c) || c == '-';
+-#endif
+->>>>>>> 13934bfaf9d (Add h5vcc-location-src custom CSP directive (#5016))
+ }
+ 
+ bool IsDirectiveValueCharacter(char c) {

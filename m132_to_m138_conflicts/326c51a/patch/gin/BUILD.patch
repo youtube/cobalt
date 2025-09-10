@@ -1,0 +1,16 @@
+--- gin/BUILD.gn
++++ gin/BUILD.gn
+@@ -170,13 +170,8 @@
+             "//tools/v8_context_snapshot($android_secondary_abi_toolchain)",
+           ]
+         }
+-<<<<<<< HEAD
+         if (!use_v8_context_snapshot_android_secondary_abi ||
+             include_both_v8_snapshots_android_secondary_abi) {
+-=======
+-        if ((!use_v8_context_snapshot && v8_use_external_startup_data) ||
+-            include_both_v8_snapshots) {
+->>>>>>> be0f811cf3e (Embed v8 snapshot blob in built binary (#4775))
+           _secondary_abi_out_dir =
+               get_label_info("//v8($android_secondary_abi_toolchain)",
+                              "root_out_dir")

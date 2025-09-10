@@ -1,0 +1,43 @@
+--- ui/gl/gl_switches.cc
++++ ui/gl/gl_switches.cc
+@@ -14,13 +14,9 @@
+ #include "base/android/build_info.h"
+ #endif
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(ENABLE_VULKAN) && \
+     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
+-=======
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ #if !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 2d2d6784062 (Exclude vulkan headers from ui/gl. (#5212))
+ #include <vulkan/vulkan_core.h>
+ #endif  // !BUILDFLAG(IS_STARBOARD)
+ #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  // nogncheck
+@@ -320,23 +316,18 @@
+   if (base::android::BuildInfo::GetInstance()->sdk_int() <
+       base::android::SDK_VERSION_Q)
+     return false;
+-<<<<<<< HEAD
+ 
+   // For the sake of finch trials, limit to newer devices (Android T+); this
+   // condition can be relaxed over time.
+   if (base::android::BuildInfo::GetInstance()->sdk_int() <
+       base::android::SDK_VERSION_T) {
+-=======
+-#endif  // BUILDFLAG(IS_ANDROID)
+-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+-  angle::SystemInfo system_info;
+-  if (!angle::GetSystemInfoVulkan(&system_info))
+->>>>>>> 2d2d6784062 (Exclude vulkan headers from ui/gl. (#5212))
+     return false;
+   }
+ #endif  // BUILDFLAG(IS_ANDROID)
+ #if BUILDFLAG(ENABLE_VULKAN) && \
+-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
++    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) \
++    && !BUILDFLAG(IS_STARBOARD)
++
+   angle::SystemInfo system_info;
+   {
+     GPU_STARTUP_TRACE_EVENT("angle::GetSystemInfoVulkan");

@@ -1,0 +1,89 @@
+--- base/logging.cc
++++ base/logging.cc
+@@ -4,15 +4,6 @@
+ 
+ #include "base/logging.h"
+ 
+-<<<<<<< HEAD
+-=======
+-#ifndef COBALT_PENDING_CLEAN_UP
+-#ifdef BASE_CHECK_H_
+-#error "logging.h should not include check.h"
+-#endif
+-#endif
+-
+->>>>>>> b561ceac506 (Bring 25.lts.1+ base customizations to trunk (#4800))
+ #include <limits.h>
+ #include <stdint.h>
+ 
+@@ -118,9 +109,10 @@
+ #include "base/android/jni_android.h"
+ #endif
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_CHROMEOS)
+-=======
++#include "base/files/scoped_file.h"
++#endif
++
+ #if BUILDFLAG(IS_STARBOARD)
+ #include <fcntl.h>
+ #include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+@@ -133,11 +125,6 @@
+ #include "starboard/system.h"  // nogncheck
+ #endif // BUILDFLAG(IS_STARBOARD)
+ 
+-#if BUILDFLAG(IS_CHROMEOS_ASH)
+->>>>>>> b561ceac506 (Bring 25.lts.1+ base customizations to trunk (#4800))
+-#include "base/files/scoped_file.h"
+-#endif
+-
+ #if BUILDFLAG(IS_FUCHSIA)
+ #include "base/fuchsia/scoped_fx_logger.h"
+ #endif
+@@ -381,9 +368,10 @@
+     g_log_file_name = new PathString(GetDefaultLogFile());
+   }
+ 
+-<<<<<<< HEAD
+   if ((g_logging_destination & LOG_TO_FILE) == 0) {
+-=======
++    return true;
++  }
++
+ #if BUILDFLAG(IS_STARBOARD)
+   // This seems to get called a lot with an empty filename, at least in
+   // base_unittests.
+@@ -392,11 +380,6 @@
+   }
+ #endif
+ 
+-  if ((g_logging_destination & LOG_TO_FILE) == 0)
+->>>>>>> b561ceac506 (Bring 25.lts.1+ base customizations to trunk (#4800))
+-    return true;
+-  }
+-
+ #if BUILDFLAG(IS_WIN)
+   // The FILE_APPEND_DATA access mask ensures that the file is atomically
+   // appended to across accesses from multiple threads.
+@@ -1063,12 +1046,7 @@
+     }
+     if (g_log_process_id) {
+       stream_ << base::GetUniqueIdForProcess() << ':';
+-<<<<<<< HEAD
+-    }
+-    if (g_log_thread_id) {
+-      stream_ << base::PlatformThread::CurrentId() << ':';
+     }
+-=======
+     if (g_log_thread_id)
+ #if BUILDFLAG(IS_STARBOARD)
+       // Logging the thread name is added for Starboard logs.
+@@ -1077,7 +1055,6 @@
+ #else
+       stream_ << base::PlatformThread::CurrentId() << ':';
+ #endif
+->>>>>>> b561ceac506 (Bring 25.lts.1+ base customizations to trunk (#4800))
+     if (g_log_timestamp) {
+ #if BUILDFLAG(IS_WIN)
+       SYSTEMTIME local_time;

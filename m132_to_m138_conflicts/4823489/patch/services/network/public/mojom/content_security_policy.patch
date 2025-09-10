@@ -1,0 +1,14 @@
+--- services/network/public/mojom/content_security_policy.mojom
++++ services/network/public/mojom/content_security_policy.mojom
+@@ -89,11 +89,8 @@
+   bool allow_dynamic = false;
+   bool allow_unsafe_hashes = false;
+   bool report_sample = false;
+-<<<<<<< HEAD
+   IntegrityAlgorithm? report_hash_algorithm;
+-=======
+   [EnableIf=cobalt_custom_csp]bool cobalt_insecure_local_network = false;
+->>>>>>> ec4e2c2ce45 (Add custom cobalt-insecure-local-network csp source (#4958))
+ };
+ 
+ enum CSPDirectiveName {

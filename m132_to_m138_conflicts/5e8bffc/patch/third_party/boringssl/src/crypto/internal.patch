@@ -1,0 +1,32 @@
+--- third_party/boringssl/src/crypto/internal.h
++++ third_party/boringssl/src/crypto/internal.h
+@@ -41,21 +41,6 @@
+ #include <stdlib.h>
+ #endif
+ 
+-<<<<<<< HEAD
+-#if !(BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+-=======
+-#if !defined(__cplusplus)
+-#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
+-// BoringSSL requires C11 to build the library. The most likely cause of
+-// pre-C11 modes is stale -std=c99 or -std=gnu99 flags in build configuration.
+-// Such flags can be removed. If building with MSVC, build with /std:c11.
+-#error "BoringSSL must be built in C11 mode or higher."
+-#endif
+-#include <stdalign.h>
+-#endif
+-
+-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+->>>>>>> 7e07722bd02 (Only enable hacks for hermetic builds (#4973))
+ #if defined(OPENSSL_THREADS) && \
+     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
+ #include <pthread.h>
+@@ -74,7 +59,6 @@
+ #if defined(OPENSSL_WINDOWS_THREADS)
+ #include <windows.h>
+ #endif
+-#endif // !(BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+ 
+ #if defined(__cplusplus)
+ extern "C" {

@@ -1,0 +1,4 @@
+--- third_party/google_input_tools/OWNERS
++++ third_party/google_input_tools/OWNERS
+@@ -1 +0,0 @@
+-file://chromeos/ash/components/input_method/OWNERS

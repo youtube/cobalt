@@ -1,0 +1,53 @@
+--- chrome/BUILD.gn
++++ chrome/BUILD.gn
+@@ -1720,27 +1720,17 @@
+       if (is_linux) {
+         deps += [ ":swiftshader_vk_symbols" ]
+       }
+-<<<<<<< HEAD
+       if (!is_chromeos && angle_shared_libvulkan) {
+-=======
+-
+-      # TODO: b/406550834 - Cobalt: Upstream adding angle_shared_libvulkan
+-      if (!is_cobalt || angle_shared_libvulkan) {
+-      if (!is_chromeos) {
+->>>>>>> 058df49563e (Remove libvulkan.so from 3P builds and disable linux installer (#5205))
+         deps += [ ":angle_libvulkan_symbols" ]
+       }
+       if (build_with_internal_optimization_guide) {
+         deps += [ ":optimization_guide_symbols" ]
+       }
+-<<<<<<< HEAD
+       if (!use_static_angle) {
+         deps += [
+           ":angle_egl_symbols",
+           ":angle_gles_symbols",
+         ]
+-=======
+->>>>>>> 058df49563e (Remove libvulkan.so from 3P builds and disable linux installer (#5205))
+       }
+     }
+     extract_symbols("chrome_symbols") {
+@@ -1805,14 +1795,7 @@
+         deps = [ "//third_party/angle:libGLESv2" ]
+       }
+     }
+-<<<<<<< HEAD
+     if (!is_chromeos && angle_shared_libvulkan) {
+-=======
+-
+-    # TODO: b/406550834 - Cobalt: Upstream adding angle_shared_libvulkan
+-    if (!is_cobalt || angle_shared_libvulkan) {
+-    if (!is_chromeos) {
+->>>>>>> 058df49563e (Remove libvulkan.so from 3P builds and disable linux installer (#5205))
+       extract_symbols("angle_libvulkan_symbols") {
+         binary = "$root_out_dir/libvulkan.so.1"
+ 
+@@ -1825,7 +1808,6 @@
+ 
+         deps = [ "//third_party/vulkan-loader/src:libvulkan" ]
+       }
+-      }
+     }
+     if (build_with_internal_optimization_guide) {
+       extract_symbols("optimization_guide_symbols") {

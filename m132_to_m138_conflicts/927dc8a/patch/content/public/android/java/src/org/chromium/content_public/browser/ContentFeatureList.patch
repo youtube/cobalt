@@ -1,0 +1,16 @@
+--- content/public/android/java/src/org/chromium/content_public/browser/ContentFeatureList.java
++++ content/public/android/java/src/org/chromium/content_public/browser/ContentFeatureList.java
+@@ -42,13 +42,8 @@
+ 
+     public static final String INPUT_ON_VIZ = "InputOnViz";
+ 
+-<<<<<<< HEAD
+-=======
+     public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+ 
+-    public static final String OPTIMIZE_IMM_HIDE_CALLS = "OptimizeImmHideCalls";
+-
+->>>>>>> 17648ba7fa8 (Stop creating a11y node provder for Chrobalt (#5271))
+     public static final String ONE_TIME_PERMISSION = "OneTimePermission";
+ 
+     public static final String CONTINUE_GESTURE_ON_LOSING_FOCUS = "ContinueGestureOnLosingFocus";

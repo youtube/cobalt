@@ -1,0 +1,20 @@
+--- base/profiler/module_cache.cc
++++ base/profiler/module_cache.cc
+@@ -65,15 +65,11 @@
+ }
+ 
+ const ModuleCache::Module* ModuleCache::GetModuleForAddress(uintptr_t address) {
+-<<<<<<< HEAD
+-  if (const ModuleCache::Module* module =
+-          GetExistingModuleForAddress(address)) {
+-=======
+ #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+   return nullptr;
+ #else
+-  if (const ModuleCache::Module* module = GetExistingModuleForAddress(address))
+->>>>>>> 2627102ec98 (Build base_unittests hermetically. (#4935))
++  if (const ModuleCache::Module* module =
++          GetExistingModuleForAddress(address)) {
+     return module;
+   }
+ 

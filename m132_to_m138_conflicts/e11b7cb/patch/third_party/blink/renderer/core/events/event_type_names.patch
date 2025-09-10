@@ -1,0 +1,14 @@
+--- third_party/blink/renderer/core/events/event_type_names.json5
++++ third_party/blink/renderer/core/events/event_type_names.json5
+@@ -382,11 +382,8 @@
+     "writeend",
+     "writestart",
+     "zoom",
+-<<<<<<< HEAD
+     "zoomlevelchange",
+-=======
+     // TODO(cobalt, b/400518318): "Extract Cobalt event to separate file"
+     "deeplink",
+->>>>>>> 11dd4f9ebd7 (Add onDeepLink EventHandler to h5vcc_runtime IDL (#4993))
+   ],
+ }

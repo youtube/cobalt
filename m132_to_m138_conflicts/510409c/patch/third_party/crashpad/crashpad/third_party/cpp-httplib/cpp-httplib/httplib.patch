@@ -1,0 +1,3106 @@
+--- third_party/crashpad/crashpad/third_party/cpp-httplib/cpp-httplib/httplib.h
++++ third_party/crashpad/crashpad/third_party/cpp-httplib/cpp-httplib/httplib.h
+@@ -114,13 +114,10 @@
+ #define CPPHTTPLIB_TCP_NODELAY false
+ #endif
+ 
+-<<<<<<< HEAD
+ #ifndef CPPHTTPLIB_IPV6_V6ONLY
+ #define CPPHTTPLIB_IPV6_V6ONLY false
+ #endif
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #ifndef CPPHTTPLIB_RECV_BUFSIZ
+ #define CPPHTTPLIB_RECV_BUFSIZ size_t(16384u)
+ #endif
+@@ -148,11 +145,7 @@
+ #define CPPHTTPLIB_LISTEN_BACKLOG 5
+ #endif
+ 
+-<<<<<<< HEAD
+ #define CPPHTTPLIB_NO_EXCEPTIONS 1
+-=======
+-#define CPPHTTPLIB_NO_EXCEPTIONS
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ /*
+  * Headers
+@@ -302,16 +295,12 @@
+ #include <iostream>
+ #include <sstream>
+ 
+-<<<<<<< HEAD
+ #if defined(OPENSSL_IS_BORINGSSL) || defined(LIBRESSL_VERSION_NUMBER)
+ #if OPENSSL_VERSION_NUMBER < 0x1010107f
+ #error Please use OpenSSL or a current version of BoringSSL
+ #endif
+ #define SSL_get1_peer_certificate SSL_get_peer_certificate
+ #elif OPENSSL_VERSION_NUMBER < 0x30000000L
+-=======
+-#if OPENSSL_VERSION_NUMBER < 0x30000000L
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #error Sorry, OpenSSL versions prior to 3.0.0 are not supported
+ #endif
+ 
+@@ -354,7 +343,6 @@
+   return std::unique_ptr<T>(new RT[n]);
+ }
+ 
+-<<<<<<< HEAD
+ namespace case_ignore {
+ 
+ inline unsigned char to_lower(int c) {
+@@ -412,18 +400,6 @@
+ 
+ } // namespace case_ignore
+ 
+-=======
+-struct ci {
+-  bool operator()(const std::string &s1, const std::string &s2) const {
+-    return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(),
+-                                        s2.end(),
+-                                        [](unsigned char c1, unsigned char c2) {
+-                                          return ::tolower(c1) < ::tolower(c2);
+-                                        });
+-  }
+-};
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ // This is based on
+ // "http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4189".
+ 
+@@ -538,13 +514,9 @@
+   NetworkAuthenticationRequired_511 = 511,
+ };
+ 
+-<<<<<<< HEAD
+ using Headers =
+     std::unordered_multimap<std::string, std::string, detail::case_ignore::hash,
+                             detail::case_ignore::equal_to>;
+-=======
+-using Headers = std::multimap<std::string, std::string, detail::ci>;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ using Params = std::multimap<std::string, std::string>;
+ using Match = std::smatch;
+@@ -678,15 +650,10 @@
+ #endif
+ 
+   bool has_header(const std::string &key) const;
+-<<<<<<< HEAD
+   std::string get_header_value(const std::string &key, const char *def = "",
+                                size_t id = 0) const;
+   uint64_t get_header_value_u64(const std::string &key, uint64_t def = 0,
+                                 size_t id = 0) const;
+-=======
+-  std::string get_header_value(const std::string &key, size_t id = 0) const;
+-  uint64_t get_header_value_u64(const std::string &key, size_t id = 0) const;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   size_t get_header_value_count(const std::string &key) const;
+   void set_header(const std::string &key, const std::string &val);
+ 
+@@ -719,15 +686,10 @@
+   std::string location; // Redirect location
+ 
+   bool has_header(const std::string &key) const;
+-<<<<<<< HEAD
+   std::string get_header_value(const std::string &key, const char *def = "",
+                                size_t id = 0) const;
+   uint64_t get_header_value_u64(const std::string &key, uint64_t def = 0,
+                                 size_t id = 0) const;
+-=======
+-  std::string get_header_value(const std::string &key, size_t id = 0) const;
+-  uint64_t get_header_value_u64(const std::string &key, size_t id = 0) const;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   size_t get_header_value_count(const std::string &key) const;
+   void set_header(const std::string &key, const std::string &val);
+ 
+@@ -748,13 +710,10 @@
+       const std::string &content_type, ContentProviderWithoutLength provider,
+       ContentProviderResourceReleaser resource_releaser = nullptr);
+ 
+-<<<<<<< HEAD
+   void set_file_content(const std::string &path,
+                         const std::string &content_type);
+   void set_file_content(const std::string &path);
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   Response() = default;
+   Response(const Response &) = default;
+   Response &operator=(const Response &) = default;
+@@ -772,11 +731,8 @@
+   ContentProviderResourceReleaser content_provider_resource_releaser_;
+   bool is_chunked_content_provider_ = false;
+   bool content_provider_success_ = false;
+-<<<<<<< HEAD
+   std::string file_content_path_;
+   std::string file_content_content_type_;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ };
+ 
+ class Stream {
+@@ -793,16 +749,8 @@
+   virtual void get_local_ip_and_port(std::string &ip, int &port) const = 0;
+   virtual socket_t socket() const = 0;
+ 
+-<<<<<<< HEAD
+   virtual time_t duration() const = 0;
+ 
+-=======
+-<<<<<<< HEAD
+-=======
+-  template <typename... Args>
+-  ssize_t write_format(const char *fmt, const Args &...args);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+   ssize_t write(const char *ptr);
+   ssize_t write(const std::string &s);
+ };
+@@ -882,14 +830,9 @@
+         fn();
+       }
+ 
+-<<<<<<< HEAD
+ #if defined(CPPHTTPLIB_OPENSSL_SUPPORT) && !defined(OPENSSL_IS_BORINGSSL) &&   \
+     !defined(LIBRESSL_VERSION_NUMBER)
+       OPENSSL_thread_stop();
+-=======
+-#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+-      OPENSSL_thread_stop ();
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #endif
+     }
+ 
+@@ -962,10 +905,6 @@
+   bool match(Request &request) const override;
+ 
+ private:
+-<<<<<<< HEAD
+-=======
+-  static constexpr char marker = ':';
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   // Treat segment separators as the end of path parameter capture
+   // Does not need to handle query parameters as they are parsed before path
+   // matching
+@@ -1065,10 +1004,7 @@
+ 
+   Server &set_address_family(int family);
+   Server &set_tcp_nodelay(bool on);
+-<<<<<<< HEAD
+   Server &set_ipv6_v6only(bool on);
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   Server &set_socket_options(SocketOptions socket_options);
+ 
+   Server &set_default_headers(Headers headers);
+@@ -1101,38 +1037,24 @@
+   bool is_running() const;
+   void wait_until_ready() const;
+   void stop();
+-<<<<<<< HEAD
+   void decommission();
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   std::function<TaskQueue *(void)> new_task_queue;
+ 
+ protected:
+-<<<<<<< HEAD
+   bool process_request(Stream &strm, const std::string &remote_addr,
+                        int remote_port, const std::string &local_addr,
+                        int local_port, bool close_connection,
+-=======
+-  bool process_request(Stream &strm, bool close_connection,
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+                        bool &connection_closed,
+                        const std::function<void(Request &)> &setup_request);
+ 
+   std::atomic<socket_t> svr_sock_{INVALID_SOCKET};
+   size_t keep_alive_max_count_ = CPPHTTPLIB_KEEPALIVE_MAX_COUNT;
+   time_t keep_alive_timeout_sec_ = CPPHTTPLIB_KEEPALIVE_TIMEOUT_SECOND;
+-<<<<<<< HEAD
+   time_t read_timeout_sec_ = CPPHTTPLIB_SERVER_READ_TIMEOUT_SECOND;
+   time_t read_timeout_usec_ = CPPHTTPLIB_SERVER_READ_TIMEOUT_USECOND;
+   time_t write_timeout_sec_ = CPPHTTPLIB_SERVER_WRITE_TIMEOUT_SECOND;
+   time_t write_timeout_usec_ = CPPHTTPLIB_SERVER_WRITE_TIMEOUT_USECOND;
+-=======
+-  time_t read_timeout_sec_ = CPPHTTPLIB_READ_TIMEOUT_SECOND;
+-  time_t read_timeout_usec_ = CPPHTTPLIB_READ_TIMEOUT_USECOND;
+-  time_t write_timeout_sec_ = CPPHTTPLIB_WRITE_TIMEOUT_SECOND;
+-  time_t write_timeout_usec_ = CPPHTTPLIB_WRITE_TIMEOUT_USECOND;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   time_t idle_interval_sec_ = CPPHTTPLIB_IDLE_INTERVAL_SECOND;
+   time_t idle_interval_usec_ = CPPHTTPLIB_IDLE_INTERVAL_USECOND;
+   size_t payload_max_length_ = CPPHTTPLIB_PAYLOAD_MAX_LENGTH;
+@@ -1192,15 +1114,7 @@
+   virtual bool process_and_close_socket(socket_t sock);
+ 
+   std::atomic<bool> is_running_{false};
+-<<<<<<< HEAD
+   std::atomic<bool> is_decommissioned{false};
+-=======
+-<<<<<<< HEAD
+-  std::atomic<bool> is_decommisioned{false};
+-=======
+-  std::atomic<bool> done_{false};
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ 
+   struct MountPointEntry {
+     std::string mount_point;
+@@ -1233,10 +1147,7 @@
+ 
+   int address_family_ = AF_UNSPEC;
+   bool tcp_nodelay_ = CPPHTTPLIB_TCP_NODELAY;
+-<<<<<<< HEAD
+   bool ipv6_v6only_ = CPPHTTPLIB_IPV6_V6ONLY;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   SocketOptions socket_options_ = default_socket_options;
+ 
+   Headers default_headers_;
+@@ -1256,10 +1167,7 @@
+   SSLConnection,
+   SSLLoadingCerts,
+   SSLServerVerification,
+-<<<<<<< HEAD
+   SSLServerHostnameVerification,
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   UnsupportedMultipartBoundaryChars,
+   Compression,
+   ConnectionTimeout,
+@@ -1297,16 +1205,10 @@
+   // Request Headers
+   bool has_request_header(const std::string &key) const;
+   std::string get_request_header_value(const std::string &key,
+-<<<<<<< HEAD
+                                        const char *def = "",
+                                        size_t id = 0) const;
+   uint64_t get_request_header_value_u64(const std::string &key,
+                                         uint64_t def = 0, size_t id = 0) const;
+-=======
+-                                       size_t id = 0) const;
+-  uint64_t get_request_header_value_u64(const std::string &key,
+-                                        size_t id = 0) const;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   size_t get_request_header_value_count(const std::string &key) const;
+ 
+ private:
+@@ -1529,10 +1431,7 @@
+ 
+   void set_address_family(int family);
+   void set_tcp_nodelay(bool on);
+-<<<<<<< HEAD
+   void set_ipv6_v6only(bool on);
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   void set_socket_options(SocketOptions socket_options);
+ 
+   void set_connection_timeout(time_t sec, time_t usec = 0);
+@@ -1588,16 +1487,9 @@
+ 
+ #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+   void enable_server_certificate_verification(bool enabled);
+-<<<<<<< HEAD
+   void enable_server_hostname_verification(bool enabled);
+-<<<<<<< HEAD
+   void set_server_certificate_verifier(
+       std::function<SSLVerifierResponse(SSL *ssl)> verifier);
+-=======
+-  void set_server_certificate_verifier(std::function<bool(SSL *ssl)> verifier);
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+   void set_logger(Logger logger);
+@@ -1664,21 +1556,11 @@
+ 
+   time_t connection_timeout_sec_ = CPPHTTPLIB_CONNECTION_TIMEOUT_SECOND;
+   time_t connection_timeout_usec_ = CPPHTTPLIB_CONNECTION_TIMEOUT_USECOND;
+-<<<<<<< HEAD
+   time_t read_timeout_sec_ = CPPHTTPLIB_CLIENT_READ_TIMEOUT_SECOND;
+   time_t read_timeout_usec_ = CPPHTTPLIB_CLIENT_READ_TIMEOUT_USECOND;
+   time_t write_timeout_sec_ = CPPHTTPLIB_CLIENT_WRITE_TIMEOUT_SECOND;
+   time_t write_timeout_usec_ = CPPHTTPLIB_CLIENT_WRITE_TIMEOUT_USECOND;
+-<<<<<<< HEAD
+   time_t max_timeout_msec_ = CPPHTTPLIB_CLIENT_MAX_TIMEOUT_MSECOND;
+-=======
+-=======
+-  time_t read_timeout_sec_ = CPPHTTPLIB_READ_TIMEOUT_SECOND;
+-  time_t read_timeout_usec_ = CPPHTTPLIB_READ_TIMEOUT_USECOND;
+-  time_t write_timeout_sec_ = CPPHTTPLIB_WRITE_TIMEOUT_SECOND;
+-  time_t write_timeout_usec_ = CPPHTTPLIB_WRITE_TIMEOUT_USECOND;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ 
+   std::string basic_auth_username_;
+   std::string basic_auth_password_;
+@@ -1695,10 +1577,7 @@
+ 
+   int address_family_ = AF_UNSPEC;
+   bool tcp_nodelay_ = CPPHTTPLIB_TCP_NODELAY;
+-<<<<<<< HEAD
+   bool ipv6_v6only_ = CPPHTTPLIB_IPV6_V6ONLY;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   SocketOptions socket_options_ = nullptr;
+ 
+   bool compress_ = false;
+@@ -1726,15 +1605,8 @@
+ 
+ #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+   bool server_certificate_verification_ = true;
+-<<<<<<< HEAD
+   bool server_hostname_verification_ = true;
+-<<<<<<< HEAD
+   std::function<SSLVerifierResponse(SSL *ssl)> server_certificate_verifier_;
+-=======
+-  std::function<bool(SSL *ssl)> server_certificate_verifier_;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+   Logger logger_;
+@@ -2046,16 +1918,9 @@
+ 
+ #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+   void enable_server_certificate_verification(bool enabled);
+-<<<<<<< HEAD
+   void enable_server_hostname_verification(bool enabled);
+-<<<<<<< HEAD
+   void set_server_certificate_verifier(
+       std::function<SSLVerifierResponse(SSL *ssl)> verifier);
+-=======
+-  void set_server_certificate_verifier(std::function<bool(SSL *ssl)> verifier);
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+   void set_logger(Logger logger);
+@@ -2100,15 +1965,9 @@
+   bool is_valid() const override;
+ 
+   SSL_CTX *ssl_context() const;
+-<<<<<<< HEAD
+ 
+   void update_certs(X509 *cert, EVP_PKEY *private_key,
+                     X509_STORE *client_ca_cert_store = nullptr);
+-=======
+-  
+-  void update_certs (X509 *cert, EVP_PKEY *private_key,
+-            X509_STORE *client_ca_cert_store = nullptr);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ private:
+   bool process_and_close_socket(socket_t sock) override;
+@@ -2199,18 +2058,9 @@
+ }
+ 
+ inline uint64_t get_header_value_u64(const Headers &headers,
+-<<<<<<< HEAD
+                                      const std::string &key, uint64_t def,
+-<<<<<<< HEAD
+                                      size_t id, bool &is_invalid_value) {
+   is_invalid_value = false;
+-=======
+-                                     size_t id) {
+-=======
+-                                     const std::string &key, size_t id,
+-                                     uint64_t def) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+   auto rng = headers.equal_range(key);
+   auto it = rng.first;
+   std::advance(it, static_cast<ssize_t>(id));
+@@ -2234,7 +2084,6 @@
+ } // namespace detail
+ 
+ inline uint64_t Request::get_header_value_u64(const std::string &key,
+-<<<<<<< HEAD
+                                               uint64_t def, size_t id) const {
+   return detail::get_header_value_u64(headers, key, def, id);
+ }
+@@ -2280,62 +2129,7 @@
+ #ifdef SO_REUSEPORT
+                          SO_REUSEPORT,
+ #else
+-<<<<<<< HEAD
+                          SO_REUSEADDR,
+-=======
+-  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+-             reinterpret_cast<const void *>(&opt), sizeof(opt));
+-=======
+-                                              size_t id) const {
+-  return detail::get_header_value_u64(headers, key, id, 0);
+-}
+-
+-inline uint64_t Response::get_header_value_u64(const std::string &key,
+-                                               size_t id) const {
+-  return detail::get_header_value_u64(headers, key, id, 0);
+-}
+-
+-template <typename... Args>
+-inline ssize_t Stream::write_format(const char *fmt, const Args &...args) {
+-  const auto bufsiz = 2048;
+-  std::array<char, bufsiz> buf{};
+-
+-  auto sn = snprintf(buf.data(), buf.size() - 1, fmt, args...);
+-  if (sn <= 0) { return sn; }
+-
+-  auto n = static_cast<size_t>(sn);
+-
+-  if (n >= buf.size() - 1) {
+-    std::vector<char> glowable_buf(buf.size());
+-
+-    while (n >= glowable_buf.size() - 1) {
+-      glowable_buf.resize(glowable_buf.size() * 2);
+-      n = static_cast<size_t>(
+-          snprintf(&glowable_buf[0], glowable_buf.size() - 1, fmt, args...));
+-    }
+-    return write(&glowable_buf[0], n);
+-  } else {
+-    return write(buf.data(), n);
+-  }
+-}
+-
+-inline void default_socket_options(socket_t sock) {
+-  int yes = 1;
+-#ifdef _WIN32
+-  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+-             reinterpret_cast<const char *>(&yes), sizeof(yes));
+-  setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+-             reinterpret_cast<const char *>(&yes), sizeof(yes));
+-#else
+-#ifdef SO_REUSEPORT
+-  setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,
+-             reinterpret_cast<const void *>(&yes), sizeof(yes));
+-#else
+-  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+-             reinterpret_cast<const void *>(&yes), sizeof(yes));
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+-#endif
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ #endif
+                          1);
+ }
+@@ -2461,11 +2255,8 @@
+   case Error::SSLConnection: return "SSL connection failed";
+   case Error::SSLLoadingCerts: return "SSL certificate loading failed";
+   case Error::SSLServerVerification: return "SSL server verification failed";
+-<<<<<<< HEAD
+   case Error::SSLServerHostnameVerification:
+     return "SSL server hostname verification failed";
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   case Error::UnsupportedMultipartBoundaryChars:
+     return "Unsupported HTTP multipart boundary characters";
+   case Error::Compression: return "Compression failed";
+@@ -2485,14 +2276,9 @@
+ }
+ 
+ inline uint64_t Result::get_request_header_value_u64(const std::string &key,
+-<<<<<<< HEAD
+                                                      uint64_t def,
+                                                      size_t id) const {
+   return detail::get_header_value_u64(request_headers_, key, def, id);
+-=======
+-                                                     size_t id) const {
+-  return detail::get_header_value_u64(request_headers_, key, id, 0);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ template <class Rep, class Period>
+@@ -2569,7 +2355,6 @@
+ 
+ namespace detail {
+ 
+-<<<<<<< HEAD
+ #if defined(_WIN32)
+ inline std::wstring u8string_to_wstring(const char *s) {
+   std::wstring ws;
+@@ -2586,9 +2371,6 @@
+ }
+ #endif
+ 
+-=======
+-<<<<<<< HEAD
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ struct FileStat {
+   FileStat(const std::string &path);
+   bool is_file() const;
+@@ -2603,8 +2385,6 @@
+   int ret_ = -1;
+ };
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ std::string encode_query_param(const std::string &value);
+ 
+ std::string decode_url(const std::string &s, bool convert_plus_to_space);
+@@ -2636,7 +2416,6 @@
+     std::chrono::time_point<std::chrono::steady_clock> start_time,
+     std::function<bool(Stream &)> callback);
+ 
+-<<<<<<< HEAD
+ socket_t create_client_socket(const std::string &host, const std::string &ip,
+                               int port, int address_family, bool tcp_nodelay,
+                               bool ipv6_v6only, SocketOptions socket_options,
+@@ -2649,17 +2428,6 @@
+ 
+ const char *get_header_value(const Headers &headers, const std::string &key,
+                              const char *def, size_t id);
+-=======
+-socket_t create_client_socket(
+-    const std::string &host, const std::string &ip, int port,
+-    int address_family, bool tcp_nodelay, SocketOptions socket_options,
+-    time_t connection_timeout_sec, time_t connection_timeout_usec,
+-    time_t read_timeout_sec, time_t read_timeout_usec, time_t write_timeout_sec,
+-    time_t write_timeout_usec, const std::string &intf, Error &error);
+-
+-const char *get_header_value(const Headers &headers, const std::string &key,
+-                             size_t id = 0, const char *def = nullptr);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ std::string params_to_query_str(const Params &params);
+ 
+@@ -2826,7 +2594,6 @@
+ 
+ private:
+ #if defined(_WIN32)
+-<<<<<<< HEAD
+   HANDLE hFile_ = NULL;
+   HANDLE hMapping_ = NULL;
+ #else
+@@ -2835,15 +2602,6 @@
+   size_t size_ = 0;
+   void *addr_ = nullptr;
+   bool is_open_empty_file = false;
+-=======
+-  HANDLE hFile_;
+-  HANDLE hMapping_;
+-#else
+-  int fd_;
+-#endif
+-  size_t size_;
+-  void *addr_;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ };
+ 
+ // NOTE: https://www.rfc-editor.org/rfc/rfc9110#section-5
+@@ -2936,118 +2694,6 @@
+       val = val * 16 + v;
+     } else {
+       return false;
+-<<<<<<< HEAD
+-    }
+-  }
+-  return true;
+-}
+-
+-inline std::string from_i_to_hex(size_t n) {
+-  static const auto charset = "0123456789abcdef";
+-  std::string ret;
+-  do {
+-    ret = charset[n & 15] + ret;
+-    n >>= 4;
+-  } while (n > 0);
+-  return ret;
+-}
+-
+-inline size_t to_utf8(int code, char *buff) {
+-  if (code < 0x0080) {
+-    buff[0] = static_cast<char>(code & 0x7F);
+-    return 1;
+-  } else if (code < 0x0800) {
+-    buff[0] = static_cast<char>(0xC0 | ((code >> 6) & 0x1F));
+-    buff[1] = static_cast<char>(0x80 | (code & 0x3F));
+-    return 2;
+-  } else if (code < 0xD800) {
+-    buff[0] = static_cast<char>(0xE0 | ((code >> 12) & 0xF));
+-    buff[1] = static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+-    buff[2] = static_cast<char>(0x80 | (code & 0x3F));
+-    return 3;
+-  } else if (code < 0xE000) { // D800 - DFFF is invalid...
+-    return 0;
+-  } else if (code < 0x10000) {
+-    buff[0] = static_cast<char>(0xE0 | ((code >> 12) & 0xF));
+-    buff[1] = static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+-    buff[2] = static_cast<char>(0x80 | (code & 0x3F));
+-    return 3;
+-  } else if (code < 0x110000) {
+-    buff[0] = static_cast<char>(0xF0 | ((code >> 18) & 0x7));
+-    buff[1] = static_cast<char>(0x80 | ((code >> 12) & 0x3F));
+-    buff[2] = static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+-    buff[3] = static_cast<char>(0x80 | (code & 0x3F));
+-    return 4;
+-  }
+-
+-  // NOTREACHED
+-  return 0;
+-}
+-
+-// NOTE: This code came up with the following stackoverflow post:
+-// https://stackoverflow.com/questions/180947/base64-decode-snippet-in-c
+-inline std::string base64_encode(const std::string &in) {
+-  static const auto lookup =
+-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+-
+-  std::string out;
+-  out.reserve(in.size());
+-
+-  auto val = 0;
+-  auto valb = -6;
+-
+-  for (auto c : in) {
+-    val = (val << 8) + static_cast<uint8_t>(c);
+-    valb += 8;
+-    while (valb >= 0) {
+-      out.push_back(lookup[(val >> valb) & 0x3F]);
+-      valb -= 6;
+-    }
+-  }
+-
+-  if (valb > -6) { out.push_back(lookup[((val << 8) >> (valb + 8)) & 0x3F]); }
+-
+-  while (out.size() % 4) {
+-    out.push_back('=');
+-  }
+-
+-  return out;
+-}
+-
+-inline bool is_valid_path(const std::string &path) {
+-  size_t level = 0;
+-  size_t i = 0;
+-
+-  // Skip slash
+-  while (i < path.size() && path[i] == '/') {
+-    i++;
+-  }
+-
+-  while (i < path.size()) {
+-    // Read component
+-    auto beg = i;
+-    while (i < path.size() && path[i] != '/') {
+-      if (path[i] == '\0') {
+-        return false;
+-      } else if (path[i] == '\\') {
+-        return false;
+-      }
+-      i++;
+-    }
+-
+-    auto len = i - beg;
+-    assert(len > 0);
+-
+-    if (!path.compare(beg, len, ".")) {
+-      ;
+-    } else if (!path.compare(beg, len, "..")) {
+-      if (level == 0) { return false; }
+-      level--;
+-    } else {
+-      level++;
+-    }
+-
+-=======
+     }
+   }
+   return true;
+@@ -3125,20 +2771,6 @@
+   return out;
+ }
+ 
+-inline bool is_file(const std::string &path) {
+-#ifdef _WIN32
+-  return _access_s(path.c_str(), 0) == 0;
+-#else
+-  struct stat st;
+-  return stat(path.c_str(), &st) >= 0 && S_ISREG(st.st_mode);
+-#endif
+-}
+-
+-inline bool is_dir(const std::string &path) {
+-  struct stat st;
+-  return stat(path.c_str(), &st) >= 0 && S_ISDIR(st.st_mode);
+-}
+-
+ inline bool is_valid_path(const std::string &path) {
+   size_t level = 0;
+   size_t i = 0;
+@@ -3172,7 +2804,6 @@
+       level++;
+     }
+ 
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     // Skip slash
+     while (i < path.size() && path[i] == '/') {
+       i++;
+@@ -3182,7 +2813,6 @@
+   return true;
+ }
+ 
+-<<<<<<< HEAD
+ inline FileStat::FileStat(const std::string &path) {
+ #if defined(_WIN32)
+   auto wpath = u8string_to_wstring(path.c_str());
+@@ -3203,13 +2833,6 @@
+   escaped.fill('0');
+   escaped << std::hex;
+ 
+-=======
+-inline std::string encode_query_param(const std::string &value) {
+-  std::ostringstream escaped;
+-  escaped.fill('0');
+-  escaped << std::hex;
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   for (auto c : value) {
+     if (std::isalnum(static_cast<uint8_t>(c)) || c == '-' || c == '_' ||
+         c == '.' || c == '!' || c == '~' || c == '*' || c == '\'' || c == '(' ||
+@@ -3414,13 +3037,10 @@
+   fixed_buffer_used_size_ = 0;
+   growable_buffer_.clear();
+ 
+-<<<<<<< HEAD
+ #ifndef CPPHTTPLIB_ALLOW_LF_AS_LINE_TERMINATOR
+   char prev_byte = 0;
+ #endif
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   for (size_t i = 0;; i++) {
+     char byte;
+     auto n = strm_.read(&byte, 1);
+@@ -3437,16 +3057,12 @@
+ 
+     append(byte);
+ 
+-<<<<<<< HEAD
+ #ifdef CPPHTTPLIB_ALLOW_LF_AS_LINE_TERMINATOR
+     if (byte == '\n') { break; }
+ #else
+     if (prev_byte == '\r' && byte == '\n') { break; }
+     prev_byte = byte;
+ #endif
+-=======
+-    if (byte == '\n') { break; }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   }
+ 
+   return true;
+@@ -3465,24 +3081,7 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+ inline mmap::mmap(const char *path) { open(path); }
+-=======
+-<<<<<<< HEAD
+-inline mmap::mmap(const char *path) {
+-=======
+-inline mmap::mmap(const char *path)
+-#if defined(_WIN32)
+-    : hFile_(NULL), hMapping_(NULL)
+-#else
+-    : fd_(-1)
+-#endif
+-      ,
+-      size_(0), addr_(nullptr) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+-  open(path);
+-}
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ 
+ inline mmap::~mmap() { close(); }
+ 
+@@ -3493,11 +3092,7 @@
+   auto wpath = u8string_to_wstring(path);
+   if (wpath.empty()) { return false; }
+ 
+-<<<<<<< HEAD
+ #if _WIN32_WINNT >= _WIN32_WINNT_WIN8
+-=======
+-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   hFile_ = ::CreateFile2(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                          OPEN_EXISTING, NULL);
+ #else
+@@ -3507,7 +3102,6 @@
+ 
+   if (hFile_ == INVALID_HANDLE_VALUE) { return false; }
+ 
+-<<<<<<< HEAD
+   LARGE_INTEGER size{};
+   if (!::GetFileSizeEx(hFile_, &size)) { return false; }
+   // If the following line doesn't compile due to QuadPart, update Windows SDK.
+@@ -3707,258 +3301,6 @@
+   const auto val = detail::select_read(sock, 0, 0);
+   if (val == 0) {
+     return true;
+-=======
+-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+-  LARGE_INTEGER size{};
+-  if (!::GetFileSizeEx(hFile_, &size)) { return false; }
+-  size_ = static_cast<size_t>(size.QuadPart);
+-#else
+-  DWORD sizeHigh;
+-  DWORD sizeLow;
+-  sizeLow = ::GetFileSize(hFile_, &sizeHigh);
+-  if (sizeLow == INVALID_FILE_SIZE) { return false; }
+-  size_ = (static_cast<size_t>(sizeHigh) << (sizeof(DWORD) * 8)) | sizeLow;
+-#endif
+-
+-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+-  hMapping_ =
+-      ::CreateFileMappingFromApp(hFile_, NULL, PAGE_READONLY, size_, NULL);
+-#else
+-  hMapping_ =
+-      ::CreateFileMappingW(hFile_, NULL, PAGE_READONLY, size.HighPart,
+-                           size.LowPart, NULL);
+-#endif
+-
+-  if (hMapping_ == NULL) {
+-    close();
+-    return false;
+-  }
+-
+-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+-  addr_ = ::MapViewOfFileFromApp(hMapping_, FILE_MAP_READ, 0, 0);
+-#else
+-  addr_ = ::MapViewOfFile(hMapping_, FILE_MAP_READ, 0, 0, 0);
+-#endif
+-#else
+-  fd_ = ::open(path, O_RDONLY);
+-  if (fd_ == -1) { return false; }
+-
+-  struct stat sb;
+-  if (fstat(fd_, &sb) == -1) {
+-    close();
+-    return false;
+-  }
+-  size_ = static_cast<size_t>(sb.st_size);
+-
+-  addr_ = ::mmap(NULL, size_, PROT_READ, MAP_PRIVATE, fd_, 0);
+-#endif
+-
+-  if (addr_ == nullptr) {
+-    close();
+-    return false;
+-  }
+-
+-  return true;
+-}
+-
+-inline bool mmap::is_open() const { return addr_ != nullptr; }
+-
+-inline size_t mmap::size() const { return size_; }
+-
+-inline const char *mmap::data() const {
+-  return static_cast<const char *>(addr_);
+-}
+-
+-inline void mmap::close() {
+-#if defined(_WIN32)
+-  if (addr_) {
+-    ::UnmapViewOfFile(addr_);
+-    addr_ = nullptr;
+-  }
+-
+-  if (hMapping_) {
+-    ::CloseHandle(hMapping_);
+-    hMapping_ = NULL;
+-  }
+-
+-  if (hFile_ != INVALID_HANDLE_VALUE) {
+-    ::CloseHandle(hFile_);
+-    hFile_ = INVALID_HANDLE_VALUE;
+-  }
+-#else
+-  if (addr_ != nullptr) {
+-    munmap(addr_, size_);
+-    addr_ = nullptr;
+-  }
+-
+-  if (fd_ != -1) {
+-    ::close(fd_);
+-    fd_ = -1;
+-  }
+-#endif
+-  size_ = 0;
+-}
+-inline int close_socket(socket_t sock) {
+-#ifdef _WIN32
+-  return closesocket(sock);
+-#else
+-  return close(sock);
+-#endif
+-}
+-
+-template <typename T> inline ssize_t handle_EINTR(T fn) {
+-  ssize_t res = 0;
+-  while (true) {
+-    res = fn();
+-    if (res < 0 && errno == EINTR) { continue; }
+-    break;
+-  }
+-  return res;
+-}
+-
+-inline ssize_t read_socket(socket_t sock, void *ptr, size_t size, int flags) {
+-  return handle_EINTR([&]() {
+-    return recv(sock,
+-#ifdef _WIN32
+-                static_cast<char *>(ptr), static_cast<int>(size),
+-#else
+-                ptr, size,
+-#endif
+-                flags);
+-  });
+-}
+-
+-inline ssize_t send_socket(socket_t sock, const void *ptr, size_t size,
+-                           int flags) {
+-  return handle_EINTR([&]() {
+-    return send(sock,
+-#ifdef _WIN32
+-                static_cast<const char *>(ptr), static_cast<int>(size),
+-#else
+-                ptr, size,
+-#endif
+-                flags);
+-  });
+-}
+-
+-inline ssize_t select_read(socket_t sock, time_t sec, time_t usec) {
+-#ifdef CPPHTTPLIB_USE_POLL
+-  struct pollfd pfd_read;
+-  pfd_read.fd = sock;
+-  pfd_read.events = POLLIN;
+-
+-  auto timeout = static_cast<int>(sec * 1000 + usec / 1000);
+-
+-  return handle_EINTR([&]() { return poll(&pfd_read, 1, timeout); });
+-#else
+-#ifndef _WIN32
+-  if (sock >= FD_SETSIZE) { return -1; }
+-#endif
+-
+-  fd_set fds;
+-  FD_ZERO(&fds);
+-  FD_SET(sock, &fds);
+-
+-  timeval tv;
+-  tv.tv_sec = static_cast<long>(sec);
+-  tv.tv_usec = static_cast<decltype(tv.tv_usec)>(usec);
+-
+-  return handle_EINTR([&]() {
+-    return select(static_cast<int>(sock + 1), &fds, nullptr, nullptr, &tv);
+-  });
+-#endif
+-}
+-
+-inline ssize_t select_write(socket_t sock, time_t sec, time_t usec) {
+-#ifdef CPPHTTPLIB_USE_POLL
+-  struct pollfd pfd_read;
+-  pfd_read.fd = sock;
+-  pfd_read.events = POLLOUT;
+-
+-  auto timeout = static_cast<int>(sec * 1000 + usec / 1000);
+-
+-  return handle_EINTR([&]() { return poll(&pfd_read, 1, timeout); });
+-#else
+-#ifndef _WIN32
+-  if (sock >= FD_SETSIZE) { return -1; }
+-#endif
+-
+-  fd_set fds;
+-  FD_ZERO(&fds);
+-  FD_SET(sock, &fds);
+-
+-  timeval tv;
+-  tv.tv_sec = static_cast<long>(sec);
+-  tv.tv_usec = static_cast<decltype(tv.tv_usec)>(usec);
+-
+-  return handle_EINTR([&]() {
+-    return select(static_cast<int>(sock + 1), nullptr, &fds, nullptr, &tv);
+-  });
+-#endif
+-}
+-
+-inline Error wait_until_socket_is_ready(socket_t sock, time_t sec,
+-                                        time_t usec) {
+-#ifdef CPPHTTPLIB_USE_POLL
+-  struct pollfd pfd_read;
+-  pfd_read.fd = sock;
+-  pfd_read.events = POLLIN | POLLOUT;
+-
+-  auto timeout = static_cast<int>(sec * 1000 + usec / 1000);
+-
+-  auto poll_res = handle_EINTR([&]() { return poll(&pfd_read, 1, timeout); });
+-
+-  if (poll_res == 0) { return Error::ConnectionTimeout; }
+-
+-  if (poll_res > 0 && pfd_read.revents & (POLLIN | POLLOUT)) {
+-    auto error = 0;
+-    socklen_t len = sizeof(error);
+-    auto res = getsockopt(sock, SOL_SOCKET, SO_ERROR,
+-                          reinterpret_cast<char *>(&error), &len);
+-    auto successful = res >= 0 && !error;
+-    return successful ? Error::Success : Error::Connection;
+-  }
+-
+-  return Error::Connection;
+-#else
+-#ifndef _WIN32
+-  if (sock >= FD_SETSIZE) { return Error::Connection; }
+-#endif
+-
+-  fd_set fdsr;
+-  FD_ZERO(&fdsr);
+-  FD_SET(sock, &fdsr);
+-
+-  auto fdsw = fdsr;
+-  auto fdse = fdsr;
+-
+-  timeval tv;
+-  tv.tv_sec = static_cast<long>(sec);
+-  tv.tv_usec = static_cast<decltype(tv.tv_usec)>(usec);
+-
+-  auto ret = handle_EINTR([&]() {
+-    return select(static_cast<int>(sock + 1), &fdsr, &fdsw, &fdse, &tv);
+-  });
+-
+-  if (ret == 0) { return Error::ConnectionTimeout; }
+-
+-  if (ret > 0 && (FD_ISSET(sock, &fdsr) || FD_ISSET(sock, &fdsw))) {
+-    auto error = 0;
+-    socklen_t len = sizeof(error);
+-    auto res = getsockopt(sock, SOL_SOCKET, SO_ERROR,
+-                          reinterpret_cast<char *>(&error), &len);
+-    auto successful = res >= 0 && !error;
+-    return successful ? Error::Success : Error::Connection;
+-  }
+-  return Error::Connection;
+-#endif
+-}
+-
+-inline bool is_socket_alive(socket_t sock) {
+-  const auto val = detail::select_read(sock, 0, 0);
+-  if (val == 0) {
+-    return true;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   } else if (val < 0 && errno == EBADF) {
+     return false;
+   }
+@@ -4034,7 +3376,6 @@
+ };
+ #endif
+ 
+-<<<<<<< HEAD
+ inline bool keep_alive(const std::atomic<socket_t> &svr_sock, socket_t sock,
+                        time_t keep_alive_timeout_sec) {
+   using namespace std::chrono;
+@@ -4066,25 +3407,6 @@
+   }
+ 
+   return false;
+-=======
+-inline bool keep_alive(socket_t sock, time_t keep_alive_timeout_sec) {
+-  using namespace std::chrono;
+-  auto start = steady_clock::now();
+-  while (true) {
+-    auto val = select_read(sock, 0, 10000);
+-    if (val < 0) {
+-      return false;
+-    } else if (val == 0) {
+-      auto current = steady_clock::now();
+-      auto duration = duration_cast<milliseconds>(current - start);
+-      auto timeout = keep_alive_timeout_sec * 1000;
+-      if (duration.count() > timeout) { return false; }
+-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+-    } else {
+-      return true;
+-    }
+-  }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ template <typename T>
+@@ -4095,12 +3417,7 @@
+   assert(keep_alive_max_count > 0);
+   auto ret = false;
+   auto count = keep_alive_max_count;
+-<<<<<<< HEAD
+   while (count > 0 && keep_alive(svr_sock, sock, keep_alive_timeout_sec)) {
+-=======
+-  while (svr_sock != INVALID_SOCKET && count > 0 &&
+-         keep_alive(sock, keep_alive_timeout_sec)) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     auto close_connection = count == 1;
+     auto connection_closed = false;
+     ret = callback(close_connection, connection_closed);
+@@ -4146,7 +3463,6 @@
+ #endif
+ }
+ 
+-<<<<<<< HEAD
+ inline std::string escape_abstract_namespace_unix_domain(const std::string &s) {
+   if (s.size() > 1 && s[0] == '\0') {
+     auto ret = s;
+@@ -4170,12 +3486,6 @@
+ socket_t create_socket(const std::string &host, const std::string &ip, int port,
+                        int address_family, int socket_flags, bool tcp_nodelay,
+                        bool ipv6_v6only, SocketOptions socket_options,
+-=======
+-template <typename BindOrConnect>
+-socket_t create_socket(const std::string &host, const std::string &ip, int port,
+-                       int address_family, int socket_flags, bool tcp_nodelay,
+-                       SocketOptions socket_options,
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+                        BindOrConnect bind_or_connect) {
+   // Get address info
+   const char *node = nullptr;
+@@ -4184,11 +3494,7 @@
+ 
+   memset(&hints, 0, sizeof(struct addrinfo));
+   hints.ai_socktype = SOCK_STREAM;
+-<<<<<<< HEAD
+   hints.ai_protocol = IPPROTO_IP;
+-=======
+-  hints.ai_protocol = 0;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   if (!ip.empty()) {
+     node = ip.c_str();
+@@ -4206,7 +3512,6 @@
+     const auto addrlen = host.length();
+     if (addrlen > sizeof(sockaddr_un::sun_path)) { return INVALID_SOCKET; }
+ 
+-<<<<<<< HEAD
+ #ifdef SOCK_CLOEXEC
+     auto sock = socket(hints.ai_family, hints.ai_socktype | SOCK_CLOEXEC,
+                        hints.ai_protocol);
+@@ -4220,19 +3525,11 @@
+ 
+       auto unescaped_host = unescape_abstract_namespace_unix_domain(host);
+       std::copy(unescaped_host.begin(), unescaped_host.end(), addr.sun_path);
+-=======
+-    auto sock = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
+-    if (sock != INVALID_SOCKET) {
+-      sockaddr_un addr{};
+-      addr.sun_family = AF_UNIX;
+-      std::copy(host.begin(), host.end(), addr.sun_path);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+       hints.ai_addr = reinterpret_cast<sockaddr *>(&addr);
+       hints.ai_addrlen = static_cast<socklen_t>(
+           sizeof(addr) - sizeof(addr.sun_path) + addrlen);
+ 
+-<<<<<<< HEAD
+ #ifndef SOCK_CLOEXEC
+       fcntl(sock, F_SETFD, FD_CLOEXEC);
+ #endif
+@@ -4241,12 +3538,6 @@
+ 
+       bool dummy;
+       if (!bind_or_connect(sock, hints, dummy)) {
+-=======
+-      fcntl(sock, F_SETFD, FD_CLOEXEC);
+-      if (socket_options) { socket_options(sock); }
+-
+-      if (!bind_or_connect(sock, hints)) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+         close_socket(sock);
+         sock = INVALID_SOCKET;
+       }
+@@ -4263,10 +3554,7 @@
+ #endif
+     return INVALID_SOCKET;
+   }
+-<<<<<<< HEAD
+   auto se = detail::scope_exit([&] { freeaddrinfo(result); });
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   for (auto rp = result; rp; rp = rp->ai_next) {
+     // Create a socket
+@@ -4292,7 +3580,6 @@
+       sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+     }
+ #else
+-<<<<<<< HEAD
+ 
+ #ifdef SOCK_CLOEXEC
+     auto sock =
+@@ -4305,61 +3592,20 @@
+     if (sock == INVALID_SOCKET) { continue; }
+ 
+ #if !defined _WIN32 && !defined SOCK_CLOEXEC
+-=======
+-    auto sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+-#endif
+-    if (sock == INVALID_SOCKET) { continue; }
+-
+-#ifndef _WIN32
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1) {
+       close_socket(sock);
+       continue;
+     }
+ #endif
+ 
+-<<<<<<< HEAD
+     if (tcp_nodelay) { set_socket_opt(sock, IPPROTO_TCP, TCP_NODELAY, 1); }
+ 
+     if (rp->ai_family == AF_INET6) {
+       set_socket_opt(sock, IPPROTO_IPV6, IPV6_V6ONLY, ipv6_v6only ? 1 : 0);
+-=======
+-    if (tcp_nodelay) {
+-<<<<<<< HEAD
+-      auto opt = 1;
+-#ifdef _WIN32
+-      setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+-                 reinterpret_cast<const char *>(&opt), sizeof(opt));
+-#else
+-      setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+-                 reinterpret_cast<const void *>(&opt), sizeof(opt));
+-#endif
+-    }
+-
+-    if (rp->ai_family == AF_INET6) {
+-      auto opt = ipv6_v6only ? 1 : 0;
+-#ifdef _WIN32
+-      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+-                 reinterpret_cast<const char *>(&opt), sizeof(opt));
+-#else
+-      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+-                 reinterpret_cast<const void *>(&opt), sizeof(opt));
+-=======
+-      auto yes = 1;
+-#ifdef _WIN32
+-      setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+-                 reinterpret_cast<const char *>(&yes), sizeof(yes));
+-#else
+-      setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+-                 reinterpret_cast<const void *>(&yes), sizeof(yes));
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+-#endif
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+     }
+ 
+     if (socket_options) { socket_options(sock); }
+ 
+-<<<<<<< HEAD
+     // bind or connect
+     auto quit = false;
+     if (bind_or_connect(sock, *rp, quit)) { return sock; }
+@@ -4369,29 +3615,6 @@
+     if (quit) { break; }
+   }
+ 
+-=======
+-    if (rp->ai_family == AF_INET6) {
+-      auto no = 0;
+-#ifdef _WIN32
+-      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+-                 reinterpret_cast<const char *>(&no), sizeof(no));
+-#else
+-      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+-                 reinterpret_cast<const void *>(&no), sizeof(no));
+-#endif
+-    }
+-
+-    // bind or connect
+-    if (bind_or_connect(sock, *rp)) {
+-      freeaddrinfo(result);
+-      return sock;
+-    }
+-
+-    close_socket(sock);
+-  }
+-
+-  freeaddrinfo(result);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return INVALID_SOCKET;
+ }
+ 
+@@ -4424,10 +3647,7 @@
+   hints.ai_protocol = 0;
+ 
+   if (getaddrinfo(host.c_str(), "0", &hints, &result)) { return false; }
+-<<<<<<< HEAD
+   auto se = detail::scope_exit([&] { freeaddrinfo(result); });
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   auto ret = false;
+   for (auto rp = result; rp; rp = rp->ai_next) {
+@@ -4438,10 +3658,6 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+-=======
+-  freeaddrinfo(result);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return ret;
+ }
+ 
+@@ -4453,11 +3669,8 @@
+ inline std::string if2ip(int address_family, const std::string &ifn) {
+   struct ifaddrs *ifap;
+   getifaddrs(&ifap);
+-<<<<<<< HEAD
+   auto se = detail::scope_exit([&] { freeifaddrs(ifap); });
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   std::string addr_candidate;
+   for (auto ifa = ifap; ifa; ifa = ifa->ifa_next) {
+     if (ifa->ifa_addr && ifn == ifa->ifa_name &&
+@@ -4467,10 +3680,6 @@
+         auto sa = reinterpret_cast<struct sockaddr_in *>(ifa->ifa_addr);
+         char buf[INET_ADDRSTRLEN];
+         if (inet_ntop(AF_INET, &sa->sin_addr, buf, INET_ADDRSTRLEN)) {
+-<<<<<<< HEAD
+-=======
+-          freeifaddrs(ifap);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+           return std::string(buf, INET_ADDRSTRLEN);
+         }
+       } else if (ifa->ifa_addr->sa_family == AF_INET6) {
+@@ -4483,10 +3692,6 @@
+             if (s6_addr_head == 0xfc || s6_addr_head == 0xfd) {
+               addr_candidate = std::string(buf, INET6_ADDRSTRLEN);
+             } else {
+-<<<<<<< HEAD
+-=======
+-              freeifaddrs(ifap);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+               return std::string(buf, INET6_ADDRSTRLEN);
+             }
+           }
+@@ -4494,17 +3699,12 @@
+       }
+     }
+   }
+-<<<<<<< HEAD
+-=======
+-  freeifaddrs(ifap);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return addr_candidate;
+ }
+ #endif
+ 
+ inline socket_t create_client_socket(
+     const std::string &host, const std::string &ip, int port,
+-<<<<<<< HEAD
+     int address_family, bool tcp_nodelay, bool ipv6_v6only,
+     SocketOptions socket_options, time_t connection_timeout_sec,
+     time_t connection_timeout_usec, time_t read_timeout_sec,
+@@ -4514,15 +3714,6 @@
+       host, ip, port, address_family, 0, tcp_nodelay, ipv6_v6only,
+       std::move(socket_options),
+       [&](socket_t sock2, struct addrinfo &ai, bool &quit) -> bool {
+-=======
+-    int address_family, bool tcp_nodelay, SocketOptions socket_options,
+-    time_t connection_timeout_sec, time_t connection_timeout_usec,
+-    time_t read_timeout_sec, time_t read_timeout_usec, time_t write_timeout_sec,
+-    time_t write_timeout_usec, const std::string &intf, Error &error) {
+-  auto sock = create_socket(
+-      host, ip, port, address_family, 0, tcp_nodelay, std::move(socket_options),
+-      [&](socket_t sock2, struct addrinfo &ai) -> bool {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+         if (!intf.empty()) {
+ #ifdef USE_IF2IP
+           auto ip_from_if = if2ip(address_family, intf);
+@@ -4546,14 +3737,10 @@
+           }
+           error = wait_until_socket_is_ready(sock2, connection_timeout_sec,
+                                              connection_timeout_usec);
+-<<<<<<< HEAD
+           if (error != Error::Success) {
+             if (error == Error::ConnectionTimeout) { quit = true; }
+             return false;
+           }
+-=======
+-          if (error != Error::Success) { return false; }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+         }
+ 
+         set_nonblocking(sock2, false);
+@@ -4652,11 +3839,7 @@
+ 
+ namespace udl {
+ 
+-<<<<<<< HEAD
+ inline constexpr unsigned int operator""_t(const char *s, size_t l) {
+-=======
+-inline constexpr unsigned int operator"" _t(const char *s, size_t l) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return str2tag_core(s, l, 0);
+ }
+ 
+@@ -4741,14 +3924,9 @@
+   case "application/protobuf"_t:
+   case "application/xhtml+xml"_t: return true;
+ 
+-<<<<<<< HEAD
+   case "text/event-stream"_t: return false;
+ 
+   default: return !content_type.rfind("text/", 0);
+-=======
+-  default:
+-    return !content_type.rfind("text/", 0) && tag != "text/event-stream"_t;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   }
+ }
+ 
+@@ -4985,13 +4163,8 @@
+ }
+ 
+ inline const char *get_header_value(const Headers &headers,
+-<<<<<<< HEAD
+                                     const std::string &key, const char *def,
+                                     size_t id) {
+-=======
+-                                    const std::string &key, size_t id,
+-                                    const char *def) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   auto rng = headers.equal_range(key);
+   auto it = rng.first;
+   std::advance(it, static_cast<ssize_t>(id));
+@@ -4999,17 +4172,6 @@
+   return def;
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-inline bool compare_case_ignore(const std::string &a, const std::string &b) {
+-  if (a.size() != b.size()) { return false; }
+-  for (size_t i = 0; i < b.size(); i++) {
+-    if (::tolower(a[i]) != ::tolower(b[i])) { return false; }
+-  }
+-  return true;
+-}
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ template <typename T>
+ inline bool parse_header(const char *beg, const char *end, T fn) {
+   // Skip trailing spaces and tabs.
+@@ -5037,14 +4199,7 @@
+     if (!key_len) { return false; }
+ 
+     auto key = std::string(beg, key_end);
+-<<<<<<< HEAD
+     auto val = std::string(p, end);
+-=======
+-<<<<<<< HEAD
+-    auto val = case_ignore::equal(key, "Location")
+-                   ? std::string(p, end)
+-                   : decode_url(std::string(p, end), false);
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ 
+     if (!detail::fields::is_field_value(val)) { return false; }
+ 
+@@ -5055,15 +4210,6 @@
+       fn(key, decode_url(val, false));
+     }
+ 
+-<<<<<<< HEAD
+-=======
+-=======
+-    auto val = compare_case_ignore(key, "Location")
+-                   ? std::string(p, end)
+-                   : decode_url(std::string(p, end), false);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+-    fn(key, val);
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+     return true;
+   }
+ 
+@@ -5083,7 +4229,6 @@
+     if (line_reader.end_with_crlf()) {
+       // Blank line indicates end of headers.
+       if (line_reader.size() == 2) { break; }
+-<<<<<<< HEAD
+     } else {
+ #ifdef CPPHTTPLIB_ALLOW_LF_AS_LINE_TERMINATOR
+       // Blank line indicates end of headers.
+@@ -5093,38 +4238,18 @@
+       continue; // Skip invalid line.
+ #endif
+     }
+-=======
+-#ifdef CPPHTTPLIB_ALLOW_LF_AS_LINE_TERMINATOR
+-    } else {
+-      // Blank line indicates end of headers.
+-      if (line_reader.size() == 1) { break; }
+-      line_terminator_len = 1;
+-    }
+-#else
+-    } else {
+-      continue; // Skip invalid line.
+-    }
+-#endif
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+     if (line_reader.size() > CPPHTTPLIB_HEADER_MAX_LENGTH) { return false; }
+ 
+     // Exclude line terminator
+     auto end = line_reader.ptr() + line_reader.size() - line_terminator_len;
+ 
+-<<<<<<< HEAD
+     if (!parse_header(line_reader.ptr(), end,
+                       [&](const std::string &key, const std::string &val) {
+                         headers.emplace(key, val);
+                       })) {
+       return false;
+     }
+-=======
+-    parse_header(line_reader.ptr(), end,
+-                 [&](const std::string &key, const std::string &val) {
+-                   headers.emplace(key, val);
+-                 });
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   }
+ 
+   return true;
+@@ -5212,12 +4337,7 @@
+ 
+   assert(chunk_len == 0);
+ 
+-<<<<<<< HEAD
+   // NOTE: In RFC 9112, '7.1 Chunked Transfer Coding' mentions "The chunked
+-=======
+-<<<<<<< HEAD
+-  // NOTE: In RFC 9112, '7.1 Chunked Transfer Coding' mentiones "The chunked
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+   // transfer coding is complete when a chunk with a chunk-size of zero is
+   // received, possibly followed by a trailer section, and finally terminated by
+   // an empty line". https://www.rfc-editor.org/rfc/rfc9112.html#section-7.1
+@@ -5230,10 +4350,6 @@
+   // According to the reference code in RFC 9112, cpp-httplib now allows
+   // chunked transfer coding data without the final CRLF.
+   if (!line_reader.getline()) { return true; }
+-=======
+-  // Trailer
+-  if (!line_reader.getline()) { return false; }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   while (strcmp(line_reader.ptr(), "\r\n") != 0) {
+     if (line_reader.size() > CPPHTTPLIB_HEADER_MAX_LENGTH) { return false; }
+@@ -5254,13 +4370,8 @@
+ }
+ 
+ inline bool is_chunked_transfer_encoding(const Headers &headers) {
+-<<<<<<< HEAD
+   return case_ignore::equal(
+       get_header_value(headers, "Transfer-Encoding", "", 0), "chunked");
+-=======
+-  return compare_case_ignore(
+-      get_header_value(headers, "Transfer-Encoding", 0, ""), "chunked");
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ template <typename T, typename U>
+@@ -5348,7 +4459,6 @@
+         }
+         return ret;
+       });
+-<<<<<<< HEAD
+ }
+ 
+ inline ssize_t write_request_line(Stream &strm, const std::string &method,
+@@ -5368,14 +4478,10 @@
+   s += "\r\n";
+   return strm.write(s.data(), s.size());
+ }
+-=======
+-} // namespace detail
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ inline ssize_t write_headers(Stream &strm, const Headers &headers) {
+   ssize_t write_len = 0;
+   for (const auto &x : headers) {
+-<<<<<<< HEAD
+     std::string s;
+     s = x.first;
+     s += ": ";
+@@ -5383,10 +4489,6 @@
+     s += "\r\n";
+ 
+     auto len = strm.write(s.data(), s.size());
+-=======
+-    auto len =
+-        strm.write_format("%s: %s\r\n", x.first.c_str(), x.second.c_str());
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     if (len < 0) { return len; }
+     write_len += len;
+   }
+@@ -5909,13 +5011,9 @@
+                               const std::string &b) const {
+     if (a.size() < b.size()) { return false; }
+     for (size_t i = 0; i < b.size(); i++) {
+-<<<<<<< HEAD
+       if (case_ignore::to_lower(a[i]) != case_ignore::to_lower(b[i])) {
+         return false;
+       }
+-=======
+-      if (::tolower(a[i]) != ::tolower(b[i])) { return false; }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     }
+     return true;
+   }
+@@ -5998,19 +5096,6 @@
+   size_t buf_epos_ = 0;
+ };
+ 
+-<<<<<<< HEAD
+-=======
+-inline std::string to_lower(const char *beg, const char *end) {
+-  std::string out;
+-  auto it = beg;
+-  while (it != end) {
+-    out += static_cast<char>(::tolower(*it));
+-    it++;
+-  }
+-  return out;
+-}
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ inline std::string random_string(size_t length) {
+   static const char data[] =
+       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+@@ -6605,10 +5690,7 @@
+ #endif
+     return;
+   }
+-<<<<<<< HEAD
+   auto se = detail::scope_exit([&] { freeaddrinfo(result); });
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   for (auto rp = result; rp; rp = rp->ai_next) {
+     const auto &addr =
+@@ -6620,11 +5702,6 @@
+       addrs.push_back(ip);
+     }
+   }
+-<<<<<<< HEAD
+-=======
+-
+-  freeaddrinfo(result);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ inline std::string append_query_params(const std::string &path,
+@@ -6673,13 +5750,8 @@
+ }
+ 
+ inline std::string Request::get_header_value(const std::string &key,
+-<<<<<<< HEAD
+                                              const char *def, size_t id) const {
+   return detail::get_header_value(headers, key, def, id);
+-=======
+-                                             size_t id) const {
+-  return detail::get_header_value(headers, key, id, "");
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ inline size_t Request::get_header_value_count(const std::string &key) const {
+@@ -6744,14 +5816,9 @@
+ }
+ 
+ inline std::string Response::get_header_value(const std::string &key,
+-<<<<<<< HEAD
+                                               const char *def,
+                                               size_t id) const {
+   return detail::get_header_value(headers, key, def, id);
+-=======
+-                                              size_t id) const {
+-  return detail::get_header_value(headers, key, id, "");
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ inline size_t Response::get_header_value_count(const std::string &key) const {
+@@ -6831,7 +5898,6 @@
+   is_chunked_content_provider_ = true;
+ }
+ 
+-<<<<<<< HEAD
+ inline void Response::set_file_content(const std::string &path,
+                                        const std::string &content_type) {
+   file_content_path_ = path;
+@@ -6842,22 +5908,15 @@
+   file_content_path_ = path;
+ }
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ // Result implementation
+ inline bool Result::has_request_header(const std::string &key) const {
+   return request_headers_.find(key) != request_headers_.end();
+ }
+ 
+ inline std::string Result::get_request_header_value(const std::string &key,
+-<<<<<<< HEAD
+                                                     const char *def,
+                                                     size_t id) const {
+   return detail::get_header_value(request_headers_, key, def, id);
+-=======
+-                                                    size_t id) const {
+-  return detail::get_header_value(request_headers_, key, id, "");
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ inline size_t
+@@ -7037,11 +6096,8 @@
+ inline const std::string &BufferStream::get_buffer() const { return buffer; }
+ 
+ inline PathParamsMatcher::PathParamsMatcher(const std::string &pattern) {
+-<<<<<<< HEAD
+   static constexpr char marker[] = "/:";
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   // One past the last ending position of a path param substring
+   std::size_t last_param_end = 0;
+ 
+@@ -7054,7 +6110,6 @@
+ #endif
+ 
+   while (true) {
+-<<<<<<< HEAD
+     const auto marker_pos = pattern.find(
+         marker, last_param_end == 0 ? last_param_end : last_param_end - 1);
+     if (marker_pos == std::string::npos) { break; }
+@@ -7063,15 +6118,6 @@
+         pattern.substr(last_param_end, marker_pos - last_param_end + 1));
+ 
+     const auto param_name_start = marker_pos + 2;
+-=======
+-    const auto marker_pos = pattern.find(marker, last_param_end);
+-    if (marker_pos == std::string::npos) { break; }
+-
+-    static_fragments_.push_back(
+-        pattern.substr(last_param_end, marker_pos - last_param_end));
+-
+-    const auto param_name_start = marker_pos + 1;
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+     auto sep_pos = pattern.find(separator, param_name_start);
+     if (sep_pos == std::string::npos) { sep_pos = pattern.length(); }
+@@ -7133,11 +6179,7 @@
+     request.path_params.emplace(
+         param_name, request.path.substr(starting_pos, sep_pos - starting_pos));
+ 
+-<<<<<<< HEAD
+     // Mark everything up to '/' as matched
+-=======
+-    // Mark everythin up to '/' as matched
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     starting_pos = sep_pos + 1;
+   }
+   // Returns false if the path is longer than the pattern
+@@ -7236,12 +6278,8 @@
+ 
+ inline bool Server::set_mount_point(const std::string &mount_point,
+                                     const std::string &dir, Headers headers) {
+-<<<<<<< HEAD
+   detail::FileStat stat(dir);
+   if (stat.is_dir()) {
+-=======
+-  if (detail::is_dir(dir)) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     std::string mnt = !mount_point.empty() ? mount_point : "/";
+     if (!mnt.empty() && mnt[0] == '/') {
+       base_dirs_.push_back({mnt, dir, std::move(headers)});
+@@ -7259,7 +6297,6 @@
+     }
+   }
+   return false;
+-<<<<<<< HEAD
+ }
+ 
+ inline Server &
+@@ -7441,181 +6478,6 @@
+       count++;
+     });
+ 
+-=======
+-}
+-
+-inline Server &
+-Server::set_file_extension_and_mimetype_mapping(const std::string &ext,
+-                                                const std::string &mime) {
+-  file_extension_and_mimetype_map_[ext] = mime;
+-  return *this;
+-}
+-
+-inline Server &Server::set_default_file_mimetype(const std::string &mime) {
+-  default_file_mimetype_ = mime;
+-  return *this;
+-}
+-
+-inline Server &Server::set_file_request_handler(Handler handler) {
+-  file_request_handler_ = std::move(handler);
+-  return *this;
+-}
+-
+-inline Server &Server::set_error_handler_core(HandlerWithResponse handler,
+-                                              std::true_type) {
+-  error_handler_ = std::move(handler);
+-  return *this;
+-}
+-
+-inline Server &Server::set_error_handler_core(Handler handler,
+-                                              std::false_type) {
+-  error_handler_ = [handler](const Request &req, Response &res) {
+-    handler(req, res);
+-    return HandlerResponse::Handled;
+-  };
+-  return *this;
+-}
+-
+-inline Server &Server::set_exception_handler(ExceptionHandler handler) {
+-  exception_handler_ = std::move(handler);
+-  return *this;
+-}
+-
+-inline Server &Server::set_pre_routing_handler(HandlerWithResponse handler) {
+-  pre_routing_handler_ = std::move(handler);
+-  return *this;
+-}
+-
+-inline Server &Server::set_post_routing_handler(Handler handler) {
+-  post_routing_handler_ = std::move(handler);
+-  return *this;
+-}
+-
+-inline Server &Server::set_logger(Logger logger) {
+-  logger_ = std::move(logger);
+-  return *this;
+-}
+-
+-inline Server &
+-Server::set_expect_100_continue_handler(Expect100ContinueHandler handler) {
+-  expect_100_continue_handler_ = std::move(handler);
+-  return *this;
+-}
+-
+-inline Server &Server::set_address_family(int family) {
+-  address_family_ = family;
+-  return *this;
+-}
+-
+-inline Server &Server::set_tcp_nodelay(bool on) {
+-  tcp_nodelay_ = on;
+-  return *this;
+-}
+-
+-inline Server &Server::set_socket_options(SocketOptions socket_options) {
+-  socket_options_ = std::move(socket_options);
+-  return *this;
+-}
+-
+-inline Server &Server::set_default_headers(Headers headers) {
+-  default_headers_ = std::move(headers);
+-  return *this;
+-}
+-
+-inline Server &Server::set_header_writer(
+-    std::function<ssize_t(Stream &, Headers &)> const &writer) {
+-  header_writer_ = writer;
+-  return *this;
+-}
+-
+-inline Server &Server::set_keep_alive_max_count(size_t count) {
+-  keep_alive_max_count_ = count;
+-  return *this;
+-}
+-
+-inline Server &Server::set_keep_alive_timeout(time_t sec) {
+-  keep_alive_timeout_sec_ = sec;
+-  return *this;
+-}
+-
+-inline Server &Server::set_read_timeout(time_t sec, time_t usec) {
+-  read_timeout_sec_ = sec;
+-  read_timeout_usec_ = usec;
+-  return *this;
+-}
+-
+-inline Server &Server::set_write_timeout(time_t sec, time_t usec) {
+-  write_timeout_sec_ = sec;
+-  write_timeout_usec_ = usec;
+-  return *this;
+-}
+-
+-inline Server &Server::set_idle_interval(time_t sec, time_t usec) {
+-  idle_interval_sec_ = sec;
+-  idle_interval_usec_ = usec;
+-  return *this;
+-}
+-
+-inline Server &Server::set_payload_max_length(size_t length) {
+-  payload_max_length_ = length;
+-  return *this;
+-}
+-
+-inline bool Server::bind_to_port(const std::string &host, int port,
+-                                 int socket_flags) {
+-  return bind_internal(host, port, socket_flags) >= 0;
+-}
+-inline int Server::bind_to_any_port(const std::string &host, int socket_flags) {
+-  return bind_internal(host, 0, socket_flags);
+-}
+-
+-inline bool Server::listen_after_bind() {
+-  auto se = detail::scope_exit([&]() { done_ = true; });
+-  return listen_internal();
+-}
+-
+-inline bool Server::listen(const std::string &host, int port,
+-                           int socket_flags) {
+-  auto se = detail::scope_exit([&]() { done_ = true; });
+-  return bind_to_port(host, port, socket_flags) && listen_internal();
+-}
+-
+-inline bool Server::is_running() const { return is_running_; }
+-
+-inline void Server::wait_until_ready() const {
+-  while (!is_running() && !done_) {
+-    std::this_thread::sleep_for(std::chrono::milliseconds{1});
+-  }
+-}
+-
+-inline void Server::stop() {
+-  if (is_running_) {
+-    assert(svr_sock_ != INVALID_SOCKET);
+-    std::atomic<socket_t> sock(svr_sock_.exchange(INVALID_SOCKET));
+-    detail::shutdown_socket(sock);
+-    detail::close_socket(sock);
+-  }
+-}
+-
+-inline bool Server::parse_request_line(const char *s, Request &req) const {
+-  auto len = strlen(s);
+-  if (len < 2 || s[len - 2] != '\r' || s[len - 1] != '\n') { return false; }
+-  len -= 2;
+-
+-  {
+-    size_t count = 0;
+-
+-    detail::split(s, s + len, ' ', [&](const char *b, const char *e) {
+-      switch (count) {
+-      case 0: req.method = std::string(b, e); break;
+-      case 1: req.target = std::string(b, e); break;
+-      case 2: req.version = std::string(b, e); break;
+-      default: break;
+-      }
+-      count++;
+-    });
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     if (count != 3) { return false; }
+   }
+ 
+@@ -7662,7 +6524,6 @@
+                                                 Response &res) {
+   return write_response_core(strm, close_connection, req, res, true);
+ }
+-<<<<<<< HEAD
+ 
+ inline bool Server::write_response_core(Stream &strm, bool close_connection,
+                                         const Request &req, Response &res,
+@@ -7716,65 +6577,6 @@
+     detail::write_data(strm, data.data(), data.size());
+   }
+ 
+-=======
+-
+-inline bool Server::write_response_core(Stream &strm, bool close_connection,
+-                                        const Request &req, Response &res,
+-                                        bool need_apply_ranges) {
+-  assert(res.status != -1);
+-
+-  if (400 <= res.status && error_handler_ &&
+-      error_handler_(req, res) == HandlerResponse::Handled) {
+-    need_apply_ranges = true;
+-  }
+-
+-  std::string content_type;
+-  std::string boundary;
+-  if (need_apply_ranges) { apply_ranges(req, res, content_type, boundary); }
+-
+-  // Prepare additional headers
+-  if (close_connection || req.get_header_value("Connection") == "close") {
+-    res.set_header("Connection", "close");
+-  } else {
+-    std::stringstream ss;
+-    ss << "timeout=" << keep_alive_timeout_sec_
+-       << ", max=" << keep_alive_max_count_;
+-    res.set_header("Keep-Alive", ss.str());
+-  }
+-
+-  if (!res.has_header("Content-Type") &&
+-      (!res.body.empty() || res.content_length_ > 0 || res.content_provider_)) {
+-    res.set_header("Content-Type", "text/plain");
+-  }
+-
+-  if (!res.has_header("Content-Length") && res.body.empty() &&
+-      !res.content_length_ && !res.content_provider_) {
+-    res.set_header("Content-Length", "0");
+-  }
+-
+-  if (!res.has_header("Accept-Ranges") && req.method == "HEAD") {
+-    res.set_header("Accept-Ranges", "bytes");
+-  }
+-
+-  if (post_routing_handler_) { post_routing_handler_(req, res); }
+-
+-  // Response line and headers
+-  {
+-    detail::BufferStream bstrm;
+-
+-    if (!bstrm.write_format("HTTP/1.1 %d %s\r\n", res.status,
+-                            status_message(res.status))) {
+-      return false;
+-    }
+-
+-    if (!header_writer_(bstrm, res.headers)) { return false; }
+-
+-    // Flush buffer
+-    auto &data = bstrm.get_buffer();
+-    detail::write_data(strm, data.data(), data.size());
+-  }
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   // Body
+   auto ret = true;
+   if (req.method != "HEAD") {
+@@ -7812,7 +6614,6 @@
+     } else if (req.ranges.size() == 1) {
+       auto offset_and_length = detail::get_range_offset_and_length(
+           req.ranges[0], res.content_length_);
+-<<<<<<< HEAD
+ 
+       return detail::write_content(strm, res.content_provider_,
+                                    offset_and_length.first,
+@@ -7970,158 +6771,6 @@
+         }
+ 
+         if (stat.is_file()) {
+-=======
+-
+-      return detail::write_content(strm, res.content_provider_,
+-                                   offset_and_length.first,
+-                                   offset_and_length.second, is_shutting_down);
+-    } else {
+-      return detail::write_multipart_ranges_data(
+-          strm, req, res, boundary, content_type, res.content_length_,
+-          is_shutting_down);
+-    }
+-  } else {
+-    if (res.is_chunked_content_provider_) {
+-      auto type = detail::encoding_type(req, res);
+-
+-      std::unique_ptr<detail::compressor> compressor;
+-      if (type == detail::EncodingType::Gzip) {
+-#ifdef CPPHTTPLIB_ZLIB_SUPPORT
+-        compressor = detail::make_unique<detail::gzip_compressor>();
+-#endif
+-      } else if (type == detail::EncodingType::Brotli) {
+-#ifdef CPPHTTPLIB_BROTLI_SUPPORT
+-        compressor = detail::make_unique<detail::brotli_compressor>();
+-#endif
+-      } else {
+-        compressor = detail::make_unique<detail::nocompressor>();
+-      }
+-      assert(compressor != nullptr);
+-
+-      return detail::write_content_chunked(strm, res.content_provider_,
+-                                           is_shutting_down, *compressor);
+-    } else {
+-      return detail::write_content_without_length(strm, res.content_provider_,
+-                                                  is_shutting_down);
+-    }
+-  }
+-}
+-
+-inline bool Server::read_content(Stream &strm, Request &req, Response &res) {
+-  MultipartFormDataMap::iterator cur;
+-  auto file_count = 0;
+-  if (read_content_core(
+-          strm, req, res,
+-          // Regular
+-          [&](const char *buf, size_t n) {
+-            if (req.body.size() + n > req.body.max_size()) { return false; }
+-            req.body.append(buf, n);
+-            return true;
+-          },
+-          // Multipart
+-          [&](const MultipartFormData &file) {
+-            if (file_count++ == CPPHTTPLIB_MULTIPART_FORM_DATA_FILE_MAX_COUNT) {
+-              return false;
+-            }
+-            cur = req.files.emplace(file.name, file);
+-            return true;
+-          },
+-          [&](const char *buf, size_t n) {
+-            auto &content = cur->second.content;
+-            if (content.size() + n > content.max_size()) { return false; }
+-            content.append(buf, n);
+-            return true;
+-          })) {
+-    const auto &content_type = req.get_header_value("Content-Type");
+-    if (!content_type.find("application/x-www-form-urlencoded")) {
+-      if (req.body.size() > CPPHTTPLIB_FORM_URL_ENCODED_PAYLOAD_MAX_LENGTH) {
+-        res.status = StatusCode::PayloadTooLarge_413; // NOTE: should be 414?
+-        return false;
+-      }
+-      detail::parse_query_text(req.body, req.params);
+-    }
+-    return true;
+-  }
+-  return false;
+-}
+-
+-inline bool Server::read_content_with_content_receiver(
+-    Stream &strm, Request &req, Response &res, ContentReceiver receiver,
+-    MultipartContentHeader multipart_header,
+-    ContentReceiver multipart_receiver) {
+-  return read_content_core(strm, req, res, std::move(receiver),
+-                           std::move(multipart_header),
+-                           std::move(multipart_receiver));
+-}
+-
+-inline bool
+-Server::read_content_core(Stream &strm, Request &req, Response &res,
+-                          ContentReceiver receiver,
+-                          MultipartContentHeader multipart_header,
+-                          ContentReceiver multipart_receiver) const {
+-  detail::MultipartFormDataParser multipart_form_data_parser;
+-  ContentReceiverWithProgress out;
+-
+-  if (req.is_multipart_form_data()) {
+-    const auto &content_type = req.get_header_value("Content-Type");
+-    std::string boundary;
+-    if (!detail::parse_multipart_boundary(content_type, boundary)) {
+-      res.status = StatusCode::BadRequest_400;
+-      return false;
+-    }
+-
+-    multipart_form_data_parser.set_boundary(std::move(boundary));
+-    out = [&](const char *buf, size_t n, uint64_t /*off*/, uint64_t /*len*/) {
+-      /* For debug
+-      size_t pos = 0;
+-      while (pos < n) {
+-        auto read_size = (std::min)<size_t>(1, n - pos);
+-        auto ret = multipart_form_data_parser.parse(
+-            buf + pos, read_size, multipart_receiver, multipart_header);
+-        if (!ret) { return false; }
+-        pos += read_size;
+-      }
+-      return true;
+-      */
+-      return multipart_form_data_parser.parse(buf, n, multipart_receiver,
+-                                              multipart_header);
+-    };
+-  } else {
+-    out = [receiver](const char *buf, size_t n, uint64_t /*off*/,
+-                     uint64_t /*len*/) { return receiver(buf, n); };
+-  }
+-
+-  if (req.method == "DELETE" && !req.has_header("Content-Length")) {
+-    return true;
+-  }
+-
+-  if (!detail::read_content(strm, req, payload_max_length_, res.status, nullptr,
+-                            out, true)) {
+-    return false;
+-  }
+-
+-  if (req.is_multipart_form_data()) {
+-    if (!multipart_form_data_parser.is_valid()) {
+-      res.status = StatusCode::BadRequest_400;
+-      return false;
+-    }
+-  }
+-
+-  return true;
+-}
+-
+-inline bool Server::handle_file_request(const Request &req, Response &res,
+-                                        bool head) {
+-  for (const auto &entry : base_dirs_) {
+-    // Prefix match
+-    if (!req.path.compare(0, entry.mount_point.size(), entry.mount_point)) {
+-      std::string sub_path = "/" + req.path.substr(entry.mount_point.size());
+-      if (detail::is_valid_path(sub_path)) {
+-        auto path = entry.base_dir + sub_path;
+-        if (path.back() == '/') { path += "index.html"; }
+-
+-        if (detail::is_file(path)) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+           for (const auto &kv : entry.headers) {
+             res.set_header(kv.first, kv.second);
+           }
+@@ -8156,13 +6805,8 @@
+                              SocketOptions socket_options) const {
+   return detail::create_socket(
+       host, std::string(), port, address_family_, socket_flags, tcp_nodelay_,
+-<<<<<<< HEAD
+       ipv6_v6only_, std::move(socket_options),
+       [](socket_t sock, struct addrinfo &ai, bool & /*quit*/) -> bool {
+-=======
+-      std::move(socket_options),
+-      [](socket_t sock, struct addrinfo &ai) -> bool {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+         if (::bind(sock, ai.ai_addr, static_cast<socklen_t>(ai.ai_addrlen))) {
+           return false;
+         }
+@@ -8173,25 +6817,13 @@
+ 
+ inline int Server::bind_internal(const std::string &host, int port,
+                                  int socket_flags) {
+-<<<<<<< HEAD
+   if (is_decommissioned) { return -1; }
+-=======
+-<<<<<<< HEAD
+-  if (is_decommisioned) { return -1; }
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ 
+   if (!is_valid()) { return -1; }
+ 
+   svr_sock_ = create_server_socket(host, port, socket_flags, socket_options_);
+   if (svr_sock_ == INVALID_SOCKET) { return -1; }
+ 
+-=======
+-  if (!is_valid()) { return -1; }
+-
+-  svr_sock_ = create_server_socket(host, port, socket_flags, socket_options_);
+-  if (svr_sock_ == INVALID_SOCKET) { return -1; }
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   if (port == 0) {
+     struct sockaddr_storage addr;
+     socklen_t addr_len = sizeof(addr);
+@@ -8212,12 +6844,7 @@
+ }
+ 
+ inline bool Server::listen_internal() {
+-<<<<<<< HEAD
+   if (is_decommissioned) { return false; }
+-=======
+-<<<<<<< HEAD
+-  if (is_decommisioned) { return false; }
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+ 
+   auto ret = true;
+   is_running_ = true;
+@@ -8226,15 +6853,6 @@
+   {
+     std::unique_ptr<TaskQueue> task_queue(new_task_queue());
+ 
+-=======
+-  auto ret = true;
+-  is_running_ = true;
+-  auto se = detail::scope_exit([&]() { is_running_ = false; });
+-
+-  {
+-    std::unique_ptr<TaskQueue> task_queue(new_task_queue());
+-
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     while (svr_sock_ != INVALID_SOCKET) {
+ #ifndef _WIN32
+       if (idle_interval_sec_ > 0 || idle_interval_usec_ > 0) {
+@@ -8248,7 +6866,6 @@
+ #ifndef _WIN32
+       }
+ #endif
+-<<<<<<< HEAD
+ 
+ #if defined _WIN32
+       // sockets connected via WASAccept inherit flags NO_HANDLE_INHERIT,
+@@ -8259,19 +6876,12 @@
+ #else
+       socket_t sock = accept(svr_sock_, nullptr, nullptr);
+ #endif
+-=======
+-      socket_t sock = accept(svr_sock_, nullptr, nullptr);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+       if (sock == INVALID_SOCKET) {
+         if (errno == EMFILE) {
+           // The per-process limit of open file descriptors has been reached.
+           // Try to accept new connections after a short sleep.
+-<<<<<<< HEAD
+           std::this_thread::sleep_for(std::chrono::microseconds{1});
+-=======
+-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+           continue;
+         } else if (errno == EINTR || errno == EAGAIN) {
+           continue;
+@@ -8300,14 +6910,7 @@
+     task_queue->shutdown();
+   }
+ 
+-<<<<<<< HEAD
+   is_decommissioned = !ret;
+-=======
+-<<<<<<< HEAD
+-  is_decommisioned = !ret;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+   return ret;
+ }
+ 
+@@ -8523,13 +7126,9 @@
+ }
+ 
+ inline bool
+-<<<<<<< HEAD
+ Server::process_request(Stream &strm, const std::string &remote_addr,
+                         int remote_port, const std::string &local_addr,
+                         int local_port, bool close_connection,
+-=======
+-Server::process_request(Stream &strm, bool close_connection,
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+                         bool &connection_closed,
+                         const std::function<void(Request &)> &setup_request) {
+   std::array<char, 2048> buf{};
+@@ -8569,7 +7168,6 @@
+     connection_closed = true;
+   }
+ 
+-<<<<<<< HEAD
+   req.remote_addr = remote_addr;
+   req.remote_port = remote_port;
+   req.set_header("REMOTE_ADDR", req.remote_addr);
+@@ -8577,13 +7175,6 @@
+ 
+   req.local_addr = local_addr;
+   req.local_port = local_port;
+-=======
+-  strm.get_remote_ip_and_port(req.remote_addr, req.remote_port);
+-  req.set_header("REMOTE_ADDR", req.remote_addr);
+-  req.set_header("REMOTE_PORT", std::to_string(req.remote_port));
+-
+-  strm.get_local_ip_and_port(req.local_addr, req.local_port);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   req.set_header("LOCAL_ADDR", req.local_addr);
+   req.set_header("LOCAL_PORT", std::to_string(req.local_port));
+ 
+@@ -8605,19 +7196,12 @@
+     switch (status) {
+     case StatusCode::Continue_100:
+     case StatusCode::ExpectationFailed_417:
+-<<<<<<< HEAD
+       detail::write_response_line(strm, status);
+       strm.write("\r\n");
+       break;
+     default:
+       connection_closed = true;
+       return write_response(strm, true, req, res);
+-=======
+-      strm.write_format("HTTP/1.1 %d %s\r\n\r\n", status,
+-                        status_message(status));
+-      break;
+-    default: return write_response(strm, close_connection, req, res);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     }
+   }
+ 
+@@ -8668,18 +7252,6 @@
+                                       : StatusCode::PartialContent_206;
+     }
+ 
+-<<<<<<< HEAD
+-=======
+-    if (detail::range_error(req, res)) {
+-      res.body.clear();
+-      res.content_length_ = 0;
+-      res.content_provider_ = nullptr;
+-      res.status = StatusCode::RangeNotSatisfiable_416;
+-      return write_response(strm, close_connection, req, res);
+-    }
+-
+-<<<<<<< HEAD
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+     // Serve file content by using a content provider
+     if (!res.file_content_path_.empty()) {
+       const auto &path = res.file_content_path_;
+@@ -8706,7 +7278,6 @@
+           });
+     }
+ 
+-<<<<<<< HEAD
+     if (detail::range_error(req, res)) {
+       res.body.clear();
+       res.content_length_ = 0;
+@@ -8715,10 +7286,6 @@
+       return write_response(strm, close_connection, req, res);
+     }
+ 
+-=======
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+     return write_response_with_content(strm, close_connection, req, res);
+   } else {
+     if (res.status == -1) { res.status = StatusCode::NotFound_404; }
+@@ -8730,7 +7297,6 @@
+ inline bool Server::is_valid() const { return true; }
+ 
+ inline bool Server::process_and_close_socket(socket_t sock) {
+-<<<<<<< HEAD
+   std::string remote_addr;
+   int remote_port = 0;
+   detail::get_remote_ip_and_port(sock, remote_addr, remote_port);
+@@ -8739,20 +7305,13 @@
+   int local_port = 0;
+   detail::get_local_ip_and_port(sock, local_addr, local_port);
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   auto ret = detail::process_server_socket(
+       svr_sock_, sock, keep_alive_max_count_, keep_alive_timeout_sec_,
+       read_timeout_sec_, read_timeout_usec_, write_timeout_sec_,
+       write_timeout_usec_,
+-<<<<<<< HEAD
+       [&](Stream &strm, bool close_connection, bool &connection_closed) {
+         return process_request(strm, remote_addr, remote_port, local_addr,
+                                local_port, close_connection, connection_closed,
+-=======
+-      [this](Stream &strm, bool close_connection, bool &connection_closed) {
+-        return process_request(strm, close_connection, connection_closed,
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+                                nullptr);
+       });
+ 
+@@ -8771,13 +7330,8 @@
+ inline ClientImpl::ClientImpl(const std::string &host, int port,
+                               const std::string &client_cert_path,
+                               const std::string &client_key_path)
+-<<<<<<< HEAD
+     : host_(detail::escape_abstract_namespace_unix_domain(host)), port_(port),
+       host_and_port_(adjust_host_string(host_) + ":" + std::to_string(port)),
+-=======
+-    : host_(host), port_(port),
+-      host_and_port_(adjust_host_string(host) + ":" + std::to_string(port)),
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+       client_cert_path_(client_cert_path), client_key_path_(client_key_path) {}
+ 
+ inline ClientImpl::~ClientImpl() {
+@@ -8819,10 +7373,7 @@
+   url_encode_ = rhs.url_encode_;
+   address_family_ = rhs.address_family_;
+   tcp_nodelay_ = rhs.tcp_nodelay_;
+-<<<<<<< HEAD
+   ipv6_v6only_ = rhs.ipv6_v6only_;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   socket_options_ = rhs.socket_options_;
+   compress_ = rhs.compress_;
+   decompress_ = rhs.decompress_;
+@@ -8843,11 +7394,8 @@
+ #endif
+ #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+   server_certificate_verification_ = rhs.server_certificate_verification_;
+-<<<<<<< HEAD
+   server_hostname_verification_ = rhs.server_hostname_verification_;
+   server_certificate_verifier_ = rhs.server_certificate_verifier_;
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #endif
+   logger_ = rhs.logger_;
+ }
+@@ -8856,15 +7404,9 @@
+   if (!proxy_host_.empty() && proxy_port_ != -1) {
+     return detail::create_client_socket(
+         proxy_host_, std::string(), proxy_port_, address_family_, tcp_nodelay_,
+-<<<<<<< HEAD
+         ipv6_v6only_, socket_options_, connection_timeout_sec_,
+         connection_timeout_usec_, read_timeout_sec_, read_timeout_usec_,
+         write_timeout_sec_, write_timeout_usec_, interface_, error);
+-=======
+-        socket_options_, connection_timeout_sec_, connection_timeout_usec_,
+-        read_timeout_sec_, read_timeout_usec_, write_timeout_sec_,
+-        write_timeout_usec_, interface_, error);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   }
+ 
+   // Check is custom IP specified for host_
+@@ -8873,17 +7415,10 @@
+   if (it != addr_map_.end()) { ip = it->second; }
+ 
+   return detail::create_client_socket(
+-<<<<<<< HEAD
+       host_, ip, port_, address_family_, tcp_nodelay_, ipv6_v6only_,
+       socket_options_, connection_timeout_sec_, connection_timeout_usec_,
+       read_timeout_sec_, read_timeout_usec_, write_timeout_sec_,
+       write_timeout_usec_, interface_, error);
+-=======
+-      host_, ip, port_, address_family_, tcp_nodelay_, socket_options_,
+-      connection_timeout_sec_, connection_timeout_usec_, read_timeout_sec_,
+-      read_timeout_usec_, write_timeout_sec_, write_timeout_usec_, interface_,
+-      error);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ 
+ inline bool ClientImpl::create_and_connect_socket(Socket &socket,
+@@ -9348,7 +7883,6 @@
+   {
+     detail::BufferStream bstrm;
+ 
+-<<<<<<< HEAD
+     const auto &path_with_query =
+         req.params.empty() ? req.path
+                            : append_query_params(req.path, req.params);
+@@ -9356,14 +7890,7 @@
+     const auto &path =
+         url_encode_ ? detail::encode_url(path_with_query) : path_with_query;
+ 
+-=======
+-    const auto &path = url_encode_ ? detail::encode_url(req.path) : req.path;
+-<<<<<<< HEAD
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+     detail::write_request_line(bstrm, req.method, path);
+-=======
+-    bstrm.write_format("%s %s HTTP/1.1\r\n", req.method.c_str(), path.c_str());
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+     header_writer_(bstrm, req.headers);
+ 
+@@ -9559,7 +8086,6 @@
+       return ret;
+     };
+ 
+-<<<<<<< HEAD
+     if (res.has_header("Content-Length")) {
+       if (!req.content_receiver) {
+         auto len = res.get_header_value_u64("Content-Length");
+@@ -9571,7 +8097,6 @@
+       }
+     }
+ 
+-<<<<<<< HEAD
+     if (res.status != StatusCode::NotModified_304) {
+       int dummy_status;
+       if (!detail::read_content(strm, res, (std::numeric_limits<size_t>::max)(),
+@@ -9580,16 +8105,6 @@
+         if (error != Error::Canceled) { error = Error::Read; }
+         return false;
+       }
+-=======
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+-    int dummy_status;
+-    if (!detail::read_content(strm, res, (std::numeric_limits<size_t>::max)(),
+-                              dummy_status, std::move(progress), std::move(out),
+-                              decompress_)) {
+-      if (error != Error::Canceled) { error = Error::Read; }
+-      return false;
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+     }
+   }
+ 
+@@ -10120,12 +8635,8 @@
+ 
+ inline Result ClientImpl::Patch(const std::string &path,
+                                 const std::string &body,
+-<<<<<<< HEAD
+                                 const std::string &content_type,
+                                 Progress progress) {
+-=======
+-                                const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return Patch(path, Headers(), body, content_type, progress);
+ }
+ 
+@@ -10367,11 +8878,8 @@
+ 
+ inline void ClientImpl::set_tcp_nodelay(bool on) { tcp_nodelay_ = on; }
+ 
+-<<<<<<< HEAD
+ inline void ClientImpl::set_ipv6_v6only(bool on) { ipv6_v6only_ = on; }
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ inline void ClientImpl::set_socket_options(SocketOptions socket_options) {
+   socket_options_ = std::move(socket_options);
+ }
+@@ -10421,21 +8929,11 @@
+ inline X509_STORE *ClientImpl::create_ca_cert_store(const char *ca_cert,
+                                                     std::size_t size) const {
+   auto mem = BIO_new_mem_buf(ca_cert, static_cast<int>(size));
+-<<<<<<< HEAD
+   auto se = detail::scope_exit([&] { BIO_free_all(mem); });
+   if (!mem) { return nullptr; }
+ 
+   auto inf = PEM_X509_INFO_read_bio(mem, nullptr, nullptr, nullptr);
+   if (!inf) { return nullptr; }
+-=======
+-  if (!mem) { return nullptr; }
+-
+-  auto inf = PEM_X509_INFO_read_bio(mem, nullptr, nullptr, nullptr);
+-  if (!inf) {
+-    BIO_free_all(mem);
+-    return nullptr;
+-  }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   auto cts = X509_STORE_new();
+   if (cts) {
+@@ -10449,17 +8947,12 @@
+   }
+ 
+   sk_X509_INFO_pop_free(inf, X509_INFO_free);
+-<<<<<<< HEAD
+-=======
+-  BIO_free_all(mem);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cts;
+ }
+ 
+ inline void ClientImpl::enable_server_certificate_verification(bool enabled) {
+   server_certificate_verification_ = enabled;
+ }
+-<<<<<<< HEAD
+ 
+ inline void ClientImpl::enable_server_hostname_verification(bool enabled) {
+   server_hostname_verification_ = enabled;
+@@ -10469,8 +8962,6 @@
+     std::function<SSLVerifierResponse(SSL *ssl)> verifier) {
+   server_certificate_verifier_ = verifier;
+ }
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+ inline void ClientImpl::set_logger(Logger logger) {
+@@ -10514,17 +9005,12 @@
+   return ssl;
+ }
+ 
+-<<<<<<< HEAD
+ inline void ssl_delete(std::mutex &ctx_mutex, SSL *ssl, socket_t sock,
+-=======
+-inline void ssl_delete(std::mutex &ctx_mutex, SSL *ssl,
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+                        bool shutdown_gracefully) {
+   // sometimes we may want to skip this to try to avoid SIGPIPE if we know
+   // the remote has closed the network connection
+   // Note that it is not always possible to avoid SIGPIPE, this is merely a
+   // best-efforts.
+-<<<<<<< HEAD
+   if (shutdown_gracefully) {
+     (void)(sock);
+     // SSL_shutdown() returns 0 on first call (indicating close_notify alert
+@@ -10534,9 +9020,6 @@
+       SSL_shutdown(ssl);
+     }
+   }
+-=======
+-  if (shutdown_gracefully) { SSL_shutdown(ssl); }
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+   std::lock_guard<std::mutex> guard(ctx_mutex);
+   SSL_free(ssl);
+@@ -10654,16 +9137,8 @@
+ #endif
+         if (SSL_pending(ssl_) > 0) {
+           return SSL_read(ssl_, ptr, static_cast<int>(size));
+-<<<<<<< HEAD
+         } else if (wait_readable()) {
+-=======
+-        } else if (is_readable()) {
+-<<<<<<< HEAD
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+           std::this_thread::sleep_for(std::chrono::microseconds{10});
+-=======
+-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+           ret = SSL_read(ssl_, ptr, static_cast<int>(size));
+           if (ret >= 0) { return ret; }
+           err = SSL_get_error(ssl_, ret);
+@@ -10694,16 +9169,8 @@
+ #else
+       while (--n >= 0 && err == SSL_ERROR_WANT_WRITE) {
+ #endif
+-<<<<<<< HEAD
+         if (wait_writable()) {
+-=======
+-        if (is_writable()) {
+-<<<<<<< HEAD
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+           std::this_thread::sleep_for(std::chrono::microseconds{10});
+-=======
+-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+           ret = SSL_write(ssl_, ptr, static_cast<int>(handle_size));
+           if (ret >= 0) { return ret; }
+           err = SSL_get_error(ssl_, ret);
+@@ -10757,82 +9224,8 @@
+       SSL_CTX_set_default_passwd_cb_userdata(
+           ctx_,
+           reinterpret_cast<void *>(const_cast<char *>(private_key_password)));
+-<<<<<<< HEAD
+-=======
+-    }
+-
+-    if (SSL_CTX_use_certificate_chain_file(ctx_, cert_path) != 1 ||
+-        SSL_CTX_use_PrivateKey_file(ctx_, private_key_path, SSL_FILETYPE_PEM) !=
+-            1) {
+-      SSL_CTX_free(ctx_);
+-      ctx_ = nullptr;
+-    } else if (client_ca_cert_file_path || client_ca_cert_dir_path) {
+-      SSL_CTX_load_verify_locations(ctx_, client_ca_cert_file_path,
+-                                    client_ca_cert_dir_path);
+-
+-      SSL_CTX_set_verify(
+-          ctx_, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+-    }
+-  }
+-}
+-
+-inline SSLServer::SSLServer(X509 *cert, EVP_PKEY *private_key,
+-                            X509_STORE *client_ca_cert_store) {
+-  ctx_ = SSL_CTX_new(TLS_server_method());
+-
+-  if (ctx_) {
+-    SSL_CTX_set_options(ctx_,
+-                        SSL_OP_NO_COMPRESSION |
+-                            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
+-
+-    SSL_CTX_set_min_proto_version(ctx_, TLS1_2_VERSION);
+-
+-    if (SSL_CTX_use_certificate(ctx_, cert) != 1 ||
+-        SSL_CTX_use_PrivateKey(ctx_, private_key) != 1) {
+-      SSL_CTX_free(ctx_);
+-      ctx_ = nullptr;
+-    } else if (client_ca_cert_store) {
+-      SSL_CTX_set_cert_store(ctx_, client_ca_cert_store);
+-
+-      SSL_CTX_set_verify(
+-          ctx_, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+-    }
+-  }
+-}
+-
+-inline SSLServer::SSLServer(
+-    const std::function<bool(SSL_CTX &ssl_ctx)> &setup_ssl_ctx_callback) {
+-  ctx_ = SSL_CTX_new(TLS_method());
+-  if (ctx_) {
+-    if (!setup_ssl_ctx_callback(*ctx_)) {
+-      SSL_CTX_free(ctx_);
+-      ctx_ = nullptr;
+-    }
+-  }
+-}
+-
+-inline SSLServer::~SSLServer() {
+-  if (ctx_) { SSL_CTX_free(ctx_); }
+-}
+-
+-inline bool SSLServer::is_valid() const { return ctx_; }
+-
+-inline SSL_CTX *SSLServer::ssl_context() const { return ctx_; }
+-
+-inline void SSLServer::update_certs (X509 *cert, EVP_PKEY *private_key,
+-            X509_STORE *client_ca_cert_store) {
+-
+-    std::lock_guard<std::mutex> guard(ctx_mutex_);
+-
+-    SSL_CTX_use_certificate (ctx_, cert);
+-    SSL_CTX_use_PrivateKey  (ctx_, private_key);
+-
+-    if (client_ca_cert_store != nullptr) {
+-        SSL_CTX_set_cert_store  (ctx_, client_ca_cert_store);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     }
+ 
+-<<<<<<< HEAD
+     if (SSL_CTX_use_certificate_chain_file(ctx_, cert_path) != 1 ||
+         SSL_CTX_use_PrivateKey_file(ctx_, private_key_path, SSL_FILETYPE_PEM) !=
+             1 ||
+@@ -10924,44 +9317,21 @@
+     int local_port = 0;
+     detail::get_local_ip_and_port(sock, local_addr, local_port);
+ 
+-=======
+-inline bool SSLServer::process_and_close_socket(socket_t sock) {
+-  auto ssl = detail::ssl_new(
+-      sock, ctx_, ctx_mutex_,
+-      [&](SSL *ssl2) {
+-        return detail::ssl_connect_or_accept_nonblocking(
+-            sock, ssl2, SSL_accept, read_timeout_sec_, read_timeout_usec_);
+-      },
+-      [](SSL * /*ssl2*/) { return true; });
+-
+-  auto ret = false;
+-  if (ssl) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     ret = detail::process_server_socket_ssl(
+         svr_sock_, ssl, sock, keep_alive_max_count_, keep_alive_timeout_sec_,
+         read_timeout_sec_, read_timeout_usec_, write_timeout_sec_,
+         write_timeout_usec_,
+-<<<<<<< HEAD
+         [&](Stream &strm, bool close_connection, bool &connection_closed) {
+           return process_request(strm, remote_addr, remote_port, local_addr,
+                                  local_port, close_connection,
+                                  connection_closed,
+-=======
+-        [this, ssl](Stream &strm, bool close_connection,
+-                    bool &connection_closed) {
+-          return process_request(strm, close_connection, connection_closed,
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+                                  [&](Request &req) { req.ssl = ssl; });
+         });
+ 
+     // Shutdown gracefully if the result seemed successful, non-gracefully if
+     // the connection appeared to be closed.
+     const bool shutdown_gracefully = ret;
+-<<<<<<< HEAD
+     detail::ssl_delete(ctx_mutex_, ssl, sock, shutdown_gracefully);
+-=======
+-    detail::ssl_delete(ctx_mutex_, ssl, shutdown_gracefully);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   }
+ 
+   detail::shutdown_socket(sock);
+@@ -10983,11 +9353,8 @@
+     : ClientImpl(host, port, client_cert_path, client_key_path) {
+   ctx_ = SSL_CTX_new(TLS_client_method());
+ 
+-<<<<<<< HEAD
+   SSL_CTX_set_min_proto_version(ctx_, TLS1_2_VERSION);
+ 
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   detail::split(&host_[0], &host_[host_.size()], '.',
+                 [&](const char *b, const char *e) {
+                   host_components_.emplace_back(b, e);
+@@ -11205,12 +9572,8 @@
+         }
+ 
+         if (server_certificate_verification_) {
+-<<<<<<< HEAD
+           auto verification_status = SSLVerifierResponse::NoDecisionMade;
+ 
+-=======
+-<<<<<<< HEAD
+->>>>>>> 5891100ab3b (Update cpp-httplib to 6a848b1a1643)
+           if (server_certificate_verifier_) {
+             verification_status = server_certificate_verifier_(ssl2);
+           }
+@@ -11243,34 +9606,11 @@
+               }
+             }
+           }
+-=======
+-          verify_result_ = SSL_get_verify_result(ssl2);
+-
+-          if (verify_result_ != X509_V_OK) {
+-            error = Error::SSLServerVerification;
+-            return false;
+-          }
+-
+-          auto server_cert = SSL_get1_peer_certificate(ssl2);
+-
+-          if (server_cert == nullptr) {
+-            error = Error::SSLServerVerification;
+-            return false;
+-          }
+-
+-          if (!verify_host(server_cert)) {
+-            X509_free(server_cert);
+-            error = Error::SSLServerVerification;
+-            return false;
+-          }
+-          X509_free(server_cert);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+         }
+ 
+         return true;
+       },
+       [&](SSL *ssl2) {
+-<<<<<<< HEAD
+ #if defined(OPENSSL_IS_BORINGSSL)
+         SSL_set_tlsext_host_name(ssl2, host_.c_str());
+ #else
+@@ -11279,13 +9619,6 @@
+         SSL_ctrl(ssl2, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name,
+                  static_cast<void *>(const_cast<char *>(host_.c_str())));
+ #endif
+-=======
+-        // NOTE: Direct call instead of using the OpenSSL macro to suppress
+-        // -Wold-style-cast warning
+-        // SSL_set_tlsext_host_name(ssl2, host_.c_str());
+-        SSL_ctrl(ssl2, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name,
+-                 static_cast<void *>(const_cast<char *>(host_.c_str())));
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+         return true;
+       });
+ 
+@@ -11310,12 +9643,8 @@
+     return;
+   }
+   if (socket.ssl) {
+-<<<<<<< HEAD
+     detail::ssl_delete(ctx_mutex_, socket.ssl, socket.sock,
+                        shutdown_gracefully);
+-=======
+-    detail::ssl_delete(ctx_mutex_, socket.ssl, shutdown_gracefully);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+     socket.ssl = nullptr;
+   }
+   assert(socket.ssl == nullptr);
+@@ -11512,11 +9841,7 @@
+     cli_ = detail::make_unique<ClientImpl>(scheme_host_port, 80,
+                                            client_cert_path, client_key_path);
+   }
+-<<<<<<< HEAD
+ } // namespace detail
+-=======
+-}
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ 
+ inline Client::Client(const std::string &host, int port)
+     : cli_(detail::make_unique<ClientImpl>(host, port)) {}
+@@ -11796,12 +10121,8 @@
+ }
+ inline Result Client::Patch(const std::string &path, const char *body,
+                             size_t content_length,
+-<<<<<<< HEAD
+                             const std::string &content_type,
+                             Progress progress) {
+-=======
+-                            const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cli_->Patch(path, body, content_length, content_type, progress);
+ }
+ inline Result Client::Patch(const std::string &path, const Headers &headers,
+@@ -11811,27 +10132,18 @@
+ }
+ inline Result Client::Patch(const std::string &path, const Headers &headers,
+                             const char *body, size_t content_length,
+-<<<<<<< HEAD
+                             const std::string &content_type,
+                             Progress progress) {
+   return cli_->Patch(path, headers, body, content_length, content_type,
+                      progress);
+-=======
+-                            const std::string &content_type, Progress progress) {
+-  return cli_->Patch(path, headers, body, content_length, content_type, progress);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ inline Result Client::Patch(const std::string &path, const std::string &body,
+                             const std::string &content_type) {
+   return cli_->Patch(path, body, content_type);
+ }
+ inline Result Client::Patch(const std::string &path, const std::string &body,
+-<<<<<<< HEAD
+                             const std::string &content_type,
+                             Progress progress) {
+-=======
+-                            const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cli_->Patch(path, body, content_type, progress);
+ }
+ inline Result Client::Patch(const std::string &path, const Headers &headers,
+@@ -11841,12 +10153,8 @@
+ }
+ inline Result Client::Patch(const std::string &path, const Headers &headers,
+                             const std::string &body,
+-<<<<<<< HEAD
+                             const std::string &content_type,
+                             Progress progress) {
+-=======
+-                            const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cli_->Patch(path, headers, body, content_type, progress);
+ }
+ inline Result Client::Patch(const std::string &path, size_t content_length,
+@@ -11885,12 +10193,8 @@
+ }
+ inline Result Client::Delete(const std::string &path, const char *body,
+                              size_t content_length,
+-<<<<<<< HEAD
+                              const std::string &content_type,
+                              Progress progress) {
+-=======
+-                             const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cli_->Delete(path, body, content_length, content_type, progress);
+ }
+ inline Result Client::Delete(const std::string &path, const Headers &headers,
+@@ -11900,27 +10204,18 @@
+ }
+ inline Result Client::Delete(const std::string &path, const Headers &headers,
+                              const char *body, size_t content_length,
+-<<<<<<< HEAD
+                              const std::string &content_type,
+                              Progress progress) {
+   return cli_->Delete(path, headers, body, content_length, content_type,
+                       progress);
+-=======
+-                             const std::string &content_type, Progress progress) {
+-  return cli_->Delete(path, headers, body, content_length, content_type, progress);
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ }
+ inline Result Client::Delete(const std::string &path, const std::string &body,
+                              const std::string &content_type) {
+   return cli_->Delete(path, body, content_type);
+ }
+ inline Result Client::Delete(const std::string &path, const std::string &body,
+-<<<<<<< HEAD
+                              const std::string &content_type,
+                              Progress progress) {
+-=======
+-                             const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cli_->Delete(path, body, content_type, progress);
+ }
+ inline Result Client::Delete(const std::string &path, const Headers &headers,
+@@ -11930,12 +10225,8 @@
+ }
+ inline Result Client::Delete(const std::string &path, const Headers &headers,
+                              const std::string &body,
+-<<<<<<< HEAD
+                              const std::string &content_type,
+                              Progress progress) {
+-=======
+-                             const std::string &content_type, Progress progress) {
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+   return cli_->Delete(path, headers, body, content_type, progress);
+ }
+ inline Result Client::Options(const std::string &path) {
+@@ -12047,7 +10338,6 @@
+ inline void Client::enable_server_certificate_verification(bool enabled) {
+   cli_->enable_server_certificate_verification(enabled);
+ }
+-<<<<<<< HEAD
+ 
+ inline void Client::enable_server_hostname_verification(bool enabled) {
+   cli_->enable_server_hostname_verification(enabled);
+@@ -12057,8 +10347,6 @@
+     std::function<SSLVerifierResponse(SSL *ssl)> verifier) {
+   cli_->set_server_certificate_verifier(verifier);
+ }
+-=======
+->>>>>>> 8a9d7dbf6d3 (Update cpp-httplib to 6a848b1a1643)
+ #endif
+ 
+ inline void Client::set_logger(Logger logger) {

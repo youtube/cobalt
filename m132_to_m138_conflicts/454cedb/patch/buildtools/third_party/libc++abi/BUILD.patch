@@ -1,0 +1,18 @@
+--- buildtools/third_party/libc++abi/BUILD.gn
++++ buildtools/third_party/libc++abi/BUILD.gn
+@@ -6,15 +6,11 @@
+ import("//build/config/c++/c++.gni")
+ import("//build/config/unwind.gni")
+ 
+-<<<<<<< HEAD
+-target(libcxxabi_target_type, "libc++abi") {
+-=======
+ if (is_cobalt) {
+   import("//cobalt/build/configs/modular_variables.gni")
+ }
+ 
+ source_set("libc++abi") {
+->>>>>>> c3b51a91c14 (Build nplb hermetically (#4587))
+   if (export_libcxxabi_from_executables) {
+     visibility = [ "//build/config:executable_deps" ]
+   } else {

@@ -476,6 +476,16 @@ def main():
                     print(f'⏩ {i}/{len(commits)} cherry-pick is empty, skipping: {commit["hexsha"]}')
                     repo.git.cherry_pick('--skip')
                     continue
+
+                # If the cherry-pick fails, but the working tree is clean, it means
+                # the commit was empty or already applied.
+                if not repo.git.status('--porcelain'):
+                    print(f'⏩ {i}/{len(commits)} cherry-pick resulted in a clean working tree, skipping: {commit["hexsha"]}')
+                    # If a cherry-pick was in progress, abort it.
+                    if os.path.exists(os.path.join(repo.git_dir, 'CHERRY_PICK_HEAD')):
+                        repo.git.cherry_pick('--abort')
+                    continue
+
                 print(f'❌ Failed to cherry-pick: {commit["hexsha"]}')
                 record_conflict(repo, os.path.join(args.conflicts_dir, commit['original_hexsha'][:7]))
                 commit_id = repo.git.rev_parse('HEAD')

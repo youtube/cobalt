@@ -1,0 +1,15 @@
+--- base/task/sequence_manager/thread_controller_with_message_pump_impl.h
++++ base/task/sequence_manager/thread_controller_with_message_pump_impl.h
+@@ -73,12 +73,7 @@
+   void SetTaskExecutionAllowedInNativeNestedLoop(bool allowed) override;
+   bool IsTaskExecutionAllowed() const override;
+   MessagePump* GetBoundMessagePump() const override;
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+-=======
+-  void PrioritizeYieldingToNative(base::TimeTicks prioritize_until) override;
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+->>>>>>> 84312fb660c (Use the Starboard message pump. (#4772))
+   void AttachToMessagePump() override;
+ #endif
+ #if BUILDFLAG(IS_IOS)

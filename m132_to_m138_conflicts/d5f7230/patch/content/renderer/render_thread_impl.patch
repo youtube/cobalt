@@ -1,0 +1,38 @@
+--- content/renderer/render_thread_impl.cc
++++ content/renderer/render_thread_impl.cc
+@@ -1235,8 +1235,6 @@
+   return shared_main_thread_contexts_;
+ }
+ 
+-<<<<<<< HEAD
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ uint64_t RenderThreadImpl::GetMediaSourceSizeLimit() const {
+   return RenderMediaClient::GetMediaSourceSizeLimit();
+@@ -1251,26 +1249,6 @@
+ }
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+-#if BUILDFLAG(IS_ANDROID)
+-scoped_refptr<StreamTextureFactory> RenderThreadImpl::GetStreamTexureFactory() {
+-  DCHECK(IsMainThread());
+-  if (!stream_texture_factory_ || stream_texture_factory_->IsLost()) {
+-    scoped_refptr<gpu::GpuChannelHost> channel = EstablishGpuChannelSync();
+-    if (!channel) {
+-      stream_texture_factory_ = nullptr;
+-      return nullptr;
+-    }
+-    stream_texture_factory_ = StreamTextureFactory::Create(std::move(channel));
+-  }
+-  return stream_texture_factory_;
+-}
+-
+-bool RenderThreadImpl::EnableStreamTextureCopy() {
+-  return GetContentClient()->UsingSynchronousCompositing();
+-}
+-#endif  // BUILDFLAG(IS_ANDROID)
+-
+->>>>>>> 3bdb2b4301e (Implement mediasource MemoryInfo extension (#4960))
+ #if BUILDFLAG(IS_WIN)
+ scoped_refptr<DCOMPTextureFactory> RenderThreadImpl::GetDCOMPTextureFactory() {
+   DCHECK(IsMainThread());

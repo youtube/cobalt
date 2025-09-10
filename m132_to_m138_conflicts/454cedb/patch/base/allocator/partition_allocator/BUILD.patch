@@ -1,0 +1,18 @@
+--- base/allocator/partition_allocator/BUILD.gn
++++ base/allocator/partition_allocator/BUILD.gn
+@@ -17,13 +17,12 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+ if (use_allocator_shim) {
+   group("allocator_shim") {
+     public_deps = [ "src/partition_alloc:allocator_shim" ]
+   }
+-=======
++}
++
+ if (is_cobalt) {
+   import("//cobalt/build/configs/modular_variables.gni")
+->>>>>>> c3b51a91c14 (Build nplb hermetically (#4587))
+ }

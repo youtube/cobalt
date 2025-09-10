@@ -1,0 +1,20 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -1076,17 +1076,8 @@
+   # to provide the appropriate `#define` here.
+   defines += [ "IS_RAW_PTR_IMPL" ]
+ 
+-<<<<<<< HEAD
+   # native_unwinder_android is split into a separate target to avoid pulling
+   # libunwindstack dependencies into cronet's base.
+-=======
+-  if (is_starboard) {
+-    deps += [ "//starboard($starboard_toolchain)" ]
+-  }
+-
+-  # native_unwinder_android is intended for use solely via a dynamic feature
+-  # module, to avoid increasing Chrome's executable size.
+->>>>>>> 84312fb660c (Use the Starboard message pump. (#4772))
+   assert_no_deps = [ ":native_unwinder_android" ]
+ 
+   public_deps = [

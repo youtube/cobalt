@@ -1,0 +1,22 @@
+--- content/renderer/renderer_blink_platform_impl.h
++++ content/renderer/renderer_blink_platform_impl.h
+@@ -254,18 +254,16 @@
+   // plus eTLD+1, such as https://google.com), or to a more specific origin.
+   void SetIsLockedToSite();
+ 
+-<<<<<<< HEAD
+   void set_webui_resource_to_code_cache_id_map(
+       const base::flat_map<GURL, int>& resource_map) {
+     webui_resource_to_code_cache_id_map_ = resource_map;
+   }
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   virtual uint64_t mediaSourceSizeLimit() const override;
+   virtual uint64_t totalMediaSourceSize() const override;
+   virtual uint64_t usedMediaSourceMemorySize() const override;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 3bdb2b4301e (Implement mediasource MemoryInfo extension (#4960))
+ 
+  private:
+   bool CheckPreparsedJsCachingEnabled() const;

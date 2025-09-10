@@ -1,0 +1,16 @@
+--- build/android/java/templates/BuildConfig.template
++++ build/android/java/templates/BuildConfig.template
+@@ -117,13 +117,5 @@
+     public static boolean DISABLE_STRICT_MODE_CONTEXT;
+ #endif
+ 
+-<<<<<<< HEAD
+     public static final String LOGTAG_PREFIX = QUOTE(_LOGTAG_PREFIX);
+-=======
+-#if defined(_DISABLE_DEBUG_LOGS)
+-    public static MAYBE_FINAL boolean ENABLE_DEBUG_LOGS MAYBE_FALSE;
+-#else
+-    public static MAYBE_FINAL boolean ENABLE_DEBUG_LOGS = true;
+-#endif
+->>>>>>> e5ccc936d2a (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
+ }

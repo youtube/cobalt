@@ -1,0 +1,16 @@
+--- base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.cc
++++ base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.cc
+@@ -31,13 +31,10 @@
+ // noexcept needs to be routed to
+ // allocator_shim::internal::PartitionMallocUnchecked through the shim layer.
+ #include "partition_alloc/shim/allocator_shim_override_cpp_symbols.h"
+-<<<<<<< HEAD
+-=======
+ 
+ #if defined(IS_COBALT_HERMETIC_BUILD)
+ // Don't include anything, all includes are already set up in MUSL libc
+ #else
+->>>>>>> c3b51a91c14 (Build nplb hermetically (#4587))
+ #include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
+ #endif
+ 

@@ -1,0 +1,22 @@
+--- media/mojo/services/gpu_mojo_media_client.h
++++ media/mojo/services/gpu_mojo_media_client.h
+@@ -134,11 +134,7 @@
+       mojom::CommandBufferIdPtr command_buffer_id,
+       RequestOverlayInfoCB request_overlay_info_cb,
+       const gfx::ColorSpace& target_color_space,
+-<<<<<<< HEAD
+       mojo::PendingRemote<mojom::VideoDecoder> oop_video_decoder) final;
+-=======
+-      mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder)
+-      final;
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   std::unique_ptr<Renderer> CreateStarboardRenderer(
+       mojom::FrameInterfaceFactory* frame_interfaces,
+@@ -152,7 +148,6 @@
+       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+           client_extension_remote) final;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 61f5185653a ([media] Move StarboardRenderer to MojoRenderer (#5113))
+   std::unique_ptr<CdmFactory> CreateCdmFactory(
+       mojom::FrameInterfaceFactory* interface_provider) final;
+ 

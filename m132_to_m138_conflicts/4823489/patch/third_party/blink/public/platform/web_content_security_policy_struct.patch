@@ -1,0 +1,16 @@
+--- third_party/blink/public/platform/web_content_security_policy_struct.h
++++ third_party/blink/public/platform/web_content_security_policy_struct.h
+@@ -70,13 +70,10 @@
+   bool allow_dynamic;
+   bool allow_unsafe_hashes;
+   bool report_sample;
+-<<<<<<< HEAD
+   std::optional<network::mojom::IntegrityAlgorithm> report_hash_algorithm;
+-=======
+ #if BUILDFLAG(IS_COBALT)
+   bool cobalt_insecure_local_network;
+ #endif
+->>>>>>> ec4e2c2ce45 (Add custom cobalt-insecure-local-network csp source (#4958))
+ };
+ 
+ struct WebContentSecurityPolicyDirective {
