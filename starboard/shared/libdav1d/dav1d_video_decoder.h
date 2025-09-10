@@ -34,15 +34,15 @@
 
 namespace starboard::shared::libdav1d {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class Dav1dVideoDecoder : public starboard::player::filter::VideoDecoder,
+                          private starboard::player::JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider,
-               bool may_reduce_quality_for_speed);
-  ~VideoDecoder() override;
+  Dav1dVideoDecoder(SbMediaVideoCodec video_codec,
+                    SbPlayerOutputMode output_mode,
+                    SbDecodeTargetGraphicsContextProvider*
+                        decode_target_graphics_context_provider,
+                    bool may_reduce_quality_for_speed);
+  ~Dav1dVideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;

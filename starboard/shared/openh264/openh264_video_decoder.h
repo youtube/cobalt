@@ -37,14 +37,14 @@
 
 namespace starboard::shared::openh264 {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
+                             private starboard::player::JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
-  ~VideoDecoder() override;
+  OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
+                       SbPlayerOutputMode output_mode,
+                       SbDecodeTargetGraphicsContextProvider*
+                           decode_target_graphics_context_provider);
+  ~OpenH264VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
