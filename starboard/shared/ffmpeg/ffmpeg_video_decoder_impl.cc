@@ -128,7 +128,7 @@ VideoDecoderImpl<FFMPEG>::~VideoDecoderImpl() {
 }
 
 // static
-VideoDecoder* VideoDecoderImpl<FFMPEG>::Create(
+FfmpegVideoDecoder* VideoDecoderImpl<FFMPEG>::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*

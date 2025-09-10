@@ -24,12 +24,13 @@ namespace starboard::shared::ffmpeg {
 // For each version V that is supported, there will be an explicit
 // specialization of the VideoDecoder class.
 template <int V>
-class VideoDecoderImpl : public VideoDecoder {
+class VideoDecoderImpl : public FfmpegVideoDecoder {
  public:
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec,
-                              SbPlayerOutputMode output_mode,
-                              SbDecodeTargetGraphicsContextProvider*
-                                  decode_target_graphics_context_provider);
+  static FfmpegVideoDecoder* Create(
+      SbMediaVideoCodec video_codec,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider);
 };
 
 }  // namespace starboard::shared::ffmpeg

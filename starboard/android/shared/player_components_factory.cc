@@ -243,7 +243,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      std::unique_ptr<VideoDecoder> video_decoder =
+      std::unique_ptr<MediaCodecVideoDecoder> video_decoder =
           CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
                              kForceSecurePipelineUnderTunnelMode,
                              max_video_input_size, error_message);
@@ -445,7 +445,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
-      std::unique_ptr<VideoDecoder> video_decoder_impl =
+      std::unique_ptr<MediaCodecVideoDecoder> video_decoder_impl =
           CreateVideoDecoder(creation_parameters, tunnel_mode_audio_session_id,
                              force_secure_pipeline_under_tunnel_mode,
                              max_video_input_size, error_message);
@@ -488,7 +488,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
   }
 
-  std::unique_ptr<VideoDecoder> CreateVideoDecoder(
+  std::unique_ptr<MediaCodecVideoDecoder> CreateVideoDecoder(
       const CreationParameters& creation_parameters,
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
@@ -529,7 +529,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    auto video_decoder = std::make_unique<VideoDecoder>(
+    auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),

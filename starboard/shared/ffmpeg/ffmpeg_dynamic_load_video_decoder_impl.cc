@@ -25,7 +25,7 @@
 namespace starboard::shared::ffmpeg {
 
 // static
-VideoDecoder* VideoDecoder::Create(
+FfmpegVideoDecoder* FfmpegVideoDecoder::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
@@ -35,7 +35,7 @@ VideoDecoder* VideoDecoder::Create(
     return NULL;
   }
 
-  VideoDecoder* video_decoder = NULL;
+  FfmpegVideoDecoder* video_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
       video_decoder = VideoDecoderImpl<540>::Create(

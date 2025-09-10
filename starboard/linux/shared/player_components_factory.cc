@@ -112,12 +112,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      typedef ::starboard::shared::libdav1d::VideoDecoder Av1VideoDecoderImpl;
-      typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
-      typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
-      typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
-      typedef ::starboard::shared::openh264::VideoDecoder
-          Openh264VideoDecoderImpl;
+      using ::starboard::shared::de265::De265VideoDecoder;
+      using ::starboard::shared::ffmpeg::FfmpegVideoDecoder;
+      using ::starboard::shared::libdav1d::Dav1dVideoDecoder;
+      using ::starboard::shared::openh264::OpenH264VideoDecoder;
+      using ::starboard::shared::vpx::VpxVideoDecoder;
 
       const int64_t kVideoSinkRenderIntervalUsec = 10'000;
 
@@ -130,32 +129,32 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecAv1;
 
       if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
-        video_decoder->reset(new VpxVideoDecoderImpl(
+        *video_decoder = std::make_unique<VpxVideoDecoder>(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
+            creation_parameters.decode_target_graphics_context_provider());
       } else if (creation_parameters.video_codec() == kAv1VideoCodec) {
-        video_decoder->reset(new Av1VideoDecoderImpl(
+        *video_decoder = std::make_unique<Dav1dVideoDecoder>(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider(),
-            /* may_reduce_quality_for_speed = */ true));
+            /* may_reduce_quality_for_speed = */ true);
       } else if (creation_parameters.video_codec() == kSbMediaVideoCodecH265) {
-        video_decoder->reset(new H265VideoDecoderImpl(
+        *video_decoder = std::make_unique<De265VideoDecoder>(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
+            creation_parameters.decode_target_graphics_context_provider());
       } else if ((creation_parameters.video_codec() ==
                   kSbMediaVideoCodecH264) &&
                  is_openh264_supported()) {
         SB_LOG(INFO) << "Playing video using openh264::VideoDecoder.";
-        video_decoder->reset(new Openh264VideoDecoderImpl(
+        *video_decoder = std::make_unique<OpenH264VideoDecoder>(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
+            creation_parameters.decode_target_graphics_context_provider());
       } else {
-        std::unique_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
-            FfmpegVideoDecoderImpl::Create(
+        std::unique_ptr<FfmpegVideoDecoder> ffmpeg_video_decoder(
+            FfmpegVideoDecoder::Create(
                 creation_parameters.video_codec(),
                 creation_parameters.output_mode(),
                 creation_parameters.decode_target_graphics_context_provider()));
