@@ -30,6 +30,6 @@ namespace starboard::shared::starboard {
 // appropriate system paths that may normally be stored under a home directory.
 bool GetHomeDirectory(char* out_path, int path_size);
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_
