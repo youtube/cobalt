@@ -33,6 +33,7 @@ declare_args() {
 
   use_evergreen = false
 
+  # TODO(b/444119857) remove this flag once the Chromium rebase has landed.
   build_with_exoplayer = false
 }
 
