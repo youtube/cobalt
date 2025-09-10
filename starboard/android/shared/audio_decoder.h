@@ -36,7 +36,7 @@
 
 namespace starboard::android::shared {
 
-class AudioDecoder
+class MediaCodecAudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
       private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private MediaDecoder::Host {
@@ -44,10 +44,10 @@ class AudioDecoder
   typedef ::starboard::shared::starboard::media::AudioStreamInfo
       AudioStreamInfo;
 
-  AudioDecoder(const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system,
-               bool enable_flush_during_seek);
-  ~AudioDecoder() override;
+  MediaCodecAudioDecoder(const AudioStreamInfo& audio_stream_info,
+                         SbDrmSystem drm_system,
+                         bool enable_flush_during_seek);
+  ~MediaCodecAudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
