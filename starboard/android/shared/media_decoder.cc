@@ -517,23 +517,24 @@ bool MediaDecoder::ProcessOneInputBuffer(
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_CODEC_CONFIG);
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, kNoOffset, size, kNoPts,
+        BUFFER_FLAG_CODEC_CONFIG, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-          pts_us);
+          pts_us, host_->IsBufferDecodeOnly(input_buffer));
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
+          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags,
+          host_->IsBufferDecodeOnly(input_buffer));
     }
   } else {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_END_OF_STREAM);
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, kNoOffset, size, kNoPts,
+        BUFFER_FLAG_END_OF_STREAM, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
