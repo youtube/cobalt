@@ -37,9 +37,8 @@ jlong GetSystemNanoTime() {
 
 }  // namespace
 
-VideoRenderAlgorithm::VideoRenderAlgorithm(
-    MediaCodecVideoDecoder* video_decoder,
-    VideoFrameTracker* frame_tracker)
+VideoRenderAlgorithm::VideoRenderAlgorithm(VideoDecoder* video_decoder,
+                                           VideoFrameTracker* frame_tracker)
     : video_decoder_(video_decoder), frame_tracker_(frame_tracker) {
   SB_CHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
