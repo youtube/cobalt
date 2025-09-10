@@ -21,6 +21,10 @@
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/notreached.h"
+#endif
+
 namespace update_client {
 
 namespace {
@@ -60,6 +64,10 @@ void RequestSender::Send(
     bool use_signing,
     RequestSenderCallback request_sender_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "RequestSender::Send";
+#endif
 
   urls_ = urls;
   request_extra_headers_ = request_extra_headers;
@@ -117,6 +125,19 @@ void RequestSender::SendInternal() {
       base::BindOnce(&RequestSender::OnNetworkFetcherComplete,
                      base::Unretained(this), url));
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void RequestSender::Cancel() {
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "RequestSender::Cancel";
+  // TODO(b/431862767): enable this in a follow-up PR with the Cobalt network
+  // fetcher implementation
+  NOTIMPLEMENTED();
+  // if (network_fetcher_.get()) {
+  //   network_fetcher_->Cancel();
+  // }
+}
+#endif
 
 void RequestSender::SendInternalComplete(
     int error,
@@ -176,6 +197,10 @@ void RequestSender::OnNetworkFetcherComplete(
     const std::string& xheader_cup_server_proof,
     int64_t xheader_retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/448186580): Replace LOG with D(V)LOG
+  LOG(INFO) << "RequestSender::OnNetworkFetcherComplete";
+#endif
 
   VLOG(1) << "Request completed from url: " << original_url.spec();
 
