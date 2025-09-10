@@ -394,7 +394,7 @@ void MediaDecoder::TerminateDecoderThread() {
   }
 
   if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(decoder_thread_, nullptr), 0);
     decoder_thread_ = 0;
   }
 }

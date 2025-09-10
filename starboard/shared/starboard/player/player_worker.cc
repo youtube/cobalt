@@ -91,7 +91,7 @@ PlayerWorker::~PlayerWorker() {
 
   if (thread_ != 0) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
-    pthread_join(thread_, NULL);
+    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
     thread_ = 0;
 
     // Now the whole pipeline has been torn down and no callback will be called.

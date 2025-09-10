@@ -82,7 +82,7 @@ StubAudioSink::~StubAudioSink() {
     ScopedLock lock(mutex_);
     destroying_ = true;
   }
-  pthread_join(audio_out_thread_, NULL);
+  SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
 }
 
 // static

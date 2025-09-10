@@ -173,7 +173,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+    SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
   }
 }
 
