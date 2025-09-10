@@ -18,6 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
@@ -71,6 +72,8 @@ void H5vccExperimentsImpl::SetExperimentState(
   experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     0);
 
+  experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
+                                  base::Time::Now().ToInternalValue());
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,
       std::move(experiment_config.Find(cobalt::kExperimentConfigFeatures)
