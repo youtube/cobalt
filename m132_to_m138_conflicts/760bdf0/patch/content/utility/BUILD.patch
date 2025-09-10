@@ -1,0 +1,26 @@
+--- content/utility/BUILD.gn
++++ content/utility/BUILD.gn
+@@ -116,23 +116,15 @@
+       "//media/mojo/services",
+       "//services/network:network_sandbox_hook",
+     ]
+-<<<<<<< HEAD
+     if (use_linux_video_acceleration) {
+       deps += [
+-=======
+-    if (is_cobalt_hermetic_build) {
+-      deps -= [
+->>>>>>> 299cf7ce369 (content/ changes to build cobalt (#5517))
+         "//gpu/config",
+         "//third_party/angle:angle_gpu_info_util",
+       ]
+     }
+-<<<<<<< HEAD
+     if (enable_oop_printing) {
+       deps += [ "//printing:printing_sandbox_hook" ]
+     }
+-=======
+->>>>>>> 299cf7ce369 (content/ changes to build cobalt (#5517))
+   }
+ 
+   if (is_chromeos && is_chrome_branded) {

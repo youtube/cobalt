@@ -1,0 +1,23 @@
+--- net/quic/quic_chromium_packet_reader.cc
++++ net/quic/quic_chromium_packet_reader.cc
+@@ -245,20 +245,12 @@
+     return visitor_->OnReadError(result, socket_.get());
+   }
+ 
+-<<<<<<< HEAD
+   DscpAndEcn tos = socket_->GetLastTos();
+   quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
+-=======
+-  quic::QuicEcnCodepoint ecn = quic::ECN_NOT_ECT;
+-  if (report_ecn_) {
+-    DscpAndEcn tos = socket_->GetLastTos();
+-    ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
+-  }
+ #if BUILDFLAG(IS_COBALT)
+   quic::QuicReceivedPacket packet(read_buffer_->data(), result,
+                                   clock_->ApproximateNow());
+ #else
+->>>>>>> cf142c96481 (net/quic + third_party/quiche: Improving performance by removing histograms and using ApproximateNow (#6188))
+   quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now(),
+                                   /*owns_buffer=*/false, /*ttl=*/0,
+                                   /*ttl_valid=*/true,

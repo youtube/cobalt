@@ -1,0 +1,25 @@
+--- media/base/stream_parser_buffer.cc
++++ media/base/stream_parser_buffer.cc
+@@ -102,20 +102,11 @@
+                                        bool is_key_frame,
+                                        Type type,
+                                        TrackId track_id)
+-<<<<<<< HEAD
+-    : DecoderBuffer(data), type_(type), track_id_(track_id) {
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-    : DecoderBuffer(type, data, data_size),
++    : DecoderBuffer(type, data, data_size), type_(type), track_id_(track_id) {
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+-    : DecoderBuffer(
+-          // TODO(crbug.com/40284755): Convert `StreamBufferParser` to
+-          // `size_t` and `base::span`.
+-          UNSAFE_TODO(base::span(data, base::checked_cast<size_t>(data_size)))),
++    : DecoderBuffer(data), type_(type), track_id_(track_id) {
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-      type_(type),
+-      track_id_(track_id) {
+->>>>>>> 79502333f29 ([media] Improve DecoderBufferAllocator logging (#5036))
+   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and
+   // duration to force clients to set them? Today they end up being zero which
+   // is both a common and valid value and could lead to bugs.

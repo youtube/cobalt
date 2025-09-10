@@ -1,0 +1,19 @@
+--- build/config/android/config.gni
++++ build/config/android/config.gni
+@@ -73,15 +73,9 @@
+ 
+     # The default to use for android:minSdkVersion for targets that do
+     # not explicitly set it.
+-<<<<<<< HEAD
+     default_min_sdk_version = 29
+     if (is_cobalt) {
+-      default_min_sdk_version = 26
+-=======
+-    default_min_sdk_version = 24
+-    if (is_asan) {
+-      default_min_sdk_version = 27
+->>>>>>> 25f83524b5c (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
++      default_min_sdk_version = 24
+     }
+ 
+     # Static analysis can be either "on" or "off" or "build_server". This

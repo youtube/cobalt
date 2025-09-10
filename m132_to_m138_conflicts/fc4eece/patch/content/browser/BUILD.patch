@@ -1,0 +1,18 @@
+--- content/browser/BUILD.gn
++++ content/browser/BUILD.gn
+@@ -2580,14 +2580,10 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux || is_chromeos) {
++  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+     sources -=
+         [ "file_system_access/file_path_watcher/file_path_watcher_stub.cc" ]
+ 
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+->>>>>>> 9346cfcd213 (Fix remaining compiler issues in hermetic cobalt (#5316))
+     sources += [
+       "child_process_launcher_helper_linux.cc",
+       "child_thread_type_switcher_linux.cc",

@@ -1,0 +1,30 @@
+--- third_party/crashpad/crashpad/util/posix/scoped_mmap.cc
++++ third_party/crashpad/crashpad/util/posix/scoped_mmap.cc
+@@ -25,25 +25,13 @@
+ #include "base/numerics/safe_math.h"
+ #include "build/build_config.h"
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX)
+-=======
+-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
+-// complete.
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS_LACROS)
+->>>>>>> 9346cfcd213 (Fix remaining compiler issues in hermetic cobalt (#5316))
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+ #include "third_party/lss/lss.h"
+ #endif
+ 
+ namespace {
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX)
+-=======
+-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
+-// complete.
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS_LACROS)
+->>>>>>> 9346cfcd213 (Fix remaining compiler issues in hermetic cobalt (#5316))
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+ void* CallMmap(void* addr,
+                size_t len,
+                int prot,

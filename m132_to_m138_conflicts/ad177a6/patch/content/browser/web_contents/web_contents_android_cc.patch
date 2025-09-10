@@ -1,0 +1,25 @@
+--- content/browser/web_contents/web_contents_android.cc
++++ content/browser/web_contents/web_contents_android.cc
+@@ -495,10 +495,6 @@
+   web_contents_->ResumeLoadingCreatedWebContents();
+ }
+ 
+-<<<<<<< HEAD
+-void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
+-                                                       jint importance) {
+-=======
+ void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+   web_contents_->SetPageFrozen(true);
+ }
+@@ -507,9 +503,8 @@
+   web_contents_->SetPageFrozen(false);
+ }
+ 
+-void WebContentsAndroid::SetImportance(JNIEnv* env,
+-                                       jint primary_main_frame_importance) {
+->>>>>>> a9d9b4af394 (Add freeze and resume events on suspend/resume (#5613))
++void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
++                                                       jint importance) {
+   web_contents_->SetPrimaryMainFrameImportance(
+       static_cast<ChildProcessImportance>(importance));
+ }

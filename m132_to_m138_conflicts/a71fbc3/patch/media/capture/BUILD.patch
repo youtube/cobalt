@@ -1,0 +1,28 @@
+--- media/capture/BUILD.gn
++++ media/capture/BUILD.gn
+@@ -439,11 +439,7 @@
+     "//ui/gfx:test_support",
+   ]
+ 
+-<<<<<<< HEAD
+-  if (is_linux) {
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos_lacros) {
+->>>>>>> e0925cb5226 (Build almost all linux targets hermetically (#6097))
++  if (is_linux && !is_cobalt_hermetic_build) {
+     sources += [
+       "video/linux/fake_device_provider.cc",
+       "video/linux/fake_device_provider.h",
+@@ -519,11 +515,7 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux) {
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos_lacros) {
+->>>>>>> e0925cb5226 (Build almost all linux targets hermetically (#6097))
++  if (is_linux && !is_cobalt_hermetic_build) {
+     sources += [
+       "video/linux/v4l2_capture_delegate_unittest.cc",
+       "video/linux/video_capture_device_factory_v4l2_unittest.cc",

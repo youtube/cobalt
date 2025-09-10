@@ -1,0 +1,19 @@
+--- media/capture/BUILD.gn
++++ media/capture/BUILD.gn
+@@ -276,15 +276,11 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_chromeos) {
+-=======
+   if (is_cobalt_hermetic_build) {
+     sources += ["video/linux/video_capture_device_factory_linux_stub.cc"]
+   }
+ 
+-  if (is_chromeos_ash) {
+->>>>>>> efed9d53a4b (Add media changes to build cobalt hermetically (#5499))
++  if (is_chromeos) {
+     sources += [
+       "video/chromeos/camera_3a_controller.cc",
+       "video/chromeos/camera_3a_controller.h",

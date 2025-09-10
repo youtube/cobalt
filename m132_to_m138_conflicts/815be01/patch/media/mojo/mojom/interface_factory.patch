@@ -1,0 +1,25 @@
+--- media/mojo/mojom/interface_factory.mojom
++++ media/mojo/mojom/interface_factory.mojom
+@@ -16,7 +16,9 @@
+ import "mojo/public/mojom/base/token.mojom";
+ import "mojo/public/mojom/base/unguessable_token.mojom";
+ 
+-<<<<<<< HEAD
++[EnableIf=use_starboard_media]
++import "media/mojo/mojom/starboard/starboard_renderer_config.mojom";
++
+ // A disconnection of this interface can be interpreted as the
+ // VideoDecoder implementation created by
+ // InterfaceFactory.CreateVideoDecoderWithTracker() having been destroyed
+@@ -26,10 +28,7 @@
+ // by the video decoder processes.
+ [EnableIf=allow_oop_video_decoder]
+ interface VideoDecoderTracker {};
+-=======
+-[EnableIf=use_starboard_media]
+-import "media/mojo/mojom/starboard/starboard_renderer_config.mojom";
+->>>>>>> c41409832d0 ([media] Refactor initializing StarboardRenderer via StarboardRendererConfig (#5473))
++
+ 
+ // A factory for creating media mojo interfaces. Renderers can only access
+ // ContentDecryptionModules created with the same factory.

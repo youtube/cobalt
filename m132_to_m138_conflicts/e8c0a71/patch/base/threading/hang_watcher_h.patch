@@ -1,0 +1,23 @@
+--- base/threading/hang_watcher.h
++++ base/threading/hang_watcher.h
+@@ -121,18 +121,14 @@
+     kIOThread = 0,
+     kMainThread = 1,
+     kThreadPoolThread = 2,
+-<<<<<<< HEAD
+     kCompositorThread = 3,
+-    kMax = kCompositorThread
+-=======
+ #if BUILDFLAG(IS_COBALT)
+     // this is used in single-process mode only, inside browser process
+-    kRendererThread = 3,
++    kRendererThread = 4,
+     kMax = kRendererThread
+ #else
+-    kMax = kThreadPoolThread
++    kMax = kCompositorThread
+ #endif
+->>>>>>> 98dae7aa7e6 (Register main thread and in-process renderer thread in HangWatcher (#5406))
+   };
+ 
+   // Notes on lifetime:

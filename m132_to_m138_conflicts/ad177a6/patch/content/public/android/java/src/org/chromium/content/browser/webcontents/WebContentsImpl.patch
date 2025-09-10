@@ -1,0 +1,40 @@
+--- content/public/android/java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java
++++ content/public/android/java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java
+@@ -593,9 +593,6 @@
+         WebContentsImplJni.get().collapseSelection(mNativeWebContentsAndroid);
+     }
+ 
+-<<<<<<< HEAD
+-    private @Nullable SelectionPopupControllerImpl getSelectionPopupController() {
+-=======
+     @Override
+     public void onFreeze() {
+         checkNotDestroyed();
+@@ -608,8 +605,7 @@
+         WebContentsImplJni.get().onResume(mNativeWebContentsAndroid);
+     }
+ 
+-    private SelectionPopupControllerImpl getSelectionPopupController() {
+->>>>>>> a9d9b4af394 (Add freeze and resume events on suspend/resume (#5613))
++    private @Nullable SelectionPopupControllerImpl getSelectionPopupController() {
+         return SelectionPopupControllerImpl.fromWebContents(this);
+     }
+ 
+@@ -1345,16 +1341,12 @@
+ 
+         void collapseSelection(long nativeWebContentsAndroid);
+ 
+-<<<<<<< HEAD
+         void setPrimaryMainFrameImportance(long nativeWebContentsAndroid, int importance);
+-=======
++
+         void onFreeze(long nativeWebContentsAndroid);
+ 
+         void onResume(long nativeWebContentsAndroid);
+ 
+-        void setImportance(long nativeWebContentsAndroid, int importance);
+->>>>>>> a9d9b4af394 (Add freeze and resume events on suspend/resume (#5613))
+-
+         void suspendAllMediaPlayers(long nativeWebContentsAndroid);
+ 
+         void setAudioMuted(long nativeWebContentsAndroid, boolean mute);

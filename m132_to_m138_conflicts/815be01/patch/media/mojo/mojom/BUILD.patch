@@ -1,0 +1,21 @@
+--- media/mojo/mojom/BUILD.gn
++++ media/mojo/mojom/BUILD.gn
+@@ -82,16 +82,15 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+   if (allow_oop_video_decoder) {
+     sources += [
+       "cdm_context_for_oopvd.mojom",
+       "video_decoder_factory_process.mojom",
+     ]
+-=======
++  }
++
+   if (is_cobalt && use_starboard_media) {
+     sources += [ "starboard/starboard_renderer_config.mojom" ]
+->>>>>>> c41409832d0 ([media] Refactor initializing StarboardRenderer via StarboardRendererConfig (#5473))
+   }
+ 
+   public_deps = [

@@ -1,0 +1,19 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -356,8 +356,6 @@
+   // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
+   // default to false.
+   explicit DecoderBuffer(base::span<const uint8_t> data);
+-<<<<<<< HEAD
+-=======
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   DecoderBuffer(DemuxerStream::Type type,
+@@ -365,7 +363,6 @@
+                 size_t size);
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+->>>>>>> 79502333f29 ([media] Improve DecoderBufferAllocator logging (#5036))
+   explicit DecoderBuffer(base::HeapArray<uint8_t> data);
+   explicit DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory);
+   DecoderBuffer(DecoderBufferType decoder_buffer_type,

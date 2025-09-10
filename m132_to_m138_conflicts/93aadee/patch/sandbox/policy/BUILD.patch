@@ -1,0 +1,22 @@
+--- sandbox/policy/BUILD.gn
++++ sandbox/policy/BUILD.gn
+@@ -117,9 +117,6 @@
+       "//sandbox/linux:suid_sandbox_client",
+     ]
+   }
+-<<<<<<< HEAD
+-  if (is_chromeos) {
+-=======
+   if (is_cobalt_hermetic_build) {
+     sources += [
+       "export.h",
+@@ -138,8 +135,7 @@
+       "//sandbox/linux:suid_sandbox_client",
+     ]
+   }
+-  if (is_chromeos_ash) {
+->>>>>>> 62c83f3da88 (Add sandbox related symbol stubs to build cobalt (#5472))
++  if (is_chromeos) {
+     sources += [
+       "linux/bpf_ime_policy_linux.cc",
+       "linux/bpf_ime_policy_linux.h",

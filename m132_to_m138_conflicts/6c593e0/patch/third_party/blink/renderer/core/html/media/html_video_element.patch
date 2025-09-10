@@ -1,0 +1,21 @@
+--- third_party/blink/renderer/core/html/media/html_video_element.h
++++ third_party/blink/renderer/core/html/media/html_video_element.h
+@@ -295,17 +295,15 @@
+   bool allow_accelerated_images_ = true;
+   HeapTaskRunnerTimer<HTMLVideoElement> cache_deleting_timer_;
+ 
+-<<<<<<< HEAD
+   // Paint flags set based on CSS properties, which must be propagated to the
+   // cc::Layer.
+   cc::PaintFlags::FilterQuality filter_quality_ =
+       cc::PaintFlags::FilterQuality::kLow;
+   cc::PaintFlags::DynamicRangeLimitMixture dynamic_range_limit_;
+-=======
++
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   std::string max_video_capabilities_;
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 86f33d9e959 (Implement custom API for HTMLVideoElement (#5648))
+ };
+ 
+ }  // namespace blink

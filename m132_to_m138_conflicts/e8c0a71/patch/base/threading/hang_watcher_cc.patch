@@ -1,0 +1,34 @@
+--- base/threading/hang_watcher.cc
++++ base/threading/hang_watcher.cc
+@@ -51,13 +51,10 @@
+ std::atomic<LoggingLevel> g_threadpool_log_level{LoggingLevel::kNone};
+ std::atomic<LoggingLevel> g_io_thread_log_level{LoggingLevel::kNone};
+ std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
+-<<<<<<< HEAD
+ std::atomic<LoggingLevel> g_compositor_thread_log_level{LoggingLevel::kNone};
+-=======
+ #if BUILDFLAG(IS_COBALT)
+ std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
+ #endif
+->>>>>>> 98dae7aa7e6 (Register main thread and in-process renderer thread in HangWatcher (#5406))
+ 
+ // Indicates whether HangWatcher::Run() should return after the next monitoring.
+ std::atomic<bool> g_keep_monitoring{true};
+@@ -219,17 +216,14 @@
+     case HangWatcher::ThreadType::kThreadPoolThread:
+       return g_threadpool_log_level.load(std::memory_order_relaxed) >=
+              logging_level;
+-<<<<<<< HEAD
+     case HangWatcher::ThreadType::kCompositorThread:
+       return g_compositor_thread_log_level.load(std::memory_order_relaxed) >=
+              logging_level;
+-=======
+ #if BUILDFLAG(IS_COBALT)
+     case HangWatcher::ThreadType::kRendererThread:
+       return g_browser_process_renderer_thread_log_level.load(
+                  std::memory_order_relaxed) >= logging_level;
+ #endif
+->>>>>>> 98dae7aa7e6 (Register main thread and in-process renderer thread in HangWatcher (#5406))
+   }
+ }
+ 

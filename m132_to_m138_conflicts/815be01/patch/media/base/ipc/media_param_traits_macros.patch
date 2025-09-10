@@ -1,0 +1,19 @@
+--- media/base/ipc/media_param_traits_macros.h
++++ media/base/ipc/media_param_traits_macros.h
+@@ -40,16 +40,13 @@
+ #include "media/base/media_drm_key_type.h"
+ #endif  // BUILDFLAG(ENABLE_MEDIA_DRM_STORAGE)
+ 
+-<<<<<<< HEAD
+ // Note that this file historically used the same value as
+ // ipc/ipc_message_macros.h, and not `COMPONENT_EXPORT(MEDIA)`.
+ #undef IPC_MESSAGE_EXPORT
+ #define IPC_MESSAGE_EXPORT
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ #include "media/base/starboard/starboard_renderer_config.h"
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> c41409832d0 ([media] Refactor initializing StarboardRenderer via StarboardRendererConfig (#5473))
+ 
+ // Enum traits.
+ 

@@ -1,0 +1,54 @@
+--- content/browser/BUILD.gn
++++ content/browser/BUILD.gn
+@@ -51,13 +51,10 @@
+   }
+ }
+ 
+-<<<<<<< HEAD
+ if (is_ios) {
+   import("//build/config/apple/mobile_config.gni")  # For `target_platform`
+ }
+-=======
+ import("//cobalt/build/configs/hacks.gni")
+->>>>>>> dc4ef42e215 (Fix compiler error building cobalt (#5365))
+ 
+ source_set("browser") {
+   # Only the public target should depend on this. All other targets (even
+@@ -2584,16 +2581,11 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
++  if (is_linux || is_chromeos) {
+     sources -=
+         [ "file_system_access/file_path_watcher/file_path_watcher_stub.cc" ]
+-
+-=======
+-  if (is_linux || is_chromeos) {
+     # TODO: b/410019699 - Cobalt: Fix target dependencies on deps in this section
+     if (!enable_cobalt_hermetic_hacks) {
+->>>>>>> dc4ef42e215 (Fix compiler error building cobalt (#5365))
+     sources += [
+       "child_process_launcher_helper_linux.cc",
+       "child_thread_type_switcher_linux.cc",
+@@ -2613,17 +2605,14 @@
+       "zygote_host/zygote_host_impl_linux.cc",
+       "zygote_host/zygote_host_impl_linux.h",
+     ]
+-<<<<<<< HEAD
++    }
++
+     if (use_linux_video_acceleration) {
+       sources += [
+         "media/video_encode_accelerator_provider_launcher.cc",
+         "media/video_encode_accelerator_provider_launcher.h",
+       ]
+     }
+-=======
+-    }
+-
+->>>>>>> dc4ef42e215 (Fix compiler error building cobalt (#5365))
+     public_deps += [ "//components/services/font/public/mojom" ]
+ 
+     deps += [
