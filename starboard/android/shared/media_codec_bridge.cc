@@ -430,18 +430,20 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jint offset,
                                         jint size,
                                         jlong presentation_time_microseconds,
-                                        jint flags) {
+                                        jint flags,
+                                        jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
-      presentation_time_microseconds, flags);
+      presentation_time_microseconds, flags, is_decode_only);
 }
 
 jint MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
-    jlong presentation_time_microseconds) {
+    jlong presentation_time_microseconds,
+    jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_iv =
@@ -477,7 +479,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
