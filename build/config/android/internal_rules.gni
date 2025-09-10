@@ -3796,6 +3796,7 @@ if (enable_java_templates) {
         _kt_allowlist = [
           "android/java/src/org/chromium/chrome/browser/tabmodel/AsyncTabParamsManagerImpl.kt",
           "webengine_shell_apk/src/org/chromium/webengine/shell/*.kt",
+          "java/androidx/core/os/BuildCompat.kt",
         ]
         assert(filter_exclude(_kt_files, _kt_allowlist) == [],
                "Only a files in the allowlist can be included for now. Feel " +

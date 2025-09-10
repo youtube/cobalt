@@ -32,6 +32,9 @@ declare_args() {
   build_with_separate_cobalt_toolchain = target_os != "android"
 
   use_evergreen = false
+
+  # TODO(b/444119857) remove this flag once the Chromium rebase has landed.
+  build_with_exoplayer = false
 }
 
 assert(!(is_starboard && is_native_target_build),
