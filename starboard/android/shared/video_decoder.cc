@@ -458,7 +458,7 @@ VideoDecoder::GetRenderAlgorithm() {
 
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                               const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -497,7 +497,7 @@ int64_t VideoDecoder::GetPrerollTimeout() const {
 }
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
@@ -567,7 +567,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
   if (end_of_stream_written_) {
@@ -616,7 +616,7 @@ void VideoDecoder::WriteEndOfStream() {
 }
 
 void VideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|. If the codec is kSbMediaVideoCodecAv1,
@@ -653,7 +653,7 @@ void VideoDecoder::Reset() {
 
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
@@ -776,7 +776,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
 }
 
 void VideoDecoder::TeardownCodec() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
@@ -1211,14 +1211,14 @@ void VideoDecoder::OnFirstTunnelFrameReady() {
 }
 
 void VideoDecoder::OnTunnelModePrerollTimeout() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   // There's a race condition when suspending the app. If surface view is
