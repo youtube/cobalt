@@ -25,6 +25,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
+#include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 
@@ -615,7 +616,12 @@ absl::optional<Value> Value::Dict::Extract(StringPiece key) {
   }
   Value v = std::move(*it->second);
   storage_.erase(it);
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD) || BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+  // The explicit std::move is needed with raspi's C++17 compiler.
+  return std::move(v);
+#else
   return v;
+#endif
 }
 
 const Value* Value::Dict::FindByDottedPath(StringPiece path) const {

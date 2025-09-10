@@ -24,6 +24,9 @@ config("cobalt_config") {
   if (current_toolchain == starboard_toolchain &&
       starboard_toolchain != default_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
+  } else if (current_toolchain == native_target &&
+      native_target != default_toolchain) {
+    configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
     configs += [
@@ -96,6 +99,10 @@ config("buildflag_defines") {
   # Starboard.
   if (is_native_target_build) {
     defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
+  }
+
+  if (current_toolchain == starboard_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN" ]
   }
 
   # use_starboard_media and BUILDFLAG(USE_STARBOARD_MEDIA) should be used to

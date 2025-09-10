@@ -200,6 +200,12 @@ if (!crashpad_is_ios) {
     if (crashpad_is_linux) {
       deps += [ "../client:pthread_create" ]
     }
+
+    if (defined(is_native_target_build) && is_native_target_build) {
+      # For dlysm, from pthread_create, on raspi.
+      # TODO: b/406511608 - Cobalt: see if we actually want/need this.
+      ldflags = [ "-ldl" ]
+    }
   }
 }
 
