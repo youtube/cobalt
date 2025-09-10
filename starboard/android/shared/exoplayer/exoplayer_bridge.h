@@ -15,17 +15,15 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
-#include <pthread.h>
-
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -136,9 +134,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   // Signaled once player initialization is complete.
-  ConditionVariable cv_;
+  std::condition_variable cv_;
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
   bool playback_ended_ = false;

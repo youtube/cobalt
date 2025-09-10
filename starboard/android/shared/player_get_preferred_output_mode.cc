@@ -16,9 +16,8 @@
 
 #include <algorithm>
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
 #include "starboard/configuration.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
@@ -55,11 +54,8 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return kSbPlayerOutputModeInvalid;
   }
 
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    SB_LOG(INFO)
-        << "Using ExoPlayer SbPlayerGetPreferredOutputMode() implementation;.";
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
     return kSbPlayerOutputModePunchOut;
   }
 

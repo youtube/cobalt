@@ -14,13 +14,12 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 void SbPlayerSetBounds(SbPlayer player,
                        int z_index,
@@ -32,10 +31,9 @@ void SbPlayerSetBounds(SbPlayer player,
     SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
-  starboard::android::shared::JniEnvExt::Get()->CallStarboardVoidMethodOrAbort(
-      "setVideoSurfaceBounds", "(IIII)V", x, y, width, height);
-  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    // Skip fowarding the bounds to the ExoPlayer.
-    player->SetBounds(z_index, x, y, width, height);
-  }
+
+  JNIEnv* env = AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetVideoSurfaceBounds(env, x, y, width, height);
+  player->SetBounds(z_index, x, y, width, height);
 }

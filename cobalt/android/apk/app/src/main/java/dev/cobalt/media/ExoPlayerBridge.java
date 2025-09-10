@@ -21,9 +21,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Process;
 import android.view.Surface;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -35,24 +33,17 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
-import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
-
+import dev.cobalt.util.Log;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
-import dev.cobalt.media.CobaltMediaCodecSelector;
-import dev.cobalt.media.CobaltMediaSource;
-import dev.cobalt.media.ExoPlayerFormatCreator;
-import dev.cobalt.media.ExoPlayerRendererType;
-import dev.cobalt.util.Log;
-
+/** Facilitates communication between the native ExoPlayerBridge with the Java ExoPlayer. */
 @JNINamespace("starboard::android::shared::exoplayer")
 @UnstableApi
 public class ExoPlayerBridge {
     private ExoPlayer player;
-    private final Context context;
     private CobaltMediaSource audioMediaSource;
     private CobaltMediaSource videoMediaSource;
     private long mNativeExoPlayerBridge;
@@ -91,7 +82,6 @@ public class ExoPlayerBridge {
             }
             ExoPlayerBridgeJni.get().onPlaybackStateChanged(mNativeExoPlayerBridge, playbackState);
             if (playbackState == Player.STATE_ENDED) {
-                exoplayerHandler.removeCallbacks(updatePlaybackPos);
                 notifiedEOS = true;
             }
         }
@@ -212,7 +202,9 @@ public class ExoPlayerBridge {
         if (videoMediaSource == null) {
             return false;
         }
-        exoplayerHandler.post(() -> { player.setVideoSurface(surface); });
+        exoplayerHandler.post(() -> {
+            player.setVideoSurface(surface);
+        });
         return true;
     }
 
@@ -248,6 +240,8 @@ public class ExoPlayerBridge {
         lastPlaybackPos = player.getCurrentPosition() * 1000;
         if (!stopped) {
             exoplayerHandler.postDelayed(this::updatePlaybackPos, 75);
+        } else if (notifiedEOS) {
+            exoplayerHandler.removeCallbacks(this::updatePlaybackPos);
         }
     }
 

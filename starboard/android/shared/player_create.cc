@@ -27,6 +27,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -204,9 +205,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   }
 
   std::unique_ptr<PlayerWorker::Handler> handler;
-  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    SB_LOG(INFO)
-        << "Using ExoPlayerWorkerHandler SbPlayerCreate() implementation";
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
     handler.reset(
         new starboard::android::shared::exoplayer::ExoPlayerWorkerHandler(
             creation_param));

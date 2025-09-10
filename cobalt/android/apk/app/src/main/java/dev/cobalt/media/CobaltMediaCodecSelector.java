@@ -19,13 +19,13 @@ import static dev.cobalt.media.Log.TAG;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
-
+import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/** Overrides the default MediaCodecSelector to filter software video codecs. */
 public class CobaltMediaCodecSelector implements MediaCodecSelector {
 
     @Override

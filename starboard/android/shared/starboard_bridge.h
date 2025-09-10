@@ -76,7 +76,7 @@ class StarboardBridge {
 
   base::android::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
-  ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
 
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 

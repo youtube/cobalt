@@ -60,8 +60,7 @@ constexpr jint PLAYER_STATE_ENDED = 4;
 ExoPlayerBridge::ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
                                  const VideoStreamInfo& video_stream_info)
     : audio_stream_info_(audio_stream_info),
-      video_stream_info_(video_stream_info),
-      cv_(mutex_) {
+      video_stream_info_(video_stream_info) {
   int64_t start = CurrentMonotonicTime();
   InitExoplayer();
   int64_t end = CurrentMonotonicTime();
@@ -109,14 +108,13 @@ void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   ended_ = false;
   seek_time_ = seek_to_timestamp;
   playback_ended_ = false;
   audio_eos_written_ = false;
   video_eos_written_ = false;
   seeking_ = true;
-  cv_ = ConditionVariable(mutex_);
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
@@ -126,7 +124,7 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
       << input_buffers.size() << " samples.";
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
 
     if (ended_) {
       SB_LOG(WARNING) << "Tried to write a sample after playback ended";
@@ -212,7 +210,7 @@ bool ExoPlayerBridge::SetPlaybackRate(const double playback_rate) {
     return false;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   playback_rate_ = playback_rate;
 
   return true;
@@ -227,7 +225,7 @@ int ExoPlayerBridge::GetDroppedFrames() {
 
 int64_t ExoPlayerBridge::GetCurrentMediaTime(MediaInfo& info) {
   {
-    ScopedLock scoped_lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     info.is_playing = is_playing_;
     info.is_eos_played = playback_ended_;
     // TODO: Report underflow when buffering after playback start
@@ -258,8 +256,8 @@ void ExoPlayerBridge::OnPlaybackStateChanged(JNIEnv* env, jint playback_state) {
 }
 
 void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
-  ScopedLock lock(mutex_);
-  cv_.Signal();
+  std::unique_lock<std::mutex> lock(mutex_);
+  cv_.notify_one();
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring error_message) {
@@ -272,7 +270,7 @@ void ExoPlayerBridge::SetPlayingStatus(JNIEnv* env, jboolean is_playing) {
 }
 
 void ExoPlayerBridge::OnPlayerInitialized() {
-  ScopedLock lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   initialized_ = true;
 }
 
@@ -292,8 +290,11 @@ void ExoPlayerBridge::SetPlayingStatusInternal(bool is_playing) {
 bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
   bool wait_timeout;
   {
-    ScopedLock lock(mutex_);
-    wait_timeout = !cv_.WaitTimed(kWaitForInitializedTimeout);
+    std::unique_lock<std::mutex> lock(mutex_);
+    wait_timeout =
+        cv_.wait_for(lock,
+                     std::chrono::microseconds(kWaitForInitializedTimeout)) ==
+        std::cv_status::timeout;
   }
 
   if (wait_timeout) {
@@ -367,10 +368,10 @@ void ExoPlayerBridge::InitExoplayer() {
     j_output_surface_.Reset(j_output_surface);
 
     int width = video_stream_info_.codec != kSbMediaVideoCodecNone
-                    ? video_stream_info_.frame_width
+                    ? video_stream_info_.frame_size.width
                     : 0;
     int height = video_stream_info_.codec != kSbMediaVideoCodecNone
-                     ? video_stream_info_.frame_height
+                     ? video_stream_info_.frame_size.height
                      : 0;
     int framerate = 0;
     int bitrate = 0;

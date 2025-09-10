@@ -14,14 +14,16 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.util.Log.TAG;
+
 import android.content.Context;
-import dev.cobalt.media.ExoPlayerBridge;
+import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 
-/* Creates and destroys ExoPlayer instances */
+/** Creates and destroys ExoPlayer instances */
 @JNINamespace("starboard::android::shared")
 public class ExoPlayerManager {
 
@@ -43,7 +45,11 @@ public class ExoPlayerManager {
 
   @CalledByNative
   void destroyExoPlayerBridge(ExoPlayerBridge exoPlayerBridge) {
+    try {
     exoPlayerBridge.destroy();
+    } catch (InterruptedException e) {
+      Log.e(TAG, String.format("Could not destroy ExoPlayerBridge, error: %s", e.toString()));
+    }
     exoPlayerBridgeList.remove(exoPlayerBridge);
   }
 }
