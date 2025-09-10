@@ -42,6 +42,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
@@ -79,6 +80,35 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+const int kMaxConfigAgeInDays = 30;
+
+bool HasConfigExpired() {
+  PrefService* experiment_prefs =
+      GlobalFeatures::GetInstance()->experiment_config();
+
+  // If the pref is missing, we cannot determine its age. For backward
+  // compatibility and safety on first run, we treat it as valid
+  if (!experiment_prefs->HasPrefPath(
+          variations::prefs::kVariationsLastFetchTime)) {
+    // TODO: Add some kind of UMA metric to track how many devices are missing
+    // the pref.
+    return false;
+  }
+
+  base::Time fetch_time =
+      experiment_prefs->GetTime(variations::prefs::kVariationsLastFetchTime);
+  base::TimeDelta config_age = base::Time::Now() - fetch_time;
+
+  if (config_age.InDays() > kMaxConfigAgeInDays) {
+    // TODO: Add a UMA metric to record when a config is rejected as expired.
+    LOG(WARNING) << "Variations config from " << fetch_time
+                 << " has expired. Ignoring.";
+    return true;
+  }
+
+  return false;
+}
 
 }  // namespace
 
@@ -408,6 +438,13 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
+
+  if (HasConfigExpired()) {
+    auto feature_list = std::make_unique<base::FeatureList>();
+    base::FeatureList::SetInstance(std::move(feature_list));
+    features::InitializeStarboardFeatures();
+    return;
+  }
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
