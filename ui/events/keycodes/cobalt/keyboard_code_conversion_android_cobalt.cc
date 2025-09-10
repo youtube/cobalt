@@ -778,6 +778,8 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
       return KEY_SUBTITLES;
     case AKEYCODE_SEARCH:
       return VKEY_BROWSER_SEARCH;
+    case AKEYCODE_BACK:
+      return VKEY_ESCAPE;
     // End of Cobalt keycode mappings
     default:
       return VKEY_UNKNOWN;
