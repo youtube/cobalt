@@ -25,6 +25,9 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/cobalt_slot_management.h"
+#endif
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
@@ -37,6 +40,9 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/free_space.h"
+#endif
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
@@ -59,6 +65,12 @@ class UpdateCheckerImpl : public UpdateChecker {
       scoped_refptr<UpdateContext> context,
       const base::flat_map<std::string, std::string>& additional_attributes,
       UpdateCheckCallback update_check_callback) override;
+
+#if BUILDFLAG(IS_STARBOARD)
+  PersistedData* GetPersistedData() override { return metadata_; }
+  void Cancel() override;
+  bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override;
+#endif
 
  private:
   UpdaterStateAttributes ReadUpdaterStateAttributes() const;
@@ -187,7 +199,55 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       install_source = crx_component->install_source;
     else if (component->is_foreground())
       install_source = "ondemand";
+#if BUILDFLAG(IS_STARBOARD)
+    base::Version current_version = crx_component->version;
 
+    // Check if there is an available update already for quick roll-forward
+    auto installation_api =
+        static_cast<const CobaltExtensionInstallationManagerApi*>(
+            SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+    if (!installation_api) {
+      LOG(ERROR) << "UpdaterChecker: "
+                 << "Failed to get installation manager extension.";
+      return;
+    }
+
+    if (SkipUpdate(installation_api)) {
+      LOG(WARNING) << "UpdaterChecker is skipping";
+      UpdateCheckFailed(ErrorCategory::kUpdateCheck,
+        static_cast<int>(UpdateCheckError::OUT_OF_SPACE), -1);
+      return;
+    }
+
+    if (CobaltQuickUpdate(installation_api, current_version)) {
+      // The last parameter in UpdateCheckFailed below, which is to be passed to
+      // update_check_callback_, indicates a throttling by the update server.
+      // Only non-negative values are valid. Negative values are not trusted
+      // and are ignored.
+      UpdateCheckFailed(ErrorCategory::kUpdateCheck,
+                        static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD),
+                        -1);
+
+      return;
+    }
+
+    std::string last_installed_version =
+        GetPersistedData()->GetLastInstalledVersion(app_id);
+    std::string last_installed_starboard =
+        GetPersistedData()->GetLastInstalledSbVersion(app_id);
+    // If the version of the last installed update package is higher than the
+    // version of the running binary and the starboard version of the last
+    // installed update matched the binary currently running, use the last
+    // installed version to indicate the current update version in the update
+    // check request.
+    if (!last_installed_version.empty() &&
+        last_installed_starboard == std::to_string(SB_API_VERSION) &&
+        base::Version(last_installed_version).CompareTo(current_version) > 0) {
+      current_version = base::Version(last_installed_version);
+    }
+// If the quick roll forward update slot candidate doesn't exist, continue
+// with update check.
+#endif
     apps.push_back(MakeProtocolApp(
         app_id, crx_component->version, crx_component->ap, crx_component->brand,
         config_->GetLang(), metadata_->GetInstallDate(app_id), install_source,
@@ -244,7 +304,38 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
                                additional_attributes, updater_state_attributes,
                                active_ids))
                          : absl::nullopt));
+#if BUILDFLAG(IS_STARBOARD)
+  // Reset |is_forced_update| flag to false if it is true
+  config_->CompareAndSwapForcedUpdate(/*old_value=*/1, /*new_value=*/0);
+#endif
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void UpdateCheckerImpl::Cancel() {
+  LOG(INFO) << "UpdateCheckerImpl::Cancel";
+  if (request_sender_.get()) {
+    request_sender_->Cancel();
+  }
+}
+
+bool UpdateCheckerImpl::SkipUpdate(
+  const CobaltExtensionInstallationManagerApi* installation_api) {
+  auto free_space_ext = static_cast<const CobaltExtensionFreeSpaceApi*>(
+      SbSystemGetExtension(kCobaltExtensionFreeSpaceName));
+  if (!installation_api) {
+    LOG(WARNING) << "UpdaterChecker::SkipUpdate: missing installation api";
+     return false;
+  }
+  if (!free_space_ext) {
+    LOG(WARNING) << "UpdaterChecker::SkipUpdate: No FreeSpace Cobalt extension";
+    return false;
+  }
+
+  return CobaltSkipUpdate(installation_api, config_->GetMinFreeSpaceBytes(),
+     free_space_ext->MeasureFreeSpace(kSbSystemPathStorageDirectory),
+     CobaltInstallationCleanupSize(installation_api)) ;
+}
+#endif
 
 void UpdateCheckerImpl::OnRequestSenderComplete(
     scoped_refptr<UpdateContext> context,
