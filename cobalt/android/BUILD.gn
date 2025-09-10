@@ -214,7 +214,6 @@ android_apk("cobalt_apk") {
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
-    "//services/shape_detection:shape_detection_java",
     "//third_party/mesa_headers",
     "//ui/android:ui_java",
   ]
