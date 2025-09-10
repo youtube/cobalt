@@ -34,9 +34,9 @@ using starboard::shared::starboard::player::JobQueue;
 using ::starboard::shared::starboard::player::filter::EndedCB;
 using ::starboard::shared::starboard::player::filter::ErrorCB;
 using ::starboard::shared::starboard::player::filter::PrerolledCB;
-typedef starboard::shared::starboard::player::PlayerWorker::Handler Handler;
-typedef starboard::shared::starboard::player::PlayerWorker::Handler::
-    HandlerResult HandlerResult;
+using Handler = starboard::shared::starboard::player::PlayerWorker::Handler;
+using HandlerResult =
+    starboard::shared::starboard::player::PlayerWorker::Handler::HandlerResult;
 
 class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
  public:

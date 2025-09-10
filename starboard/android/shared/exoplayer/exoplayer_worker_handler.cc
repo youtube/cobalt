@@ -32,7 +32,8 @@ ExoPlayerWorkerHandler::ExoPlayerWorkerHandler(
       audio_stream_info_(creation_param->audio_stream_info),
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&ExoPlayerWorkerHandler::Update, this);
-  bridge_.reset(new ExoPlayerBridge(audio_stream_info_, video_stream_info_));
+  bridge_ =
+      std::make_unique<ExoPlayerBridge>(audio_stream_info_, video_stream_info_);
 }
 
 HandlerResult ExoPlayerWorkerHandler::Init(

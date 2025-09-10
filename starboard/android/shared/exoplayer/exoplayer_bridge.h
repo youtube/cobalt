@@ -38,6 +38,11 @@ using base::android::ScopedJavaGlobalRef;
 using starboard::android::shared::VideoSurfaceHolder;
 using starboard::shared::starboard::player::filter::EndedCB;
 using starboard::shared::starboard::player::filter::ErrorCB;
+using PrerolledCB = ::starboard::shared::starboard::player::filter::PrerolledCB;
+using InputBuffer = ::starboard::shared::starboard::player::InputBuffer;
+using InputBuffers = ::starboard::shared::starboard::player::InputBuffers;
+using AudioStreamInfo = ::starboard::shared::starboard::media::AudioStreamInfo;
+using VideoStreamInfo = ::starboard::shared::starboard::media::VideoStreamInfo;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
@@ -50,15 +55,6 @@ enum ExoPlayerRendererType {
 
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
-  typedef ::starboard::shared::starboard::player::filter::PrerolledCB
-      PrerolledCB;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-  typedef ::starboard::shared::starboard::media::VideoStreamInfo
-      VideoStreamInfo;
-
   struct MediaInfo {
     bool is_playing;
     bool is_eos_played;
@@ -117,10 +113,10 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void TearDownExoPlayer();
   void UpdatePlayingStatus(bool is_playing);
 
-  ScopedJavaGlobalRef<jobject> j_exoplayer_manager_ = nullptr;
-  ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_ = nullptr;
-  ScopedJavaGlobalRef<jbyteArray> j_sample_data_ = nullptr;
-  ScopedJavaGlobalRef<jobject> j_output_surface_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
+  ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
+  ScopedJavaGlobalRef<jbyteArray> j_sample_data_;
+  ScopedJavaGlobalRef<jobject> j_output_surface_;
 
   bool error_occurred_ = false;
   starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;

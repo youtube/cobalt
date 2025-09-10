@@ -80,12 +80,12 @@ ExoPlayerBridge::~ExoPlayerBridge() {
 void ExoPlayerBridge::SetCallbacks(const ErrorCB& error_cb,
                                    const PrerolledCB& prerolled_cb,
                                    const EndedCB& ended_cb) {
-  SB_DCHECK(error_cb);
-  SB_DCHECK(prerolled_cb);
-  SB_DCHECK(ended_cb);
-  SB_DCHECK(!error_cb_);
-  SB_DCHECK(!prerolled_cb_);
-  SB_DCHECK(!ended_cb_);
+  SB_CHECK(error_cb);
+  SB_CHECK(prerolled_cb);
+  SB_CHECK(ended_cb);
+  SB_CHECK(!error_cb_);
+  SB_CHECK(!prerolled_cb_);
+  SB_CHECK(!ended_cb_);
 
   error_cb_ = error_cb;
   prerolled_cb_ = prerolled_cb;
@@ -118,8 +118,8 @@ void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
-  SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(input_buffers.size() == 1)
+  SB_CHECK(!input_buffers.empty());
+  SB_CHECK(input_buffers.size() == 1)
       << "ExoPlayer can only write 1 sample at a time, received "
       << input_buffers.size() << " samples.";
 
@@ -261,7 +261,7 @@ void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring error_message) {
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   error_cb_(kSbPlayerErrorDecode, ConvertJavaStringToUTF8(env, error_message));
 }
 
@@ -399,7 +399,7 @@ void ExoPlayerBridge::InitExoplayer() {
 
   j_sample_data_.Reset(ToJavaByteArray(
       env, std::vector<uint8_t>(2 * 65536 * 32, 0).data(), 2 * 65536 * 32));
-  SB_DCHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|";
+  SB_CHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|";
 
   // Prepare the player to receive samples asynchronously.
   Java_ExoPlayerBridge_preparePlayer(env, j_exoplayer_bridge_);

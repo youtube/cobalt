@@ -32,6 +32,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
+using starboard::android::shared::exoplayer::ExoPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 using starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using starboard::shared::starboard::player::filter::
@@ -207,11 +208,10 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   std::unique_ptr<PlayerWorker::Handler> handler;
   if (starboard::features::FeatureList::IsEnabled(
           starboard::features::kEnableExoPlayer)) {
-    handler.reset(
-        new starboard::android::shared::exoplayer::ExoPlayerWorkerHandler(
-            creation_param));
+    handler = std::make_unique<ExoPlayerWorkerHandler>(creation_param);
   } else {
-    handler.reset(new FilterBasedPlayerWorkerHandler(creation_param, provider));
+    handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
+                                                               provider);
   }
 
   handler->SetMaxVideoInputSize(
