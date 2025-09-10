@@ -24,7 +24,7 @@
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 namespace {
 
@@ -492,4 +492,4 @@ int Application::RunLoop() {
   return error_level_;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

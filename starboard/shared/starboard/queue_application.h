@@ -26,7 +26,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // An application implementation that uses a signaling thread-safe queue to
 // manage event dispatching.
@@ -131,6 +131,6 @@ class QueueApplication : public Application {
   EventQueue event_queue_;
 };
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_QUEUE_APPLICATION_H_

@@ -20,7 +20,7 @@
 #include "build/build_config.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
@@ -75,6 +75,6 @@ class ThreadChecker {
 
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
