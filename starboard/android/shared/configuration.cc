@@ -35,7 +35,7 @@ int CobaltEglSwapIntervalAndroid() {
 }
 
 bool CobaltEnableQuicAndroid() {
-  return 0;
+  return false;
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
