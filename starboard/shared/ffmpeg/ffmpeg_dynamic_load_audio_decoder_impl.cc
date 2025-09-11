@@ -25,13 +25,14 @@
 namespace starboard::shared::ffmpeg {
 
 // static
-AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
+FfmpegAudioDecoder* FfmpegAudioDecoder::Create(
+    const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
     return NULL;
   }
 
-  AudioDecoder* audio_decoder = NULL;
+  FfmpegAudioDecoder* audio_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
       audio_decoder = AudioDecoderImpl<540>::Create(audio_stream_info);

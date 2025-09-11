@@ -86,7 +86,7 @@ const bool g_registered =
 }  // namespace
 
 AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
-    const AudioStreamInfo& audio_stream_info)
+    const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info)
     : codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
@@ -107,8 +107,8 @@ AudioDecoderImpl<FFMPEG>::~AudioDecoderImpl() {
 }
 
 // static
-AudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
-    const AudioStreamInfo& audio_stream_info) {
+FfmpegAudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
+    const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info) {
   return new AudioDecoderImpl<FFMPEG>(audio_stream_info);
 }
 

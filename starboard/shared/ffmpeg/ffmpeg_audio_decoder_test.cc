@@ -52,7 +52,8 @@ class FFmpegAudioDecoderTest
 
 TEST_F(FFmpegAudioDecoderTest, SupportsMp3Codec) {
   AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecMp3);
-  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
+  std::unique_ptr<FfmpegAudioDecoder> decoder(
+      FfmpegAudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }
@@ -61,7 +62,8 @@ TEST_F(FFmpegAudioDecoderTest, SupportsFlacCodecFor16BitAudio) {
   AudioStreamInfo stream_info =
       CreateStreamInfoForCodec(kSbMediaAudioCodecFlac);
   stream_info.bits_per_sample = 16;
-  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
+  std::unique_ptr<FfmpegAudioDecoder> decoder(
+      FfmpegAudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }
@@ -69,7 +71,8 @@ TEST_F(FFmpegAudioDecoderTest, SupportsFlacCodecFor16BitAudio) {
 TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
   AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecPcm);
   stream_info.bits_per_sample = 16;
-  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
+  std::unique_ptr<FfmpegAudioDecoder> decoder(
+      FfmpegAudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }

@@ -37,14 +37,14 @@ class AudioDecoderImpl<FFMPEG>;
 
 // Declare the explicit specialization of the class with value FFMPEG.
 template <>
-class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
+class AudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
                                  private starboard::player::JobQueue::JobOwner {
  public:
   explicit AudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
   ~AudioDecoderImpl() override;
 
-  // From: AudioDecoder
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  // From: FfmpegAudioDecoder
+  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
   bool is_valid() const override;
 
   // From: starboard::player::filter::AudioDecoder
@@ -77,7 +77,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
 
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
-  AudioStreamInfo audio_stream_info_;
+  FfmpegAudioDecoder::AudioStreamInfo audio_stream_info_;
 };
 
 }  // namespace starboard::shared::ffmpeg
