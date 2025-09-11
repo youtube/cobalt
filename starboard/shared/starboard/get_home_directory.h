@@ -26,11 +26,10 @@ namespace starboard {
 bool GetHomeDirectory(char* out_path, int path_size);
 
 // Aliases not to break CI tests.
-// See https://paste.googleplex.com/6310485490270208
-// TODO: b/441955897 - Update CI test to use flattened namespace.
 namespace shared::starboard {
-using ::starboard::GetHomeDirectory;
-}
+// https://source.corp.google.com/h/lbshell-internal/cobalt_src/+/25.lts.1+:starboard/contrib/rdk/src/third_party/starboard/rdk/shared/get_home_directory.cc;l=1?q=rdk%2Fshared%2Fget_home_directory.cc
+bool GetHomeDirectory(char* out_path, int path_size);
+}  // namespace shared::starboard
 
 }  // namespace starboard
 
