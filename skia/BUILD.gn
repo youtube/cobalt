@@ -458,6 +458,7 @@ component("skia") {
     ]
     public += [ "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h" ]
     deps += [
+      "//cobalt/configuration",
       "//starboard:starboard_group",
       "//starboard/content/fonts:copy_font_data",
       "//third_party/libxml",

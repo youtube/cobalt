@@ -20,7 +20,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "cobalt/browser/h5vcc_system/configuration.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"

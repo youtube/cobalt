@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/h5vcc_system/configuration.h"
+#include "cobalt/configuration/configuration.h"
 
 #include <string>
 
