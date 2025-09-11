@@ -198,7 +198,7 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   //   set_evergreen_type("Lite");
   // #endif
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
 void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
 // TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
