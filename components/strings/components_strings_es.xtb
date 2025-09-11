@@ -1947,7 +1947,7 @@ De lo contrario, lo impedirá tu configuración de privacidad. Permitirá que el
 <translation id="4277529130885813215">Usar otro dispositivo</translation>
 <translation id="4277937682389409325">Dirección local</translation>
 <translation id="4278090321534187713">Las tarjetas que no acepta este comercio están inhabilitadas</translation>
-<translation id="4278390842282768270">Concedido</translation>
+<translation id="4278390842282768270">Permitido</translation>
 <translation id="4281245629646759298">Amarillo claro</translation>
 <translation id="4281998142035485137">{0,plural, =1{¿Abrir archivo confidencial?}other{¿Abrir archivos confidenciales?}}</translation>
 <translation id="4282280603030594840">Compra de vehículos</translation>
@@ -2121,7 +2121,7 @@ De lo contrario, lo impedirá tu configuración de privacidad. Permitirá que el
 <translation id="460848736049414407">Bloqueado por el administrador</translation>
 <translation id="4610279718074907952">Este sitio está en un grupo, definido por <ph name="SET_OWNER" />, que puede ver tu actividad</translation>
 <translation id="46128681529823442">Equipamiento de fútbol</translation>
-<translation id="4612904677925722054">Este sitio web puede incluir contenido no apto para menores. Tu padre, madre o tutor/a debe darte permiso para visitarlo.</translation>
+<translation id="4612904677925722054">Puede que este sitio web incluya contenido no apto para menores. Tu padre, madre o tutor/a debe darte permiso para visitarlo.</translation>
 <translation id="4619564267100705184">Verificar mi identidad</translation>
 <translation id="4622292761762557753">Transferir de todos modos</translation>
 <translation id="4622647778991854660">Habilita las notificaciones en el Centro de notificaciones. Abre <ph name="LINK" />.</translation>
@@ -2251,7 +2251,7 @@ De lo contrario, lo impedirá tu configuración de privacidad. Permitirá que el
 <translation id="4831993743164297314">Papel de filmadora</translation>
 <translation id="483241715238664915">Activar advertencias</translation>
 <translation id="4832961164064927107">Barbacoas y parrilladas</translation>
-<translation id="4834250788637067901">Métodos de pago, ofertas y direcciones con Google Pay</translation>
+<translation id="4834250788637067901">Métodos de pago, ofertas y direcciones que usan Google Pay</translation>
 <translation id="4840250757394056958">Ver tu historial de Chrome</translation>
 <translation id="484462545196658690">Automático</translation>
 <translation id="4844937814014739139">Desplazarse por pestañas compartidas y ampliarlas</translation>
@@ -2366,7 +2366,7 @@ De lo contrario, lo impedirá tu configuración de privacidad. Permitirá que el
 <translation id="5021500396464456616">Ponte en contacto con la persona que te ha enviado este enlace</translation>
 <translation id="5021557570875267742">Hacer un seguimiento de los precios con Chrome</translation>
 <translation id="5023310440958281426">Consulta las políticas del administrador</translation>
-<translation id="5024171724744627792">Paga más rápido cuando tu tarjeta esté guardada. Los datos de la tarjeta se cifran en tu cuenta de Google.</translation>
+<translation id="5024171724744627792">Paga más rápido si tu tarjeta está guardada. La información de la tarjeta se cifra en tu cuenta de Google.</translation>
 <translation id="5030338702439866405">Emitido por</translation>
 <translation id="503069730517007720">Se necesita un certificado raíz para "<ph name="SOFTWARE_NAME" />", pero no está instalado. El administrador de TI debe comprobar las instrucciones de configuración de "<ph name="SOFTWARE_NAME" />" para solucionar este problema. <ph name="FURTHER_EXPLANATION" /></translation>
 <translation id="5034930251282078640">¿Añadir a la comparación?</translation>

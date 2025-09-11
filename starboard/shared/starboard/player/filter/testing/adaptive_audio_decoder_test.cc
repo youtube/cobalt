@@ -27,6 +27,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -37,12 +38,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 using std::deque;
@@ -416,9 +412,5 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
                         GetAdaptiveAudioDecoderTestConfigName);
 
 }  // namespace
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::player::filter::testing

@@ -1,0 +1,212 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/linux/strip_binary.gni")
+import("//cobalt/build/modular_executable.gni")
+import("//testing/test.gni")
+import("//ui/base/ui_features.gni")
+
+group("gn_all") {
+  testonly = true
+
+  # TODO(b/371589344): Fix android build configs.
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/nplb",
+  ]
+  if (is_android) {
+    # TODO(cobalt): reuse build rules below to define Android target.
+    deps += [ "android:cobalt_apk" ]
+  } else if (!is_cobalt_hermetic_build) {
+    deps += [ ":strip_cobalt_binary" ]
+  }
+  if (is_cobalt_hermetic_build) {
+    deps += [
+      ":cobalt_loader",
+      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
+      "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
+      "//starboard/loader_app:loader_app($starboard_toolchain)",
+    ]
+  }
+}
+
+if (!is_android) {
+  if (is_cobalt_hermetic_build) {
+    cobalt_target_type = "modular_executable"
+  } else {
+    cobalt_target_type = "executable"
+  }
+  target(cobalt_target_type, "cobalt") {
+    testonly = true
+
+    sources = [ "app/cobalt.cc" ]
+
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+
+    deps = [
+      ":common",
+      "//base",
+      "//cobalt/shell:content_shell_app",
+      "//cobalt/shell:content_shell_lib",
+      "//content/public/app",
+      "//starboard:starboard_headers_only",
+    ]
+
+    if (is_cobalt_hermetic_build) {
+      # Needed for third_party/musl/src/starboard/internal/hwcap_impl.h
+      deps += [ "//third_party/musl:headers" ]
+    }
+    if (is_starboard) {
+      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    }
+
+    data_deps = [
+      "//components/crash/core/app:chrome_crashpad_handler",
+      "//content/shell:pak",
+      "//tools/v8_context_snapshot:v8_context_snapshot",
+    ]
+  }
+
+  if (!is_cobalt_hermetic_build) {
+    strip_binary("strip_cobalt_binary") {
+      binary_input = "$root_out_dir/cobalt"
+      deps = [ ":cobalt" ]
+      testonly = true
+    }
+  }
+}
+
+source_set("common") {
+  testonly = true
+
+  sources = [
+    "app/cobalt_main_delegate.cc",
+    "app/cobalt_main_delegate.h",
+  ]
+
+  if (is_starboard) {
+    sources += [
+      "app/cobalt_switch_defaults_starboard.cc",
+      "app/cobalt_switch_defaults_starboard.h",
+    ]
+  }
+
+  deps = [
+    "//base",
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
+    "//cobalt/gpu",
+    "//cobalt/renderer",
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
+    "//components/memory_system:memory_system",
+    "//content/public/app",
+    "//content/shell:pak",
+    "//gpu/command_buffer/service",
+    "//media",
+    "//sandbox/policy",
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public/common",
+    "//ui/gl",
+  ]
+
+  if (use_ozone) {
+    deps += [ "//ui/ozone:ozone_switches" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+  }
+}
+
+action("cobalt_build_info") {
+  script = "build/build_info.py"
+  outputs = [
+    "$root_gen_dir/cobalt/cobalt_build_id.h",
+    "$root_gen_dir/build_info.json",
+    "$root_gen_dir/licenses_cobalt.txt",
+    "$root_gen_dir/licenses_cobalt.spdx",
+  ]
+  args = [
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path(outputs[1], root_build_dir),
+    rebase_path(outputs[2], root_build_dir),
+    rebase_path(outputs[3], root_build_dir),
+  ]
+}
+
+test("cobalt_unittests") {
+  testonly = true
+
+  sources = [
+    "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
+    "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
+    "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/global_features_unittest.cc",
+    "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
+    "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+  ]
+
+  if (is_starboard) {
+    sources += [ "//cobalt/app/cobalt_switch_defaults_starboard_test.cc" ]
+  }
+
+  public_deps = [ "//third_party/zlib/google:compression_utils" ]
+
+  deps = [
+    ":common",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
+    "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+    "//cobalt/browser/migrate_storage_record:unittest",
+    "//cobalt/browser/user_agent",
+    "//cobalt/common/eztime:eztime_test",
+    "//components/metrics",
+    "//components/prefs",
+    "//components/prefs:test_support",
+    "//components/variations",
+    "//components/variations/service",
+    "//services/network/public/cpp",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/metrics_proto",
+  ]
+
+  # All configs that provide definitions for switch constants.
+  deps += [
+    "//chrome/common:non_code_constants",
+    "//cobalt/browser:switches",
+
+    # TODO(cobalt b/375241103) This dependency is large in scope. It would be
+    # better to find more well-scoped targets to depend on to provide the
+    # switch constants definitions.
+    "//cobalt/shell:content_shell_lib",
+    "//content/public/common:switches",
+    "//gpu/config",
+    "//sandbox/policy:policy",
+  ]
+
+  if (!is_android) {
+    deps += [ "//ui/ozone:ozone_switches" ]
+  }
+}

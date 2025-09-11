@@ -17,6 +17,8 @@
 
 #include <pthread.h>
 
+#include <limits>
+#include <mutex>
 #include <queue>
 
 #include "starboard/common/log.h"
@@ -32,9 +34,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
@@ -61,7 +61,9 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 8; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
@@ -151,15 +153,13 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and |frames_|, we do so through this mutex.
-  Mutex decode_target_and_frames_mutex_;
+  std::mutex decode_target_and_frames_mutex_;
 
   // int frame_last_rendered_pts_;
   // scoped_refptr<VideoFrame> frame_;
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_

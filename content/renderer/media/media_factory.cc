@@ -138,6 +138,11 @@
 #include "media/mojo/mojom/speech_recognition_service.mojom.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/renderer_factory_traits.h"
+#include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace {
 
 // This limit is much higher than it needs to be right now, because the logic
@@ -445,7 +450,12 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       player_id, media_log.get(), url,
       render_frame_->GetRenderFrameMediaPlaybackOptions(),
       decoder_factory_.get(), client->RemotePlaybackClientWrapper(),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      &media_observer, client->GetElementId(), 
+      client->GetMaxVideoCapabilities());
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId());
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
   DCHECK(media_observer);
@@ -538,7 +548,11 @@ MediaFactory::CreateRendererFactorySelector(
     media::DecoderFactory* decoder_factory,
     media::RemotePlaybackClientWrapper* client_wrapper,
     base::WeakPtr<media::MediaObserver>* out_media_observer,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    int element_id, const std::string& max_video_capabilities) {
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     int element_id) {
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   using media::RendererType;
 
   RenderThreadImpl* render_thread = RenderThreadImpl::current();
@@ -591,6 +605,19 @@ MediaFactory::CreateRendererFactorySelector(
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_MOJO_RENDERER)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  media::RendererFactoryTraits renderer_factory_traits;
+  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
+  // TODO (b/375070492) - Implement decode-to-texture mode.
+  // renderer_factory_traits.max_video_capabilities = max_video_capabilities;
+  is_base_renderer_factory_set = true;
+  factory_selector->AddBaseFactory(RendererType::kStarboard,
+    std::make_unique<media::StarboardRendererClientFactory>(media_log,
+        CreateMojoRendererFactory(),
+        base::BindRepeating(&RenderThreadImpl::GetGpuFactories,
+          base::Unretained(render_thread)),
+        &renderer_factory_traits));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!is_base_renderer_factory_set &&
       renderer_media_playback_options.is_mojo_renderer_enabled()) {
     is_base_renderer_factory_set = true;

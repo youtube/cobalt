@@ -21,24 +21,28 @@
 #include "starboard/media.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/system.h"
+
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace media {
 
 using ::starboard::shared::de265::is_de265_supported;
-using ::starboard::shared::starboard::media::IsSDRVideo;
-using ::starboard::shared::starboard::media::MimeType;
 
-bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                             const MimeType* mime_type,
-                             int profile,
-                             int level,
-                             int bit_depth,
-                             SbMediaPrimaryId primary_id,
-                             SbMediaTransferId transfer_id,
-                             SbMediaMatrixId matrix_id,
-                             int frame_width,
-                             int frame_height,
-                             int64_t bitrate,
-                             int fps,
-                             bool decode_to_texture_required) {
+bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                           const MimeType* mime_type,
+                           int profile,
+                           int level,
+                           int bit_depth,
+                           SbMediaPrimaryId primary_id,
+                           SbMediaTransferId transfer_id,
+                           SbMediaMatrixId matrix_id,
+                           int frame_width,
+                           int frame_height,
+                           int64_t bitrate,
+                           int fps,
+                           bool decode_to_texture_required) {
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {
       return false;
@@ -60,11 +64,21 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     // just as well as normal video.
   }
 
+  static const bool can_support_8k = SbSystemGetNumberOfProcessors() >= 16;
+
+  const int max_width = can_support_8k ? 7680 : 1920;
+  const int max_height = can_support_8k ? 4320 : 1080;
+
   return (video_codec == kSbMediaVideoCodecAv1 ||
           video_codec == kSbMediaVideoCodecH264 ||
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
           (video_codec == kSbMediaVideoCodecVp8) ||
           (video_codec == kSbMediaVideoCodecVp9)) &&
-         frame_width <= 1920 && frame_height <= 1080 &&
+         frame_width <= max_width && frame_height <= max_height &&
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60;
 }
+
+}  // namespace media
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard

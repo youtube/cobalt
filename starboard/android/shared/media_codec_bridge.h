@@ -16,17 +16,18 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/optional.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
@@ -41,7 +42,9 @@ enum MediaCodecStatus {
   MEDIA_CODEC_NO_KEY,
   MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION,
   MEDIA_CODEC_ABORT,
-  MEDIA_CODEC_ERROR
+  MEDIA_CODEC_ERROR,
+
+  MEDIA_CODEC_MAX = MEDIA_CODEC_ERROR,
 };
 
 const jint BUFFER_FLAG_CODEC_CONFIG = 2;
@@ -139,8 +142,11 @@ class MediaCodecBridge {
                                                    int64_t presentation_time_us,
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
-    // This is only called on video decoder when tunnel mode is enabled.
+    // This is called when tunnel mode is enabled or on Android 14 and newer
+    // devices.
     virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
+    // This is only called on Android 12 and newer devices for tunnel mode.
+    virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
 
    protected:
     ~Handler() {}
@@ -165,8 +171,8 @@ class MediaCodecBridge {
       int width_hint,
       int height_hint,
       int fps,
-      optional<int> max_width,
-      optional<int> max_height,
+      std::optional<int> max_width,
+      std::optional<int> max_height,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
@@ -182,7 +188,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  jobject GetInputBuffer(jint index);
+  ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -195,13 +201,14 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  jobject GetOutputBuffer(jint index);
+  ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
   void SetPlaybackRate(double playback_rate);
-  bool Start();
+  bool Restart();
   jint Flush();
+  void Stop();
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
@@ -216,6 +223,9 @@ class MediaCodecBridge {
                                          int size);
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
+  void OnMediaCodecFirstTunnelFrameReady();
+
+  static jboolean IsFrameRenderedCallbackEnabled();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
@@ -223,21 +233,19 @@ class MediaCodecBridge {
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  jobject j_media_codec_bridge_ = NULL;
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  jobject j_reused_get_output_format_result_ = NULL;
+  ScopedJavaGlobalRef<jobject> j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_

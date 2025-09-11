@@ -15,7 +15,9 @@
 #ifndef STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 
+#include <limits>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
 
@@ -32,9 +34,7 @@
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 
-namespace starboard {
-namespace shared {
-namespace vpx {
+namespace starboard::shared::vpx {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -48,7 +48,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 8; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
@@ -102,13 +104,11 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
-  Mutex decode_target_mutex_;
+  std::mutex decode_target_mutex_;
 
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace vpx
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::vpx
 
 #endif  // STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_

@@ -1867,7 +1867,7 @@
 <translation id="4165422751765527461">مقاله «مرکز راهنمایی» را در برگه جدید باز می‌کند</translation>
 <translation id="4165986682804962316">تنظیمات سایت</translation>
 <translation id="4169189393773057143">‏کارت‌های وفاداری را مدیریت کنید یا این پیشنهادها را در «کیف پول Google» خاموش کنید</translation>
-<translation id="4169535189173047238">اجازه داده نشود</translation>
+<translation id="4169535189173047238">اجازه ندادن</translation>
 <translation id="4171400957073367226">امضای تأیید نامناسب</translation>
 <translation id="4171489848299289778"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_OWNER" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="4171557247032367596">قفل و کلیدسازی</translation>
@@ -2063,7 +2063,7 @@
 <translation id="4480760608050410381">‏ویدیو MP4</translation>
 <translation id="448363931695049633">پیتزا فروشی</translation>
 <translation id="4489023393592172404">پاکت کاکو ۴</translation>
-<translation id="4489977488133295402">برای تکمیل خودکار روش‌های پرداخت، هویت خود را درستی‌سنجی کنید</translation>
+<translation id="4489977488133295402">درستی‌سنجی هویت برای تکمیل خودکار روش‌های پرداخت</translation>
 <translation id="4490717597759821841">A7</translation>
 <translation id="449126573531210296">‏رمزگذاری گذرواژه‌های همگام‌سازی‌شده با «حساب Google» شما</translation>
 <translation id="4493480324863638523">‏نشانی وب نامعتبر است. باید نشانی وبی با طرحی استاندارد مانند http://example.com یا https://example.com باشد.</translation>
@@ -3188,7 +3188,7 @@
 <translation id="6424600253695044005">فضای ذخیره‌سازی ابری</translation>
 <translation id="6425092077175753609">سه‌بعدی</translation>
 <translation id="6427730057873428458">تاخوردگی دروازه‌ای</translation>
-<translation id="6428450836711225518">به‌تأیید رساندن شماره تلفن</translation>
+<translation id="6428450836711225518">درستی‌سنجی کردن شماره تلفن</translation>
 <translation id="6429267199680088961">A4 Tab</translation>
 <translation id="643051589346665201">‏تغییر گذرواژه Google</translation>
 <translation id="6432297414176614592">اطلاعات بیشتر درباره موضوع‌های آگهی</translation>
@@ -3738,7 +3738,7 @@
 <translation id="7393161616326137353">بازی‌های ماجراجویی</translation>
 <translation id="7393475648162498734">پاداش‌ها و مزایایی که برای کارت‌هایتان دردسترس است در زمان تسویه‌حساب نشان داده می‌شود</translation>
 <translation id="7393971683644170444">درحال اتصال به ارائه‌دهنده کارت…</translation>
-<translation id="739728382607845710">نماد کنترل‌كننده پرداخت</translation>
+<translation id="739728382607845710">نماد مدیریت‌كننده پرداخت</translation>
 <translation id="7399616692258236448">درخواست‌های مکان به‌طور خودکار برای همه سایت‌ها، به‌جز آن‌هایی که مجاز کرده‌اید، مسدود می‌شوند</translation>
 <translation id="7400418766976504921">نشانی وب</translation>
 <translation id="7403392780200267761">هم‌رسانی این برگه ازطریق هم‌رسانی پیوند، ایجاد رمزینه پاسخ‌سریع، پخش محتوا، و موارد دیگر</translation>
@@ -4179,7 +4179,7 @@
 <translation id="8120720167840853945">این خط‌مشی رفتار پیش‌فرض سایر خط‌مشی‌ها را کنترل نمی‌کند.</translation>
 <translation id="8127301229239896662">«<ph name="SOFTWARE_NAME" />» به‌درستی در رایانه یا شبکه‌تان پیکربندی نشد. از سرپرست فناوری اطلاعات خود بخواهید این مشکل را حل کند.</translation>
 <translation id="8130113808541743942">انتقال به…</translation>
-<translation id="8131740175452115882">تأیید</translation>
+<translation id="8131740175452115882">تأیید کردن</translation>
 <translation id="8133495915926741232">انتخاب کنید کدام دسته‌های گسترده از موضوع‌ها می‌توانند برای شخصی‌سازی آگهی‌ها استفاده شوند. خاموش کردن یکی از دسته‌های گسترده باعث مسدود شدن موضوع‌های مرتبط با آن نیز می‌شود. <ph name="BEGIN_LINK" />بیشتر بدانید<ph name="END_LINK" /></translation>
 <translation id="8134058435519644366">استخدام و تأمین نیرو</translation>
 <translation id="8135546115396015134">کلید چپ</translation>

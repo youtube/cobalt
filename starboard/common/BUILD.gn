@@ -15,9 +15,6 @@
 # The "common" target contains facilities provided by Starboard that are common
 # to all platforms.
 
-# This must be a static_library, not a source_set. When using a source_set, we
-# see duplicate definition errors when compiling new.cc because of our
-# overloaded operators.
 source_set("common_headers_only") {
   sources = [ "log.h" ]
   deps = [ "//starboard:starboard_headers_only" ]
@@ -36,6 +33,8 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "command_line.cc",
+    "command_line.h",
     "common.cc",
     "condition_variable.cc",
     "condition_variable.h",
@@ -43,13 +42,15 @@ static_library("common") {
     "configuration_defaults.h",
     "device_type.cc",
     "device_type.h",
-    "experimental/concurrency_debug.cc",
-    "experimental/concurrency_debug.h",
+    "drm.cc",
+    "drm.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
     "flat_map.h",
+    "in_place_reuse_allocator_base.cc",
+    "in_place_reuse_allocator_base.h",
     "locked_ptr.h",
     "log.cc",
     "media.cc",
@@ -60,9 +61,6 @@ static_library("common") {
     "murmurhash2.h",
     "mutex.cc",
     "mutex.h",
-    "new.cc",
-    "optional.cc",
-    "optional.h",
     "paths.cc",
     "paths.h",
     "player.cc",
@@ -100,20 +98,25 @@ static_library("file_wrapper") {
     "file_wrapper.cc",
     "file_wrapper.h",
   ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }
 
-target(gtest_target_type, "common_test") {
+source_set("common_test") {
   testonly = true
   sources = [
+    "drm_test.cc",
     "fixed_no_free_allocator_test.cc",
+    "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",
+    "queue_test.cc",
+    "semaphore_test.cc",
     "socket_test.cc",
-    "test_main.cc",
   ]
   deps = [
     ":common",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]

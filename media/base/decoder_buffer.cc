@@ -18,6 +18,27 @@ namespace media {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  // One of them has to be nullptr, i.e. either setting a valid allocator, or
+  // resetting an existing allocator.  Setting an allocator while another
+  // allocator is in place will fail.
+  DCHECK(s_allocator == nullptr || allocator == nullptr);
+  s_allocator = allocator;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 template <class T>
 class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
  public:
@@ -39,6 +60,33 @@ DecoderBuffer::DecoderBuffer(size_t size)
 
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
+                             const uint8_t* data,
+                             size_t size,
+                             const uint8_t* side_data,
+                             size_t side_data_size)
+    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+  if (!data) {
+    CHECK_EQ(size_, 0u);
+    CHECK(!side_data);
+    return;
+  }
+
+  Initialize(type);
+
+  memcpy(data_, data, size_);
+
+  if (!side_data) {
+    CHECK_EQ(side_data_size, 0u);
+    return;
+  }
+
+  DCHECK_GT(side_data_size_, 0u);
+  memcpy(side_data_.get(), side_data, side_data_size_);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : data_(std::move(data)) {}
@@ -74,7 +122,29 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
                              std::optional<ConfigVariant> next_config)
     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::~DecoderBuffer() {
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+}
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() = default;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
+                                                      allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(

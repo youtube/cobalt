@@ -19,12 +19,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 const int64_t kOneSecondInMicroseconds = 1'000'000;
@@ -41,12 +36,13 @@ using ::testing::StrictMock;
   const int64_t kEpsilon = 1000;  // 1ms
   int64_t diff = left > right ? left - right : right - left;
 
-  if (diff <= kEpsilon)
+  if (diff <= kEpsilon) {
     return ::testing::AssertionSuccess();
-  else
+  } else {
     return ::testing::AssertionFailure()
            << left << " is not almost equal to " << right
            << " with a difference of " << diff;
+  }
 }
 
 class MockMonotonicSystemTimeProvider : public MonotonicSystemTimeProvider {
@@ -277,9 +273,5 @@ TEST_F(MediaTimeProviderImplTest, Pause) {
 }
 
 }  // namespace
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::player::filter::testing

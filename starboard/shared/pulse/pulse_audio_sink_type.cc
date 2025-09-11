@@ -47,12 +47,11 @@
 #include <sanitizer/lsan_interface.h>
 #endif  // HAS_LEAK_SANITIZER
 
-namespace starboard {
-namespace shared {
-namespace pulse {
+namespace starboard::shared::pulse {
 namespace {
 
 using starboard::media::GetBytesPerSample;
+using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
 
 const int64_t kAudioIdleSleepIntervalUsec = 15'000;    // 15ms
 const int64_t kAudioRunningSleepIntervalUsec = 5'000;  // 5ms
@@ -65,7 +64,7 @@ const size_t kPulseBufferSizeInFrames = 8192;
 
 class PulseAudioSinkType;
 
-class PulseAudioSink : public SbAudioSinkPrivate {
+class PulseAudioSink : public SbAudioSinkImpl {
  public:
   PulseAudioSink(PulseAudioSinkType* type,
                  int channels,
@@ -554,7 +553,7 @@ void PulseAudioSinkType::StateCallback(pa_context* context, void* userdata) {
 void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "pulse_audio");
 
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);
   PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);
@@ -602,21 +601,19 @@ void PlatformInitialize() {
       std::unique_ptr<PulseAudioSinkType>(new PulseAudioSinkType());
   if (audio_sink_type->Initialize()) {
     pulse_audio_sink_type_ = audio_sink_type.release();
-    SbAudioSinkPrivate::SetPrimaryType(pulse_audio_sink_type_);
+    SbAudioSinkImpl::SetPrimaryType(pulse_audio_sink_type_);
   }
 }
 
 // static
 void PlatformTearDown() {
   SB_DCHECK(pulse_audio_sink_type_);
-  SB_DCHECK(pulse_audio_sink_type_ == SbAudioSinkPrivate::GetPrimaryType());
+  SB_DCHECK(pulse_audio_sink_type_ == SbAudioSinkImpl::GetPrimaryType());
 
-  SbAudioSinkPrivate::SetPrimaryType(NULL);
+  SbAudioSinkImpl::SetPrimaryType(NULL);
   delete pulse_audio_sink_type_;
   pulse_audio_sink_type_ = NULL;
   pulse_unload_library();
 }
 
-}  // namespace pulse
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pulse

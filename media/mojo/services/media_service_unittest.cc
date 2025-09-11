@@ -37,6 +37,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/mojom/renderer_extensions.mojom.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 namespace {
@@ -136,8 +140,20 @@ class MediaServiceTest : public testing::Test {
   void InitializeRenderer(const VideoDecoderConfig& video_config,
                           bool expected_result) {
     base::RunLoop run_loop;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  StarboardRendererConfig config(base::UnguessableToken::Create(),
+                                 base::Microseconds(0),
+                                 base::Microseconds(0),
+                                 "width=1920; height=1080; framerate=15;");
+    interface_factory_->CreateStarboardRenderer(
+      media_log_.InitWithNewPipeAndPassRemote(),
+      config, renderer_.BindNewPipeAndPassReceiver(),
+      renderer_extension_.BindNewPipeAndPassReceiver(),
+      client_extension_.InitWithNewPipeAndPassRemote());
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
     interface_factory_->CreateDefaultRenderer(
         std::string(), renderer_.BindNewPipeAndPassReceiver());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     video_stream_.set_video_decoder_config(video_config);
 
@@ -186,6 +202,12 @@ class MediaServiceTest : public testing::Test {
   mojo::Remote<mojom::InterfaceFactory> interface_factory_;
   mojo::Remote<mojom::ContentDecryptionModule> cdm_;
   mojo::Remote<mojom::Renderer> renderer_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mojo::PendingReceiver<mojom::MediaLog> media_log_;
+  mojo::Remote<mojom::StarboardRendererExtension> renderer_extension_;
+  mojo::PendingReceiver<mojom::StarboardRendererClientExtension> client_extension_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<MediaService> media_service_impl_;
 

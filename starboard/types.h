@@ -43,31 +43,6 @@
 extern "C" {
 #endif
 
-// --- Standard Include Emulation ----------------------------------------------
-
-#if !SB_HAS(SSIZE_T)
-#if SB_IS(32_BIT)
-typedef int32_t ssize_t;
-#define SSIZE_MAX INT_MAX
-#elif SB_IS(64_BIT)
-typedef int64_t ssize_t;
-#define SSIZE_MAX LONG_MAX
-#endif
-#endif  // !SB_HAS(SSIZE_T)
-
-// Simulate needed portions of limits.h for platforms that don't provide it.
-
-#define kSbInt32Min ((int32_t)0x80000000)
-static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
-static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
-
-static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
-static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
-static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
-
-// A value that represents an int that is probably invalid.
-#define kSbInvalidInt kSbInt32Min
-
 // --- Standard Include Emulation Audits ---------------------------------------
 
 #if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \

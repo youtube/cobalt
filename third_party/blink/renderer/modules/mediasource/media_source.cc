@@ -58,6 +58,12 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"  // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using blink::WebMediaSource;
 using blink::WebSourceBuffer;
 
@@ -199,6 +205,9 @@ void MediaSource::LogAndThrowTypeError(ExceptionState& exception_state,
 SourceBuffer* MediaSource::addSourceBuffer(const String& type,
                                            ExceptionState& exception_state) {
   DVLOG(2) << __func__ << " this=" << this << " type=" << type;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << __func__ << "(" << type << ").";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 2.2
   // https://www.w3.org/TR/media-source/#dom-mediasource-addsourcebuffer
@@ -215,6 +224,9 @@ SourceBuffer* MediaSource::addSourceBuffer(const String& type,
   if (!IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* Allow underspecified codecs in |type| */)) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    LOG(INFO) << __func__ << "(" << type << ") is unsupported.";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     LogAndThrowDOMException(
         exception_state, DOMExceptionCode::kNotSupportedError,
         "The type provided ('" + type + "') is unsupported.");
@@ -387,11 +399,19 @@ void MediaSource::AddSourceBuffer_Locked(
   // WebSourceBuffer and SourceBufferState such that configs and encoded chunks
   // can be buffered, with appropriate invocations of the
   // InitializationSegmentReceived and AppendError methods.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(!type.IsNull())
+      << __func__ << " cannot be called with a null MIME type in Cobalt.";
+  std::unique_ptr<WebSourceBuffer> web_source_buffer =
+      CreateWebSourceBuffer(type, "" /* codecs */, std::move(audio_config),
+                            std::move(video_config), *exception_state);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ContentType content_type(type);
   String codecs = content_type.Parameter("codecs");
   std::unique_ptr<WebSourceBuffer> web_source_buffer = CreateWebSourceBuffer(
       content_type.GetType(), codecs, std::move(audio_config),
       std::move(video_config), *exception_state);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!web_source_buffer) {
     // 2. If type contains a MIME type that is not supported ..., then throw a
@@ -531,6 +551,10 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
   bool result = IsTypeSupportedInternal(
       context, type, true /* Require fully specified mime and codecs */);
   DVLOG(2) << __func__ << "(" << type << ") -> " << base::ToString(result);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << __func__ << "(" << type << ") -> "
+            << base::ToString(result);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   return result;
 }
 
@@ -559,6 +583,12 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
     return false;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Interupt Chromium's IsTypeSupported() from here for better performance.
+  SbMediaSupportType support_type =
+      SbMediaCanPlayMimeAndKeySystem(type.Ascii().c_str(), "");
+  return support_type != kSbMediaSupportTypeNotSupported;
+#else
   // 2. If type does not contain a valid MIME type string, then return false.
   ContentType content_type(type);
   String mime_type = content_type.GetType();
@@ -675,6 +705,7 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
            << base::ToString(result);
   RecordIdentifiabilityMetric(context, type, result);
   return result;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static
@@ -1649,7 +1680,11 @@ std::unique_ptr<WebSourceBuffer> MediaSource::CreateWebSourceBuffer(
   } else {
     DCHECK(!type.IsNull());
     web_source_buffer =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+        web_media_source_->AddSourceBuffer(type, add_status /* out */);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
         web_media_source_->AddSourceBuffer(type, codecs, add_status /* out */);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   switch (add_status) {

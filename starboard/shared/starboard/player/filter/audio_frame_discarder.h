@@ -15,19 +15,15 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_DISCARDER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_DISCARDER_H_
 
+#include <mutex>
 #include <queue>
 
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // The class helps tracking the information contained in the InputBuffer objects
 // required to adjust discarded duration on the DecodedAudio object.  It should
@@ -53,14 +49,10 @@ class AudioFrameDiscarder {
 
   static constexpr size_t kMaxNumberOfPendingInputBufferInfos = 128;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::queue<InputBufferInfo> input_buffer_infos_;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_DISCARDER_H_

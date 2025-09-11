@@ -16,16 +16,13 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <utility>
 
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -169,7 +166,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   CancelPendingJobs();
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
-  if (preroll_timeout != kSbInt64Max) {
+  if (preroll_timeout != std::numeric_limits<int64_t>::max()) {
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              preroll_timeout);
   }
@@ -426,8 +423,4 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
 
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

@@ -1,0 +1,57 @@
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import("//starboard/build/buildflags.gni")
+import("//testing/test.gni")
+
+source_set("renderer") {
+  sources = [
+    "cobalt_content_renderer_client.cc",
+    "cobalt_content_renderer_client.h",
+    "cobalt_render_frame_observer.cc",
+    "cobalt_render_frame_observer.h",
+  ]
+
+  deps = [
+    "//cobalt/browser:switches",
+    "//cobalt/media/audio:webaudio",
+    "//components/cdm/renderer",
+    "//components/js_injection/renderer:renderer",
+    "//components/network_hints/renderer",
+    "//components/web_cache/renderer",
+    "//content/public/common",
+    "//content/public/renderer",
+    "//content/test:content_test_mojo_bindings",
+    "//media",
+    "//media/mojo:buildflags",
+    "//starboard:starboard_headers_only",
+    "//v8",
+  ]
+
+  if (use_starboard_media) {
+    deps += [ "//media/mojo/clients" ]
+  }
+}
+
+test("cobalt_renderer_unittests") {
+  testonly = true
+  sources = [ "cobalt_render_frame_observer_unittest.cc" ]
+  deps = [
+    ":renderer",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/blink/renderer/modules/exported:test_support",
+  ]
+}

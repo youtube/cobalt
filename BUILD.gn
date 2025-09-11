@@ -876,6 +876,10 @@ group("gn_all") {
   if (checkout_src_internal) {
     deps += [ "//internal:all" ]
   }
+
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
+  }
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to
@@ -1557,6 +1561,12 @@ if (use_blink && !is_cronet_build) {
         "//third_party/blink/web_tests/FlagSpecificConfig",
         "//third_party/blink/web_tests/FlagExpectations/",
         "//third_party/blink/web_tests/flag-specific/",
+      ]
+    }
+
+    if (is_cobalt) {
+      data += [
+        "//third_party/blink/web_tests/wpt_internal/cobalt",
       ]
     }
   }

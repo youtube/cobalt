@@ -26,12 +26,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 using ::starboard::shared::starboard::media::MimeType;
@@ -143,8 +138,8 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     const std::string audio_mime = GetContentTypeFromAudioCodec(
         audio_file_info.audio_codec, extra_mime_attributes);
     const MimeType audio_mime_type(audio_mime.c_str());
-    if (!SbMediaIsAudioSupported(audio_file_info.audio_codec, &audio_mime_type,
-                                 audio_file_info.bitrate)) {
+    if (!MediaIsAudioSupported(audio_file_info.audio_codec, &audio_mime_type,
+                               audio_file_info.bitrate)) {
       continue;
     }
 
@@ -186,7 +181,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       const auto& video_stream_info = dmp_reader.video_stream_info();
       const std::string video_mime = dmp_reader.video_mime_type();
       const MimeType video_mime_type(video_mime.c_str());
-      // SbMediaIsVideoSupported may return false for gpu based decoder that in
+      // MediaIsVideoSupported may return false for gpu based decoder that in
       // fact supports av1 or/and vp9 because the system can make async
       // initialization at startup.
       // To minimize probability of false negative we check result few times
@@ -196,7 +191,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       bool need_to_check_with_wait = video_codec == kSbMediaVideoCodecAv1 ||
                                      video_codec == kSbMediaVideoCodecVp9;
       do {
-        if (SbMediaIsVideoSupported(
+        if (MediaIsVideoSupported(
                 video_codec, video_mime.size() > 0 ? &video_mime_type : nullptr,
                 -1, -1, 8, kSbMediaPrimaryIdUnspecified,
                 kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
@@ -269,6 +264,7 @@ media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.mime = "";
   video_stream_info.max_video_capabilities = "";
 
+  video_stream_info.color_metadata.bits_per_channel = 8;
   video_stream_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_stream_info.color_metadata.transfer = kSbMediaTransferIdBt709;
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
@@ -312,9 +308,4 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   return input_buffer;
 }
 
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::testing

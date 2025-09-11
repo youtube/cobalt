@@ -17,28 +17,38 @@
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace audio_sink {
 namespace {
 bool is_fallback_to_alsa = false;
-}
+}  // namespace
 
 // static
-void SbAudioSinkPrivate::PlatformInitialize() {
-  starboard::shared::pulse::PlatformInitialize();
+void SbAudioSinkImpl::PlatformInitialize() {
+  ::starboard::shared::pulse::PlatformInitialize();
   if (GetPrimaryType()) {
     SB_LOG(INFO) << "Use PulseAudio";
   } else {
     SB_LOG(INFO) << "Use ALSA";
-    starboard::shared::alsa::PlatformInitialize();
+    ::starboard::shared::alsa::PlatformInitialize();
     is_fallback_to_alsa = true;
   }
-  SbAudioSinkPrivate::EnableFallbackToStub();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
+      EnableFallbackToStub();
 }
 
 // static
-void SbAudioSinkPrivate::PlatformTearDown() {
+void SbAudioSinkImpl::PlatformTearDown() {
   if (is_fallback_to_alsa) {
-    starboard::shared::alsa::PlatformTearDown();
+    ::starboard::shared::alsa::PlatformTearDown();
   } else {
-    starboard::shared::pulse::PlatformTearDown();
+    ::starboard::shared::pulse::PlatformTearDown();
   }
 }
+
+}  // namespace audio_sink
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard

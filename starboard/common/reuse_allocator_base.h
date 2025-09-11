@@ -21,11 +21,15 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
 namespace starboard {
 namespace common {
+
+// TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
+//                             enabled.
 
 // The base class of allocators designed to accommodate cases where the memory
 // allocated may not be efficient or safe to access via the CPU.  It solves
@@ -34,76 +38,92 @@ namespace common {
 // additional memory from as needed.
 class ReuseAllocatorBase : public Allocator {
  public:
-  void* Allocate(std::size_t size) override;
-  void* Allocate(std::size_t size, std::size_t alignment) override;
+  void* Allocate(size_t size) override;
+  void* Allocate(size_t size, size_t alignment) override;
 
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
-  std::size_t GetCapacity() const override { return capacity_; }
-  std::size_t GetAllocated() const override { return total_allocated_; }
+  size_t GetCapacity() const override { return capacity_; }
+  size_t GetAllocated() const override { return total_allocated_; }
 
   bool CapacityExceeded() const {
     return max_capacity_ && (capacity_ > max_capacity_);
   }
 
-  void PrintAllocations() const override;
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocations_to_print) const override;
 
   bool TryFree(void* memory);
 
-  std::size_t max_capacity() const { return max_capacity_; }
-  void IncreaseMaxCapacityIfNecessary(std::size_t max_capacity) {
-    max_capacity_ = std::max(max_capacity, max_capacity_);
-  }
+  size_t max_capacity() const { return max_capacity_; }
 
  protected:
   class MemoryBlock {
    public:
-    MemoryBlock() : address_(0), size_(0) {}
-    MemoryBlock(void* address, std::size_t size)
-        : address_(address), size_(size) {}
+    MemoryBlock() = default;
+    MemoryBlock(int fallback_allocation_index, void* address, size_t size)
+        : fallback_allocation_index_(fallback_allocation_index),
+          address_(address),
+          size_(size) {}
+    ~MemoryBlock() { SB_DCHECK(fallback_allocation_index_ >= 0); }
 
-    void* address() const { return address_; }
-    std::size_t size() const { return size_; }
-
-    void set_address(void* address) { address_ = address; }
-    void set_size(std::size_t size) { size_ = size; }
+    void* address() const {
+      SB_DCHECK(fallback_allocation_index_ >= 0);
+      return address_;
+    }
+    size_t size() const {
+      SB_DCHECK(fallback_allocation_index_ >= 0);
+      return size_;
+    }
 
     bool operator<(const MemoryBlock& other) const {
+      SB_DCHECK(fallback_allocation_index_ >= 0);
+      SB_DCHECK(other.fallback_allocation_index_ >= 0);
+
+      if (fallback_allocation_index_ < other.fallback_allocation_index_) {
+        return true;
+      }
+      if (fallback_allocation_index_ > other.fallback_allocation_index_) {
+        return false;
+      }
       return address_ < other.address_;
     }
+
     // If the current block and |other| can be combined into a continuous memory
     // block, store the conmbined block in the current block and return true.
     // Otherwise return false.
     bool Merge(const MemoryBlock& other);
     // Return true if the current block can be used to fulfill an allocation
     // with the given size and alignment.
-    bool CanFulfill(std::size_t request_size, std::size_t alignment) const;
+    bool CanFulfill(size_t request_size, size_t alignment) const;
     // Allocate a block from this block with the given size and alignment.
     // Store the allocated block in |allocated|.  If the rest space is large
     // enough to form a block, it will be stored into |free|.  Otherwise the
     // whole block is stored into |allocated|.
     // Note that the call of this function has to ensure that CanFulfill() is
     // already called on this block and returns true.
-    void Allocate(std::size_t request_size,
-                  std::size_t alignment,
+    void Allocate(size_t request_size,
+                  size_t alignment,
                   bool allocate_from_front,
                   MemoryBlock* allocated,
                   MemoryBlock* free) const;
 
    private:
-    void* address_;
-    std::size_t size_;
-    std::size_t requested_size_;
+    // TODO: b/369245553 - Cobalt: Optimize memory usage for bookkeeping
+    // as there can be ~8000 or more allocations during playback.
+    int fallback_allocation_index_ = -1;
+    void* address_ = nullptr;
+    size_t size_ = 0;
   };
 
   // Freelist sorted by address.
   typedef std::set<MemoryBlock> FreeBlockSet;
 
   ReuseAllocatorBase(Allocator* fallback_allocator,
-                     std::size_t initial_capacity,
-                     std::size_t allocation_increment,
-                     std::size_t max_capacity = 0);
+                     size_t initial_capacity,
+                     size_t allocation_increment,
+                     size_t max_capacity = 0);
   ~ReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -112,8 +132,8 @@ class ReuseAllocatorBase : public Allocator {
   // will take place in the front of a free block if the free block is big
   // enough to fulfill this allocation and produce another free block.
   // Otherwise the allocation will take place from the back.
-  virtual FreeBlockSet::iterator FindFreeBlock(std::size_t size,
-                                               std::size_t alignment,
+  virtual FreeBlockSet::iterator FindFreeBlock(size_t size,
+                                               size_t alignment,
                                                FreeBlockSet::iterator begin,
                                                FreeBlockSet::iterator end,
                                                bool* allocate_from_front) = 0;
@@ -122,7 +142,7 @@ class ReuseAllocatorBase : public Allocator {
   // Map from pointers we returned to the user, back to memory blocks.
   typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
 
-  FreeBlockSet::iterator ExpandToFit(std::size_t size, std::size_t alignment);
+  FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
 
   void AddAllocatedBlock(void* address, const MemoryBlock& block);
   FreeBlockSet::iterator AddFreeBlock(MemoryBlock block_to_add);
@@ -133,22 +153,22 @@ class ReuseAllocatorBase : public Allocator {
 
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
-  Allocator* fallback_allocator_;
-  std::size_t allocation_increment_;
+  Allocator* const fallback_allocator_;
+  const size_t allocation_increment_;
 
   // If non-zero, this is an upper bound on how large we will let the capacity
   // expand.
-  std::size_t max_capacity_;
+  const size_t max_capacity_;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.
   std::vector<void*> fallback_allocations_;
 
   // How much we have allocated from the fallback allocator.
-  std::size_t capacity_;
+  size_t capacity_;
 
   // How much has been allocated from us.
-  std::size_t total_allocated_;
+  size_t total_allocated_;
 };
 
 }  // namespace common

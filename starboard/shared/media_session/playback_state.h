@@ -15,16 +15,12 @@
 #ifndef STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
 #define STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
 
-namespace starboard {
-namespace shared {
-namespace media_session {
+namespace starboard::shared::media_session {
 
 enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
 
-}  // namespace media_session
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::media_session
 
 #endif  // STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_

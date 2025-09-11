@@ -42,6 +42,8 @@ public class ContentFeatureList {
 
     public static final String INPUT_ON_VIZ = "InputOnViz";
 
+    public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+
     public static final String ONE_TIME_PERMISSION = "OneTimePermission";
 
     public static final String CONTINUE_GESTURE_ON_LOSING_FOCUS = "ContinueGestureOnLosingFocus";

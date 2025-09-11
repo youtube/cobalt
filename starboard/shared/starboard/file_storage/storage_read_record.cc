@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <limits>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
@@ -47,8 +48,8 @@ int64_t SbStorageReadRecord(SbStorageRecord record,
   char* destination = out_data;
   int64_t to_read = total;
   while (to_read > 0) {
-    int to_read_max =
-        static_cast<int>(std::min(to_read, static_cast<int64_t>(kSbInt32Max)));
+    int to_read_max = static_cast<int>(std::min(
+        to_read, static_cast<int64_t>(std::numeric_limits<int32_t>::max())));
     int bytes_read = read(record->file, destination, to_read_max);
     if (bytes_read < 0) {
       return -1;

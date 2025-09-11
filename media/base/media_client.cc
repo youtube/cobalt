@@ -21,4 +21,42 @@ MediaClient::MediaClient() = default;
 
 MediaClient::~MediaClient() = default;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+uint64_t MediaClient::GetMediaSourceMaximumMemoryCapacity() {
+  if (g_media_client) {
+    return g_media_client->GetMaximumMemoryCapacity();
+  }
+  return 0;
+}
+
+// static
+uint64_t MediaClient::GetMediaSourceCurrentMemoryCapacity() {
+  if (g_media_client) {
+    return g_media_client->GetCurrentMemoryCapacity();
+  }
+  return 0;
+}
+
+// static
+uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
+  if (g_media_client) {
+    return g_media_client->GetAllocatedMemory();
+  }
+  return 0;
+}
+
+uint64_t MediaClient::GetMaximumMemoryCapacity() const {
+  return decoder_buffer_allocator_.GetMaximumMemoryCapacity();
+}
+
+uint64_t MediaClient::GetCurrentMemoryCapacity() const {
+  return decoder_buffer_allocator_.GetCurrentMemoryCapacity();
+}
+
+uint64_t MediaClient::GetAllocatedMemory() const {
+  return decoder_buffer_allocator_.GetAllocatedMemory();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media

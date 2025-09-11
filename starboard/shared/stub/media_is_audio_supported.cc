@@ -16,10 +16,12 @@
 
 #include "starboard/media.h"
 
-using ::starboard::shared::starboard::media::MimeType;
+namespace starboard::shared::starboard::media {
 
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                             const MimeType* mime_type,
-                             int64_t bitrate) {
+bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                           const MimeType* mime_type,
+                           int64_t bitrate) {
   return false;
 }
+
+}  // namespace starboard::shared::starboard::media

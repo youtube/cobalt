@@ -20,6 +20,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
+#include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -27,14 +28,11 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
+using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -207,6 +205,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   media_time_provider_->Seek(seek_to_time);
   audio_prerolled_ = false;
   video_prerolled_ = false;
+  audio_ended_ = false;
+  video_ended_ = false;
   return HandlerResult{true};
 }
 
@@ -393,7 +393,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
     bounds_.z_index = bounds.z_index;
     bool bounds_changed = memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
     SB_LOG_IF(INFO, bounds_changed)
-        << "Set bounds to " << "x: " << bounds.x << ", y: " << bounds.y
+        << "Set bounds to "
+        << "x: " << bounds.x << ", y: " << bounds.y
         << ", width: " << bounds.width << ", height: " << bounds.height
         << ", z_index: " << bounds.z_index;
 
@@ -431,7 +432,7 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   }
 
   SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
-      << "Invalid player state " << get_player_state_cb_();
+      << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
     SB_LOG(INFO) << "Audio prerolled.";
@@ -545,8 +546,4 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

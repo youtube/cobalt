@@ -3191,7 +3191,7 @@
 <translation id="3201237270673604992">Від Я до А</translation>
 <translation id="3201422919974259695">Тут з’являться доступні пристрої USB.</translation>
 <translation id="3202499879214571401">Призупинити трансляцію екрана на пристрій "<ph name="DEVICE_NAME" />"</translation>
-<translation id="3202578601642193415">Найновіше</translation>
+<translation id="3202578601642193415">Найновіша</translation>
 <translation id="3204648577100496185">Дані, пов’язані з цим додатком, може бути видалено з пристрою</translation>
 <translation id="3204717934117444051">Дані, які зберігаються лише на цьому пристрої, залишаться в поточному профілі. Вони не синхронізуватимуться з <ph name="EMAIL" />.</translation>
 <translation id="3206289903841621620">Словник користувача <ph name="NUMBER" /></translation>
@@ -5041,7 +5041,7 @@
 <translation id="4500647907053779331">Перекласти вибраний фрагмент такою мовою: <ph name="LANGUAGE" /></translation>
 <translation id="450099669180426158">Значок знака оклику</translation>
 <translation id="4501530680793980440">Підтвердити видалення</translation>
-<translation id="4502423230170890588">Видалити з цього пристрою</translation>
+<translation id="4502423230170890588">Видалити із цього пристрою</translation>
 <translation id="4502477450742595012">Натисніть правою кнопкою миші на вкладці й виберіть "Додати вкладку в нову групу"</translation>
 <translation id="4503748371388753124">Ваш комп’ютер оснащено пристроєм Trusted Platform Module (TPM), який виконує багато важливих функцій безпеки в ОС Chrome Flex. Щоб дізнатися більше, відвідайте Довідковий центр Chromebook: https://support.google.com/chromebook/?p=tpm</translation>
 <translation id="4504374760782163539">{COUNT,plural, =0{Файли cookie дозволено}=1{Файли cookie дозволено, 1 виняток}one{Файли cookie дозволено, {COUNT} виняток}few{Файли cookie дозволено, {COUNT} винятки}many{Файли cookie дозволено, {COUNT} винятків}other{Файли cookie дозволено, {COUNT} винятку}}</translation>

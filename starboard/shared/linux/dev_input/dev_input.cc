@@ -42,9 +42,7 @@
 #include "starboard/key.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
-namespace starboard {
-namespace shared {
-namespace dev_input {
+namespace starboard::shared::dev_input {
 namespace {
 
 using ::starboard::shared::starboard::Application;
@@ -904,8 +902,6 @@ void CloseFdSafely(FileDescriptor* fd) {
   }
 }
 
-// Also in starboard/shared/libevent/socket_waiter_internal.cc
-// TODO: Consider consolidating.
 int SetNonBlocking(FileDescriptor fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags == -1) {
@@ -1316,6 +1312,4 @@ DevInput* DevInput::Create(SbWindow window, int wake_up_fd) {
   return new DevInputImpl(window, wake_up_fd);
 }
 
-}  // namespace dev_input
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::dev_input

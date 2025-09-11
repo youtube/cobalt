@@ -329,6 +329,7 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
@@ -350,6 +351,7 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_CHROMEOS)
+#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
@@ -945,11 +947,14 @@ class SandboxSymbolizeHelper {
 
   // Initializes and installs the symbolization callback.
   void Init() {
+// TODO: b/398296821 - Cobalt: port to Starboard.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     if (CacheMemoryRegions()) {
       OpenSymbolFiles();
       google::InstallSymbolizeOpenObjectFileCallback(
           &OpenObjectFileContainingPc);
     }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   }
 
   // Unregister symbolization callback.

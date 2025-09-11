@@ -1791,7 +1791,7 @@ Los sitios pueden usar cookies para ver tu actividad de navegación en otros sit
 <translation id="8263809106706527890">Puede que se haya cambiado la configuración predeterminada de tu navegador. Puedes comprobarlo en los ajustes.</translation>
 <translation id="8264966119170358612">Algunas de tus contraseñas guardadas se han visto expuestas en una brecha de seguridad de datos ajena a Google. <ph name="BEGIN_LINK" />Más información<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Se ha cerrado la sesión de tu cuenta (<ph name="USER_NAME" />) al restablecer tu iPad. Para volver a iniciar sesión, toca Continuar abajo.</translation>
-<translation id="8273982424131314219">Rellenarás la información en <ph name="URL" /></translation>
+<translation id="8273982424131314219">La información se compartirá con <ph name="URL" /></translation>
 <translation id="8275068909952022340">Más…</translation>
 <translation id="8278488584187265939">Personalizar página principal</translation>
 <translation id="8281781826761538115">Predeterminado: <ph name="DEFAULT_LOCALE" /></translation>
@@ -2004,7 +2004,7 @@ Los sitios pueden usar cookies para ver tu actividad de navegación en otros sit
 <translation id="9032405509996909363">Confirmar eliminación de datos de navegación</translation>
 <translation id="9039373489628511875">Ancho de banda</translation>
 <translation id="9042893549633094279">Privacidad y seguridad</translation>
-<translation id="9055291197094969722">Crea grupos de pestañas para organizar tus pestañas abiertas y mantener la productividad</translation>
+<translation id="9055291197094969722">Crea grupos para organizar tus pestañas abiertas y mantener la productividad</translation>
 <translation id="9055580485132823283">Estás a punto de eliminar {password_count} contraseñas, {passkey_count} llaves de acceso y la lista de sitios y aplicaciones de los que has elegido no guardar nunca información de inicio de sesión. Las cuentas que hayas creado para sitios y aplicaciones no se eliminarán.</translation>
 <translation id="9057030985451135243">Más información sobre los grupos de pestañas compartidos</translation>
 <translation id="9057972802061533987">No se puede seguir. Algo ha fallado.</translation>
@@ -2062,7 +2062,7 @@ Los sitios pueden usar cookies para ver tu actividad de navegación en otros sit
 <translation id="954667170699278022">Lista de lectura</translation>
 <translation id="959066944189734975">Estás siguiendo a <ph name="CHANNEL_NAME" /></translation>
 <translation id="961856697154696964">Borrar datos de navegación</translation>
-<translation id="963102227019621224">Actividad en la Web y en Aplicaciones</translation>
+<translation id="963102227019621224">Actividad en la Web y en Apps</translation>
 <translation id="966593914872420832">Búsqueda por voz</translation>
 <translation id="972084300091883657">{COUNT,plural, =0{Unirte al grupo de pestañas con <ph name="OWNER_NAME" />}=1{Unirte al grupo de pestañas con <ph name="OWNER_NAME" /> y {COUNT} persona más}other{Unirte al grupo de pestañas con <ph name="OWNER_NAME" /> y {COUNT} personas más}}</translation>
 <translation id="973493300226275298">Haz un seguimiento del precio de un producto en las tiendas online. Recibirás alertas cuando baje de precio.</translation>

@@ -5,7 +5,67 @@ This file will be updated each time a new Starboard version is released.
 Each section in this file describes the changes made to the Starboard interface
 since the version previous to it.
 
-**NOTE: Starboard versions 13 and older are no longer supported.**
+**NOTE: Starboard versions 16 and older are no longer supported.**
+
+## Version 17
+Starboard 17 fully switches to POSIX APIs.
+
+### Removed the followoing SbEvents:
+* `kSbEventTypeUser`.
+* `kSbEventTypeAccessibilitySettingsChanged`
+* `kSbEventTypeAccessibilityCaptionSettingsChanged`
+* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
+* `kSbEventTypeOnScreenKeyboardShown`
+* `kSbEventTypeOnScreenKeyboardHidden`
+* `kSbEventTypeOnScreenKeyboardFocused`
+* `kSbEventTypeOnScreenKeyboardBlurred`
+
+### Removed `starboard/accessibility.h`
+The functionality is migrated to a starboard extension.
+
+### Removed `starboard/atomic.h`
+### Removed `starboard/byte_swap.h`
+### Removed `starboard/condition_variable.h`
+### Removed `starboard/directory.h`
+### Removed `starboard/image.h`
+### Removed `starboard/mutex.h`
+### Removed `starboard/memory.h`
+### Removed `starboard/once.h`
+### Removed `starboard/string.h`
+### Removed `starboard/time.h`
+### Removed `starboard/ui_navigation.h`
+The functionality is migrated to starboard extension.
+### Removed `starboard/user.h`
+### Removed unused symbols from `starboard/file.h`
+### Removed unused symbols from `starboard/socket.h`
+### Removed unused symbols from `starboard/thread.h`
+### Removed unused symbols from `starboard/types.h`
+  * Removed provisions for SSIZE_T
+### Removed `DEPRECATED_SCOPED_PTR`
+### Removed `SB_HAS_IPV6` config
+All platforms support IPv6
+### Remove Win32/UWP support
+### Remove quirk for `INT16_AUDIO
+It was only used by win32 platforms
+### Removed unused configuration variables
+* `kSbDefaultMmapThreshold`
+* `kSbFileAltSepChar`
+* `kSbFileAltSepString`
+* `kSbHasMediaWebmVp9Support`
+* `kSbMallocAlignment`
+* `kSbMediaVideoFrameAlignment`
+* `kSbMemoryLogPath`
+* `kSbPreferredRgbaByteOrder`
+### Added POSIX support for `getpeername`, `getsockopt` and `recvmsg`.
+### Removed starboad/atomic.h support for C.
+The existing code was migrated to C11 atomics.
+
+### Renamed `SbMediaIs*Supported()` functions
+`SbMediaIsAudioSupported()`, `SbMediaIsSupported()`, and
+`SbMediaIsVideoSupported()` were never part of the Starboard interface.
+Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
+`MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
+the global namespace into ::starboard::shared::starboard::media.
 
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
@@ -1008,7 +1068,7 @@ Added two new functions `SbPlayerGetMaximumNumberOfSamplesPerWrite()` and
 maximum numbers of samples that can be written using the latter at once.
 As it takes multiple thread context switches to call `SbPlayerWriteSample2()`
 once, it can optimize performance on low end platforms by reducing the
-frequence of calling `SbPlayerWriteSample2()`.
+frequency of calling `SbPlayerWriteSample2()`.
 
 ### Add support for player error messages
 

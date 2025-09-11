@@ -2177,7 +2177,7 @@ Unaweza kudhibiti mipangilio ya akaunti hii kwa kusakinisha programu ya Family L
 <translation id="2478176599153288112">Ruhusa za Faili ya Maudhui kwa "<ph name="EXTENSION" />"</translation>
 <translation id="24786041351753425">Ruhusu huduma ya kurejesha data.</translation>
 <translation id="2479541499757560845">Mipangilio ya kibodi ya ufikivu</translation>
-<translation id="2480868415629598489">Badilisha data unayonakili na kubandika</translation>
+<translation id="2480868415629598489">Kubadilisha data unayonakili na kubandika</translation>
 <translation id="2482878487686419369">Arifa</translation>
 <translation id="2482895651873876648">Kichupo kimewekwa kwenye kikundi kiitwacho <ph name="GROUP_NAME" /> - <ph name="GROUP_CONTENTS" /></translation>
 <translation id="2483627560139625913">Weka mtambo wa kutafuta katika mipangilio ya kivinjari cha Chrome</translation>
@@ -3185,7 +3185,7 @@ Unaweza kudhibiti mipangilio ya akaunti hii kwa kusakinisha programu ya Family L
 <translation id="3201237270673604992">Z hadi A</translation>
 <translation id="3201422919974259695">Vifaa vya USB vinavyopatikana vitaonekana hapa.</translation>
 <translation id="3202499879214571401">Sitisha kutuma maudhui ya skrini kwenye <ph name="DEVICE_NAME" /></translation>
-<translation id="3202578601642193415">Mpya kuliko zote</translation>
+<translation id="3202578601642193415">Mpya kabisa</translation>
 <translation id="3204648577100496185">Data inayohusiana na programu hii inaweza kuondolewa kwenye kifaa hiki</translation>
 <translation id="3204717934117444051">Data inayohifadhiwa kwenye kifaa hiki pekee ndiyo itasalia katika wasifu uliopo. Haitasawazisha na <ph name="EMAIL" /></translation>
 <translation id="3206289903841621620">Kamusi ya Mtumiaji <ph name="NUMBER" /></translation>
@@ -4759,7 +4759,7 @@ Ungependa kuanza <ph name="CONTROL_PANEL_APPLET_NAME" />?</translation>
 <translation id="4290826901752066702">Mshiriki <ph name="NUM" /></translation>
 <translation id="4290898381118933198">Telezesha kidole ili usogeze kati ya kurasa</translation>
 <translation id="4291265871880246274">Kidirisha cha Kuingia katika akaunti</translation>
-<translation id="4292613336957320546">Kuongezeka kasi</translation>
+<translation id="4292613336957320546">Kuongeza kasi</translation>
 <translation id="429312253194641664">Tovuti inacheza maudhui</translation>
 <translation id="4294392694389031609">Imefuta <ph name="FILE_NAME" /> kwenye historia ya upakuaji, lakini bado ipo kwenye kifaa chako</translation>
 <translation id="4295072614469448764">Programu inapatikana kwenye kituo chako. Huenda pia kukawa na aikoni kwenye Kifungua programu chako.</translation>
@@ -10113,7 +10113,7 @@ Weka faili yako ya funguo mahali salama. Utaihitaji kuunda matoleo mapya ya kien
 <translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Kagua kiendelezi 1 ambacho huenda si salama}other{Kagua viendelezi {NUM_EXTENSIONS} ambavyo huenda si salama}}</translation>
 <translation id="8138217203226449454">Je, ulitaka kubadilisha mtoa huduma wako wa utafutaji?</translation>
 <translation id="8138997515734480534">Hali ya <ph name="VM_NAME" /></translation>
-<translation id="8139440916039659819">Kuongezeka kasi ya kiteuzi</translation>
+<translation id="8139440916039659819">Kuongeza kasi ya kiteuzi</translation>
 <translation id="8140070492745508800"><ph name="FIRST_DEVICE" />, <ph name="SECOND_DEVICE" /></translation>
 <translation id="8140108728130537923"><ph name="BEGIN_LINK" />Kivinjari chako kinadhibitiwa<ph name="END_LINK" /> na <ph name="BROWSER_DOMAIN" /> na <ph name="BEGIN_LINK" />wasifu wako unadhibitiwa<ph name="END_LINK" /> na <ph name="PROFILE_DOMAIN" /></translation>
 <translation id="8140869601171867148">Akaunti yako ya Google inalingana na akaunti unayotumia kwenye Gmail, YouTube, Chrome na bidhaa nyingine za Google.
@@ -11373,7 +11373,7 @@ Hii inaweza kujumuisha maelezo kuhusu programu ulizoweka kwenye kifaa, faili, ki
 <translation id="9011163749350026987">Onyesha aikoni kila wakati</translation>
 <translation id="9011262023858991985">Inatuma kichupo hiki</translation>
 <translation id="9011393886518328654">Maelezo kuhusu toleo</translation>
-<translation id="9012122671773859802">Sogeza skrini kwa mfululizo huku ukisogeza kipanya</translation>
+<translation id="9012122671773859802">Kusogeza skrini kadri kipanya kinavyosonga</translation>
 <translation id="9012585441087414258">Hukulinda dhidi ya tovuti, vipakuliwa na viendelezi vinavyojulikana kuwa hatari Iwapo ukurasa utafanya kitu chenye kutia mashaka, URL na sehemu za maudhui hutumwa kwenye kipengele cha Kuvinjari Salama na Google.</translation>
 <translation id="9013037634206938463">Unahitaji nafasi ya <ph name="INSTALL_SIZE" /> ambayo haijatumika ili usakinishe Linux. Ili upate nafasi zaidi ya hifadhi, futa faili kwenye kifaa chako.</translation>
 <translation id="9014206344398081366">Mafunzo ya ChromeVox</translation>

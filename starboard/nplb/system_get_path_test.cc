@@ -136,7 +136,6 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_FALSE(FileExists(path.data()));
 
     // Create the directory and confirm it exists and can be opened.
-    struct stat info;
     EXPECT_TRUE(mkdir(path.data(), 0700) == 0 ||
                 (DirectoryExists(path.data())));
     EXPECT_TRUE(FileExists(path.data()));
@@ -198,6 +197,11 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
   }
 }
 
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+}
+
 TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   // Verify that the creation time of the current executable file is not
   // greater than the current time.
@@ -215,8 +219,8 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   result = stat(path.data(), &executable_file_info);
   ASSERT_EQ(0, result);
 
-  int64_t now = PosixTimeToWindowsTime(CurrentPosixTime());
-  // EXPECT_GT(now, executable_file_info.c_time);
+  int64_t now_usec = CurrentPosixTime();
+  EXPECT_GT(now_usec, ToMicroseconds(executable_file_info.st_ctim));
 }
 
 }  // namespace

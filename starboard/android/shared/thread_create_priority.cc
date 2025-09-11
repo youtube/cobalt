@@ -46,9 +46,8 @@ SbThreadPriority NiceToSbPriority(int nice) {
 }
 
 }  // namespace
-namespace starboard {
-namespace shared {
-namespace pthread {
+
+namespace starboard::shared::pthread {
 
 void SetNiceValue(int nice) {
   int result = setpriority(PRIO_PROCESS, 0, nice);
@@ -58,8 +57,9 @@ void SetNiceValue(int nice) {
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport)
+  if (!kSbHasThreadPrioritySupport) {
     return;
+  }
 
   // Nice value settings are selected from looking at:
   //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
@@ -89,9 +89,7 @@ void ThreadSetPriority(SbThreadPriority priority) {
   }
 }
 
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pthread
 
 bool SbThreadSetPriority(SbThreadPriority priority) {
   starboard::shared::pthread::ThreadSetPriority(priority);

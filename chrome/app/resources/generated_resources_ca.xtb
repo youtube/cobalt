@@ -495,7 +495,7 @@ Comprova les contrasenyes sempre que vulguis al <ph name="GOOGLE_PASSWORD_MANAGE
 <translation id="1328928545650070438">Baixar les celles</translation>
 <translation id="1329466763986822896">Millora la privadesa d'aquest punt d'accés Wi‐Fi</translation>
 <translation id="1331065030686329928">Gestiona el grup de pestanyes "<ph name="GROUP_NAME" />"</translation>
-<translation id="1331977651797684645">Sí que era jo.</translation>
+<translation id="1331977651797684645">Sí que era jo</translation>
 <translation id="1333489022424033687">Pot ser que algunes funcions que inclou <ph name="ORIGIN" /> no es puguin executar fins que no esborris les dades que altres llocs web han emmagatzemat al teu dispositiu</translation>
 <translation id="1333965224356556482">No permetis que els llocs web vegin la teva ubicació</translation>
 <translation id="1335282218035876586">El teu Chromebook ja no rep actualitzacions de seguretat ni de programari. Compra't un Chromebook nou per gaudir de la millor experiència.</translation>
@@ -9777,7 +9777,7 @@ Prem un interruptor o una tecla assignats per suprimir una assignació.</transla
 <translation id="7925108652071887026">Dades d'emplenament automàtic</translation>
 <translation id="792514962475806987">Nivell de zoom acoblat:</translation>
 <translation id="7925285046818567682">Esperant <ph name="HOST_NAME" />...</translation>
-<translation id="7926423016278357561">No era jo.</translation>
+<translation id="7926423016278357561">No era jo</translation>
 <translation id="7926975587469166629">Àlies de la targeta</translation>
 <translation id="7928175190925744466">Ja has canviat aquesta contrasenya?</translation>
 <translation id="7929468958996190828">Pots <ph name="BEGIN_LINK" />actualitzar ara<ph name="END_LINK" /> o tornar-ho a provar més tard després d'obrir pestanyes similars noves</translation>
@@ -11445,7 +11445,7 @@ que pot incloure dades del programari instal·lat, de fitxers, del navegador, de
 Obtén informació sobre les dades que Google recull i sobre el motiu pel qual ho fa a <ph name="BEGIN_LINK2" />policies.google.com<ph name="END_LINK2" />.</translation>
 <translation id="9066782832737749352">Text a parla</translation>
 <translation id="9068298336633421551">Permet que les aplicacions i els serveis d'Android amb permís d'ubicació utilitzin la ubicació del dispositiu. Google pot recollir dades d'ubicació periòdicament i utilitzar-les de manera anònima per millorar la precisió de la ubicació i els serveis basats en la ubicació.</translation>
-<translation id="9068598199622656904">Prem una tecla a la vegada per a les tecles de drecera en lloc de mantenir-les premudes alhora</translation>
+<translation id="9068598199622656904">Per a les tecles de dreceres, prem-les d'una en una en lloc de mantenir-les premudes totes alhora</translation>
 <translation id="9068878141610261315">Aquest tipus de fitxer no s'admet</translation>
 <translation id="9069417381769492963">No hi ha cap adreça d'interès que coincideixi amb la teva cerca</translation>
 <translation id="9070231741075992882">Els permisos que concedeixis a <ph name="APP_NAME" /> també es concediran per a les seves aplicacions instal·lades i reproduïdes en continu.</translation>

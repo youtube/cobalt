@@ -35,6 +35,8 @@ typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 class SbPlayerGetAudioConfigurationTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
  public:
+  void SetUp() override { SkipTestIfNotSupported(GetParam()); }
+
   void ReadAudioConfigurations(
       const SbPlayerTestFixture& player_fixture,
       std::vector<SbMediaAudioConfiguration>* configurations) const {
@@ -264,10 +266,10 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
   ASSERT_EQ(configs_after_presenting, configs_after_end);
 }
 
-INSTANTIATE_TEST_CASE_P(SbPlayerGetAudioConfigurationTests,
-                        SbPlayerGetAudioConfigurationTest,
-                        ValuesIn(GetSupportedSbPlayerTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(SbPlayerGetAudioConfigurationTests,
+                         SbPlayerGetAudioConfigurationTest,
+                         ValuesIn(GetAllPlayerTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

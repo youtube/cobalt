@@ -583,7 +583,7 @@
 <translation id="3594280220611906414"><ph name="USER_FRIENDLY_APN_NAME" /> é o nome fácil de usar de <ph name="APN_NAME" />.</translation>
 <translation id="3595596368722241419">Bateria carregada</translation>
 <translation id="3600339377155080675">Espelhar tela</translation>
-<translation id="3602290021589620013">Visualizar</translation>
+<translation id="3602290021589620013">Prévia</translation>
 <translation id="3603829704940252505">Avatar</translation>
 <translation id="3604713164406837697">Mudar plano de fundo</translation>
 <translation id="360565022852130722">A rede Wi-Fi é protegida pelo protocolo fraco WEP 802.1x</translation>
@@ -1086,7 +1086,7 @@
 <translation id="5856267793478861942"><ph name="ATTACH" /> (<ph name="IA" />)</translation>
 <translation id="5859603669299126575">Álbum da galeria de arte</translation>
 <translation id="5859969039821714932">Atalho indisponível. Pressione um novo atalho sem <ph name="KEY" />.</translation>
-<translation id="5860033963881614850">Desativado</translation>
+<translation id="5860033963881614850">Desativada</translation>
 <translation id="5860491529813859533">Ativar</translation>
 <translation id="586463370326011345">raio</translation>
 <translation id="5875913454160982848">Baixar modelo de transcrição</translation>

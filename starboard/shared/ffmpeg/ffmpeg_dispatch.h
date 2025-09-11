@@ -25,39 +25,40 @@ struct AVCodec;
 struct AVCodecContext;
 struct AVCodecParameters;
 struct AVDictionary;
-struct AVDictionaryEntry;
-struct AVFormatContext;
 struct AVFrame;
-struct AVInputFormat;
-struct AVIOContext;
 struct AVPacket;
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
+
+inline constexpr int AvVersionInt(int major, int minor, int micro) {
+  return (major << 16) | (minor << 8) | micro;
+}
+
+// TODO: b/416893567 - Replace hard-coded constant with AvVersionInt once review
+// is completed.
 
 //  derived from AV_VERSION_INT(a, b, c)   ((a)<<16 | (b)<<8 | (c))
-//  https://github.com/FFmpeg/FFmpeg/blob/master/doc/APIchanges#L1981
-constexpr int kAVCodecSupportsAvFrameAlloc = 3616101;
-constexpr int kAVCodecSupportsAvcodecFreeContext = 3620708;
-constexpr int kAVCodecSupportsAvPacketAlloc = 3738724;
-// https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
-// AV_VERSION_INT(52, 8, 0)
-constexpr int kAVUtilSupportsBufferCreate = 3409920;
+// http://go/ffmpeg-api-changes#L1264
+constexpr int kAVCodecSupportsAvFrameAlloc = AvVersionInt(55, 45, 101);
 
-// https://github.com/FFmpeg/FFmpeg/blob/70d25268c21cbee5f08304da95be1f647c630c15/doc/APIchanges#L195
+// http://go/ffmpeg-api-changes#L2455
+constexpr int kAVCodecSupportsAvcodecFreeContext = AvVersionInt(55, 63, 100);
+
+// https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
+constexpr int kAVUtilSupportsBufferCreate = AvVersionInt(52, 8, 0);
+
+// http://go/ffmpeg-api-changes#L195
 // avcodec_decode_audio4 and avcodec_decode_video2 replaced by
 // avcodec_receive_frame()
 //
 // The APIs were removed in this change:
 // https://github.com/FFmpeg/FFmpeg/commit/7c1f347b184b6738abdc22fdcda40baa9f932522#diff-76418b674d0db8d5027d2e1e325dbe9b92b65b09d9f20cdd305ad14b0e46562d
 // (note the values in libavcodec/version.h)
-// AV_VERSION_INT(58, 137, 100)
-constexpr int kAVCodecHasUniformDecodeAPI = 3836260;
+constexpr int kAVCodecHasUniformDecodeAPI = AvVersionInt(58, 137, 100);
 
-// https://github.com/FFmpeg/FFmpeg/blob/70d25268c21cbee5f08304da95be1f647c630c15/doc/APIchanges#L86
+// http://go/ffmpeg-api-changes#L86
 // no longer required
-constexpr int kAVFormatDoesNotHaveRegisterAll = 3936356;
+constexpr int kAVFormatDoesNotHaveRegisterAll = AvVersionInt(58, 9, 100);
 
 class FFMPEGDispatch {
  public:
@@ -132,40 +133,6 @@ class FFMPEGDispatch {
   unsigned (*avformat_version)(void);
   void (*av_register_all)(void);
 
-  void (*av_free)(void* ptr);
-  AVPacket* (*av_packet_alloc)(void);
-  void (*av_packet_free)(AVPacket** pkt);
-  void (*av_free_packet)(AVPacket* pkt);
-  AVDictionaryEntry* (*av_dict_get)(const AVDictionary* m,
-                                    const char* key,
-                                    const AVDictionaryEntry* prev,
-                                    int flags);
-  // Note: |rnd| represents type enum AVRounding.
-  int64_t (*av_rescale_rnd)(int64_t a, int64_t b, int64_t c, int rnd);
-  int (*av_seek_frame)(AVFormatContext* s,
-                       int stream_index,
-                       int64_t timestamp,
-                       int flags);
-  int (*av_read_frame)(AVFormatContext* s, AVPacket* pkt);
-  void (*av_packet_unref)(AVPacket* pkt);
-  int (*avformat_open_input)(AVFormatContext** ps,
-                             const char* filename,
-                             AVInputFormat* fmt,
-                             AVDictionary** options);
-  void (*avformat_close_input)(AVFormatContext** s);
-  AVFormatContext* (*avformat_alloc_context)(void);
-  int (*avformat_find_stream_info)(AVFormatContext* ic, AVDictionary** options);
-  AVIOContext* (*avio_alloc_context)(
-      unsigned char* buffer,
-      int buffer_size,
-      int write_flag,
-      void* opaque,
-      int (*read_packet)(void* opaque, uint8_t* buf, int buf_size),
-      int (*write_packet)(void* opaque, uint8_t* buf, int buf_size),
-      int64_t (*seek)(void* opaque, int64_t offset, int whence));
-  int (*avcodec_parameters_to_context)(AVCodecContext* codec,
-                                       const AVCodecParameters* par);
-
   int specialization_version() const;
 
   // In Ffmpeg, the calls to avcodec_open2() and avcodec_close() are not
@@ -180,8 +147,6 @@ class FFMPEGDispatch {
   void FreeContext(AVCodecContext** avctx);
 };
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_

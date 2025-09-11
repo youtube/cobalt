@@ -19,19 +19,17 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 
 // Adapts Widevine's |Content Decryption Module v 3.5| to Starboard's
 // |SbDrmSystem|.
@@ -192,7 +190,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   volatile bool quitting_ = false;
 
   Mutex unblock_key_retry_mutex_;
-  optional<int64_t> unblock_key_retry_start_time_;
+  std::optional<int64_t> unblock_key_retry_start_time_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   int number_of_session_updates_sent_ = 0;
@@ -202,8 +200,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::atomic_bool first_update_session_received_{false};
 };
 
-}  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_

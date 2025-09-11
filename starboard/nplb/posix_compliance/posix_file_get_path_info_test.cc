@@ -28,11 +28,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-static inline int64_t TimeTToWindowsUsecTest(time_t time) {
-  int64_t posix_usec = static_cast<int64_t>(time) * 1000000;
-  return PosixTimeToWindowsTime(posix_usec);
-}
-
 TEST(PosixFileGetPathInfoTest, InvalidFileErrors) {
   struct stat file_info;
 
@@ -41,17 +36,19 @@ TEST(PosixFileGetPathInfoTest, InvalidFileErrors) {
   EXPECT_TRUE(stat(".", &file_info) == 0);
 }
 
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+}
+
 TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
   // in extra sensitivity to make flakiness more apparent.
-  const int kTrials = 100;
+  constexpr int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    // We can't assume filesystem timestamp precision, so go back a minute
-    // for a better chance to contain the imprecision and rounding errors.
-    const int64_t kOneSecondInMicroseconds = 1'000'000;
-    int64_t time = PosixTimeToWindowsTime(CurrentPosixTime());
+    int64_t time_usec = CurrentPosixTime();
 
-    const int kFileSize = 12;
+    constexpr int kFileSize = 12;
     ScopedRandomFile random_file(kFileSize);
     const std::string& filename = random_file.filename();
 
@@ -61,12 +58,12 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
       EXPECT_EQ(kFileSize, file_info.st_size);
       EXPECT_FALSE(S_ISDIR(file_info.st_mode));
       EXPECT_FALSE(S_ISLNK(file_info.st_mode));
-      EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_mtime),
-                  kOneSecondInMicroseconds);
-      EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_atime),
-                  kOneSecondInMicroseconds);
-      EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_ctime),
-                  kOneSecondInMicroseconds);
+      // We can't assume filesystem timestamp precision, so allow a minute
+      // difference.
+      constexpr int64_t kOneMinute = 60 * kMicrosecond;
+      EXPECT_NEAR(time_usec, ToMicroseconds(file_info.st_mtim), kOneMinute);
+      EXPECT_NEAR(time_usec, ToMicroseconds(file_info.st_atim), kOneMinute);
+      EXPECT_NEAR(time_usec, ToMicroseconds(file_info.st_ctim), kOneMinute);
     }
   }
 }
@@ -79,7 +76,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
 
   {
     struct stat file_info;
-    bool result = stat(path.data(), &file_info) == 0;
+    EXPECT_TRUE(stat(path.data(), &file_info) == 0);
     EXPECT_LE(0, file_info.st_size);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode));
     EXPECT_FALSE(S_ISLNK(file_info.st_mode));
@@ -94,7 +91,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
     struct stat info;
     EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
-    EXPECT_EQ(content_length, info.st_size);
+    EXPECT_EQ(static_cast<long>(content_length), info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
   }

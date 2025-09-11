@@ -15,12 +15,13 @@
 #ifndef STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_
 
+#include <limits>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <string>
 #include <vector>
 
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/internal_only.h"
@@ -33,9 +34,7 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard {
-namespace shared {
-namespace openh264 {
+namespace starboard::shared::openh264 {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -51,7 +50,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   // TODO: Verify if these values are correct.
   size_t GetPrerollFrameCount() const override { return 8; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
@@ -128,11 +129,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   int frames_being_decoded_ = 0;
 
   // Store current avc level profile and resolution.
-  optional<shared::starboard::media::VideoConfig> video_config_;
+  std::optional<shared::starboard::media::VideoConfig> video_config_;
 };
 
-}  // namespace openh264
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::openh264
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_

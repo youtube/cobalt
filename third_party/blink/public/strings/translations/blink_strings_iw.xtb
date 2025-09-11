@@ -19,7 +19,7 @@
 <translation id="2148716181193084225">היום</translation>
 <translation id="2226276347425096477">צריך לקצר את הטקסט ל-<ph name="MAX_CHARACTERS" /> תווים או פחות (כרגע: <ph name="CURRENT_LENGTH" /> תווים).</translation>
 <translation id="2247351761944213033">שבוע <ph name="WEEKNUMBER" />‏, <ph name="YEAR" /></translation>
-<translation id="2277199496770840904">רצועה <ph name="NUMBER" /></translation>
+<translation id="2277199496770840904">טראק <ph name="NUMBER" /></translation>
 <translation id="2507943997699731163">זהו שדה חובה.</translation>
 <translation id="2613802280814924224">יש להזין ערך חוקי. הערך החוקי הקרוב ביותר הוא <ph name="VALID_VALUE" /></translation>
 <translation id="2653659639078652383">שליחה</translation>
@@ -37,7 +37,7 @@
 <translation id="3822383571486410024">צריך להאריך את הטקסט הזה ל-<ph name="MIN_CHARACTERS" /> תווים או יותר (כרגע הוא באורך <ph name="CURRENT_LENGTH" /> תווים).</translation>
 <translation id="383465348367842624">חלק ולאחריו '<ph name="ATSIGN" />' לא אמור לכלול את הסמל '<ph name="INVALIDCHARACTER" />'.</translation>
 <translation id="3846214748874656680">יציאה ממסך מלא</translation>
-<translation id="4360991593054037559">יש להזין ערך חוקי. שני הערכים החוקיים הקרובים ביותר הם <ph name="VALID_VALUE_LOW" /> ו-<ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4360991593054037559">צריך להזין ערך תקין. שני הערכים התקינים הקרובים ביותר הם <ph name="VALID_VALUE_LOW" /> ו-<ph name="VALID_VALUE_HIGHER" />.</translation>
 <translation id="4522570452068850558">פרטים</translation>
 <translation id="4664250907885839816">חלק ולאחריו '<ph name="ATSIGN" />' לא אמור לכלול את הסמל '<ph name="INVALIDCHARACTER" />'.</translation>
 <translation id="4703271465972936359">טראקים של אודיו</translation>
@@ -45,18 +45,18 @@
 <translation id="4812940957355064477">יש להזין מספר.</translation>
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> נבחרו</translation>
 <translation id="4992066212339426712">ביטול השתקה</translation>
-<translation id="49969490063480558">יש להזין חלק ואחריו '<ph name="ATSIGN" />'. השדה '<ph name="INVALIDADDRESS" />' אינו מלא.</translation>
+<translation id="49969490063480558">יש להזין את החלק אחרי "<ph name="ATSIGN" />". השדה "<ph name="INVALIDADDRESS" />" אינו מלא.</translation>
 <translation id="5164977714490026579">הערך חייב להיות גדול מ-<ph name="MINIMUM" /> או שווה לו.</translation>
 <translation id="5196716972587102051">2</translation>
 <translation id="520299402983819650"><ph name="QUANTITY" />PB</translation>
 <translation id="5307600278924710095">יש להזין חלק ואחריו '<ph name="ATSIGN" />'‏. השדה '<ph name="INVALIDADDRESS" />' אינו מלא.</translation>
 <translation id="5334352251556557839">לא ניתן להפעיל את המדיה.</translation>
 <translation id="537648784377940524">התאריך המוקדם ביותר (<ph name="MIN_DATE_OR_TIME" />) חייב לחול לפני התאריך המאוחר ביותר (<ph name="MAX_DATE_OR_TIME" />).</translation>
-<translation id="5466621249238537318">יש לבחור קובץ אחד או יותר.</translation>
+<translation id="5466621249238537318">צריך לבחור קובץ אחד או יותר.</translation>
 <translation id="5514612371225420585">קובץ במכשיר שלך</translation>
 <translation id="5516235301412634559">0.75</translation>
 <translation id="5537725057119320332">‏הפעלת Cast</translation>
-<translation id="5630795885300617244">לחיצה כפולה בצד ימין או שמאל מדלגת על 10 שניות</translation>
+<translation id="5630795885300617244">כדי לדלג על 10 שניות אפשר ללחוץ לחיצה כפולה בצד ימין או שמאל</translation>
 <translation id="57838592816432529">השתקה</translation>
 <translation id="5868587040512539609">טראקים של וידאו</translation>
 <translation id="588258955323874662">מסך מלא</translation>
@@ -77,7 +77,7 @@
 <translation id="6919891270253167948">1.5</translation>
 <translation id="6989848892321993519">עליך להאריך את הטקסט ל-<ph name="MIN_CHARACTERS" /> תווים או יותר (כרגע יש תו אחד).</translation>
 <translation id="709897737746224366">יש להתאים את הפורמט המבוקש.</translation>
-<translation id="7263440858009898357">יש לבחור פריט מהרשימה.</translation>
+<translation id="7263440858009898357">צריך לבחור פריט מהרשימה.</translation>
 <translation id="7364796246159120393">בחירת קובץ</translation>
 <translation id="739024184232394898">אחר...</translation>
 <translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
@@ -98,7 +98,7 @@
 <translation id="8668988909814782445">גלישת שורות</translation>
 <translation id="8750798805984357768">יש לבחור אחת מהאפשרויות הבאות.</translation>
 <translation id="8845239796550121995">העברת תוכן לטלוויזיה מתבצעת</translation>
-<translation id="8853540031347711208">לוחצים על <ph name="HOT_KEY" /> כדי להפעיל</translation>
+<translation id="8853540031347711208">צריך ללחוץ על <ph name="HOT_KEY" /> כדי להפעיל</translation>
 <translation id="8875657656876809964">שגיאה בהפעלת הסרטון</translation>
 <translation id="8901569739625249689">‏<ph name="QUANTITY" />KB‏</translation>
 <translation id="9132465097189459683">אחר...</translation>

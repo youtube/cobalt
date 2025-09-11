@@ -17,19 +17,15 @@
 
 #include <pthread.h>
 #include <atomic>
+#include <mutex>
 
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class PunchoutVideoRendererSink : public VideoRendererSink {
  public:
@@ -52,7 +48,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
   pthread_t thread_;
   std::atomic_bool stop_requested_{false};
 
-  Mutex mutex_;
+  std::mutex mutex_;
   int z_index_;
   int x_;
   int y_;
@@ -60,10 +56,6 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
   int height_;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_

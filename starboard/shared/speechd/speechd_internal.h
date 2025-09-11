@@ -17,12 +17,11 @@
 
 #include <libspeechd.h>
 
-#include "starboard/common/mutex.h"
+#include <mutex>
+
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace speechd {
+namespace starboard::shared::speechd {
 
 // |SpeechDispatcher| is a helper class that is used to implement the
 // SbSpeechSynthesis* APIs in terms of the Speech Dispatcher C API:
@@ -60,7 +59,7 @@ class SpeechDispatcher {
   // Prevent multiple threads from calling spd_* APIs concurrently. It wasn't
   // clear from the documentation whether or not the spd_* API is thread-safe
   // or not, so be on the safe side.
-  Mutex lock_;
+  std::mutex lock_;
 
   // An open connection to Speech Dispatcher.
   SPDConnection* connection_;
@@ -70,7 +69,7 @@ class SpeechDispatcher {
 };
 
 }  // namespace speechd
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::speechd
 
 #endif  // STARBOARD_SHARED_SPEECHD_SPEECHD_INTERNAL_H_

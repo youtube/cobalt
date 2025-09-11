@@ -24,6 +24,10 @@
 #include "media/media_buildflags.h"
 #include "media/mojo/services/mojo_media_client.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/gpu/starboard/starboard_gpu_factory.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class MediaGpuChannelManager;
@@ -58,6 +62,50 @@ struct VideoDecoderTraits {
       mojo::PendingRemote<mojom::VideoDecoder> oop_video_decoder);
   ~VideoDecoderTraits();
 };
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+using GetStarboardCommandBufferStubCB = StarboardGpuFactory::GetStubCB;
+
+// Encapsulate parameters to pass to StarboardRenderer.
+struct StarboardRendererTraits {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner;
+  mojo::PendingRemote<mojom::MediaLog> media_log_remote;
+  const base::UnguessableToken& overlay_plane_id;
+  base::TimeDelta audio_write_duration_local;
+  base::TimeDelta audio_write_duration_remote;
+  const std::string& max_video_capabilities;
+  mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver;
+  mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote;
+
+  // StarboardRenderer uses this to post tasks on gpu thread.
+  GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb;
+
+  StarboardRendererTraits(
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
+      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote,
+      GetStarboardCommandBufferStubCB
+          get_starboard_command_buffer_stub_cb);
+  StarboardRendererTraits(StarboardRendererTraits&& that) = default;
+  ~StarboardRendererTraits();
+};
+
+// Creates a platform-specific media::StarboardRenderer.
+// This is used on Cobalt (android/linux).
+std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
+    StarboardRendererTraits traits);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
   gpu::GpuPreferences gpu_preferences;
@@ -120,6 +168,17 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
       RequestOverlayInfoCB request_overlay_info_cb,
       const gfx::ColorSpace& target_color_space,
       mojo::PendingRemote<mojom::VideoDecoder> oop_video_decoder) final;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<Renderer> CreateStarboardRenderer(
+      mojom::FrameInterfaceFactory* frame_interfaces,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const StarboardRendererConfig& config,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote) final;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<CdmFactory> CreateCdmFactory(
       mojom::FrameInterfaceFactory* interface_provider) final;
 

@@ -16,11 +16,7 @@
 
 #include <limits>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace video_dmp {
+namespace starboard::shared::starboard::player::video_dmp {
 
 #define DEFINE_READ_AS_INT32_FUNCTION(Type)                                \
   void Read(const ReadCB& read_cb, bool reverse_byte_order, Type* value) { \
@@ -288,8 +284,4 @@ void Write(const WriteCB& write_cb,
   }
 }
 
-}  // namespace video_dmp
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::video_dmp

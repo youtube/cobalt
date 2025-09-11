@@ -17,10 +17,7 @@
 #include <string.h>
 #include <type_traits>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -117,6 +114,8 @@ AvcParameterSets::AvcParameterSets(Format format,
       combined_size_in_bytes_ += nalu.size();
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
       break;
+    } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
+      combined_size_with_optionals_in_bytes_ += nalu.size();
     }
   }
   SB_LOG_IF(ERROR, first_sps_index_ == -1 || first_pps_index_ == -1)
@@ -211,7 +210,8 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   const auto kAvccLengthInBytes = kAnnexBHeaderSizeInBytes;
 
   while (AdvanceToNextAnnexBHeader(&annex_b_source, &annex_b_source_size)) {
-    SB_DCHECK(annex_b_source - last_source >= kAnnexBHeaderSizeInBytes);
+    SB_DCHECK(static_cast<size_t>(annex_b_source - last_source) >=
+              kAnnexBHeaderSizeInBytes);
     SB_DCHECK(avcc_destination < avcc_destination_end);
 
     size_t payload_size =
@@ -233,7 +233,4 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   return true;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace {
 // Corresponding arrays to for musl<->platform translation.
@@ -57,6 +57,21 @@ int PLATFORM_AF_ORDERED[] = {
     AF_INET,
     AF_INET6,
 };
+
+int musl_shuts_to_platform_shuts(int how) {
+  switch (how) {
+    case MUSL_SHUT_RD:
+      return SHUT_RD;
+    case MUSL_SHUT_WR:
+      return SHUT_WR;
+    case MUSL_SHUT_RDWR:
+      return SHUT_RDWR;
+    default:
+      SB_LOG(WARNING) << "Unable to convert musl flag to platform flag, "
+                      << "using value as-is.";
+      return how;
+  }
+}
 
 int musl_hints_to_platform_hints(const struct musl_addrinfo* hints,
                                  struct addrinfo* platform_hints) {
@@ -244,8 +259,9 @@ SB_EXPORT int __abi_wrap_setsockopt(int socket,
                                     int option_name,
                                     const void* option_value,
                                     socklen_t option_len) {
-  if (socket <= 0) {
-    return -1;
-  }
   return setsockopt(socket, level, option_name, option_value, option_len);
+}
+
+SB_EXPORT int __abi_wrap_shutdown(int socket, int how) {
+  return shutdown(socket, musl_shuts_to_platform_shuts(how));
 }

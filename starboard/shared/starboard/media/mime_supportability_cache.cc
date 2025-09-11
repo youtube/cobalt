@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 
 #include <cstring>
+#include <mutex>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -22,16 +23,13 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
-#include "starboard/common/mutex.h"
+
 #include "starboard/common/once.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -150,7 +148,7 @@ void StripAndParseBitrate(const char* mime,
 
 // static
 SB_ONCE_INITIALIZE_FUNCTION(MimeSupportabilityCache,
-                            MimeSupportabilityCache::GetInstance);
+                            MimeSupportabilityCache::GetInstance)
 
 Supportability MimeSupportabilityCache::GetMimeSupportability(
     const char* mime,
@@ -170,7 +168,7 @@ Supportability MimeSupportabilityCache::GetMimeSupportability(
     return kSupportabilityNotSupported;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   Entry& entry = GetEntry_Locked(mime_without_bitrate);
 
   // Return cached ParsedMimeInfo with real bitrate.
@@ -207,7 +205,7 @@ void MimeSupportabilityCache::CacheMimeSupportability(
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   Entry& entry = GetEntry_Locked(mime_without_bitrate);
 
   if (entry.mime_info.is_valid()) {
@@ -216,7 +214,7 @@ void MimeSupportabilityCache::CacheMimeSupportability(
 }
 
 void MimeSupportabilityCache::ClearCachedMimeSupportabilities() {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   for (auto& iter : entries_) {
     iter.second.max_supported_bitrate = -1;
     iter.second.min_unsupported_bitrate = INT_MAX;
@@ -224,7 +222,7 @@ void MimeSupportabilityCache::ClearCachedMimeSupportabilities() {
 }
 
 void MimeSupportabilityCache::DumpCache() {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   std::stringstream ss;
   ss << "\n========Dumping MimeSupportabilityCache========";
   for (const auto& entry_iter : entries_) {
@@ -286,7 +284,7 @@ MimeSupportabilityCache::Entry& MimeSupportabilityCache::GetEntry_Locked(
 
   // Keep cached items not exceeding max size.
   fifo_queue_.push(insert_result.first);
-  while (fifo_queue_.size() > max_size_) {
+  while (fifo_queue_.size() > static_cast<size_t>(max_size_)) {
     entries_.erase(fifo_queue_.front());
     fifo_queue_.pop();
   }
@@ -330,7 +328,4 @@ void MimeSupportabilityCache::UpdateBitrateSupportability_Locked(
   }
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

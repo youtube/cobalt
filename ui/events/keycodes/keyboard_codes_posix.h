@@ -290,6 +290,11 @@ enum KeyboardCode : unsigned short {
   VKEY_BUTTON_Y = 0xFF0E,
   VKEY_BUTTON_Z = 0xFF0F,
 #endif
+
+#if BUILDFLAG(IS_COBALT)
+  // Toggle subtitles
+  KEY_SUBTITLES = 0x1CC,
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace ui

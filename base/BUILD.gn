@@ -42,6 +42,7 @@ import("//build/util/process_version.gni")
 import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
+import("//cobalt/build/configs/hacks.gni")
 
 if (is_ios) {
   # Used to access target_environment and target_platform.
@@ -937,6 +938,14 @@ component("base") {
     _build_date_header,
   ]
 
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base_paths_starboard.cc",
+      "base_paths_starboard.h",
+    ]
+  }
+
   # Various files that are unused in the Chromium build, but presumably here to
   # make downstream's life easier. They are not included in the main sources
   # list to avoid breaking GN formatting's auto-sorting.
@@ -1015,10 +1024,14 @@ component("base") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if ((is_linux && !is_starboard) || is_chromeos || is_android) {
     sources += [
       "files/file_path_watcher_inotify.cc",
       "files/file_path_watcher_inotify.h",
+    ]
+  } else if (is_starboard) {
+    sources += [
+      "files/file_path_watcher_stub.cc",
     ]
   }
 
@@ -1058,6 +1071,10 @@ component("base") {
       ":rust_logger",
       "//third_party/rust/serde_json_lenient/v0_2/wrapper",
     ]
+  }
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/common/eztime" ]
   }
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
@@ -1107,7 +1124,7 @@ component("base") {
   # Needed for <atomic> if using newer C++ library than sysroot, except if
   # building inside the cros_sdk environment - use host_toolchain as a
   # more robust check for this.
-  if (!use_sysroot && (is_android || is_chromeos || (is_linux && !is_castos)) &&
+  if (!use_sysroot && (is_android || is_chromeos || (is_linux && !is_cobalt_hermetic_build && !is_castos)) &&
       host_toolchain != "//build/toolchain/cros:host") {
     libs += [ "atomic" ]
   }
@@ -1769,6 +1786,65 @@ component("base") {
     }
   }
 
+  if (is_starboard) {
+    sources += [
+      "message_loop/message_pump_ui_starboard.cc",
+      "message_loop/message_pump_ui_starboard.h",
+    ]
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "debug/debugger_posix.cc",
+      "process/process_posix.cc",
+      "process/process_linux.cc",
+    ]
+    sources += [
+      "process/process_stubs.cc",
+      "starboard/debugger_starboard.cc",
+    ]
+  }
+
+  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+  if (enable_cobalt_hermetic_hacks) {
+    sources -= [
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      "debug/proc_maps_linux.cc",
+      "debug/proc_maps_linux.h",
+      "files/dir_reader_linux.h",
+
+      #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+      # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+      "posix/can_lower_nice_to.cc",
+      "posix/can_lower_nice_to.h",
+      "profiler/module_cache_posix.cc",
+      "profiler/stack_base_address_posix.cc",
+      "profiler/stack_base_address_posix.h",
+      "profiler/stack_copier_signal.cc",
+      "profiler/stack_copier_signal.h",
+      "profiler/thread_delegate_posix.cc",
+      "profiler/thread_delegate_posix.h",
+
+      #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
+      # struct mallinfo minfo = mallinfo();
+      "process/process_metrics_posix.cc",
+    ]
+    sources += [
+      "process/process_metrics_posix_starboard_stub.cc",
+      "starboard/linker_stub.h",
+    ]
+
+    # Find a way to fix the offending customizations instead.
+    configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+
+    all_dependent_configs += [ ":base_starboard_linker_stub" ]
+  }
+
   # Windows.
   if (is_win) {
     sources += [
@@ -2340,6 +2416,14 @@ component("base") {
     }
   }
 
+
+  if (is_cobalt) {
+    sources += [
+      "system/sys_info_starboard.cc",
+      "system/sys_info_starboard.h",
+    ]
+  }
+
   if (use_blink) {
     sources += [
       "files/file_path_watcher.cc",
@@ -2676,7 +2760,7 @@ buildflag_header("debugging_buildflags") {
 
   # TODO(crbug.com/40258939): Try and enable these checks on Android too.
   enable_commandline_sequence_checks =
-      (is_debug || dcheck_always_on) && !is_android
+      (is_debug || dcheck_always_on) && !is_android && !is_cobalt
 
   if (enable_stack_trace_line_numbers) {
     assert(
@@ -2849,6 +2933,10 @@ static_library("base_static") {
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
   }
 }
 
@@ -3729,6 +3817,10 @@ test("base_unittests") {
     "allocator/partition_allocator/src/partition_alloc/pointers/raw_ref_unittest.cc",
   ]
 
+  if (is_cobalt) {
+    sources += [ "system/sys_info_starboard_unittest.cc" ]
+  }
+
   if (!is_cronet_build) {
     # location_unittest.cc fails gn check for tracing-shimmed Cronet builds.
     # Cronet buildbot do not run base_unittests, so exclusing this test
@@ -3795,12 +3887,19 @@ test("base_unittests") {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
 
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+  } else {
   data_deps = [
     "//base/test:immediate_crash_test_helper",
     "//base/test:test_child_process",
     "//base/test:test_shared_library",
     "//testing/buildbot/filters:base_unittests_filters",
   ]
+  }
   if (is_ios) {
     deps += [ "//base/test:test_shared_library_ios+bundle" ]
   }
@@ -3944,6 +4043,40 @@ test("base_unittests") {
     }
   }
 
+  if (is_starboard) {
+    sources -= [
+      "debug/proc_maps_linux_unittest.cc",
+      "debug/stack_trace_unittest.cc",
+      "files/file_path_watcher_unittest.cc",
+      "files/file_util_unittest.cc",
+      "immediate_crash_unittest.cc",
+      "memory/platform_shared_memory_region_unittest.cc",
+      "metrics/field_trial_unittest.cc",
+      "native_library_unittest.cc",
+      "process/process_metrics_unittest.cc",
+      "process/process_util_unittest.cc",
+      "process/process_unittest.cc",
+      "profiler/module_cache_unittest.cc",
+      "profiler/stack_sampling_profiler_unittest.cc",
+      "profiler/stack_sampler_unittest.cc",
+      "sync_socket_unittest.cc",
+      "system/sys_info_unittest.cc",
+      "test/launcher/test_launcher_unittest.cc",
+      "test/launcher/test_results_tracker_unittest.cc",
+      "test/task_environment_unittest.cc",
+      "task/thread_pool/thread_pool_impl_unittest.cc",
+    ]
+  }
+
+  # TODO: b/402471389 - Cobalt: try to enable these tests.
+  if (enable_cobalt_hermetic_hacks) {
+    sources -= [
+      "process/memory_unittest.cc",
+      "state_transitions_unittest.cc",
+      "tools_sanity_unittest.cc",
+    ]
+  }
+
   if (enable_base_tracing) {
     sources += [ "test/test_trace_processor_example_unittest.cc" ]
   }
@@ -3959,7 +4092,12 @@ test("base_unittests") {
       "posix/file_descriptor_shuffle_unittest.cc",
       "posix/unix_domain_socket_unittest.cc",
     ]
-    if (!is_nacl && !is_apple) {
+    if (is_starboard) {
+      sources -= [
+        "posix/unix_domain_socket_unittest.cc",
+      ]
+    }
+    if (!is_nacl && !is_apple && !is_starboard) {
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",
@@ -4158,7 +4296,7 @@ test("base_unittests") {
     deps += [ ":base_profiler_test_support_library" ]
   }
 
-  if (is_fuchsia || is_linux || is_chromeos) {
+  if (is_fuchsia || (is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
     sources += [
       "debug/elf_reader_unittest.cc",
       "debug/test_elf_image_builder.cc",
@@ -4239,7 +4377,7 @@ test("base_unittests") {
     ]
   }
 
-  if (!is_fuchsia && !is_ios) {
+  if (!is_fuchsia && !is_ios && !is_starboard) {
     sources += [ "files/file_locking_unittest.cc" ]
   }
 
@@ -5944,5 +6082,13 @@ process_version("check_version_internal") {
       "-e",
       "NEXT_VERSION_MAJOR=\"9999\"",
     ]
+  }
+}
+
+if (enable_cobalt_hermetic_hacks) {
+  # TODO: b/413130400 - Cobalt: Remove this config 
+  # after removing base/starboard/linker_stub.h
+  config("base_starboard_linker_stub") {
+    cflags = ["-Wno-unreachable-code-break"]
   }
 }

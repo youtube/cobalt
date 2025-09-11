@@ -2040,7 +2040,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="4432792777822557199"><ph name="SOURCE_LANGUAGE" /> dilindeki sayfalar artık <ph name="TARGET_LANGUAGE" /> diline çevrilecek</translation>
 <translation id="4433642172056592619">Kullanıcı, makine yönetimi ile ilişkili olmadığı veya makine yönetilmediği için yok sayıldı.</translation>
 <translation id="4434017585895599560">Kiralık Evler</translation>
-<translation id="4434045419905280838">Pop-up'lar ve yönlendirmeler</translation>
+<translation id="4434045419905280838">Pop-up ve yönlendirmeler</translation>
 <translation id="443673843213245140">Proxy kullanımı devre dışı, ancak açık bir proxy yapılandırması belirtildi.</translation>
 <translation id="4438821706955556403">Normal fiyat</translation>
 <translation id="444116852243722675">Tümünü aç (<ph name="ITEMS" />)</translation>
@@ -2063,7 +2063,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="4480760608050410381">MP4 Video</translation>
 <translation id="448363931695049633">Pizzacılar</translation>
 <translation id="4489023393592172404">Zarf Kaku 4</translation>
-<translation id="4489977488133295402">Ödeme yöntemlerini otomatik doldurmak için kimliğinizi doğrulayın</translation>
+<translation id="4489977488133295402">Ödeme yöntemlerini otomatik doldurmak için kimlik doğrulaması yap</translation>
 <translation id="4490717597759821841">A7</translation>
 <translation id="449126573531210296">Senkronize edilen şifreleri Google Hesabınızla şifreleyin</translation>
 <translation id="4493480324863638523">Geçersiz URL. Standart şemaya sahip bir URL olmalıdır. Ör. http://example.com veya https://example.com.</translation>
@@ -2613,7 +2613,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="5447235695608032700"><ph name="SITE" /> sitesinin sizinle ilgili kaydettiği bilgileri kullanmasına izin verin</translation>
 <translation id="5451331376824595378">Güvenlik işlemleri Chrome tarafından işaretlendiğinde bu işlemlerle ilgili veriler yöneticinize gönderilir. Bu veriler; Chrome'da ziyaret ettiğiniz sayfaların URL'si, veri kopyaladığınız sayfaların URL'si, dosya adları veya meta veriler, IP adresleri, tarayıcı ya da sekme kilitlenmelerinin yanı sıra web tabanlı uygulamalarda, cihazınızda ve Chrome'da oturum açmak için kullandığınız kullanıcı adını içerir.</translation>
 <translation id="5452270690849572955">Bu <ph name="HOST_NAME" /> sayfası bulunamıyor</translation>
-<translation id="5452923259299906094">E-cüzdan ve Pix ile ödeyin</translation>
+<translation id="5452923259299906094">E-cüzdan ve Pix ile öde</translation>
 <translation id="5455374756549232013">Politika zaman damgası yanlış</translation>
 <translation id="5456428544444655325">Bir daha gösterme</translation>
 <translation id="5457113250005438886">Geçersiz</translation>
@@ -3708,7 +3708,7 @@ Ek ayrıntılar:
 <translation id="7346048084945669753">İlişkili olma durumu:</translation>
 <translation id="7346062987309535530">Yemek Takımları</translation>
 <translation id="7346081071264046066">"bu düğün davetini kabul edin ve ne kadar sevindiğinizi belirtin"</translation>
-<translation id="7352651011704765696">Bir şeyler ters gitti</translation>
+<translation id="7352651011704765696">Bir hata oluştu</translation>
 <translation id="7353601530677266744">Komut Satırı</translation>
 <translation id="7359588939039777303">Reklamlar engellendi.</translation>
 <translation id="7360451453306104998">Google'ın bulduğu indirimler ödeme aşamasında gösterilir</translation>
@@ -3929,7 +3929,7 @@ Ek ayrıntılar:
 <translation id="767550629621587224">Önceden Kesilmiş Tablar</translation>
 <translation id="7675756033024037212">Kaydırma ve yakınlaştırmaya izin verilmiyor</translation>
 <translation id="7676643023259824263">Panoda metni (<ph name="TEXT" />) ara</translation>
-<translation id="7679287273775285018">E-cüzdan ile ödeyin</translation>
+<translation id="7679287273775285018">E-cüzdan ile öde</translation>
 <translation id="7679367271685653708">Chrome ayarlarında tarama geçmişinizi görüntüleyin ve yönetin</translation>
 <translation id="7679947978757153706">Beyzbol</translation>
 <translation id="7680990533995586733"><ph name="CARD_NETWORK_NAME" />, <ph name="CARD_LAST_FOUR_DIGITS" />, geçerlilik sonu <ph name="CARD_EXPIRATION" /></translation>

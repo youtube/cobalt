@@ -86,7 +86,7 @@ struct IsPod {
 template <typename Key,
           typename Value,
           typename LessThan = std::less<Key>,
-          typename VectorType = std::vector<std::pair<Key, Value> > >
+          typename VectorType = std::vector<std::pair<Key, Value>>>
 class FlatMap {
  public:
   // Most typedefs here are to make FlatMap<> compatible with std::map<>.

@@ -1,0 +1,16 @@
+// Non standard interface used for Cobalt only.
+[
+    ImplementedAs=PerformanceExtensions
+] partial interface Performance {
+    // Returns the amount of available memory on the device in bytes, according
+    // to base::SysInfo::AmountOfAvailablePhysicalMemory().
+    [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
+
+    // Returns the amount of memory used by the Cobalt process, in bytes. This
+    // is also known as the resident set size.
+    [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
+
+    // Returns the application startup duration in microseconds (us).
+    [CallWith=ScriptState, RaisesException]
+    Promise<long long> getAppStartupTime();
+};

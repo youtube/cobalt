@@ -43,7 +43,7 @@ void TestPerformanceOfFunction(const char* const name_of_f,
   starboard::logging::SetMinLogLevel(kSbLogPriorityFatal);
 
   // Call |f| |count_calls| times.
-  for (int i = 0; i < count_calls; ++i) {
+  for (size_t i = 0; i < count_calls; ++i) {
     f(args...);
   }
 

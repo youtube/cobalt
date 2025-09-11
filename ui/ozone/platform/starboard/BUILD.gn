@@ -1,0 +1,96 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/ozone.gni")
+
+assert(is_starboard)
+
+source_set("starboard") {
+  visibility = [
+    "//cobalt:*",
+    "//ui/ozone/*",
+  ]
+
+  defines = [ "OZONE_IMPLEMENTATION" ]
+
+  sources = [
+    "client_native_pixmap_factory_starboard.cc",
+    "client_native_pixmap_factory_starboard.h",
+    "gl_ozone_egl_starboard.cc",
+    "gl_ozone_egl_starboard.h",
+    "ozone_platform_starboard.cc",
+    "ozone_platform_starboard.h",
+    "platform_event_observer_starboard.h",
+    "platform_event_source_starboard.cc",
+    "platform_event_source_starboard.h",
+    "platform_screen_starboard.cc",
+    "platform_screen_starboard.h",
+    "platform_window_starboard.cc",
+    "platform_window_starboard.h",
+    "surface_factory_starboard.cc",
+    "surface_factory_starboard.h",
+  ]
+
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard:starboard_headers_only",
+    "//ui/base/ime",
+    "//ui/display",
+    "//ui/display/fake",
+    "//ui/events/ozone/layout:layout",
+    "//ui/gfx:native_widget_types",
+    "//ui/ozone:ozone_base",
+    "//ui/ozone/common",
+    "//ui/platform_window",
+    "//ui/platform_window/stub",
+  ]
+}
+
+source_set("starboard_unittests") {
+  visibility = [ "//ui/ozone/*" ]
+
+  testonly = true
+
+  sources = [
+    "test/platform_window_starboard_unittest.cc",
+    "test/starboard_test_helper.h",
+    "test/surface_factory_starboard_unittest.cc",
+  ]
+
+  deps = [
+    ":starboard",
+    "//starboard:starboard_headers_only",
+    "//starboard/common:common",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/events:events",
+    "//ui/events:events_base",
+    "//ui/events/types:headers",
+    "//ui/gl",
+    "//ui/platform_window:platform_window",
+  ]
+}
+
+source_set("test_support") {
+  visibility = [ "//ui/ozone/*" ]
+
+  testonly = true
+
+  sources = [
+    "ozone_ui_controls_test_helper_starboard.cc",
+    "ozone_ui_controls_test_helper_starboard.h",
+  ]
+
+  deps = [ "//base" ]
+}

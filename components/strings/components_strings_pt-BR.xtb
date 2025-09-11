@@ -1326,7 +1326,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="3266367459139339908">Estamos lançando novas formas de limitar o que os sites podem saber sobre você ao mostrar anúncios personalizados, por exemplo:</translation>
 <translation id="3266793032086590337">Valor (conflitante)</translation>
 <translation id="3268451620468152448">Guias abertas</translation>
-<translation id="3270041629388773465">Finalizar compras rapidamente se os CVCs estiverem salvos</translation>
+<translation id="3270041629388773465">Finalize suas compras mais rápido com os CVCs salvos</translation>
 <translation id="3270847123878663523">&amp;Desfazer reordenar</translation>
 <translation id="3271648667212143903"><ph name="ORIGIN" /> deseja se conectar</translation>
 <translation id="3272091146646336650">Super B</translation>
@@ -1656,7 +1656,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="3799805948399000906">Fonte solicitada</translation>
 <translation id="3801297763951514916">Você visita com frequência</translation>
 <translation id="380329542618494757">Nome</translation>
-<translation id="3803481123869276674">Ao fazer compras no Chrome, veja a carteira digital como opção</translation>
+<translation id="3803481123869276674">Mostrar a carteira digital como opção para pagamento ao fazer compras no Chrome</translation>
 <translation id="3803801106042434208">Estes mecanismos são famosos na sua região</translation>
 <translation id="380666903981445943">Salve uma forma de pagamento na sua Conta do Google para que ela seja preenchida automaticamente em compras feitas no Chrome</translation>
 <translation id="3807366285948165054">Mudança X da imagem</translation>
@@ -2655,7 +2655,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="5518352028556756716">A maioria dos sites não pode usar cookies de terceiros para rastrear você durante a navegação, e nenhum site pode usar esses cookies no modo de navegação anônima.</translation>
 <translation id="5519516356611866228">Com suas modificações</translation>
 <translation id="5519696598216267194">Papel (perfurado)</translation>
-<translation id="5520105693415771152">As informações acima não estão corretas? Entre em contato com o emissor do cartão para atualizar os dados.</translation>
+<translation id="5520105693415771152">As informações atualizadas não aparecem? Entre em contato com o emissor do cartão para atualizar os dados.</translation>
 <translation id="5521782189689806907">Fabricação de armários</translation>
 <translation id="5523118979700054094">Nome da política</translation>
 <translation id="5523588073846127669">O comerciante não aceita este cartão virtual</translation>
@@ -3464,7 +3464,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="6917873303492266709">Para compartilhar, participar e colaborar em grupos de guias, abra as configurações e ative a opção "Permitir login no Chrome"</translation>
 <translation id="6921197121276419421">Instalação de apps da Web permitida</translation>
 <translation id="69238565902785824">Manter sua conta vinculada ajuda a pagar mais rapidamente com o <ph name="BNPL_ISSUER_NAME" />, mas você pode desvincular a conta em <ph name="IDS_AUTOFILL_BNPL_TOS_LINK_TEXT_WALLET_LINK_TEXT" />.</translation>
-<translation id="6924013822850225188">Escolha se você quer conferir os benefícios do seu cartão no pagamento. Sujeito aos termos do banco</translation>
+<translation id="6924013822850225188">Escolha se você quer ver os benefícios do seu cartão durante o pagamento (sujeito aos termos do banco)</translation>
 <translation id="6925267999184670015">B+ (América do Norte)</translation>
 <translation id="6926216138694948720">Arte corporal</translation>
 <translation id="692638818576287323">Veículos comerciais</translation>
@@ -3929,7 +3929,7 @@ Mais detalhes:
 <translation id="767550629621587224">Abas pré-cortadas</translation>
 <translation id="7675756033024037212">Configuração de rolagem e zoom não permitida</translation>
 <translation id="7676643023259824263">Pesquisar um texto na área de transferência, <ph name="TEXT" /></translation>
-<translation id="7679287273775285018">Pagar com carteira digital</translation>
+<translation id="7679287273775285018">Pagar com a carteira digital</translation>
 <translation id="7679367271685653708">Ver e gerenciar seu histórico de navegação nas configurações do Chrome</translation>
 <translation id="7679947978757153706">Beisebol</translation>
 <translation id="7680990533995586733"><ph name="CARD_NETWORK_NAME" />, <ph name="CARD_LAST_FOUR_DIGITS" />, expira em <ph name="CARD_EXPIRATION" /></translation>
@@ -3939,7 +3939,7 @@ Mais detalhes:
 <translation id="7684683146428206649">Metal</translation>
 <translation id="7684817988830401358">Botão "Excluir dados de navegação": ative para excluir o histórico de navegação, cookies, cache e muito mais nas configurações do Chrome</translation>
 <translation id="7684928361160505327">{0,plural, =1{<ph name="FILE_NAME" /> foi bloqueado devido a uma política}one{<ph name="FILE_COUNT" /> arquivo foi bloqueado devido a uma política}other{<ph name="FILE_COUNT" /> arquivos foram bloqueados devido a uma política}}</translation>
-<translation id="7687186412095877299">Preencher formulários com as formas de pagamento salvas</translation>
+<translation id="7687186412095877299">Preenche formulários com as formas de pagamento salvas</translation>
 <translation id="7687305263118037187">Novas tentativas esgotadas</translation>
 <translation id="7690647519407127574">Cartão postal Oufuku Hagaki</translation>
 <translation id="7693583928066320343">Ordem de páginas recebida</translation>

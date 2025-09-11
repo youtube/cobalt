@@ -26,7 +26,9 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if !SB_IS(EVERGREEN_COMPATIBLE)
+#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#endif
 
 namespace starboard {
 namespace nplb {
@@ -37,29 +39,23 @@ namespace {
 const char kFileName[] = "test_file.data";
 const size_t kBufSize = 64 * 1024 * 1024;  // 64 MB
 
-class StorageTest : public ::testing::Test {
- protected:
-  StorageTest() {}
-  ~StorageTest() {}
-};
-
 void WriteBuffer(const char* file_path,
                  const char* buffer,
                  size_t buffer_size) {
   ScopedFile file(file_path, O_CREAT | O_WRONLY);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for writing";
   int bytes_written = file.WriteAll(buffer, buffer_size);
-  ASSERT_EQ(kBufSize, bytes_written);
+  ASSERT_EQ(kBufSize, static_cast<size_t>(bytes_written));
 }
 
 void ReadBuffer(const char* file_path, char* buffer, size_t buffer_size) {
   ScopedFile file(file_path, 0);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for reading";
   int count = file.ReadAll(buffer, buffer_size);
-  ASSERT_EQ(kBufSize, count);
+  ASSERT_EQ(kBufSize, static_cast<size_t>(count));
 }
 
-TEST_F(StorageTest, VerifyStorageDirectory) {
+TEST(StorageTest, VerifyStorageDirectory) {
   std::vector<char> storage_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                               kSbFileMaxPath));
@@ -78,7 +74,7 @@ TEST_F(StorageTest, VerifyStorageDirectory) {
 
   ReadBuffer(file_path.c_str(), buf.data(), kBufSize);
 
-  for (int i = 0; i < kBufSize; i++) {
+  for (size_t i = 0; i < kBufSize; i++) {
     ASSERT_EQ('A', buf[i]);
   }
 
@@ -91,5 +87,3 @@ TEST_F(StorageTest, VerifyStorageDirectory) {
 }  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)

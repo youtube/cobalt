@@ -23,9 +23,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -33,14 +34,10 @@ namespace nplb {
 #if defined(SOMAXCONN)
 const int kMaxConn = SOMAXCONN;
 #else
-// Some posix platforms such as FreeBSD do not define SOMAXCONN.
-// In this case, set the value to an arbitrary number large enough to
-// satisfy most use-cases and tests, empirically we have found that 128
-// is sufficient.  All implementations of listen() specify that a backlog
-// parameter larger than the system max will be silently truncated to the
-// system's max.
 const int kMaxConn = 128;
 #endif
+
+const int64_t kSocketTimeout = 200'000;  // 200ms
 
 int PosixSocketCreateAndConnect(int server_domain,
                                 int client_domain,
@@ -55,6 +52,13 @@ int PosixGetLocalAddressIPv6(sockaddr* address_ptr);
 int PosixSocketSetReceiveBufferSize(int socket_fd, int32_t size);
 int PosixSocketSetSendBufferSize(int socket_fd, int32_t size);
 
+// Returns a valid port number that can be bound to for use in nplb tests.
+// This will always return the same port number.
+int PosixGetPortNumberForTests();
+
+// Creates a TCP/IP socket listening on all interfaces on the given port.
+// int PosixCreateBoundListeningTcpSocket();
+
 #if defined(MSG_NOSIGNAL)
 const int kSendFlags = MSG_NOSIGNAL;
 #else
@@ -68,18 +72,6 @@ struct trio_socket_fd {
   int* client_socket_fd_ptr;
   int* server_socket_fd_ptr;
 };
-
-// Writes the given data to socket, spinning until success or error.
-bool PosixWriteBySpinning(int socket,
-                          const char* data,
-                          int data_size,
-                          int64_t timeout);
-
-// Reads the given amount of data from socket, spinning until success or error.
-bool PosixReadBySpinning(int socket,
-                         char* out_data,
-                         int data_size,
-                         int64_t timeout);
 
 }  // namespace nplb
 }  // namespace starboard

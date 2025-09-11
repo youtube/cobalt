@@ -315,6 +315,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kGroupRebindingForGroupImportance);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReduceGpuPriorityOnBackground);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSmartZoom);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kUserMediaScreenCapturing);
+// TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotGenerateChromiumA11yTree);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)

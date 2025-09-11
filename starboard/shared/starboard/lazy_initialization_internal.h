@@ -17,7 +17,6 @@
 
 #include <sched.h>
 
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/lazy_initialization_public.h"
@@ -27,9 +26,7 @@
 #define INITIALIZED_STATE_INITIALIZING 1
 #define INITIALIZED_STATE_INITIALIZED 2
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // The utility functions defined here use atomics and spin-locks to allow for
 // easy lazy initialization in a thread-safe way.
@@ -41,8 +38,10 @@ namespace starboard {
 static inline bool EnsureInitialized(InitializedState* state) {
   // Check what state we're in, and if we find that we are uninitialized,
   // simultaneously mark us as initializing and return to the caller.
-  InitializedState original = SbAtomicNoBarrier_CompareAndSwap(
-      state, INITIALIZED_STATE_UNINITIALIZED, INITIALIZED_STATE_INITIALIZING);
+  int original{INITIALIZED_STATE_UNINITIALIZED};
+  state->compare_exchange_weak(original, INITIALIZED_STATE_INITIALIZING,
+                               std::memory_order_release,
+                               std::memory_order_relaxed);
   if (original == INITIALIZED_STATE_UNINITIALIZED) {
     // If we were uninitialized, we are now marked as initializing and so
     // we relay this information to the caller, so that they may initialize.
@@ -52,7 +51,8 @@ static inline bool EnsureInitialized(InitializedState* state) {
     // initialization is complete, then return.
     do {
       sched_yield();
-    } while (SbAtomicAcquire_Load(state) != INITIALIZED_STATE_INITIALIZED);
+    } while (state->load(std::memory_order_acquire) !=
+             INITIALIZED_STATE_INITIALIZED);
   } else {
     SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED)
         << "Unexpected original=" << original;
@@ -65,17 +65,15 @@ static inline bool EnsureInitialized(InitializedState* state) {
 // use the outcome of this function to make a decision on whether to initialize
 // or not, use EnsureInitialized() for that.
 static inline bool IsInitialized(InitializedState* state) {
-  return SbAtomicNoBarrier_Load(state) == INITIALIZED_STATE_INITIALIZED;
+  return state->load(std::memory_order_relaxed);
 }
 
 // Sets the state as being initialized.
 static inline void SetInitialized(InitializedState* state) {
   // Mark that we are initialized now.
-  SbAtomicRelease_Store(state, INITIALIZED_STATE_INITIALIZED);
+  state->store(INITIALIZED_STATE_INITIALIZED, std::memory_order_release);
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_INTERNAL_H_

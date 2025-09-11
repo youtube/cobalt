@@ -295,7 +295,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'src_internal_revision': 'caafe50c01f391b8f0bcd97b7b58715235e2894a',
+  'src_internal_revision': '9b9dc6ad3be362cf7baa69544ffe6ab5602bdda3',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
@@ -303,11 +303,11 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '82ea130494ea43ed0e1bba1ccf97e5db06668ba1',
+  'v8_revision': '6e44441230795a613ddabb3b7e8a082c114a607e',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': 'e1dc0a7ab5d1f1f2edaa7e41447d873895e083bf',
+  'angle_revision': '4e2ac155b53f98f029303453dd8986ed1f16d7fc',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -1509,7 +1509,7 @@ deps = {
 
   'src/clank': {
     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
-    '1a8e51dd65d6c25cbd6b8c685156ac30e05f6ca1',
+    'c429267f3539e1d40d05527bacde592f76b64e9d',
     'condition': 'checkout_android and checkout_src_internal',
   },
 
@@ -4722,7 +4722,7 @@ deps = {
 
   'src/ios_internal':  {
       'url': Var('chrome_git') + '/chrome/ios_internal.git' + '@' +
-        '40e004aa91bf9be17a7b9b84e75337a047be64f6',
+        'df084506e5eeb1007220a32f4f13613f23b830db',
       'condition': 'checkout_ios and checkout_src_internal',
   },
 
@@ -5160,7 +5160,10 @@ hooks = [
     'name': 'lastchange',
     'pattern': '.',
     'action': ['python3', 'src/build/util/lastchange.py',
-               '-o', 'src/build/util/LASTCHANGE'],
+               '-o', 'src/build/util/LASTCHANGE',
+               # Cobalt addition, don't look for Change-Id in commits.
+               '--filter=\(#[1-9][0-9]*\)'
+               ],
   },
   {
     # Update lastchange_commit_position.h (only for CrOS).

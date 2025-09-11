@@ -4,6 +4,7 @@
 
 #include "src/base/cpu.h"
 
+#include "build/build_config.h"
 #if defined(V8_OS_STARBOARD)
 #include "starboard/cpu_features.h"
 #endif
@@ -11,7 +12,8 @@
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
-#if V8_OS_LINUX
+// TODO: (cobalt b/409756628) Turn off V8_OS_LINUX.
+#if V8_OS_LINUX && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <linux/auxvec.h>  // AT_HWCAP
 #endif
 #if V8_GLIBC_PREREQ(2, 16) || V8_OS_ANDROID
@@ -20,7 +22,7 @@
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
 #endif
-#if V8_OS_LINUX && V8_HOST_ARCH_PPC64
+#if V8_OS_LINUX && (V8_HOST_ARCH_PPC64 || BUILDFLAG(IS_STARBOARD))
 #include <elf.h>
 #endif
 #if V8_OS_AIX

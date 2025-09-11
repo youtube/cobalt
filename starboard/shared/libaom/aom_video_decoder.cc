@@ -19,9 +19,7 @@
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 
-namespace starboard {
-namespace shared {
-namespace aom {
+namespace starboard::shared::aom {
 
 using starboard::player::JobThread;
 
@@ -114,7 +112,7 @@ void VideoDecoder::Reset() {
 
   CancelPendingJobs();
 
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
@@ -167,7 +165,7 @@ void VideoDecoder::TeardownCodec() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     SbDecodeTarget decode_target_to_release;
     {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_to_release = decode_target_;
       decode_target_ = kSbDecodeTargetInvalid;
     }
@@ -258,7 +256,7 @@ void VideoDecoder::DecodeOneBuffer(
       aom_image->planes[AOM_PLANE_Y], aom_image->planes[AOM_PLANE_U],
       aom_image->planes[AOM_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    ScopedLock lock(decode_target_mutex_);
+    std::lock_guard lock(decode_target_mutex_);
     frames_.push(frame);
   }
 
@@ -280,7 +278,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 
   // We must take a lock here since this function can be called from a
   // separate thread.
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
     frames_.pop();
   }
@@ -297,5 +295,5 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 }
 
 }  // namespace aom
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::aom

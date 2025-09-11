@@ -22,7 +22,6 @@
 #include <X11/XF86keysym.h>
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
@@ -43,9 +42,7 @@ namespace {
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
 }
 
-namespace starboard {
-namespace shared {
-namespace x11 {
+namespace starboard::shared::x11 {
 
 using ::starboard::shared::dev_input::DevInput;
 
@@ -679,12 +676,12 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
   char error_text[256] = {0};
   XGetErrorText(event->display, event->error_code, error_text,
                 SB_ARRAY_SIZE_INT(error_text));
-  SB_DLOG(ERROR) << "X11 Error: " << error_text;
-  SB_DLOG(ERROR) << "display=" << XDisplayString(event->display);
-  SB_DLOG(ERROR) << "serial=" << event->serial;
-  SB_DLOG(ERROR) << "request=" << static_cast<int>(event->request_code);
-  SB_DLOG(ERROR) << "minor=" << static_cast<int>(event->minor_code);
-  SB_DLOG(ERROR) << "resourceid=" << event->resourceid;
+  SB_LOG(ERROR) << "X11 Error: " << error_text;
+  SB_LOG(ERROR) << "display=" << XDisplayString(event->display);
+  SB_LOG(ERROR) << "serial=" << event->serial;
+  SB_LOG(ERROR) << "request=" << static_cast<int>(event->request_code);
+  SB_LOG(ERROR) << "minor=" << static_cast<int>(event->minor_code);
+  SB_LOG(ERROR) << "resourceid=" << event->resourceid;
   SbSystemBreakIntoDebugger();
   return 0;
 }
@@ -701,12 +698,12 @@ ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
       composite_event_id_(kSbEventIdInvalid),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
-  SbAudioSinkPrivate::Initialize();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
   NetworkNotifier::GetOrCreateInstance();
 }
 
 ApplicationX11::~ApplicationX11() {
-  SbAudioSinkPrivate::TearDown();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
 }
 
 SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
@@ -936,6 +933,7 @@ void ApplicationX11::WakeSystemEventWait() {
 }
 
 bool ApplicationX11::EnsureX() {
+  SB_DCHECK(IsCurrentThread());
   // TODO: Consider thread-safety.
   if (display_) {
     return true;
@@ -972,6 +970,7 @@ bool ApplicationX11::EnsureX() {
 }
 
 void ApplicationX11::StopX() {
+  SB_DCHECK(IsCurrentThread());
   if (!display_) {
     return;
   }
@@ -979,6 +978,10 @@ void ApplicationX11::StopX() {
   SbEventCancel(composite_event_id_);
   composite_event_id_ = kSbEventIdInvalid;
 
+  XSetErrorHandler([](Display*, XErrorEvent*) {
+    SB_LOG(ERROR) << "Ignoring errors during X shutdown";
+    return 0;
+  });
   XCloseDisplay(display_);
   display_ = NULL;
   wake_up_atom_ = None;
@@ -1381,6 +1384,4 @@ SbWindow ApplicationX11::FindWindow(Window window) {
   return kSbWindowInvalid;
 }
 
-}  // namespace x11
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::x11

@@ -33,7 +33,7 @@ bool CompareFileContentsToString(const char* filename,
                                  int size) {
   char result[kTestContentsLength] = {'\0'};
 
-  int file = open(filename, O_RDONLY, S_IRUSR | S_IWUSR);
+  int file = open(filename, O_RDONLY);
 
   EXPECT_TRUE(starboard::IsValid(file));
 

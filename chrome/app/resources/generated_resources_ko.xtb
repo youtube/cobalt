@@ -3190,7 +3190,7 @@
 <translation id="3201237270673604992">알파벳 역순</translation>
 <translation id="3201422919974259695">사용 가능한 USB 기기가 여기에 표시됩니다.</translation>
 <translation id="3202499879214571401"><ph name="DEVICE_NAME" /> 기기로의 화면 전송 일시중지</translation>
-<translation id="3202578601642193415">최근</translation>
+<translation id="3202578601642193415">날짜순</translation>
 <translation id="3204648577100496185">앱과 관련된 데이터가 기기에서 삭제될 수 있습니다.</translation>
 <translation id="3204717934117444051">이 기기에만 저장된 데이터는 기존 프로필에 그대로 유지되며, <ph name="EMAIL" />에 동기화되지 않습니다.</translation>
 <translation id="3206289903841621620">사용자 사전 <ph name="NUMBER" /></translation>
@@ -7564,7 +7564,7 @@ https://support.google.com/chromebook/?p=tpm</translation>
 <translation id="6325191661371220117">자동 실행 사용 안함</translation>
 <translation id="632524945411480350">창 크기를 아래쪽으로 조정함</translation>
 <translation id="6326175484149238433">Chrome에서 삭제</translation>
-<translation id="6326855256003666642">프로그램 사용자 수</translation>
+<translation id="6326855256003666642">연결 유지 활동 수</translation>
 <translation id="6327065839080961103"><ph name="FEATURE_NAME" /> 데이터 사용량</translation>
 <translation id="6327785803543103246">웹 프록시 자동검색</translation>
 <translation id="6329916384047371874"><ph name="DOMAIN" />에 <ph name="PASSWORD_DOMAIN" /> 비밀번호를 사용하게 됩니다. <ph name="DOMAIN" />을(를) 신뢰하는 경우에만 해당 비밀번호를 사용하세요.</translation>
@@ -8964,7 +8964,7 @@ https://support.google.com/chromebook/?p=tpm</translation>
 <translation id="7348920948593871738">Mac 시스템 설정에서 카메라가 사용 중지됨</translation>
 <translation id="7349010927677336670">동영상 화질</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{비밀번호 {COUNT}개가 이 기기에만 저장됩니다}other{비밀번호 {COUNT}개가 이 기기에만 저장됩니다}}</translation>
-<translation id="7352651011704765696">문제가 발생했습니다.</translation>
+<translation id="7352651011704765696">문제가 발생했습니다</translation>
 <translation id="7353261921908507769">연락처에 있는 사용자가 근처에 있는 경우 나와 공유할 수 있습니다. 내가 수락하지 않으면 전송이 시작되지 않습니다.</translation>
 <translation id="7353432112255316844">본인 인증</translation>
 <translation id="735361434055555355">Linux 설치 중...</translation>
@@ -9115,7 +9115,7 @@ https://support.google.com/chromebook/?p=tpm</translation>
 <translation id="7450926666485653189">IP 주소를 숨기는 개인 정보 보호 서버를 통해 URL의 난독화된 부분을 Google로 전송합니다.</translation>
 <translation id="7453008956351770337">이 프린터를 선택하면 다음 확장 프로그램에 내 프린터에 액세스할 수 있는 권한을 부여하게 됩니다.</translation>
 <translation id="7454548535253569100">포털: <ph name="SUBFRAME_SITE" /></translation>
-<translation id="7454744349230173024">조직에서 비밀번호 저장을 사용 중지했습니다</translation>
+<translation id="7454744349230173024">조직에서 비밀번호 저장을 사용 중지했습니다.</translation>
 <translation id="7455730275746867420">추가 컨테이너 관리</translation>
 <translation id="7455988709578031708">방문 기록을 기반으로 추천됩니다. 이 설정을 사용하고 있습니다.</translation>
 <translation id="7456142309650173560">개발자</translation>
@@ -9652,7 +9652,7 @@ https://support.google.com/chromebook/?p=tpm</translation>
 <translation id="7820400255539998692">이 기기를 사용하는 다른 사용자가 내 비밀번호를 볼 수 없도록 <ph name="FILENAME" /> 파일을 삭제하세요.</translation>
 <translation id="7820561748632634942">추가 스위치를 할당하시겠습니까?</translation>
 <translation id="782057141565633384">동영상 주소 복사(&amp;O)</translation>
-<translation id="7824665136384946951">조직에서 세이프 브라우징을 사용 중지했습니다</translation>
+<translation id="7824665136384946951">조직에서 세이프 브라우징을 사용 중지했습니다.</translation>
 <translation id="7824864914877854148">오류로 인해 백업을 완료할 수 없습니다.</translation>
 <translation id="7825289983414309119">산</translation>
 <translation id="782590969421016895">현재 페이지 사용</translation>

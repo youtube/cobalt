@@ -3219,7 +3219,7 @@ Para gerenciar as configurações dessa conta, instale o app Family Link no seu 
 <translation id="3226487301970807183">Ativar/desativar o painel lateral alinhado à esquerda</translation>
 <translation id="322708765617468434">É possível adicionar mais alguém ao dispositivo após a configuração. Cada pessoa pode personalizar a própria experiência e manter os dados privados.</translation>
 <translation id="3227137524299004712">Microfone</translation>
-<translation id="3228985231489269630">{NUM_EXTENSIONS,plural, =1{Remova ou substitua por extensões semelhantes da <ph name="BEGIN_LINK" />Chrome Web Store<ph name="END_LINK" />.}one{Remova ou substitua por extensões semelhantes da <ph name="BEGIN_LINK" />Chrome Web Store<ph name="END_LINK" />.}other{Remova ou substitua por extensões semelhantes da <ph name="BEGIN_LINK" />Chrome Web Store<ph name="END_LINK" />.}}</translation>
+<translation id="3228985231489269630">{NUM_EXTENSIONS,plural, =1{Remova ou substitua por extensões semelhantes da <ph name="BEGIN_LINK" />Chrome Web Store<ph name="END_LINK" />}one{Remova ou substitua por extensões semelhantes da <ph name="BEGIN_LINK" />Chrome Web Store<ph name="END_LINK" />}other{Remova ou substitua por extensões semelhantes da <ph name="BEGIN_LINK" />Chrome Web Store<ph name="END_LINK" />}}</translation>
 <translation id="3229254977651514276">Confira a data</translation>
 <translation id="3230539834943294477">Encontar artigos de ajuda ou suporte para dispositivos</translation>
 <translation id="3232168089952388105">Compartilhar informações sobre o dispositivo?</translation>
@@ -3383,7 +3383,7 @@ Para gerenciar as configurações dessa conta, instale o app Family Link no seu 
 <translation id="3347086966102161372">C&amp;opiar endereço da imagem</translation>
 <translation id="3348038390189153836">Dispositivo removível detectado</translation>
 <translation id="3348131053948466246">Emoji sugerido. Pressione a seta para cima ou para baixo para navegar e "Enter" para inserir.</translation>
-<translation id="3349933790966648062">Ocupação da memória</translation>
+<translation id="3349933790966648062">Consumo de memória</translation>
 <translation id="3350450887151703713">Repetir 10 segundos</translation>
 <translation id="3351472127384196879">Adicionar ou localizar botões na caneta</translation>
 <translation id="3353786022389205125">Ative a opção "Mostrar tela de bloqueio ao sair do modo de suspensão" e tente novamente.</translation>
@@ -3738,7 +3738,7 @@ Para gerenciar as configurações dessa conta, instale o app Family Link no seu 
 <translation id="3600956933576601730">Você precisa ler e aceitar os termos para usar estes recursos</translation>
 <translation id="3601374594714740284">Para ouvir vozes em maior qualidade, libere espaço no dispositivo</translation>
 <translation id="360180734785106144">Oferecer novos recursos à medida que sejam disponibilizados</translation>
-<translation id="3602290021589620013">Visualizar</translation>
+<translation id="3602290021589620013">Prévia</translation>
 <translation id="3602495161941872610">Corrigir problema de &amp;sincronização</translation>
 <translation id="3602894439067790744">Ler números como</translation>
 <translation id="3603622770190368340">Obter certificado de rede</translation>
@@ -4849,7 +4849,7 @@ Para gerenciar as configurações dessa conta, instale o app Family Link no seu 
 <translation id="4358643842961018282">O dispositivo está atualizado</translation>
 <translation id="4358995225307748864">Selecione um app para abrir</translation>
 <translation id="4359408040881008151">Instalada devido a extensões dependentes.</translation>
-<translation id="4359809482106103048">Resumo de segurança</translation>
+<translation id="4359809482106103048">Resumo sobre segurança</translation>
 <translation id="4360738659108163902">Clicar com o botão direito do mouse</translation>
 <translation id="4361745360460842907">Abrir como guia</translation>
 <translation id="4362459470237309049">Use a tecla “.” para soltar um botão do mouse</translation>
@@ -5292,7 +5292,7 @@ Para gerenciar as configurações dessa conta, instale o app Family Link no seu 
 <translation id="4676543021048806071">Digite o PIN de 6 dígitos do Gerenciador de senhas do Google</translation>
 <translation id="4676595058027112862">Seu smartphone. Saiba mais</translation>
 <translation id="4676616966096505747">Alguns dados ainda não foram salvos na sua conta</translation>
-<translation id="4677772697204437347">Memória do GPU</translation>
+<translation id="4677772697204437347">Memória da GPU</translation>
 <translation id="467809019005607715">Apresentações Google</translation>
 <translation id="4678729681411398877">Quando uma das suas senhas é encontrada em uma violação de dados, o Gerenciador de senhas do Google pergunta se você quer trocá-la por uma senha forte</translation>
 <translation id="4678848110205818817">Cartão de crédito/débito</translation>
@@ -6910,7 +6910,7 @@ Não exponha nenhuma informação confidencial.</translation>
 <translation id="5857693745746757503">Economize US$ 50 ou mais em um novo Chromebook fazendo upgrade hoje mesmo</translation>
 <translation id="5858490737742085133">Terminal</translation>
 <translation id="585979798156957858">Meta externa</translation>
-<translation id="5860033963881614850">Desativado</translation>
+<translation id="5860033963881614850">Desativada</translation>
 <translation id="5860254591544742609">Mostrar barra de título</translation>
 <translation id="5860335608673904825">Pesquisa + Ctrl + Shift + <ph name="TOP_ROW_KEY" /></translation>
 <translation id="5860491529813859533">Ativar</translation>
@@ -8381,7 +8381,7 @@ Há # outras senhas comprometidas. O Gerenciador de senhas do Google recomenda q
 <translation id="6910211073230771657">Excluído</translation>
 <translation id="6910274140210351823">Escuro</translation>
 <translation id="691102290537033604">A extensão poderá executar códigos que não foram revisados pelo Google. Isso pode ser perigoso. Não ative essa opção se não tiver certeza do que está fazendo.</translation>
-<translation id="6911734910326569517">Ocupação da memória</translation>
+<translation id="6911734910326569517">Consumo de memória</translation>
 <translation id="6912007319859991306">PIN do chip da rede celular</translation>
 <translation id="6912380255120084882">Tente usar outro dispositivo</translation>
 <translation id="691289340230098384">Preferências de legenda</translation>
@@ -9119,7 +9119,7 @@ Há # outras senhas comprometidas. O Gerenciador de senhas do Google recomenda q
 <translation id="7450926666485653189">Envia apenas uma parte ofuscada do URL ao Google por um servidor de privacidade que oculta seu endereço IP</translation>
 <translation id="7453008956351770337">Ao selecionar esta impressora, você concede permissão para acessar sua impressora à seguinte extensão:</translation>
 <translation id="7454548535253569100">Portal: <ph name="SUBFRAME_SITE" /></translation>
-<translation id="7454744349230173024">Sua organização desativou o salvamento de senhas</translation>
+<translation id="7454744349230173024">Sua organização desativou a opção de salvar senhas</translation>
 <translation id="7455730275746867420">Gerenciar contêineres extras</translation>
 <translation id="7455988709578031708">Com base no seu histórico de navegação. Esta configuração está ativada.</translation>
 <translation id="7456142309650173560">dev</translation>
@@ -9656,7 +9656,7 @@ Pressione um interruptor ou tecla atribuídos para remover a atribuição.</tran
 <translation id="7820400255539998692">Exclua o arquivo <ph name="FILENAME" /> para que outros usuários deste dispositivo não tenham acesso a suas senhas</translation>
 <translation id="7820561748632634942">Atribuir mais interruptores?</translation>
 <translation id="782057141565633384">C&amp;opiar endereço do vídeo</translation>
-<translation id="7824665136384946951">Sua organização desativou o recurso Navegação Segura</translation>
+<translation id="7824665136384946951">Sua organização desativou a Navegação Segura</translation>
 <translation id="7824864914877854148">Ocorreu um erro e não foi possível concluir o backup</translation>
 <translation id="7825289983414309119">Montanha</translation>
 <translation id="782590969421016895">Usar as páginas atuais</translation>
@@ -10521,7 +10521,7 @@ Mantenha a sua chave de arquivo em um local seguro. Você precisará dela para c
 <translation id="8414396119627470038">Fazer login em <ph name="SITE_ETLD_PLUS_ONE" /> com <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="8416730306157376817"><ph name="BATTERY_PERCENTAGE" />% (estojo)</translation>
 <translation id="8417065541337558100">Visualização da sua câmera</translation>
-<translation id="8417548266957501132">Senha do familiar resp.</translation>
+<translation id="8417548266957501132">Senha do familiar responsável</translation>
 <translation id="8418445294933751433">&amp;Mostrar como guia</translation>
 <translation id="8418675848396538775">Adicionar o <ph name="LANGUAGE_NAME" /></translation>
 <translation id="8419098111404128271">Resultados de pesquisa para "<ph name="SEARCH_TEXT" />"</translation>

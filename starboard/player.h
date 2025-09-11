@@ -310,9 +310,6 @@ static inline bool SbPlayerIsValid(SbPlayer player) {
 // - The associated decoder of the returned player should be assumed to not be
 //   in |kSbPlayerDecoderStateNeedsData| until SbPlayerSeek() has been called
 //   on it.
-// - It is expected either that the thread that calls SbPlayerCreate is the same
-//   thread that calls the other |SbPlayer| functions for that player, or that
-//   there is a mutex guarding calls into each |SbPlayer| instance.
 // - If there is a platform limitation on how many players can coexist
 //   simultaneously, then calls made to this function that attempt to exceed
 //   that limit must return |kSbPlayerInvalid|. Multiple calls to SbPlayerCreate
@@ -537,7 +534,7 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 // This function is called on every graphics frame that changes the video
 // bounds. For example, if the video bounds are being animated, then this will
 // be called at up to 60 Hz. Since the function could be called up to once per
-// frame, implementors should take care to avoid related performance concerns
+// frame, implementers should take care to avoid related performance concerns
 // with such frequent calls.
 //
 // |player|: The player that is being resized. Must not be |kSbPlayerInvalid|.
@@ -585,8 +582,8 @@ SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
 SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 
 // Gets a snapshot of the current player state and writes it to
-// |out_player_info|. This function may be called very frequently and is
-// expected to be inexpensive.
+// |out_player_info|. This function may be called very frequently from arbitrary
+// threads and is expected to be inexpensive and thread safe.
 //
 // |player|: The player about which information is being retrieved. Must not be
 // |kSbPlayerInvalid|.

@@ -17,7 +17,7 @@
 <translation id="1383876407941801731">البحث</translation>
 <translation id="1398853756734560583">تكبير</translation>
 <translation id="1432724887402139994">{SECONDS,plural, =1{قبل دقيقة واحدة}zero{قبل # دقيقة}two{قبل دقيقتَين}few{قبل # دقائق}many{قبل # دقيقة}other{قبل # دقيقة}}</translation>
-<translation id="1450753235335490080">تعذَّرت مشاركة <ph name="CONTENT_TYPE" />.</translation>
+<translation id="1450753235335490080">تعذَّرت مشاركة <ph name="CONTENT_TYPE" /></translation>
 <translation id="1523230076022876491">{MONTHS,plural, =1{قبل شهر واحد}zero{قبل # شهر}two{قبل شهرين}few{قبل # أشهر}many{قبل # شهرًا}other{قبل # شهر}}</translation>
 <translation id="1591184457164800433">{MINUTES,plural, =1{دقيقة واحدة و }zero{# من الدقائق و }two{دقيقتان (#) و }few{# دقائق و }many{# دقيقة و }other{# من الدقائق و }}</translation>
 <translation id="1643823602425662293">الإشعار</translation>
@@ -44,7 +44,7 @@
 <translation id="2168039046890040389">صفحة  إلى أعلى</translation>
 <translation id="2190355936436201913">(فارغ)</translation>
 <translation id="2192232475740621500">استخدام كثافة منخفضة</translation>
-<translation id="2267918077332197517">حظر جميع الإشعارات الواردة من هذا الموقع</translation>
+<translation id="2267918077332197517">حظر جميع الإشعارات القادمة من هذا الموقع</translation>
 <translation id="2283117145434822734">F6</translation>
 <translation id="2289052229480071835">انقر على أهداف اللمس على شاشتك.</translation>
 <translation id="2295140143284145483">الاستطلاع</translation>
@@ -52,7 +52,7 @@
 <translation id="2312704192806647271">{COUNT,plural, =1{لا يمكن تحديد مكان الإضافة التي تتضمّن المعرّف: <ph name="BEGIN_LIST" /><ph name="END_LIST" /> يُرجى التواصل مع المشرف.}zero{لا يمكن تحديد مكان الإضافات التي تتضمّن المعرّفات: <ph name="BEGIN_LIST" /><ph name="END_LIST" /> يُرجى التواصل مع المشرف.}two{لا يمكن تحديد مكان الإضافتَين اللتَين تتضمّنَان المعرّفَين: <ph name="BEGIN_LIST" /><ph name="END_LIST" /> يُرجى التواصل مع المشرف.}few{لا يمكن تحديد مكان الإضافات التي تتضمّن المعرّفات: <ph name="BEGIN_LIST" /><ph name="END_LIST" /> يُرجى التواصل مع المشرف.}many{لا يمكن تحديد مكان الإضافات التي تتضمّن المعرّفات: <ph name="BEGIN_LIST" /><ph name="END_LIST" /> يُرجى التواصل مع المشرف.}other{لا يمكن تحديد مكان الإضافات التي تتضمّن المعرّفات: <ph name="BEGIN_LIST" /><ph name="END_LIST" /> يُرجى التواصل مع المشرف.}}</translation>
 <translation id="2353636109065292463">التحقُّق من اتصال الإنترنت</translation>
 <translation id="2359808026110333948">متابعة</translation>
-<translation id="2388990488038464401">هل تريد الاتصال بهذا الرقم من هاتفك؟</translation>
+<translation id="2388990488038464401">هل المطلوب الاتصال بهذا الرقم من هاتفك؟</translation>
 <translation id="2435457462613246316">عرض كلمة المرور</translation>
 <translation id="24452542372838207">توسيع الإشعار</translation>
 <translation id="2445449901874883781">استخدام كثافة عالية</translation>
@@ -85,7 +85,7 @@
 <translation id="3295886253693811851">إجراء اتصال باستخدام</translation>
 <translation id="3306688585798492231">عرض مُضمَّن</translation>
 <translation id="335581015389089642">الحديث</translation>
-<translation id="3372635229069101468">النقر على <ph name="BEGIN_BOLD" />التفاصيل<ph name="END_BOLD" /></translation>
+<translation id="3372635229069101468">يمكنك النقر على <ph name="BEGIN_BOLD" />التفاصيل<ph name="END_BOLD" /></translation>
 <translation id="3389286852084373014">النص كبير جدًا</translation>
 <translation id="3406306243914553062">‏محتوى HTML</translation>
 <translation id="3600566671520689681">{DAYS,plural, =1{يتبقى يوم واحد}zero{يتبقى عدد # من الأيام}two{يتبقى يومان (#)}few{يتبقى # أيام}many{يتبقى # يومًا}other{يتبقى # من الأيام}}</translation>
@@ -130,7 +130,7 @@
 <translation id="520299402983819650"><ph name="QUANTITY" /> بيتابايت</translation>
 <translation id="5278860589123563674">تعذّر الإرسال</translation>
 <translation id="5283101102242354279">لتفعيل إضافة في وضع التصفّح المتخفي، يُرجى اتّباع الخطوات الآتية:</translation>
-<translation id="528468243742722775">‏مفتاح End</translation>
+<translation id="528468243742722775">إنهاء</translation>
 <translation id="5329858601952122676">&amp;حذف</translation>
 <translation id="5361107212971249203">النص</translation>
 <translation id="5463830097259460683">رموز الإيموجي والرموز</translation>
@@ -142,7 +142,7 @@
 <translation id="5613020302032141669">مفتاح سهم إلى اليسار</translation>
 <translation id="5633029987065897167">فارغة</translation>
 <translation id="5754277640426581776">{MINUTES,plural, =1{دقيقة واحدة}zero{# من الدقائق}two{دقيقتان (#)}few{# دقائق}many{# دقيقة}other{# من الدقائق}}</translation>
-<translation id="5763338081255973061">{DAYS,plural, =0{نشط اليوم}=1{نشط قبل يوم واحد}two{نشط قبل يومين (#)}few{نشط قبل # أيام}many{نشط قبل # يومًا}other{نشط قبل # يوم}}</translation>
+<translation id="5763338081255973061">{DAYS,plural, =0{نشط اليوم}=1{نشط قبل يوم واحد}two{نشِط قبل يومَين}few{نشِط قبل # أيام}many{نشِط قبل # يومًا}other{نشِط قبل # يوم}}</translation>
 <translation id="5768079895599174203">{DAYS,plural, =1{يوم واحد و }zero{# من الأيام و }two{يومان (#) و }few{# أيام و }many{# يومًا و }other{# من الأيام و }}</translation>
 <translation id="5789643057113097023">.</translation>
 <translation id="5843690142429128814">صورة</translation>

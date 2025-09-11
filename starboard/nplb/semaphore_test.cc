@@ -120,7 +120,6 @@ double IsDoubleNear(double first, double second, double diff_threshold) {
 
 TEST(Semaphore, ThreadTakesWait_TimeExpires) {
   const int attempts = 20;  // Retest up to 20 times.
-  bool passed = false;
 
   const int64_t kTimeThreshold = 5'000;  // 5ms
 

@@ -17,17 +17,15 @@
 
 #include <cstring>
 
+#include <optional>
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
@@ -82,8 +80,8 @@ inline const char* SupportedVideoCodecToMimeType(
 
 inline int GetAudioFormatSampleType(
     SbMediaAudioCodingType coding_type,
-    const optional<SbMediaAudioSampleType>& sample_type =
-        optional<SbMediaAudioSampleType>()) {
+    const std::optional<SbMediaAudioSampleType>& sample_type =
+        std::optional<SbMediaAudioSampleType>()) {
   if (coding_type == kSbMediaAudioCodingTypeAc3) {
     SB_DCHECK(!sample_type);
     return 5;  // Android AudioFormat.ENCODING_AC3.
@@ -107,8 +105,6 @@ inline int GetAudioFormatSampleType(
   return 0u;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_

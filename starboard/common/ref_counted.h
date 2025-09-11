@@ -116,7 +116,7 @@ struct DefaultRefCountedThreadSafeTraits {
 //    private:
 //     friend class starboard::RefCountedThreadSafe<MyFoo>;
 //     ~MyFoo();
-template <class T, typename Traits = DefaultRefCountedThreadSafeTraits<T> >
+template <class T, typename Traits = DefaultRefCountedThreadSafeTraits<T>>
 class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
  public:
   RefCountedThreadSafe() {}
@@ -143,7 +143,7 @@ class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
 //
 template <typename T>
 class RefCountedData
-    : public starboard::RefCountedThreadSafe<starboard::RefCountedData<T> > {
+    : public starboard::RefCountedThreadSafe<starboard::RefCountedData<T>> {
  public:
   RefCountedData() : data() {}
   RefCountedData(const T& in_value) : data(in_value) {}        // NOLINT
@@ -152,7 +152,7 @@ class RefCountedData
   T data;
 
  private:
-  friend class starboard::RefCountedThreadSafe<starboard::RefCountedData<T> >;
+  friend class starboard::RefCountedThreadSafe<starboard::RefCountedData<T>>;
   ~RefCountedData() {}
 };
 
@@ -212,13 +212,15 @@ class scoped_refptr {
   scoped_refptr() : ptr_(NULL) {}
 
   scoped_refptr(T* p) : ptr_(p) {  // NOLINT
-    if (ptr_)
+    if (ptr_) {
       ptr_->AddRef();
+    }
   }
 
   scoped_refptr(const scoped_refptr<T>& r) : ptr_(r.ptr_) {
-    if (ptr_)
+    if (ptr_) {
       ptr_->AddRef();
+    }
   }
 
   // Move constructor. This is required in addition to the move conversion
@@ -237,13 +239,15 @@ class scoped_refptr {
 
   template <typename U>
   scoped_refptr(const scoped_refptr<U>& r) : ptr_(r.get()) {
-    if (ptr_)
+    if (ptr_) {
       ptr_->AddRef();
+    }
   }
 
   ~scoped_refptr() {
-    if (ptr_)
+    if (ptr_) {
       ptr_->Release();
+    }
   }
 
   T* get() const { return ptr_; }
@@ -260,12 +264,14 @@ class scoped_refptr {
 
   scoped_refptr<T>& operator=(T* p) {
     // AddRef first so that self assignment should work
-    if (p)
+    if (p) {
       p->AddRef();
+    }
     T* old_ptr = ptr_;
     ptr_ = p;
-    if (old_ptr)
+    if (old_ptr) {
       old_ptr->Release();
+    }
     return *this;
   }
 

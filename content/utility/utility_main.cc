@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
@@ -58,6 +59,10 @@
 // some BUILDFLAG()s and the BUILD.gn dependencies correctly account for that.
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include "base/starboard/linker_stub.h"
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
@@ -318,8 +323,12 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+      COBALT_LINKER_STUB();
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       break;
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
       pre_sandbox_hook =

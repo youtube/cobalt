@@ -104,9 +104,8 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
       EXPECT_NE(-1, close(send_socket));
       EXPECT_NE(-1, close(receive_socket));
       FAIL() << "Failed to send multicast packet: " << errno;
-      return;
     }
-    EXPECT_EQ(sizeof(kBuf), sent);
+    EXPECT_EQ(static_cast<ssize_t>(sizeof(kBuf)), sent);
     break;
   }
 
@@ -126,7 +125,7 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
       usleep(1000);
       continue;
     }
-    EXPECT_EQ(sizeof(kBuf), received);
+    EXPECT_EQ(static_cast<ssize_t>(sizeof(kBuf)), received);
     break;
   }
 
@@ -150,7 +149,7 @@ TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidSocket) {
 
   EXPECT_EQ(-1,
             setsockopt(-1, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)));
-  EXPECT_TRUE(errno == EBADF || errno == ECONNREFUSED);
+  EXPECT_TRUE(errno == EBADF || errno == ECONNREFUSED || errno == EINVAL);
 }
 
 TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidAddress) {

@@ -24,11 +24,7 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // Used by VideoRenderer to pick the best frame to render according to the
 // current media time.
@@ -54,10 +50,6 @@ class VideoRenderAlgorithm {
   virtual int GetDroppedFrames() = 0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDER_ALGORITHM_H_

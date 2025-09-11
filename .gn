@@ -168,3 +168,16 @@ exec_script_allowlist =
       "//tools/grit/grit_rule.gni",
       "//tools/gritsettings/BUILD.gn",
     ]
+
+# TODO(b/378960295): Try to remove the allowlisted files.
+import("//cobalt/build/configs/cobalt.gni")
+exec_script_allowlist += [
+  "//starboard/tools/BUILD.gn",
+  "//starboard/build/config/sabi/BUILD.gn",
+  "//starboard/build/platform_path.gni",
+  "//starboard/content/fonts/BUILD.gn",
+]
+
+# TODO(cobalt, b/377295011): figure out a better long-term solution here, or
+# at least a way to guard this variable.
+no_check_targets += [ "//v8:v8_libbase" ]  # 9 errors

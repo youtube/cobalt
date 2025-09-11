@@ -15,15 +15,14 @@
 #include "starboard/shared/starboard/queue_application.h"
 
 #include <atomic>
+#include <limits>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 void QueueApplication::Wake() {
   if (IsCurrentThread()) {
@@ -173,7 +172,7 @@ int64_t QueueApplication::TimedEventQueue::GetTime() {
 
 int64_t QueueApplication::TimedEventQueue::GetTimeLocked() {
   if (set_.empty()) {
-    return kSbInt64Max;
+    return std::numeric_limits<int64_t>::max();
   }
 
   TimedEvent* timed_event = *(set_.begin());
@@ -228,6 +227,4 @@ Application::Event* QueueApplication::GetNextInjectedEvent() {
   }
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

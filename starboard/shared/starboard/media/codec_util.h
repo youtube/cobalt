@@ -15,18 +15,15 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 
+#include <optional>
 #include <vector>
 
-#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // This class captures necessary information to describe a video config.  It can
 // be used to detect config change of video stream during the playback.
@@ -61,7 +58,7 @@ class VideoConfig {
   int width_ = -1;
   int height_ = -1;
   // Only valid when |video_codec_| is |kSbMediaVideoCodecH264|.
-  optional<AvcParameterSets> avc_parameter_sets_;
+  std::optional<AvcParameterSets> avc_parameter_sets_;
 };
 
 // Attempts to determine an SbMediaAudioCodec from |codec|, returning
@@ -70,9 +67,6 @@ class VideoConfig {
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
                                           const char* subtype);
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_

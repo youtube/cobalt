@@ -1,0 +1,62 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+enum UserOnExitStrategy {
+  "close",
+  "minimize",
+  "no-exit",
+};
+
+// This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
+// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
+[
+  Exposed=Window,
+  SecureContext
+]
+interface H5vccSystem : EventTarget {
+  // Synchronous versions of ad APIs were provided for ease-of-use in the
+  // clients during the initial migration from Cobalt 25. Asynchronous APIs are
+  // preferred here as they offload work and won't affect performance as much.
+  // We mark the synchronous APIs as nullable to signify we may deprecate them
+  // in the future in favor of the asynchronous equivalents.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getAdvertisingId();
+  readonly attribute DOMString? advertisingId;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<boolean> getLimitAdTracking();
+  readonly attribute boolean? limitAdTracking;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getTrackingAuthorizationStatus();
+  readonly attribute DOMString? trackingAuthorizationStatus;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<void> requestTrackingAuthorization();
+
+  // Platform-specific exit is performed based on |userOnExitStrategy|:
+  //   - "close" stops the application.
+  //   - "minimize" conceals the application.
+  //   - "no-exit" is a no-op.
+  void exit();
+
+  // This variable defines what Cobalt's preferred strategy should be for
+  // handling internally triggered application exit requests (e.g. the user
+  // chooses to back out of the application).
+  // For backwards compatibility:
+  //   - "close" maps to 0.
+  //   - "minimize" maps to 1.
+  //   - "no-exit" maps to 2.
+  readonly attribute unsigned long userOnExitStrategy;
+};

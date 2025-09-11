@@ -48,7 +48,7 @@ class Queue {
   T Poll() {
     ScopedLock lock(mutex_);
     if (!queue_.empty()) {
-      T entry = queue_.front();
+      T entry = std::move(queue_.front());
       queue_.pop_front();
       return entry;
     }
@@ -104,7 +104,7 @@ class Queue {
   // any exist.
   void Put(T value) {
     ScopedLock lock(mutex_);
-    queue_.push_back(value);
+    queue_.push_back(std::move(value));
     condition_.Signal();
   }
 

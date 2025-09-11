@@ -104,7 +104,6 @@ TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
 
   const int kIterationCount = 10;
   for (int i = 0; i < kIterationCount; ++i) {
-    pthread_once_t once_control = PTHREAD_ONCE_INIT;
     RunPosixOnceContext context;
 
     s_global_value = 0;
@@ -125,9 +124,9 @@ TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
     }
 
     // Signal threads to beginWait for all threads to complete.
-    for (int i = 0; i < kMany; ++i) {
+    for (int j = 0; j < kMany; ++j) {
       void* result;
-      pthread_join(threads[i], &result);
+      pthread_join(threads[j], &result);
     }
 
     EXPECT_EQ(s_global_value, 1);

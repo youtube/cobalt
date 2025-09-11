@@ -73,7 +73,7 @@ typedef enum SbThreadPriority {
   // default priority assignment method of that platform. This may mean to
   // inherit the priority of the spawning thread, or it may mean a specific
   // default priority, or it may mean something else, depending on the platform.
-  kSbThreadNoPriority = kSbInvalidInt,
+  kSbThreadNoPriority = INT_MIN,
 } SbThreadPriority;
 
 // An ID type that is unique per thread.
@@ -137,11 +137,8 @@ SB_EXPORT bool SbThreadContextGetPointer(SbThreadContext context,
                                          SbThreadContextProperty property,
                                          void** out_value);
 
-// Private structure representing a thread sampler.
-typedef struct SbThreadSamplerPrivate SbThreadSamplerPrivate;
-
 // A handle to a thread sampler.
-typedef SbThreadSamplerPrivate* SbThreadSampler;
+typedef void* SbThreadSampler;
 
 // Well-defined value for an invalid thread sampler.
 #define kSbThreadSamplerInvalid ((SbThreadSampler)NULL)

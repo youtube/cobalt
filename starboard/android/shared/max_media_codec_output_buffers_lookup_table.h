@@ -17,14 +17,12 @@
 
 #include <functional>
 #include <map>
+#include <mutex>
 #include <string>
 
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class VideoOutputFormat {
  public:
@@ -64,12 +62,10 @@ class MaxMediaCodecOutputBuffersLookupTable {
 
   bool enable_ = true;
 
-  Mutex mutex_;
+  mutable std::mutex mutex_;
   std::map<VideoOutputFormat, int> lookup_table_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_

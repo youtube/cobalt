@@ -3,24 +3,26 @@
 # found in the LICENSE file.
 """Definitions of builders in the tryserver.chromium.swangle builder group."""
 
-load("//lib/branches.star", "branches")
-load("//lib/builder_config.star", "builder_config")
-load("//lib/builders.star", "cpu", "os", "siso")
-load("//lib/consoles.star", "consoles")
-load("//lib/try.star", "try_")
+load("@chromium-luci//branches.star", "branches")
+load("@chromium-luci//builder_config.star", "builder_config")
+load("@chromium-luci//builders.star", "cpu", "os")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//try.star", "try_")
+load("//lib/gpu.star", "gpu")
+load("//lib/siso.star", "siso")
+load("//lib/try_constants.star", "try_constants")
 
 try_.defaults.set(
-    executable = try_.DEFAULT_EXECUTABLE,
+    executable = try_constants.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.chromium.dawn",
-    pool = try_.DEFAULT_POOL,
+    pool = try_constants.DEFAULT_POOL,
     builderless = False,
     os = os.LINUX_DEFAULT,
     check_for_flakiness = False,
     check_for_flakiness_with_resultdb = False,
     contact_team_email = "chrome-gpu-infra@google.com",
-    execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
-    service_account = try_.gpu.SERVICE_ACCOUNT,
-    siso_enabled = True,
+    execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
+    service_account = gpu.try_.SERVICE_ACCOUNT,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
@@ -56,14 +58,6 @@ def dawn_win_builderless_builder(*, name, **kwargs):
         builderless = True,
         os = os.WINDOWS_ANY,
         pool = "luci.chromium.gpu.try",
-        **kwargs
-    )
-
-def dawn_win_builderful_builder(*, name, **kwargs):
-    return try_.builder(
-        name = name,
-        builderless = False,
-        os = os.WINDOWS_ANY,
         **kwargs
     )
 
@@ -329,15 +323,15 @@ dawn_win_builderless_builder(
     ),
 )
 
-try_.builder(
+dawn_win_builderless_builder(
     name = "dawn-win11-arm64-deps-rel",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
     mirrors = [
         "ci/Dawn Win11 arm64 DEPS Builder",
     ],
     gn_args = "ci/Dawn Win11 arm64 DEPS Builder",
-    os = os.WINDOWS_ANY,
     main_list_view = "try",
+    max_concurrent_builds = 5,
     test_presentation = resultdb.test_presentation(
         grouping_keys = ["status", "v.test_suite", "v.gpu"],
     ),
@@ -702,12 +696,13 @@ dawn_win_builderless_builder(
     ),
 )
 
-dawn_win_builderful_builder(
+dawn_win_builderless_builder(
     name = "win11-arm64-dawn-rel",
     mirrors = [
         "ci/Dawn Win11 arm64 Builder",
     ],
     gn_args = "ci/Dawn Win11 arm64 Builder",
+    max_concurrent_builds = 6,
     test_presentation = resultdb.test_presentation(
         grouping_keys = ["status", "v.test_suite", "v.gpu"],
     ),

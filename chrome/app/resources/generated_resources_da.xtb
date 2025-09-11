@@ -2913,7 +2913,7 @@ Du kan administrere indstillingerne for denne konto ved at installere Family Lin
 <translation id="2990583317361835189">Tillad ikke, at websites anvender bevægelsessensorer</translation>
 <translation id="2991182900092497283">Angiv en årsag til, at du vil indsætte disse data:</translation>
 <translation id="2992931425024192067">Vis alt indhold i notifikationer</translation>
-<translation id="2993517869960930405">Oplysninger om appen</translation>
+<translation id="2993517869960930405">Appinfo</translation>
 <translation id="2995472388018163047">{NUM_GROUPS,plural, =1{Behold denne gruppe for at tilføje faner senere, eller forlad den, hvis du ikke længere vil have adgang til den}one{Behold denne gruppe for at tilføje faner senere, eller forlad den, hvis du ikke længere vil have adgang til den}other{Behold disse grupper for at tilføje faner senere, eller forlad dem, hvis du ikke længere vil have adgang til dem}}</translation>
 <translation id="2996108796702395498">Din enheds serienummer er <ph name="SERIAL_NUMBER" />. Dette nummer kan bruges til at aktivere tjenesten.</translation>
 <translation id="2996286169319737844">Dataene er krypteret med din adgangssætning til synkronisering. Dette omfatter ikke betalingsmetoder og adresser fra Google Pay.</translation>
@@ -3190,7 +3190,7 @@ Du kan administrere indstillingerne for denne konto ved at installere Family Lin
 <translation id="3201237270673604992">Å til A</translation>
 <translation id="3201422919974259695">Tilgængelige USB-enheder vises her.</translation>
 <translation id="3202499879214571401">Sæt casting af skærmen til <ph name="DEVICE_NAME" /> på pause</translation>
-<translation id="3202578601642193415">Nyeste</translation>
+<translation id="3202578601642193415">Seneste</translation>
 <translation id="3204648577100496185">Data, der er knyttet til denne app, fjernes muligvis fra enheden</translation>
 <translation id="3204717934117444051">Data, der kun er gemt på denne enhed, forbliver på den eksisterende profil. De synkroniseres ikke med <ph name="EMAIL" /></translation>
 <translation id="3206289903841621620">Brugerordbog <ph name="NUMBER" /></translation>
@@ -3362,7 +3362,7 @@ Du kan administrere indstillingerne for denne konto ved at installere Family Lin
 <translation id="3327050066667856415">Chromebooks er udviklet med fokus på sikkerhed. Din enhed er automatisk beskyttet mod malware, uden at du skal hente ekstra software.</translation>
 <translation id="3328489342742826322">Når du gendanner fra en sikkerhedskopi, slettes dine eksisterende Linux-apps og -data fra din mappe med Linux-filer.</translation>
 <translation id="3331321258768829690">(<ph name="UTCOFFSET" />) <ph name="LONGTZNAME" /> (<ph name="EXEMPLARCITY" />)</translation>
-<translation id="3331974543021145906">Oplysninger om appen</translation>
+<translation id="3331974543021145906">Appinfo</translation>
 <translation id="3333190335304955291">Du kan deaktivere denne tjeneste i Indstillinger.</translation>
 <translation id="3333961966071413176">Alle kontakter</translation>
 <translation id="3334632933872291866"><ph name="WINDOW_TITLE" /> – afspiller video i tilstanden med integreret billede</translation>
@@ -7565,7 +7565,7 @@ Flere kontakter kan tildeles denne handling.</translation>
 <translation id="6325191661371220117">Deaktiver Automatisk opstart</translation>
 <translation id="632524945411480350">Størrelsen på vinduerne nederst blev ændret</translation>
 <translation id="6326175484149238433">Fjern fra Chrome</translation>
-<translation id="6326855256003666642">Optælling af Keepalive</translation>
+<translation id="6326855256003666642">Antal aktiviteter, der bruger udvidelsen</translation>
 <translation id="6327065839080961103">Dataforbrug for <ph name="FEATURE_NAME" /></translation>
 <translation id="6327785803543103246">Automatisk registrering af webproxy</translation>
 <translation id="6329916384047371874">Du forsøger at bruge din adgangskode til <ph name="PASSWORD_DOMAIN" /> på <ph name="DOMAIN" />. Du bør kun bruge din adgangskode, hvis du har tillid til <ph name="DOMAIN" />.</translation>
@@ -7868,7 +7868,7 @@ Flere kontakter kan tildeles denne handling.</translation>
 <translation id="655384502888039633"><ph name="USER_COUNT" /> brugere</translation>
 <translation id="6555432686520421228">Fjern alle brugerkonti, og nulstil din <ph name="IDS_SHORT_PRODUCT_NAME" />-enhed, så den er som ny.</translation>
 <translation id="6555604601707417276">Din Linux-sikkerhedskopi er gendannet</translation>
-<translation id="6556866813142980365">Annuller fortryd</translation>
+<translation id="6556866813142980365">Annuller fortrydelse</translation>
 <translation id="6556903358015358733">Tema og baggrund</translation>
 <translation id="6557199166823345360">Tilføj flere oplysninger, eller stil et spørgsmål om dit valg for at finjustere din søgning</translation>
 <translation id="6557290421156335491">Mine genveje</translation>
@@ -9850,7 +9850,7 @@ Tryk på en kontakt eller tast, der er tildelt en handling, for at fjerne tildel
 <translation id="7953236668995583915">Genindlæs denne side for at anvende dine opdaterede indstillinger på dette website</translation>
 <translation id="7953669802889559161">Indtastningsmetoder</translation>
 <translation id="7953955868932471628">Administrer genveje</translation>
-<translation id="7955105108888461311">Spørg ansigt til ansigt</translation>
+<translation id="7955105108888461311">Spørg direkte</translation>
 <translation id="7955177647836564772">Hvis Smart Lock er aktiveret, og din telefon er låst op, behøver du ikke at angive en adgangskode eller pinkode</translation>
 <translation id="7956373551960864128">Dine gemte printere</translation>
 <translation id="7956918070009672177">Der er ingen <ph name="LANGUAGE" /> stemmer på din enhed. Opret forbindelse til internettet, og prøv igen.</translation>

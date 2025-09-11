@@ -457,7 +457,7 @@ component("skia") {
     sources += skia_ports_fci_sources
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if (is_linux && !is_starboard || is_chromeos || is_android) {
     # Retain the files for the SkFontMgr_Android on linux to emulate android
     # fonts. See content/zygote/zygote_main_linux.cc
     # Note that this requires expat.

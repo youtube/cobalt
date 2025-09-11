@@ -40,7 +40,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   // set socket non-blocking
   fcntl(socket_listen_fd, F_SETFL, O_NONBLOCK);
 
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result =
       setsockopt(socket_listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
@@ -55,7 +55,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
 
   result = bind(socket_listen_fd, reinterpret_cast<sockaddr*>(&address),
                 sizeof(sockaddr));
@@ -103,7 +103,6 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
 TEST(PosixSocketAcceptTest, RainyDayNotBound) {
   // Set up a socket, but don't Bind or Listen.
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  int result = -1;
   ASSERT_TRUE(socket_fd >= 0);
 
   // Accept should result in an error.
@@ -118,7 +117,7 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
   int result = -1;
   ASSERT_TRUE(socket_fd >= 0);
 
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   EXPECT_TRUE(result == 0);
@@ -132,7 +131,7 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
   EXPECT_TRUE(result == 0);
   if (result != 0) {
     close(socket_fd);

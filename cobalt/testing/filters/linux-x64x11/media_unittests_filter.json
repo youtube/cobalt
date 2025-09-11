@@ -1,0 +1,18 @@
+{
+  "comment" : "TODO: b/407549902 - Re-enable these disabled tests.",
+  "failing_tests": [
+    "AudioRendererImplTest.*",
+    "CDM_10/CdmAdapterTestWithClearKeyCdm.*",
+    "CDM_11/CdmAdapterTestWithClearKeyCdm.*",
+    "CdmAdapter/AesDecryptorTest.*",
+    "DecoderBufferTest.*",
+    "KeySystemsTest.*",
+    "MediaServiceTest.*",
+    "MojoDecoderBufferConverterTest.WriterSidePipeError",
+    "MojoDecryptorTest.DestroyService",
+    "H264Specific/H264VideoEncoderTest.EncodeAndDecodeWithConfig/*",
+    "MimeUtilTest.CommonMediaMimeType",
+    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles",
+    "VideoRendererImplTest.InitializeAndEndOfStreamOneStaleFrame"
+  ]
+}

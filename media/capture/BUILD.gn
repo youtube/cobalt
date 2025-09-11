@@ -240,7 +240,7 @@ component("capture_lib") {
     public_deps += [ "video/win" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "video/linux/scoped_v4l2_device_fd.cc",
       "video/linux/scoped_v4l2_device_fd.h",
@@ -274,6 +274,11 @@ component("capture_lib") {
       "video/linux/v4l2_gpu_memory_buffer_tracker.cc",
       "video/linux/v4l2_gpu_memory_buffer_tracker.h",
     ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources +=
+        [ "video/linux/video_capture_device_factory_linux_starboard_stub.cc" ]
   }
 
   if (is_chromeos) {
@@ -434,7 +439,7 @@ source_set("test_support") {
     "//ui/gfx:test_support",
   ]
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "video/linux/fake_device_provider.cc",
       "video/linux/fake_device_provider.h",
@@ -510,7 +515,7 @@ test("capture_unittests") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "video/linux/v4l2_capture_delegate_unittest.cc",
       "video/linux/video_capture_device_factory_v4l2_unittest.cc",

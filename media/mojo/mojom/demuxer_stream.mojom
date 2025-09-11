@@ -23,10 +23,18 @@ interface DemuxerStream {
   // of the media::DecoderBuffer returned via DemuxerStream::Read(). Only the
   // config for |type| should be non-null, which is the initial config of the
   // stream.
+  [EnableIfNot=use_starboard_media]
   Initialize() => (Type type,
                    handle<data_pipe_consumer> pipe,
                    AudioDecoderConfig? audio_config,
                    VideoDecoderConfig? video_config);
+  
+  [EnableIf=use_starboard_media]
+  Initialize() => (Type type,
+                   handle<data_pipe_consumer> pipe,
+                   AudioDecoderConfig? audio_config,
+                   VideoDecoderConfig? video_config,
+                   string mime_type);
 
   // Requests multi DecoderBuffer from this stream for decoding and rendering.
   // See media::DemuxerStream::ReadCB for a general explanation of the fields.

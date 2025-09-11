@@ -88,6 +88,10 @@ import("//third_party/protobuf/proto_library.gni")
 if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+  import("//third_party/blink/renderer/core/cobalt/build.gni")
+}
 
 visibility = [
   "//third_party/blink/public/*",
@@ -333,6 +337,10 @@ component("core") {
   sources += rebase_path(blink_core_sources_speech, "", "speech")
   sources += rebase_path(blink_core_sources_preferences, "", "preferences")
 
+  if (is_cobalt) {
+    sources += rebase_path(blink_core_sources_cobalt, "", "cobalt")
+  }
+
   configs -= core_config_remove
   configs += core_config_add
   configs += [ "//v8:external_startup_data" ]
@@ -445,6 +453,10 @@ component("core") {
       "AppKit.framework",
       "Carbon.framework",
     ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//starboard:starboard_group" ]
   }
 }
 
@@ -1480,6 +1492,10 @@ source_set("unit_tests") {
   sources += rebase_path(blink_core_tests_workers, "", "workers")
   sources += rebase_path(blink_core_tests_xml, "", "xml")
   sources += rebase_path(blink_core_tests_xmlhttprequest, "", "xmlhttprequest")
+  
+  if (is_cobalt){ 
+    sources += rebase_path(blink_core_tests_cobalt, "", "cobalt")
+  }
 
   configs += [
     ":blink_core_pch",

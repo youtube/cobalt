@@ -71,7 +71,7 @@ to **err on the side of providing less**.
 ### Specify public APIs concretely and narrowly.
 
 A broader specification of the behavior of an API function makes life easier for
-the implementor, but more difficult for anyone attempting to use the API. An API
+the implementer, but more difficult for anyone attempting to use the API. An API
 can be so weakly specified that it is not usable across platforms. It can also
 be so strictly specified that it is not implementable across platforms. **Err on
 the side of narrower specifications**, requiring generality only when

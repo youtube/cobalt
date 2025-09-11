@@ -27,15 +27,17 @@
 #ifndef STARBOARD_CONFIGURATION_H_
 #define STARBOARD_CONFIGURATION_H_
 
-#if !defined(STARBOARD)
-#error "You must define STARBOARD in Starboard builds."
+#include "build/build_config.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#error "IS_COBALT should be defined while building this file"
 #endif
 
 // --- Common Defines --------------------------------------------------------
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 15
+#define SB_MINIMUM_API_VERSION 17
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive. The API version is not stable and is open for changes.

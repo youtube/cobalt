@@ -151,7 +151,6 @@ source_set("impl_for_embedder") {
 
   if (is_fuchsia) {
     sources += [ "channel_fuchsia.cc" ]
-
     public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fdio" ]
   }
 
@@ -164,7 +163,7 @@ source_set("impl_for_embedder") {
       ]
     }
 
-    if ((is_linux || is_chromeos || is_android) && !is_nacl) {
+    if ((is_linux || is_chromeos || is_android) && !is_nacl && !is_starboard) {
       sources += [
         "channel_linux.cc",
         "channel_linux.h",

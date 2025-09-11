@@ -26,10 +26,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -51,7 +48,8 @@ void ParseParamTypeAndValue(const std::string& name,
 
   int count;
   int i;
-  if (sscanf(value.c_str(), "%d%n", &i, &count) == 1 && count == value.size()) {
+  if (sscanf(value.c_str(), "%d%n", &i, &count) == 1 &&
+      static_cast<size_t>(count) == value.size()) {
     param->type = MimeType::kParamTypeInteger;
     param->int_value = i;
     return;
@@ -394,7 +392,4 @@ std::string MimeType::ToString() const {
   return ss.str();
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

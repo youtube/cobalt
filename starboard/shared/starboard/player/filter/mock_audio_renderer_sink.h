@@ -21,11 +21,7 @@
 #include "starboard/shared/internal_only.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class MockAudioRendererSink : public AudioRendererSink {
  public:
@@ -60,10 +56,6 @@ class MockAudioRendererSink : public AudioRendererSink {
       kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_RENDERER_SINK_H_

@@ -21,9 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Wrapper class to manage the lifetime of a local reference to Java type
 // |JT|. This is necessary for local references to |JT|s that are obtained in
@@ -56,34 +54,6 @@ class ScopedLocalJavaRef {
   void operator=(const ScopedLocalJavaRef&) = delete;
 };
 
-// Convenience class to manage the lifetime of a local Java ByteBuffer
-// reference, and provide accessors to its properties.
-class ScopedJavaByteBuffer {
- public:
-  explicit ScopedJavaByteBuffer(jobject j_byte_buffer)
-      : j_byte_buffer_(j_byte_buffer) {}
-  void* address() const {
-    return JniEnvExt::Get()->GetDirectBufferAddress(j_byte_buffer_.Get());
-  }
-  jint capacity() const {
-    return JniEnvExt::Get()->GetDirectBufferCapacity(j_byte_buffer_.Get());
-  }
-  bool IsNull() const { return !j_byte_buffer_ || !address(); }
-  void CopyInto(const void* source, jint count) {
-    SB_DCHECK(!IsNull());
-    SB_DCHECK(count >= 0 && count <= capacity());
-    memcpy(address(), source, count);
-  }
-
- private:
-  ScopedLocalJavaRef<jobject> j_byte_buffer_;
-
-  ScopedJavaByteBuffer(const ScopedJavaByteBuffer&) = delete;
-  void operator=(const ScopedJavaByteBuffer&) = delete;
-};
-
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_JNI_UTILS_H_

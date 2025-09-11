@@ -25,10 +25,7 @@
 
 #include "starboard/android/shared/accessibility_extension.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
-namespace accessibility {
+namespace starboard::android::shared::accessibility {
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
@@ -54,28 +51,6 @@ SbAccessibilityCaptionCharacterEdgeStyle AndroidEdgeTypeToSbEdgeStyle(
     default:
       SB_NOTREACHED() << "Invalid edge type conversion";
       return kSbAccessibilityCaptionCharacterEdgeStyleNone;
-  }
-}
-
-SbAccessibilityCaptionFontFamily AndroidFontFamilyToSbFontFamily(int family) {
-  switch (family) {
-    case 0:
-      return kSbAccessibilityCaptionFontFamilyCasual;
-    case 1:
-      return kSbAccessibilityCaptionFontFamilyCursive;
-    case 2:
-      return kSbAccessibilityCaptionFontFamilyMonospaceSansSerif;
-    case 3:
-      return kSbAccessibilityCaptionFontFamilyMonospaceSerif;
-    case 4:
-      return kSbAccessibilityCaptionFontFamilyProportionalSansSerif;
-    case 5:
-      return kSbAccessibilityCaptionFontFamilyProportionalSerif;
-    case 6:
-      return kSbAccessibilityCaptionFontFamilySmallCapitals;
-    default:
-      SB_NOTREACHED() << "Invalid font family conversion";
-      return kSbAccessibilityCaptionFontFamilyCasual;
   }
 }
 
@@ -164,7 +139,4 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   return true;
 }
 
-}  // namespace accessibility
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared::accessibility

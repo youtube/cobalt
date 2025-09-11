@@ -67,7 +67,6 @@ TEST(PosixThreadYieldTest, SunnyDayRace) {
     pthread_t threads[kRacers];
     int64_t end_times[kRacers] = {0};
     for (int i = 0; i < kRacers; ++i) {
-      pthread_t thread;
       EXPECT_EQ(pthread_create(&threads[i], NULL,
                                (IsYielder(trial, i) ? YieldingEntryPoint
                                                     : UnyieldingEntryPoint),

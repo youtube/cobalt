@@ -17,11 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl(
     const GetRefreshRateFn& get_refresh_rate_fn)
@@ -103,7 +99,7 @@ void VideoRenderAlgorithmImpl::Render(
       auto now = CurrentMonotonicTime();
       SB_LOG(WARNING)
           << "Dropping frame @ " << frames->front()->timestamp()
-          << " microseconds, the elasped media time/system time from"
+          << " microseconds, the elapsed media time/system time from"
           << " last Render() call are "
           << media_time - media_time_of_last_render_call_ << "/"
           << now - system_time_of_last_render_call_ << " microseconds, with "
@@ -220,7 +216,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
       auto now = CurrentMonotonicTime();
       SB_LOG_IF(WARNING, times_logged_ < kMaxLogPerPlaybackSession)
           << "Dropping frame @ " << frames->front()->timestamp()
-          << " microseconds, the elasped media time/system time from"
+          << " microseconds, the elapsed media time/system time from"
           << " last Render() call are "
           << media_time - media_time_of_last_render_call_ << "/"
           << now - system_time_of_last_render_call_ << " microseconds, with "
@@ -236,7 +232,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
           << " microseconds should be displayed "
           << cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()
           << " times, but is displayed " << current_frame_rendered_times_
-          << " times, the elasped media time/system time from last Render()"
+          << " times, the elapsed media time/system time from last Render()"
           << " call are " << media_time - media_time_of_last_render_call_ << "/"
           << now - system_time_of_last_render_call_ << " microseconds, the"
           << " video is at " << frame_rate_estimate_.frame_rate() << " fps,"
@@ -292,8 +288,4 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
