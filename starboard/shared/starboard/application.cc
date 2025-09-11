@@ -102,17 +102,16 @@ int Application::Run(CommandLine command_line) {
 
   // kMinLogLevel should take priority over kV if both are defined.
   if (command_line_->HasSwitch(kMinLogLevel)) {
-    ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
-        command_line_->GetSwitchValue(kMinLogLevel)));
+    SetMinLogLevel(
+        StringToLogLevel(command_line_->GetSwitchValue(kMinLogLevel)));
   } else if (command_line_->HasSwitch(kV)) {
-    ::starboard::logging::SetMinLogLevel(
-        ::starboard::logging::ChromiumIntToStarboardLogLevel(
-            command_line_->GetSwitchValue(kV)));
+    SetMinLogLevel(
+        ChromiumIntToStarboardLogLevel(command_line_->GetSwitchValue(kV)));
   } else {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
-    ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_FATAL);
+    SetMinLogLevel(SB_LOG_FATAL);
 #else
-    ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_INFO);
+    SetMinLogLevel(SB_LOG_INFO);
 #endif
   }
 

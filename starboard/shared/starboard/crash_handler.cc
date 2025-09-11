@@ -18,7 +18,7 @@
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/extension/crash_handler.h"
 
-namespace starboard::common {
+namespace starboard {
 
 namespace {
 
@@ -47,4 +47,4 @@ const void* GetCrashHandlerApi() {
   return &kCrashHandlerApi;
 }
 
-}  // namespace starboard::common
+}  // namespace starboard
