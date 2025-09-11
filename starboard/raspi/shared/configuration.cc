@@ -21,10 +21,10 @@ namespace starboard {
 namespace {
 
 // This atlas size works better than the auto-mem setting.
-int CobaltSkiaGlyphAtlasWidthSkia() {
+int CobaltSkiaGlyphAtlasWidthRaspi() {
   return 2048;
 }
-int CobaltSkiaGlyphAtlasHeightSkia() {
+int CobaltSkiaGlyphAtlasHeightRaspi() {
   return 2048;
 }
 
@@ -45,8 +45,8 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &CobaltMeshCacheSizeInBytesDefault,
     &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
     &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &CobaltSkiaGlyphAtlasWidthSkia,
-    &CobaltSkiaGlyphAtlasHeightSkia,
+    &CobaltSkiaGlyphAtlasWidthRaspi,
+    &CobaltSkiaGlyphAtlasHeightRaspi,
     &CobaltJsGarbageCollectionThresholdInBytesDefault,
     &CobaltReduceCpuMemoryByDefault,
     &CobaltReduceGpuMemoryByDefault,
