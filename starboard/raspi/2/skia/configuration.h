@@ -16,13 +16,9 @@
 #define STARBOARD_RASPI_2_SKIA_CONFIGURATION_H_
 
 namespace starboard {
-namespace raspi {
-namespace skia {
 
-const void* GetConfigurationApi();
+const void* GetConfigurationApiRaspiSkia();
 
-}  // namespace skia
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_2_SKIA_CONFIGURATION_H_

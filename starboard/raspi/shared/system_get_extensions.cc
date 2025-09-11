@@ -45,7 +45,7 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
 
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::raspi::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiRaspi();
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     return starboard::raspi::shared::GetGraphicsApi();

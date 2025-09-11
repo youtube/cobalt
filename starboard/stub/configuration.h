@@ -16,11 +16,9 @@
 #define STARBOARD_STUB_CONFIGURATION_H_
 
 namespace starboard {
-namespace stub {
 
-const void* GetConfigurationApi();
+const void* GetConfigurationApiStub();
 
-}  // namespace stub
 }  // namespace starboard
 
 #endif  // STARBOARD_STUB_CONFIGURATION_H_
