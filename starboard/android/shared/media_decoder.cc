@@ -149,7 +149,7 @@ MediaDecoder::MediaDecoder(
 }
 
 MediaDecoder::~MediaDecoder() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
 
@@ -170,7 +170,7 @@ MediaDecoder::~MediaDecoder() {
 }
 
 void MediaDecoder::Initialize(const ErrorCB& error_cb) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
@@ -182,7 +182,7 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
 }
 
 void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -213,7 +213,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void MediaDecoder::WriteEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
   std::lock_guard lock(mutex_);
@@ -388,7 +388,7 @@ void MediaDecoder::DecoderThreadFunc() {
 }
 
 void MediaDecoder::TerminateDecoderThread() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
@@ -398,7 +398,7 @@ void MediaDecoder::TerminateDecoderThread() {
   }
 
   if (decoder_thread_) {
-    pthread_join(*decoder_thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(*decoder_thread_, nullptr), 0);
     decoder_thread_ = std::nullopt;
   }
 }
@@ -517,23 +517,24 @@ bool MediaDecoder::ProcessOneInputBuffer(
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_CODEC_CONFIG);
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, kNoOffset, size, kNoPts,
+        BUFFER_FLAG_CODEC_CONFIG, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-          pts_us);
+          pts_us, host_->IsBufferDecodeOnly(input_buffer));
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
+          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags,
+          host_->IsBufferDecodeOnly(input_buffer));
     }
   } else {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_END_OF_STREAM);
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, kNoOffset, size, kNoPts,
+        BUFFER_FLAG_END_OF_STREAM, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
@@ -704,7 +705,7 @@ void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
 }
 
 bool MediaDecoder::Flush() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
