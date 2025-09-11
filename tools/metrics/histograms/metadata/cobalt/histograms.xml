@@ -40,6 +40,18 @@ Always run the pretty print utility on this file after editing:
     if the current work unit started running more than 10 seconds ago. This is
     emitted only in single process mode(when renderer is a thread inside
     BrowserProcess).
+
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Loader.Decompression.Duration" units="microseconds"
+    expires_after="never">
+  <owner>nyardi@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time taken to decompress the ELF binary (e.g., libcobalt.so.lz4)
+    during application startup. This is only recorded when the binary is
+    loaded from a compressed file.
   </summary>
 </histogram>
 
