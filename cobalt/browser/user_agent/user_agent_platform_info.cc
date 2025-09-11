@@ -169,20 +169,44 @@ std::optional<std::string> Sanitize(std::optional<std::string> str,
 }
 }  // namespace
 
-void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
-  // Below UA info fields can be retrieved directly from platform's native
-  // system properties.
-
-  std::string os_name = base::SysInfo::OperatingSystemName();
-  std::string os_version = base::SysInfo::OperatingSystemVersion();
-
 #if BUILDFLAG(IS_ANDROID)
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
+  const std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_version = base::SysInfo::OperatingSystemVersion();
+
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
   set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
-#else
+
+  set_firmware_version(base::SysInfo::GetAndroidBuildID());
+}
+#elif BUILDFLAG(IS_STARBOARD)
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
+  const std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_version = base::SysInfo::OperatingSystemVersion();
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
+  set_firmware_version(
+      starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
+
+  // TODO(cobalt, b/374213479): Retrieve Evergreen
+  // #if BUILDFLAG(IS_EVERGREEN)
+  //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
+  //       updater::GetCurrentEvergreenLibraryMetadata();
+  //   set_evergreen_version(evergreen_library_metadata.version);
+  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
+  //   set_evergreen_type("Lite");
+  // #endif
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
+// TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
+// platforms, which are IS_ANDROID but also IS_STARBOARD.
+#if BUILDFLAG(IS_ANDROID)
+  InitializePlatformDependentFieldsAndroid();
+#elif BUILDFLAG(IS_STARBOARD)
+  InitializePlatformDependentFieldsStarboard();
 #endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -203,13 +227,6 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
     set_device_type(
         starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
   }
-
-#if BUILDFLAG(IS_ANDROID)
-  set_firmware_version(base::SysInfo::GetAndroidBuildID());
-#elif BUILDFLAG(IS_STARBOARD)
-  set_firmware_version(
-      starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
-#endif  // BUILDFLAG(IS_ANDROID)
 
   set_model(base::SysInfo::HardwareModelName());
 
@@ -233,15 +250,6 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
 
   // Rasterizer type is gles for both Linux and Android.
   set_rasterizer_type("gles");
-
-  // TODO(cobalt, b/374213479): Retrieve Evergreen
-  // #if BUILDFLAG(IS_EVERGREEN)
-  //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
-  //       updater::GetCurrentEvergreenLibraryMetadata();
-  //   set_evergreen_version(evergreen_library_metadata.version);
-  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
-  //   set_evergreen_type("Lite");
-  // #endif
 
   if (!avoid_access_to_starboard_for_testing_) {
     // Retrieve additional platform
