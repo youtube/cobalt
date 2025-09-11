@@ -25,6 +25,13 @@ namespace starboard {
 // appropriate system paths that may normally be stored under a home directory.
 bool GetHomeDirectory(char* out_path, int path_size);
 
+// Aliases not to break CI tests.
+// See https://paste.googleplex.com/6310485490270208
+// TODO: b/441955897 - Update CI test to use flattened namespace.
+namespace shared::starboard {
+using ::starboard::GetHomeDirectory;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_
