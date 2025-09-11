@@ -1,5 +1,10 @@
 {
   "failing_tests": [
-    "*"
+    "CorePerftest.*",
+    "MessagePipePerfTest.*",
+    "MojoBindingsPerftest.*",
+    "MojoE2EPerftest.*"
   ]
 }
+
+

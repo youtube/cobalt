@@ -1,5 +1,13 @@
 {
   "failing_tests": [
-    "*"
+    "BaseRequestsServerTest.*",
+    "CalendarApiRequestsTest.*",
+    "CalendarAPIResponseTypesTest.*",
+    "DriveAPIParserTest.*",
+    "DriveApiRequestsTest.*",
+    "GaiaUrlsTest.*",
+    "GoogleAPIKeysTest.*",
+    "MultipartUploadRequestBaseTest.*"
   ]
 }
+

@@ -1,5 +1,8 @@
 {
   "failing_tests": [
-    "*"
+    "CompressionUtilsTest.*",
+    "ZipReaderTest.*",
+    "ZipTest.*"
   ]
 }
+
