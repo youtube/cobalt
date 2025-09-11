@@ -204,7 +204,7 @@ int AudioOutputManager::GetMinBufferSizeInFrames(
       env, GetAudioFormatSampleType(kSbMediaAudioCodingTypePcm, sample_type),
       sampling_frequency_hz, channels);
   return audio_track_min_buffer_size / channels /
-         ::starboard_delete::GetBytesPerSample(sample_type);
+         GetBytesPerSample(sample_type);
 }
 
 bool AudioOutputManager::GetAndResetHasAudioDeviceChanged(JNIEnv* env) {
@@ -261,8 +261,7 @@ void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();
-  ::starboard_delete::MimeSupportabilityCache::GetInstance()
-      ->ClearCachedMimeSupportabilities();
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
 }  // namespace starboard::android::shared

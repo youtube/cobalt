@@ -19,7 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 // This class parses a vp9 frame, and allows to access the contained frames
 // (which will be called subframes) of a superframe.
@@ -59,6 +59,6 @@ class Vp9FrameParser {
   size_t number_of_subframes_ = 0;
 };
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_VP9_UTIL_H_

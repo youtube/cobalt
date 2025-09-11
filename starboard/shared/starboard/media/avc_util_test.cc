@@ -19,7 +19,7 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
 
 const auto kAnnexB = AvcParameterSets::kAnnexB;
@@ -550,4 +550,4 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
