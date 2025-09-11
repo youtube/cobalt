@@ -75,6 +75,13 @@ class ThreadChecker {
 
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+// Aliases not to break CI tests.
+// See https://paste.googleplex.com/4776103591936000
+// TODO: b/441955897 - Update CI test to use flattened namespace.
+namespace shared::starboard {
+using ThreadChecker = ::starboard::ThreadChecker;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
