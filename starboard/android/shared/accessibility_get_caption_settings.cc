@@ -86,8 +86,7 @@ void SetColorProperties(JNIEnv* env,
 
 bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
-      !starboard::common::MemoryIsZero(
-          caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
+      !MemoryIsZero(caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }
 

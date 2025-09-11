@@ -58,7 +58,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::shared::GetConfigurationApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::common::GetCrashHandlerApi();
+    return starboard::GetCrashHandlerApi();
   }
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
     return starboard::shared::posix::GetMemoryMappedFileApi();

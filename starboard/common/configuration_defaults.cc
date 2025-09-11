@@ -15,7 +15,6 @@
 #include "starboard/common/configuration_defaults.h"
 
 namespace starboard {
-namespace common {
 
 const char* CobaltUserOnExitStrategyDefault() {
   return "stop";
@@ -113,5 +112,4 @@ bool CobaltCanStoreCompiledJavascriptDefault() {
   return true;
 }
 
-}  // namespace common
 }  // namespace starboard
