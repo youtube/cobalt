@@ -23,12 +23,11 @@
 
 namespace starboard::android::shared {
 
-class MediaCodecVideoRenderAlgorithm
-    : public ::starboard::shared::starboard::player::filter::
-          VideoRenderAlgorithm {
+class VideoRenderAlgorithmAndroid : public ::starboard::shared::starboard::
+                                        player::filter::VideoRenderAlgorithm {
  public:
-  MediaCodecVideoRenderAlgorithm(MediaCodecVideoDecoder* video_decoder,
-                                 VideoFrameTracker* frame_tracker);
+  VideoRenderAlgorithmAndroid(MediaCodecVideoDecoder* video_decoder,
+                              VideoFrameTracker* frame_tracker);
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,

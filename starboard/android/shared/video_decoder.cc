@@ -452,7 +452,7 @@ MediaCodecVideoDecoder::GetSink() {
 std::unique_ptr<MediaCodecVideoDecoder::VideoRenderAlgorithm>
 MediaCodecVideoDecoder::GetRenderAlgorithm() {
   if (tunnel_mode_audio_session_id_ == -1) {
-    return std::make_unique<MediaCodecVideoRenderAlgorithm>(
+    return std::make_unique<VideoRenderAlgorithmAndroid>(
         this, video_frame_tracker_.get());
   }
   return std::make_unique<VideoRenderAlgorithmTunneled>(
