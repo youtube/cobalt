@@ -37,7 +37,7 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
   static const size_t kBufferSize = kAllocationSize * kMaxAllocations;
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
-  starboard::common::FixedNoFreeAllocator allocator_;
+  starboard::FixedNoFreeAllocator allocator_;
 
  private:
   void* AllocatedAlligned();
@@ -45,8 +45,7 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
 
 void* FixedNoFreeAllocatorTest::AllocatedAlligned() {
   void* tmp = nullptr;
-  posix_memalign(&tmp, starboard::common::Allocator::kMinAlignment,
-                 kBufferSize);
+  posix_memalign(&tmp, starboard::Allocator::kMinAlignment, kBufferSize);
   return tmp;
 }
 FixedNoFreeAllocatorTest::FixedNoFreeAllocatorTest()
@@ -75,11 +74,11 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsProperly) {
     for (int j = 0; j < i; ++j) {
       EXPECT_NE(buffers[j], buffers[i]);
       if (buffers[j] < buffers[i]) {
-        EXPECT_LE(starboard::common::AsInteger(buffers[j]) + kAllocationSize,
-                  starboard::common::AsInteger(buffers[i]));
+        EXPECT_LE(starboard::AsInteger(buffers[j]) + kAllocationSize,
+                  starboard::AsInteger(buffers[i]));
       } else {
-        EXPECT_LE(starboard::common::AsInteger(buffers[i]) + kAllocationSize,
-                  starboard::common::AsInteger(buffers[j]));
+        EXPECT_LE(starboard::AsInteger(buffers[i]) + kAllocationSize,
+                  starboard::AsInteger(buffers[j]));
       }
     }
   }

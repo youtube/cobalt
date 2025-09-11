@@ -22,7 +22,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace common {
 
 namespace {
 
@@ -614,5 +613,4 @@ void InPlaceReuseAllocatorBase::RemoveFreeBlock(FreeBlockSet::iterator it) {
   free_blocks_.erase(it);
 }
 
-}  // namespace common
 }  // namespace starboard

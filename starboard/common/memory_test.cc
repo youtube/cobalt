@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace common {
 namespace {
 
 TEST(MemoryIsAlignedTest, CheckAlignmentVariousSizes) {
@@ -39,5 +38,4 @@ TEST(MemoryAlignToPageSizeTest, AlignsVariousSizes) {
 }
 
 }  // namespace
-}  // namespace common
 }  // namespace starboard

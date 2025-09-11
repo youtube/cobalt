@@ -54,10 +54,10 @@ TEST(SbLogTest, SunnyDayFatal) {
 }
 
 TEST(SbLogTest, SunnyDayStreams) {
-  SbLogPriority previous = logging::GetMinLogLevel();
+  SbLogPriority previous = GetMinLogLevel();
   for (int i = kSbLogPriorityInfo; i <= kSbLogPriorityFatal; ++i) {
-    logging::SetMinLogLevel(static_cast<SbLogPriority>(i));
-    EXPECT_EQ(i, logging::GetMinLogLevel());
+    SetMinLogLevel(static_cast<SbLogPriority>(i));
+    EXPECT_EQ(i, GetMinLogLevel());
     SB_LOG(INFO) << "testing info";
     SB_DLOG(INFO) << "testing debug info";
     SB_LOG(WARNING) << "testing warning";
@@ -66,7 +66,7 @@ TEST(SbLogTest, SunnyDayStreams) {
     SB_DLOG(ERROR) << "testing debug error";
   }
 
-  logging::SetMinLogLevel(previous);
+  SetMinLogLevel(previous);
 }
 
 }  // namespace

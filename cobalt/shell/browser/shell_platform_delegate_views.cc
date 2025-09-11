@@ -47,13 +47,18 @@
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/layout/flex_layout_view.h"
-#include "ui/views/test/desktop_test_views_delegate.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/desktop_aura/desktop_screen.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
+
+#if defined(RUN_BROWSER_TESTS)
+#include "ui/views/test/desktop_test_views_delegate.h"  // nogncheck
+#else
+#include "cobalt/shell/browser/cobalt_views_delegate.h"
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 
@@ -318,8 +323,12 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
     platform_->screen = views::CreateDesktopScreen();
   }
 
+#if defined(RUN_BROWSER_TESTS)
   platform_->views_delegate =
       std::make_unique<views::DesktopTestViewsDelegate>();
+#else
+  platform_->views_delegate = std::make_unique<views::CobaltViewsDelegate>();
+#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
