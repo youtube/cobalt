@@ -630,7 +630,8 @@ def main():
 
     if removed:
       PrettyPrint({'Leaks removed:': removed})
-      print('\nPlease delete removed leaks from the manifest file.')
+      print('\nPlease delete removed leaks from the manifest file: '
+            f'{args.relative_manifest_path}.')
     else:
       print('No leaks were removed.', file=sys.stderr)
 
