@@ -614,6 +614,18 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
     }
 
     @Override
+    public void onFreeze() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onFreeze(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public void onResume() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onResume(mNativeWebContentsAndroid);
+    }
+
+    @Override
     public void onShow() {
         checkNotDestroyed();
         SelectionPopupControllerImpl controller = getSelectionPopupController();
@@ -1205,6 +1217,8 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
         void collapseSelection(long nativeWebContentsAndroid);
         void onHide(long nativeWebContentsAndroid);
         void onShow(long nativeWebContentsAndroid);
+        void onFreeze(long nativeWebContentsAndroid);
+        void onResume(long nativeWebContentsAndroid);
         void setImportance(long nativeWebContentsAndroid, int importance);
         void suspendAllMediaPlayers(long nativeWebContentsAndroid);
         void setAudioMuted(long nativeWebContentsAndroid, boolean mute);

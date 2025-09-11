@@ -43,6 +43,9 @@ class ContentDecryptionModuleResultPromise
       WebContentDecryptionModuleResult::SessionStatus) override;
   void CompleteWithKeyStatus(
       WebEncryptedMediaKeyInformation::KeyStatus) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CompleteWithString(const WebString&) override;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   void CompleteWithError(WebContentDecryptionModuleException,
                          uint32_t system_code,
                          const WebString&) override;

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -95,25 +96,25 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
 
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
   if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+    SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
   }
 }
 
 void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(playback_rate >= 0.0);
+  SB_DCHECK_GE(playback_rate, 0.0);
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
                            "currently supported.";
     playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
   }
-  std::scoped_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -154,7 +155,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+      SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -180,7 +181,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {
-        SB_DCHECK(frames_consumed >= 0);
+        SB_DCHECK_GE(frames_consumed, 0);
         consume_frames_func_(frames_consumed, frames_consumed_at, context_);
         frames_in_audio_track -= frames_consumed;
       }
@@ -193,7 +194,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
     {
-      std::scoped_lock lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
@@ -248,7 +249,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       usleep(10'000);
       continue;
     }
-    SB_DCHECK(expected_written_frames > 0);
+    SB_DCHECK_GT(expected_written_frames, 0);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
@@ -315,7 +316,7 @@ int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK(samples_written % channels_ == 0);
+  SB_DCHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 

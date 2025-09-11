@@ -70,8 +70,6 @@ ApplicationAndroid::ApplicationAndroid(
   // class.
   RuntimeResourceOverlay::GetInstance();
 
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
-
   JNIEnv* jni_env = base::android::AttachCurrentThread();
   app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp(jni_env);
 
@@ -84,14 +82,6 @@ ApplicationAndroid::~ApplicationAndroid() {
 
   // Detaches JNI, no more JNI calls after this.
   JniEnvExt::OnThreadShutdown();
-}
-
-extern "C" SB_EXPORT_PLATFORM jboolean
-Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
-    JniEnvExt* env,
-    jobject unused_this) {
-  // TODO(cobalt, b/378581064): how to handle onSearchRequested()?
-  return true;
 }
 
 extern "C" SB_EXPORT_PLATFORM void

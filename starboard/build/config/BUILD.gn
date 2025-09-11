@@ -68,52 +68,6 @@ if (cobalt_pending_clean_up) {
   }
 }
 
-config("base") {
-  defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
-
-  if (is_debug) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_DEBUG",
-      "COBALT_BUILD_TYPE_DEBUG",
-      "_DEBUG",
-      "COBALT_LOGGING_ENABLED",
-    ]
-  }
-
-  if (is_devel) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_DEVEL",
-      "COBALT_BUILD_TYPE_DEVEL",
-      "_DEBUG",
-      "COBALT_LOGGING_ENABLED",
-    ]
-  }
-
-  if (is_qa) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_QA",
-      "COBALT_BUILD_TYPE_QA",
-      "NDEBUG",
-    ]
-  }
-
-  if (is_gold) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_GOLD",
-      "COBALT_BUILD_TYPE_GOLD",
-      "NDEBUG",
-      "OFFICIAL_BUILD",
-      "TRACING_DISABLED",
-      "COBALT_FORCE_CSP",
-      "COBALT_FORCE_CORS",
-    ]
-  }
-
-  if (enable_in_app_dial) {
-    defines += [ "DIAL_SERVER" ]
-  }
-}
-
 config("host") {
   if (current_toolchain == host_toolchain &&
       current_toolchain != default_toolchain) {

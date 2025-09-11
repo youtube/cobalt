@@ -20,6 +20,7 @@
 #ifndef STARBOARD_COMMON_LOG_H_
 #define STARBOARD_COMMON_LOG_H_
 
+#include "build/build_config.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
@@ -31,7 +32,7 @@ extern "C++" {
 #include <sstream>
 #include <string>
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define SB_LOGGING_IS_OFFICIAL_BUILD 1
 #else
 #define SB_LOGGING_IS_OFFICIAL_BUILD 0

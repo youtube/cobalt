@@ -19,10 +19,10 @@ import android.content.Context;
 /** Implementation of HTMLMediaElement extensions. */
 public class HTMLMediaElementExtension implements CobaltJavaScriptAndroidObject {
 
-  private final Context context;
+  private final Context mContext;
 
   public HTMLMediaElementExtension(Context context) {
-    this.context = context;
+    this.mContext = context;
   }
 
   @Override

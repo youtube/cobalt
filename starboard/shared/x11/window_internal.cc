@@ -23,6 +23,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/player.h"
@@ -97,7 +98,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   gl_window = XCreateSimpleWindow(display, window, 0, 0, width, height, 0,
                                   WhitePixel(display, DefaultScreen(display)),
                                   BlackPixel(display, DefaultScreen(display)));
-  SB_CHECK(gl_window != None);
+  SB_CHECK_NE(gl_window, None);
   XMapWindow(display, gl_window);
   // Manual redirection means that this window will only draw to its pixmap,
   // and won't be automatically rendered onscreen. This is important, because
@@ -109,13 +110,13 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   gl_picture = XRenderCreatePicture(
       display, gl_window,
       XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
-  SB_CHECK(gl_picture != None);
+  SB_CHECK_NE(gl_picture, None);
 
   // Create the picture for compositing onto. This can persist across frames.
   XRenderPictFormat* pict_format =
       XRenderFindVisualFormat(display, x_visual_info.visual);
   window_picture = XRenderCreatePicture(display, window, pict_format, 0, NULL);
-  SB_CHECK(window_picture != None);
+  SB_CHECK_NE(window_picture, None);
 
   XSelectInput(display, window,
                VisibilityChangeMask | ExposureMask | FocusChangeMask |
@@ -158,13 +159,13 @@ void SbWindowPrivate::BeginComposite() {
 
   if (composition_pixmap == None) {
     composition_pixmap = XCreatePixmap(display, window, width, height, 32);
-    SB_DCHECK(composition_pixmap != None);
+    SB_DCHECK_NE(composition_pixmap, None);
 
     composition_picture = XRenderCreatePicture(
         display, composition_pixmap,
         XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
   }
-  SB_CHECK(composition_picture != None);
+  SB_CHECK_NE(composition_picture, None);
 
   XRenderColor black = {0x0000, 0x0000, 0x0000, 0xFFFF};
   XRenderFillRectangle(display, PictOpSrc, composition_picture, &black, 0, 0,
@@ -196,16 +197,16 @@ void SbWindowPrivate::CompositeVideoFrame(
       video_pixmap_height = frame->height();
       video_pixmap = XCreatePixmap(display, window, video_pixmap_width,
                                    video_pixmap_height, 32);
-      SB_DCHECK(video_pixmap != None);
+      SB_DCHECK_NE(video_pixmap, None);
 
       video_pixmap_gc = XCreateGC(display, video_pixmap, 0, NULL);
-      SB_DCHECK(video_pixmap_gc != None);
+      SB_DCHECK_NE(video_pixmap_gc, (GC)None);
 
       video_picture = XRenderCreatePicture(
           display, video_pixmap,
           XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
     }
-    SB_CHECK(video_picture != None);
+    SB_CHECK_NE(video_picture, None);
 
     XImage image = {0};
     image.width = frame->width();

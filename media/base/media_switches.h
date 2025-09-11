@@ -177,8 +177,12 @@ MEDIA_EXPORT extern const base::FeatureParam<int>
     kDecreaseProcessingAudioFifoSizeValue;
 #endif
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDuration);
+MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal;
+MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltReportBufferingStateDuringFlush);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);

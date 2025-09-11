@@ -295,9 +295,9 @@ if (custom_toolchain != "") {
 
 if (is_cobalt) {
   if (custom_toolchain != "") {
-    cobalt_toolchain = custom_toolchain
+    cobalt_toolchain_default = custom_toolchain
   } else if (_default_toolchain != "") {
-    cobalt_toolchain = _default_toolchain
+    cobalt_toolchain_default = _default_toolchain
   }
 }
 

@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -36,7 +37,7 @@ namespace {
 static const int kAlignment = 32;
 
 size_t AlignUp(size_t size, int alignment) {
-  SB_DCHECK((alignment & (alignment - 1)) == 0);
+  SB_DCHECK_EQ((alignment & (alignment - 1)), 0);
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
@@ -151,9 +152,9 @@ void VideoDecoderImpl<FFMPEG>::Initialize(
 
 void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     const InputBuffers& input_buffers) {
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
-  SB_DCHECK(queue_.Poll().type == kInvalid);
+  SB_DCHECK_EQ(queue_.Poll().type, kInvalid);
   SB_DCHECK(decoder_status_cb_);
 
   const auto& input_buffer = input_buffers[0];
@@ -166,7 +167,7 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
   if (decoder_thread_ == 0) {
     pthread_create(&decoder_thread_, nullptr,
                    &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_DCHECK(decoder_thread_ != 0);
+    SB_DCHECK_NE(decoder_thread_, 0);
   }
   queue_.Put(Event(input_buffer));
 }
@@ -207,7 +208,7 @@ void VideoDecoderImpl<FFMPEG>::Reset() {
     InitializeCodec();
   }
 
-  ScopedLock lock(decode_target_and_frames_mutex_);
+  std::lock_guard lock(decode_target_and_frames_mutex_);
   decltype(frames_) frames;
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
@@ -253,7 +254,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
       DecodePacket(&packet);
       decoder_status_cb_(kNeedMoreInput, NULL);
     } else {
-      SB_DCHECK(event.type == kWriteEndOfStream);
+      SB_DCHECK_EQ(event.type, kWriteEndOfStream);
       // Stream has ended, try to decode any frames left in ffmpeg.
       AVPacket packet;
       do {
@@ -369,7 +370,7 @@ bool VideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(const AVFrame& av_frame) {
 
   bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    ScopedLock lock(decode_target_and_frames_mutex_);
+    std::lock_guard lock(decode_target_and_frames_mutex_);
     frames_.push(frame);
   }
 
@@ -456,7 +457,7 @@ void VideoDecoderImpl<FFMPEG>::TeardownCodec() {
   ffmpeg_->FreeFrame(&av_frame_);
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    ScopedLock lock(decode_target_and_frames_mutex_);
+    std::lock_guard lock(decode_target_and_frames_mutex_);
     if (SbDecodeTargetIsValid(decode_target_)) {
       DecodeTargetRelease(decode_target_graphics_context_provider_,
                           decode_target_);
@@ -467,11 +468,11 @@ void VideoDecoderImpl<FFMPEG>::TeardownCodec() {
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoderImpl<FFMPEG>::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.
-  ScopedLock lock(decode_target_and_frames_mutex_);
+  std::lock_guard lock(decode_target_and_frames_mutex_);
   while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
     frames_.pop();
   }

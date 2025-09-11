@@ -17,10 +17,11 @@
 
 #include <functional>
 #include <limits>
+#include <mutex>
 #include <queue>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -64,7 +65,7 @@ class VideoDecoder
   struct Event {
     enum Type { kWriteInputBuffer, kWriteEOS, kReset };
     explicit Event(const Type type) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
@@ -92,7 +93,7 @@ class VideoDecoder
   bool request_thread_termination_;
   Queue<Event*> queue_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 

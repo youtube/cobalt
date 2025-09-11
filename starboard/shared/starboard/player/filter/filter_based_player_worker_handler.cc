@@ -15,9 +15,12 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include <memory>
+#include <mutex>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"
@@ -42,11 +45,11 @@ typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {}
 
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
+#else  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {
   static const bool s_dump_input_hash =
@@ -65,7 +68,7 @@ void DumpInputHash(const InputBuffer* input_buffer) {
                                   0);
 }
 
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 }  // namespace
 
@@ -89,13 +92,13 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
-  SB_DCHECK(update_media_info_cb_ == NULL);
+  SB_DCHECK(!update_media_info_cb_);
 
   // All parameters have to be valid.
   SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(update_media_info_cb);
-  SB_DCHECK(get_player_state_cb);
-  SB_DCHECK(update_player_state_cb);
+  SB_CHECK(update_media_info_cb);
+  SB_CHECK(get_player_state_cb);
+  SB_CHECK(update_player_state_cb);
 
   AttachToCurrentThread();
 
@@ -132,7 +135,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       drm_system_);
 
   {
-    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::lock_guard lock(player_components_existence_mutex_);
     std::string components_error_message;
     player_components_ = factory->CreateComponents(creation_parameters,
                                                    &components_error_message);
@@ -215,7 +218,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(samples_written != NULL);
+  SB_CHECK(samples_written);
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
   }
@@ -258,7 +261,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
       audio_renderer_->WriteSamples(input_buffers);
     }
   } else {
-    SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
 
     if (!video_renderer_) {
       return HandlerResult{false, "Invalid video renderer."};
@@ -516,7 +519,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
     // it outside of the lock.  This is because the VideoRenderer destructor
     // may post a task to destroy the SbDecodeTarget to the same thread that
     // might call GetCurrentDecodeTarget(), which would try to take this lock.
-    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::lock_guard lock(player_components_existence_mutex_);
     player_components = std::move(player_components_);
     media_time_provider_ = nullptr;
     audio_renderer_ = nullptr;
@@ -530,11 +533,12 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
-  if (player_components_existence_mutex_.AcquireTry()) {
+  if (std::unique_lock lock(player_components_existence_mutex_,
+                            std::try_to_lock);
+      lock.owns_lock()) {
     if (video_renderer_) {
       decode_target = video_renderer_->GetCurrentDecodeTarget();
     }
-    player_components_existence_mutex_.Release();
   }
   return decode_target;
 }

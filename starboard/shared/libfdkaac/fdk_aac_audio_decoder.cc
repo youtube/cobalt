@@ -14,6 +14,7 @@
 
 #include "starboard/shared/libfdkaac/fdk_aac_audio_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
@@ -45,7 +46,7 @@ void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
 void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
                                 const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
   SB_DCHECK(decoder_ != NULL);
@@ -121,7 +122,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
 }
 
 void FdkAacAudioDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_ == NULL);
+  SB_DCHECK_EQ(decoder_, nullptr);
   decoder_ = aacDecoder_Open(TT_MP4_ADTS, 1);
   SB_DCHECK(decoder_ != NULL);
 
@@ -130,7 +131,7 @@ void FdkAacAudioDecoder::InitializeCodec() {
   // encoded bitstream.
   AAC_DECODER_ERROR error =
       aacDecoder_SetParam(decoder_, AAC_PCM_MAX_OUTPUT_CHANNELS, 0);
-  SB_DCHECK(error == AAC_DEC_OK);
+  SB_DCHECK_EQ(error, AAC_DEC_OK);
 }
 
 void FdkAacAudioDecoder::TeardownCodec() {
@@ -159,7 +160,7 @@ bool FdkAacAudioDecoder::WriteToFdkDecoder(
 
   // Returned |left_to_decode_in_bytes| should always be 0 as DecodeFrame() will
   // be called immediately on the same thread.
-  SB_DCHECK(left_to_decode_in_bytes == 0);
+  SB_DCHECK_EQ(left_to_decode_in_bytes, 0);
   return true;
 }
 
@@ -216,7 +217,7 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
 
   while (size_in_bytes > 0 && !decoding_input_buffers_.empty()) {
     if (!partially_decoded_audio_) {
-      SB_DCHECK(partially_decoded_audio_data_in_bytes_ == 0);
+      SB_DCHECK_EQ(partially_decoded_audio_data_in_bytes_, 0);
       partially_decoded_audio_ = new DecodedAudio(
           num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
           kSbMediaAudioFrameStorageTypeInterleaved,

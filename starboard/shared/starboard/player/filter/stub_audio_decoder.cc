@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -66,7 +67,7 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
     if (sample_size == 2) {
       *(reinterpret_cast<int16_t*>(decoded_audio->data()) + j) = j;
     } else {
-      SB_DCHECK(sample_size == 4);
+      SB_DCHECK_EQ(sample_size, 4);
       *(reinterpret_cast<float*>(decoded_audio->data()) + j) =
           ((j % 1024) - 512) / 512.0f;
     }
@@ -127,7 +128,7 @@ scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
 
   *samples_per_second = samples_per_second_;
-  ScopedLock lock(decoded_audios_mutex_);
+  std::lock_guard lock(decoded_audios_mutex_);
   if (decoded_audios_.empty()) {
     return scoped_refptr<DecodedAudio>();
   }
@@ -182,7 +183,7 @@ void StubAudioDecoder::DecodeOneBuffer(
         last_input_buffer_->audio_sample_info().discarded_duration_from_back);
 
     if (total_input_count_ % kMaxInputBeforeMultipleDecodedAudios != 0) {
-      ScopedLock lock(decoded_audios_mutex_);
+      std::lock_guard lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
       Schedule(output_cb_);
     } else {
@@ -223,7 +224,7 @@ void StubAudioDecoder::DecodeOneBuffer(
                size_in_bytes_of_output);
         offset_in_bytes += size_in_bytes_of_output;
 
-        ScopedLock lock(decoded_audios_mutex_);
+        std::lock_guard lock(decoded_audios_mutex_);
         decoded_audios_.push(current_decoded_audio);
         Schedule(output_cb_);
       }
@@ -269,11 +270,11 @@ void StubAudioDecoder::DecodeEndOfStream() {
                                                discarded_duration_from_front,
                                                discarded_duration_from_back);
 
-    ScopedLock lock(decoded_audios_mutex_);
+    std::lock_guard lock(decoded_audios_mutex_);
     decoded_audios_.push(decoded_audio);
     Schedule(output_cb_);
   }
-  ScopedLock lock(decoded_audios_mutex_);
+  std::lock_guard lock(decoded_audios_mutex_);
   decoded_audios_.push(new DecodedAudio());
   Schedule(output_cb_);
 }

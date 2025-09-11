@@ -29,6 +29,12 @@ source_set("clients") {
     "//third_party/blink/renderer/modules/mediarecorder",
     "//third_party/blink/renderer/modules/webcodecs",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
 
   sources = [
     "mojo_audio_decoder.cc",
@@ -155,5 +161,9 @@ source_set("unit_tests") {
       "//ui/gfx:test_support",
       "//ui/gl",
     ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
   }
 }

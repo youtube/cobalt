@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -197,7 +198,7 @@ AlsaAudioSink::AlsaAudioSink(
   ScopedLock lock(mutex_);
   pthread_create(&audio_out_thread_, nullptr, &AlsaAudioSink::ThreadEntryPoint,
                  this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
   creation_signal_.Wait();
 }
 
@@ -339,7 +340,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
                                 int offset_in_frames) {
   const int bytes_per_frame = channels_ * GetSampleSize(sample_type_);
   if (playback_rate == 1.0) {
-    SB_DCHECK(frames_to_write <= frames_in_buffer);
+    SB_DCHECK_LE(frames_to_write, frames_in_buffer);
 
     int frames_to_buffer_end = frames_per_channel_ - offset_in_frames;
     if (frames_to_write > frames_to_buffer_end) {
@@ -374,7 +375,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
     double source_frames = 0.0;
     int buffer_size_in_frames = resample_buffer_.size() / bytes_per_frame;
     int target_frames = 0;
-    SB_DCHECK(buffer_size_in_frames <= frames_to_write);
+    SB_DCHECK_LE(buffer_size_in_frames, frames_to_write);
 
     // Use |playback_rate| as the granularity of increment for source buffer.
     // For example, when |playback_rate| is 0.25, every time a frame is copied
@@ -463,7 +464,7 @@ void PlatformInitialize() {
 // static
 void PlatformTearDown() {
   SB_DCHECK(alsa_audio_sink_type_);
-  SB_DCHECK(alsa_audio_sink_type_ == SbAudioSinkImpl::GetPrimaryType());
+  SB_DCHECK_EQ(alsa_audio_sink_type_, SbAudioSinkImpl::GetPrimaryType());
 
   SbAudioSinkImpl::SetPrimaryType(NULL);
   delete alsa_audio_sink_type_;

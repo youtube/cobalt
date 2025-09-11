@@ -18,6 +18,7 @@
 #include <cstring>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
@@ -58,8 +59,9 @@ class Buffer {
     if (data_) {
       uint8_t buffer[kPaddingSize];
       memset(buffer, kPadding, kPaddingSize);
-      SB_CHECK(memcmp(data_, buffer, kPaddingSize) == 0);
-      SB_CHECK(memcmp(data_ + kPaddingSize + size_, buffer, kPaddingSize) == 0);
+      SB_CHECK_EQ(memcmp(data_, buffer, kPaddingSize), 0);
+      SB_CHECK_EQ(memcmp(data_ + kPaddingSize + size_, buffer, kPaddingSize),
+                  0);
     }
 #endif  // !defined(NDEBUG)
     delete[] data_;

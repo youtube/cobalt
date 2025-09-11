@@ -26,30 +26,28 @@
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
+#include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
-#include "components/variations/pref_names.h"
-#include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
-#include "content/shell/browser/shell.h"
-#include "content/shell/browser/shell_paths.h"
-#include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -59,6 +57,10 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace cobalt {
 
@@ -77,36 +79,6 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
-
-// Cobalt does not use variations service for field trials. This is a dummy
-// implementation for the browser client to call ApplyFieldTrialTestingConfig
-// and apply test feature overrides.
-class CobaltVariationsServiceClient
-    : public variations::VariationsServiceClient {
- public:
-  CobaltVariationsServiceClient() = default;
-  ~CobaltVariationsServiceClient() override = default;
-
-  // variations::VariationsServiceClient:
-  base::Version GetVersionForSimulation() override { return base::Version(); }
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
-      override {
-    return nullptr;
-  }
-  network_time::NetworkTimeTracker* GetNetworkTimeTracker() override {
-    return nullptr;
-  }
-  version_info::Channel GetChannel() override {
-    return version_info::Channel::UNKNOWN;
-  }
-  bool OverridesRestrictParameter(std::string* parameter) override {
-    return false;
-  }
-  bool IsEnterprise() override { return false; }
-  // Profiles aren't supported, so nothing to do here.
-  void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
-      PrefService* local_state) override {}
-};
 
 }  // namespace
 
@@ -390,12 +362,23 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       kCobaltExperimentName, kCobaltGroupName);
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
 
-  auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
+  auto* global_features = GlobalFeatures::GetInstance();
+  auto* experiment_config_manager =
+      global_features->experiment_config_manager();
+  auto config_type = experiment_config_manager->GetExperimentConfigType();
+  if (config_type == ExperimentConfigType::kEmptyConfig) {
+    return;
+  }
 
-  const base::Value::Dict& feature_map =
-      experiment_config->GetDict(kExperimentConfigFeatures);
-  const base::Value::Dict& param_map =
-      experiment_config->GetDict(kExperimentConfigFeatureParams);
+  auto* experiment_config = global_features->experiment_config();
+  const bool use_safe_config =
+      (config_type == ExperimentConfigType::kSafeConfig);
+
+  const base::Value::Dict& feature_map = experiment_config->GetDict(
+      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
+  const base::Value::Dict& param_map = experiment_config->GetDict(
+      use_safe_config ? kSafeConfigFeatureParams
+                      : kExperimentConfigFeatureParams);
 
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {
@@ -431,8 +414,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
@@ -449,6 +430,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
 
+#if defined(RUN_BROWSER_TESTS)
   // Overrides for --run-web-tests.
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Disable artificial timeouts for PNA-only preflights in warning-only mode
@@ -460,6 +442,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             network::features::kPrivateNetworkAccessPreflightShortTimeout),
         base::FeatureList::OVERRIDE_DISABLE_FEATURE);
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
   feature_list->InitializeFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
@@ -472,22 +455,17 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // instance is set.
   feature_list->RegisterExtraFeatureOverrides(feature_overrides);
 
-  CobaltVariationsServiceClient variations_service_client;
-  variations::VariationsFieldTrialCreator field_trial_creator(
-      &variations_service_client,
-      std::make_unique<variations::VariationsSeedStore>(
-          GlobalFeatures::GetInstance()->experiment_config(),
-          std::make_unique<variations::SeedResponse>(),
-          /*signature_verification_enabled=*/true),
-      variations::UIStringOverrider());
-
-#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
-  field_trial_creator.ApplyFieldTrialTestingConfig(feature_list.get());
-#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
-
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  LOG(INFO) << "CobaltCommandLine: enable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
+            << "], disable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "]";
+
+  // Push the initialized features and params down to Starboard.
+  features::InitializeStarboardFeatures();
 }
 
 }  // namespace cobalt

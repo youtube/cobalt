@@ -387,6 +387,8 @@ String PreloadTypeToString(WebMediaPlayer::Preload preload_type) {
   return String();
 }
 
+// Disabled on Cobalt together with `ShouldShowControls()`.
+#if !BUILDFLAG(IS_COBALT)
 void RecordShowControlsUsage(const HTMLMediaElement* element,
                              MediaControlsShow value) {
   if (element->IsHTMLVideoElement()) {
@@ -395,6 +397,7 @@ void RecordShowControlsUsage(const HTMLMediaElement* element,
   }
   base::UmaHistogramEnumeration("Media.Controls.Show.Audio", value);
 }
+#endif
 
 bool IsValidPlaybackRate(double rate) {
   return rate == 0.0 || (rate >= HTMLMediaElement::kMinPlaybackRate &&
@@ -3017,6 +3020,10 @@ void HTMLMediaElement::SetLoop(bool b) {
 
 bool HTMLMediaElement::ShouldShowControls(
     const RecordMetricsBehavior record_metrics) const {
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt targets TV specifically and does not support media control.
+  return false;
+#else
   Settings* settings = GetDocument().GetSettings();
   if (settings && !settings->GetMediaControlsEnabled()) {
     if (record_metrics == RecordMetricsBehavior::kDoRecord)
@@ -3058,6 +3065,7 @@ bool HTMLMediaElement::ShouldShowControls(
   if (record_metrics == RecordMetricsBehavior::kDoRecord)
     RecordShowControlsUsage(this, MediaControlsShow::kNotShown);
   return false;
+#endif
 }
 
 bool HTMLMediaElement::ShouldShowAllControls() const {

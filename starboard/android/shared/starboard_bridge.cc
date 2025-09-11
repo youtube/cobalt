@@ -17,22 +17,24 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
+#include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/log_mutex.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
 namespace starboard::android::shared {
+
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
@@ -43,32 +45,6 @@ using base::android::GetClass;
 // Global pointer to hold the single instance of ApplicationAndroid.
 ApplicationAndroid* g_native_app_instance = nullptr;
 static pthread_mutex_t g_native_app_init_mutex PTHREAD_MUTEX_INITIALIZER;
-
-namespace {
-#if SB_IS(EVERGREEN_COMPATIBLE)
-void StarboardThreadLaunch() {
-  // Start the Starboard thread the first time an Activity is created.
-  if (g_starboard_thread == 0) {
-    Semaphore semaphore;
-
-    pthread_attr_t attributes;
-    pthread_attr_init(&attributes);
-    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-
-    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
-                   &semaphore);
-
-    pthread_attr_destroy(&attributes);
-
-    // Wait for the ApplicationAndroid to be created.
-    semaphore.Take();
-  }
-
-  // Ensure application init happens here
-  ApplicationAndroid::Get();
-}
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-}  // namespace
 
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
@@ -81,25 +57,40 @@ std::vector<std::string> GetArgs() {
   return args;
 }
 
-extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_OnStop(JNIEnv* env) {
+}  // namespace
+
+// TODO: b/372559388 - Consolidate this function when fully deprecate
+// JniEnvExt.
+jboolean JNI_StarboardBridge_InitJNI(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_starboard_bridge) {
+  // This downcast is safe, since JniEnvExt adds only methods, not member
+  // variables.
+  // https://github.com/youtube/cobalt/blob/88c9c68/starboard/android/shared/jni_env_ext.cc#L90-L91
+  auto env_ext = static_cast<JniEnvExt*>(env);
+  SB_CHECK(env_ext);
+  JniEnvExt::Initialize(env_ext, j_starboard_bridge.obj());
+
+  // Initialize the singleton instance of StarboardBridge
+  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+  return true;
+}
+
+void JNI_StarboardBridge_OnStop(JNIEnv* env) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
   SbFileAndroidTeardown();
 }
 
-extern "C" SB_EXPORT_PLATFORM jlong
-JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
+jlong JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }
 
-extern "C" SB_EXPORT_PLATFORM jlong JNI_StarboardBridge_StartNativeStarboard(
+jlong JNI_StarboardBridge_StartNativeStarboard(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_asset_manager,
     const JavaParamRef<jstring>& j_files_dir,
     const JavaParamRef<jstring>& j_cache_dir,
     const JavaParamRef<jstring>& j_native_library_dir) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  StarboardThreadLaunch();
-#else
   pthread_mutex_lock(&g_native_app_init_mutex);
   if (g_native_app_instance == nullptr) {
     auto command_line = std::make_unique<CommandLine>(GetArgs());
@@ -110,18 +101,23 @@ extern "C" SB_EXPORT_PLATFORM jlong JNI_StarboardBridge_StartNativeStarboard(
         ConvertJavaStringToUTF8(env, j_files_dir),
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
-    // Ensure application init happens here
-    ApplicationAndroid::Get();
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
-extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
-    JNIEnv* env,
-    const JavaParamRef<jstring>& jurl,
-    jboolean applicationStarted) {
+void JNI_StarboardBridge_CloseNativeStarboard(JNIEnv* env, jlong nativeApp) {
+  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
+  delete app;
+}
+
+void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+}
+
+void JNI_StarboardBridge_HandleDeepLink(JNIEnv* env,
+                                        const JavaParamRef<jstring>& jurl,
+                                        jboolean applicationStarted) {
   const std::string& url = ConvertJavaStringToUTF8(env, jurl);
   LOG(INFO) << "StarboardBridge handling DeepLink: " << url;
 
@@ -135,9 +131,8 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_SetAndroidOSExperience(
-    JNIEnv* env,
-    jboolean isAmatiDevice) {
+void JNI_StarboardBridge_SetAndroidOSExperience(JNIEnv* env,
+                                                jboolean isAmatiDevice) {
   std::string value = isAmatiDevice ? "Amati" : "Watson";
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
@@ -145,8 +140,8 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_SetAndroidOSExperience(
                                         value);
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-JNI_StarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env, jlong version) {
+void JNI_StarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env,
+                                                       jlong version) {
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
@@ -154,8 +149,7 @@ JNI_StarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env, jlong version) {
       base::NumberToString(version));
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-JNI_StarboardBridge_SetAndroidBuildFingerprint(
+void JNI_StarboardBridge_SetAndroidBuildFingerprint(
     JNIEnv* env,
     const JavaParamRef<jstring>& fingerprint) {
   auto header_value_provider =
@@ -163,6 +157,14 @@ JNI_StarboardBridge_SetAndroidBuildFingerprint(
   header_value_provider->SetHeaderValue(
       "Sec-CH-UA-Co-Android-Build-Fingerprint",
       ConvertJavaStringToUTF8(env, fingerprint));
+}
+
+jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  return true;
+#else
+  return false;
+#endif
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
@@ -196,11 +198,6 @@ void StarboardBridge::ApplicationStarted(JNIEnv* env) {
 void StarboardBridge::ApplicationStopping(JNIEnv* env) {
   SB_DCHECK(env);
   Java_StarboardBridge_applicationStopping(env, j_starboard_bridge_);
-}
-
-void StarboardBridge::AfterStopped(JNIEnv* env) {
-  SB_DCHECK(env);
-  Java_StarboardBridge_afterStopped(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::AppendArgs(JNIEnv* env,
@@ -248,6 +245,30 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   jboolean limit_ad_tracking_java =
       Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
   return limit_ad_tracking_java;
+}
+
+std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return ConvertJavaStringToUTF8(
+      env, Java_StarboardBridge_getUserAgentAuxField(env, j_starboard_bridge_));
+}
+
+bool StarboardBridge::IsAmatiDevice(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getIsAmatiDevice(env, j_starboard_bridge_) ==
+         JNI_TRUE;
+}
+
+std::string StarboardBridge::GetBuildFingerprint(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return ConvertJavaStringToUTF8(
+      env, Java_StarboardBridge_getBuildFingerprint(env, j_starboard_bridge_));
+}
+
+int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return static_cast<int64_t>(
+      Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
 }  // namespace starboard::android::shared

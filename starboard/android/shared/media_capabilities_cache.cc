@@ -14,10 +14,14 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 
+#include <jni.h>
+
 #include <utility>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -28,6 +32,7 @@
 namespace starboard::android::shared {
 namespace {
 
+using base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
@@ -173,15 +178,11 @@ void ConvertStringToLowerCase(std::string* str) {
 }
 
 bool GetIsWidevineSupported() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge",
-             "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
+  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
 }
 
 bool GetIsCbcsSupported() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge", "isCbcsSchemeSupported",
-             "()Z") == JNI_TRUE;
+  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {
@@ -400,7 +401,7 @@ bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
     return GetIsWidevineSupported();
   }
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return is_widevine_supported_;
 }
@@ -409,7 +410,7 @@ bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
   if (!is_enabled_) {
     return GetIsCbcsSupported();
   }
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return is_cbcs_supported_;
 }
@@ -421,7 +422,7 @@ bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
     return supported_transfer_ids.find(transfer_id) !=
            supported_transfer_ids.end();
   }
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return supported_transfer_ids_.find(transfer_id) !=
          supported_transfer_ids_.end();
@@ -433,7 +434,7 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   }
   // IsPassthroughSupported() caches the results of previous quiries, and does
   // not rely on LazyInitialize(), which is different from other functions.
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   auto iter = passthrough_supportabilities_.find(codec);
   if (iter != passthrough_supportabilities_.end()) {
     return iter->second;
@@ -452,7 +453,7 @@ bool MediaCapabilitiesCache::GetAudioConfiguration(
                                                                configuration);
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   if (index < audio_configurations_.size()) {
     *configuration = audio_configurations_[index];
@@ -494,7 +495,7 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
         static_cast<jstring>(j_decoder_name));
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
   for (auto& audio_capability : audio_codec_capabilities_map_[mime_type]) {
@@ -533,7 +534,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
         static_cast<jstring>(j_decoder_name));
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
   for (auto& video_capability : video_codec_capabilities_map_[mime_type]) {
@@ -593,7 +594,6 @@ MediaCapabilitiesCache::MediaCapabilitiesCache() {
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
-  mutex_.DCheckAcquired();
   if (capabilities_is_dirty_.exchange(false)) {
     // We use a different cache strategy (load and cache) for passthrough
     // supportabilities, so we only clear |passthrough_supportabilities_| here.
@@ -613,7 +613,6 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
 void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
   SB_DCHECK(audio_codec_capabilities_map_.empty());
   SB_DCHECK(video_codec_capabilities_map_.empty());
-  mutex_.DCheckAcquired();
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobjectArray> j_codec_infos(
@@ -662,7 +661,6 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
 
 void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   SB_DCHECK(audio_configurations_.empty());
-  mutex_.DCheckAcquired();
 
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match

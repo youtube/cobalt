@@ -14,6 +14,7 @@
 
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -40,7 +41,7 @@ DispmanxYUV420Resource* DispmanxResourcePool::Alloc(int width,
                                                     int height,
                                                     int visible_width,
                                                     int visible_height) {
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
 
   if (last_frame_width_ != width || last_frame_height_ != height) {
     while (!free_resources_.empty()) {
@@ -69,7 +70,7 @@ DispmanxYUV420Resource* DispmanxResourcePool::Alloc(int width,
 }
 
 void DispmanxResourcePool::Free(DispmanxYUV420Resource* resource) {
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (resource->width() != last_frame_width_ ||
       resource->height() != last_frame_height_) {
     // The video has adapted, free the resource as it won't be reused any soon.

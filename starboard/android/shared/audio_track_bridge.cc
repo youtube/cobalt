@@ -19,6 +19,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -45,13 +46,13 @@ AudioTrackBridge::AudioTrackBridge(
 
     // TODO: Support query if platform supports float type for tunnel mode.
     if (tunnel_mode_audio_session_id != -1) {
-      SB_DCHECK(sample_type.value() == kSbMediaAudioSampleTypeInt16Deprecated);
+      SB_DCHECK_EQ(sample_type.value(), kSbMediaAudioSampleTypeInt16Deprecated);
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||
               coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus);
     // TODO: Support passthrough under tunnel mode.
-    SB_DCHECK(tunnel_mode_audio_session_id == -1);
+    SB_DCHECK_EQ(tunnel_mode_audio_session_id, -1);
     // TODO: |sample_type| is not used in passthrough mode, we should make this
     // explicit.
   }
@@ -179,7 +180,7 @@ int AudioTrackBridge::WriteSample(const float* samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
   env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_), kNoOffset,
@@ -194,7 +195,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
@@ -208,7 +209,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
     return bytes_written;
   }
-  SB_DCHECK(bytes_written % sizeof(uint16_t) == 0);
+  SB_DCHECK_EQ(bytes_written % sizeof(uint16_t), static_cast<size_t>(0));
   return bytes_written / sizeof(uint16_t);
 }
 
@@ -218,7 +219,7 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 

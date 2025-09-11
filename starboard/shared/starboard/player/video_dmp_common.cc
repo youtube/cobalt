@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #include <limits>
+#include "starboard/common/check_op.h"
 
 namespace starboard::shared::starboard::player::video_dmp {
 
@@ -70,8 +71,8 @@ void Read(const ReadCB& read_cb, void* buffer, size_t size) {
     return;
   }
   int bytes_to_read = static_cast<int>(size);
-  int bytes_read = read_cb(buffer, bytes_to_read);
-  SB_DCHECK(bytes_read == bytes_to_read);
+  [[maybe_unused]] int bytes_read = read_cb(buffer, bytes_to_read);
+  SB_DCHECK_EQ(bytes_read, bytes_to_read);
 }
 
 void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
@@ -79,8 +80,8 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
     return;
   }
   int bytes_to_write = static_cast<int>(size);
-  int bytes_written = write_cb(buffer, bytes_to_write);
-  SB_DCHECK(bytes_written == bytes_to_write);
+  [[maybe_unused]] int bytes_written = write_cb(buffer, bytes_to_write);
+  SB_DCHECK_EQ(bytes_written, bytes_to_write);
 }
 
 void Read(const ReadCB& read_cb,

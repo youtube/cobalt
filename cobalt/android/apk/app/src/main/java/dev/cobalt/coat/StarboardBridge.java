@@ -43,7 +43,9 @@ import java.lang.reflect.Method;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -99,8 +101,8 @@ public class StarboardBridge {
   private long mAppStartTimestamp = 0;
   private long mAppStartDuration = 0;
 
-  private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
-  private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
+  private final Map<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
+  private final Map<String, CobaltService> cobaltServices = new ConcurrentHashMap<>();
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -121,7 +123,7 @@ public class StarboardBridge {
 
     // Make sure the JNI stack is properly initialized first as there is a
     // race condition as soon as any of the following objects creates a new thread.
-    initJNI();
+    StarboardBridgeJni.get().initJNI(this);
 
     this.appContext = appContext;
     this.activityHolder = activityHolder;
@@ -151,10 +153,6 @@ public class StarboardBridge {
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
   }
 
-  private native boolean initJNI();
-
-  private native void closeNativeStarboard(long nativeApp);
-
   @NativeMethods
   interface Natives {
     void onStop();
@@ -166,28 +164,33 @@ public class StarboardBridge {
       String filesDir,
       String cacheDir,
       String nativeLibraryDir);
-    // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
-    // boolean initJNI();
 
-    // void closeNativeStarboard(long nativeApp);
+    boolean initJNI(StarboardBridge starboardBridge);
+
+    void closeNativeStarboard(long app);
+
+    void initializePlatformAudioSink();
 
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
     void setAndroidOSExperience(boolean isAmatiDevice);
     void setAndroidPlayServicesVersion(long version);
+
+    boolean isReleaseBuild();
   }
 
   protected void onActivityStart(Activity activity) {
-    Log.e(TAG, "onActivityStart ran");
+    Log.i(TAG, "onActivityStart ran");
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
     beforeStartOrResume();
   }
 
   protected void onActivityStop(Activity activity) {
-    Log.e(TAG, "onActivityStop ran");
+    Log.i(TAG, "onActivityStop ran");
     beforeSuspend();
+    cobaltMediaSession.onActivityStop();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
@@ -198,7 +201,7 @@ public class StarboardBridge {
     if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
-      closeNativeStarboard(nativeApp);
+      StarboardBridgeJni.get().closeNativeStarboard(nativeApp);
       closeAllServices();
       System.exit(0);
     } else {
@@ -249,8 +252,6 @@ public class StarboardBridge {
     }
   }
 
-  // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
-  @CalledByNative
   protected void afterStopped() {
     applicationStopped = true;
     closeAllServices();
@@ -289,14 +290,8 @@ public class StarboardBridge {
   public void requestStop(int errorLevel) {}
 
   public boolean onSearchRequested() {
-    // TODO(cobalt): re-enable native search request if needed.
-    // if (applicationStarted) {
-    //   return nativeOnSearchRequested();
-    // }
     return false;
   }
-
-  // private native boolean nativeOnSearchRequested();
 
   @CalledByNative
   public Context getApplicationContext() {
@@ -314,12 +309,8 @@ public class StarboardBridge {
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
   public static boolean isReleaseBuild() {
-    // TODO(cobalt): find a way to determine if is release build.
-    // return nativeIsReleaseBuild();
-    return false;
+    return StarboardBridgeJni.get().isReleaseBuild();
   }
-
-  // private static native boolean nativeIsReleaseBuild();
 
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;
@@ -331,6 +322,12 @@ public class StarboardBridge {
       throw new IllegalArgumentException("args cannot be null");
     }
     return args;
+  }
+
+  // Initialize the platform's AudioTrackAudioSink. This must be done after the browser client
+  // loads in the feature list and field trials.
+  public void initializePlatformAudioSink() {
+    StarboardBridgeJni.get().initializePlatformAudioSink();
   }
 
   /** Sends an event to the web app to navigate to the given URL */

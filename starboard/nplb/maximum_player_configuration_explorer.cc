@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_test_util.h"
@@ -50,7 +51,7 @@ class HashFunction {
 // only if a[i] >= b[i] for all indices i.
 bool PosetGreaterThanOrEqualTo(const std::vector<int>& a,
                                const std::vector<int>& b) {
-  SB_DCHECK(a.size() == b.size());
+  SB_DCHECK_EQ(a.size(), b.size());
 
   for (int i = 0; i < a.size(); ++i) {
     if (a[i] < b[i]) {
@@ -91,8 +92,8 @@ std::set<std::vector<int>> SearchPosetMaximalElementsDFS(
     int resource_types,
     int max_instances_per_resource,
     const PosetSearchFunctor& test_functor) {
-  SB_DCHECK(resource_types > 0);
-  SB_DCHECK(max_instances_per_resource > 0);
+  SB_DCHECK_GT(resource_types, 0);
+  SB_DCHECK_GT(max_instances_per_resource, 0);
   SB_DCHECK(test_functor);
 
   std::stack<std::pair<std::vector<int>, int>> stack;
@@ -159,10 +160,10 @@ MaximumPlayerConfigurationExplorer::MaximumPlayerConfigurationExplorer(
       fake_graphics_context_provider_(fake_graphics_context_provider),
       player_instances_(player_configs.size()) {
   SB_DCHECK(!player_configs_.empty());
-  SB_DCHECK(max_instances_per_config_ > 0);
-  SB_DCHECK(max_total_instances_ > 0);
+  SB_DCHECK_GT(max_instances_per_config_, 0);
+  SB_DCHECK_GT(max_total_instances_, 0);
   SB_DCHECK(fake_graphics_context_provider_);
-  SB_DCHECK(player_instances_.size() == player_configs_.size());
+  SB_DCHECK_EQ(player_instances_.size(), player_configs_.size());
   SB_DCHECK(player_configs_.size() <= 7 && max_instances_per_config_ <= 7)
       << "Exploring configs with that size may be a time-consuming process.";
 }
@@ -184,7 +185,7 @@ MaximumPlayerConfigurationExplorer::CalculateMaxTestConfigs() {
       player_configs_.size(), max_instances_per_config_, test_functor);
   std::vector<SbPlayerMultiplePlayerTestConfig> configs_to_return;
   for (auto& configs_vector : result) {
-    SB_DCHECK(configs_vector.size() == player_configs_.size());
+    SB_DCHECK_EQ(configs_vector.size(), player_configs_.size());
 
     SbPlayerMultiplePlayerTestConfig multi_player_test_config;
     for (int i = 0; i < configs_vector.size(); i++) {
@@ -200,7 +201,7 @@ MaximumPlayerConfigurationExplorer::CalculateMaxTestConfigs() {
 
 bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
     const std::vector<int>& configs_to_create) {
-  SB_DCHECK(configs_to_create.size() == player_configs_.size());
+  SB_DCHECK_EQ(configs_to_create.size(), player_configs_.size());
 
   if (std::accumulate(configs_to_create.begin(), configs_to_create.end(), 0) >
       max_total_instances_) {
@@ -208,9 +209,9 @@ bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
     return false;
   }
 
-  for (int i = 0; i < configs_to_create.size(); i++) {
-    SB_DCHECK(configs_to_create[i] >= 0);
-    SB_DCHECK(configs_to_create[i] <= max_instances_per_config_);
+  for (size_t i = 0; i < configs_to_create.size(); i++) {
+    SB_DCHECK_GE(configs_to_create[i], 0);
+    SB_DCHECK_LE(configs_to_create[i], max_instances_per_config_);
 
     std::vector<PlayerInstance>& instances = player_instances_[i];
     while (instances.size() > configs_to_create[i]) {

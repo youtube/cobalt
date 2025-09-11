@@ -18,12 +18,13 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/shell/browser/shell_paths.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #endif
 
@@ -36,6 +37,10 @@ namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
+#if BUILDFLAG(IS_ANDROIDTV)
+  base::android::MemoryPressureListenerAndroid::Initialize(
+      base::android::AttachCurrentThread());
+#endif
   return ShellBrowserMainParts::PreCreateThreads();
 }
 

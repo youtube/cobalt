@@ -18,6 +18,7 @@
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard::android::shared {
@@ -38,7 +39,7 @@ jlong GetSystemNanoTime() {
 VideoRenderAlgorithm::VideoRenderAlgorithm(VideoDecoder* video_decoder,
                                            VideoFrameTracker* frame_tracker)
     : video_decoder_(video_decoder), frame_tracker_(frame_tracker) {
-  SB_DCHECK(video_decoder_);
+  SB_CHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
 }
 
@@ -46,9 +47,9 @@ void VideoRenderAlgorithm::Render(
     MediaTimeProvider* media_time_provider,
     std::list<scoped_refptr<VideoFrame>>* frames,
     VideoRendererSink::DrawFrameCB draw_frame_cb) {
-  SB_DCHECK(media_time_provider);
-  SB_DCHECK(frames);
-  SB_DCHECK(draw_frame_cb);
+  SB_CHECK(media_time_provider);
+  SB_CHECK(frames);
+  SB_CHECK(draw_frame_cb);
 
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
@@ -106,8 +107,9 @@ void VideoRenderAlgorithm::Render(
       frames->pop_front();
       ++dropped_frames_;
     } else if (early_us < kBufferReadyThreshold) {
-      auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
-      SB_DCHECK(status == VideoRendererSink::kReleased);
+      [[maybe_unused]] auto status =
+          draw_frame_cb(frames->front(), adjusted_release_time_ns);
+      SB_DCHECK_EQ(status, VideoRendererSink::kReleased);
       frames->pop_front();
     } else {
       break;

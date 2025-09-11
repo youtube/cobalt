@@ -32,7 +32,7 @@ const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 // Android.
 void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
                                     std::vector<int64_t>* rendered_frames) {
-  SB_DCHECK(rendered_frames);
+  SB_CHECK(rendered_frames);
   if (rendered_frames->empty()) {
     return;
   }
@@ -106,7 +106,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
 }
 
 void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
-  std::scoped_lock lock(rendered_frames_mutex_);
+  std::lock_guard lock(rendered_frames_mutex_);
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
 
@@ -130,7 +130,7 @@ void VideoFrameTracker::UpdateDroppedFrames() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   {
-    std::scoped_lock lock(rendered_frames_mutex_);
+    std::lock_guard lock(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
 

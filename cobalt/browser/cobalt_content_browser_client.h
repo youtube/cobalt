@@ -18,8 +18,8 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
-#include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
 class PrefService;
@@ -101,7 +101,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
-  void CreateFeatureListAndFieldTrials();
+  void CreateFeatureListAndFieldTrials() override;
 
   // Read from the experiment config, override features, and associate feature
   // params for Cobalt experiments.

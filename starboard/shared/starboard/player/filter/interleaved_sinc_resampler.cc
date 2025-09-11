@@ -49,6 +49,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include "starboard/common/check_op.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -72,15 +73,15 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
       << "kBlockSize must be greater than kKernelSize!";
   // Basic sanity checks to ensure buffer regions are laid out correctly:
   // r0_ and r2_ should always be the same position.
-  SB_DCHECK(r0_ == r2_);
+  SB_DCHECK_EQ(r0_, r2_);
   // r1_ at the beginning of the buffer.
-  SB_DCHECK(r1_ == input_buffer_);
+  SB_DCHECK_EQ(r1_, input_buffer_);
   // r1_ left of r2_, r2_ left of r5_ and r1_, r2_ size correct.
-  SB_DCHECK(r2_ - r1_ == r5_ - r2_);
+  SB_DCHECK_EQ(r2_ - r1_, r5_ - r2_);
   // r3_ left of r4_, r5_ left of r0_ and r3_ size correct.
-  SB_DCHECK(r4_ - r3_ == r5_ - r0_);
+  SB_DCHECK_EQ(r4_ - r3_, r5_ - r0_);
   // r3_, r4_ size correct and r4_ at the end of the buffer.
-  SB_DCHECK(r4_ + (r4_ - r3_) == r1_ + kBufferSize * channel_count_);
+  SB_DCHECK_EQ(r4_ + (r4_ - r3_), r1_ + kBufferSize * channel_count_);
   // r5_ size correct and at the end of the buffer.
   SB_DCHECK(r5_ + kBlockSize * channel_count_ ==
             r1_ + kBufferSize * channel_count_);
@@ -281,7 +282,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
 
   // Read should always be satisfied as otherwise Resample should return false
   // to the caller directly.
-  SB_DCHECK(frames == 0);
+  SB_DCHECK_EQ(frames, 0);
 }
 
 float InterleavedSincResampler::Convolve(const float* input_ptr,

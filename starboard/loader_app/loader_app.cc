@@ -37,6 +37,7 @@
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/shared/starboard/command_line.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 
@@ -193,7 +194,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
 void SbEventHandle(const SbEvent* event) {
   static pthread_mutex_t mutex PTHREAD_MUTEX_INITIALIZER;
 
-  SB_CHECK(pthread_mutex_lock(&mutex) == 0);
+  SB_CHECK_EQ(pthread_mutex_lock(&mutex), 0);
 
   if (!g_sb_event_func && (event->type == kSbEventTypeStart ||
                            event->type == kSbEventTypePreload)) {
@@ -205,7 +206,7 @@ void SbEventHandle(const SbEvent* event) {
       SB_LOG(INFO) << "Resetting the Evergreen Update";
       starboard::loader_app::ResetEvergreenUpdate();
       SbSystemRequestStop(0);
-      SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
+      SB_CHECK_EQ(pthread_mutex_unlock(&mutex), 0);
       return;
     }
 
@@ -294,5 +295,5 @@ void SbEventHandle(const SbEvent* event) {
     g_sb_event_func(event);
   }
 
-  SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
+  SB_CHECK_EQ(pthread_mutex_unlock(&mutex), 0);
 }

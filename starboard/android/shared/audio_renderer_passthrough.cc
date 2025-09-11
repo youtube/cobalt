@@ -20,6 +20,7 @@
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
@@ -41,7 +42,7 @@ constexpr int kTunnelModeAudioSessionId = -1;
 // The ExoPlayer implementation is based on
 // https://www.etsi.org/deliver/etsi_ts/102300_102399/102366/01.04.01_60/ts_102366v010401p.pdf.
 int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
-  SB_DCHECK(buffer);
+  SB_CHECK(buffer);
 
   constexpr int kAudioSamplesPerAudioBlock = 256;
   // Each syncframe has 6 blocks that provide 256 new audio samples. See
@@ -172,7 +173,7 @@ void AudioRendererPassthrough::SetVolume(double volume) {
 
   SB_LOG(INFO) << "Set volume to " << volume;
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   volume_ = volume;
 }
 
@@ -191,7 +192,7 @@ bool AudioRendererPassthrough::IsEndOfStreamPlayed() const {
 bool AudioRendererPassthrough::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   return can_accept_more_data_.load() &&
          decoded_audios_.size() < kMaxDecodedAudios;
 }
@@ -206,7 +207,7 @@ void AudioRendererPassthrough::Play() {
 
   SB_LOG(INFO) << "Play.";
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   paused_ = false;
 }
 
@@ -220,7 +221,7 @@ void AudioRendererPassthrough::Pause() {
 
   SB_LOG(INFO) << "Pause.";
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   paused_ = true;
 }
 
@@ -242,7 +243,7 @@ void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
   SB_LOG(INFO) << "Change playback rate from " << playback_rate_ << " to "
                << playback_rate << ".";
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -267,7 +268,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 
   CancelPendingJobs();
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
 
   can_accept_more_data_.store(true);
   prerolled_.store(false);
@@ -300,7 +301,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   *is_playing = !paused_;
   *is_eos_played = end_of_stream_played_.load();
   *is_underflow = false;  // TODO: Support underflow
@@ -323,7 +324,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = CurrentMonotonicTime();
-    SB_DCHECK(now >= stopped_at_);
+    SB_DCHECK_GE(now, stopped_at_);
     auto time_elapsed = now - stopped_at_;
     int64_t frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
@@ -407,7 +408,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   }
 
   {
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     audio_track_bridge_ = std::move(audio_track_bridge);
   }
 
@@ -428,7 +429,7 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   // Flushing of |audio_track_bridge_| and updating of |seek_to_time_| have to
   // be done together under lock to avoid |seek_to_time_| being added to a stale
   // playback head or vice versa in GetCurrentMediaTime().
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
 
   // We have to reuse |audio_track_bridge_| instead of creating a new one, to
   // reduce output mode switching between PCM and e/ac3.  Otherwise a noticeable
@@ -465,7 +466,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   AudioTrackState current_state;
 
   {
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     current_state.volume = volume_;
     current_state.paused = paused_;
     current_state.playback_rate = playback_rate_;
@@ -485,7 +486,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       audio_track_bridge_->Play();
       audio_track_paused_ = false;
       SB_LOG(INFO) << "Played on AudioTrack thread.";
-      std::scoped_lock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       stop_called_ = false;
     } else {
       audio_track_bridge_->Pause();
@@ -501,7 +502,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         SB_LOG(INFO) << "Prerolled due to end of stream.";
         prerolled_cb_();
       }
-      std::scoped_lock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       if (current_state.playing() && !stop_called_) {
         // TODO: Check if we can apply the same stop logic to non-passthrough.
         audio_track_bridge_->Stop();
@@ -604,7 +605,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   SB_DCHECK(decoded_audio);
 
   if (!decoded_audio->is_end_of_stream()) {
-    SB_DCHECK(decoded_audio->size_in_bytes() > 0);
+    SB_DCHECK_GT(decoded_audio->size_in_bytes(), 0);
     // We set |frames_per_input_buffer_| before adding first |decoded_audio|
     // into |decoded_audios_|. The usage of |frames_per_input_buffer_| in
     // UpdateStatusAndWriteData() from another thread only happens when there is
@@ -622,7 +623,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
     }
   }
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   decoded_audios_.push(decoded_audio);
 }
 

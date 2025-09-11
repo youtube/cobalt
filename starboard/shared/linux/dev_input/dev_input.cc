@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
@@ -628,7 +629,7 @@ bool IsBitSet(const std::vector<uint8_t>& bitset, int bit) {
 bool IsAxisFlat(int minimum_flat,
                 float rest_value,
                 const struct input_absinfo& axis_info) {
-  SB_DCHECK((axis_info.flat * 2) <= (axis_info.maximum - axis_info.minimum));
+  SB_DCHECK_LE((axis_info.flat * 2), (axis_info.maximum - axis_info.minimum));
   int flat = std::max(minimum_flat, axis_info.flat);
   return (flat != 0) && (axis_info.value > rest_value - flat) &&
          (axis_info.value < rest_value + flat);
@@ -797,7 +798,7 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     info.fd = fd;
     GetInputDeviceInfo(&info);
 
-    SB_DCHECK(info.fd != kInvalidFd);
+    SB_DCHECK_NE(info.fd, kInvalidFd);
     input_devices.push_back(info);
   }
 
@@ -902,8 +903,6 @@ void CloseFdSafely(FileDescriptor* fd) {
   }
 }
 
-// Also in starboard/shared/libevent/socket_waiter_internal.cc
-// TODO: Consider consolidating.
 int SetNonBlocking(FileDescriptor fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags == -1) {
@@ -937,12 +936,12 @@ void DevInputImpl::InitDevInputImpl(SbWindow window) {
   SB_DCHECK(result == 0) << "result=" << result;
 
   wakeup_read_fd_ = fds[0];
-  SB_DCHECK(wakeup_read_fd_ != kInvalidFd);
+  SB_DCHECK_NE(wakeup_read_fd_, kInvalidFd);
   result = SetNonBlocking(wakeup_read_fd_);
   SB_DCHECK(result == 0) << "result=" << result;
 
   wakeup_write_fd_ = fds[1];
-  SB_DCHECK(wakeup_write_fd_ != kInvalidFd);
+  SB_DCHECK_NE(wakeup_write_fd_, kInvalidFd);
   result = SetNonBlocking(wakeup_write_fd_);
   SB_DCHECK(result == 0) << "result=" << result;
 }
@@ -998,7 +997,7 @@ DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(int64_t duration) {
   if (read_set.IsSet(wakeup_read_fd_)) {
     char buf;
     int bytes_read = HANDLE_EINTR(read(wakeup_read_fd_, &buf, 1));
-    SB_DCHECK(bytes_read == 1);
+    SB_DCHECK_EQ(bytes_read, 1);
   }
 
   return PollNextSystemEvent();
@@ -1112,7 +1111,7 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
     const struct input_event& event,
     int modifiers,
     InputDeviceInfo* device_info) {
-  SB_DCHECK(event.type == EV_ABS);
+  SB_DCHECK_EQ(event.type, EV_ABS);
   SbKey key = kSbKeyUnknown;
   float axis_value = 0;
   float previous_axis_value = 0;
@@ -1266,8 +1265,8 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
     const struct input_event& event,
     int modifiers,
     InputDeviceInfo* device_info) {
-  SB_DCHECK(event.type == EV_KEY);
-  SB_DCHECK(event.value <= 2);
+  SB_DCHECK_EQ(event.type, EV_KEY);
+  SB_DCHECK_LE(event.value, 2);
 
   SbKey key = KeyCodeToSbKey(device_info->tuning
                                  ? device_info->tuning->GetKeyCode(event.code)

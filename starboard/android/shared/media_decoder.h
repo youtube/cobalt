@@ -184,7 +184,7 @@ class MediaDecoder final
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
-  Host* host_;
+  Host* const host_;
   DrmSystem* const drm_system_;
   const FrameRenderedCB frame_rendered_cb_;
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;

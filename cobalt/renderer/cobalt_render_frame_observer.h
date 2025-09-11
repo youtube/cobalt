@@ -17,6 +17,7 @@
 
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
+#include "starboard/extension/graphics.h"
 
 namespace cobalt {
 
@@ -30,16 +31,21 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver {
   CobaltRenderFrameObserver& operator=(const CobaltRenderFrameObserver&) =
       delete;
 
+  void DidMeaningfulLayout(
+      blink::WebMeaningfulLayout meaningful_layout) override;
+
  private:
   // content::RenderFrameObserver impl.
 
   // Overridden so that the observer has the same lifetime as the RenderFrame.
   void OnDestruct() override;
 
+#if defined(RUN_BROWSER_TESTS)
   // Overridden for Cobalt-specific responses to this particular notification.
   // See blink::WebLocalFrameClient.DidClearWindowObject() for details about
   // when it's sent.
   void DidClearWindowObject() override;
+#endif  // defined(RUN_BROWSER_TESTS)
 };
 
 }  // namespace cobalt

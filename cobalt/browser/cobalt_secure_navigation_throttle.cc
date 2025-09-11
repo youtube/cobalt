@@ -7,6 +7,10 @@
 #include "content/public/browser/navigation_handle.h"
 #include "net/http/http_response_headers.h"
 
+namespace {
+const char kSwitchValueTrue[] = "true";
+}
+
 namespace content {
 
 CobaltSecureNavigationThrottle::CobaltSecureNavigationThrottle(
@@ -44,13 +48,15 @@ CobaltSecureNavigationThrottle::WillProcessResponse() {
 
 bool CobaltSecureNavigationThrottle::ShouldEnforceHTTPS(
     const base::CommandLine& command_line) {
-  if (command_line.HasSwitch(cobalt::switches::kRequireHTTPS)) {
-    return true;
+  if (command_line.HasSwitch(cobalt::switches::kEnforceHTTPS)) {
+    return command_line.GetSwitchValueASCII(cobalt::switches::kEnforceHTTPS) ==
+           kSwitchValueTrue;
   }
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
-#endif  // COBALT_IS_OFFICIAL_BUILD
+#else   // COBALT_IS_RELEASE_BUILD
   return false;
+#endif  // COBALT_IS_RELEASE_BUILD
 }
 
 // Returns a Navigation ThrottleCheckResult based on
@@ -69,13 +75,15 @@ CobaltSecureNavigationThrottle::EnforceHTTPS() {
 
 bool CobaltSecureNavigationThrottle::ShouldEnforceCSP(
     const base::CommandLine& command_line) {
-  if (command_line.HasSwitch(cobalt::switches::kRequireCSP)) {
-    return true;
+  if (command_line.HasSwitch(cobalt::switches::kEnforceCSP)) {
+    return command_line.GetSwitchValueASCII(cobalt::switches::kEnforceCSP) ==
+           kSwitchValueTrue;
   }
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
-#endif  // COBALT_IS_OFFICIAL_BUILD
+#else   // COBALT_IS_RELEASE_BUILD
   return false;
+#endif  // COBALT_IS_RELEASE_BUILD
 }
 
 // Returns a Navigation ThrottleCheckResult based on the

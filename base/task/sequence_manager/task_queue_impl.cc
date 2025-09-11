@@ -539,6 +539,7 @@ void TaskQueueImpl::ScheduleDelayedWorkTask(Task pending_task) {
   TraceQueueSize();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void TaskQueueImpl::RecordQueuingDelayedTaskMetrics(const Task& pending_task,
                                                     LazyNow* lazy_now) {
   // The sampling depends on having a high-resolution clock.
@@ -566,6 +567,7 @@ void TaskQueueImpl::RecordQueuingDelayedTaskMetrics(const Task& pending_task,
         static_cast<int>(main_thread_only().delayed_incoming_queue.size()));
   }
 }
+#endif
 
 void TaskQueueImpl::ReloadEmptyImmediateWorkQueue() {
   DCHECK(main_thread_only().immediate_work_queue->Empty());

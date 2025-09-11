@@ -19,6 +19,7 @@
 #include <map>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -93,7 +94,7 @@ class JobQueue {
     enum DetachedState { kDetached };
 
     explicit JobOwner(DetachedState detached_state) : job_queue_(nullptr) {
-      SB_DCHECK(detached_state == kDetached);
+      SB_DCHECK_EQ(detached_state, kDetached);
     }
 
     // Allow |JobOwner| created on another thread to run on the current thread
@@ -101,7 +102,7 @@ class JobQueue {
     // Note that this operation is not thread safe.  It is the caller's
     // responsibility to ensure that concurrency hasn't happened yet.
     void AttachToCurrentThread() {
-      SB_DCHECK(job_queue_ == nullptr);
+      SB_DCHECK_EQ(job_queue_, nullptr);
       job_queue_ = JobQueue::current();
     }
 

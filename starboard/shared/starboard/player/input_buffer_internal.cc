@@ -20,6 +20,7 @@
 #include <sstream>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -54,7 +55,7 @@ std::string InputBuffer::ToString() const {
        << audio_stream_info().mime << "'\n";
     ss << audio_stream_info().samples_per_second << '\n';
   } else {
-    SB_DCHECK(sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type(), kSbMediaTypeVideo);
 
     ss << "codec: " << video_stream_info().codec << ", mime: '"
        << video_stream_info().mime << "'"
@@ -92,7 +93,7 @@ void InputBuffer::TryToAssignDrmSampleInfo(
     return;
   }
 
-  SB_DCHECK(sample_drm_info->subsample_count > 0);
+  SB_DCHECK_GT(sample_drm_info->subsample_count, 0);
 
   subsamples_.assign(
       sample_drm_info->subsample_mapping,

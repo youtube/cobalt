@@ -88,7 +88,7 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_) {
-  SB_DCHECK(host_);
+  SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
@@ -156,7 +156,7 @@ MediaDecoder::MediaDecoder(
 }
 
 MediaDecoder::~MediaDecoder() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
 
@@ -173,12 +173,11 @@ MediaDecoder::~MediaDecoder() {
     }
     // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
     media_codec_bridge_->Stop();
-    host_ = NULL;
   }
 }
 
 void MediaDecoder::Initialize(const ErrorCB& error_cb) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
@@ -190,7 +189,7 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
 }
 
 void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -204,7 +203,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (decoder_thread_ == 0) {
     pthread_create(&decoder_thread_, nullptr,
                    &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK(decoder_thread_ != 0);
+    SB_DCHECK_NE(decoder_thread_, 0);
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -219,7 +218,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void MediaDecoder::WriteEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
   ScopedLock scoped_lock(mutex_);
@@ -231,14 +230,14 @@ void MediaDecoder::WriteEndOfStream() {
 }
 
 void MediaDecoder::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_DCHECK(context);
+  SB_CHECK(context);
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
   if (decoder->media_type_ == kSbMediaTypeAudio) {
@@ -385,7 +384,7 @@ void MediaDecoder::DecoderThreadFunc() {
 }
 
 void MediaDecoder::TerminateDecoderThread() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
@@ -395,7 +394,7 @@ void MediaDecoder::TerminateDecoderThread() {
   }
 
   if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(decoder_thread_, nullptr), 0);
     decoder_thread_ = 0;
   }
 }
@@ -407,7 +406,6 @@ void MediaDecoder::CollectPendingData_Locked(
   SB_DCHECK(pending_inputs);
   SB_DCHECK(input_buffer_indices);
   SB_DCHECK(dequeue_output_results);
-  mutex_.DCheckAcquired();
 
   pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
                          pending_inputs_.end());
@@ -445,7 +443,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   bool input_buffer_already_written = false;
   if (pending_input_to_retry_) {
     dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
-    SB_DCHECK(dequeue_input_result.index >= 0);
+    SB_DCHECK_GE(dequeue_input_result.index, 0);
     pending_input = pending_input_to_retry_->pending_input;
     pending_input_to_retry_ = std::nullopt;
     input_buffer_already_written = true;
@@ -467,7 +465,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   const void* data = NULL;
   int size = 0;
   if (pending_input.type == PendingInput::kWriteCodecConfig) {
-    SB_DCHECK(media_type_ == kSbMediaTypeAudio);
+    SB_DCHECK_EQ(media_type_, kSbMediaTypeAudio);
     data = pending_input.codec_config.data();
     size = pending_input.codec_config.size();
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
@@ -503,7 +501,8 @@ bool MediaDecoder::ProcessOneInputBuffer(
       return false;
     }
 
-    SB_DCHECK(size >= 0 && size <= capacity);
+    SB_DCHECK_GE(size, 0);
+    SB_DCHECK_LE(size, capacity);
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     memcpy(address, data, size);
   }
@@ -547,7 +546,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
 }
 
 void MediaDecoder::HandleError(const char* action_name, jint status) {
-  SB_DCHECK(status != MEDIA_CODEC_OK);
+  SB_DCHECK_NE(status, MEDIA_CODEC_OK);
 
   bool retry = false;
 
@@ -655,7 +654,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     int64_t presentation_time_us,
     int size) {
   SB_DCHECK(media_codec_bridge_);
-  SB_DCHECK(buffer_index >= 0);
+  SB_DCHECK_GE(buffer_index, 0);
 
   // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
@@ -679,6 +678,10 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
 
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+  SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_width()
+               << "x" << frame_size.display_height();
+
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 
@@ -698,7 +701,7 @@ void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
 }
 
 bool MediaDecoder::Flush() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,

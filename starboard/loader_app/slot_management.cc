@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -37,6 +38,7 @@
 
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
+
 #include "third_party/jsoncpp/source/include/json/reader.h"
 #include "third_party/jsoncpp/source/include/json/value.h"
 
@@ -176,7 +178,7 @@ int RevertBack(int current_installation,
                bool mark_bad,
                SlotSelectionStatus status) {
   SB_LOG(INFO) << "RevertBack current_installation=" << current_installation;
-  SB_DCHECK(current_installation != 0);
+  SB_DCHECK_NE(current_installation, 0);
   if (mark_bad) {
     std::vector<char> installation_path(kSbFileMaxPath);
     if (ImGetInstallationPath(current_installation, installation_path.data(),

@@ -183,14 +183,10 @@ bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
 }
 
 void AudioSinkTestEnvironment::AppendFrame_Locked(int frames_to_append) {
-  mutex_.DCheckAcquired();
-
   frames_appended_ += frames_to_append;
 }
 
 int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames_Locked() const {
-  mutex_.DCheckAcquired();
-
   int frames_in_buffer = frames_appended_ - frames_consumed_;
   return frame_buffers_.frames_per_channel() - frames_in_buffer;
 }

@@ -18,8 +18,10 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -42,9 +44,9 @@ VideoRendererImpl::VideoRendererImpl(
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)) {
-  SB_DCHECK(decoder_ != NULL);
-  SB_DCHECK(algorithm_ != NULL);
-  SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
+  SB_CHECK(decoder_);
+  SB_CHECK(algorithm_);
+  SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
   SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
       << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."
@@ -147,7 +149,7 @@ void VideoRendererImpl::WriteEndOfStream() {
 
 void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(seek_to_time >= 0);
+  SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -171,8 +173,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
              preroll_timeout);
   }
 
-  ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-  ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+  std::scoped_lock lock(decoder_frames_mutex_, sink_frames_mutex_);
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
@@ -213,7 +214,7 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   // FilterBasedPlayerWorkerHandler::Stop() ensures that this function won't be
   // called right before VideoRenderer dtor is called and |decoder_| is set to
   // NULL inside the dtor.
-  SB_DCHECK(decoder_);
+  SB_CHECK(decoder_);
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   auto start = CurrentMonotonicTime();
@@ -241,8 +242,7 @@ void VideoRendererImpl::OnDecoderStatus(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
   if (status == VideoDecoder::kReleaseAllFrames) {
-    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-    ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+    std::scoped_lock scoped_lock(decoder_frames_mutex_, sink_frames_mutex_);
     decoder_frames_.clear();
     sink_frames_.clear();
     number_of_frames_.store(0);
@@ -272,7 +272,7 @@ void VideoRendererImpl::OnDecoderStatus(
         CheckForFrameLag(frame->timestamp());
       }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      ScopedLock scoped_lock(decoder_frames_mutex_);
+      std::lock_guard scoped_lock(decoder_frames_mutex_);
       if (decoder_frames_.empty() || frame->is_end_of_stream() ||
           frame->timestamp() > decoder_frames_.back()->timestamp()) {
         decoder_frames_.push_back(frame);
@@ -314,8 +314,8 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   {
-    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-    sink_frames_mutex_.Acquire();
+    std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
+    sink_frames_mutex_.lock();
     for (auto decoder_frame : decoder_frames_) {
       if (sink_frames_.empty()) {
         sink_frames_.push_back(decoder_frame);
@@ -340,7 +340,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);
   }
-  sink_frames_mutex_.Release();
+  sink_frames_mutex_.unlock();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   // Update this at last to ensure that the delay of Render() call isn't caused

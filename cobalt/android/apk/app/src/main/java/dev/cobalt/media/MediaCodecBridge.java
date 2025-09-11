@@ -70,6 +70,7 @@ class MediaCodecBridge {
 
   private static final int BITRATE_ADJUSTMENT_FPS = 30;
 
+  private final Object mNativeBridgeLock = new Object();
   private long mNativeMediaCodecBridge;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
@@ -437,7 +438,7 @@ class MediaCodecBridge {
         new MediaCodec.Callback() {
           @Override
           public void onError(MediaCodec codec, MediaCodec.CodecException e) {
-            synchronized (this) {
+            synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -451,7 +452,7 @@ class MediaCodecBridge {
 
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
-            synchronized (this) {
+            synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -462,7 +463,7 @@ class MediaCodecBridge {
           @Override
           public void onOutputBufferAvailable(
               MediaCodec codec, int index, MediaCodec.BufferInfo info) {
-            synchronized (this) {
+            synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -486,7 +487,7 @@ class MediaCodecBridge {
 
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
-            synchronized (this) {
+            synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
@@ -504,7 +505,7 @@ class MediaCodecBridge {
           new MediaCodec.OnFrameRenderedListener() {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
-              synchronized (this) {
+              synchronized (mNativeBridgeLock) {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
@@ -825,7 +826,7 @@ class MediaCodecBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private void resetNativeMediaCodecBridge() {
-    synchronized (this) {
+    synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
   }
@@ -1121,7 +1122,7 @@ class MediaCodecBridge {
           new MediaCodec.OnFirstTunnelFrameReadyListener() {
             @Override
             public void onFirstTunnelFrameReady(MediaCodec codec) {
-              synchronized (this) {
+              synchronized (mNativeBridgeLock) {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }

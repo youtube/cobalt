@@ -21,6 +21,7 @@
 #include <pthread.h>
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "starboard/common/condition_variable.h"
@@ -155,13 +156,9 @@ class SB_EXPORT_ANDROID Application {
   explicit Application(SbEventHandleCallback sb_event_handle_callback);
   virtual ~Application();
 
-  // Gets the current instance of the Application. DCHECKS if called before the
-  // application has been constructed.
-  static inline Application* Get() {
-    Application* instance = g_instance.load(std::memory_order_acquire);
-    SB_DCHECK(instance);
-    return instance;
-  }
+  // Gets the current instance of the Application. This method CHECK application
+  // instance is constructed.
+  static Application* Get();
 
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
@@ -287,7 +284,7 @@ class SB_EXPORT_ANDROID Application {
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
   void RegisterTeardownCallback(TeardownCallback callback) {
-    ScopedLock lock(callbacks_lock_);
+    std::lock_guard lock(callbacks_lock_);
     teardown_callbacks_.push_back(callback);
   }
 
@@ -425,9 +422,6 @@ class SB_EXPORT_ANDROID Application {
   // DispatchAndDelete().
   bool HandleEventAndUpdateState(Application::Event* event);
 
-  // The single application instance.
-  static std::atomic<Application*> g_instance;
-
   // The error_level set by the last call to Stop().
   int error_level_;
 
@@ -447,7 +441,7 @@ class SB_EXPORT_ANDROID Application {
   State state_;
 
   // Protect the teardown_callbacks_ vector.
-  Mutex callbacks_lock_;
+  std::mutex callbacks_lock_;
 
   // Callbacks that must be called when Teardown is called.
   std::vector<TeardownCallback> teardown_callbacks_;

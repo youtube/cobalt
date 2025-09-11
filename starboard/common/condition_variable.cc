@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
@@ -30,13 +31,13 @@ ConditionVariable::ConditionVariable(const Mutex& mutex)
   pthread_condattr_init(&attribute);
   pthread_condattr_setclock(&attribute, CLOCK_MONOTONIC);
 
-  int result = pthread_cond_init(&condition_, &attribute);
-  SB_DCHECK(result == 0);
+  [[maybe_unused]] int result = pthread_cond_init(&condition_, &attribute);
+  SB_DCHECK_EQ(result, 0);
 
   pthread_condattr_destroy(&attribute);
 #else
-  int result = pthread_cond_init(&condition_, nullptr);
-  SB_DCHECK(result == 0);
+  [[maybe_unused]] int result = pthread_cond_init(&condition_, nullptr);
+  SB_DCHECK_EQ(result, 0);
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 }
 
@@ -45,13 +46,10 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() const {
-  mutex_->debugSetReleased();
   pthread_cond_wait(&condition_, mutex_->mutex());
-  mutex_->debugSetAcquired();
 }
 
 bool ConditionVariable::WaitTimed(int64_t duration) const {
-  mutex_->debugSetReleased();
   if (duration < 0) {
     duration = 0;
   }
@@ -76,7 +74,6 @@ bool ConditionVariable::WaitTimed(int64_t duration) const {
 
   bool was_signaled =
       pthread_cond_timedwait(&condition_, mutex_->mutex(), &timeout) == 0;
-  mutex_->debugSetAcquired();
   return was_signaled;
 }
 

@@ -24,6 +24,7 @@
 #include <queue>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -171,7 +172,7 @@ bool SbMicrophoneImpl::StartRecording() {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
     {
-      std::scoped_lock lock(delivered_queue_mutex_);
+      std::lock_guard lock(delivered_queue_mutex_);
       delivered_queue_.push(buffer);
     }
     SLresult result =
@@ -250,7 +251,7 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
   int read_bytes = 0;
   std::unique_ptr<int16_t> buffer;
   {
-    std::scoped_lock lock(ready_queue_mutex_);
+    std::lock_guard lock(ready_queue_mutex_);
     // Go through the ready queue, reading and sending audio data.
     while (!ready_queue_.empty() &&
            audio_data_size - read_bytes >= kBufferSizeInBytes) {
@@ -281,7 +282,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer(
 void SbMicrophoneImpl::SwapAndPublishBuffer() {
   int16_t* buffer = nullptr;
   {
-    std::scoped_lock lock(delivered_queue_mutex_);
+    std::lock_guard lock(delivered_queue_mutex_);
     if (!delivered_queue_.empty()) {
       // The front item in the delivered queue already has the buffered data, so
       // move it from the delivered queue to the ready queue for future reads.
@@ -291,7 +292,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
   }
 
   if (buffer != NULL) {
-    std::scoped_lock lock(ready_queue_mutex_);
+    std::lock_guard lock(ready_queue_mutex_);
     ready_queue_.push(buffer);
   }
 
@@ -299,7 +300,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
     {
-      std::scoped_lock lock(delivered_queue_mutex_);
+      std::lock_guard lock(delivered_queue_mutex_);
       delivered_queue_.push(buffer);
     }
     SLresult result =
@@ -456,7 +457,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   }
 
   {
-    std::scoped_lock lock(delivered_queue_mutex_);
+    std::lock_guard lock(delivered_queue_mutex_);
     while (!delivered_queue_.empty()) {
       delete[] delivered_queue_.front();
       delivered_queue_.pop();
@@ -464,7 +465,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   }
 
   {
-    std::scoped_lock lock(ready_queue_mutex_);
+    std::lock_guard lock(ready_queue_mutex_);
     while (!ready_queue_.empty()) {
       delete[] ready_queue_.front();
       ready_queue_.pop();
@@ -542,7 +543,7 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
     return;
   }
 
-  SB_DCHECK(s_microphone == microphone);
+  SB_DCHECK_EQ(s_microphone, microphone);
   s_microphone->Close();
 
   delete s_microphone;

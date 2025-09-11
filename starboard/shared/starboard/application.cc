@@ -17,6 +17,7 @@
 #include <atomic>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -58,12 +59,13 @@ void DeleteStartData(void* data) {
   delete start_data;
 }
 
-}  // namespace
+// The single application instance.
+std::atomic<Application*> g_instance = nullptr;
 
 // The next event ID to use for Schedule().
 volatile std::atomic<int32_t> g_next_event_id{0};
 
-std::atomic<Application*> Application::g_instance{NULL};
+}  // namespace
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
@@ -73,19 +75,23 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       sb_event_handle_callback_(sb_event_handle_callback) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance = NULL;
-  g_instance.compare_exchange_weak(old_instance, this,
-                                   std::memory_order_acquire);
-  SB_DCHECK(!old_instance);
+  Application* expected = nullptr;
+  SB_CHECK(g_instance.compare_exchange_strong(expected,
+                                              /*desired=*/this,
+                                              std::memory_order_acq_rel));
 }
 
 Application::~Application() {
-  Application* old_instance = this;
-  g_instance.compare_exchange_weak(old_instance, NULL,
-                                   std::memory_order_acquire);
-  SB_DCHECK(old_instance);
-  SB_DCHECK(old_instance == this);
+  Application* expected = this;
+  SB_CHECK(g_instance.compare_exchange_strong(expected, /*desired=*/nullptr,
+                                              std::memory_order_acq_rel));
   free(start_link_);
+}
+
+Application* Application::Get() {
+  Application* instance = g_instance.load(std::memory_order_acquire);
+  SB_CHECK(instance);
+  return instance;
 }
 
 int Application::Run(CommandLine command_line, const char* link_data) {
@@ -218,13 +224,13 @@ void Application::SetStartLink(const char* start_link) {
 
 void Application::DispatchStart(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
-  SB_DCHECK(state_ == kStateUnstarted);
+  SB_DCHECK_EQ(state_, kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
 }
 
 void Application::DispatchPreload(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
-  SB_DCHECK(state_ == kStateUnstarted);
+  SB_DCHECK_EQ(state_, kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
 }
 
@@ -414,51 +420,51 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
 
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
-      SB_DCHECK(state() == kStateUnstarted);
+      SB_DCHECK_EQ(state(), kStateUnstarted);
       state_ = kStateConcealed;
       break;
     case kSbEventTypeStart:
-      SB_DCHECK(state() == kStateUnstarted);
+      SB_DCHECK_EQ(state(), kStateUnstarted);
       state_ = kStateStarted;
       break;
     case kSbEventTypeBlur:
-      SB_DCHECK(state() == kStateStarted);
+      SB_DCHECK_EQ(state(), kStateStarted);
       state_ = kStateBlurred;
       break;
     case kSbEventTypeFocus:
-      SB_DCHECK(state() == kStateBlurred);
+      SB_DCHECK_EQ(state(), kStateBlurred);
       state_ = kStateStarted;
       break;
     case kSbEventTypeConceal:
-      SB_DCHECK(state() == kStateBlurred);
+      SB_DCHECK_EQ(state(), kStateBlurred);
       state_ = kStateConcealed;
       break;
     case kSbEventTypeReveal:
-      SB_DCHECK(state() == kStateConcealed);
+      SB_DCHECK_EQ(state(), kStateConcealed);
       state_ = kStateBlurred;
       break;
     case kSbEventTypeFreeze:
-      SB_DCHECK(state() == kStateConcealed);
+      SB_DCHECK_EQ(state(), kStateConcealed);
       state_ = kStateFrozen;
       break;
     case kSbEventTypeUnfreeze:
-      SB_DCHECK(state() == kStateFrozen);
+      SB_DCHECK_EQ(state(), kStateFrozen);
       state_ = kStateConcealed;
       break;
     case kSbEventTypeStop:
-      SB_DCHECK(state() == kStateFrozen);
+      SB_DCHECK_EQ(state(), kStateFrozen);
       state_ = kStateStopped;
       return false;
     default:
       break;
   }
   // Should not be unstarted after the first event.
-  SB_DCHECK(state() != kStateUnstarted);
+  SB_DCHECK_NE(state(), kStateUnstarted);
   return true;
 }
 
 void Application::CallTeardownCallbacks() {
-  ScopedLock lock(callbacks_lock_);
+  std::lock_guard lock(callbacks_lock_);
   for (size_t i = 0; i < teardown_callbacks_.size(); ++i) {
     teardown_callbacks_[i]();
   }

@@ -20,7 +20,7 @@ import json
 import logging
 import os
 import sys
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
 
 import grpc
 import on_device_tests_gateway_pb2
@@ -30,40 +30,62 @@ _WORK_DIR = '/on_device_tests_gateway'
 
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
     'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
+
 # When testing with local gateway, uncomment:
-# _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
+#_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = 'localhost'
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
 _DIR_ON_DEVICE = '/sdcard/Download'
 _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
-# Any test run that fails due to infra error will be retried.
-_DEFAULT_RETRY_LEVEL = 'ERROR'
+_DIR_ON_DEV_MAP = {
+    'android': '/sdcard/Download',
+    'raspi': '/home/pi/test/results',
+    'rdk': '/home/rdk/test/results',
+}
+
+_DEPS_ARCH_MAP = {
+    'android': '/sdcard/chromium_tests_root/deps.tar.gz',
+    'raspi': '/home/pi/test/',
+    'rdk': '/home/rdk/test/',
+}
+
+# This is needed because driver expects cobalt.apk, but we publish
+# Cobalt.apk
+_E2E_DEFAULT_YT_BINARY_NAME = 'Cobalt'
 
 
-class OnDeviceTestsGatewayClient():
+class OnDeviceTestsGatewayClient:
   """On-device tests Gateway Client class."""
 
   def __init__(self):
     self.channel = grpc.insecure_channel(
         target=f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}',  # pylint:disable=line-too-long
         # These options need to match server settings.
-        options=[('grpc.keepalive_time_ms', 10000),
-                 ('grpc.keepalive_timeout_ms', 5000),
-                 ('grpc.keepalive_permit_without_calls', 1),
-                 ('grpc.http2.max_pings_without_data', 0),
-                 ('grpc.http2.min_time_between_pings_ms', 10000),
-                 ('grpc.http2.min_ping_interval_without_data_ms', 5000)])
+        options=[
+            ('grpc.keepalive_time_ms', 10000),
+            ('grpc.keepalive_timeout_ms', 5000),
+            ('grpc.keepalive_permit_without_calls', 1),
+            ('grpc.http2.max_pings_without_data', 0),
+            ('grpc.http2.min_time_between_pings_ms', 10000),
+            ('grpc.http2.min_ping_interval_without_data_ms', 5000),
+        ],
+    )
     self.stub = on_device_tests_gateway_pb2_grpc.on_device_tests_gatewayStub(
         self.channel)
 
-  def run_trigger_command(self, token: str, labels: List[str], test_requests):
+  def run_trigger_command(self, token: str, labels: List[str],
+                          test_requests: List[Dict[str, Any]]) -> None:
     """Calls On-Device Tests service and passing given parameters to it.
 
     Args:
-        args (Namespace): Arguments passed in command line.
+        token: Authentication token.
+        labels: List of labels to assign to the test.
         test_requests (list): A list of test requests.
+
+    Returns:
+        None.
     """
     for response_line in self.stub.exec_command(
         on_device_tests_gateway_pb2.OnDeviceTestsCommand(
@@ -74,11 +96,15 @@ class OnDeviceTestsGatewayClient():
 
       print(response_line.response)
 
-  def run_watch_command(self, token: str, session_id: str):
+  def run_watch_command(self, token: str, session_id: str) -> None:
     """Calls On-Device Tests watch service and passing given parameters to it.
 
     Args:
-        args (Namespace): Arguments passed in command line.
+        token: Authentication token.
+        session_id: Session ID of a previously triggered Mobile Harness test.
+
+    Returns:
+        None.
     """
     for response_line in self.stub.exec_watch_command(
         on_device_tests_gateway_pb2.OnDeviceTestsWatchCommand(
@@ -89,7 +115,41 @@ class OnDeviceTestsGatewayClient():
       print(response_line.response)
 
 
-def _get_gtest_filter(filter_json_dir, target_name):
+def _get_test_args_and_dimensions(
+    args: argparse.Namespace,
+) -> Tuple[List[str], Optional[str], Optional[str]]:
+  """Prepares test_args, device_type and device_pool based on args."""
+
+  test_args = [
+      f'job_timeout_sec={args.job_timeout_sec}',
+      f'test_timeout_sec={args.test_timeout_sec}',
+      f'start_timeout_sec={args.start_timeout_sec}',
+      f'retry_level={args.retry_level}',
+  ]
+
+  if args.test_attempts:
+    test_args.extend([
+        f'test_attempts={args.test_attempts}',
+    ])
+
+  device_type = None
+  device_pool = None
+
+  if args.dimensions:
+    try:
+      dimensions = json.loads(args.dimensions)
+    except json.JSONDecodeError as e:
+      raise ValueError(f'--dimensions is not in JSON format: {e}') from e
+    device_type = dimensions.pop('device_type', None)
+    device_pool = dimensions.pop('device_pool', None)
+
+    test_args.extend(
+        [f'dimension_{key}={value}' for key, value in dimensions.items()])
+
+  return test_args, device_type, device_pool
+
+
+def _get_gtest_filter(filter_json_dir: str, target_name: str) -> str:
   """Retrieves gtest filters for a given target.
 
   Args:
@@ -110,80 +170,98 @@ def _get_gtest_filter(filter_json_dir, target_name):
   return gtest_filter
 
 
-def _process_test_requests(args):
-  """Processes test requests from the given arguments.
-
-  Constructs a list of test requests based on the provided arguments,
-  including test arguments, command arguments, files, parameters,
-  and device information.
-
-  Args:
-      args: The parsed command-line arguments.
-
-  Returns:
-      A list of test request dictionaries.
-  """
-  test_requests = []
-
-  for gtest_target in args.targets.split(','):
-    _, target_name = gtest_target.split(':')
-
-    gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-    if gtest_filter == '-*':
-      print(f'Skipping {target_name} due to test filter.')
-      continue
-    command_line_args = ' '.join([
-        f'--gtest_output=xml:{_DIR_ON_DEVICE}/{target_name}_testoutput.xml',
-        f'--gtest_filter={gtest_filter}',
-    ])
-    test_cmd_args = [f'command_line_args={command_line_args}']
-
-    tests_args = [
-        f'job_timeout_sec={args.job_timeout_sec}',
-        f'test_timeout_sec={args.test_timeout_sec}',
-        f'start_timeout_sec={args.start_timeout_sec}'
-    ]
-    if args.test_attempts:
-      tests_args.append(f'test_attempts={args.test_attempts}')
-      tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
-
-    if args.dimensions:
-      dimensions = json.loads(args.dimensions)
-      # Pop mandatory dimensions for special handling.
-      device_type = dimensions.pop('device_type')
-      device_pool = dimensions.pop('device_pool')
-      tests_args += [f'dimension_{key}={value}' for key, value in dimensions]
-    else:
-      raise RuntimeError('Dimensions not specified: device_type, device_pool')
-
-    files = [
+def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
+  """Builds the list of files for a unit test request."""
+  if args.device_family == 'android':
+    return [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'build_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
-
-    params = []
-    if args.gcs_result_path:
-      params.append(f'gcs_result_path={args.gcs_result_path}')
-    if args.test_attempts:
-      # Must delete existing results when retries are enabled.
-      params.append('gcs_delete_before_upload=true')
-    params += [
-        f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}',
-        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{target_name}_testoutput.xml',  # pylint:disable=line-too-long
-        f'gcs_result_filename={target_name}_testoutput.xml',
-        f'gcs_log_filename={target_name}_log.txt'
+  elif args.device_family in ['rdk', 'raspi']:
+    return [
+        f'bin={args.gcs_archive_path}/{target_name}_loader',
+        f'test_runtime_deps={args.gcs_archive_path}/deps.tar.gz',
     ]
+  else:
+    raise ValueError(f'Unsupported device family: {args.device_family}')
+
+
+def _unit_test_params(args: argparse.Namespace, target_name: str,
+                      dir_on_device: str) -> List[str]:
+  """Builds the list of params for a unit test request."""
+  runtime_deps = _DEPS_ARCH_MAP.get(args.device_family, '')
+  params = [
+      f'push_files=test_runtime_deps:{runtime_deps}',
+      f'gtest_xml_file_on_device={dir_on_device}/{target_name}_testoutput.xml',
+      f'gcs_result_filename={target_name}_testoutput.xml',
+      f'gcs_log_filename={target_name}_log.txt',
+  ]
+  if args.gcs_result_path:
+    params.append(f'gcs_result_path={args.gcs_result_path}')
+  if args.test_attempts:
+    # Must delete existing results when retries are enabled.
+    params.append('gcs_delete_before_upload=true')
+  return params
+
+
+def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
+  """Builds the list of test requests based on the test type."""
+  test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
+  test_requests = []
+
+  try:
+    targets = json.loads(args.targets)
+  except json.JSONDecodeError as e:
+    raise ValueError(f'--targets is not in JSON format: {e}') from e
+
+  for target_data in targets:
+
+    if args.test_type == 'unit_test':
+      if not device_type or not device_pool:
+        raise ValueError('Dimensions not specified: device_type, device_pool')
+      test_target = target_data
+      target_name = test_target.split(':')[-1]
+      gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
+      if gtest_filter == '-*':
+        print(f'Skipping {target_name} due to test filter.')
+        continue
+      if args.test_attempts:
+        test_args.extend([f'test_attempts={args.test_attempts}'])
+      dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
+      command_line_args = ' '.join([
+          f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
+          f'--gtest_filter={gtest_filter}',
+      ])
+      test_cmd_args = [f'command_line_args={command_line_args}']
+      files = _unit_test_files(args, target_name)
+      params = _unit_test_params(args, target_name, dir_on_device)
+
+    elif args.test_type == 'e2e_test':
+      test_target = target_data['target']
+      test_attempts = target_data.get('test_attempts', '')
+      if test_attempts:
+        test_args.extend([f'test_attempts={test_attempts}'])
+      elif args.test_attempts:
+        test_args.extend([f'test_attempts={args.test_attempts}'])
+      test_cmd_args = []
+      files = [f'cobalt_path={args.cobalt_path}']
+      params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+
+    else:
+      raise ValueError(f'Unsupported test type: {args.test_type}')
 
     test_requests.append({
         'device_type': device_type,
         'device_pool': device_pool,
         'test_cmd_args': test_cmd_args,
-        'test_args': tests_args,
+        'test_args': test_args,
         'files': files,
         'params': params,
-        'test_target': gtest_target,
+        'test_target': test_target,
+        'test_type': args.test_type,
     })
+
   return test_requests
 
 
@@ -192,39 +270,11 @@ def main() -> int:
 
   logging.basicConfig(
       level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s')
+
   print('Starting main routine')
-  print('')
 
   parser = argparse.ArgumentParser(
       description='Client for interacting with the On-Device Tests gateway.',
-      epilog=('Example:'
-              'python3 -u cobalt/tools/on_device_tests_gateway_client.py'
-              '--platform_json "${GITHUB_WORKSPACE}/src/.github/config/'
-              '${{ matrix.platform}}.json"'
-              '--filter_json_dir "${GITHUB_WORKSPACE}/src/cobalt/testing/'
-              '${{ matrix.platform}}"'
-              '--token ${GITHUB_TOKEN}'
-              '--label builder-${{ matrix.platform }}'
-              '--label builder_url-${GITHUB_RUN_URL}'
-              '--label github'
-              '--label ${GITHUB_EVENT_NAME}'
-              '--label ${GITHUB_WORKFLOW}'
-              '--label actor-${GITHUB_ACTOR}'
-              '--label actor_id-${GITHUB_ACTOR_ID}'
-              '--label triggering_actor-${GITHUB_TRIGGERING_ACTOR}'
-              '--label sha-${GITHUB_SHA}'
-              '--label repository-${GITHUB_REPO}'
-              '--label author-${GITHUB_PR_HEAD_USER_LOGIN:-'
-              '$GITHUB_COMMIT_AUTHOR_USERNAME}'
-              '--label author_id-${GITHUB_PR_HEAD_USER_ID:-'
-              '$GITHUB_COMMIT_AUTHOR_EMAIL}'
-              '--dimension host_name=regex:maneki-mhserver-05.*'
-              '${DIMENSION:+"--dimension" "$DIMENSION"}'
-              '${TEST_ATTEMPTS:+"--test_attempts" '
-              '"$TEST_ATTEMPTS"}'
-              '--gcs_archive_path "${GCS_ARTIFACTS_PATH}"'
-              '--gcs_result_path "${GCS_RESULTS_PATH}"'
-              'trigger'),
       formatter_class=argparse.RawDescriptionHelpFormatter,
   )
 
@@ -246,73 +296,101 @@ def main() -> int:
       formatter_class=argparse.ArgumentDefaultsHelpFormatter,
   )
 
-  # Group trigger arguments
-  trigger_args = trigger_parser.add_argument_group('Trigger Arguments')
-  trigger_parser.add_argument(
+  # --- Common Trigger Arguments ---
+  trigger_args = trigger_parser.add_argument_group('Common Trigger Arguments')
+  trigger_args.add_argument(
+      '--test_type',
+      type=str,
+      required=True,
+      choices=['unit_test', 'e2e_test'],
+      help='Type of test to run.',
+  )
+  trigger_args.add_argument(
+      '--device_family',
+      type=str,
+      choices=['android', 'raspi', 'rdk'],
+      help='Family of device to run tests on.',
+  )
+  trigger_args.add_argument(
       '--targets',
       type=str,
+      help='List of targets to test in JSON format.',
       required=True,
-      help='List of targets to test, comma separated. Must be fully qualified '
-      'ninja target.',
   )
-  trigger_parser.add_argument(
-      '--filter_json_dir',
-      type=str,
-      required=True,
-      help='Directory containing filter JSON files for test selection.',
-  )
-  trigger_parser.add_argument(
+  trigger_args.add_argument(
       '-l',
       '--label',
       type=str,
       action='append',
       help='Additional labels to assign to the test.',
   )
-  trigger_parser.add_argument(
+  trigger_args.add_argument(
+      '--test_attempts',
+      type=str,
+      help='The maximum number of times a test can retry.',
+  )
+  trigger_args.add_argument(
+      '--retry_level',
+      type=str,
+      default='ERROR',
+      choices=['ERROR', 'FAIL'],
+      help='Retry level for failed tests.',
+  )
+  trigger_args.add_argument(
       '--dimensions',
       type=str,
       help='On-Device Tests dimensions as JSON key-values.',
   )
-  trigger_parser.add_argument(
-      '--test_attempts',
-      type=str,
-      default='3',
-      help='The maximum number of times a test can retry.',
-  )
   trigger_args.add_argument(
-      '-a',
-      '--gcs_archive_path',
-      type=str,
-      required=True,
-      help='Path to Chrobalt archive to be tested. Must be on GCS.',
-  )
-  trigger_parser.add_argument(
-      '--gcs_result_path',
-      type=str,
-      help='GCS URL where test result files should be uploaded.',
-  )
-  trigger_parser.add_argument(
       '--job_timeout_sec',
       type=str,
       default='1800',
       help='Timeout in seconds for the job (default: 1800 seconds).',
   )
-  trigger_parser.add_argument(
+  trigger_args.add_argument(
       '--test_timeout_sec',
       type=str,
       default='1800',
       help='Timeout in seconds for the test (default: 1800 seconds).',
   )
-  trigger_parser.add_argument(
+  trigger_args.add_argument(
       '--start_timeout_sec',
       type=str,
       default='900',
       help='Timeout in seconds for the test to start (default: 900 seconds).',
   )
 
+  # --- Unit Test Arguments ---
+  unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
+  unit_test_group.add_argument(
+      '--filter_json_dir',
+      type=str,
+      help='Directory containing filter JSON files for test selection.',
+  )
+  unit_test_group.add_argument(
+      '-a',
+      '--gcs_archive_path',
+      type=str,
+      help='Path to Cobalt archive to be tested. Must be on GCS.',
+  )
+  unit_test_group.add_argument(
+      '--gcs_result_path',
+      type=str,
+      help='GCS URL where test result files should be uploaded.',
+  )
+
+  # --- E2E Test Arguments ---
+  e2e_test_group = trigger_parser.add_argument_group('E2E Test Arguments')
+  e2e_test_group.add_argument(
+      '--cobalt_path',
+      type=str,
+      help='Path to Cobalt apk.',
+  )
+
   # Watch command
   watch_parser = subparsers.add_parser(
       'watch', help='Watch a previously triggered On-Device test')
+
   watch_parser.add_argument(
       'session_id',
       type=str,
@@ -321,9 +399,24 @@ def main() -> int:
   )
 
   args = parser.parse_args()
-  test_requests = _process_test_requests(args)
 
+  # TODO(b/428961033): Let argparse handle these checks as required arguments.
+  if args.test_type == 'e2e_test':
+    if not args.cobalt_path:
+      raise ValueError('--cobalt_path is required for e2e_test')
+  elif args.test_type == 'unit_test':
+    if not args.device_family:
+      raise ValueError('--device_family is required for unit_test')
+    if not args.gcs_archive_path:
+      raise ValueError('--gcs_archive_path is required for unit_test')
+    if not args.gcs_result_path:
+      raise ValueError('--gcs_result_path is required for unit_test')
+    if not args.filter_json_dir:
+      raise ValueError('--filter_json_dir is required for unit_test')
+
+  test_requests = _process_test_requests(args)
   client = OnDeviceTestsGatewayClient()
+
   try:
     if args.action == 'trigger':
       client.run_trigger_command(args.token, args.label, test_requests)

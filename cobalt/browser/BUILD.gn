@@ -16,7 +16,7 @@ import("//starboard/build/buildflags.gni")
 
 source_set("browser") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # content_shell_lib.
+  # cobalt_shell_lib.
   testonly = true
 
   sources = [
@@ -41,13 +41,16 @@ source_set("browser") {
     ]
   }
 
+  public_deps = [ "//content/public/browser" ]
+
   deps = [
-    ":cobalt_experiment_names",
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
+    "//cobalt/android/oom_intervention",
     "//cobalt/browser:switches",
     "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
@@ -63,21 +66,18 @@ source_set("browser") {
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
+    "//cobalt/common/features",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
+    "//cobalt/shell:cobalt_shell_lib",
     "//components/js_injection/browser:browser",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
-    "//components/variations",
     "//components/variations/service:service",
-    "//content/public/browser",
-    "//starboard($starboard_toolchain)",
-
-    # TODO(b/390021478): Do not depend on content_shell_lib here.
-    "//content/shell:content_shell_lib",
+    "//starboard:starboard_group",
   ]
 
   if (!cobalt_is_release_build) {
@@ -126,16 +126,19 @@ source_set("global_features") {
   testonly = true
 
   sources = [
+    "experiments/experiment_config_manager.cc",
+    "experiments/experiment_config_manager.h",
     "global_features.cc",
     "global_features.h",
   ]
   deps = [
-    ":cobalt_experiment_names",
     ":metrics",
     "//base",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
+    "//components/variations",
   ]
 }
 
@@ -156,18 +159,14 @@ source_set("metrics") {
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/shell:cobalt_shell_lib",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
-    "//content/shell:content_shell_lib",
     "//third_party/metrics_proto",
     "//url",
   ]
-}
-
-source_set("cobalt_experiment_names") {
-  sources = [ "cobalt_experiment_names.h" ]
 }

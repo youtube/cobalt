@@ -50,6 +50,12 @@ source_set("browser") {
     "//content/test/fuzzer:indexed_db_fuzzer_support",
     "//content/test/fuzzer:media_stream_dispatcher_host_mojolpm_fuzzer",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
 
   configs += [
     "//build/config:precompiled_headers",
@@ -3373,6 +3379,12 @@ group("for_content_tests") {
     "//content/test/*",
     "//content/web_test:web_test_browser",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
   if (!is_component_build) {
     public_deps = [ ":browser" ]
   } else {
