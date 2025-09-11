@@ -57,6 +57,7 @@ using testing::Return;
 
 namespace blink {
 
+#if !BUILDFLAG(IS_COBALT)
 namespace {
 
 constexpr char kTestResourceFilename[] = "white-1x1.png";
@@ -2033,4 +2034,5 @@ TEST_F(ContextMenuControllerRemoteParentFrameTest, ShowContextMenuInChild) {
   EXPECT_EQ(kPoint, host_context_menu_location.value());
 }
 
+#endif
 }  // namespace blink
