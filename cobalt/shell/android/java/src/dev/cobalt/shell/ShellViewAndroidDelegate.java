@@ -16,7 +16,7 @@ package dev.cobalt.shell;
 
 import android.graphics.Bitmap;
 import android.view.ViewGroup;
-import org.chromium.ui.base.ViewAndroidDelegate;
+import dev.cobalt.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.mojom.CursorType;
 
 /**
