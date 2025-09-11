@@ -20,7 +20,7 @@
 // RDK build on CI still defines GetHomeDirectory in the legacy
 // `starboard::shared::starboard` namespace. See:
 // https://source.corp.google.com/h/lbshell-internal/cobalt_src/+/25.lts.1+:starboard/contrib/rdk/src/third_party/starboard/rdk/shared/get_home_directory.cc;l=1?q=rdk%2Fshared%2Fget_home_directory.cc
-// TODO: b/441955897 - Remove this nested namespace once the CI RDK build is
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
 // updated.
 namespace starboard::shared::starboard {
 

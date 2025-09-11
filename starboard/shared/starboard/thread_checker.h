@@ -75,9 +75,9 @@ class ThreadChecker {
 
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-// Aliases not to break CI tests.
+// Alias to prevent breaking the RDK build on CI.
 // See https://paste.googleplex.com/4776103591936000
-// TODO: b/441955897 - Update CI test to use flattened namespace.
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
 namespace shared::starboard {
 using ThreadChecker = ::starboard::ThreadChecker;
 }

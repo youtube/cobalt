@@ -19,9 +19,9 @@ namespace starboard {
 
 const void* GetLoaderAppMetricsApi();
 
-// Aliases not to break CI tests.
+// Alias to prevent breaking the RDK build on CI.
 // See https://paste.googleplex.com/6310485490270208
-// TODO: b/441955897 - Update CI test to use flattened namespace.
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
 namespace shared::starboard {
 using ::starboard::GetLoaderAppMetricsApi;
 }
