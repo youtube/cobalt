@@ -39,15 +39,15 @@ void TestPerformanceOfFunction(const char* const name_of_f,
   // Measure time pre calls to |f|.
   const int64_t time_start = CurrentMonotonicTime();
 
-  SbLogPriority initial_log_level = starboard::logging::GetMinLogLevel();
-  starboard::logging::SetMinLogLevel(kSbLogPriorityFatal);
+  SbLogPriority initial_log_level = GetMinLogLevel();
+  SetMinLogLevel(kSbLogPriorityFatal);
 
   // Call |f| |count_calls| times.
   for (size_t i = 0; i < count_calls; ++i) {
     f(args...);
   }
 
-  starboard::logging::SetMinLogLevel(initial_log_level);
+  SetMinLogLevel(initial_log_level);
 
   // Measure time post calls to |f|.
   const int64_t time_last = CurrentMonotonicTime();

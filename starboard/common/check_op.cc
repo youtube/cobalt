@@ -22,7 +22,7 @@
 
 // Copied from base/check_op.cc.
 
-namespace starboard::logging {
+namespace starboard {
 
 char* CheckOpValueStr(int v) {
   char buf[50];
@@ -102,4 +102,4 @@ LogMessage* CheckOpResult::CreateLogMessage(const char* file,
   return log_message;
 }
 
-}  // namespace starboard::logging
+}  // namespace starboard
