@@ -17,20 +17,20 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // A platform implementation of getting the home directory. A return value of
 // false indicates that the platform doesn't have a concept of a home directory
 // and that custom logic may be needed in |SbSystemGetPath| to determine
 // appropriate system paths that may normally be stored under a home directory.
-bool GetHomeDirectory(char* out_path, int path_size);
-
-// Aliases not to break CI tests.
-namespace shared::starboard {
+//
+// NOTE: evergreen-arm-hardfp-rdk test on CI is using the previous version of
+// starboard, so that we have to GetHomeDirectory() in
+// starboard::shared::starboard
 // https://source.corp.google.com/h/lbshell-internal/cobalt_src/+/25.lts.1+:starboard/contrib/rdk/src/third_party/starboard/rdk/shared/get_home_directory.cc;l=1?q=rdk%2Fshared%2Fget_home_directory.cc
+// TODO: b/441955897 - Update rdk CI tests.
 bool GetHomeDirectory(char* out_path, int path_size);
-}  // namespace shared::starboard
 
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_
