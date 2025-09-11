@@ -37,7 +37,7 @@ namespace starboard {
 // memory and we would like to wrap it in an allocator.
 class FixedNoFreeAllocator : public Allocator {
  public:
-  // Requires aligned memory to at least |starboard::common::kMinAlignment|.
+  // Requires aligned memory to at least |starboard::kMinAlignment|.
   FixedNoFreeAllocator(void* memory_start, size_t memory_size);
   void* Allocate(size_t size) { return Allocate(&size, 1, true); }
 

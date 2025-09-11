@@ -43,8 +43,8 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
       command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent);
   std::string ca_certificates_path =
       evergreen_content_path.empty()
-          ? starboard::common::GetCACertificatesPath()
-          : starboard::common::GetCACertificatesPath(evergreen_content_path);
+          ? starboard::GetCACertificatesPath()
+          : starboard::GetCACertificatesPath(evergreen_content_path);
   if (ca_certificates_path.empty()) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
   }
