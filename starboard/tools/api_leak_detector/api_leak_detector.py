@@ -547,6 +547,7 @@ def main():
   args = ParseArgs()
   config_dir = f'{args.platform}_{args.config}'
   config_path = os.path.join(paths.BUILD_OUTPUT_ROOT, config_dir)
+  obj_path = os.path.join(config_path, 'obj')
   manifest_path = os.path.join(
       os.path.dirname(__file__), args.relative_manifest_path)
 
@@ -617,7 +618,7 @@ def main():
     introduced, removed = DiffWithManifest(leaked_symbols, manifest_path)
     if introduced:
       PrettyPrint(
-          {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
+          {'Leaks introduced:': FindLeakLocations(introduced, obj_path)})
       print(
           '\nPlease see advice for addressing new leaks at go/cobalt-api-leaks.'
       )
@@ -636,7 +637,7 @@ def main():
 
   if args.inspect:
     if leaked_symbols:
-      PrettyPrint(FindLeakLocations(leaked_symbols, config_path))
+      PrettyPrint(FindLeakLocations(leaked_symbols, obj_path))
     else:
       print('No leaks found!', file=sys.stderr)
     return 0
