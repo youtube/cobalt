@@ -41,7 +41,7 @@ class VideoFrameTracker {
  private:
   void UpdateDroppedFrames();
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   std::list<int64_t> frames_to_be_rendered_;
 

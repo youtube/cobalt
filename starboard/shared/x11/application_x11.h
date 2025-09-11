@@ -35,13 +35,13 @@
 namespace starboard::shared::x11 {
 
 // This application engine combines the generic queue with the X11 event queue.
-class ApplicationX11 : public shared::starboard::QueueApplication {
+class ApplicationX11 : public QueueApplication {
  public:
   explicit ApplicationX11(SbEventHandleCallback sb_event_handle_callback);
   ~ApplicationX11() override;
 
   static ApplicationX11* Get() {
-    return static_cast<ApplicationX11*>(shared::starboard::Application::Get());
+    return static_cast<ApplicationX11*>(Application::Get());
   }
 
   SbWindow CreateWindow(const SbWindowOptions* options);

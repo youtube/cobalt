@@ -104,7 +104,7 @@ class AudioDecoderPassthrough
   }
 
  private:
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   const int samples_per_second_;
   OutputCB output_cb_;

@@ -194,7 +194,7 @@ class SbPlayerTestFixture {
     return player_state_set_.find(state) != player_state_set_.end();
   }
 
-  shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;

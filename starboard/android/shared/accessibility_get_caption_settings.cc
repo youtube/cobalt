@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/android/jni_android.h"
+#include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -25,14 +26,9 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
 
-#include "starboard/android/shared/accessibility_extension.h"
-
 namespace starboard::android::shared::accessibility {
 
 using starboard::android::shared::ScopedLocalJavaRef;
-using starboard::shared::starboard::GetClosestCaptionColor;
-using starboard::shared::starboard::GetClosestFontSizePercentage;
-using starboard::shared::starboard::GetClosestOpacity;
 
 namespace {
 
