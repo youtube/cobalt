@@ -17,36 +17,35 @@
 #include "starboard/common/configuration_defaults.h"
 #include "starboard/extension/configuration.h"
 
-namespace starboard::android::shared {
-
+namespace starboard {
 namespace {
 
-const char* CobaltUserOnExitStrategy() {
+const char* CobaltUserOnExitStrategyAndroid() {
   // On Android, we almost never want to actually terminate the process, so
   // instead indicate that we would instead like to be suspended when users
   // initiate an "exit".
   return "suspend";
 }
 
-int CobaltEglSwapInterval() {
+int CobaltEglSwapIntervalAndroid() {
   // Switch Android's SurfaceFlinger queue to "async mode" so that we don't
   // queue up rendered frames which would interfere with frame timing and
   // more importantly lead to input latency.
   return 0;
 }
 
-bool CobaltEnableQuic() {
-  return 0;
+bool CobaltEnableQuicAndroid() {
+  return false;
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     3,
-    &CobaltUserOnExitStrategy,
+    &CobaltUserOnExitStrategyAndroid,
     &CobaltRenderDirtyRegionOnlyDefault,
-    &CobaltEglSwapInterval,
+    &CobaltEglSwapIntervalAndroid,
     &CobaltFallbackSplashScreenUrlDefault,
-    &CobaltEnableQuic,
+    &CobaltEnableQuicAndroid,
     &CobaltSkiaCacheSizeInBytesDefault,
     &CobaltOffscreenTargetCacheSizeInBytesDefault,
     &CobaltEncodedImageCacheSizeInBytesDefault,
@@ -70,8 +69,8 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiAndroid() {
   return &kConfigurationApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

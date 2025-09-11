@@ -93,7 +93,6 @@ using starboard::CobaltSkiaGlyphAtlasHeightDefault;
 using starboard::CobaltSkiaGlyphAtlasWidthDefault;
 using starboard::CobaltSoftwareSurfaceCacheSizeInBytesDefault;
 }  // namespace common
-
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_CONFIGURATION_DEFAULTS_H_
