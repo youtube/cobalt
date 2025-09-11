@@ -16,7 +16,6 @@
 #define STARBOARD_COMMON_CONFIGURATION_DEFAULTS_H_
 
 namespace starboard {
-namespace common {
 
 const char* CobaltUserOnExitStrategyDefault();
 
@@ -67,7 +66,6 @@ bool CobaltEnableJitDefault();
 
 bool CobaltCanStoreCompiledJavascriptDefault();
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_CONFIGURATION_DEFAULTS_H_

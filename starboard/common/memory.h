@@ -21,7 +21,6 @@
 #define STARBOARD_COMMON_MEMORY_H_
 
 namespace starboard {
-namespace common {
 
 // Checks whether |memory| is aligned to |alignment| bytes.
 static SB_C_FORCE_INLINE bool MemoryIsAligned(const void* memory,
@@ -44,7 +43,6 @@ static SB_C_FORCE_INLINE bool MemoryIsZero(const void* buffer, size_t count) {
          memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
 }
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_MEMORY_H_
