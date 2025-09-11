@@ -66,10 +66,10 @@ bool CobaltEnableJitDefault();
 
 bool CobaltCanStoreCompiledJavascriptDefault();
 
-// For backward compatibilities,
-// https://github.com/youtube/cobalt/blob/25.lts.1%2B/starboard/contrib/rdk/src/third_party/starboard/rdk/shared/configuration.cc#L57-L79
+// Aliases not to break CI tests.
+// See https://paste.googleplex.com/4527409416241152
+// TODO: b/441955897 - Update CI test to use flattened namespace
 namespace common {
-
 using starboard::CobaltCanStoreCompiledJavascriptDefault;
 using starboard::CobaltEglSwapIntervalDefault;
 using starboard::CobaltEnableJitDefault;
@@ -92,7 +92,6 @@ using starboard::CobaltSkiaCacheSizeInBytesDefault;
 using starboard::CobaltSkiaGlyphAtlasHeightDefault;
 using starboard::CobaltSkiaGlyphAtlasWidthDefault;
 using starboard::CobaltSoftwareSurfaceCacheSizeInBytesDefault;
-
 }  // namespace common
 
 }  // namespace starboard
