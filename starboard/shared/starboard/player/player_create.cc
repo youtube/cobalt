@@ -33,6 +33,7 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
+using ::starboard::MimeType;
 using ::starboard::shared::media_session::kPlaying;
 using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;

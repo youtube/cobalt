@@ -75,7 +75,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbDrmSystem drm_system_;
 
-  const media::AudioStreamInfo audio_stream_info_;
+  const AudioStreamInfo audio_stream_info_;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |player_components_| object.  This is necessary because calls to
@@ -111,7 +111,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   int max_video_input_size_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-  const media::VideoStreamInfo video_stream_info_;
+  const VideoStreamInfo video_stream_info_;
 };
 
 }  // namespace starboard::shared::starboard::player::filter

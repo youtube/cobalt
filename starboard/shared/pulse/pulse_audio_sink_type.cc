@@ -52,7 +52,6 @@
 namespace starboard::shared::pulse {
 namespace {
 
-using starboard::media::GetBytesPerSample;
 using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
 
 const int64_t kAudioIdleSleepIntervalUsec = 15'000;    // 15ms

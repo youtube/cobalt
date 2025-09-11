@@ -33,8 +33,6 @@ namespace nplb {
 
 namespace {
 
-using shared::starboard::media::AudioSampleInfo;
-using shared::starboard::media::VideoSampleInfo;
 using shared::starboard::player::video_dmp::VideoDmpReader;
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -227,7 +225,7 @@ SbPlayer CallSbPlayerCreate(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const shared::starboard::media::AudioStreamInfo* audio_stream_info,
+    const AudioStreamInfo* audio_stream_info,
     const char* max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
