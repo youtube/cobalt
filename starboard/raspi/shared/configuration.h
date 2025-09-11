@@ -16,13 +16,9 @@
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_H_
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
-const void* GetConfigurationApi();
+const void* GetConfigurationApiRaspi();
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_CONFIGURATION_H_

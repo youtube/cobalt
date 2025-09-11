@@ -20,7 +20,7 @@
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::x64x11::skia::GetConfigurationApi();
+    return starboard::GetConfigurationApiLinuxX64x11();
   }
   return NULL;
 }

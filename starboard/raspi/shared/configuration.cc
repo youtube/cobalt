@@ -18,18 +18,16 @@
 #include "starboard/extension/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-
 namespace {
 
 // This atlas size works better than the auto-mem setting.
-int CobaltSkiaGlyphAtlasWidth() {
+int CobaltSkiaGlyphAtlasWidthSkia() {
   return 2048;
 }
-int CobaltSkiaGlyphAtlasHeight() {
+int CobaltSkiaGlyphAtlasHeightSkia() {
   return 2048;
 }
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     3,
@@ -47,8 +45,8 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &CobaltMeshCacheSizeInBytesDefault,
     &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
     &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &CobaltSkiaGlyphAtlasWidth,
-    &CobaltSkiaGlyphAtlasHeight,
+    &CobaltSkiaGlyphAtlasWidthSkia,
+    &CobaltSkiaGlyphAtlasHeightSkia,
     &CobaltJsGarbageCollectionThresholdInBytesDefault,
     &CobaltReduceCpuMemoryByDefault,
     &CobaltReduceGpuMemoryByDefault,
@@ -61,10 +59,8 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiRaspi() {
   return &kConfigurationApi;
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

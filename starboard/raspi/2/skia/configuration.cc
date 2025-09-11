@@ -18,20 +18,17 @@
 #include "starboard/extension/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace skia {
-
 namespace {
 
 // This atlas size works better than the auto-mem setting.
-int CobaltSkiaGlyphAtlasWidth() {
+int CobaltSkiaGlyphAtlasWidthRaspi2() {
   return 2048;
 }
-int CobaltSkiaGlyphAtlasHeight() {
+int CobaltSkiaGlyphAtlasHeightRaspi2() {
   return 2048;
 }
 
-const char* CobaltRasterizerType() {
+const char* CobaltRasterizerTypeRaspi2() {
   // Use the skia hardware rasterizer.
   return "hardware";
 }
@@ -53,13 +50,13 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &CobaltMeshCacheSizeInBytesDefault,
     &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
     &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &CobaltSkiaGlyphAtlasWidth,
-    &CobaltSkiaGlyphAtlasHeight,
+    &CobaltSkiaGlyphAtlasWidthRaspi2,
+    &CobaltSkiaGlyphAtlasHeightRaspi2,
     &CobaltJsGarbageCollectionThresholdInBytesDefault,
     &CobaltReduceCpuMemoryByDefault,
     &CobaltReduceGpuMemoryByDefault,
     &CobaltGcZealDefault,
-    &CobaltRasterizerType,
+    &CobaltRasterizerTypeRaspi2,
     &CobaltEnableJitDefault,
     &CobaltFallbackSplashScreenTopicsDefault,
     &CobaltCanStoreCompiledJavascriptDefault,
@@ -67,10 +64,8 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiRaspi2() {
   return &kConfigurationApi;
 }
 
-}  // namespace skia
-}  // namespace raspi
 }  // namespace starboard
