@@ -22,8 +22,6 @@
 namespace starboard::shared::starboard::media {
 namespace {
 
-using ::starboard::shared::starboard::media::ConvertAnnexBToAvcc;
-
 const auto kAnnexB = AvcParameterSets::kAnnexB;
 const auto kHeadless = AvcParameterSets::kHeadless;
 const auto kAnnexBHeaderSizeInBytes =

@@ -24,8 +24,6 @@
 namespace starboard::shared::starboard::player {
 namespace {
 
-using ::starboard::shared::starboard::media::GetBytesPerSample;
-
 constexpr int kChannels = 2;
 constexpr int64_t kTimestampUsec = 1'000'000;
 constexpr int kSizeInBytes = 4192;

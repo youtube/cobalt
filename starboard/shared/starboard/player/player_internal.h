@@ -63,9 +63,6 @@ namespace starboard::shared::starboard::player {
 
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
-  typedef ::starboard::shared::starboard::media::AudioSampleInfo
-      AudioSampleInfo;
-
   static SbPlayerPrivate* CreateInstance(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,

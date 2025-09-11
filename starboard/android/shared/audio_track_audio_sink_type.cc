@@ -39,7 +39,6 @@ namespace starboard::android::shared {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // Whether to use continuous audio track sync, which keep feeding audio frames
 // into AudioTrack. Instead of callnig pause/play, it switches between silence

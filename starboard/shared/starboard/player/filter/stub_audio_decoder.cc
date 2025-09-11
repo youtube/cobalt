@@ -21,11 +21,7 @@
 #include "starboard/common/log.h"
 
 namespace starboard::shared::starboard::player::filter {
-
 namespace {
-
-using ::starboard::shared::starboard::media::AudioDurationToFrames;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
