@@ -17,7 +17,7 @@
 
 namespace starboard {
 
-const void* GetConfigurationApiRaspi2();
+const void* GetConfigurationApiRaspiSkia();
 
 }  // namespace starboard
 

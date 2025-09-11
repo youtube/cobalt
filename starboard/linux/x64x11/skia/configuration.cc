@@ -20,14 +20,14 @@
 namespace starboard {
 namespace {
 
-int CobaltEglSwapIntervalLinuxX64x11() {
+int CobaltEglSwapIntervalLinuxSkia() {
   // This platform uses a compositor to present the rendering output, so
   // set the swap interval to update the buffer immediately. That buffer
   // will then be presented by the compositor on its own time.
   return 0;
 }
 
-const char* CobaltRasterizerTypeLinuxX64x11() {
+const char* CobaltRasterizerTypeLinuxSkia() {
   // Use the skia hardware rasterizer.
   return "hardware";
 }
@@ -37,7 +37,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     3,
     &CobaltUserOnExitStrategyDefault,
     &CobaltRenderDirtyRegionOnlyDefault,
-    &CobaltEglSwapIntervalLinuxX64x11,
+    &CobaltEglSwapIntervalLinuxSkia,
     &CobaltFallbackSplashScreenUrlDefault,
     &CobaltEnableQuicDefault,
     &CobaltSkiaCacheSizeInBytesDefault,
@@ -55,7 +55,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &CobaltReduceCpuMemoryByDefault,
     &CobaltReduceGpuMemoryByDefault,
     &CobaltGcZealDefault,
-    &CobaltRasterizerTypeLinuxX64x11,
+    &CobaltRasterizerTypeLinuxSkia,
     &CobaltEnableJitDefault,
     &CobaltFallbackSplashScreenTopicsDefault,
     &CobaltCanStoreCompiledJavascriptDefault,
@@ -63,7 +63,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
 
 }  // namespace
 
-const void* GetConfigurationApiLinuxX64x11() {
+const void* GetConfigurationApiLinuxSkia() {
   return &kConfigurationApi;
 }
 

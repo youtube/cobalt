@@ -17,7 +17,7 @@
 
 namespace starboard {
 
-const void* GetConfigurationApiLinuxX64x11();
+const void* GetConfigurationApiLinuxSkia();
 
 }  // namespace starboard
 
