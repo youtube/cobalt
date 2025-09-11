@@ -76,7 +76,7 @@ _RE_ALLOWED_C99_SYMBOL = re.compile(r'^\*\s(.*)$')
 _LIBRARIES_TO_IGNORE_PATH = os.path.join(
     os.path.dirname(__file__), 'libraries_to_ignore')
 _ALLOWED_C99_SYMBOLS_PATH = os.path.join(paths.STARBOARD_ROOT, 'doc', 'c99.md')
-_DEFAULT_RELATIVE_MANIFEST_PATH = os.path.join('evergreen', 'manifest')
+_DEFAULT_RELATIVE_MANIFEST_FOLDER = 'evergreen'
 
 # Messages placed at the header of auto-generated files.
 _MANIFEST_HEADER = ('# Manifest of Leaking Files\n\n' +
@@ -480,8 +480,7 @@ def ParseArgs():
       default=_DEFAULT_TARGET)
   parser.add_argument(
       '--relative-manifest-path',
-      help='Path to the manifest to use, relative to api_leak_detector dir.',
-      default=_DEFAULT_RELATIVE_MANIFEST_PATH)
+      help='Path to the manifest to use, relative to api_leak_detector dir.')
   parser.add_argument(
       '--sb_api_version',
       help='The Starboard version',
@@ -548,6 +547,10 @@ def main():
   config_dir = f'{args.platform}_{args.config}'
   config_path = os.path.join(paths.BUILD_OUTPUT_ROOT, config_dir)
   obj_path = os.path.join(config_path, 'obj')
+  if not args.relative_manifest_path:
+    prefix = '' if args.config in ['qa', 'gold'] else 'dev_'
+    args.relative_manifest_path = os.path.join(
+        _DEFAULT_RELATIVE_MANIFEST_FOLDER, f'{prefix}manifest')
   manifest_path = os.path.join(
       os.path.dirname(__file__), args.relative_manifest_path)
 
