@@ -22,7 +22,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/get_home_directory.h"
 
-namespace starboard {
+namespace starboard::shared::starboard {
 
 using ::base::android::ScopedJavaGlobalRef;
 using ::starboard::android::shared::g_app_files_dir;
@@ -32,4 +32,4 @@ bool GetHomeDirectory(char* out_path, int path_size) {
   return len < path_size;
 }
 
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
