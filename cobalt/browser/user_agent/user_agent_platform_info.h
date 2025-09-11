@@ -117,7 +117,7 @@ class UserAgentPlatformInfo {
   void InitializePlatformDependentFieldsAndroid();
 #elif BUILDFLAG(IS_STARBOARD)
   void InitializePlatformDependentFieldsStarboard();
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
   std::string starboard_version_;
   std::string os_name_and_version_;
