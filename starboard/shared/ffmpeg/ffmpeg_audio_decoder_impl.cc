@@ -85,7 +85,7 @@ const bool g_registered =
 
 }  // namespace
 
-AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
+FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
     const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info)
     : codec_context_(NULL),
       av_frame_(NULL),
@@ -102,18 +102,18 @@ AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
   }
 }
 
-AudioDecoderImpl<FFMPEG>::~AudioDecoderImpl() {
+FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
   TeardownCodec();
 }
 
 // static
-FfmpegAudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
+FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
     const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info) {
-  return new AudioDecoderImpl<FFMPEG>(audio_stream_info);
+  return new FfmpegAudioDecoderImpl<FFMPEG>(audio_stream_info);
 }
 
-void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
-                                          const ErrorCB& error_cb) {
+void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
+                                                const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
@@ -124,8 +124,8 @@ void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
-                                      const ConsumedCB& consumed_cb) {
+void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
+                                            const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
@@ -215,7 +215,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   }
 }
 
-void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
+void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     const InputBuffer& input_buffer,
     const AVFrame& av_frame) {
 #if LIBAVCODEC_VERSION_MAJOR >= 61
@@ -260,7 +260,7 @@ void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   Schedule(output_cb_);
 }
 
-void AudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
+void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
@@ -273,8 +273,8 @@ void AudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-scoped_refptr<AudioDecoderImpl<FFMPEG>::DecodedAudio>
-AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
+scoped_refptr<FfmpegAudioDecoderImpl<FFMPEG>::DecodedAudio>
+FfmpegAudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -288,7 +288,7 @@ AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
   return result;
 }
 
-void AudioDecoderImpl<FFMPEG>::Reset() {
+void FfmpegAudioDecoderImpl<FFMPEG>::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   TeardownCodec();
@@ -304,11 +304,11 @@ void AudioDecoderImpl<FFMPEG>::Reset() {
   CancelPendingJobs();
 }
 
-bool AudioDecoderImpl<FFMPEG>::is_valid() const {
+bool FfmpegAudioDecoderImpl<FFMPEG>::is_valid() const {
   return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
 }
 
-SbMediaAudioSampleType AudioDecoderImpl<FFMPEG>::GetSampleType() const {
+SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
@@ -324,7 +324,8 @@ SbMediaAudioSampleType AudioDecoderImpl<FFMPEG>::GetSampleType() const {
   return kSbMediaAudioSampleTypeFloat32;
 }
 
-SbMediaAudioFrameStorageType AudioDecoderImpl<FFMPEG>::GetStorageType() const {
+SbMediaAudioFrameStorageType FfmpegAudioDecoderImpl<FFMPEG>::GetStorageType()
+    const {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
@@ -340,7 +341,7 @@ SbMediaAudioFrameStorageType AudioDecoderImpl<FFMPEG>::GetStorageType() const {
   return kSbMediaAudioFrameStorageTypeInterleaved;
 }
 
-void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
+void FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_ = ffmpeg_->avcodec_alloc_context3(NULL);
 
   if (codec_context_ == NULL) {
@@ -414,7 +415,7 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   }
 }
 
-void AudioDecoderImpl<FFMPEG>::TeardownCodec() {
+void FfmpegAudioDecoderImpl<FFMPEG>::TeardownCodec() {
   if (codec_context_) {
     ffmpeg_->CloseCodec(codec_context_);
     ffmpeg_->FreeContext(&codec_context_);

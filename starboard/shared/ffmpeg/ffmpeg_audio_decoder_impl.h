@@ -33,15 +33,16 @@ namespace starboard::shared::ffmpeg {
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
-class AudioDecoderImpl<FFMPEG>;
+class FfmpegAudioDecoderImpl<FFMPEG>;
 
 // Declare the explicit specialization of the class with value FFMPEG.
 template <>
-class AudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
-                                 private starboard::player::JobQueue::JobOwner {
+class FfmpegAudioDecoderImpl<FFMPEG>
+    : public FfmpegAudioDecoder, private starboard::player::JobQueue::JobOwner {
  public:
-  explicit AudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
-  ~AudioDecoderImpl() override;
+  explicit FfmpegAudioDecoderImpl(
+      const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info);
+  ~FfmpegAudioDecoderImpl() override;
 
   // From: FfmpegAudioDecoder
   static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
