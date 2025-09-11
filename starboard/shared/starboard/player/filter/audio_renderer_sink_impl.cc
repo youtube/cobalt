@@ -50,7 +50,7 @@ AudioRendererSinkImpl::AudioRendererSinkImpl(
 }
 
 AudioRendererSinkImpl::~AudioRendererSinkImpl() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   Stop();
 }
@@ -83,7 +83,7 @@ void AudioRendererSinkImpl::Start(
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     RenderCallback* render_callback) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
   SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
   SB_DCHECK_GT(sampling_frequency_hz, 0);
@@ -111,7 +111,7 @@ void AudioRendererSinkImpl::Start(
 }
 
 void AudioRendererSinkImpl::Stop() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   if (HasStarted()) {
     SbAudioSinkDestroy(audio_sink_);
@@ -121,7 +121,7 @@ void AudioRendererSinkImpl::Stop() {
 }
 
 void AudioRendererSinkImpl::SetVolume(double volume) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   volume_ = volume;
   if (HasStarted()) {
@@ -130,7 +130,7 @@ void AudioRendererSinkImpl::SetVolume(double volume) {
 }
 
 void AudioRendererSinkImpl::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(playback_rate == 0.0 || playback_rate == 1.0)
       << "Playback rate on audio sink can only be set to 0 or 1, "
       << "but is now set to " << playback_rate;
