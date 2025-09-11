@@ -196,7 +196,8 @@ void MediaCodecAudioDecoder::Reset() {
 
 bool MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_));
+  media_decoder_ = std::make_unique<MediaCodecDecoder>(this, audio_stream_info_,
+                                                       drm_system_);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

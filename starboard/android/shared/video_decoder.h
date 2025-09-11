@@ -46,7 +46,7 @@ namespace starboard::android::shared {
 
 class MediaCodecVideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private MediaDecoder::Host,
+      public MediaCodecDecoder::Host,
       private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private VideoSurfaceHolder {
  public:
@@ -202,7 +202,7 @@ class MediaCodecVideoDecoder
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
 
-  std::unique_ptr<MediaDecoder> media_decoder_;
+  std::unique_ptr<MediaCodecDecoder> media_decoder_;
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;

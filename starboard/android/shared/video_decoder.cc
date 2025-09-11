@@ -746,11 +746,12 @@ bool MediaCodecVideoDecoder::InitializeCodec(
 
   std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
-  //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
+  //                    `max_video_capabilities_` and pass to MediaCodecDecoder
+  //                    ctor.
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
                      &max_width, &max_height);
 
-  media_decoder_.reset(new MediaDecoder(
+  media_decoder_ = std::make_unique<MediaCodecDecoder>(
       this, video_stream_info.codec, video_stream_info.frame_size.width,
       video_stream_info.frame_size.height, max_width, max_height, video_fps_,
       j_output_surface, drm_system_,
@@ -758,7 +759,7 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, error_message));
+      max_video_input_size_, flush_delay_usec_, error_message);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(
