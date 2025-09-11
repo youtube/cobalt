@@ -21,7 +21,6 @@
 #include "starboard/common/pointer_arithmetic.h"
 
 namespace starboard {
-namespace common {
 
 FixedNoFreeAllocator::FixedNoFreeAllocator(void* memory_start,
                                            size_t memory_size)
@@ -80,5 +79,4 @@ void* FixedNoFreeAllocator::Allocate(size_t* size,
   return memory_pointer;
 }
 
-}  // namespace common
 }  // namespace starboard
