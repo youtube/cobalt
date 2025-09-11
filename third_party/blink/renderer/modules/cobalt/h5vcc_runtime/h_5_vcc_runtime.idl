@@ -21,4 +21,6 @@
 interface H5vccRuntime : EventTarget {
     readonly attribute DOMString? initialDeepLink;
     attribute EventHandler ondeeplink;
+    [CallWith=ScriptState, NewObject, RaisesException]
+    Promise<Blob> renderToImage(USVString url, unsigned long width, unsigned long height);
 };

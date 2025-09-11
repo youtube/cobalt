@@ -47,6 +47,10 @@ class StubH5vccRuntimeImpl : public h5vcc_runtime::mojom::H5vccRuntime {
       GetAndClearInitialDeepLinkSyncCallback callback) override;
   void GetAndClearInitialDeepLink(
       GetAndClearInitialDeepLinkCallback callback) override;
+  void RenderToImage(const std::string& url,
+                     uint32_t,
+                     uint32_t,
+                     RenderToImageCallback callback) override;
   void AddListener(mojo::PendingRemote<h5vcc_runtime::mojom::DeepLinkListener>
                        listener) override;
 
