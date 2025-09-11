@@ -50,33 +50,32 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
-        typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-        typedef ::starboard::shared::opus::OpusAudioDecoder
-            OpusAudioDecoderImpl;
+      auto decoder_creator =
+          [](const media::AudioStreamInfo& audio_stream_info,
+             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
+        using ::starboard::shared::ffmpeg::FfmpegAudioDecoder;
+        using ::starboard::shared::opus::OpusAudioDecoder;
 
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          std::unique_ptr<OpusAudioDecoderImpl> opus_audio_decoder_impl(
-              new OpusAudioDecoderImpl(audio_stream_info));
-          if (opus_audio_decoder_impl && opus_audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoder>(
-                std::move(opus_audio_decoder_impl));
+          auto opus_audio_decoder =
+              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+          if (opus_audio_decoder && opus_audio_decoder->is_valid()) {
+            return opus_audio_decoder;
           }
         } else {
-          std::unique_ptr<AudioDecoderImpl> audio_decoder_impl(
-              AudioDecoderImpl::Create(audio_stream_info));
-          if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          auto ffmpeg_audio_decoder = std::unique_ptr<FfmpegAudioDecoder>(
+              FfmpegAudioDecoder::Create(audio_stream_info));
+          if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
+            return ffmpeg_audio_decoder;
           }
         }
-        return std::unique_ptr<AudioDecoder>();
+        return nullptr;
       };
 
-      audio_decoder->reset(new AdaptiveAudioDecoder(
+      *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
-          creation_parameters.drm_system(), decoder_creator));
-      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+          creation_parameters.drm_system(), decoder_creator);
+      *audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
