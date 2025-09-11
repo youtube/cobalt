@@ -134,7 +134,7 @@ CopySumFunctionIntoMemory(void* memory) {
       (reinterpret_cast<uintptr_t>(sum_function_start) / kSbMemoryPageSize) *
           kSbMemoryPageSize +
       kSbMemoryPageSize);
-  if (!starboard::MemoryIsAligned(sum_function_page_end, kSbMemoryPageSize)) {
+  if (!MemoryIsAligned(sum_function_page_end, kSbMemoryPageSize)) {
     return std::make_tuple(::testing::AssertionFailure()
                                << "Expected |Sum| page end ("
                                << static_cast<void*>(sum_function_page_end)

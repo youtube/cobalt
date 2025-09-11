@@ -66,6 +66,35 @@ bool CobaltEnableJitDefault();
 
 bool CobaltCanStoreCompiledJavascriptDefault();
 
+// For backward compatibilities,
+// https://github.com/youtube/cobalt/blob/25.lts.1%2B/starboard/contrib/rdk/src/third_party/starboard/rdk/shared/configuration.cc#L57-L79
+namespace common {
+
+using starboard::CobaltCanStoreCompiledJavascriptDefault;
+using starboard::CobaltEglSwapIntervalDefault;
+using starboard::CobaltEnableJitDefault;
+using starboard::CobaltEncodedImageCacheSizeInBytesDefault;
+using starboard::CobaltFallbackSplashScreenTopicsDefault;
+using starboard::CobaltFallbackSplashScreenUrlDefault;
+using starboard::CobaltGcZealDefault;
+using starboard::CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault;
+using starboard::CobaltImageCacheSizeInBytesDefault;
+using starboard::CobaltJsGarbageCollectionThresholdInBytesDefault;
+using starboard::CobaltLocalTypefaceCacheSizeInBytesDefault;
+using starboard::CobaltMeshCacheSizeInBytesDefault;
+using starboard::CobaltOffscreenTargetCacheSizeInBytesDefault;
+using starboard::CobaltRasterizerTypeDefault;
+using starboard::CobaltReduceCpuMemoryByDefault;
+using starboard::CobaltReduceGpuMemoryByDefault;
+using starboard::CobaltRemoteTypefaceCacheSizeInBytesDefault;
+using starboard::CobaltRenderDirtyRegionOnlyDefault;
+using starboard::CobaltSkiaCacheSizeInBytesDefault;
+using starboard::CobaltSkiaGlyphAtlasHeightDefault;
+using starboard::CobaltSkiaGlyphAtlasWidthDefault;
+using starboard::CobaltSoftwareSurfaceCacheSizeInBytesDefault;
+
+}  // namespace common
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_CONFIGURATION_DEFAULTS_H_
