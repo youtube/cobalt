@@ -79,7 +79,11 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
+#if defined(__APPLE__)
+  pthread_setname_np(this_ptr->d_->name_.c_str());
+#else
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
+#endif
   this_ptr->Run();
   return NULL;
 }

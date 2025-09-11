@@ -46,11 +46,11 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
 AudioRendererSinkImpl::AudioRendererSinkImpl(
     CreateAudioSinkFunc create_audio_sink_func)
     : create_audio_sink_func_(create_audio_sink_func) {
-  SB_DCHECK(create_audio_sink_func_);
+  SB_CHECK(create_audio_sink_func_);
 }
 
 AudioRendererSinkImpl::~AudioRendererSinkImpl() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   Stop();
 }
@@ -83,7 +83,7 @@ void AudioRendererSinkImpl::Start(
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     RenderCallback* render_callback) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
   SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
   SB_DCHECK_GT(sampling_frequency_hz, 0);
@@ -111,7 +111,7 @@ void AudioRendererSinkImpl::Start(
 }
 
 void AudioRendererSinkImpl::Stop() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   if (HasStarted()) {
     SbAudioSinkDestroy(audio_sink_);
@@ -121,7 +121,7 @@ void AudioRendererSinkImpl::Stop() {
 }
 
 void AudioRendererSinkImpl::SetVolume(double volume) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   volume_ = volume;
   if (HasStarted()) {
@@ -130,7 +130,7 @@ void AudioRendererSinkImpl::SetVolume(double volume) {
 }
 
 void AudioRendererSinkImpl::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(playback_rate == 0.0 || playback_rate == 1.0)
       << "Playback rate on audio sink can only be set to 0 or 1, "
       << "but is now set to " << playback_rate;
@@ -151,8 +151,8 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
                                                    void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
-  SB_DCHECK(audio_renderer_sink);
-  SB_DCHECK(audio_renderer_sink->render_callback_);
+  SB_CHECK(audio_renderer_sink);
+  SB_CHECK(audio_renderer_sink->render_callback_);
   SB_DCHECK(frames_in_buffer);
   SB_DCHECK(offset_in_frames);
   SB_DCHECK(is_playing);
@@ -168,8 +168,8 @@ void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
                                               void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
-  SB_DCHECK(audio_renderer_sink);
-  SB_DCHECK(audio_renderer_sink->render_callback_);
+  SB_CHECK(audio_renderer_sink);
+  SB_CHECK(audio_renderer_sink->render_callback_);
 
   audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
                                                        frames_consumed_at);
@@ -181,8 +181,8 @@ void AudioRendererSinkImpl::ErrorFunc(bool capability_changed,
                                       void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
-  SB_DCHECK(audio_renderer_sink);
-  SB_DCHECK(audio_renderer_sink->render_callback_);
+  SB_CHECK(audio_renderer_sink);
+  SB_CHECK(audio_renderer_sink->render_callback_);
 
   audio_renderer_sink->render_callback_->OnError(capability_changed,
                                                  error_message);

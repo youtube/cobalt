@@ -44,12 +44,13 @@ void DeleteStartData(void* data) {
   delete start_data;
 }
 
-}  // namespace
+// The single application instance.
+std::atomic<Application*> g_instance = nullptr;
 
 // The next event ID to use for Schedule().
 volatile std::atomic<int32_t> g_next_event_id{0};
 
-std::atomic<Application*> Application::g_instance{NULL};
+}  // namespace
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : sb_event_handle_callback_(sb_event_handle_callback),
@@ -59,19 +60,23 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       state_(kStateUnstarted) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance = nullptr;
-  g_instance.compare_exchange_weak(old_instance, this,
-                                   std::memory_order_acquire);
-  SB_DCHECK(!old_instance);
+  Application* expected = nullptr;
+  SB_CHECK(g_instance.compare_exchange_strong(expected,
+                                              /*desired=*/this,
+                                              std::memory_order_acq_rel));
 }
 
 Application::~Application() {
-  Application* old_instance = this;
-  g_instance.compare_exchange_weak(old_instance, NULL,
-                                   std::memory_order_acquire);
-  SB_DCHECK(old_instance);
-  SB_DCHECK_EQ(old_instance, this);
+  Application* expected = this;
+  SB_CHECK(g_instance.compare_exchange_strong(expected, /*desired=*/nullptr,
+                                              std::memory_order_acq_rel));
   free(start_link_);
+}
+
+Application* Application::Get() {
+  Application* instance = g_instance.load(std::memory_order_acquire);
+  SB_CHECK(instance);
+  return instance;
 }
 
 int Application::Run(CommandLine command_line, const char* link_data) {

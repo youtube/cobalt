@@ -115,6 +115,11 @@ STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
 STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 
+// By default, tunnel mode has to be enabled explicitly by the web app via the
+// mime attribute "tunnelmode=true". Set the following variable to true to force
+// enabling tunnel mode on all playbacks.
+STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
+
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)

@@ -19,6 +19,9 @@
 #include "third_party/blink/renderer/platform/network/parsed_content_type.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace blink {
 
 namespace {
@@ -60,7 +63,11 @@ static WebVector<WebMediaKeySystemMediaCapability> ConvertCapabilities(
       // present. Chromium expects "codecs" to be provided, so this capability
       // will be skipped if codecs is not the only parameter specified.
       result[i].mime_type = type.MimeType();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      if (type.GetParameters().ParameterCount() >= 1u)
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       if (type.GetParameters().ParameterCount() == 1u)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         result[i].codecs = type.ParameterValueForName("codecs");
     }
 

@@ -18,6 +18,8 @@
 #include <map>
 #include <string>
 
+#include "build/build_config.h"
+
 namespace cobalt {
 
 void GetUserAgentInputMap(
@@ -26,7 +28,7 @@ void GetUserAgentInputMap(
 
 class UserAgentPlatformInfo {
  public:
-  UserAgentPlatformInfo();
+  explicit UserAgentPlatformInfo(bool for_testing = false);
   ~UserAgentPlatformInfo() = default;
 
   std::string ToString() const;
@@ -107,6 +109,16 @@ class UserAgentPlatformInfo {
   void set_build_configuration(const std::string& build_configuration);
 
  private:
+  void InitializeUserAgentPlatformInfoFields();
+// TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
+// platforms, which are IS_ANDROID but also IS_STARBOARD. Consider using
+// IS_ANDROIDTV as well.
+#if BUILDFLAG(IS_ANDROID)
+  void InitializePlatformDependentFieldsAndroid();
+#elif BUILDFLAG(IS_STARBOARD)
+  void InitializePlatformDependentFieldsStarboard();
+#endif  // BUILDFLAG(IS_ANDROID)
+
   std::string starboard_version_;
   std::string os_name_and_version_;
   std::optional<std::string> original_design_manufacturer_;
@@ -129,6 +141,8 @@ class UserAgentPlatformInfo {
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;
   std::string build_configuration_;
+
+  bool avoid_access_to_starboard_for_testing_ = false;
 };
 
 }  // namespace cobalt

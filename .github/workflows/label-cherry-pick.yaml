@@ -61,7 +61,7 @@ jobs:
       CHERRY_PICK_BRANCH: cherry-pick-${{ matrix.target_branch }}-${{ github.event.pull_request.number }}
     steps:
       - name: Checkout repository
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           ref: ${{ matrix.target_branch }}

@@ -185,11 +185,13 @@ class MediaCodecBridge {
                         jint offset,
                         jint size,
                         jlong presentation_time_microseconds,
-                        jint flags);
+                        jint flags,
+                        jboolean is_decode_only);
   jint QueueSecureInputBuffer(jint index,
                               jint offset,
                               const SbDrmSampleInfo& drm_sample_info,
-                              jlong presentation_time_microseconds);
+                              jlong presentation_time_microseconds,
+                              jboolean is_decode_only);
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
@@ -229,7 +231,7 @@ class MediaCodecBridge {
   explicit MediaCodecBridge(Handler* handler);
   void Initialize(jobject j_media_codec_bridge);
 
-  Handler* handler_ = NULL;
+  Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,

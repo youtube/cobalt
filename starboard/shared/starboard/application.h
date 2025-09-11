@@ -155,13 +155,9 @@ class SB_EXPORT_ANDROID Application {
   explicit Application(SbEventHandleCallback sb_event_handle_callback);
   virtual ~Application();
 
-  // Gets the current instance of the Application. DCHECKS if called before the
-  // application has been constructed.
-  static inline Application* Get() {
-    Application* instance = g_instance.load(std::memory_order_acquire);
-    SB_CHECK(instance);
-    return instance;
-  }
+  // Gets the current instance of the Application. This method CHECK application
+  // instance is constructed.
+  static Application* Get();
 
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
@@ -424,9 +420,6 @@ class SB_EXPORT_ANDROID Application {
   // Do the actual processing of an event. This should only be called by
   // DispatchAndDelete().
   bool HandleEventAndUpdateState(Application::Event* event);
-
-  // The single application instance.
-  static std::atomic<Application*> g_instance;
 
   // The error_level set by the last call to Stop().
   int error_level_;

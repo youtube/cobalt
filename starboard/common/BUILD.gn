@@ -16,7 +16,11 @@
 # to all platforms.
 
 source_set("common_headers_only") {
-  sources = [ "log.h" ]
+  sources = [
+    "log.h",
+    "system_property.h",
+  ]
+
   deps = [ "//starboard:starboard_headers_only" ]
 }
 
@@ -81,8 +85,8 @@ static_library("common") {
     "spin_lock.h",
     "storage.cc",
     "storage.h",
+    "string.cc",
     "string.h",
-    "system_property.h",
     "thread.cc",
     "thread.h",
     "time.cc",
@@ -112,6 +116,7 @@ source_set("common_test") {
     "semaphore_test.cc",
     "size_test.cc",
     "starboard_common_time_test.cc",
+    "string_test.cc",
   ]
   deps = [
     ":common",

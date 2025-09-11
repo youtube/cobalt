@@ -18,11 +18,19 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/system_properties.h>
-#else
-// TODO(b/374213479): Remove after the functions below are implemented.
-#include "base/notreached.h"
+#elif BUILDFLAG(IS_STARBOARD)
+#include "base/system/sys_info.h"
+#include "starboard/common/system_property.h"
+using starboard::GetSystemPropertyString;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+namespace base {
+std::string SysInfo::HardwareModelName() {
+  return GetSystemPropertyString(kSbSystemPropertyModelName);
+}
+}
+#endif // BUILDFLAG(IS_STARBOARD)
 namespace base {
 namespace starboard {
 
@@ -64,29 +72,21 @@ std::string SbSysInfo::Brand() {
   __system_property_get("ro.product.brand", brand_str);
   return std::string(brand_str);
 }
-#else
+#elif BUILDFLAG(IS_STARBOARD)
 std::string SbSysInfo::OriginalDesignManufacturer() {
-  // TODO(b/374213479): Implement for non-Android.
-  NOTIMPLEMENTED();
-  return "";
+  return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
 }
 
 std::string SbSysInfo::ChipsetModelNumber() {
-  // TODO(b/374213479): Implement for non-Android.
-  NOTIMPLEMENTED();
-  return "";
+  return GetSystemPropertyString(kSbSystemPropertyChipsetModelNumber);
 }
 
 std::string SbSysInfo::ModelYear() {
-  // TODO(b/374213479): Implement for non-Android.
-  NOTIMPLEMENTED();
-  return "";
+  return GetSystemPropertyString(kSbSystemPropertyModelYear);
 }
 
 std::string SbSysInfo::Brand() {
-  // TODO(b/374213479): Implement for non-Android.
-  NOTIMPLEMENTED();
-  return "";
+  return GetSystemPropertyString(kSbSystemPropertyBrandName);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
