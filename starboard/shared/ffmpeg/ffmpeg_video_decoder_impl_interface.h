@@ -24,7 +24,7 @@ namespace starboard::shared::ffmpeg {
 // For each version V that is supported, there will be an explicit
 // specialization of the VideoDecoder class.
 template <int V>
-class VideoDecoderImpl : public FfmpegVideoDecoder {
+class FfmpegVideoDecoderImpl : public FfmpegVideoDecoder {
  public:
   static FfmpegVideoDecoder* Create(
       SbMediaVideoCodec video_codec,

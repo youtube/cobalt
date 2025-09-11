@@ -54,16 +54,16 @@ void ReleaseBuffer(void* opaque, uint8_t* data) {
 int AllocateBufferCallback(AVCodecContext* codec_context,
                            AVFrame* frame,
                            int flags) {
-  VideoDecoderImpl<FFMPEG>* video_decoder =
-      static_cast<VideoDecoderImpl<FFMPEG>*>(codec_context->opaque);
+  FfmpegVideoDecoderImpl<FFMPEG>* video_decoder =
+      static_cast<FfmpegVideoDecoderImpl<FFMPEG>*>(codec_context->opaque);
   return video_decoder->AllocateBuffer(codec_context, frame, flags);
 }
 
 #else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
 int AllocateBufferCallback(AVCodecContext* codec_context, AVFrame* frame) {
-  VideoDecoderImpl<FFMPEG>* video_decoder =
-      static_cast<VideoDecoderImpl<FFMPEG>*>(codec_context->opaque);
+  FfmpegVideoDecoderImpl<FFMPEG>* video_decoder =
+      static_cast<FfmpegVideoDecoderImpl<FFMPEG>*>(codec_context->opaque);
   return video_decoder->AllocateBuffer(codec_context, frame);
 }
 
@@ -100,7 +100,7 @@ const bool g_registered =
 
 }  // namespace
 
-VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
+FfmpegVideoDecoderImpl<FFMPEG>::FfmpegVideoDecoderImpl(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
@@ -122,22 +122,22 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
   }
 }
 
-VideoDecoderImpl<FFMPEG>::~VideoDecoderImpl() {
+FfmpegVideoDecoderImpl<FFMPEG>::~FfmpegVideoDecoderImpl() {
   Reset();
   TeardownCodec();
 }
 
 // static
-FfmpegVideoDecoder* VideoDecoderImpl<FFMPEG>::Create(
+FfmpegVideoDecoder* FfmpegVideoDecoderImpl<FFMPEG>::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider) {
-  return new VideoDecoderImpl<FFMPEG>(video_codec, output_mode,
-                                      decode_target_graphics_context_provider);
+  return new FfmpegVideoDecoderImpl<FFMPEG>(
+      video_codec, output_mode, decode_target_graphics_context_provider);
 }
 
-void VideoDecoderImpl<FFMPEG>::Initialize(
+void FfmpegVideoDecoderImpl<FFMPEG>::Initialize(
     const DecoderStatusCB& decoder_status_cb,
     const ErrorCB& error_cb) {
   SB_DCHECK(decoder_status_cb);
@@ -149,7 +149,7 @@ void VideoDecoderImpl<FFMPEG>::Initialize(
   error_cb_ = error_cb;
 }
 
-void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
+void FfmpegVideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     const InputBuffers& input_buffers) {
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
@@ -165,15 +165,16 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
 
   if (!decoder_thread_) {
     pthread_t thread;
-    const int result = pthread_create(
-        &thread, nullptr, &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
+    const int result =
+        pthread_create(&thread, nullptr,
+                       &FfmpegVideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
     SB_CHECK_EQ(result, 0);
     decoder_thread_ = thread;
   }
   queue_.Put(Event(input_buffer));
 }
 
-void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
+void FfmpegVideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
@@ -190,7 +191,7 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   queue_.Put(Event(kWriteEndOfStream));
 }
 
-void VideoDecoderImpl<FFMPEG>::Reset() {
+void FfmpegVideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
   if (decoder_thread_) {
     queue_.Put(Event(kReset));
@@ -214,22 +215,22 @@ void VideoDecoderImpl<FFMPEG>::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-bool VideoDecoderImpl<FFMPEG>::is_valid() const {
+bool FfmpegVideoDecoderImpl<FFMPEG>::is_valid() const {
   return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
 }
 
 // static
-void* VideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
+void* FfmpegVideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "ff_video_dec");
   SbThreadSetPriority(kSbThreadPriorityHigh);
   SB_DCHECK(context);
-  VideoDecoderImpl<FFMPEG>* decoder =
-      reinterpret_cast<VideoDecoderImpl<FFMPEG>*>(context);
+  FfmpegVideoDecoderImpl<FFMPEG>* decoder =
+      reinterpret_cast<FfmpegVideoDecoderImpl<FFMPEG>*>(context);
   decoder->DecoderThreadFunc();
   return NULL;
 }
 
-void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
+void FfmpegVideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
   for (;;) {
     Event event = queue_.Get();
     if (event.type == kReset) {
@@ -270,7 +271,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
   }
 }
 
-bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
+bool FfmpegVideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
   SB_DCHECK(packet);
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
@@ -338,7 +339,8 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
   return true;
 }
 
-bool VideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(const AVFrame& av_frame) {
+bool FfmpegVideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(
+    const AVFrame& av_frame) {
   if (av_frame.opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
     error_cb_(kSbPlayerErrorDecode,
@@ -380,7 +382,7 @@ bool VideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(const AVFrame& av_frame) {
   return true;
 }
 
-void VideoDecoderImpl<FFMPEG>::UpdateDecodeTarget_Locked(
+void FfmpegVideoDecoderImpl<FFMPEG>::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
@@ -393,7 +395,7 @@ void VideoDecoderImpl<FFMPEG>::UpdateDecodeTarget_Locked(
   }
 }
 
-void VideoDecoderImpl<FFMPEG>::InitializeCodec() {
+void FfmpegVideoDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_ = ffmpeg_->avcodec_alloc_context3(NULL);
 
   if (codec_context_ == NULL) {
@@ -450,7 +452,7 @@ void VideoDecoderImpl<FFMPEG>::InitializeCodec() {
   }
 }
 
-void VideoDecoderImpl<FFMPEG>::TeardownCodec() {
+void FfmpegVideoDecoderImpl<FFMPEG>::TeardownCodec() {
   if (codec_context_) {
     ffmpeg_->CloseCodec(codec_context_);
     ffmpeg_->FreeContext(&codec_context_);
@@ -468,7 +470,7 @@ void VideoDecoderImpl<FFMPEG>::TeardownCodec() {
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoderImpl<FFMPEG>::GetCurrentDecodeTarget() {
+SbDecodeTarget FfmpegVideoDecoderImpl<FFMPEG>::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
@@ -491,9 +493,10 @@ SbDecodeTarget VideoDecoderImpl<FFMPEG>::GetCurrentDecodeTarget() {
 
 #if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
-int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
-                                             AVFrame* frame,
-                                             int flags) {
+int FfmpegVideoDecoderImpl<FFMPEG>::AllocateBuffer(
+    AVCodecContext* codec_context,
+    AVFrame* frame,
+    int flags) {
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
     SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;
@@ -553,8 +556,9 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
 
 #else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
-int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
-                                             AVFrame* frame) {
+int FfmpegVideoDecoderImpl<FFMPEG>::AllocateBuffer(
+    AVCodecContext* codec_context,
+    AVFrame* frame) {
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
     SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;

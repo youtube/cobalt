@@ -38,32 +38,32 @@ FfmpegVideoDecoder* FfmpegVideoDecoder::Create(
   FfmpegVideoDecoder* video_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      video_decoder = VideoDecoderImpl<540>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<540>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     case 550:
     case 560:
-      video_decoder = VideoDecoderImpl<560>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<560>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     case 571:
-      video_decoder = VideoDecoderImpl<571>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<571>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     case 581:
-      video_decoder = VideoDecoderImpl<581>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<581>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     case 591:
-      video_decoder = VideoDecoderImpl<591>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<591>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     case 601:
-      video_decoder = VideoDecoderImpl<601>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<601>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     case 611:
-      video_decoder = VideoDecoderImpl<611>::Create(
+      video_decoder = FfmpegVideoDecoderImpl<611>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     default:
