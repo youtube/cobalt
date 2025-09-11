@@ -179,6 +179,9 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
   set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
 
   set_firmware_version(base::SysInfo::GetAndroidBuildID());
+
+  // Rasterizer type is gles for both Linux and Android.
+  set_rasterizer_type("gles");
 }
 #elif BUILDFLAG(IS_STARBOARD)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
@@ -188,6 +191,8 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
   set_firmware_version(
       starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
+  // Rasterizer type is gles for both Linux and Android.
+  set_rasterizer_type("gles");
 
   // TODO(cobalt, b/374213479): Retrieve Evergreen
   // #if BUILDFLAG(IS_EVERGREEN)
@@ -198,6 +203,18 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   //   set_evergreen_type("Lite");
   // #endif
 }
+
+#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS)
+// TODO(b/444510191): Replace BUILDFLAG(IS_IOS) with BUILDFLAG(IS_IOS_TVOS).
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
+  const std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_version = base::SysInfo::OperatingSystemVersion();
+  set_os_name_and_version(
+      base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
+
+  set_rasterizer_type("metal");
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
@@ -207,6 +224,9 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   InitializePlatformDependentFieldsAndroid();
 #elif BUILDFLAG(IS_STARBOARD)
   InitializePlatformDependentFieldsStarboard();
+#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS)
+  // TODO(b/444510191): Replace BUILDFLAG(IS_IOS) with BUILDFLAG(IS_IOS_TVOS).
+  InitializePlatformDependentFieldsTvOS();
 #endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -223,11 +243,6 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-  if (!avoid_access_to_starboard_for_testing_) {
-    set_device_type(
-        starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
-  }
-
   set_model(base::SysInfo::HardwareModelName());
 
   set_original_design_manufacturer(
@@ -239,19 +254,15 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
 
-  if (!avoid_access_to_starboard_for_testing_) {
-    set_aux_field(
-        starboard::GetSystemPropertyString(kSbSystemPropertyUserAgentAuxField));
-  }
-
   // We only support JIT for both Linux and Android.
   set_javascript_engine_version(
       base::StringPrintf("v8/%s-jit", V8_VERSION_STRING));
 
-  // Rasterizer type is gles for both Linux and Android.
-  set_rasterizer_type("gles");
-
   if (!avoid_access_to_starboard_for_testing_) {
+    set_device_type(
+        starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
+    set_aux_field(
+        starboard::GetSystemPropertyString(kSbSystemPropertyUserAgentAuxField));
     // Retrieve additional platform
     auto platform_info_extension =
         static_cast<const CobaltExtensionPlatformInfoApi*>(
