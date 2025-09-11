@@ -76,7 +76,7 @@ _RE_ALLOWED_C99_SYMBOL = re.compile(r'^\*\s(.*)$')
 _LIBRARIES_TO_IGNORE_PATH = os.path.join(
     os.path.dirname(__file__), 'libraries_to_ignore')
 _ALLOWED_C99_SYMBOLS_PATH = os.path.join(paths.STARBOARD_ROOT, 'doc', 'c99.md')
-_DEFAULT_RELATIVE_MANIFEST_PATH = os.path.join('evergreen', 'manifest')
+_DEFAULT_RELATIVE_MANIFEST_FOLDER = 'evergreen'
 
 # Messages placed at the header of auto-generated files.
 _MANIFEST_HEADER = ('# Manifest of Leaking Files\n\n' +
@@ -480,8 +480,7 @@ def ParseArgs():
       default=_DEFAULT_TARGET)
   parser.add_argument(
       '--relative-manifest-path',
-      help='Path to the manifest to use, relative to api_leak_detector dir.',
-      default=_DEFAULT_RELATIVE_MANIFEST_PATH)
+      help='Path to the manifest to use, relative to api_leak_detector dir.')
   parser.add_argument(
       '--sb_api_version',
       help='The Starboard version',
@@ -524,9 +523,9 @@ def ProcessNmOutput(nm_output, collect_files=False):
   """
   for line in nm_output.decode('utf-8').splitlines():
     line = line.lstrip()
-    contents = line.split(' ')
-    if len(contents) != 2:
-      if len(contents) == 1 and collect_files:
+    contents = line.split(' ', 1)
+    if len(contents) == 1:
+      if collect_files:
         yield contents[0]
       continue
     results = _RE_SYMBOL_AND_ANY_VERSION_INFO.match(contents[1]).groups()
@@ -547,6 +546,11 @@ def main():
   args = ParseArgs()
   config_dir = f'{args.platform}_{args.config}'
   config_path = os.path.join(paths.BUILD_OUTPUT_ROOT, config_dir)
+  obj_path = os.path.join(config_path, 'obj')
+  if not args.relative_manifest_path:
+    prefix = '' if args.config in ['qa', 'gold'] else 'dev_'
+    args.relative_manifest_path = os.path.join(
+        _DEFAULT_RELATIVE_MANIFEST_FOLDER, f'{prefix}manifest')
   manifest_path = os.path.join(
       os.path.dirname(__file__), args.relative_manifest_path)
 
@@ -617,7 +621,7 @@ def main():
     introduced, removed = DiffWithManifest(leaked_symbols, manifest_path)
     if introduced:
       PrettyPrint(
-          {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
+          {'Leaks introduced:': FindLeakLocations(introduced, obj_path)})
       print(
           '\nPlease see advice for addressing new leaks at go/cobalt-api-leaks.'
       )
@@ -626,7 +630,8 @@ def main():
 
     if removed:
       PrettyPrint({'Leaks removed:': removed})
-      print('\nPlease delete removed leaks from the manifest file.')
+      print('\nPlease delete removed leaks from the manifest file: '
+            f'{args.relative_manifest_path}.')
     else:
       print('No leaks were removed.', file=sys.stderr)
 
@@ -636,7 +641,7 @@ def main():
 
   if args.inspect:
     if leaked_symbols:
-      PrettyPrint(FindLeakLocations(leaked_symbols, config_path))
+      PrettyPrint(FindLeakLocations(leaked_symbols, obj_path))
     else:
       print('No leaks found!', file=sys.stderr)
     return 0
