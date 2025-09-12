@@ -112,7 +112,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       using ::starboard::shared::de265::De265VideoDecoder;
-      using ::starboard::shared::ffmpeg::FfmpegVideoDecoder;
       using ::starboard::shared::libdav1d::Dav1dVideoDecoder;
       using ::starboard::shared::openh264::OpenH264VideoDecoder;
       using ::starboard::shared::vpx::VpxVideoDecoder;

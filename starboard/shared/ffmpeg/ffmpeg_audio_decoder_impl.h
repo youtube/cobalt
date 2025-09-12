@@ -38,7 +38,8 @@ class FfmpegAudioDecoderImpl<FFMPEG>;
 // Declare the explicit specialization of the class with value FFMPEG.
 template <>
 class FfmpegAudioDecoderImpl<FFMPEG>
-    : public FfmpegAudioDecoder, private starboard::player::JobQueue::JobOwner {
+    : public FfmpegAudioDecoder,
+      private shared::starboard::player::JobQueue::JobOwner {
  public:
   explicit FfmpegAudioDecoderImpl(
       const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info);
