@@ -28,7 +28,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/opus/src/include/opus_multistream.h"
 
-namespace starboard::shared::opus {
+namespace starboard {
 
 class OpusAudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
@@ -73,6 +73,6 @@ class OpusAudioDecoder
   ConsumedCB consumed_cb_;
 };
 
-}  // namespace starboard::shared::opus
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_OPUS_OPUS_AUDIO_DECODER_H_
