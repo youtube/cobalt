@@ -70,7 +70,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       typedef ::starboard::shared::ffmpeg::FfmpegAudioDecoder
           FfmpegAudioDecoder;
-      typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
 
