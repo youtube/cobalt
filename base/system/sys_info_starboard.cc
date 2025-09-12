@@ -96,8 +96,7 @@ std::string SbSysInfo::Brand() {
   return GetSystemPropertyString(kSbSystemPropertyBrandName);
 }
 
-#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS)
-// TODO(b/444510191): Replace BUILDFLAG(IS_IOS) with BUILDFLAG(IS_IOS_TVOS).
+#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS_TVOS)
 
 std::string SbSysInfo::OriginalDesignManufacturer() {
   // Cobalt 25: https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L126
@@ -119,9 +118,11 @@ std::string SbSysInfo::ChipsetModelNumber() {
       {"AppleTV11,1", "Apple A12 Bionic"},
       {"AppleTV14,1", "Apple A15 Bionic"},
   };
+  // https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L49
+  constexpr std::string kUnknownChipset = "ChipsetUnknown";
   return base::Contains(kChipsets, systemInfo.machine)
-             ? kChipsets[systeminfo.machine]
-             : "";
+             ? kChipsets[systemInfo.machine]
+             : kUnknownChipset;
 }
 
 std::string SbSysInfo::ModelYear() {
@@ -139,9 +140,11 @@ std::string SbSysInfo::ModelYear() {
       {"AppleTV11,1", "2021"},
       {"AppleTV14,1", "2022"},
   };
+  // https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L48
+  constexpr std::string kUnknownYear = 2022;
   return base::Contains(kYears, systemInfo.machine)
-             ? kYears[systeminfo.machine]
-             : "";
+             ? kYears[systemInfo.machine]
+             : kUnknownYear;
 }
 
 std::string SbSysInfo::Brand() {
