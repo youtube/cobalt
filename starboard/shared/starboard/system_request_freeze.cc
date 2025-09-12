@@ -17,5 +17,5 @@
 #include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestFreeze() {
-  starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
+  starboard::Application::Get()->Freeze(NULL, NULL);
 }

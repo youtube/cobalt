@@ -25,7 +25,7 @@ namespace starboard::shared::dev_input {
 // Starboard Application implementation.
 class DevInput {
  public:
-  typedef ::starboard::shared::starboard::Application::Event Event;
+  typedef Application::Event Event;
 
   virtual ~DevInput() {}
 

@@ -40,7 +40,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::android::shared::GetPlatformServiceApi();
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::android::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiAndroid();
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
     // TODO(b/377019873): Re-enable

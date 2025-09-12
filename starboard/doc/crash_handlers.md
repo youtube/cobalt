@@ -26,7 +26,7 @@ const void* SbSystemGetExtension(const char* name) {
   ...
 
   if (SbStringCompareAll(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::common::GetCrashHandlerApi();
+    return starboard::GetCrashHandlerApi();
   }
   return NULL;
 }
@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
-  std::string ca_certificates_path = starboard::common::GetCACertificatesPath();
+  std::string ca_certificates_path = starboard::GetCACertificatesPath();
   third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 
   int result = application.Run(argc, argv);

@@ -15,15 +15,10 @@
 #ifndef STARBOARD_LINUX_X64X11_SKIA_CONFIGURATION_H_
 #define STARBOARD_LINUX_X64X11_SKIA_CONFIGURATION_H_
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace x64x11 {
-namespace skia {
 
-const void* GetConfigurationApi();
+const void* GetConfigurationApiLinuxSkia();
 
-}  // namespace skia
-}  // namespace x64x11
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_X64X11_SKIA_CONFIGURATION_H_

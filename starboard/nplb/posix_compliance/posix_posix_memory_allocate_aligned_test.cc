@@ -36,7 +36,7 @@ TEST(PosixMemalignTest, AllocatesAligned) {
     void* memory = NULL;
     std::ignore = posix_memalign(&memory, align, kSize);
     ASSERT_NE(static_cast<void*>(NULL), memory);
-    EXPECT_TRUE(starboard::common::MemoryIsAligned(memory, align));
+    EXPECT_TRUE(MemoryIsAligned(memory, align));
     free(memory);
   }
 }
