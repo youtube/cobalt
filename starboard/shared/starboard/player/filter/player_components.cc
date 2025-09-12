@@ -161,7 +161,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   use_stub_video_decoder = ::starboard::features::FeatureList::IsEnabled(
       ::starboard::features::kUseStubVideoDecoder);
 #else
-  auto command_line = shared::starboard::Application::Get()->GetCommandLine();
+  auto command_line = Application::Get()->GetCommandLine();
   use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
   use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
 #endif  // BUILDFLAG(IS_ANDROID)

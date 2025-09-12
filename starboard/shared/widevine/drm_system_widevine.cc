@@ -223,8 +223,6 @@ DrmSystemWidevine::DrmSystemWidevine(
   ON_INSTANCE_CREATED(DrmSystemWidevine);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  using shared::starboard::Application;
-
   auto command_line = Application::Get()->GetCommandLine();
   auto value = command_line->GetSwitchValue("maximum_drm_session_updates");
   if (!value.empty()) {
