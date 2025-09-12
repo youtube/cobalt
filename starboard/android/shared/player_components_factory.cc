@@ -190,8 +190,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(kForceFlushDecoderDuringReset);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -297,8 +297,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << ". Tunnel mode is disabled.";
     }
 
-    const bool force_tunnel_mode = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceTunnelMode);
+    const bool force_tunnel_mode = FeatureList::IsEnabled(kForceTunnelMode);
 
     if (force_tunnel_mode && !enable_tunnel_mode) {
       SB_LOG(INFO)
@@ -334,14 +333,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kForceResetAudioDecoder);
+        FeatureList::IsEnabled(kForceResetAudioDecoder);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
-    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(kForceFlushDecoderDuringReset);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -351,8 +349,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_renderer_sink);
 
       const bool enable_platform_opus_decoder =
-          starboard::features::FeatureList::IsEnabled(
-              starboard::features::kForcePlatformOpusDecoder);
+          FeatureList::IsEnabled(kForcePlatformOpusDecoder);
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
@@ -466,10 +463,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceFlushDecoderDuringReset);
-    int64_t flush_delay_usec = starboard::features::kFlushDelayUsec.Get();
-    int64_t reset_delay_usec = starboard::features::kResetDelayUsec.Get();
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(kForceFlushDecoderDuringReset);
+    int64_t flush_delay_usec = kFlushDelayUsec.Get();
+    int64_t reset_delay_usec = kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&

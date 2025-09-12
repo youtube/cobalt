@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 
-namespace starboard::features {
+namespace starboard {
 namespace {
 std::string ParamTypeToString(const SbFeatureParamType& type) {
   switch (type) {
@@ -211,4 +211,4 @@ int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param) {
   return std::get<int64_t>(
       instance->params_[param.feature_name][param.param_name].second);
 }
-}  // namespace starboard::features
+}  // namespace starboard
