@@ -32,6 +32,8 @@ namespace starboard {
 
 namespace {
 
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
 using shared::starboard::media::MediaIsAudioSupported;
 using shared::starboard::media::MediaIsSupported;
 using shared::starboard::media::MediaIsVideoSupported;

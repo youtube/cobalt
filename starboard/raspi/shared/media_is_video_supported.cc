@@ -19,6 +19,8 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
 namespace starboard::shared::starboard::media {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,

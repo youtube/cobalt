@@ -23,6 +23,8 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/system.h"
 
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
 namespace starboard::shared::starboard::media {
 
 using ::starboard::shared::de265::is_de265_supported;
