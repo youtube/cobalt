@@ -91,6 +91,8 @@ public final class CommandLineOverrideHelper {
     public static StringJoiner getDefaultEnableFeatureOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
 
+        paramOverrides.add("ExternalNavigationDebugLogs");
+
         // Pass javascript console log to adb log.
         paramOverrides.add("LogJsConsoleMessages");
         // Limit decoded image cache to 32 mbytes.

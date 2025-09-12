@@ -57,6 +57,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "components/navigation_interception/intercept_navigation_delegate.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if defined(RUN_BROWSER_TESTS)
@@ -134,6 +135,18 @@ CobaltContentBrowserClient::CreateThrottlesForNavigation(
   std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
   throttles.push_back(
       std::make_unique<content::CobaltSecureNavigationThrottle>(handle));
+
+
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<content::NavigationThrottle> intercept_navigation_throttle =
+      navigation_interception::InterceptNavigationDelegate::
+          MaybeCreateThrottleFor(handle,
+                                 navigation_interception::SynchronyMode::kSync);
+  if (intercept_navigation_throttle) {
+    throttles.push_back(std::move(intercept_navigation_throttle));
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   return throttles;
 }
 
