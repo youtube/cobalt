@@ -15,29 +15,34 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_
 #define MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_
 
+#include <optional>
 #include <utility>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "ui/gfx/geometry/rect.h"
+
+namespace base {
+class SequencedTaskRunner;
+}
 
 namespace media {
 
 class SbPlayerBridge;
 
-class SbPlayerSetBoundsHelper
-    : public base::RefCountedThreadSafe<SbPlayerSetBoundsHelper> {
+class SbPlayerSetBoundsHelper {
  public:
-  SbPlayerSetBoundsHelper() {}
+  SbPlayerSetBoundsHelper();
 
   void SetPlayerBridge(SbPlayerBridge* player_bridge);
-  bool SetBounds(int x, int y, int width, int height);
+  bool SetBounds(const gfx::Rect& rect);
 
  private:
-  base::Lock lock_;
-  SbPlayerBridge* player_bridge_ GUARDED_BY(lock_) = nullptr;
-  std::optional<gfx::Rect> rect_ GUARDED_BY(lock_);
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+
+  SbPlayerBridge* player_bridge_ = nullptr;
+  std::optional<gfx::Rect> rect_;
 
   SbPlayerSetBoundsHelper(const SbPlayerSetBoundsHelper&) = delete;
   void operator=(const SbPlayerSetBoundsHelper&) = delete;
