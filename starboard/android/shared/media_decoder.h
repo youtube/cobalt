@@ -39,7 +39,7 @@ namespace starboard::android::shared {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaDecoder final
+class MediaCodecDecoder final
     : private MediaCodecBridge::Handler,
       protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
@@ -51,9 +51,9 @@ class MediaDecoder final
   typedef std::function<void(int64_t)> FrameRenderedCB;
   typedef std::function<void(void)> FirstTunnelFrameReadyCB;
 
-  // This class should be implemented by the users of MediaDecoder to receive
-  // various notifications.  Note that all such functions are called on the
-  // decoder thread.
+  // This class should be implemented by the users of MediaCodecDecoder to
+  // receive various notifications.  Note that all such functions are called on
+  // the decoder thread.
   // TODO: Replace this with std::function<> based callbacks.
   class Host {
    public:
@@ -62,7 +62,7 @@ class MediaDecoder final
     virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the
-    // Host a chance to process when the MediaDecoder is decoding.
+    // Host a chance to process when the MediaCodecDecoder is decoding.
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
@@ -78,31 +78,31 @@ class MediaDecoder final
     ~Host() {}
   };
 
-  MediaDecoder(Host* host,
-               const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system);
-  MediaDecoder(Host* host,
-               SbMediaVideoCodec video_codec,
-               // `width_hint` and `height_hint` are used to create the Android
-               // video format, which don't have to be directly related to the
-               // resolution of the video.
-               int width_hint,
-               int height_hint,
-               std::optional<int> max_width,
-               std::optional<int> max_height,
-               int fps,
-               jobject j_output_surface,
-               SbDrmSystem drm_system,
-               const SbMediaColorMetadata* color_metadata,
-               bool require_software_codec,
-               const FrameRenderedCB& frame_rendered_cb,
-               const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-               int tunnel_mode_audio_session_id,
-               bool force_big_endian_hdr_metadata,
-               int max_video_input_size,
-               int64_t flush_delay_usec,
-               std::string* error_message);
-  ~MediaDecoder();
+  MediaCodecDecoder(Host* host,
+                    const AudioStreamInfo& audio_stream_info,
+                    SbDrmSystem drm_system);
+  MediaCodecDecoder(Host* host,
+                    SbMediaVideoCodec video_codec,
+                    // `width_hint` and `height_hint` are used to create the
+                    // Android video format, which don't have to be directly
+                    // related to the resolution of the video.
+                    int width_hint,
+                    int height_hint,
+                    std::optional<int> max_width,
+                    std::optional<int> max_height,
+                    int fps,
+                    jobject j_output_surface,
+                    SbDrmSystem drm_system,
+                    const SbMediaColorMetadata* color_metadata,
+                    bool require_software_codec,
+                    const FrameRenderedCB& frame_rendered_cb,
+                    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+                    int tunnel_mode_audio_session_id,
+                    bool force_big_endian_hdr_metadata,
+                    int max_video_input_size,
+                    int64_t flush_delay_usec,
+                    std::string* error_message);
+  ~MediaCodecDecoder();
 
   void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);
