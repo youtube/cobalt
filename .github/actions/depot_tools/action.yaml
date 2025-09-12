@@ -19,7 +19,7 @@ runs:
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
-        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
+        run: gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
         shell: bash
       - name: Set target OS for Android
         if: ${{ contains(matrix.platform, 'android') }}
