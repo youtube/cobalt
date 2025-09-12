@@ -15,6 +15,7 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
+#include "cobalt/browser/cobalt_rendering_host_impl.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
@@ -28,6 +29,7 @@
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "cobalt/browser/performance/public/mojom/rendering.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
@@ -70,6 +72,8 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_runtime::H5vccRuntimeImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(
       base::BindRepeating(&performance::PerformanceImpl::Create));
+  binder_map->Add<performance::mojom::CobaltRendering>(
+      base::BindRepeating(&browser::CobaltRenderingHostImpl::Create));
 }
 
 }  // namespace cobalt
