@@ -34,14 +34,14 @@
 
 namespace starboard::shared::aom {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class AomVideoDecoder : public starboard::player::filter::VideoDecoder,
+                        private starboard::player::JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
-  ~VideoDecoder() override;
+  AomVideoDecoder(SbMediaVideoCodec video_codec,
+                  SbPlayerOutputMode output_mode,
+                  SbDecodeTargetGraphicsContextProvider*
+                      decode_target_graphics_context_provider);
+  ~AomVideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;

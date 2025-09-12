@@ -25,9 +25,9 @@ namespace starboard::shared::ffmpeg {
 // For each version V that is supported, there will be an implementation of an
 // explicit specialization of the AudioDecoder class.
 template <int V>
-class AudioDecoderImpl : public AudioDecoder {
+class FfmpegAudioDecoderImpl : public FfmpegAudioDecoder {
  public:
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
 };
 
 }  // namespace starboard::shared::ffmpeg

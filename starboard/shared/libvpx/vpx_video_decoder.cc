@@ -23,10 +23,10 @@ namespace starboard::shared::vpx {
 
 using starboard::player::JobThread;
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
-                           SbPlayerOutputMode output_mode,
-                           SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
+VpxVideoDecoder::VpxVideoDecoder(SbMediaVideoCodec video_codec,
+                                 SbPlayerOutputMode output_mode,
+                                 SbDecodeTargetGraphicsContextProvider*
+                                     decode_target_graphics_context_provider)
     : stream_ended_(false),
       error_occurred_(false),
       output_mode_(output_mode),
@@ -36,13 +36,13 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
   SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecVp9);
 }
 
-VideoDecoder::~VideoDecoder() {
+VpxVideoDecoder::~VpxVideoDecoder() {
   SB_DCHECK(BelongsToCurrentThread());
   Reset();
 }
 
-void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                              const ErrorCB& error_cb) {
+void VpxVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                                 const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
@@ -53,7 +53,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 }
 
-void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
@@ -71,10 +71,10 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   const auto& input_buffer = input_buffers[0];
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeOneBuffer, this, input_buffer));
+      std::bind(&VpxVideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
-void VideoDecoder::WriteEndOfStream() {
+void VpxVideoDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
@@ -90,16 +90,16 @@ void VideoDecoder::WriteEndOfStream() {
   }
 
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeEndOfStream, this));
+      std::bind(&VpxVideoDecoder::DecodeEndOfStream, this));
 }
 
-void VideoDecoder::Reset() {
+void VpxVideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
     decoder_thread_->job_queue()->ScheduleAndWait(
-        std::bind(&VideoDecoder::TeardownCodec, this));
+        std::bind(&VpxVideoDecoder::TeardownCodec, this));
 
     decoder_thread_.reset();
   }
@@ -113,7 +113,7 @@ void VideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void VideoDecoder::UpdateDecodeTarget_Locked(
+void VpxVideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
@@ -126,14 +126,14 @@ void VideoDecoder::UpdateDecodeTarget_Locked(
   }
 }
 
-void VideoDecoder::ReportError(const std::string& error_message) {
+void VpxVideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
-void VideoDecoder::InitializeCodec() {
+void VpxVideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   context_.reset(new vpx_codec_ctx);
@@ -152,7 +152,7 @@ void VideoDecoder::InitializeCodec() {
   }
 }
 
-void VideoDecoder::TeardownCodec() {
+void VpxVideoDecoder::TeardownCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   if (context_) {
@@ -175,7 +175,7 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::DecodeOneBuffer(
+void VpxVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
@@ -260,7 +260,7 @@ void VideoDecoder::DecodeOneBuffer(
   Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, frame));
 }
 
-void VideoDecoder::DecodeEndOfStream() {
+void VpxVideoDecoder::DecodeEndOfStream() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   // TODO: Flush the frames inside the decoder, though this is not required
@@ -270,7 +270,7 @@ void VideoDecoder::DecodeEndOfStream() {
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+SbDecodeTarget VpxVideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
