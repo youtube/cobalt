@@ -35,13 +35,13 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // A small application framework for managing the application life-cycle, and
 // dispatching events to the Starboard event handler, SbEventHandle.
 class SB_EXPORT_ANDROID Application {
  public:
-  typedef player::filter::VideoFrame VideoFrame;
+  typedef shared::starboard::player::filter::VideoFrame VideoFrame;
 
   // Executes a SbEventHandle method callback.
   SbEventHandleCallback sb_event_handle_callback_ = NULL;
@@ -446,6 +446,13 @@ class SB_EXPORT_ANDROID Application {
   std::vector<TeardownCallback> teardown_callbacks_;
 };
 
-}  // namespace starboard::shared::starboard
+// Alias to prevent breaking the RDK build on CI.
+// See https://paste.googleplex.com/6310485490270208
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
+namespace shared::starboard {
+using Application = ::starboard::Application;
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_APPLICATION_H_

@@ -35,13 +35,13 @@ void SbSystemRequestFreeze() {
   if (starboard::loader_app::IsPendingRestart()) {
     SbLogRawFormatF("\nPending update restart . Stopping.\n");
     SbLogFlush();
-    starboard::shared::starboard::Application::Get()->Stop(0);
+    starboard::Application::Get()->Stop(0);
   } else {
     // Let the platform decide if directly transit into Frozen.
-    starboard::shared::starboard::Application::Get()->Freeze(NULL, &FreezeDone);
+    starboard::Application::Get()->Freeze(NULL, &FreezeDone);
   }
 #else
   // Let the platform decide if directly transit into Frozen.
-  starboard::shared::starboard::Application::Get()->Freeze(NULL, &FreezeDone);
+  starboard::Application::Get()->Freeze(NULL, &FreezeDone);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }

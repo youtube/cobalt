@@ -46,8 +46,6 @@
 namespace starboard::shared::dev_input {
 namespace {
 
-using ::starboard::shared::starboard::Application;
-
 typedef int FileDescriptor;
 const FileDescriptor kInvalidFd = -ENODEV;
 

@@ -51,7 +51,7 @@ void SbLog(SbLogPriority priority, const char* message) {
   }
 
   {
-    std::lock_guard lock(*starboard::shared::starboard::GetLoggingMutex());
+    std::lock_guard lock(*starboard::GetLoggingMutex());
     __android_log_write(android_priority, "starboard", message);
   }
 
