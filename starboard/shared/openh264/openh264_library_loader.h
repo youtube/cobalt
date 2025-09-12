@@ -20,7 +20,7 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard {
 
 bool is_openh264_supported();
 
@@ -28,6 +28,6 @@ extern int (*WelsCreateDecoder)(ISVCDecoder** ppDecoder);
 
 extern void (*WelsDestroyDecoder)(ISVCDecoder* pDecoder);
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_LIBRARY_LOADER_H_

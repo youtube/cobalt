@@ -28,13 +28,13 @@
 #include "third_party/dav1d/libdav1d/include/dav1d/headers.h"
 #include "third_party/dav1d/libdav1d/include/dav1d/picture.h"
 
-namespace starboard::shared::libdav1d {
+namespace starboard {
 
 namespace {
 
-using starboard::player::InputBuffer;
-using starboard::player::JobThread;
-using starboard::player::filter::CpuVideoFrame;
+using shared::starboard::player::InputBuffer;
+using shared::starboard::player::JobThread;
+using shared::starboard::player::filter::CpuVideoFrame;
 
 // Set max resolutions to 8K.
 constexpr int kMaxDecodedFrameWidth = 7680;
@@ -387,4 +387,4 @@ SbDecodeTarget Dav1dVideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace starboard::shared::libdav1d
+}  // namespace starboard

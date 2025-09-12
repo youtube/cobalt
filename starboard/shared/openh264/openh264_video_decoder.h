@@ -35,10 +35,11 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard {
 
-class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
-                             private starboard::player::JobQueue::JobOwner {
+class OpenH264VideoDecoder
+    : public shared::starboard::player::filter::VideoDecoder,
+      private shared::starboard::player::JobQueue::JobOwner {
  public:
   OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
                        SbPlayerOutputMode output_mode,
@@ -121,7 +122,7 @@ class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::mutex decode_target_mutex_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<shared::starboard::player::JobThread> decoder_thread_;
 
   // Openh264 decode handler.
   ISVCDecoder* decoder_ = nullptr;
@@ -133,6 +134,6 @@ class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::optional<shared::starboard::media::VideoConfig> video_config_;
 };
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_
