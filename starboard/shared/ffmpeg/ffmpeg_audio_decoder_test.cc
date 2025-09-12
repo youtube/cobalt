@@ -38,38 +38,41 @@ AudioStreamInfo CreateStreamInfoForCodec(SbMediaAudioCodec codec) {
   return stream_info;
 }
 
-class FFmpegAudioDecoderTest
+class FfmpegAudioDecoderTest
     : public ::testing::Test,
       public ::starboard::shared::starboard::player::JobQueue::JobOwner {
  protected:
-  FFmpegAudioDecoderTest() : JobOwner(kDetached) { AttachToCurrentThread(); }
+  FfmpegAudioDecoderTest() : JobOwner(kDetached) { AttachToCurrentThread(); }
 
-  ~FFmpegAudioDecoderTest() override = default;
+  ~FfmpegAudioDecoderTest() override = default;
 
   // Create a JobQueue for use on the current thread.
   ::starboard::shared::starboard::player::JobQueue job_queue_;
 };
 
-TEST_F(FFmpegAudioDecoderTest, SupportsMp3Codec) {
+TEST_F(FfmpegAudioDecoderTest, SupportsMp3Codec) {
   AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecMp3);
-  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
+  std::unique_ptr<FfmpegAudioDecoder> decoder(
+      FfmpegAudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }
 
-TEST_F(FFmpegAudioDecoderTest, SupportsFlacCodecFor16BitAudio) {
+TEST_F(FfmpegAudioDecoderTest, SupportsFlacCodecFor16BitAudio) {
   AudioStreamInfo stream_info =
       CreateStreamInfoForCodec(kSbMediaAudioCodecFlac);
   stream_info.bits_per_sample = 16;
-  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
+  std::unique_ptr<FfmpegAudioDecoder> decoder(
+      FfmpegAudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }
 
-TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
+TEST_F(FfmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
   AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecPcm);
   stream_info.bits_per_sample = 16;
-  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
+  std::unique_ptr<FfmpegAudioDecoder> decoder(
+      FfmpegAudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }
