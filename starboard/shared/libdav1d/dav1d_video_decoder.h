@@ -32,10 +32,11 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::libdav1d {
+namespace starboard {
 
-class Dav1dVideoDecoder : public starboard::player::filter::VideoDecoder,
-                          private JobQueue::JobOwner {
+class Dav1dVideoDecoder
+    : public shared::starboard::player::filter::VideoDecoder,
+      private shared::JobQueue::JobOwner {
  public:
   Dav1dVideoDecoder(SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
@@ -119,6 +120,6 @@ class Dav1dVideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::libdav1d
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_

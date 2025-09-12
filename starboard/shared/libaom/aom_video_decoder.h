@@ -32,10 +32,10 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::aom {
+namespace starboard {
 
-class AomVideoDecoder : public starboard::player::filter::VideoDecoder,
-                        private JobQueue::JobOwner {
+class AomVideoDecoder : public shared::starboard::player::filter::VideoDecoder,
+                        private shared::JobQueue::JobOwner {
  public:
   AomVideoDecoder(SbMediaVideoCodec video_codec,
                   SbPlayerOutputMode output_mode,
@@ -107,6 +107,6 @@ class AomVideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::aom
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LIBAOM_AOM_VIDEO_DECODER_H_

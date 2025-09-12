@@ -19,7 +19,7 @@
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::vpx {
+namespace starboard {
 
 VpxVideoDecoder::VpxVideoDecoder(SbMediaVideoCodec video_codec,
                                  SbPlayerOutputMode output_mode,
@@ -289,4 +289,4 @@ SbDecodeTarget VpxVideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace starboard::shared::vpx
+}  // namespace starboard

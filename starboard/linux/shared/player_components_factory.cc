@@ -50,7 +50,7 @@ namespace filter {
 
 namespace {
 
-using ::starboard::shared::openh264::is_openh264_supported;
+using ::starboard::is_openh264_supported;
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
@@ -68,17 +68,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
-          FdkAacAudioDecoder;
-
       auto decoder_creator =
           [](const media::AudioStreamInfo& audio_stream_info,
              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
-              new OpusAudioDecoder(audio_stream_info));
-          if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          auto opus_audio_decoder =
+              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+          if (opus_audio_decoder->is_valid()) {
+            return opus_audio_decoder;
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
                           << GetMediaAudioCodecName(audio_stream_info.codec);
@@ -86,15 +83,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
                    audio_stream_info.number_of_channels <=
                        FdkAacAudioDecoder::kMaxChannels &&
-                   libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
+                   LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
-          return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
+          return std::make_unique<FdkAacAudioDecoder>();
         } else {
-          std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
+          std::unique_ptr<FfmpegAudioDecoder> ffmpeg_audio_decoder(
               FfmpegAudioDecoder::Create(audio_stream_info));
-          if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+          if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
-            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+            return ffmpeg_audio_decoder;
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
                           << GetMediaAudioCodecName(audio_stream_info.codec);
@@ -103,18 +100,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
-      audio_decoder->reset(new AdaptiveAudioDecoder(
+      *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
-          creation_parameters.drm_system(), decoder_creator));
-      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+          creation_parameters.drm_system(), decoder_creator);
+      *audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      using ::starboard::shared::de265::De265VideoDecoder;
-      using ::starboard::shared::libdav1d::Dav1dVideoDecoder;
-      using ::starboard::shared::openh264::OpenH264VideoDecoder;
-      using ::starboard::shared::vpx::VpxVideoDecoder;
-
       const int64_t kVideoSinkRenderIntervalUsec = 10'000;
 
       SB_DCHECK(video_decoder);
@@ -189,8 +181,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return std::unique_ptr<PlayerComponents::Factory>(
-      new PlayerComponentsFactory);
+  return std::make_unique<PlayerComponentsFactory>();
 }
 
 // static

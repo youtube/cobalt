@@ -20,7 +20,7 @@
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::de265 {
+namespace starboard {
 
 De265VideoDecoder::De265VideoDecoder(
     SbMediaVideoCodec video_codec,
@@ -302,4 +302,4 @@ SbDecodeTarget De265VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace starboard::shared::de265
+}  // namespace starboard
