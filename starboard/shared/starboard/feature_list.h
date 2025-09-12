@@ -25,7 +25,7 @@
 
 #include "starboard/extension/features.h"
 
-namespace starboard::features {
+namespace starboard {
 
 template <typename T>
 struct SbFeatureParamExt;
@@ -150,6 +150,6 @@ int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param);
 #define SB_FEATURE_PARAM(T, param_object_name, feature, name, default_value) \
   constexpr SbFeatureParamExt<T> param_object_name(feature, name);
 
-}  // namespace starboard::features
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_

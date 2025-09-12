@@ -34,10 +34,10 @@
                                 default_value)                       \
   SB_DECLARE_FEATURE_PARAM(T, param_object_name)
 
-#define FEATURE_LIST_START namespace starboard::features {
+#define FEATURE_LIST_START namespace starboard {
 #define FEATURE_LIST_END }
 
-#define FEATURE_PARAM_LIST_START namespace starboard::features {
+#define FEATURE_PARAM_LIST_START namespace starboard {
 #define FEATURE_PARAM_LIST_END }
 
 #define STARBOARD_FEATURE_PARAM_TIME_TYPE int64_t
