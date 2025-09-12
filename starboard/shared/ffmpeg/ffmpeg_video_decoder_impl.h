@@ -40,23 +40,24 @@ namespace starboard::shared::ffmpeg {
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
-class VideoDecoderImpl<FFMPEG>;
+class FfmpegVideoDecoderImpl<FFMPEG>;
 
 // Declare the explicit specialization of the class with value FFMPEG.
 template <>
-class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
+class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
  public:
-  VideoDecoderImpl(SbMediaVideoCodec video_codec,
-                   SbPlayerOutputMode output_mode,
-                   SbDecodeTargetGraphicsContextProvider*
-                       decode_target_graphics_context_provider);
-  ~VideoDecoderImpl() override;
+  FfmpegVideoDecoderImpl(SbMediaVideoCodec video_codec,
+                         SbPlayerOutputMode output_mode,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider);
+  ~FfmpegVideoDecoderImpl() override;
 
-  // From: VideoDecoder
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec,
-                              SbPlayerOutputMode output_mode,
-                              SbDecodeTargetGraphicsContextProvider*
-                                  decode_target_graphics_context_provider);
+  // From: FfmpegVideoDecoder
+  static FfmpegVideoDecoder* Create(
+      SbMediaVideoCodec video_codec,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider);
   bool is_valid() const override;
 
   // From: starboard::player::filter::VideoDecoder

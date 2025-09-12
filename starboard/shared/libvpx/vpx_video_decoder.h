@@ -37,14 +37,14 @@
 
 namespace starboard::shared::vpx {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class VpxVideoDecoder : public starboard::player::filter::VideoDecoder,
+                        private starboard::player::JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
-  ~VideoDecoder() override;
+  VpxVideoDecoder(SbMediaVideoCodec video_codec,
+                  SbPlayerOutputMode output_mode,
+                  SbDecodeTargetGraphicsContextProvider*
+                      decode_target_graphics_context_provider);
+  ~VpxVideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;

@@ -22,12 +22,12 @@
 
 namespace starboard::shared::ffmpeg {
 
-class AudioDecoder : public starboard::player::filter::AudioDecoder {
+class FfmpegAudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
 
   // Create an audio decoder for the currently loaded ffmpeg library.
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
   // Returns true if the audio decoder is initialized successfully.
   virtual bool is_valid() const = 0;
 };

@@ -36,14 +36,14 @@
 
 namespace starboard::shared::de265 {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class De265VideoDecoder : public starboard::player::filter::VideoDecoder,
+                          private starboard::player::JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
-  ~VideoDecoder() override;
+  De265VideoDecoder(SbMediaVideoCodec video_codec,
+                    SbPlayerOutputMode output_mode,
+                    SbDecodeTargetGraphicsContextProvider*
+                        decode_target_graphics_context_provider);
+  ~De265VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
