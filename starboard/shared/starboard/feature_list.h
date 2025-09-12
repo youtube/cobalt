@@ -25,7 +25,7 @@
 
 #include "starboard/extension/features.h"
 
-namespace starboard::features {
+namespace starboard {
 
 template <typename T>
 struct SbFeatureParamExt;
@@ -117,11 +117,6 @@ struct SbFeatureParamExt : public SbFeatureParam {
 
   constexpr SbFeatureParamExt(const SbFeature& feature, const char* name)
       : SbFeatureParam{feature.name, name} {}
-
-  // Function used to retrieve the parameter value for a given param. Outside
-  // code will call this function, which will then call the corresponding
-  // FeatureList::GetParam function.
-  T Get() const { return FeatureList::GetParam(*this); }
 };
 
 template <>
@@ -150,6 +145,6 @@ int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param);
 #define SB_FEATURE_PARAM(T, param_object_name, feature, name, default_value) \
   constexpr SbFeatureParamExt<T> param_object_name(feature, name);
 
-}  // namespace starboard::features
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
