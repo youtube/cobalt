@@ -23,10 +23,9 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
+namespace starboard::shared::starboard::media {
 
 using ::starboard::shared::de265::is_de265_supported;
 
@@ -78,7 +77,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

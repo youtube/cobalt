@@ -67,7 +67,7 @@ void StubVideoDecoder::WriteEndOfStream() {
 void StubVideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  video_stream_info_ = media::VideoStreamInfo();
+  video_stream_info_ = VideoStreamInfo();
   decoder_thread_.reset();
   output_frame_timestamps_.clear();
   total_input_count_ = 0;

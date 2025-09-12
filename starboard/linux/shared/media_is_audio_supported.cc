@@ -19,10 +19,9 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
+namespace starboard::shared::starboard::media {
 
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,
@@ -56,7 +55,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   return false;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

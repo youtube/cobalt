@@ -20,6 +20,10 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
+// Need to keep this namespace to prevent breaking RDK build on CI.
+// http://go/paste/5453531536556032
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
 namespace starboard::shared::starboard::media {
 
 // Indicates whether this platform supports decoding |video_codec| and

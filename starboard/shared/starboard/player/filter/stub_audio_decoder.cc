@@ -21,11 +21,7 @@
 #include "starboard/common/log.h"
 
 namespace starboard::shared::starboard::player::filter {
-
 namespace {
-
-using ::starboard::shared::starboard::media::AudioDurationToFrames;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
@@ -78,8 +74,7 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
 
 }  // namespace
 
-StubAudioDecoder::StubAudioDecoder(
-    const media::AudioStreamInfo& audio_stream_info)
+StubAudioDecoder::StubAudioDecoder(const AudioStreamInfo& audio_stream_info)
     : codec_(audio_stream_info.codec),
       number_of_channels_(audio_stream_info.number_of_channels),
       samples_per_second_(audio_stream_info.samples_per_second),

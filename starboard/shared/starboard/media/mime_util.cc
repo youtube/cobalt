@@ -28,9 +28,15 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
+
+// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
+// updated.
+using shared::starboard::media::MediaIsAudioSupported;
+using shared::starboard::media::MediaIsSupported;
+using shared::starboard::media::MediaIsVideoSupported;
 
 // Use SbMediaGetAudioConfiguration() to check if the platform can support
 // |channels|.
@@ -295,4 +301,4 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
              : kSbMediaSupportTypeNotSupported;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

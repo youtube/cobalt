@@ -75,7 +75,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           FdkAacAudioDecoder;
 
       auto decoder_creator =
-          [](const media::AudioStreamInfo& audio_stream_info,
+          [](const AudioStreamInfo& audio_stream_info,
              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(

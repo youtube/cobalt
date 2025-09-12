@@ -20,7 +20,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 // Calls to canPlayType() and isTypeSupported() are redirected to this function.
 // Following are some example inputs:
@@ -49,6 +49,6 @@ namespace starboard::shared::starboard::media {
 SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
                                            const char* key_system);
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MIME_UTIL_H_

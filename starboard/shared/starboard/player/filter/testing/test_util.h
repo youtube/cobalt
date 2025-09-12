@@ -54,13 +54,13 @@ std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
 
 ::testing::AssertionResult AlmostEqualTime(int64_t time1, int64_t time2);
 
-media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
+VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
 
 bool IsPartialAudioSupported();
 

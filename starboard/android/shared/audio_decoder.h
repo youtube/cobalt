@@ -41,9 +41,6 @@ class MediaCodecAudioDecoder
       public MediaCodecDecoder::Host,
       private ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-
   MediaCodecAudioDecoder(const AudioStreamInfo& audio_stream_info,
                          SbDrmSystem drm_system,
                          bool enable_flush_during_seek);

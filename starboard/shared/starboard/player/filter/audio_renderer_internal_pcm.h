@@ -64,7 +64,7 @@ class AudioRendererPcm : public AudioRenderer,
   // tries to append to the sink buffer at once.
   AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
-                   const media::AudioStreamInfo& audio_stream_info,
+                   const AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,
                    int min_frames_per_append);
   ~AudioRendererPcm() override;

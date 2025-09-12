@@ -120,7 +120,7 @@ class AudioDecoderTest
   enum Event { kConsumed, kOutput, kError };
 
   void CreateComponents(
-      const media::AudioStreamInfo& audio_stream_info,
+      const AudioStreamInfo& audio_stream_info,
       std::unique_ptr<AudioDecoder>* audio_decoder,
       std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
     if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
@@ -806,8 +806,8 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     auto frames_per_access_unit =
         reference_decoded_audio->frames() / number_of_input_to_write;
     int64_t duration_to_discard =
-        media::AudioFramesToDuration(frames_per_access_unit,
-                                     decoded_audio_sample_rate_) /
+        AudioFramesToDuration(frames_per_access_unit,
+                              decoded_audio_sample_rate_) /
         4;
 
     RecreateDecoder();

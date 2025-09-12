@@ -130,7 +130,7 @@ class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
   int frames_being_decoded_ = 0;
 
   // Store current avc level profile and resolution.
-  std::optional<shared::starboard::media::VideoConfig> video_config_;
+  std::optional<VideoConfig> video_config_;
 };
 
 }  // namespace starboard::shared::openh264

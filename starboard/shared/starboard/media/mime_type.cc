@@ -27,7 +27,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -391,4 +391,4 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
   return os;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

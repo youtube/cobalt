@@ -33,10 +33,12 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
+using ::starboard::MimeType;
 using ::starboard::shared::media_session::kPlaying;
 using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
-using ::starboard::shared::starboard::media::MimeType;
+using ::starboard::shared::starboard::media::MediaIsAudioSupported;
+using ::starboard::shared::starboard::media::MediaIsVideoSupported;
 using ::starboard::shared::starboard::player::PlayerWorker;
 using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using ::starboard::shared::starboard::player::filter::
