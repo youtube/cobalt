@@ -60,6 +60,9 @@ void RequestSender::Send(
     bool use_signing,
     RequestSenderCallback request_sender_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "RequestSender::Send";
+#endif
 
   urls_ = urls;
   request_extra_headers_ = request_extra_headers;
@@ -117,6 +120,16 @@ void RequestSender::SendInternal() {
       base::BindOnce(&RequestSender::OnNetworkFetcherComplete,
                      base::Unretained(this), url));
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void RequestSender::Cancel() {
+  LOG(INFO) << "RequestSender::Cancel";
+  // TODO: enable this in a follow-up PR with the Cobalt network fetcher implementation
+  // if (network_fetcher_.get()) {
+  //   network_fetcher_->Cancel();
+  // }
+}
+#endif
 
 void RequestSender::SendInternalComplete(
     int error,
@@ -176,6 +189,9 @@ void RequestSender::OnNetworkFetcherComplete(
     const std::string& xheader_cup_server_proof,
     int64_t xheader_retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "RequestSender::OnNetworkFetcherComplete";
+#endif
 
   VLOG(1) << "Request completed from url: " << original_url.spec();
 
