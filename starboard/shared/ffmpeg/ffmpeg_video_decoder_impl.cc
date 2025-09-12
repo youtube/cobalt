@@ -26,7 +26,7 @@
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 namespace {
 
@@ -614,4 +614,4 @@ int FfmpegVideoDecoderImpl<FFMPEG>::AllocateBuffer(
 }
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
