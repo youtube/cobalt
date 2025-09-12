@@ -32,7 +32,7 @@ struct TestContext {
 };
 
 void* EntryPoint(void* parameter) {
-  pthread_setname_np(pthread_self(), posix::kThreadName);
+  pthread_setname_np(pthread_self(), kThreadName);
   TestContext* context = static_cast<TestContext*>(parameter);
   context->was_locked_ = (pthread_mutex_trylock(context->mutex_) == 0);
   return NULL;

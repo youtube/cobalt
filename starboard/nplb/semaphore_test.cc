@@ -49,7 +49,7 @@ TEST(Semaphore, InitialValue_One) {
   EXPECT_FALSE(semaphore.TakeTry());
 }
 
-class ThreadTakesSemaphore : public posix::AbstractTestThread {
+class ThreadTakesSemaphore : public AbstractTestThread {
  public:
   explicit ThreadTakesSemaphore(Semaphore* s) : semaphore_(s) {}
   void Run() override { semaphore_->Take(); }
@@ -65,7 +65,7 @@ TEST(Semaphore, ThreadTakes) {
   thread.Join();
 }
 
-class ThreadTakesWaitSemaphore : public posix::AbstractTestThread {
+class ThreadTakesWaitSemaphore : public AbstractTestThread {
  public:
   explicit ThreadTakesWaitSemaphore(int64_t wait_us)
       : thread_started_(false),
@@ -152,7 +152,7 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
   EXPECT_TRUE(false) << "Thread waited, but time exceeded expectations.";
 }
 
-class ThreadPutsSemaphore : public posix::AbstractTestThread {
+class ThreadPutsSemaphore : public AbstractTestThread {
  public:
   explicit ThreadPutsSemaphore(Semaphore* s) : semaphore_(s) {}
   void Run() override { semaphore_->Put(); }

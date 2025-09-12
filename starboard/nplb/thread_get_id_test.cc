@@ -24,7 +24,7 @@ namespace {
 
 // Returns the thread's ID.
 void* GetThreadIdEntryPoint(void* context) {
-  return posix::ToVoid(SbThreadGetId());
+  return ToVoid(SbThreadGetId());
 }
 
 TEST(SbThreadGetIdTest, SunnyDay) {
@@ -45,7 +45,7 @@ TEST(SbThreadGetIdTest, SunnyDayDifferentIds) {
   for (int i = 0; i < kThreads; ++i) {
     void* result = NULL;
     EXPECT_EQ(pthread_join(threads[i], &result), 0);
-    SbThreadId id = static_cast<SbThreadId>(posix::FromVoid(result));
+    SbThreadId id = static_cast<SbThreadId>(FromVoid(result));
     EXPECT_NE(id, SbThreadGetId());
     thread_ids[i] = id;
   }

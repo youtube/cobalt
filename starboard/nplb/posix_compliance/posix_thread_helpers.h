@@ -25,7 +25,6 @@
 
 namespace starboard {
 namespace nplb {
-namespace posix {
 
 class TestSemaphore {
  public:
@@ -199,7 +198,6 @@ class AbstractTestThread {
   void operator=(const AbstractTestThread&) = delete;
 };
 
-}  // namespace posix
 }  // namespace nplb
 }  // namespace starboard
 
