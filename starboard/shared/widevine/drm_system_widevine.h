@@ -152,7 +152,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
                                 const std::string& sb_drm_session_id,
                                 const std::string& message);
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
   void* const context_;
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;

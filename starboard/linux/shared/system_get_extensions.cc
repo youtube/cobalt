@@ -55,10 +55,10 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::shared::GetPlatformServiceApi();
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiLinux();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::common::GetCrashHandlerApi();
+    return starboard::GetCrashHandlerApi();
   }
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
     return starboard::shared::posix::GetMemoryMappedFileApi();
@@ -68,7 +68,7 @@ const void* SbSystemGetExtension(const char* name) {
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
-    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+    return starboard::GetLoaderAppMetricsApi();
   }
 #endif
   return NULL;

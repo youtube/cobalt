@@ -45,13 +45,13 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
 
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::raspi::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiRaspi();
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     return starboard::raspi::shared::GetGraphicsApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::common::GetCrashHandlerApi();
+    return starboard::GetCrashHandlerApi();
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {

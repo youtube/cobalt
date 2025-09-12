@@ -21,7 +21,7 @@
 #include "starboard/common/time.h"
 #include "starboard/event.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 void QueueApplication::Wake() {
   if (IsCurrentThread()) {
@@ -226,4 +226,4 @@ Application::Event* QueueApplication::GetNextInjectedEvent() {
   }
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

@@ -24,7 +24,7 @@
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::stub::GetConfigurationApi();
+    return starboard::GetConfigurationApiStub();
   }
   if (strcmp(name, kCobaltExtensionFontName) == 0) {
     return starboard::stub::GetFontApi();
