@@ -27,7 +27,6 @@ fwrite
 getc
 getcwd
 getrlimit
-localeconv
 newlocale
 prctl
 printf
