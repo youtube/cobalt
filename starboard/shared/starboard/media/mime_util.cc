@@ -32,6 +32,10 @@ namespace starboard {
 
 namespace {
 
+using shared::starboard::media::MediaIsAudioSupported;
+using shared::starboard::media::MediaIsSupported;
+using shared::starboard::media::MediaIsVideoSupported;
+
 // Use SbMediaGetAudioConfiguration() to check if the platform can support
 // |channels|.
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {

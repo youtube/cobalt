@@ -19,7 +19,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-namespace starboard {
+namespace starboard::shared::starboard::media {
 
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,
@@ -53,4 +53,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   return false;
 }
 
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

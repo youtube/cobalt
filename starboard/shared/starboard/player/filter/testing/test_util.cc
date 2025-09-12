@@ -30,6 +30,8 @@
 namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
+using ::starboard::shared::starboard::media::MediaIsAudioSupported;
+using ::starboard::shared::starboard::media::MediaIsVideoSupported;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;

@@ -37,6 +37,8 @@ using ::starboard::MimeType;
 using ::starboard::shared::media_session::kPlaying;
 using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
+using ::starboard::shared::starboard::media::MediaIsAudioSupported;
+using ::starboard::shared::starboard::media::MediaIsVideoSupported;
 using ::starboard::shared::starboard::player::PlayerWorker;
 using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using ::starboard::shared::starboard::player::filter::

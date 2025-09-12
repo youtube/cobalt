@@ -22,7 +22,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-namespace starboard {
+namespace starboard::shared::starboard::media {
 
 using ::starboard::android::shared::MediaCapabilitiesCache;
 using ::starboard::android::shared::SupportedAudioCodecToMimeType;
@@ -82,4 +82,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       audio_codec);
 }
 
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/system.h"
 
-namespace starboard {
+namespace starboard::shared::starboard::media {
 
 using ::starboard::shared::de265::is_de265_supported;
 
@@ -75,4 +75,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60;
 }
 
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
