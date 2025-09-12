@@ -22,7 +22,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 namespace {
 
 // The codecs tested by these tests were introduced in SB_API_VERSION 14.
@@ -78,4 +78,4 @@ TEST_F(FfmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
 
 }  // namespace
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard

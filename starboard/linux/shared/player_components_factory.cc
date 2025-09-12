@@ -68,8 +68,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      typedef ::starboard::shared::ffmpeg::FfmpegAudioDecoder
-          FfmpegAudioDecoder;
       typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
