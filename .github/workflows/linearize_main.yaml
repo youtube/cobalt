@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-tags: true
           fetch-depth: 0
       - name: Checkout rebase_tools
         uses: actions/checkout@v4
@@ -35,13 +36,11 @@ jobs:
         run: |
           git config --global user.name "GitHub Release Automation"
           git config --global user.email "github@google.com"
-          echo "REV=$(git rev-parse --verify origin/main)" >> $GITHUB_ENV
       - name: Run linearize
         run: |
           set -eux
-          # m114 merge commit=38a06fe8674ad2140ff85c87b5b3a817304e369a
           python main.py linearize --repo-path=${GITHUB_WORKSPACE} --source-branch=main --new-branch-name=automated/linear_main \
-            --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=${REV}
+            --start-commit-ref="$(git rev-parse --verify post-chrobalt-tag)" --end-commit-ref="$(git rev-parse --verify origin/main)"
       - name: Update automated/linear_main and commit map, extract m114 commits
         run: |
           set -eux
@@ -54,8 +53,11 @@ jobs:
 
           # Create new commits json for m114
           python main.py commits --repo-path=${GITHUB_WORKSPACE} --source-branch=origin/automated/linear_main \
-            --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=$REV --output-file=${GITHUB_WORKSPACE}/automated_commits_m114.json
-          git checkout experimental/rebase_tools
+            --start-commit-ref="$(git rev-parse --verify post-chrobalt-tag)" --end-commit-ref="$(git rev-parse --verify origin/automated/linear_main)" \
+            --output-file=${GITHUB_WORKSPACE}/automated_commits_m114.json
           git add automated_commits_m114.json
           git commit -m "Linearization refresh on $(date +'%Y-%m-%d')."
+          export CP_COMMIT="$(git rev-parse --verify HEAD)"
+          git checkout experimental/rebase_tools
+          git cherry-pick --strategy=recursive -X theirs $CP_COMMIT
           git push --force origin experimental/rebase_tools:experimental/rebase_tools
