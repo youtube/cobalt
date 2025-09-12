@@ -249,6 +249,19 @@ void AudioTrackBridge::SetVolume(double volume,
   }
 }
 
+void AudioTrackBridge::SetPlaybackRate(double playback_rate,
+                                       JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+
+  jint status =
+      env->CallIntMethodOrAbort(j_audio_track_bridge_, "setPlaybackRate",
+                                "(F)I", static_cast<float>(playback_rate));
+  if (status == 0) {
+    SB_LOG(ERROR) << "Failed to set playback_rate to " << playback_rate;
+  }
+}
+
 int64_t AudioTrackBridge::GetAudioTimestamp(
     int64_t* updated_at,
     JniEnvExt* env /*= JniEnvExt::Get()*/) {

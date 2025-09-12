@@ -14,6 +14,9 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <memory>
+#include <string>
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
