@@ -37,7 +37,6 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/file_select_listener.h"
@@ -56,6 +55,10 @@
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/shell/common/device_authentication.h"
+#endif
 
 namespace content {
 
@@ -383,6 +386,14 @@ void Shell::CloseDevTools() {
 
 void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
   g_platform->ResizeWebContent(this, content_size);
+}
+
+std::string Shell::GetStartupURLWithDeviceAuth(const std::string& startup_url) {
+  std::string initial_url = startup_url;
+#if BUILDFLAG(IS_STARBOARD)
+  initial_url = GetDeviceAuthenticationSignedURL(GURL(initial_url)).spec();
+#endif
+  return initial_url;
 }
 
 gfx::NativeView Shell::GetContentView() {

@@ -174,4 +174,20 @@ void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
   shell->Close();
 }
 
+// static
+base::android::ScopedJavaLocalRef<jstring>
+JNI_Shell_GetStartupURLWithDeviceAuth(
+    JNIEnv* env,
+    jlong shellPtr,
+    const base::android::JavaParamRef<jstring>& j_startup_url) {
+  const std::string startup_url(
+      base::android::ConvertJavaStringToUTF8(env, j_startup_url));
+  Shell* shell = reinterpret_cast<Shell*>(shellPtr);
+  std::string startup_url_with_device_auth =
+      shell->GetStartupURLWithDeviceAuth(startup_url);
+  base::android::ScopedJavaLocalRef<jstring> j_source_language =
+      base::android::ConvertUTF8ToJavaString(env, startup_url_with_device_auth);
+  return j_source_language;
+}
+
 }  // namespace content

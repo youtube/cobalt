@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/device_authentication.h"
+#include "cobalt/shell/common/device_authentication.h"
 
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cobalt {
-namespace browser {
+namespace content {
 
 constexpr size_t kSHA256DigestSize = 32;
 
@@ -28,8 +27,7 @@ namespace {
 std::string ToBase64Message(const std::string& cert_scope,
                             const std::string& start_time) {
   std::string base64_message;
-  base::Base64Encode(browser::ComputeMessage(cert_scope, start_time),
-                     &base64_message);
+  base::Base64Encode(ComputeMessage(cert_scope, start_time), &base64_message);
   return base64_message;
 }
 
@@ -144,5 +142,4 @@ TEST(DeviceAuthenticationTest, NoCertSignatureImpliesNoQueryParameters) {
                     "my_cert_scope", "1234", ""));
 }
 
-}  // namespace browser
-}  // namespace cobalt
+}  // namespace content
