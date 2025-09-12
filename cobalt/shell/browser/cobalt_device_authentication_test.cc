@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/device_authentication.h"
+#include "cobalt/shell/browser/cobalt_device_authentication.h"
 
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cobalt {
-namespace browser {
+namespace content {
 
 constexpr size_t kSHA256DigestSize = 32;
 
@@ -144,5 +143,4 @@ TEST(DeviceAuthenticationTest, NoCertSignatureImpliesNoQueryParameters) {
                     "my_cert_scope", "1234", ""));
 }
 
-}  // namespace browser
-}  // namespace cobalt
+}  // namespace content

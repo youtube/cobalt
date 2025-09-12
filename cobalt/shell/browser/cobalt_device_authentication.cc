@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/device_authentication.h"
+#include "cobalt/shell/browser/cobalt_device_authentication.h"
 
 #include <algorithm>
 #include <map>
@@ -25,8 +25,7 @@
 #include "crypto/hmac.h"
 #include "starboard/system.h"
 
-namespace cobalt {
-namespace browser {
+namespace content {
 
 namespace {
 
@@ -180,5 +179,4 @@ void ComputeHMACSHA256SignatureWithProvidedKey(const std::string& message,
   }
 }
 
-}  // namespace browser
-}  // namespace cobalt
+}  // namespace content
