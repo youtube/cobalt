@@ -28,8 +28,6 @@ namespace shared {
 namespace starboard {
 namespace media {
 
-using ::starboard::is_de265_supported;
-
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
                            int profile,
