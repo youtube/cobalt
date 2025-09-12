@@ -99,21 +99,11 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
 
-  private CronetEngine mCronetEngine;
-  private BlockingHolder<CronetEngine> mCronetEngineHolder;
-
-  private void initializeCronetEngine() {
-    CronetEngine.Builder builder = new CronetEngine.Builder(this);
-    builder.enableHttp2(true)
-           .enableQuic(true);
-           // Add any other configuration here (e.g., caching, user-agent)
-
-    mCronetEngine = builder.build();
-  }
+  private static BlockingHolder<CronetEngine.Builder> mCronetEngineHolder;
 
   // This is set by Kimono 's MainActivity very earlier. CoAT does not set it.
-  protected void setCronetEngineHolder(BlockingHolder<CronetEngine> holder) {
-    this.mCronetEngineHolder = holder;
+  protected static void setCronetEngineHolder(BlockingHolder<CronetEngine.Builder> holder) {
+    mCronetEngineHolder = holder;
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -208,9 +198,10 @@ public abstract class CobaltActivity extends Activity {
               public void onSuccess() {
                 Log.i(TAG, "Browser process init succeeded");
 
-                initializeCronetEngine();
                 if (mCronetEngineHolder != null) {
-                  mCronetEngineHolder.set(mCronetEngine);
+                  mCronetEngineHolder.set(new CronetEngine.Builder(CobaltActivity.this));
+                } else {
+                  Log.w(TAG, "mCronetEngineHolder is null! InnerTube messages could be broken.");
                 }
 
                 finishInitialization(savedInstanceState);
