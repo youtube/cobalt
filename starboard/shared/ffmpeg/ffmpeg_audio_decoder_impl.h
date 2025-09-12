@@ -29,7 +29,7 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
@@ -38,7 +38,8 @@ class FfmpegAudioDecoderImpl<FFMPEG>;
 // Declare the explicit specialization of the class with value FFMPEG.
 template <>
 class FfmpegAudioDecoderImpl<FFMPEG>
-    : public FfmpegAudioDecoder, private starboard::player::JobQueue::JobOwner {
+    : public FfmpegAudioDecoder,
+      private shared::starboard::player::JobQueue::JobOwner {
  public:
   explicit FfmpegAudioDecoderImpl(
       const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info);
@@ -81,6 +82,6 @@ class FfmpegAudioDecoderImpl<FFMPEG>
   FfmpegAudioDecoder::AudioStreamInfo audio_stream_info_;
 };
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_
