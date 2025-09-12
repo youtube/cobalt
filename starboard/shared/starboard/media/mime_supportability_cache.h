@@ -118,7 +118,7 @@ class MimeSupportabilityCache {
 };
 
 // Alias to prevent breaking the RDK build on CI.
-// See https://paste.googleplex.com/5951074305441792
+// http://go/paste/5951074305441792
 // TODO: b/441955897 - Remove this alias once RDK build on CI is updated
 namespace shared::starboard::media {
 using MimeSupportabilityCache = ::starboard::MimeSupportabilityCache;
