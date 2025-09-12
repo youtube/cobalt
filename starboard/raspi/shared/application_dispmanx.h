@@ -31,16 +31,14 @@ namespace raspi {
 namespace shared {
 
 // This application engine combines the generic queue with the X11 event queue.
-class ApplicationDispmanx
-    : public ::starboard::shared::starboard::QueueApplication {
+class ApplicationDispmanx : public QueueApplication {
  public:
   explicit ApplicationDispmanx(SbEventHandleCallback sb_event_handle_callback)
       : window_(kSbWindowInvalid), QueueApplication(sb_event_handle_callback) {}
   ~ApplicationDispmanx() override {}
 
   static ApplicationDispmanx* Get() {
-    return static_cast<ApplicationDispmanx*>(
-        ::starboard::shared::starboard::Application::Get());
+    return static_cast<ApplicationDispmanx*>(Application::Get());
   }
 
   SbWindow CreateWindow(const SbWindowOptions* options);

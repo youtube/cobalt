@@ -182,7 +182,7 @@ class MediaDecoder final
   void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
   Host* const host_;

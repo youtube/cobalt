@@ -23,8 +23,8 @@
 
 bool SbStorageDeleteRecord(const char* name) {
   std::vector<char> path(kSbFileMaxPath);
-  bool success = starboard::shared::starboard::GetStorageFilePath(
-      name, path.data(), static_cast<int>(path.size()));
+  bool success = starboard::GetStorageFilePath(name, path.data(),
+                                               static_cast<int>(path.size()));
   if (!success) {
     return false;
   }

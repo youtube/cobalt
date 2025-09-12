@@ -102,7 +102,7 @@ class MinRequiredFramesTester {
   const int required_frames_increment_;
   const int min_stable_played_frames_;
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   std::vector<TestTask> test_tasks_;
   AudioTrackAudioSink* audio_sink_ = nullptr;

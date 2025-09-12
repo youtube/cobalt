@@ -76,8 +76,8 @@ void PunchoutVideoRendererSink::RunLoop() {
     usleep(render_interval_);
   }
   std::lock_guard lock(mutex_);
-  shared::starboard::Application::Get()->HandleFrame(
-      player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
+  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
+                                  0, 0, 0);
 }
 
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
@@ -86,8 +86,8 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
-  shared::starboard::Application::Get()->HandleFrame(player_, frame, z_index_,
-                                                     x_, y_, width_, height_);
+  Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
+                                  height_);
   return kNotReleased;
 }
 

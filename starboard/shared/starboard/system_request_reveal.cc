@@ -17,5 +17,5 @@
 #include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestReveal() {
-  starboard::shared::starboard::Application::Get()->Reveal(NULL, NULL);
+  starboard::Application::Get()->Reveal(NULL, NULL);
 }

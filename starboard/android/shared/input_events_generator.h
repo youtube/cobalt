@@ -27,7 +27,7 @@ namespace starboard::android::shared {
 
 class InputEventsGenerator {
   //  public:
-  //   typedef ::starboard::shared::starboard::Application::Event Event;
+  //   typedef Application::Event Event;
   //   typedef std::vector<std::unique_ptr<Event>> Events;
 
   //   explicit InputEventsGenerator(SbWindow window);
