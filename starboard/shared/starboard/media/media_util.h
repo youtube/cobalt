@@ -165,12 +165,14 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 int AudioDurationToFrames(int64_t duration, int samples_per_second);
 int64_t AudioFramesToDuration(int frames, int samples_per_second);
 
-// Alias to prevent breaking the RDK build on CI.
+// Aliases to prevent breaking the RDK build on CI.
 // http://go/paste/6038084504387584
+// http://go/paste/4631690114891776
 // TODO: b/441955897 - Remove this alias once RDK build on CI is updated
 namespace shared::starboard::media {
 using ::starboard::GetBytesPerSample;
-}
+using ::starboard::IsSDRVideo;
+}  // namespace shared::starboard::media
 
 }  // namespace starboard
 
