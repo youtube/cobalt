@@ -50,8 +50,6 @@ namespace filter {
 
 namespace {
 
-using ::starboard::is_openh264_supported;
-
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
   bool CreateSubComponents(
