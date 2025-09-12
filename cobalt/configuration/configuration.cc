@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/h5vcc_system/configuration.h"
+#include "cobalt/configuration/configuration.h"
 
 #include <string>
 
@@ -49,6 +49,13 @@ Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {
 #else
   return Configuration::UserOnExitStrategy::kClose;
 #endif
+}
+
+int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
+  if (configuration_api_) {
+    return configuration_api_->CobaltSkiaCacheSizeInBytes();
+  }
+  return 1024 * 1024 * 16;
 }
 
 }  // namespace configuration

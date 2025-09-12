@@ -41,6 +41,7 @@ class Configuration {
   static Configuration* GetInstance();
 
   UserOnExitStrategy CobaltUserOnExitStrategy();
+  int CobaltLocalTypefaceCacheSizeInBytes();
 
  private:
   Configuration();
