@@ -264,6 +264,45 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
          Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
 }
 
+// When clearing the native_window, since the provider is the same as where we
+// perform decode target, we just reroute the native window function to use the
+// decode target function.
+void GlesContextRunnerWrapper(
+    ClearNativeWindowGraphicsContextProvider* native_window_provider,
+    ClearNativeWindowGlesContextRunnerTarget native_window_target_function,
+    void* target_function_context) {
+  auto provider_b = reinterpret_cast<SbDecodeTargetGraphicsContextProvider*>(
+      native_window_provider);
+
+  // 2. Get the original function pointer from the original struct.
+  SbDecodeTargetGlesContextRunner original_runner =
+      provider_b->gles_context_runner;
+
+  // 3. Cast the nested function pointer to the type the original runner
+  // expects.
+  auto target_function_b =
+      reinterpret_cast<SbDecodeTargetGlesContextRunnerTarget>(
+          native_window_target_function);
+
+  // 4. Call the original runner with the original provider and casted
+  // arguments.
+  original_runner(provider_b, target_function_b, target_function_context);
+}
+
+// Since |decode_target_graphics_context_provider| contains all the necessary
+// information we need to post to the Chromium GPU thread, we take its values
+// and convert it for use when clearing the native window.
+ClearNativeWindowGraphicsContextProvider* ConvertProvider(
+    SbDecodeTargetGraphicsContextProvider* source_provider) {
+  ClearNativeWindowGraphicsContextProvider* new_provider = {};
+
+  new_provider->gles_context_runner_context =
+      source_provider->gles_context_runner_context;
+  new_provider->gles_context_runner = &GlesContextRunnerWrapper;
+
+  return new_provider;
+}
+
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,
@@ -423,6 +462,19 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       TeardownCodec();
     }
   }
+
+  // native_window_graphics_context_provider;
+  SetGpuProvider(decode_target_graphics_context_provider);
+  // SetGpuProvider(ConvertProvider(decode_target_graphics_context_provider));
+  // gpu_provider_ = ConvertProvider(decode_target_graphics_context_provider);
+
+  // |gpu_provider_| holds the location of where to post tasks to the GPU thread
+  // for the parent class |VideoSurfaceHolder|. |VideoSurfaceHolder| must have
+  // this variable to know where it is posting its |ClearNativeWindow| task.
+  // gles_context_runner_ =
+  // decode_target_graphics_context_provider->gles_context_runner;
+  // gles_context_runner_context_ =
+  // reinterpret_cast<ClearNativeWindowGlesContextRunner>(decode_target_graphics_context_provider->gles_context_runner_context);
 
   SB_LOG(INFO) << "Created VideoDecoder for codec "
                << GetMediaVideoCodecName(video_codec_) << ", with output mode "

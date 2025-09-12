@@ -15,6 +15,7 @@
 #ifndef MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
 #define MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
 
+#include <functional>
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
@@ -33,6 +34,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "gpu/command_buffer/service/ref_counted_lock.h"
 #include "media/base/android_overlay_mojo_factory.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -51,13 +53,22 @@ class StarboardGpuFactory;
 // StarboardRendererClient living in the Chrome_InProcRendererThread
 // (Media thread), using `renderer_extension_receiver_`
 // and `client_extension_remote_`.
-class StarboardRendererWrapper : public Renderer,
-                                 public mojom::StarboardRendererExtension {
+class StarboardRendererWrapper final
+    : public Renderer,
+#if BUILDFLAG(IS_ANDROID)
+      public gpu::RefCountedLockHelperDrDc,
+#endif  // BUILDFLAG(IS_ANDROID)
+      public mojom::StarboardRendererExtension {
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
 
+#if BUILDFLAG(IS_ANDROID)
+  StarboardRendererWrapper(StarboardRendererTraits traits,
+                           scoped_refptr<gpu::RefCountedLock> drdc_lock);
+#else   // BUILDFLAG(IS_ANDROID)
   explicit StarboardRendererWrapper(StarboardRendererTraits traits);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   StarboardRendererWrapper(const StarboardRendererWrapper&) = delete;
   StarboardRendererWrapper& operator=(const StarboardRendererWrapper&) = delete;
@@ -111,11 +122,25 @@ class StarboardRendererWrapper : public Renderer,
                               PipelineStatusCallback init_cb);
   bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
 
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider();
+
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
+
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
-  StarboardRenderer renderer_;
+  std::unique_ptr<StarboardRenderer> renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+
+  bool is_gpu_factory_initialized_ = false;
 
   raw_ptr<StarboardRenderer> test_renderer_;
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
