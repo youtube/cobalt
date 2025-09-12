@@ -329,7 +329,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
                 << ".";
 }
 
-class SecondaryPlayerTestThread : public posix::AbstractTestThread {
+class SecondaryPlayerTestThread : public AbstractTestThread {
  public:
   SecondaryPlayerTestThread(
       const SbPlayerTestConfig& config,

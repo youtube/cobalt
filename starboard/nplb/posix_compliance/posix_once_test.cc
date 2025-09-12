@@ -65,7 +65,7 @@ struct RunPosixOnceContext {
     pthread_mutex_destroy(&mutex);
   }
 
-  posix::TestSemaphore semaphore;
+  TestSemaphore semaphore;
   pthread_mutex_t mutex;
   pthread_cond_t condition;
 
@@ -73,7 +73,7 @@ struct RunPosixOnceContext {
 };
 
 void* RunPosixOnceEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), posix::kThreadName);
+  pthread_setname_np(pthread_self(), kThreadName);
 
   RunPosixOnceContext* run_sbonce_context =
       reinterpret_cast<RunPosixOnceContext*>(context);

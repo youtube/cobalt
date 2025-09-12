@@ -44,7 +44,7 @@ void* YieldingEntryPoint(void* context) {
 
 void* UnyieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
-    posix::DoNotYield();
+    DoNotYield();
   }
 
   int64_t* end_time = static_cast<int64_t*>(context);

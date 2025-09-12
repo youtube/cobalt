@@ -27,7 +27,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-class CountingThread : public posix::AbstractTestThread {
+class CountingThread : public AbstractTestThread {
  public:
   ~CountingThread() { Stop(); }
 
