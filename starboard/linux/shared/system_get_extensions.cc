@@ -51,6 +51,9 @@ const void* SbSystemGetExtension(const char* name) {
     }
   }
 #endif
+  if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
+    return starboard::GetPlatformServiceApiLinux();
+  }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApiLinux();
   }

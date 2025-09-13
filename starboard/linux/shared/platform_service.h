@@ -83,7 +83,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
 
 namespace starboard {
 
-const void* GetPlatformServiceApi();
+const void* GetPlatformServiceApiLinux();
 
 }  // namespace starboard
 

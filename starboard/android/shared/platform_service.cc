@@ -41,11 +41,10 @@ typedef struct CobaltExtensionPlatformServicePrivate {
   }
 } CobaltExtensionPlatformServicePrivate;
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace android::shared {
 
 namespace {
-
-using starboard::android::shared::ScopedLocalJavaRef;
 
 bool Has(const char* name) {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -137,6 +136,7 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
     &Send};
 
 }  // namespace
+}  // namespace android::shared
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JNIEnv* env,
@@ -159,8 +159,8 @@ Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JNIEnv* env,
   service->receive_callback(service->context, data.get(), length);
 }
 
-const void* GetPlatformServiceApi() {
-  return &kPlatformServiceApi;
+const void* GetPlatformServiceApiAndroid() {
+  return &android::shared::kPlatformServiceApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
