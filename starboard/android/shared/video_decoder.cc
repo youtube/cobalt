@@ -979,6 +979,16 @@ void VideoDecoder::OnFlushing() {
   decoder_status_cb_(kReleaseAllFrames, NULL);
 }
 
+bool VideoDecoder::IsBufferDecodeOnly(
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  if (!is_video_frame_tracker_enabled_) {
+    return false;
+  }
+
+  SB_CHECK(video_frame_tracker_);
+  return input_buffer->timestamp() < video_frame_tracker_->seek_to_time();
+}
+
 namespace {
 
 void updateTexImage(jobject surface_texture) {

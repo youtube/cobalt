@@ -45,9 +45,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
-
 @JNINamespace("starboard::android::shared")
-
 @SuppressWarnings("unused")
 @UsedByNative
 class MediaCodecBridge {
@@ -442,11 +440,12 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              MediaCodecBridgeJni.get().onMediaCodecError(
-                  mNativeMediaCodecBridge,
-                  e.isRecoverable(),
-                  e.isTransient(),
-                  e.getDiagnosticInfo());
+              MediaCodecBridgeJni.get()
+                  .onMediaCodecError(
+                      mNativeMediaCodecBridge,
+                      e.isRecoverable(),
+                      e.isTransient(),
+                      e.getDiagnosticInfo());
             }
           }
 
@@ -456,7 +455,8 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              MediaCodecBridgeJni.get().onMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
+              MediaCodecBridgeJni.get()
+                  .onMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
             }
           }
 
@@ -467,13 +467,14 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              MediaCodecBridgeJni.get().onMediaCodecOutputBufferAvailable(
-                  mNativeMediaCodecBridge,
-                  index,
-                  info.flags,
-                  info.offset,
-                  info.presentationTimeUs,
-                  info.size);
+              MediaCodecBridgeJni.get()
+                  .onMediaCodecOutputBufferAvailable(
+                      mNativeMediaCodecBridge,
+                      index,
+                      info.flags,
+                      info.offset,
+                      info.presentationTimeUs,
+                      info.size);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -509,8 +510,9 @@ class MediaCodecBridge {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
-                MediaCodecBridgeJni.get().onMediaCodecFrameRendered(
-                    mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
+                MediaCodecBridgeJni.get()
+                    .onMediaCodecFrameRendered(
+                        mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
               }
             }
           };
@@ -526,6 +528,16 @@ class MediaCodecBridge {
   public static boolean isFrameRenderedCallbackEnabled() {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
+    return Build.VERSION.SDK_INT >= 34;
+  }
+
+  @CalledByNative
+  private boolean isDecodeOnlyFlagEnabled() {
+    // Right now, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
+    if (!mIsTunnelingPlayback) {
+      return false;
+    }
+    // BUFFER_FLAG_DECODE_ONLY is added in Android 14.
     return Build.VERSION.SDK_INT >= 34;
   }
 
@@ -880,9 +892,14 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      if (isDecodeOnlyFlagEnabled()
+          && is_decode_only
+          && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
@@ -903,7 +920,8 @@ class MediaCodecBridge {
       int cipherMode,
       int blocksToEncrypt,
       int blocksToSkip,
-      long presentationTimeUs) {
+      long presentationTimeUs,
+      boolean is_decode_only) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
@@ -917,7 +935,14 @@ class MediaCodecBridge {
         return MediaCodecStatus.ERROR;
       }
 
-      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
+      int flags = 0;
+      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
+
+      mMediaCodec
+          .get()
+          .queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, flags);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
       if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
@@ -1185,28 +1210,23 @@ class MediaCodecBridge {
   @NativeMethods
   interface Natives {
     void onMediaCodecError(
-      long mediaCodecBridge,
-      boolean isRecoverable,
-      boolean isTransient,
-      String diagnosticInfo
-    );
+        long mediaCodecBridge, boolean isRecoverable, boolean isTransient, String diagnosticInfo);
 
-    void onMediaCodecInputBufferAvailable(
-      long mediaCodecBridge, int bufferIndex);
+    void onMediaCodecInputBufferAvailable(long mediaCodecBridge, int bufferIndex);
 
     void onMediaCodecOutputBufferAvailable(
-      long mediaCodecBridge,
-      int bufferIndex,
-      int flags,
-      int offset,
-      long presentationTimeUs,
-      int size);
+        long mediaCodecBridge,
+        int bufferIndex,
+        int flags,
+        int offset,
+        long presentationTimeUs,
+        int size);
 
     void onMediaCodecOutputFormatChanged(long mediaCodecBridge);
 
     void onMediaCodecFrameRendered(
-      long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
-    
+        long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+
     void OnMediaCodecFirstTunnelFrameReady(long mediaCodecBridge);
   }
 }

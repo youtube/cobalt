@@ -73,6 +73,9 @@ class MediaDecoder final
     // before the MediaCodecBridge is flushed.
     virtual void OnFlushing() = 0;
 
+    virtual bool IsBufferDecodeOnly(
+        const scoped_refptr<InputBuffer>& input_buffer) = 0;
+
    protected:
     ~Host() {}
   };
