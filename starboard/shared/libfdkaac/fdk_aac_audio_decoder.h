@@ -28,7 +28,7 @@
 namespace starboard::shared::libfdkaac {
 
 class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
-                           private starboard::player::JobQueue::JobOwner {
+                           private JobQueue::JobOwner {
  public:
   // The max supportable channels to be decoded for fdk aac is 8.
   static constexpr int kMaxChannels = 8;

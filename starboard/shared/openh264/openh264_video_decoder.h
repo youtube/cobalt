@@ -38,7 +38,7 @@
 namespace starboard::shared::openh264 {
 
 class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
-                             private starboard::player::JobQueue::JobOwner {
+                             private JobQueue::JobOwner {
  public:
   OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
                        SbPlayerOutputMode output_mode,
@@ -121,7 +121,7 @@ class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::mutex decode_target_mutex_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
 
   // Openh264 decode handler.
   ISVCDecoder* decoder_ = nullptr;

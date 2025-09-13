@@ -33,7 +33,6 @@ namespace starboard::shared::libdav1d {
 namespace {
 
 using starboard::player::InputBuffer;
-using starboard::player::JobThread;
 using starboard::player::filter::CpuVideoFrame;
 
 // Set max resolutions to 8K.

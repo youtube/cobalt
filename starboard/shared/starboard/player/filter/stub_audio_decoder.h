@@ -56,7 +56,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   OutputCB output_cb_;
   ErrorCB error_cb_;
 
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
   std::mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;

@@ -38,7 +38,7 @@
 namespace starboard::shared::vpx {
 
 class VpxVideoDecoder : public starboard::player::filter::VideoDecoder,
-                        private starboard::player::JobQueue::JobOwner {
+                        private JobQueue::JobOwner {
  public:
   VpxVideoDecoder(SbMediaVideoCodec video_codec,
                   SbPlayerOutputMode output_mode,
@@ -88,7 +88,7 @@ class VpxVideoDecoder : public starboard::player::filter::VideoDecoder,
   bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;

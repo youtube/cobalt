@@ -39,9 +39,8 @@ namespace starboard::android::shared {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaCodecDecoder final
-    : private MediaCodecBridge::Handler,
-      protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class MediaCodecDecoder final : private MediaCodecBridge::Handler,
+                                protected JobQueue::JobOwner {
  public:
   typedef ::starboard::shared::starboard::media::AudioStreamInfo
       AudioStreamInfo;
