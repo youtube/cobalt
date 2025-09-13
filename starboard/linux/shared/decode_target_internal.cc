@@ -29,11 +29,10 @@ SbDecodeTargetPrivate::Data::~Data() {
 }
 
 namespace starboard {
-namespace shared {
 
 namespace {
 
-using starboard::player::filter::CpuVideoFrame;
+using shared::starboard::player::filter::CpuVideoFrame;
 
 struct CreateParamsForVideoFrame {
   SbDecodeTarget decode_target_out;
@@ -231,5 +230,4 @@ SbDecodeTarget DecodeTargetCopy(SbDecodeTarget decode_target) {
   return out_decode_target;
 }
 
-}  // namespace shared
 }  // namespace starboard

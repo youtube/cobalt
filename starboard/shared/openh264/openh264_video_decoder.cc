@@ -22,14 +22,14 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard {
 
 namespace {
 
 using shared::starboard::media::VideoConfig;
-using starboard::player::InputBuffer;
-using starboard::player::JobThread;
-using starboard::player::filter::CpuVideoFrame;
+using shared::starboard::player::InputBuffer;
+using shared::starboard::player::JobThread;
+using shared::starboard::player::filter::CpuVideoFrame;
 
 }  // namespace
 
@@ -332,4 +332,4 @@ void OpenH264VideoDecoder::ReportError(const std::string& error_message) {
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard

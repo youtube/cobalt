@@ -19,7 +19,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
 
-namespace starboard::shared::libfdkaac {
+namespace starboard {
 
 FdkAacAudioDecoder::FdkAacAudioDecoder() {
   static_assert(sizeof(INT_PCM) == sizeof(int16_t),
@@ -256,4 +256,4 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
   }
 }
 
-}  // namespace starboard::shared::libfdkaac
+}  // namespace starboard

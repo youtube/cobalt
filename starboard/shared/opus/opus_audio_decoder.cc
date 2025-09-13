@@ -20,9 +20,11 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::opus {
+namespace starboard {
 
 namespace {
+
+using shared::starboard::media::GetBytesPerSample;
 
 typedef struct {
   int nb_streams;
@@ -130,7 +132,7 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
       audio_stream_info_.number_of_channels * frames_per_au_ *
-          starboard::media::GetBytesPerSample(GetSampleType()));
+          GetBytesPerSample(GetSampleType()));
 
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
@@ -160,8 +162,7 @@ bool OpusAudioDecoder::DecodeInternal(
 
   frames_per_au_ = decoded_frames;
   decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
-                          frames_per_au_ *
-                          starboard::media::GetBytesPerSample(GetSampleType()));
+                          frames_per_au_ * GetBytesPerSample(GetSampleType()));
   const auto& sample_info = input_buffer->audio_sample_info();
   decoded_audio->AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
@@ -268,4 +269,4 @@ SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   return kSbMediaAudioSampleTypeFloat32;
 }
 
-}  // namespace starboard::shared::opus
+}  // namespace starboard

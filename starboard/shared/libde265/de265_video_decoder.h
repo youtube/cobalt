@@ -34,10 +34,11 @@
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::de265 {
+namespace starboard {
 
-class De265VideoDecoder : public starboard::player::filter::VideoDecoder,
-                          private starboard::player::JobQueue::JobOwner {
+class De265VideoDecoder
+    : public shared::starboard::player::filter::VideoDecoder,
+      private shared::starboard::player::JobQueue::JobOwner {
  public:
   De265VideoDecoder(SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
@@ -87,7 +88,7 @@ class De265VideoDecoder : public starboard::player::filter::VideoDecoder,
   bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<shared::starboard::player::JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;
@@ -108,6 +109,6 @@ class De265VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::de265
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LIBDE265_DE265_VIDEO_DECODER_H_

@@ -32,10 +32,11 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::libdav1d {
+namespace starboard {
 
-class Dav1dVideoDecoder : public starboard::player::filter::VideoDecoder,
-                          private starboard::player::JobQueue::JobOwner {
+class Dav1dVideoDecoder
+    : public shared::starboard::player::filter::VideoDecoder,
+      private shared::starboard::player::JobQueue::JobOwner {
  public:
   Dav1dVideoDecoder(SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
@@ -98,7 +99,7 @@ class Dav1dVideoDecoder : public starboard::player::filter::VideoDecoder,
   bool stream_ended_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<shared::starboard::player::JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   const SbPlayerOutputMode output_mode_;
@@ -119,6 +120,6 @@ class Dav1dVideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::libdav1d
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
