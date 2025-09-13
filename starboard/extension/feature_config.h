@@ -120,6 +120,10 @@ STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
+
+// By default, the platform Opus decoder is only enabled for encrypted playback.
+// Set the following variable to true to force it for clear playback.
+STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
