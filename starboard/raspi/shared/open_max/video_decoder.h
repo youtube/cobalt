@@ -43,8 +43,6 @@ class OpenMaxVideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
       private JobQueue::JobOwner {
  public:
-  typedef JobQueue JobQueue;
-
   explicit OpenMaxVideoDecoder(SbMediaVideoCodec video_codec);
   ~OpenMaxVideoDecoder() override;
 
