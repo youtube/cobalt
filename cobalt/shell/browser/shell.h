@@ -196,6 +196,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
  private:
   class DevToolsWebContentsObserver;
 
+  friend class TestShell;
+
   Shell(std::unique_ptr<WebContents> web_contents, bool should_set_delegate);
 
   // Helper to create a new Shell given a newly created WebContents.
