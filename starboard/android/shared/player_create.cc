@@ -17,6 +17,9 @@
 
 #include "starboard/player.h"
 
+// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+// here. #include "media/base/media_switches.h"
+#include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
@@ -24,10 +27,12 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
+using starboard::android::shared::exoplayer::ExoPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 using starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using starboard::shared::starboard::player::filter::
@@ -200,8 +205,15 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
-  std::unique_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(creation_param, provider));
+  std::unique_ptr<PlayerWorker::Handler> handler;
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
+    handler = std::make_unique<ExoPlayerWorkerHandler>(creation_param);
+  } else {
+    handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
+                                                               provider);
+  }
+
   handler->SetMaxVideoInputSize(
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
