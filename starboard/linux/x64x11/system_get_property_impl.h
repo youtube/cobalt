@@ -19,13 +19,9 @@
 
 namespace starboard {
 
-bool CopyStringAndTestIfSuccess(char* out_value,
-                                int value_length,
-                                const char* from_value);
-
-bool GetSystemProperty(SbSystemPropertyId property_id,
-                       char* out_value,
-                       int value_length);
+bool GetSystemPropertyLinuxX64x11(SbSystemPropertyId property_id,
+                                  char* out_value,
+                                  int value_length);
 
 }  // namespace starboard
 
