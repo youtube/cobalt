@@ -204,7 +204,7 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   // #endif
 }
 
-#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS_TVOS)
+#elif BUILDFLAG(IS_IOS_TVOS)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
   const std::string os_name = base::SysInfo::OperatingSystemName();
   const std::string os_version = base::SysInfo::OperatingSystemVersion();
@@ -223,7 +223,7 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   InitializePlatformDependentFieldsAndroid();
 #elif BUILDFLAG(IS_STARBOARD)
   InitializePlatformDependentFieldsStarboard();
-#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS_TVOS)
+#elif BUILDFLAG(IS_IOS_TVOS)
   InitializePlatformDependentFieldsTvOS();
 #endif
 
