@@ -23,7 +23,6 @@
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
 
-// Omit namespace 'linux' due to symbol name conflict with macro 'linux'
 namespace starboard {
 namespace {
 typedef struct PreAppRecommendationsPlatformServiceImpl

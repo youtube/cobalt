@@ -38,9 +38,7 @@ const char kModelYear[] = "2026";
 
 }  // namespace
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace x64x11 {
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -131,5 +129,4 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
   return false;
 }
 
-}  // namespace x64x11
 }  // namespace starboard
