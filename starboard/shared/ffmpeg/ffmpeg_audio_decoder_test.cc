@@ -38,16 +38,15 @@ AudioStreamInfo CreateStreamInfoForCodec(SbMediaAudioCodec codec) {
   return stream_info;
 }
 
-class FfmpegAudioDecoderTest
-    : public ::testing::Test,
-      public ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class FfmpegAudioDecoderTest : public ::testing::Test,
+                               public JobQueue::JobOwner {
  protected:
   FfmpegAudioDecoderTest() : JobOwner(kDetached) { AttachToCurrentThread(); }
 
   ~FfmpegAudioDecoderTest() override = default;
 
   // Create a JobQueue for use on the current thread.
-  ::starboard::shared::starboard::player::JobQueue job_queue_;
+  JobQueue job_queue_;
 };
 
 TEST_F(FfmpegAudioDecoderTest, SupportsMp3Codec) {

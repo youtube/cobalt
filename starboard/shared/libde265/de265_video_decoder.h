@@ -37,7 +37,7 @@
 namespace starboard::shared::de265 {
 
 class De265VideoDecoder : public starboard::player::filter::VideoDecoder,
-                          private starboard::player::JobQueue::JobOwner {
+                          private JobQueue::JobOwner {
  public:
   De265VideoDecoder(SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
@@ -87,7 +87,7 @@ class De265VideoDecoder : public starboard::player::filter::VideoDecoder,
   bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;

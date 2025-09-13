@@ -47,7 +47,7 @@ namespace starboard::android::shared {
 class MediaCodecVideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
       public MediaCodecDecoder::Host,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
+      private JobQueue::JobOwner,
       private VideoSurfaceHolder {
  public:
   typedef ::starboard::shared::starboard::media::VideoStreamInfo

@@ -44,7 +44,7 @@ namespace starboard::android::shared {
 class AudioRendererPassthrough
     : public ::starboard::shared::starboard::player::filter::AudioRenderer,
       public ::starboard::shared::starboard::player::filter::MediaTimeProvider,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+      private JobQueue::JobOwner {
  public:
   typedef ::starboard::shared::starboard::media::AudioStreamInfo
       AudioStreamInfo;
@@ -81,8 +81,7 @@ class AudioRendererPassthrough
 
  private:
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-  typedef ::starboard::shared::starboard::player::JobThread JobThread;
-  typedef ::starboard::shared::starboard::player::JobQueue::JobToken JobToken;
+  typedef JobQueue::JobToken JobToken;
 
   struct AudioTrackState {
     double volume = 1.0;
