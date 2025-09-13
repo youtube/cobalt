@@ -161,7 +161,7 @@ int DecoderBufferAllocator::GetBufferAlignment() const {
 }
 
 int DecoderBufferAllocator::GetBufferPadding() const {
-  return SbMediaGetBufferPadding();
+  return 0;
 }
 
 base::TimeDelta
