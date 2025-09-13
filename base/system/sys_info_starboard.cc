@@ -22,8 +22,7 @@
 #include "base/system/sys_info.h"
 #include "starboard/common/system_property.h"
 using starboard::GetSystemPropertyString;
-#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS)
-// TODO(): Replace with #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
+#elif BUILDFLAG(IS_IOS_TVOS)
 #include <map>
 
 #include <sys/utsname.h>
@@ -96,8 +95,7 @@ std::string SbSysInfo::Brand() {
   return GetSystemPropertyString(kSbSystemPropertyBrandName);
 }
 
-#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS_TVOS)
-
+#elif BUILDFLAG(IS_IOS_TVOS)
 std::string SbSysInfo::OriginalDesignManufacturer() {
   // Cobalt 25: https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L126
   return "YouTube";

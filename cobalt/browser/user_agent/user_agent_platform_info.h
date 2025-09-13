@@ -117,7 +117,7 @@ class UserAgentPlatformInfo {
   void InitializePlatformDependentFieldsAndroid();
 #elif BUILDFLAG(IS_STARBOARD)
   void InitializePlatformDependentFieldsStarboard();
-#elif BUILDFLAG(IS_APPLE) && BUILDFLAG(IS_IOS_TVOS)
+#elif BUILDFLAG(IS_IOS_TVOS)
   void InitializePlatformDependentFieldsTvOS();
 #endif  // BUILDFLAG(IS_ANDROID)
 
