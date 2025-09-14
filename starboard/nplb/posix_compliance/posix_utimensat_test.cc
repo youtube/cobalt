@@ -65,7 +65,7 @@ time_t GetLinkMTime(const char* path) {
 }
 
 TEST(PosixUtimensatTest, SetToCurrentTimeFromOldTimestamp) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
 
   timespec old_times[2];
   old_times[0].tv_sec = 123456789;
@@ -92,7 +92,7 @@ TEST(PosixUtimensatTest, SetToCurrentTimeFromOldTimestamp) {
 }
 
 TEST(PosixUtimensatTest, SetToSpecificTime) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
   timespec times[2];
   times[0].tv_sec = 123456789;
   times[0].tv_nsec = 0;
@@ -109,7 +109,7 @@ TEST(PosixUtimensatTest, SetToSpecificTime) {
 }
 
 TEST(PosixUtimensatTest, SetAccessTimeWithUtimeNow) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
   time_t mtime_before = GetMTime(file.filename().c_str());
   ASSERT_NE(-1, mtime_before) << "Failed to get initial mtime.";
 
@@ -127,7 +127,7 @@ TEST(PosixUtimensatTest, SetAccessTimeWithUtimeNow) {
 }
 
 TEST(PosixUtimensatTest, OmitBothTimestamps) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
   time_t mtime_before = GetMTime(file.filename().c_str());
   ASSERT_NE(-1, mtime_before) << "Failed to get initial mtime.";
 
@@ -145,7 +145,7 @@ TEST(PosixUtimensatTest, OmitBothTimestamps) {
 }
 
 TEST(PosixUtimensatTest, SymlinkNoFollow) {
-  starboard::nplb::ScopedRandomFile target_file;
+  ScopedRandomFile target_file;
   std::string link_path = target_file.filename() + ".symlink";
 
   ASSERT_EQ(0, symlink(target_file.filename().c_str(), link_path.c_str()))
@@ -188,7 +188,7 @@ TEST(PosixUtimensatTest, FailsOnEmptyPath) {
 }
 
 TEST(PosixUtimensatTest, FailsOnPathComponentNotADirectory) {
-  starboard::nplb::ScopedRandomFile file_as_dir;
+  ScopedRandomFile file_as_dir;
   std::string path = file_as_dir.filename() + "/some_file";
 
   int result = utimensat(AT_FDCWD, path.c_str(), NULL, 0);
@@ -197,7 +197,7 @@ TEST(PosixUtimensatTest, FailsOnPathComponentNotADirectory) {
 }
 
 TEST(PosixUtimensatTest, FailsOnInvalidFlag) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
   const int INVALID_FLAG = -1;
   int result = utimensat(AT_FDCWD, file.filename().c_str(), NULL, INVALID_FLAG);
   EXPECT_EQ(-1, result) << "Function should fail with an invalid flag.";

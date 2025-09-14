@@ -44,7 +44,7 @@ namespace starboard {
 namespace {
 
 TEST(PosixSymlinkTest, SuccessfulCreation) {
-  starboard::nplb::ScopedRandomFile target_file;
+  ScopedRandomFile target_file;
   const char* link_path = "success_link.tmp";
 
   // Create the symbolic link.
@@ -65,7 +65,7 @@ TEST(PosixSymlinkTest, SuccessfulCreation) {
 }
 
 TEST(PosixSymlinkTest, FailsIfNewPathExists) {
-  starboard::nplb::ScopedRandomFile existing_file;
+  ScopedRandomFile existing_file;
   const char* target_path = "some_target";
 
   // Attempt to create a symlink where the newpath already exists.
