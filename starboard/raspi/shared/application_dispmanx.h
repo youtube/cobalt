@@ -27,8 +27,6 @@
 #include "starboard/window.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 // This application engine combines the generic queue with the X11 event queue.
 class ApplicationDispmanx : public QueueApplication {
@@ -90,8 +88,6 @@ class ApplicationDispmanx : public QueueApplication {
   std::unique_ptr<::starboard::shared::dev_input::DevInput> input_;
 };
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_

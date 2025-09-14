@@ -24,8 +24,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 class VideoRendererSinkImpl
     : public ::starboard::shared::starboard::player::filter::VideoRendererSink,
@@ -53,8 +51,6 @@ class VideoRendererSinkImpl
   int height_;
 };
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_

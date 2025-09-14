@@ -18,8 +18,6 @@
 #include "starboard/common/check_op.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 namespace {
 
@@ -179,6 +177,4 @@ void DispmanxVideoRenderer::ShowElement() {
   Update(hidden_frame_);
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

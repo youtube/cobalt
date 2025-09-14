@@ -23,9 +23,6 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -191,7 +188,4 @@ OMX_ERRORTYPE OpenMaxComponentBase::FillBufferDone(
   return OMX_ErrorNone;
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

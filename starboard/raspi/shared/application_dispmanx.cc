@@ -29,8 +29,6 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 using ::starboard::shared::dev_input::DevInput;
 
@@ -146,6 +144,4 @@ void ApplicationDispmanx::ShutdownDispmanx() {
   display_.reset();
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
