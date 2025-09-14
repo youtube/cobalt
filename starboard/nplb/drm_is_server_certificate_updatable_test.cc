@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbDrmIsServerCertificateUpdatableTest, SunnyDay) {
@@ -49,5 +48,4 @@ TEST(SbDrmIsServerCertificateUpdatableTest, Consistency) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

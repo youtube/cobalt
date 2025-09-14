@@ -29,7 +29,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 namespace {
 
@@ -402,5 +401,4 @@ bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
          audio_codec == kSbMediaAudioCodecEac3;
 }
 
-}  // namespace nplb
 }  // namespace starboard

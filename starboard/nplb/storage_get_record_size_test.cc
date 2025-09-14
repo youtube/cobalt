@@ -17,7 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbStorageGetRecordSizeTest, SunnyDay) {
@@ -56,5 +55,4 @@ TEST(SbStorageGetRecordSizeTest, RainyDayInvalidRecord) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

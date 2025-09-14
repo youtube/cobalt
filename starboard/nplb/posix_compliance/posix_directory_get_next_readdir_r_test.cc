@@ -26,7 +26,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 #pragma GCC diagnostic push
@@ -220,5 +219,4 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
 #pragma GCC diagnostic pop
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

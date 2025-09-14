@@ -25,7 +25,6 @@
 #include "starboard/common/source_location.h"
 
 namespace starboard {
-namespace nplb {
 
 // The declarations for tzname, timezone, and daylight are provided by <time.h>.
 // We use static_assert to ensure they have the expected types as defined by
@@ -67,7 +66,6 @@ void AssertTM(const tm& tminfo,
               const char* tz,
               SourceLocation location = SourceLocation::current());
 
-}  // namespace nplb
 }  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPERS_H_

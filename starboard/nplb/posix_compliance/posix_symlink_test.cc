@@ -41,7 +41,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixSymlinkTest, SuccessfulCreation) {
@@ -138,5 +137,4 @@ TEST(PosixSymlinkTest, FailsWithNullNewPath) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

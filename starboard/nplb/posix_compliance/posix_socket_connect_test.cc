@@ -19,7 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixSocketConnectTest, RainyDayNullNull) {
@@ -70,5 +69,4 @@ TEST(PosixSocketConnectTest, SunnyDayConnectToServerAgain) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

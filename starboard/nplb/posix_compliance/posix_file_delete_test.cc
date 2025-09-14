@@ -22,7 +22,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixFileDeleteTest, SunnyDayDeleteExistingFile) {
@@ -70,5 +69,4 @@ TEST(PosixFileDeleteTest, RainyDayNonExistentDirErrors) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

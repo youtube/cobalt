@@ -21,7 +21,6 @@
 #include <unistd.h>
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixProcessTest, GetPid) {
@@ -47,5 +46,4 @@ TEST(PosixProcessTest, SchedGetPriorityMin) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

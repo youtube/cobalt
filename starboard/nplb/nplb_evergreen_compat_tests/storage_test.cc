@@ -31,8 +31,6 @@
 #endif
 
 namespace starboard {
-namespace nplb {
-namespace nplb_evergreen_compat_tests {
 
 namespace {
 
@@ -84,6 +82,4 @@ TEST(StorageTest, VerifyStorageDirectory) {
 }
 
 }  // namespace
-}  // namespace nplb_evergreen_compat_tests
-}  // namespace nplb
 }  // namespace starboard

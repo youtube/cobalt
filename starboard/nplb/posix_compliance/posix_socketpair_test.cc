@@ -27,7 +27,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 const char kRecord1[] = "Record-1";
@@ -278,5 +277,4 @@ TEST(PosixSocketpairTest,
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

@@ -17,7 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbSystemGetRandomUInt64Test, ProducesBothValuesOfAllBits) {
@@ -29,5 +28,4 @@ TEST(SbSystemGetRandomUInt64Test, IsFairlyUniform) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

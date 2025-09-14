@@ -21,7 +21,6 @@
 #include "starboard/shared/testing/no_inline.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 SB_TEST_FORCE_NO_INLINE void DumpMoreStack() {
@@ -53,5 +52,4 @@ TEST(SbLogRawDumpStackTest, SunnyDaySkip) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

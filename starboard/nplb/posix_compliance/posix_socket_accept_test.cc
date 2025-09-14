@@ -24,7 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixSocketAcceptTest, RainyDayInvalidSocket) {
@@ -153,5 +152,4 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

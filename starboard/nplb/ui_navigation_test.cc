@@ -17,7 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // This verifies that the UI navigation API is not implemented.
@@ -28,5 +27,4 @@ TEST(UiNavigationTest, GetInterface) {
 }
 
 }  // namespace.
-}  // namespace nplb.
 }  // namespace starboard.

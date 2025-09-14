@@ -24,7 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class CountingThread : public AbstractTestThread {
@@ -177,5 +176,4 @@ TEST(ThreadSamplerTest, SunnyDayThreadContextPointers) {
 }
 
 }  // namespace.
-}  // namespace nplb.
 }  // namespace starboard.

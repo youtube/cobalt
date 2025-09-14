@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbLogFlushTest, DontCrashMeBro) {
@@ -26,5 +25,4 @@ TEST(SbLogFlushTest, DontCrashMeBro) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

@@ -19,7 +19,6 @@
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // Define a function pointer type for the time conversion functions.
@@ -392,5 +391,4 @@ INSTANTIATE_TEST_SUITE_P(Mktime,
                          });
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

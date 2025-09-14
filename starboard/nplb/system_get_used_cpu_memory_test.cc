@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbSystemGetUsedCPUMemoryTest, SunnyDay) {
@@ -26,5 +25,4 @@ TEST(SbSystemGetUsedCPUMemoryTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbMicrophoneGetAvailableTest, SunnyDay) {
@@ -85,5 +84,4 @@ TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

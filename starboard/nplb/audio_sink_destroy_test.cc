@@ -16,11 +16,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 TEST(SbAudioSinkDestroyTest, DestroyInvalidAudioSink) {
   SbAudioSinkDestroy(kSbAudioSinkInvalid);
 }
 
-}  // namespace nplb
 }  // namespace starboard

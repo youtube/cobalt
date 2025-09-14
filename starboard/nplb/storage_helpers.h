@@ -20,7 +20,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 const int64_t kStorageOffset = 100;
 const int64_t kStorageSize = 1025;
@@ -115,7 +114,6 @@ static inline void ReadAndCheckStorage(SbStorageRecord record,
   delete[] data;
 }
 
-}  // namespace nplb
 }  // namespace starboard
 
 #endif  // STARBOARD_NPLB_STORAGE_HELPERS_H_

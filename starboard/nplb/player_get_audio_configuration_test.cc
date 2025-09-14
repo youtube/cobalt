@@ -24,7 +24,6 @@ bool operator==(const SbMediaAudioConfiguration& left,
 }
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
@@ -272,5 +271,4 @@ INSTANTIATE_TEST_SUITE_P(SbPlayerGetAudioConfigurationTests,
                          GetSbPlayerTestConfigName);
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

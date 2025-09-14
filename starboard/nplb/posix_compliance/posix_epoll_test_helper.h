@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 // A helper function to create a pipe.
 // Returns true on success, false on failure.
@@ -34,7 +33,6 @@ class PosixEpollTest : public ::testing::Test {
   static const int kModerateTimeoutMs = 100;
 };
 
-}  // namespace nplb
 }  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_EPOLL_TEST_HELPER_H_

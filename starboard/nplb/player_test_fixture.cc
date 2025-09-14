@@ -24,7 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 using shared::starboard::player::video_dmp::VideoDmpReader;
 using testing::FakeGraphicsContextProvider;
@@ -724,5 +723,4 @@ void SbPlayerTestFixture::AssertPlayerStateIsValid(SbPlayerState state) const {
   FAIL() << "Received an invalid SbPlayerState.";
 }
 
-}  // namespace nplb
 }  // namespace starboard

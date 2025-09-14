@@ -24,7 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 constexpr unsigned int kTestSleepSecs = 1;  // 1 second.
@@ -213,5 +212,4 @@ TEST_F(PosixSleepTests, ErrorEintrCheckReturnValue) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

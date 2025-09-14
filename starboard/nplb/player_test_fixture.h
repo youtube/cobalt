@@ -31,7 +31,6 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
-namespace nplb {
 
 class SbPlayerTestFixture {
  public:
@@ -229,7 +228,6 @@ class SbPlayerTestFixture {
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
 };
 
-}  // namespace nplb
 }  // namespace starboard
 
 #endif  // STARBOARD_NPLB_PLAYER_TEST_FIXTURE_H_

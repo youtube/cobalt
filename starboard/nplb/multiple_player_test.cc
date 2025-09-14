@@ -25,7 +25,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 using shared::starboard::player::video_dmp::VideoDmpReader;
@@ -212,5 +211,4 @@ TEST_F(MultiplePlayerTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

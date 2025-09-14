@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 TEST(SbAudioSinkIsAudioSampleTypeSupportedTest, SunnyDay) {
   bool float32_supported =
@@ -29,5 +28,4 @@ TEST(SbAudioSinkIsAudioSampleTypeSupportedTest, SunnyDay) {
   SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16Deprecated);
 }
 
-}  // namespace nplb
 }  // namespace starboard

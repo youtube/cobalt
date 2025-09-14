@@ -19,7 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbDrmGetMetricsTest, SunnyDay) {
@@ -41,5 +40,4 @@ TEST(SbDrmGetMetricsTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

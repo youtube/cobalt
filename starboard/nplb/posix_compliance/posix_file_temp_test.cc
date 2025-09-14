@@ -7,7 +7,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class FileTempTest : public ::testing::Test {
@@ -203,5 +202,4 @@ TEST_F(FileTempTest, MkostempWriteFile) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

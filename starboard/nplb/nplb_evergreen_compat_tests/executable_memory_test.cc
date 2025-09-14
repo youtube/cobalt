@@ -24,8 +24,6 @@
 #endif
 
 namespace starboard {
-namespace nplb {
-namespace nplb_evergreen_compat_tests {
 
 namespace {
 
@@ -52,6 +50,4 @@ TEST_F(ExecutableMemoryTest, VerifyMemoryProtection) {
 }
 
 }  // namespace
-}  // namespace nplb_evergreen_compat_tests
-}  // namespace nplb
 }  // namespace starboard

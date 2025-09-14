@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 void* EntryPoint(void* context) {
@@ -43,5 +42,4 @@ TEST(PosixThreadGetCurrentTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

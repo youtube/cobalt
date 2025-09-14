@@ -17,7 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbMicrophoneIsSampleRateSupportedTest, SunnyDay) {
@@ -49,5 +48,4 @@ TEST(SbMicrophoneIsSampleRateSupportedTest, RainyDayInvalidMicrophoneId) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

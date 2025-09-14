@@ -26,7 +26,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 bool IsKeySystemWithAttributesSupported() {
@@ -964,5 +963,4 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

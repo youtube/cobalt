@@ -19,7 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 namespace {
 const int kFrequencyCD = 44100;
@@ -56,5 +55,4 @@ TEST(SbAudioSinkGetNearestSupportedSampleFrequencyTest, Snap) {
   }
 }
 
-}  // namespace nplb
 }  // namespace starboard

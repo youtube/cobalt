@@ -21,7 +21,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class TestRunThread : public Thread {
@@ -56,5 +55,4 @@ TEST(Thread, TestRunThread) {
 }
 
 }  // namespace.
-}  // namespace nplb.
 }  // namespace starboard.

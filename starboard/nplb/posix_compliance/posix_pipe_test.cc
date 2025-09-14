@@ -31,7 +31,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // Only used by the WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError test.
@@ -355,5 +354,4 @@ TEST(PosixPipeTest, DISABLED_PipeReturnsEMFILEIfTooManyFileDescriptorsOpen) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

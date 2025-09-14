@@ -27,7 +27,6 @@
 #include "starboard/player.h"
 
 namespace starboard {
-namespace nplb {
 
 namespace {
 
@@ -288,5 +287,4 @@ void MaximumPlayerConfigurationExplorer::DestroyPlayerInstance(
   }
 }
 
-}  // namespace nplb
 }  // namespace starboard

@@ -19,7 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbStorageWriteRecordTest, RainyDayInvalidRecord) {
@@ -35,5 +34,4 @@ TEST(SbStorageWriteRecordTest, RainyDayNullBuffer) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

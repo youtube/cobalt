@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbWindowGetSizeTest, SunnyDay) {
@@ -49,5 +48,4 @@ TEST(SbWindowGetSizeTest, RainyDayInvalid) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

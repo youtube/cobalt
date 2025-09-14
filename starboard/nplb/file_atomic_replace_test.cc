@@ -21,7 +21,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 static const char kTestContents[] =
@@ -95,5 +94,4 @@ TEST(SbFileAtomicReplaceTest, FailsWithInvalidLength) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

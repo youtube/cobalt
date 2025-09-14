@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 constexpr int kStackSize = 4 * 1024 * 1024;
@@ -340,5 +339,4 @@ TEST(PosixThreadAttrTest, SchedParam) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

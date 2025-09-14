@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 const int kMaxAllowedMinRequiredFrames = 16 * 1024;
 
@@ -52,5 +51,4 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
   }
 }
 
-}  // namespace nplb
 }  // namespace starboard

@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 TEST(SbAudioSinkIsAudioFrameStorageTypeSupportedTest, SunnyDay) {
   bool interleaved_supported = SbAudioSinkIsAudioFrameStorageTypeSupported(
@@ -27,5 +26,4 @@ TEST(SbAudioSinkIsAudioFrameStorageTypeSupportedTest, SunnyDay) {
   EXPECT_TRUE(interleaved_supported || planar_supported);
 }
 
-}  // namespace nplb
 }  // namespace starboard

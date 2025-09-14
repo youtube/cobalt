@@ -24,7 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // A slightly longer duration for testing actual sleep.
@@ -175,5 +174,4 @@ TEST_F(PosixUsleepTests, ErrorEintr) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

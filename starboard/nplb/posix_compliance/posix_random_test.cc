@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // Test to ensure random() returns a value within [0, RAND_MAX].
@@ -84,5 +83,4 @@ TEST(PosixInitStateTest, SetStateRestoresState) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

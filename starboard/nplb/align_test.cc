@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 bool IsAligned(void* pointer, size_t alignment) {
@@ -150,5 +149,4 @@ TEST(SbAlignTest, AlignAsAlignOfStackVariable) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

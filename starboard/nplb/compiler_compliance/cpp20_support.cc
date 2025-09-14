@@ -21,7 +21,6 @@
 #include <vector>
 
 namespace starboard {
-namespace nplb {
 namespace compiler_compliance {
 namespace {
 
@@ -61,5 +60,4 @@ void test_designated_initializer() {
 
 }  // namespace
 }  // namespace compiler_compliance
-}  // namespace nplb
 }  // namespace starboard

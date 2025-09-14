@@ -21,7 +21,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 struct TestContext {
@@ -72,5 +71,4 @@ TEST(PosixMutexAcquireTryTest, RainyDayReentrant) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

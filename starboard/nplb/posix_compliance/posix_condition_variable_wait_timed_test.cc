@@ -21,7 +21,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 void InitCondition(pthread_cond_t* condition, bool use_monotonic) {
@@ -213,5 +212,4 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

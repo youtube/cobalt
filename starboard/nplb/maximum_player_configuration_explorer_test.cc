@@ -25,7 +25,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 using shared::starboard::player::video_dmp::VideoDmpReader;
@@ -115,5 +114,4 @@ INSTANTIATE_TEST_SUITE_P(MaximumPlayerConfigurationExplorerTests,
                          GetTestConfigName);
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

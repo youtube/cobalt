@@ -20,7 +20,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 void BasicTest(bool existing,
@@ -113,5 +112,4 @@ TEST(PosixFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

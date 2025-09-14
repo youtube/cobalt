@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbSystemSignWithCertificationSecretKeyTest, DoesNotCrash) {
@@ -45,5 +44,4 @@ TEST(SbSystemSignWithCertificationSecretKeyTest,
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

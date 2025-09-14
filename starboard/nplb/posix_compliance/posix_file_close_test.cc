@@ -25,7 +25,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixFileCloseTest, CloseInvalidFails) {
@@ -72,5 +71,4 @@ TEST(PosixFileCloseTest, DoubleCloseFails) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

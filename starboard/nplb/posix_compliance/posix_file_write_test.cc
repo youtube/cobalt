@@ -26,7 +26,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // Sets up an empty test fixture, required for typed tests.
@@ -370,5 +369,4 @@ TYPED_TEST(PosixFileWriteTest, WritevEmpty) {
   EXPECT_EQ(close(file), 0) << "close failed: " << strerror(errno);
 }
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

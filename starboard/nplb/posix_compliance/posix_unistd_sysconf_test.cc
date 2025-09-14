@@ -20,7 +20,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class PosixUnistdSysconfTest : public ::testing::TestWithParam<int> {
@@ -450,5 +449,4 @@ INSTANTIATE_TEST_SUITE_P(PosixUnistdSysconfTests,
                              ));
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

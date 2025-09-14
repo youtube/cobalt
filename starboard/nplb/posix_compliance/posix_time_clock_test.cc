@@ -21,7 +21,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 const int64_t kMicrosecondsPerSecond = 1'000'000LL;
@@ -177,5 +176,4 @@ TEST(PosixTimeClockTests, ClockMeasuresCpuTimeNotWallTimeDuringSleep) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 int CreateMulticastSocket(const struct ip_mreq& address) {
@@ -166,5 +165,4 @@ TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidAddress) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

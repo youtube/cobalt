@@ -25,7 +25,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class PosixEpollCtlTests : public PosixEpollTest {
@@ -214,5 +213,4 @@ TEST_F(PosixEpollCtlTests, ErrorFdNotRegisteredOnDel) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

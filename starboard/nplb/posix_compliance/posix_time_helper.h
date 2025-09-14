@@ -21,7 +21,6 @@
 #include <type_traits>
 
 namespace starboard {
-namespace nplb {
 
 // Helper templates to check for the existence of struct tm members
 template <typename T, typename = void>
@@ -143,7 +142,6 @@ void ExpectTmEqual(const struct tm& actual,
                    const struct tm& expected,
                    const std::string& context);
 
-}  // namespace nplb
 }  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIME_HELPER_H_

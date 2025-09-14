@@ -26,7 +26,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 struct SbPlayerTestConfig {
   SbPlayerTestConfig(const char* audio_filename,
@@ -120,7 +119,6 @@ bool IsPartialAudioSupported();
 
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config);
 
-}  // namespace nplb
 }  // namespace starboard
 
 #endif  // STARBOARD_NPLB_PLAYER_TEST_UTIL_H_

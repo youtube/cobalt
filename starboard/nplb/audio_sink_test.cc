@@ -23,7 +23,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 TEST(SbAudioSinkTest, UpdateStatusCalled) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
@@ -126,5 +125,4 @@ TEST(SbAudioSinkTest, ContinuousAppend) {
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
-}  // namespace nplb
 }  // namespace starboard

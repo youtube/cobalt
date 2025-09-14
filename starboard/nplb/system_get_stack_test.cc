@@ -18,7 +18,6 @@
 #include "starboard/shared/testing/no_inline.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 SB_TEST_FORCE_NO_INLINE int GetStackWithAnExtraFrame(void** out_stack,
@@ -82,5 +81,4 @@ TEST(SbSystemGetStackTest, SunnyDayNoStack) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

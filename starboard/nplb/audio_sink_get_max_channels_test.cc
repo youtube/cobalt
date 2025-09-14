@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 
 TEST(SbAudioSinkGetMaxChannelsTest, SunnyDay) {
   // Call the function a few times to ensure that it works consistently
@@ -28,5 +27,4 @@ TEST(SbAudioSinkGetMaxChannelsTest, SunnyDay) {
   }
 }
 
-}  // namespace nplb
 }  // namespace starboard

@@ -15,7 +15,6 @@
 #include <stddef.h>
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 constexpr const char kPangram[] = "The quick brown fox jumps over a lazy dog";
@@ -32,5 +31,4 @@ constexpr size_t CompileTimeStringLength(const char* str) {
 static_assert(CompileTimeStringLength(kPangram) == sizeof(kPangram),
               "CompileTimeStringLength does not return correct length");
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(SbDrmUpdateServerCertificateTest, RainyDay) {
@@ -40,5 +39,4 @@ TEST(SbDrmUpdateServerCertificateTest, RainyDay) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

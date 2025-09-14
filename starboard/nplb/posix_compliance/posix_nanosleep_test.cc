@@ -23,7 +23,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // Small duration for sleeps that should be short or return immediately.
@@ -207,5 +206,4 @@ TEST_F(PosixNanosleepTests, ErrorEintr) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

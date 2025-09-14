@@ -19,7 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixFileFsyncTest, InvalidFileErrors) {
@@ -31,5 +30,4 @@ TEST(PosixFileFsyncTest, InvalidFileErrors) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

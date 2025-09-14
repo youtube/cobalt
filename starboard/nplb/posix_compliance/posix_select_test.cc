@@ -42,7 +42,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 // Helper function to create a pipe for testing I/O events.
@@ -140,5 +139,4 @@ TEST(PosixSelectTest, InvalidTimeout) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

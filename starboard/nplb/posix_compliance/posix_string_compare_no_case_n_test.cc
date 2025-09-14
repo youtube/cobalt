@@ -15,7 +15,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 TEST(PosixCompareNoCaseNTest, SunnyDaySelf) {
@@ -54,5 +53,4 @@ TEST(PosixCompareNoCaseNTest, SunnyDayCase) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

@@ -25,7 +25,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class PosixAccessTest : public ::testing::Test {
@@ -105,5 +104,4 @@ TEST_F(PosixAccessTest, SunnyDayDirectoryExists) {
 }
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

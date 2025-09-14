@@ -15,7 +15,6 @@
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 
 namespace starboard {
-namespace nplb {
 
 time_t CreateTime(int year, int month, int day) {
   struct tm tminfo = {0};
@@ -71,5 +70,4 @@ void AssertTM(const tm& tminfo,
   }
 }
 
-}  // namespace nplb
 }  // namespace starboard

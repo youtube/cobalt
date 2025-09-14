@@ -19,7 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 class PosixAuxvGetauxvalRequiredTest
@@ -124,5 +123,4 @@ INSTANTIATE_TEST_SUITE_P(PosixAuxvGetauxvalOptionalTests,
                              AT_HWCAP));
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard

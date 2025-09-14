@@ -15,7 +15,6 @@
 #include <vector>
 
 namespace starboard {
-namespace nplb {
 namespace {
 
 struct DummyClass {
@@ -36,5 +35,4 @@ struct CheckInitializerTag {};
 static constexpr CheckInitializerTag kEmptyTag;
 
 }  // namespace
-}  // namespace nplb
 }  // namespace starboard
