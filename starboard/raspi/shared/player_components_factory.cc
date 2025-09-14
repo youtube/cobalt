@@ -79,9 +79,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      using ::starboard::VideoRendererSinkImpl;
-      using ::starboard::open_max::OpenMaxVideoDecoder;
-
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
