@@ -24,11 +24,11 @@
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  SbWindowPrivate(const starboard::raspi::shared::DispmanxDisplay& display,
+  SbWindowPrivate(const starboard::DispmanxDisplay& display,
                   const SbWindowOptions* options);
   ~SbWindowPrivate();
 
-  std::unique_ptr<starboard::raspi::shared::DispmanxElement> element;
+  std::unique_ptr<starboard::DispmanxElement> element;
   EGL_DISPMANX_WINDOW_T window;
 };
 

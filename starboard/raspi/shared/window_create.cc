@@ -17,6 +17,5 @@
 #include "starboard/raspi/shared/application_dispmanx.h"
 
 SbWindow SbWindowCreate(const SbWindowOptions* options) {
-  return starboard::raspi::shared::ApplicationDispmanx::Get()->CreateWindow(
-      options);
+  return starboard::ApplicationDispmanx::Get()->CreateWindow(options);
 }
