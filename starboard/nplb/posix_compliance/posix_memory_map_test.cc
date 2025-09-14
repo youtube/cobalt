@@ -30,7 +30,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace starboard {
 namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
@@ -357,4 +357,4 @@ TEST_F(PosixMemoryMapFileTest, AnonymousMappingIsZeroed) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace starboard

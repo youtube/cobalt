@@ -16,7 +16,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace starboard {
 namespace {
 
 const size_t kSize = 1024 * 128;
@@ -78,4 +78,4 @@ TEST(PosixMallocTest, CanReadWriteToResult) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace starboard

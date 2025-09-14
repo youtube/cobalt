@@ -44,7 +44,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace starboard {
 namespace {
 
 // Helper function to get the modification time of a file.
@@ -206,4 +206,4 @@ TEST(PosixUtimensatTest, FailsOnInvalidFlag) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace starboard

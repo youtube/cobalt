@@ -21,7 +21,6 @@
 #include <vector>
 
 namespace starboard {
-namespace compiler_compliance {
 namespace {
 
 // These examples are taken after referring to
@@ -59,5 +58,4 @@ void test_designated_initializer() {
 }
 
 }  // namespace
-}  // namespace compiler_compliance
 }  // namespace starboard

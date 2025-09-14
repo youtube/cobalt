@@ -15,7 +15,6 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace sabi {
 namespace {
 
 SB_COMPILE_ASSERT(sizeof(char) == SB_SIZE_OF_CHAR,
@@ -43,5 +42,4 @@ SB_COMPILE_ASSERT(sizeof(short) == SB_SIZE_OF_SHORT,  // NOLINT(runtime/int)
                   SB_SIZE_OF_SHORT_is_inconsistent_with_sizeof_short);
 
 }  // namespace
-}  // namespace sabi
 }  // namespace starboard

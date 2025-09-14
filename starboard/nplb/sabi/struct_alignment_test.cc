@@ -25,7 +25,6 @@
 #endif  // SB_IS(ARCH_X86)
 
 namespace starboard {
-namespace sabi {
 namespace {
 
 static const int8_t kInt8 = 0x74;
@@ -159,7 +158,6 @@ TEST(SbSabiStructAlignmentTest, NestedUnion) {
   EXPECT_EQ(kInt8, *(base + 8));
 }
 
-}  // namespace sabi
 }  // namespace starboard
 
 #undef ALIGNMENT_8_BYTE_INT

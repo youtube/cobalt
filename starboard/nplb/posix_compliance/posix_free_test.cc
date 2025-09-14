@@ -24,7 +24,7 @@ Calling free() on a pointer not returned by an allocation function
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace starboard {
 namespace {
 
 // If ptr is a null pointer, no action shall occur.
@@ -65,4 +65,4 @@ TEST(PosixFreeTest, FreeValidPointerDoesNotModifyErrno) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace starboard
