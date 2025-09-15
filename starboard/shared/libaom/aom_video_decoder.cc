@@ -21,8 +21,6 @@
 
 namespace starboard::shared::aom {
 
-using starboard::player::JobThread;
-
 AomVideoDecoder::AomVideoDecoder(SbMediaVideoCodec video_codec,
                                  SbPlayerOutputMode output_mode,
                                  SbDecodeTargetGraphicsContextProvider*

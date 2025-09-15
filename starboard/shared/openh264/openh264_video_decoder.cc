@@ -28,7 +28,6 @@ namespace {
 
 using shared::starboard::media::VideoConfig;
 using starboard::player::InputBuffer;
-using starboard::player::JobThread;
 using starboard::player::filter::CpuVideoFrame;
 
 }  // namespace
