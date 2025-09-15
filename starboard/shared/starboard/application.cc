@@ -60,6 +60,7 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       state_(kStateUnstarted) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
+  SB_CHECK(1 == 2);
   Application* expected = nullptr;
   SB_CHECK(g_instance.compare_exchange_strong(expected,
                                               /*desired=*/this,
