@@ -25,7 +25,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Note: Direct modification of 'environ' is discouraged and can lead to
@@ -461,4 +461,4 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironReflectsVariableUnset) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -19,7 +19,7 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Returns whether a given index is a yielder for the given trial. We alternate
@@ -105,4 +105,4 @@ TEST(PosixThreadYieldTest, SunnyDayRace) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -17,7 +17,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixMutexDestroyTest, SunnyDayAutoInit) {
@@ -26,4 +26,4 @@ TEST(PosixMutexDestroyTest, SunnyDayAutoInit) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

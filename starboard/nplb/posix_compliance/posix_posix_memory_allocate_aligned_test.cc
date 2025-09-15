@@ -24,7 +24,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Choose a size that isn't naturally aligned to anything.
@@ -134,4 +134,4 @@ TEST(PosixMemalignTest, AlignsForVariousDataTypes) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

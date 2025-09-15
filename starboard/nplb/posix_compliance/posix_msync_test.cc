@@ -31,7 +31,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 class PosixMsyncTest : public ::testing::Test {
@@ -139,4 +139,4 @@ TEST_F(PosixMsyncTest, MayFailWithUnalignedAddress) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

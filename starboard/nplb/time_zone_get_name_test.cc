@@ -23,7 +23,7 @@
 using testing::AnyOf;
 using testing::MatchesRegex;
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
@@ -70,4 +70,4 @@ TEST(SbTimeZoneGetNameTest, IsIANAFormat) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

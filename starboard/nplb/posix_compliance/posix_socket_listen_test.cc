@@ -18,7 +18,7 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixSocketListenTest, RainyDayInvalid) {
@@ -79,4 +79,4 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

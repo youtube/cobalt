@@ -16,7 +16,7 @@
 #include "starboard/nplb/microphone_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbMicrophoneOpenTest, SunnyDay) {
@@ -91,4 +91,4 @@ TEST(SbMicrophoneOpenTest, RainyDayOpenWithInvalidMicrophone) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

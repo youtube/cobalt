@@ -18,7 +18,7 @@
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 int Format(wchar_t* out_buffer,
@@ -45,4 +45,4 @@ TEST(PosixFormatWideTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

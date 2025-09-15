@@ -18,7 +18,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 constexpr int kFeatureValueInvalid = -1;
@@ -132,4 +132,4 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

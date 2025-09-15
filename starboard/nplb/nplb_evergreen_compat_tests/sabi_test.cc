@@ -25,7 +25,7 @@
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
-namespace starboard {
+namespace nplb {
 
 namespace {
 
@@ -107,4 +107,4 @@ TEST(SabiTest, VerifySABI) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

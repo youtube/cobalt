@@ -21,7 +21,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
@@ -167,4 +167,4 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

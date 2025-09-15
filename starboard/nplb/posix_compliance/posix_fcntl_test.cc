@@ -21,7 +21,7 @@
 
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-namespace starboard {
+namespace nplb {
 namespace {
 
 class PosixFcntlTest : public ::testing::Test {
@@ -197,4 +197,4 @@ TEST_F(PosixFcntlTest, RejectInvalidFileDescriptorTooHigh) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

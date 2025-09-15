@@ -30,7 +30,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 constexpr char kTestFileContent[] = "Hello, stat!";
@@ -226,4 +226,4 @@ TEST_F(PosixStatTest, SymlinkLoopFails) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

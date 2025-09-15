@@ -18,7 +18,7 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbPlayerGetPreferredOutputModeTest, SunnyDay) {
@@ -87,4 +87,4 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

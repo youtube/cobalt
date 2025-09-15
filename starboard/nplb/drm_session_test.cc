@@ -22,7 +22,7 @@
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 constexpr int64_t kDefaultWaitForCallbackTimeout = 1'000'000;  // 1 second
@@ -394,4 +394,4 @@ TEST_F(SbDrmSessionTest, InvalidSessionUpdateRequestParams) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -22,7 +22,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
@@ -155,4 +155,4 @@ TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

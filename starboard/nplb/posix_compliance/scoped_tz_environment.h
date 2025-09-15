@@ -20,7 +20,7 @@
 #include <optional>
 #include <string>
 
-namespace starboard {
+namespace nplb {
 
 // Helper class to manage the TZ environment variable for test isolation.
 // Sets TZ in constructor, restores original TZ in destructor.
@@ -57,6 +57,6 @@ class ScopedTzEnvironment {
   std::optional<std::string> original_tz_value_;
 };
 
-}  // namespace starboard
+}  // namespace nplb
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_SCOPED_TZ_ENVIRONMENT_H_

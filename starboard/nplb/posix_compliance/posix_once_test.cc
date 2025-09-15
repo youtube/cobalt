@@ -20,7 +20,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 int s_global_value;
@@ -150,4 +150,4 @@ TEST(PosixOnceTest, InitializeOnceMacroFunction) {
 }
 
 }  // namespace.
-}  // namespace starboard.
+}  // namespace nplb.

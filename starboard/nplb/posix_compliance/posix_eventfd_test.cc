@@ -31,7 +31,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 struct TestContext {
@@ -436,4 +436,4 @@ TEST(PosixEventfdTest,
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

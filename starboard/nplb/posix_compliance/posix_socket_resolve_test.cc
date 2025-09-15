@@ -19,7 +19,7 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // A random host name to use to test DNS resolution.
@@ -189,4 +189,4 @@ TEST(PosixSocketResolveTest, RainyDayNullHostname) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

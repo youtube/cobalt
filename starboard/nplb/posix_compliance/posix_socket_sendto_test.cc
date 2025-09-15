@@ -26,7 +26,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
@@ -210,4 +210,4 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

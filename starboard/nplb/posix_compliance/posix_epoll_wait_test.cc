@@ -25,7 +25,7 @@
 #include "starboard/nplb/posix_compliance/posix_epoll_test_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 class PosixEpollWaitTests : public PosixEpollTest {
@@ -284,4 +284,4 @@ TEST_F(PosixEpollWaitTests, WaitForWriteOnReadOnlyPipeEndWhenWriteEndClosed) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

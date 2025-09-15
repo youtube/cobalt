@@ -20,7 +20,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 void* ThreadFunc(void* context) {
@@ -46,4 +46,4 @@ TEST(SbSystemHideSplashScreenTest, SunnyDayNewThread) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

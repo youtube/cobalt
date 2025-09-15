@@ -24,7 +24,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 bool StringPairEquals(const std::pair<std::string, std::string>& a,
@@ -697,4 +697,4 @@ TEST(FlatMap, FuzzerTest) {
   }
 }
 
-}  // namespace starboard
+}  // namespace nplb

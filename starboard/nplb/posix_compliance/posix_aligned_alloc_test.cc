@@ -27,7 +27,7 @@
  * flag that verify this requirement.
  */
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Checks if the given memory address is aligned to the specified alignment.
@@ -134,4 +134,4 @@ TEST(PosixAlignedAllocTests, AllocatesSuccessfullyWithLargeAlignmentAndSize) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

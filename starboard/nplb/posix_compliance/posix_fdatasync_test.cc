@@ -21,7 +21,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixFdatasyncTest, SunnyDay) {
@@ -95,4 +95,4 @@ TEST(PosixFdatasyncTest, ReadOnlyFileDescriptor) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

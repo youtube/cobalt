@@ -35,7 +35,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 constexpr int k8ByteFileLength = 8;
@@ -147,4 +147,4 @@ TEST(PosixFileDescriptorDuplicateTest, Dup2NegativeIntASNewFdFails) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // These examples are taken after referring to
@@ -58,4 +58,4 @@ void test_designated_initializer() {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

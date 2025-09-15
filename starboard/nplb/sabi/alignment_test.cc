@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 SB_COMPILE_ASSERT(SB_ALIGNOF(char) == SB_ALIGNMENT_OF_CHAR,
@@ -47,4 +47,4 @@ SB_COMPILE_ASSERT(SB_ALIGNOF(short) ==        // NOLINT(runtime/int)
                   SB_ALIGNMENT_OF_SHORT_is_inconsistent_with_SB_ALIGNOF_short);
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

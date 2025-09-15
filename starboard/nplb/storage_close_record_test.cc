@@ -17,7 +17,7 @@
 #include "starboard/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbStorageCloseRecordTest, RainyDayInvalidRecord) {
@@ -25,4 +25,4 @@ TEST(SbStorageCloseRecordTest, RainyDayInvalidRecord) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

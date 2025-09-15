@@ -20,7 +20,7 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 
 // Default for parameter |count_calls| of TestPerformanceOfFunction.
 constexpr int kDefaultTestPerformanceCountCalls = 1000;
@@ -90,6 +90,6 @@ void TestPerformanceOfFunction(const char* const name_of_f,
                                   kDefaultTestPerformanceMaxTimePerCall, name, \
                                   __VA_ARGS__)
 
-}  // namespace starboard
+}  // namespace nplb
 
 #endif  // STARBOARD_NPLB_PERFORMANCE_HELPERS_H_

@@ -17,7 +17,7 @@
 #include "starboard/common/murmurhash2.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(MurmerHash2, AlignedEqualsUnaligned) {
@@ -52,4 +52,4 @@ TEST(MurmerHash2, ExpectedLittleEndianValue) {
 #endif
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -19,7 +19,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Test to ensure rand_r() returns a value within [0, RAND_MAX].
@@ -85,4 +85,4 @@ TEST(PosixRandrTest, MultipleCallsProduceDifferentValues) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 enum ClockIsRequired { REQUIRED, OPTIONAL };
@@ -408,4 +408,4 @@ TEST(PosixTimeClockGettimeTests, ReturnsEinvalForInvalidClockId) {
 // IDs is not included.
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

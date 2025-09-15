@@ -23,7 +23,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 using ::testing::ValuesIn;
@@ -400,4 +400,4 @@ INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
                          GetSbPlayerTestConfigName);
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -20,7 +20,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Tests the basic initialization and destruction of a semaphore.
@@ -126,4 +126,4 @@ TEST(PosixSemaphoreTest, PostThenWait) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

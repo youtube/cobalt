@@ -30,7 +30,7 @@
 #error These tests are not applicable to AOSP
 #endif
 
-namespace starboard {
+namespace nplb {
 
 namespace {
 
@@ -61,4 +61,4 @@ TEST(FontsTest, VerifySystemFontsConfigDirectory) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

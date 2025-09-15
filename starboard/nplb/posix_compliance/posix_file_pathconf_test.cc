@@ -21,7 +21,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // General information of the pathconf function can be found here:
@@ -167,4 +167,4 @@ INSTANTIATE_TEST_SUITE_P(
             ));
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

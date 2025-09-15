@@ -19,7 +19,7 @@
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // On e.g. linux/shared, raspi, EG platforms, there is no key system supported.
@@ -120,4 +120,4 @@ TEST(SbDrmTest, MultiDrm) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

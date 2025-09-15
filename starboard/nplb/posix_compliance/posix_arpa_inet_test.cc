@@ -18,7 +18,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 const uint16_t kTestU16 = 0xABCD;
@@ -45,4 +45,4 @@ TEST(PosixArpaInetTest, LittleEndian) {
 #endif
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

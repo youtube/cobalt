@@ -21,7 +21,7 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixErrnoTest, CreateInvalidSocket) {
@@ -59,4 +59,4 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
   close(socket_fd);
 }
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

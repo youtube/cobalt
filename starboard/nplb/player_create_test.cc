@@ -28,7 +28,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
@@ -438,4 +438,4 @@ TEST_F(SbPlayerTest, MultiPlayer) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

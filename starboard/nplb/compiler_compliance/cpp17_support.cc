@@ -14,15 +14,15 @@
 
 #include <utility>
 
-namespace starboard::foo::bar::baz {
+namespace nplb::foo::bar::baz {
 
 constexpr int life() {
   return 42;
 }
 
-}  // namespace starboard::foo::bar::baz
+}  // namespace nplb::foo::bar::baz
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Test Structured bindings support, P0217R3
@@ -81,4 +81,4 @@ static_assert(test_fallthrough(2) == 3,
               "[fallthrough]] attribute support is required");
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

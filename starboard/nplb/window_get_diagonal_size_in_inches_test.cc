@@ -15,7 +15,7 @@
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbWindowGetDiagonalSizeInInches, RainyDay) {
@@ -23,4 +23,4 @@ TEST(SbWindowGetDiagonalSizeInInches, RainyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

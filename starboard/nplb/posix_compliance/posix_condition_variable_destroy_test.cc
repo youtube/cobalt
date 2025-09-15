@@ -18,7 +18,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixConditionVariableDestroyTest, SunnyDayAutoInit) {
@@ -27,4 +27,4 @@ TEST(PosixConditionVariableDestroyTest, SunnyDayAutoInit) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

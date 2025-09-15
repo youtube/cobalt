@@ -18,7 +18,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 SB_COMPILE_ASSERT(sizeof(int32_t) < sizeof(int64_t), int32_less_than_int64);
@@ -55,4 +55,4 @@ TEST(SbArraySizeIntTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

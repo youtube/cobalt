@@ -17,7 +17,7 @@
 #include "starboard/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbStorageReadRecordTest, SunnyDay) {
@@ -178,4 +178,4 @@ TEST(SbStorageReadRecordTest, RainyDayNullBuffer) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

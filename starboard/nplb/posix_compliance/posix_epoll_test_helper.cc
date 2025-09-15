@@ -16,7 +16,7 @@
 
 #include <unistd.h>
 
-namespace starboard {
+namespace nplb {
 
 bool CreatePipe(int pipe_fds[2], int flags) {
   if (flags == 0) {
@@ -25,4 +25,4 @@ bool CreatePipe(int pipe_fds[2], int flags) {
   return pipe2(pipe_fds, flags) == 0;
 }
 
-}  // namespace starboard
+}  // namespace nplb

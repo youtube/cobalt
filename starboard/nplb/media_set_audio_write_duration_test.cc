@@ -30,7 +30,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 using shared::starboard::player::video_dmp::VideoDmpReader;
@@ -250,4 +250,4 @@ INSTANTIATE_TEST_SUITE_P(SbMediaSetAudioWriteDurationTests,
                          SbMediaSetAudioWriteDurationTest,
                          ValuesIn(GetStereoAudioTestFiles()));
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

@@ -14,7 +14,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixCompareNoCaseTest, SunnyDaySelf) {
@@ -35,4 +35,4 @@ TEST(PosixCompareNoCaseTest, SunnyDayCase) {
   EXPECT_EQ(0, strcasecmp(kString2, kString1));
 }
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

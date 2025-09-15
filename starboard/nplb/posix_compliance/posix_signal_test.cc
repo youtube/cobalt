@@ -22,7 +22,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // --- Globals for Signal Handlers ---
@@ -353,4 +353,4 @@ TEST_F(PosixSignalTest, PthreadKillSendsSignalToSpecificThread) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

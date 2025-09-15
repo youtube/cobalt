@@ -15,7 +15,7 @@
 #include "starboard/gles.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Verifies that we are able to query for the Starboard OpenGL ES interface, and
@@ -174,4 +174,4 @@ TEST(SbGlesInterfaceTest, HasValidGlesInterface) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

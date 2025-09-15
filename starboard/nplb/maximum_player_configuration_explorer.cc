@@ -26,7 +26,7 @@
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 
-namespace starboard {
+namespace nplb {
 
 namespace {
 
@@ -287,4 +287,4 @@ void MaximumPlayerConfigurationExplorer::DestroyPlayerInstance(
   }
 }
 
-}  // namespace starboard
+}  // namespace nplb

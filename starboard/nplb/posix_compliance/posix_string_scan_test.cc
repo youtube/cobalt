@@ -17,7 +17,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 const char kIpGood[] = "192.168.1.2";
@@ -89,4 +89,4 @@ TEST(PosixStringScanTest, RainyDayIp3) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

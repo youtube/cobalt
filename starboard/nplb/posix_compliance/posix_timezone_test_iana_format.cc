@@ -26,7 +26,7 @@
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 struct IANATestData {
@@ -1158,4 +1158,4 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn(GetFilteredTimezoneTests(IANAFormat::kAllTests, false)),
     GetTestName);
 
-}  // namespace starboard
+}  // namespace nplb

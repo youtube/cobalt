@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace starboard {
+namespace nplb {
 
 constexpr mode_t kUserRwx = S_IRUSR | S_IWUSR | S_IXUSR;
 constexpr mode_t kUserRw = S_IRUSR | S_IWUSR;
@@ -116,6 +116,6 @@ class ScopedRandomFile {
   int size_;
 };
 
-}  // namespace starboard
+}  // namespace nplb
 
 #endif  // STARBOARD_NPLB_FILE_HELPERS_H_

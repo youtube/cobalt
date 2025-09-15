@@ -24,7 +24,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(PosixFileSeekTest, InvalidFileErrors) {
@@ -164,4 +164,4 @@ TEST(PosixFileSeekTest, FromEndInStaticContentWorks) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

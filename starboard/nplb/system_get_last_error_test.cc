@@ -18,7 +18,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSystemGetLastErrorTest, SunnyDay) {
@@ -31,4 +31,4 @@ TEST(SbSystemGetLastErrorTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

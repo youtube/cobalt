@@ -20,7 +20,7 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 
 void DoNotYield() {
   // Nope.
@@ -85,4 +85,4 @@ void WaiterContext::WaitForReturnSignal() {
   EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
 }
 
-}  // namespace starboard
+}  // namespace nplb

@@ -15,7 +15,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSystemGetTotalGPUMemoryTest, SunnyDay) {
@@ -27,4 +27,4 @@ TEST(SbSystemGetTotalGPUMemoryTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

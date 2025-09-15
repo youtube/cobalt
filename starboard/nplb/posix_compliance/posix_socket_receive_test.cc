@@ -18,7 +18,7 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Transfers data between the two connected local sockets, spinning until |size|
@@ -113,4 +113,4 @@ TEST(PosixSocketReceiveTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

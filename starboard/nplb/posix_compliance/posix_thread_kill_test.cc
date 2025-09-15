@@ -20,7 +20,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Global flag to be set by the signal handler.
@@ -198,4 +198,4 @@ TEST_F(PosixThreadKillTest, SendInvalidSignalNumber) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

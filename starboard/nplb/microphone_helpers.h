@@ -17,10 +17,10 @@
 
 #include "starboard/microphone.h"
 
-namespace starboard {
+namespace nplb {
 const int kMaxNumberOfMicrophone = 20;
 const int kBufferSize = 32 * 1024;
 const int kNormallyUsedSampleRateInHz = 16000;
-}  // namespace starboard
+}  // namespace nplb
 
 #endif  // STARBOARD_NPLB_MICROPHONE_HELPERS_H_

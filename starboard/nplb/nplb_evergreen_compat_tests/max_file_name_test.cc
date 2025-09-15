@@ -20,7 +20,7 @@
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 // Drain file names need to be able to contain the drain file prefix, the base64
@@ -30,4 +30,4 @@ TEST(MaxFileNameTest, SunnyDay) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb

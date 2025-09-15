@@ -28,7 +28,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 
 namespace {
 
@@ -401,4 +401,4 @@ bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
          audio_codec == kSbMediaAudioCodecEac3;
 }
 
-}  // namespace starboard
+}  // namespace nplb

@@ -15,7 +15,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSystemGetExtension, MadeUpExtension) {
@@ -25,4 +25,4 @@ TEST(SbSystemGetExtension, MadeUpExtension) {
 }
 
 }  // namespace
-}  // namespace starboard
+}  // namespace nplb
