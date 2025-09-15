@@ -5,7 +5,6 @@
 OPENSSL_memory_alloc
 OPENSSL_memory_free
 OPENSSL_memory_get_size
-__nl_langinfo_l
 fclose
 fdopen
 feof
@@ -17,7 +16,6 @@ fprintf
 fputc
 fputs
 fread
-freelocale
 fscanf
 fseek
 fseeko
@@ -27,8 +25,6 @@ fwrite
 getc
 getcwd
 getrlimit
-localeconv
-newlocale
 prctl
 printf
 puts
@@ -36,7 +32,6 @@ realpath
 rewind
 sched_getaffinity
 sdallocx
-setlocale
 setpriority
 setvbuf
 stderr
@@ -44,7 +39,6 @@ stdin
 stdout
 tmpfile
 ungetc
-uselocale
 vfprintf
 vprintf
 TLS init function for partition_alloc::internal::g_thread_cache
