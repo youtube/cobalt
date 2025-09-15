@@ -35,9 +35,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 class OpenMaxVideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
@@ -102,9 +99,6 @@ class OpenMaxVideoDecoder
   std::function<void()> update_job_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_

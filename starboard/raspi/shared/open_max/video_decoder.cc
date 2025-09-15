@@ -20,9 +20,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -286,7 +283,4 @@ scoped_refptr<OpenMaxVideoDecoder::VideoFrame> OpenMaxVideoDecoder::CreateFrame(
   return frame;
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

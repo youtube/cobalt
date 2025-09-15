@@ -31,9 +31,6 @@
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 template <typename ParamType, OMX_INDEXTYPE index>
 struct OMXParam : public ParamType {
@@ -131,9 +128,6 @@ class OpenMaxComponentBase {
   EventDescriptions event_descriptions_;  // Guarded by |mutex_|.
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_BASE_H_
