@@ -13,9 +13,9 @@
 #include <stdio.h>
 
 #include "absl/strings/string_view.h"
+#include "api/field_trials_view.h"
 #include "rtc_base/experiments/field_trial_list.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 namespace {
@@ -38,24 +38,45 @@ constexpr float kDefaultMinBitratebps = 30000;
 std::vector<VideoEncoder::ResolutionBitrateLimits>
 EncoderInfoSettings::GetDefaultSinglecastBitrateLimits(
     VideoCodecType codec_type) {
-  // Specific limits for VP9. Determining specific limits for AV1 via
-  // field trial experiment is a work in progress. Other codecs use VP8 limits.
-  if (codec_type == kVideoCodecVP9) {
+  if (codec_type == kVideoCodecAV1) {
+    // AV1 singlecast max bitrate limits are higher than AV1 SVC max limits.
+    // This is because in singlecast we normally have just one receiver, BWE is
+    // known end-to-end and the encode target bitrate guarantees delivery of
+    // video.
+    // The min bitrate limits are not used in singlecast (used in SVC/simulcast
+    // to de-/activate spatial layers) and are set to zero. Send resolution in
+    // singlecast is assumed to be regulated by QP-based quality scaler.
+    return {
+        {320 * 180, 0, 0, 256000},        {480 * 270, 176000, 0, 384000},
+        {640 * 360, 256000, 0, 512000},   {960 * 540, 384000, 0, 1024000},
+        {1280 * 720, 576000, 0, 1536000}, {1920 * 1080, 1000000, 0, 3700000}};
+  }
+
+  if (codec_type == kVideoCodecVP9 || codec_type == kVideoCodecH265) {
+    // VP9 singlecast bitrate limits are derived ~directly from VP9 SVC bitrate
+    // limits. The current max limits are unnecessarily too strict for
+    // singlecast, where BWE is known end-to-end, especially for low
+    // resolutions.
+    // TODO(crbugs.com/39206082): Consider fine-tuning H.265 to have its own
+    // bitrate settings separate from VP9.
     return {{320 * 180, 0, 30000, 150000},
             {480 * 270, 120000, 30000, 300000},
             {640 * 360, 190000, 30000, 420000},
             {960 * 540, 350000, 30000, 1000000},
-            {1280 * 720, 480000, 30000, 1500000}};
+            {1280 * 720, 480000, 30000, 1500000},
+            {1920 * 1080, 1000000, 30000, 3700000}};
   }
 
+  // VP8 and other codecs.
   return {{320 * 180, 0, 30000, 300000},
           {480 * 270, 200000, 30000, 500000},
           {640 * 360, 300000, 30000, 800000},
           {960 * 540, 500000, 30000, 1500000},
-          {1280 * 720, 900000, 30000, 2500000}};
+          {1280 * 720, 900000, 30000, 2500000},
+          {1920 * 1080, 2000000, 30000, 5000000}};
 }
 
-absl::optional<VideoEncoder::ResolutionBitrateLimits>
+std::optional<VideoEncoder::ResolutionBitrateLimits>
 EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
     VideoCodecType codec_type,
     int frame_size_pixels) {
@@ -67,29 +88,39 @@ EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
 
 // Return the suitable bitrate limits for specified resolution when qp is
 // untrusted, they are experimental values.
-// TODO(bugs.webrtc.org/12942): Maybe we need to add other codecs(VP8/VP9)
-// experimental values.
 std::vector<VideoEncoder::ResolutionBitrateLimits>
-EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsWhenQpIsUntrusted() {
-  // Specific limits for H264/AVC
-  return {{0 * 0, 0, 0, 0},
-          {320 * 180, 0, 30000, 300000},
-          {480 * 270, 300000, 30000, 500000},
-          {640 * 360, 500000, 30000, 800000},
-          {960 * 540, 800000, 30000, 1500000},
-          {1280 * 720, 1500000, 30000, 2500000},
-          {1920 * 1080, 2500000, 30000, 4000000}};
+EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsWhenQpIsUntrusted(
+    VideoCodecType codec_type) {
+  if (codec_type == kVideoCodecH265) {
+    // Similar settings from the simulcast bitate limits for H.265.
+    return {{0 * 0, 0, 0, 0},
+            {320 * 180, 0, 30000, 150000},
+            {480 * 270, 150000, 30000, 300000},
+            {640 * 360, 300000, 30000, 420000},
+            {960 * 540, 420000, 30000, 1000000},
+            {1280 * 720, 1000000, 30000, 1500000},
+            {1920 * 1080, 1500000, 30000, 3300000}};
+  } else {
+    // Settings for H.264. Other codecs will not work in QP-untrusted mode.
+    return {{0 * 0, 0, 0, 0},
+            {320 * 180, 0, 30000, 300000},
+            {480 * 270, 300000, 30000, 500000},
+            {640 * 360, 500000, 30000, 800000},
+            {960 * 540, 800000, 30000, 1500000},
+            {1280 * 720, 1500000, 30000, 2500000},
+            {1920 * 1080, 2500000, 30000, 4000000}};
+  }
 }
 
 // Through linear interpolation, return the bitrate limit corresponding to the
 // specified |frame_size_pixels|.
-absl::optional<VideoEncoder::ResolutionBitrateLimits>
+std::optional<VideoEncoder::ResolutionBitrateLimits>
 EncoderInfoSettings::GetSinglecastBitrateLimitForResolutionWhenQpIsUntrusted(
-    absl::optional<int> frame_size_pixels,
+    std::optional<int> frame_size_pixels,
     const std::vector<VideoEncoder::ResolutionBitrateLimits>&
         resolution_bitrate_limits) {
   if (!frame_size_pixels.has_value() || frame_size_pixels.value() <= 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<VideoEncoder::ResolutionBitrateLimits> bitrate_limits =
@@ -103,7 +134,7 @@ EncoderInfoSettings::GetSinglecastBitrateLimitForResolutionWhenQpIsUntrusted(
        });
 
   if (bitrate_limits.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   int interpolation_index = -1;
@@ -124,6 +155,12 @@ EncoderInfoSettings::GetSinglecastBitrateLimitForResolutionWhenQpIsUntrusted(
   if (bitrate_limits[interpolation_index].frame_size_pixels ==
       frame_size_pixels.value()) {
     return bitrate_limits[interpolation_index];
+  }
+
+  // 0 means our resolution is smaller than the smallest resolution in the list,
+  // we will select smallest data as the return result.
+  if (interpolation_index == 0) {
+    return *bitrate_limits.begin();
   }
 
   // No matching resolution, do a linear interpolate.
@@ -153,11 +190,12 @@ EncoderInfoSettings::GetSinglecastBitrateLimitForResolutionWhenQpIsUntrusted(
         << " min_start_bitrate_bps = " << min_start_bitrate_bps
         << " min_bitrate_bps = " << kDefaultMinBitratebps
         << " max_bitrate_bps = " << max_bitrate_bps;
-    return absl::nullopt;
+    return std::nullopt;
   }
 }
 
-EncoderInfoSettings::EncoderInfoSettings(absl::string_view name)
+EncoderInfoSettings::EncoderInfoSettings(const FieldTrialsView& field_trials,
+                                         absl::string_view name)
     : requested_resolution_alignment_("requested_resolution_alignment"),
       apply_alignment_to_all_simulcast_layers_(
           "apply_alignment_to_all_simulcast_layers") {
@@ -176,25 +214,25 @@ EncoderInfoSettings::EncoderInfoSettings(absl::string_view name)
            [](BitrateLimit* b) { return &b->max_bitrate_bps; })},
       {});
 
-  std::string name_str(name);
-  if (field_trial::FindFullName(name_str).empty()) {
+  std::string experiment_string = field_trials.Lookup(name);
+  if (experiment_string.empty()) {
     // Encoder name not found, use common string applying to all encoders.
-    name_str = "WebRTC-GetEncoderInfoOverride";
+    experiment_string = field_trials.Lookup("WebRTC-GetEncoderInfoOverride");
   }
 
   ParseFieldTrial({&bitrate_limits, &requested_resolution_alignment_,
                    &apply_alignment_to_all_simulcast_layers_},
-                  field_trial::FindFullName(name_str));
+                  experiment_string);
 
   resolution_bitrate_limits_ = ToResolutionBitrateLimits(bitrate_limits.Get());
 }
 
-absl::optional<uint32_t> EncoderInfoSettings::requested_resolution_alignment()
+std::optional<uint32_t> EncoderInfoSettings::requested_resolution_alignment()
     const {
   if (requested_resolution_alignment_ &&
       requested_resolution_alignment_.Value() < 1) {
     RTC_LOG(LS_WARNING) << "Unsupported alignment value, ignored.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   return requested_resolution_alignment_.GetOptional();
 }
@@ -202,17 +240,22 @@ absl::optional<uint32_t> EncoderInfoSettings::requested_resolution_alignment()
 EncoderInfoSettings::~EncoderInfoSettings() {}
 
 SimulcastEncoderAdapterEncoderInfoSettings::
-    SimulcastEncoderAdapterEncoderInfoSettings()
+    SimulcastEncoderAdapterEncoderInfoSettings(
+        const FieldTrialsView& field_trials)
     : EncoderInfoSettings(
+          field_trials,
           "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride") {}
 
-LibvpxVp8EncoderInfoSettings::LibvpxVp8EncoderInfoSettings()
-    : EncoderInfoSettings("WebRTC-VP8-GetEncoderInfoOverride") {}
+LibvpxVp8EncoderInfoSettings::LibvpxVp8EncoderInfoSettings(
+    const FieldTrialsView& field_trials)
+    : EncoderInfoSettings(field_trials, "WebRTC-VP8-GetEncoderInfoOverride") {}
 
-LibvpxVp9EncoderInfoSettings::LibvpxVp9EncoderInfoSettings()
-    : EncoderInfoSettings("WebRTC-VP9-GetEncoderInfoOverride") {}
+LibvpxVp9EncoderInfoSettings::LibvpxVp9EncoderInfoSettings(
+    const FieldTrialsView& field_trials)
+    : EncoderInfoSettings(field_trials, "WebRTC-VP9-GetEncoderInfoOverride") {}
 
-LibaomAv1EncoderInfoSettings::LibaomAv1EncoderInfoSettings()
-    : EncoderInfoSettings("WebRTC-Av1-GetEncoderInfoOverride") {}
+LibaomAv1EncoderInfoSettings::LibaomAv1EncoderInfoSettings(
+    const FieldTrialsView& field_trials)
+    : EncoderInfoSettings(field_trials, "WebRTC-Av1-GetEncoderInfoOverride") {}
 
 }  // namespace webrtc

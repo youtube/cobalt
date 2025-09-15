@@ -11,17 +11,24 @@
 #include "pc/audio_rtp_receiver.h"
 
 #include <atomic>
+#include <cstdint>
+#include <string>
+#include <vector>
 
-#include "pc/test/mock_voice_media_channel.h"
-#include "rtc_base/gunit.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/test/rtc_error_matchers.h"
+#include "api/units/time_delta.h"
+#include "pc/test/mock_voice_media_receive_channel_interface.h"
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
+#include "test/wait_until.h"
 
 using ::testing::_;
+using ::testing::Eq;
 using ::testing::InvokeWithoutArgs;
-using ::testing::Mock;
 
 static const int kTimeOut = 100;
 static const double kDefaultVolume = 1;
@@ -33,33 +40,30 @@ namespace webrtc {
 class AudioRtpReceiverTest : public ::testing::Test {
  protected:
   AudioRtpReceiverTest()
-      : worker_(rtc::Thread::Current()),
-        receiver_(
-            rtc::make_ref_counted<AudioRtpReceiver>(worker_,
-                                                    std::string(),
-                                                    std::vector<std::string>(),
-                                                    false)),
-        media_channel_(cricket::MediaChannel::Role::kReceive,
-                       rtc::Thread::Current()) {
-    EXPECT_CALL(media_channel_, SetRawAudioSink(kSsrc, _));
-    EXPECT_CALL(media_channel_, SetBaseMinimumPlayoutDelayMs(kSsrc, _));
+      : worker_(Thread::Current()),
+        receiver_(make_ref_counted<AudioRtpReceiver>(worker_,
+                                                     std::string(),
+                                                     std::vector<std::string>(),
+                                                     false)) {
+    EXPECT_CALL(receive_channel_, SetRawAudioSink(kSsrc, _));
+    EXPECT_CALL(receive_channel_, SetBaseMinimumPlayoutDelayMs(kSsrc, _));
   }
 
   ~AudioRtpReceiverTest() {
-    EXPECT_CALL(media_channel_, SetOutputVolume(kSsrc, kVolumeMuted));
+    EXPECT_CALL(receive_channel_, SetOutputVolume(kSsrc, kVolumeMuted));
     receiver_->SetMediaChannel(nullptr);
   }
 
-  rtc::AutoThread main_thread_;
-  rtc::Thread* worker_;
-  rtc::scoped_refptr<AudioRtpReceiver> receiver_;
-  cricket::MockVoiceMediaChannel media_channel_;
+  AutoThread main_thread_;
+  Thread* worker_;
+  scoped_refptr<AudioRtpReceiver> receiver_;
+  MockVoiceMediaReceiveChannelInterface receive_channel_;
 };
 
 TEST_F(AudioRtpReceiverTest, SetOutputVolumeIsCalled) {
   std::atomic_int set_volume_calls(0);
 
-  EXPECT_CALL(media_channel_, SetOutputVolume(kSsrc, kDefaultVolume))
+  EXPECT_CALL(receive_channel_, SetOutputVolume(kSsrc, kDefaultVolume))
       .WillOnce(InvokeWithoutArgs([&] {
         set_volume_calls++;
         return true;
@@ -67,18 +71,20 @@ TEST_F(AudioRtpReceiverTest, SetOutputVolumeIsCalled) {
 
   receiver_->track();
   receiver_->track()->set_enabled(true);
-  receiver_->SetMediaChannel(media_channel_.AsVoiceReceiveChannel());
-  EXPECT_CALL(media_channel_, SetDefaultRawAudioSink(_)).Times(0);
+  receiver_->SetMediaChannel(&receive_channel_);
+  EXPECT_CALL(receive_channel_, SetDefaultRawAudioSink(_)).Times(0);
   receiver_->SetupMediaChannel(kSsrc);
 
-  EXPECT_CALL(media_channel_, SetOutputVolume(kSsrc, kVolume))
+  EXPECT_CALL(receive_channel_, SetOutputVolume(kSsrc, kVolume))
       .WillOnce(InvokeWithoutArgs([&] {
         set_volume_calls++;
         return true;
       }));
 
   receiver_->OnSetVolume(kVolume);
-  EXPECT_TRUE_WAIT(set_volume_calls == 2, kTimeOut);
+  EXPECT_THAT(WaitUntil([&] { return set_volume_calls.load(); }, Eq(2),
+                        {.timeout = TimeDelta::Millis(kTimeOut)}),
+              IsRtcOk());
 }
 
 TEST_F(AudioRtpReceiverTest, VolumesSetBeforeStartingAreRespected) {
@@ -87,11 +93,11 @@ TEST_F(AudioRtpReceiverTest, VolumesSetBeforeStartingAreRespected) {
   receiver_->OnSetVolume(kVolume);
 
   receiver_->track()->set_enabled(true);
-  receiver_->SetMediaChannel(media_channel_.AsVoiceReceiveChannel());
+  receiver_->SetMediaChannel(&receive_channel_);
 
   // The previosly set initial volume should be propagated to the provided
   // media_channel_ as soon as SetupMediaChannel is called.
-  EXPECT_CALL(media_channel_, SetOutputVolume(kSsrc, kVolume));
+  EXPECT_CALL(receive_channel_, SetOutputVolume(kSsrc, kVolume));
 
   receiver_->SetupMediaChannel(kSsrc);
 }
@@ -100,15 +106,15 @@ TEST_F(AudioRtpReceiverTest, VolumesSetBeforeStartingAreRespected) {
 // thread when a media channel pointer is passed to the receiver via the
 // constructor.
 TEST(AudioRtpReceiver, OnChangedNotificationsAfterConstruction) {
-  webrtc::test::RunLoop loop;
-  auto* thread = rtc::Thread::Current();  // Points to loop's thread.
-  cricket::MockVoiceMediaChannel media_channel(
-      cricket::MediaChannel::Role::kReceive, thread);
-  auto receiver = rtc::make_ref_counted<AudioRtpReceiver>(
-      thread, std::string(), std::vector<std::string>(), true, &media_channel);
+  test::RunLoop loop;
+  auto* thread = Thread::Current();  // Points to loop's thread.
+  MockVoiceMediaReceiveChannelInterface receive_channel;
+  auto receiver = make_ref_counted<AudioRtpReceiver>(thread, std::string(),
+                                                     std::vector<std::string>(),
+                                                     true, &receive_channel);
 
-  EXPECT_CALL(media_channel, SetDefaultRawAudioSink(_)).Times(1);
-  EXPECT_CALL(media_channel, SetDefaultOutputVolume(kDefaultVolume)).Times(1);
+  EXPECT_CALL(receive_channel, SetDefaultRawAudioSink(_)).Times(1);
+  EXPECT_CALL(receive_channel, SetDefaultOutputVolume(kDefaultVolume)).Times(1);
   receiver->SetupUnsignaledMediaChannel();
   loop.Flush();
 
@@ -119,10 +125,10 @@ TEST(AudioRtpReceiver, OnChangedNotificationsAfterConstruction) {
   // for the worker thread. This notification should trigger the volume
   // of the media channel to be set to kVolumeMuted.
   // Flush the worker thread, but set the expectation first for the call.
-  EXPECT_CALL(media_channel, SetDefaultOutputVolume(kVolumeMuted)).Times(1);
+  EXPECT_CALL(receive_channel, SetDefaultOutputVolume(kVolumeMuted)).Times(1);
   loop.Flush();
 
-  EXPECT_CALL(media_channel, SetDefaultOutputVolume(kVolumeMuted)).Times(1);
+  EXPECT_CALL(receive_channel, SetDefaultOutputVolume(kVolumeMuted)).Times(1);
   receiver->SetMediaChannel(nullptr);
 }
 

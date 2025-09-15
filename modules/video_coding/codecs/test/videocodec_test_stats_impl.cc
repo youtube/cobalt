@@ -12,14 +12,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <iterator>
 #include <limits>
-#include <numeric>
+#include <optional>
+#include <vector>
 
+#include "api/test/videocodec_test_stats.h"
+#include "api/units/data_rate.h"
+#include "api/units/frequency.h"
+#include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/running_statistics.h"
-#include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
 namespace test {
@@ -106,7 +111,7 @@ VideoCodecTestStatsImpl::SliceAndCalcLayerVideoStatistic(
          ++temporal_idx) {
       VideoStatistics layer_stat = SliceAndCalcVideoStatistic(
           first_frame_num, last_frame_num, spatial_idx, temporal_idx, false,
-          /*target_bitrate=*/absl::nullopt, /*target_framerate=*/absl::nullopt);
+          /*target_bitrate=*/std::nullopt, /*target_framerate=*/std::nullopt);
       layer_stats.push_back(layer_stat);
     }
   }
@@ -126,8 +131,8 @@ VideoStatistics VideoCodecTestStatsImpl::SliceAndCalcAggregatedVideoStatistic(
 
   return SliceAndCalcVideoStatistic(
       first_frame_num, last_frame_num, num_spatial_layers - 1,
-      num_temporal_layers - 1, true, /*target_bitrate=*/absl::nullopt,
-      /*target_framerate=*/absl::nullopt);
+      num_temporal_layers - 1, true, /*target_bitrate=*/std::nullopt,
+      /*target_framerate=*/std::nullopt);
 }
 
 VideoStatistics VideoCodecTestStatsImpl::CalcVideoStatistic(
@@ -205,8 +210,8 @@ VideoStatistics VideoCodecTestStatsImpl::SliceAndCalcVideoStatistic(
     size_t spatial_idx,
     size_t temporal_idx,
     bool aggregate_independent_layers,
-    absl::optional<DataRate> target_bitrate,
-    absl::optional<Frequency> target_framerate) {
+    std::optional<DataRate> target_bitrate,
+    std::optional<Frequency> target_framerate) {
   VideoStatistics video_stat;
 
   float buffer_level_bits = 0.0f;

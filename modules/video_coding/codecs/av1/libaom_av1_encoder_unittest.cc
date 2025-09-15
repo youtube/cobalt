@@ -10,36 +10,73 @@
 
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
-#include "absl/types/optional.h"
+#include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
+#include "api/units/data_size.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "api/video/encoded_image.h"
+#include "api/video/render_resolution.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_type.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/video_coding/codecs/av1/av1_svc_config.h"
 #include "modules/video_coding/codecs/test/encoded_video_frame_producer.h"
 #include "modules/video_coding/include/video_error_codes.h"
-#include "test/field_trial.h"
+#include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/scoped_key_value_config.h"
+#include "test/testsupport/file_utils.h"
+#include "test/testsupport/frame_reader.h"
 
 namespace webrtc {
 namespace {
 
+using test::ScopedKeyValueConfig;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::SizeIs;
+using ::testing::Values;
 
 VideoCodec DefaultCodecSettings() {
   VideoCodec codec_settings;
+  codec_settings.codecType = kVideoCodecAV1;
   codec_settings.width = 320;
   codec_settings.height = 180;
   codec_settings.maxFramerate = 30;
   codec_settings.startBitrate = 1000;
+  codec_settings.qpMax = 63;
+  return codec_settings;
+}
+
+VideoCodec HDCodecSettings() {
+  VideoCodec codec_settings;
+  codec_settings.codecType = kVideoCodecAV1;
+  codec_settings.width = 1280;
+  codec_settings.height = 720;
+  codec_settings.maxFramerate = 30;
+  codec_settings.startBitrate = 2048;
+  codec_settings.maxBitrate = 2048;
   codec_settings.qpMax = 63;
   return codec_settings;
 }
@@ -51,12 +88,14 @@ VideoEncoder::Settings DefaultEncoderSettings() {
 }
 
 TEST(LibaomAv1EncoderTest, CanCreate) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   EXPECT_TRUE(encoder);
 }
 
 TEST(LibaomAv1EncoderTest, InitAndRelease) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   ASSERT_TRUE(encoder);
   VideoCodec codec_settings = DefaultCodecSettings();
   EXPECT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -66,7 +105,8 @@ TEST(LibaomAv1EncoderTest, InitAndRelease) {
 
 TEST(LibaomAv1EncoderTest, NoBitrateOnTopLayerRefecltedInActiveDecodeTargets) {
   // Configure encoder with 2 temporal layers.
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL1T2);
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -82,7 +122,7 @@ TEST(LibaomAv1EncoderTest, NoBitrateOnTopLayerRefecltedInActiveDecodeTargets) {
       EncodedVideoFrameProducer(*encoder).SetNumInputFrames(1).Encode();
   ASSERT_THAT(encoded_frames, SizeIs(1));
   ASSERT_NE(encoded_frames[0].codec_specific_info.generic_frame_info,
-            absl::nullopt);
+            std::nullopt);
   // Assuming L1T2 structure uses 1st decode target for T0 and 2nd decode target
   // for T0+T1 frames, expect only 1st decode target is active.
   EXPECT_EQ(encoded_frames[0]
@@ -92,7 +132,8 @@ TEST(LibaomAv1EncoderTest, NoBitrateOnTopLayerRefecltedInActiveDecodeTargets) {
 
 TEST(LibaomAv1EncoderTest,
      SpatialScalabilityInTemporalUnitReportedAsDeltaFrame) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL2T1);
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -114,7 +155,8 @@ TEST(LibaomAv1EncoderTest,
 }
 
 TEST(LibaomAv1EncoderTest, NoBitrateOnTopSpatialLayerProduceDeltaFrames) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL2T1);
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -141,7 +183,8 @@ TEST(LibaomAv1EncoderTest, SetsEndOfPictureForLastFrameInTemporalUnit) {
   allocation.SetBitrate(1, 0, 40000);
   allocation.SetBitrate(2, 0, 30000);
 
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   // Configure encoder with 3 spatial layers.
   codec_settings.SetScalabilityMode(ScalabilityMode::kL3T1);
@@ -163,12 +206,42 @@ TEST(LibaomAv1EncoderTest, SetsEndOfPictureForLastFrameInTemporalUnit) {
   EXPECT_TRUE(encoded_frames[5].codec_specific_info.end_of_picture);
 }
 
+TEST(LibaomAv1EncoderTest,
+     SetsEndOfPictureForLastFrameInTemporalUnitWhenLayerDrop) {
+  VideoBitrateAllocation allocation;
+  allocation.SetBitrate(0, 0, 30000);
+  allocation.SetBitrate(1, 0, 40000);
+  // Lower bitrate for the last spatial layer to provoke layer drop.
+  allocation.SetBitrate(2, 0, 500);
+
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
+  VideoCodec codec_settings = DefaultCodecSettings();
+  // Configure encoder with 3 spatial layers.
+  codec_settings.SetScalabilityMode(ScalabilityMode::kL3T1);
+  codec_settings.startBitrate = allocation.get_sum_kbps();
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  encoder->SetRates(VideoEncoder::RateControlParameters(
+      allocation, codec_settings.maxFramerate));
+
+  std::vector<EncodedVideoFrameProducer::EncodedFrame> encoded_frames =
+      EncodedVideoFrameProducer(*encoder).SetNumInputFrames(2).Encode();
+  ASSERT_THAT(encoded_frames, SizeIs(4));
+  EXPECT_FALSE(encoded_frames[0].codec_specific_info.end_of_picture);
+  EXPECT_TRUE(encoded_frames[1].codec_specific_info.end_of_picture);
+  EXPECT_FALSE(encoded_frames[2].codec_specific_info.end_of_picture);
+  EXPECT_TRUE(encoded_frames[3].codec_specific_info.end_of_picture);
+}
+
 TEST(LibaomAv1EncoderTest, CheckOddDimensionsWithSpatialLayers) {
   VideoBitrateAllocation allocation;
   allocation.SetBitrate(0, 0, 30000);
   allocation.SetBitrate(1, 0, 40000);
   allocation.SetBitrate(2, 0, 30000);
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   // Configure encoder with 3 spatial layers.
   codec_settings.SetScalabilityMode(ScalabilityMode::kL3T1);
@@ -187,19 +260,69 @@ TEST(LibaomAv1EncoderTest, CheckOddDimensionsWithSpatialLayers) {
   ASSERT_THAT(encoded_frames, SizeIs(6));
 }
 
+class LibaomAv1EncoderMaxConsecDropTest
+    : public ::testing::TestWithParam</*framerate_fps=*/int> {};
+
+TEST_P(LibaomAv1EncoderMaxConsecDropTest, MaxConsecDrops) {
+  VideoBitrateAllocation allocation;
+  allocation.SetBitrate(0, 0,
+                        2000);  // A low bitrate to provoke frame drops.
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
+  VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.SetFrameDropEnabled(true);
+  codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
+  codec_settings.startBitrate = allocation.get_sum_kbps();
+  codec_settings.maxFramerate = GetParam();
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+  encoder->SetRates(VideoEncoder::RateControlParameters(
+      allocation, codec_settings.maxFramerate));
+  std::vector<EncodedVideoFrameProducer::EncodedFrame> encoded_frames =
+      EncodedVideoFrameProducer(*encoder)
+          .SetNumInputFrames(60)
+          .SetFramerateFps(codec_settings.maxFramerate)
+          .SetResolution(RenderResolution{320, 180})
+          .Encode();
+  ASSERT_GE(encoded_frames.size(), 2u);
+
+  int max_consec_drops = 0;
+  for (size_t i = 1; i < encoded_frames.size(); ++i) {
+    uint32_t frame_duration_rtp =
+        encoded_frames[i].encoded_image.RtpTimestamp() -
+        encoded_frames[i - 1].encoded_image.RtpTimestamp();
+    // X consecutive drops result in a freeze of (X + 1) frame duration.
+    // Subtract 1 to get pure number of drops.
+    int num_drops = frame_duration_rtp * codec_settings.maxFramerate /
+                        kVideoPayloadTypeFrequency -
+                    1;
+    max_consec_drops = std::max(max_consec_drops, num_drops);
+  }
+
+  const int expected_max_consec_drops =
+      std::ceil(0.25 * codec_settings.maxFramerate);
+  EXPECT_EQ(max_consec_drops, expected_max_consec_drops);
+}
+
+INSTANTIATE_TEST_SUITE_P(LibaomAv1EncoderMaxConsecDropTests,
+                         LibaomAv1EncoderMaxConsecDropTest,
+                         Values(1, 2, 5, 15, 30, 60));
+
 TEST(LibaomAv1EncoderTest, EncoderInfoWithoutResolutionBitrateLimits) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   EXPECT_TRUE(encoder->GetEncoderInfo().resolution_bitrate_limits.empty());
 }
 
 TEST(LibaomAv1EncoderTest, EncoderInfoWithBitrateLimitsFromFieldTrial) {
-  test::ScopedFieldTrials field_trials(
+  auto field_trials = std::make_unique<ScopedKeyValueConfig>(
       "WebRTC-Av1-GetEncoderInfoOverride/"
       "frame_size_pixels:123|456|789,"
       "min_start_bitrate_bps:11000|22000|33000,"
       "min_bitrate_bps:44000|55000|66000,"
       "max_bitrate_bps:77000|88000|99000/");
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  const Environment env = CreateEnvironment(std::move(field_trials));
+  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder(env);
 
   EXPECT_THAT(
       encoder->GetEncoderInfo().resolution_bitrate_limits,
@@ -210,7 +333,8 @@ TEST(LibaomAv1EncoderTest, EncoderInfoWithBitrateLimitsFromFieldTrial) {
 }
 
 TEST(LibaomAv1EncoderTest, EncoderInfoProvidesFpsAllocation) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL3T3);
   codec_settings.maxFramerate = 60;
@@ -232,7 +356,8 @@ TEST(LibaomAv1EncoderTest, PopulatesEncodedFrameSize) {
   allocation.SetBitrate(0, 0, 30000);
   allocation.SetBitrate(1, 0, 40000);
   allocation.SetBitrate(2, 0, 30000);
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.startBitrate = allocation.get_sum_kbps();
   ASSERT_GT(codec_settings.width, 4);
@@ -265,7 +390,8 @@ TEST(LibaomAv1EncoderTest, PopulatesEncodedFrameSize) {
 }
 
 TEST(LibaomAv1EncoderTest, RtpTimestampWrap) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -288,9 +414,10 @@ TEST(LibaomAv1EncoderTest, RtpTimestampWrap) {
               Eq(VideoFrameType::kVideoFrameDelta));
 }
 
-TEST(LibaomAv1EncoderTest, TestCaptureTimeId) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
-  const Timestamp capture_time_id = Timestamp::Micros(2000);
+TEST(LibaomAv1EncoderTest, TestPresentationTimestamp) {
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
+  const Timestamp presentation_timestamp = Timestamp::Micros(2000);
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL2T1);
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -307,21 +434,22 @@ TEST(LibaomAv1EncoderTest, TestCaptureTimeId) {
   std::vector<EncodedVideoFrameProducer::EncodedFrame> encoded_frames =
       EncodedVideoFrameProducer(*encoder)
           .SetNumInputFrames(1)
-          .SetCaptureTimeIdentifier(capture_time_id)
+          .SetPresentationTimestamp(presentation_timestamp)
           .Encode();
   ASSERT_THAT(encoded_frames, SizeIs(2));
   ASSERT_TRUE(
-      encoded_frames[0].encoded_image.CaptureTimeIdentifier().has_value());
+      encoded_frames[0].encoded_image.PresentationTimestamp().has_value());
   ASSERT_TRUE(
-      encoded_frames[1].encoded_image.CaptureTimeIdentifier().has_value());
-  EXPECT_EQ(encoded_frames[0].encoded_image.CaptureTimeIdentifier()->us(),
-            capture_time_id.us());
-  EXPECT_EQ(encoded_frames[1].encoded_image.CaptureTimeIdentifier()->us(),
-            capture_time_id.us());
+      encoded_frames[1].encoded_image.PresentationTimestamp().has_value());
+  EXPECT_EQ(encoded_frames[0].encoded_image.PresentationTimestamp()->us(),
+            presentation_timestamp.us());
+  EXPECT_EQ(encoded_frames[1].encoded_image.PresentationTimestamp()->us(),
+            presentation_timestamp.us());
 }
 
 TEST(LibaomAv1EncoderTest, AdheresToTargetBitrateDespiteUnevenFrameTiming) {
-  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
   codec_settings.startBitrate = 300;  // kbps
@@ -345,7 +473,7 @@ TEST(LibaomAv1EncoderTest, AdheresToTargetBitrateDespiteUnevenFrameTiming) {
    private:
     Result OnEncodedImage(
         const EncodedImage& encoded_image,
-        const CodecSpecificInfo* codec_specific_info) override {
+        const CodecSpecificInfo* /* codec_specific_info */) override {
       bytes_encoded_ += DataSize::Bytes(encoded_image.size());
       return Result(Result::Error::OK);
     }
@@ -381,7 +509,7 @@ TEST(LibaomAv1EncoderTest, AdheresToTargetBitrateDespiteUnevenFrameTiming) {
       VideoFrame frame = VideoFrame::Builder()
                              .set_video_frame_buffer(
                                  frame_buffer_generator->NextFrame().buffer)
-                             .set_timestamp_rtp(rtp_timestamp)
+                             .set_rtp_timestamp(rtp_timestamp)
                              .build();
 
       RTC_CHECK_EQ(encoder->Encode(frame, &frame_types), WEBRTC_VIDEO_CODEC_OK);
@@ -396,6 +524,167 @@ TEST(LibaomAv1EncoderTest, AdheresToTargetBitrateDespiteUnevenFrameTiming) {
   EXPECT_NEAR(
       (callback.BytesEncoded() / TimeDelta::Seconds(kRunTimeSeconds)).bps(),
       kTargetBitrateBps, kTargetBitrateBps / 10);
+}
+
+TEST(LibaomAv1EncoderTest, DisableAutomaticResize) {
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
+  ASSERT_TRUE(encoder);
+  VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.AV1()->automatic_resize_on = false;
+  EXPECT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+  EXPECT_EQ(encoder->GetEncoderInfo().scaling_settings.thresholds,
+            std::nullopt);
+}
+
+TEST(LibaomAv1EncoderTest, PostEncodeFrameDrop) {
+  // To trigger post-encode frame drop, encode a frame of a high complexity
+  // using a medium bitrate, then reduce the bitrate and encode the same frame
+  // again.
+  // Using a medium bitrate for the first frame prevents quality and QP
+  // saturation. Encoding the same content twice prevents scene change
+  // detection. The second frame overshoots RC buffer and provokes post-encode
+  // drop.
+  VideoFrame input_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(
+              test::CreateYuvFrameReader(
+                  test::ResourcePath("photo_1850_1110", "yuv"),
+                  {.width = 1850, .height = 1110})
+                  ->PullFrame())
+          .build();
+
+  VideoBitrateAllocation allocation;
+  allocation.SetBitrate(/*spatial_index=*/0, /*temporal_index=*/0,
+                        /*bitrate_bps=*/10000000);
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
+  VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.width = input_frame.width();
+  codec_settings.height = input_frame.height();
+  codec_settings.startBitrate = allocation.get_sum_kbps();
+  codec_settings.SetFrameDropEnabled(true);
+  codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+  encoder->SetRates(VideoEncoder::RateControlParameters(
+      allocation, codec_settings.maxFramerate));
+
+  class EncoderCallback : public EncodedImageCallback {
+   public:
+    EncoderCallback() = default;
+    int frames_encoded() const { return frames_encoded_; }
+
+   private:
+    Result OnEncodedImage(
+        const EncodedImage& encoded_image,
+        const CodecSpecificInfo* /* codec_specific_info */) override {
+      frames_encoded_++;
+      return Result(Result::Error::OK);
+    }
+
+    int frames_encoded_ = 0;
+  } callback;
+  encoder->RegisterEncodeCompleteCallback(&callback);
+
+  input_frame.set_rtp_timestamp(1 * kVideoPayloadTypeFrequency /
+                                codec_settings.maxFramerate);
+  RTC_CHECK_EQ(encoder->Encode(input_frame, /*frame_types=*/nullptr),
+               WEBRTC_VIDEO_CODEC_OK);
+
+  allocation.SetBitrate(/*spatial_index=*/0, /*temporal_index=*/0,
+                        /*bitrate_bps=*/1000);
+  encoder->SetRates(VideoEncoder::RateControlParameters(
+      allocation, codec_settings.maxFramerate));
+
+  input_frame.set_rtp_timestamp(2 * kVideoPayloadTypeFrequency /
+                                codec_settings.maxFramerate);
+  RTC_CHECK_EQ(encoder->Encode(input_frame, /*frame_types=*/nullptr),
+               WEBRTC_VIDEO_CODEC_OK);
+  RTC_CHECK_EQ(callback.frames_encoded(), 1);
+}
+
+TEST(LibaomAv1EncoderTest, EnableDisableSpatialLayersWithSvcController) {
+  constexpr int kNumSpatialLayers = 3;
+  constexpr int kNumTemporalLayers = 1;
+  constexpr size_t kWidth = 1280;
+  constexpr size_t kHeight = 720;
+
+  // Configure encoder to produce 3 spatial layers. Encode frames of layer 0
+  // then enable layer 1 and encode more frames and so on.
+  // Then disable layers one by one in the same way.
+  // Note: bit rate allocation is high to avoid frame dropping due to rate
+  // control, the encoder should always produce a frame. A dropped
+  // frame indicates a problem and the test will fail.
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateEnvironment());
+  VideoCodec codec_settings = HDCodecSettings();
+  SetAv1SvcConfig(codec_settings, kNumTemporalLayers, kNumSpatialLayers);
+  codec_settings.SetFrameDropEnabled(true);
+  EXPECT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  EncodedVideoFrameProducer producer(*encoder);
+  producer.SetResolution({kWidth, kHeight});
+
+  VideoBitrateAllocation bitrate_allocation;
+
+  // Set all layers active for initial allocation.
+  for (size_t sl_idx = 0; sl_idx < kNumSpatialLayers; ++sl_idx) {
+    // Allocate high bit rate to avoid frame dropping due to rate control.
+    bitrate_allocation.SetBitrate(
+        sl_idx, 0,
+        codec_settings.spatialLayers[sl_idx].targetBitrate * 1000 * 2);
+  }
+
+  encoder->SetRates(VideoEncoder::RateControlParameters(
+      bitrate_allocation, codec_settings.maxFramerate));
+
+  // Encode a key frame to validate all other frames are delta frames.
+  std::vector<EncodedVideoFrameProducer::EncodedFrame> frames =
+      producer.SetNumInputFrames(1).Encode();
+  ASSERT_THAT(frames, Not(IsEmpty()));
+  EXPECT_TRUE(frames[0].codec_specific_info.template_structure);
+
+  constexpr size_t kNumFramesToEncode = 5;
+
+  // Disable layers one by one.
+  for (int sl_idx = kNumSpatialLayers - 1; sl_idx > 0; --sl_idx) {
+    bitrate_allocation.SetBitrate(sl_idx, 0, 0);
+    encoder->SetRates(VideoEncoder::RateControlParameters(
+        bitrate_allocation, codec_settings.maxFramerate));
+
+    frames = producer.SetNumInputFrames(kNumFramesToEncode).Encode();
+    // With `sl_idx` spatial layer disabled, there are `sl_idx` spatial layers
+    // left.
+    ASSERT_THAT(frames, SizeIs(kNumFramesToEncode * sl_idx));
+    for (size_t i = 0; i < frames.size(); ++i) {
+      EXPECT_TRUE(frames[i].codec_specific_info.generic_frame_info);
+      EXPECT_FALSE(frames[i].codec_specific_info.template_structure);
+    }
+  }
+
+  // Enable layers back one by one.
+  for (size_t sl_idx = 1; sl_idx < kNumSpatialLayers; ++sl_idx) {
+    // Allocate high bit rate to avoid frame dropping due to rate control.
+    bitrate_allocation.SetBitrate(
+        sl_idx, 0,
+        codec_settings.spatialLayers[sl_idx].targetBitrate * 1000 * 2);
+    encoder->SetRates(VideoEncoder::RateControlParameters(
+        bitrate_allocation, codec_settings.maxFramerate));
+
+    frames = producer.SetNumInputFrames(kNumFramesToEncode).Encode();
+    // With (sl_idx+1) spatial layers expect (sl_idx+1) frames per input frame.
+    ASSERT_THAT(frames, SizeIs(kNumFramesToEncode * (sl_idx + 1)));
+    // Only the first frame after enabling the layer must be a keyframe.
+    EXPECT_TRUE(frames[0].codec_specific_info.generic_frame_info);
+    EXPECT_TRUE(frames[0].codec_specific_info.template_structure);
+    for (size_t i = 1; i < frames.size(); ++i) {
+      EXPECT_TRUE(frames[i].codec_specific_info.generic_frame_info);
+      EXPECT_FALSE(frames[i].codec_specific_info.template_structure);
+    }
+  }
 }
 
 }  // namespace

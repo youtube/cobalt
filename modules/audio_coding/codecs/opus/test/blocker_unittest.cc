@@ -10,8 +10,11 @@
 
 #include "modules/audio_coding/codecs/opus/test/blocker.h"
 
+#include <cstddef>
+#include <cstring>
 #include <memory>
 
+#include "common_audio/channel_buffer.h"
 #include "rtc_base/arraysize.h"
 #include "test/gtest.h"
 
@@ -22,7 +25,7 @@ class PlusThreeBlockerCallback : public webrtc::BlockerCallback {
  public:
   void ProcessBlock(const float* const* input,
                     size_t num_frames,
-                    size_t num_input_channels,
+                    size_t /* num_input_channels */,
                     size_t num_output_channels,
                     float* const* output) override {
     for (size_t i = 0; i < num_output_channels; ++i) {
@@ -38,7 +41,7 @@ class CopyBlockerCallback : public webrtc::BlockerCallback {
  public:
   void ProcessBlock(const float* const* input,
                     size_t num_frames,
-                    size_t num_input_channels,
+                    size_t /* num_input_channels */,
                     size_t num_output_channels,
                     float* const* output) override {
     for (size_t i = 0; i < num_output_channels; ++i) {

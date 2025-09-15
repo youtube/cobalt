@@ -126,9 +126,8 @@ public class SurfaceViewRendererOnMeasureTest {
   public void testFrame1280x720() throws InterruptedException {
     final SurfaceViewRenderer surfaceViewRenderer =
         new SurfaceViewRenderer(InstrumentationRegistry.getContext());
-    /**
-     * Mock renderer events with blocking wait functionality for frame size changes.
-     */
+
+     // Mock renderer events with blocking wait functionality for frame size changes.
     class MockRendererEvents implements RendererCommon.RendererEvents {
       private int frameWidth;
       private int frameHeight;

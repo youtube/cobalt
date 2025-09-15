@@ -14,13 +14,13 @@
 #include "rtc_base/ssl_adapter.h"
 
 BOOL RTCInitializeSSL(void) {
-  BOOL initialized = rtc::InitializeSSL();
+  BOOL initialized = webrtc::InitializeSSL();
   RTC_DCHECK(initialized);
   return initialized;
 }
 
 BOOL RTCCleanupSSL(void) {
-  BOOL cleanedUp = rtc::CleanupSSL();
+  BOOL cleanedUp = webrtc::CleanupSSL();
   RTC_DCHECK(cleanedUp);
   return cleanedUp;
 }

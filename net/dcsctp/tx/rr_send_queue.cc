@@ -13,32 +13,33 @@
 #include <deque>
 #include <limits>
 #include <map>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/types/optional.h"
 #include "api/array_view.h"
-#include "net/dcsctp/common/str_join.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/data.h"
 #include "net/dcsctp/public/dcsctp_message.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
 #include "net/dcsctp/public/types.h"
 #include "net/dcsctp/tx/send_queue.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/strings/str_join.h"
 
 namespace dcsctp {
+using ::webrtc::TimeDelta;
+using ::webrtc::Timestamp;
 
 RRSendQueue::RRSendQueue(absl::string_view log_prefix,
                          DcSctpSocketCallbacks* callbacks,
-                         size_t buffer_size,
                          size_t mtu,
                          StreamPriority default_priority,
                          size_t total_buffered_amount_low_threshold)
     : log_prefix_(log_prefix),
       callbacks_(*callbacks),
-      buffer_size_(buffer_size),
       default_priority_(default_priority),
       scheduler_(log_prefix_, mtu),
       total_buffered_amount_(
@@ -81,11 +82,12 @@ bool RRSendQueue::IsConsistent() const {
     }
   }
   if (expected_active_streams != actual_active_streams) {
-    auto fn = [&](rtc::StringBuilder& sb, const auto& p) { sb << *p; };
+    auto fn = [&](webrtc::StringBuilder& sb, const auto& p) { sb << *p; };
     RTC_DLOG(LS_ERROR) << "Active streams mismatch, is=["
-                       << StrJoin(actual_active_streams, ",", fn)
+                       << webrtc::StrJoin(actual_active_streams, ",", fn)
                        << "], expected=["
-                       << StrJoin(expected_active_streams, ",", fn) << "]";
+                       << webrtc::StrJoin(expected_active_streams, ",", fn)
+                       << "]";
     return false;
   }
 
@@ -123,7 +125,10 @@ void RRSendQueue::OutgoingStream::Add(DcSctpMessage message,
   bool was_active = bytes_to_send_in_next_message() > 0;
   buffered_amount_.Increase(message.payload().size());
   parent_.total_buffered_amount_.Increase(message.payload().size());
-  items_.emplace_back(std::move(message), std::move(attributes));
+  OutgoingMessageId message_id = parent_.current_message_id;
+  parent_.current_message_id =
+      OutgoingMessageId(*parent_.current_message_id + 1);
+  items_.emplace_back(message_id, std::move(message), std::move(attributes));
 
   if (!was_active) {
     scheduler_stream_->MaybeMakeActive();
@@ -132,8 +137,8 @@ void RRSendQueue::OutgoingStream::Add(DcSctpMessage message,
   RTC_DCHECK(IsConsistent());
 }
 
-absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
-    TimeMs now,
+std::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
+    Timestamp now,
     size_t max_size) {
   RTC_DCHECK(pause_state_ != PauseState::kPaused &&
              pause_state_ != PauseState::kResetting);
@@ -143,7 +148,7 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
     DcSctpMessage& message = item.message;
 
     // Allocate Message ID and SSN when the first fragment is sent.
-    if (!item.message_id.has_value()) {
+    if (!item.mid.has_value()) {
       // Oops, this entire message has already expired. Try the next one.
       if (item.attributes.expires_at <= now) {
         HandleMessageExpired(item);
@@ -153,7 +158,7 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
 
       MID& mid =
           item.attributes.unordered ? next_unordered_mid_ : next_ordered_mid_;
-      item.message_id = mid;
+      item.mid = mid;
       mid = MID(*mid + 1);
     }
     if (!item.attributes.unordered && !item.ssn.has_value()) {
@@ -162,9 +167,9 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
     }
 
     // Grab the next `max_size` fragment from this message and calculate flags.
-    rtc::ArrayView<const uint8_t> chunk_payload =
+    webrtc::ArrayView<const uint8_t> chunk_payload =
         item.message.payload().subview(item.remaining_offset, max_size);
-    rtc::ArrayView<const uint8_t> message_payload = message.payload();
+    webrtc::ArrayView<const uint8_t> message_payload = message.payload();
     Data::IsBeginning is_beginning(chunk_payload.data() ==
                                    message_payload.data());
     Data::IsEnd is_end((chunk_payload.data() + chunk_payload.size()) ==
@@ -184,10 +189,10 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
     buffered_amount_.Decrease(payload.size());
     parent_.total_buffered_amount_.Decrease(payload.size());
 
-    SendQueue::DataToSend chunk(Data(stream_id, item.ssn.value_or(SSN(0)),
-                                     item.message_id.value(), fsn, ppid,
-                                     std::move(payload), is_beginning, is_end,
-                                     item.attributes.unordered));
+    SendQueue::DataToSend chunk(
+        item.message_id, Data(stream_id, item.ssn.value_or(SSN(0)), *item.mid,
+                              fsn, ppid, std::move(payload), is_beginning,
+                              is_end, item.attributes.unordered));
     chunk.max_retransmissions = item.attributes.max_retransmissions;
     chunk.expires_at = item.attributes.expires_at;
     chunk.lifecycle_id =
@@ -214,7 +219,7 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
     return chunk;
   }
   RTC_DCHECK(IsConsistent());
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void RRSendQueue::OutgoingStream::HandleMessageExpired(
@@ -231,13 +236,11 @@ void RRSendQueue::OutgoingStream::HandleMessageExpired(
   }
 }
 
-bool RRSendQueue::OutgoingStream::Discard(IsUnordered unordered,
-                                          MID message_id) {
+bool RRSendQueue::OutgoingStream::Discard(OutgoingMessageId message_id) {
   bool result = false;
   if (!items_.empty()) {
     Item& item = items_.front();
-    if (item.attributes.unordered == unordered && item.message_id.has_value() &&
-        *item.message_id == message_id) {
+    if (item.message_id == message_id) {
       HandleMessageExpired(item);
       items_.pop_front();
 
@@ -329,8 +332,8 @@ void RRSendQueue::OutgoingStream::Reset() {
                                             item.remaining_size);
     item.remaining_offset = 0;
     item.remaining_size = item.message.payload().size();
-    item.message_id = absl::nullopt;
-    item.ssn = absl::nullopt;
+    item.mid = std::nullopt;
+    item.ssn = std::nullopt;
     item.current_fsn = FSN(0);
     if (old_pause_state == PauseState::kPaused ||
         old_pause_state == PauseState::kResetting) {
@@ -344,10 +347,10 @@ bool RRSendQueue::OutgoingStream::has_partially_sent_message() const {
   if (items_.empty()) {
     return false;
   }
-  return items_.front().message_id.has_value();
+  return items_.front().mid.has_value();
 }
 
-void RRSendQueue::Add(TimeMs now,
+void RRSendQueue::Add(Timestamp now,
                       DcSctpMessage message,
                       const SendOptions& send_options) {
   RTC_DCHECK(!message.payload().empty());
@@ -364,33 +367,28 @@ void RRSendQueue::Add(TimeMs now,
               ? MaxRetransmits(send_options.max_retransmissions.value())
               : MaxRetransmits::NoLimit(),
       .expires_at = send_options.lifetime.has_value()
-                        ? now + *send_options.lifetime + DurationMs(1)
-                        : TimeMs::InfiniteFuture(),
+                        ? now + send_options.lifetime->ToTimeDelta() +
+                              TimeDelta::Millis(1)
+                        : Timestamp::PlusInfinity(),
       .lifecycle_id = send_options.lifecycle_id,
   };
-  GetOrCreateStreamInfo(message.stream_id())
-      .Add(std::move(message), std::move(attributes));
+  StreamID stream_id = message.stream_id();
+  GetOrCreateStreamInfo(stream_id).Add(std::move(message),
+                                       std::move(attributes));
   RTC_DCHECK(IsConsistent());
-}
-
-bool RRSendQueue::IsFull() const {
-  return total_buffered_amount() >= buffer_size_;
 }
 
 bool RRSendQueue::IsEmpty() const {
   return total_buffered_amount() == 0;
 }
 
-absl::optional<SendQueue::DataToSend> RRSendQueue::Produce(TimeMs now,
-                                                           size_t max_size) {
+std::optional<SendQueue::DataToSend> RRSendQueue::Produce(Timestamp now,
+                                                          size_t max_size) {
   return scheduler_.Produce(now, max_size);
 }
 
-bool RRSendQueue::Discard(IsUnordered unordered,
-                          StreamID stream_id,
-                          MID message_id) {
-  bool has_discarded =
-      GetOrCreateStreamInfo(stream_id).Discard(unordered, message_id);
+bool RRSendQueue::Discard(StreamID stream_id, OutgoingMessageId message_id) {
+  bool has_discarded = GetOrCreateStreamInfo(stream_id).Discard(message_id);
 
   RTC_DCHECK(IsConsistent());
   return has_discarded;

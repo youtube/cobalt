@@ -36,7 +36,7 @@ Y4mFrameGenerator::Y4mFrameGenerator(absl::string_view filename,
     : filename_(filename), repeat_mode_(repeat_mode) {
   // Read resolution from the Y4M header.
   FILE* file = fopen(filename_.c_str(), "r");
-  RTC_CHECK(file != NULL) << "Cannot open " << filename_;
+  RTC_CHECK(file != nullptr) << "Cannot open " << filename_;
   char header[kHeaderBytesToRead];
   RTC_CHECK(fgets(header, sizeof(header), file) != nullptr)
       << "File " << filename_ << " is too small";
@@ -50,16 +50,37 @@ Y4mFrameGenerator::Y4mFrameGenerator(absl::string_view filename,
   RTC_CHECK_GT(height_, 0);
 
   // Delegate the actual reads (from NextFrame) to a Y4mReader.
-  frame_reader_ = webrtc::test::CreateY4mFrameReader(
+  frame_reader_ = test::CreateY4mFrameReader(
       filename_, ToYuvFrameReaderRepeatMode(repeat_mode_));
 }
 
 Y4mFrameGenerator::VideoFrameData Y4mFrameGenerator::NextFrame() {
-  webrtc::VideoFrame::UpdateRect update_rect{0, 0, static_cast<int>(width_),
-                                             static_cast<int>(height_)};
-  rtc::scoped_refptr<webrtc::I420Buffer> next_frame_buffer =
-      frame_reader_->PullFrame();
-  return VideoFrameData(next_frame_buffer, update_rect);
+  VideoFrame::UpdateRect update_rect{0, 0, static_cast<int>(width_),
+                                     static_cast<int>(height_)};
+  scoped_refptr<I420Buffer> next_frame_buffer = frame_reader_->PullFrame();
+
+  if (!next_frame_buffer ||
+      (static_cast<size_t>(next_frame_buffer->width()) == width_ &&
+       static_cast<size_t>(next_frame_buffer->height()) == height_)) {
+    return VideoFrameData(next_frame_buffer, update_rect);
+  }
+
+  // Allocate a new buffer and return scaled version.
+  scoped_refptr<I420Buffer> scaled_buffer(I420Buffer::Create(width_, height_));
+  I420Buffer::SetBlack(scaled_buffer.get());
+  scaled_buffer->ScaleFrom(*next_frame_buffer->ToI420());
+  return VideoFrameData(scaled_buffer, update_rect);
+}
+
+void Y4mFrameGenerator::SkipNextFrame() {
+  frame_reader_->PullFrame();
+}
+
+void Y4mFrameGenerator::ChangeResolution(size_t width, size_t height) {
+  width_ = width;
+  height_ = height;
+  RTC_CHECK_GT(width_, 0);
+  RTC_CHECK_GT(height_, 0);
 }
 
 FrameGeneratorInterface::Resolution Y4mFrameGenerator::GetResolution() const {

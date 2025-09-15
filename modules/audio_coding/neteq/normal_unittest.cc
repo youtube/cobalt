@@ -12,10 +12,11 @@
 
 #include "modules/audio_coding/neteq/normal.h"
 
-#include <memory>
-#include <vector>
+#include <cstddef>
+#include <cstdint>
 
-#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "api/neteq/neteq.h"
+#include "api/neteq/tick_timer.h"
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
 #include "modules/audio_coding/neteq/background_noise.h"
 #include "modules/audio_coding/neteq/expand.h"
@@ -24,6 +25,7 @@
 #include "modules/audio_coding/neteq/random_vector.h"
 #include "modules/audio_coding/neteq/statistics_calculator.h"
 #include "modules/audio_coding/neteq/sync_buffer.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 using ::testing::_;
@@ -48,7 +50,8 @@ TEST(Normal, CreateAndDestroy) {
   BackgroundNoise bgn(channels);
   SyncBuffer sync_buffer(1, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   Expand expand(&bgn, &sync_buffer, &random_vector, &statistics, fs, channels);
   Normal normal(fs, &db, bgn, &expand, &statistics);
   EXPECT_CALL(db, Die());  // Called when `db` goes out of scope.
@@ -61,7 +64,8 @@ TEST(Normal, AvoidDivideByZero) {
   BackgroundNoise bgn(channels);
   SyncBuffer sync_buffer(1, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   MockExpand expand(&bgn, &sync_buffer, &random_vector, &statistics, fs,
                     channels);
   Normal normal(fs, &db, bgn, &expand, &statistics);
@@ -96,7 +100,8 @@ TEST(Normal, InputLengthAndChannelsDoNotMatch) {
   BackgroundNoise bgn(channels);
   SyncBuffer sync_buffer(channels, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   MockExpand expand(&bgn, &sync_buffer, &random_vector, &statistics, fs,
                     channels);
   Normal normal(fs, &db, bgn, &expand, &statistics);
@@ -121,7 +126,8 @@ TEST(Normal, LastModeExpand120msPacket) {
   BackgroundNoise bgn(kChannels);
   SyncBuffer sync_buffer(kChannels, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   MockExpand expand(&bgn, &sync_buffer, &random_vector, &statistics, kFs,
                     kChannels);
   Normal normal(kFs, &db, bgn, &expand, &statistics);
