@@ -28,7 +28,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
@@ -132,6 +132,6 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
