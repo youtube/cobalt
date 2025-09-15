@@ -36,9 +36,7 @@
 
 namespace starboard {
 
-class De265VideoDecoder
-    : public shared::starboard::player::filter::VideoDecoder,
-      private JobQueue::JobOwner {
+class De265VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   De265VideoDecoder(SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,

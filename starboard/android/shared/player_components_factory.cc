@@ -173,8 +173,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       AudioRendererSinkImpl;
   typedef starboard::shared::starboard::player::filter::PlayerComponents
       PlayerComponents;
-  typedef starboard::shared::starboard::player::filter::VideoDecoder
-      VideoDecoder;
   typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
       VideoRenderAlgorithm;
   typedef starboard::shared::starboard::player::filter::VideoRendererSink

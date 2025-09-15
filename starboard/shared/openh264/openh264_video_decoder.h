@@ -37,9 +37,7 @@
 
 namespace starboard {
 
-class OpenH264VideoDecoder
-    : public shared::starboard::player::filter::VideoDecoder,
-      private JobQueue::JobOwner {
+class OpenH264VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
                        SbPlayerOutputMode output_mode,

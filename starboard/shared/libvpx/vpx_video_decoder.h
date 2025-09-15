@@ -37,8 +37,7 @@
 
 namespace starboard {
 
-class VpxVideoDecoder : public shared::starboard::player::filter::VideoDecoder,
-                        private JobQueue::JobOwner {
+class VpxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   VpxVideoDecoder(SbMediaVideoCodec video_codec,
                   SbPlayerOutputMode output_mode,
