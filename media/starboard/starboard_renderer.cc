@@ -576,9 +576,8 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
-      // TODO(b/375070492): Implement decode-to-texture support
-      SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-      audio_config, audio_mime_type, video_config, video_mime_type,
+      get_decode_target_graphics_context_provider_func_, audio_config,
+      audio_mime_type, video_config, video_mime_type,
       // TODO(b/326497953): Support suspend/resume.
       // TODO(b/326508279): Support background mode.
       kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
@@ -1070,6 +1069,13 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+void StarboardRenderer::set_decode_target_graphics_context_provider(
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func) {
+  get_decode_target_graphics_context_provider_func_ =
+      get_decode_target_graphics_context_provider_func;
 }
 
 }  // namespace media

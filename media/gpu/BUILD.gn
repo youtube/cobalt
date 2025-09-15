@@ -199,6 +199,8 @@ component("gpu") {
     ]
   }
 
+  deps += [ "//starboard:starboard_headers_only" ]
+
   if (use_v4l2_codec) {
     public_deps += [ "//media/gpu/v4l2" ]
   }
