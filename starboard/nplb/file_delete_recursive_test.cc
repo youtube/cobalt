@@ -24,6 +24,7 @@
 
 namespace nplb {
 namespace {
+using ::starboard::SbFileDeleteRecursive;
 
 const size_t kDirectoryCount = 3;
 const size_t kFileCount = 3;

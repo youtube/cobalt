@@ -20,11 +20,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::testing::AnyOf;
-using starboard::testing::MatchesRegex;
-
 namespace nplb {
 namespace {
+using ::testing::AnyOf;
+using ::testing::MatchesRegex;
 
 TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
   const char* name = SbTimeZoneGetName();
@@ -55,15 +54,14 @@ TEST(SbTimeZoneGetNameTest, IsIANAFormat) {
   char* continent = strtok(cpy, "/");
   // The time zone ID starts with a Continent or Ocean name.
   EXPECT_THAT(continent,
-              starboard::testing::AnyOf(
-                  std::string("Asia"), std::string("America"),
-                  std::string("Africa"), std::string("Europe"),
-                  std::string("Australia"), std::string("Pacific"),
-                  std::string("Atlantic"), std::string("Antarctica"),
-                  // time zone can be "Etc/UTC" if unset(such as on
-                  // CI builders), shouldn't happen in production.
-                  // TODO(b/304351956): Remove Etc after fixing builders.
-                  std::string("Indian"), std::string("Etc")));
+              AnyOf(std::string("Asia"), std::string("America"),
+                    std::string("Africa"), std::string("Europe"),
+                    std::string("Australia"), std::string("Pacific"),
+                    std::string("Atlantic"), std::string("Antarctica"),
+                    // time zone can be "Etc/UTC" if unset(such as on
+                    // CI builders), shouldn't happen in production.
+                    // TODO(b/304351956): Remove Etc after fixing builders.
+                    std::string("Indian"), std::string("Etc")));
   char* city = strtok(NULL, "/");
   ASSERT_NE(city, (char*)NULL);
   EXPECT_TRUE(strlen(city) != 0);

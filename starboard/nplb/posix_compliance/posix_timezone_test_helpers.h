@@ -59,12 +59,13 @@ struct TimeSamples {
 TimeSamples GetTimeSamples(int year);
 
 // Helper to assert the values of a tm struct.
-void AssertTM(const tm& tminfo,
-              long offset,
-              const char* std_zone,
-              const std::optional<const char*>& dst_zone,
-              const char* tz,
-              SourceLocation location = SourceLocation::current());
+void AssertTM(
+    const tm& tminfo,
+    long offset,
+    const char* std_zone,
+    const std::optional<const char*>& dst_zone,
+    const char* tz,
+    starboard::SourceLocation location = starboard::SourceLocation::current());
 
 }  // namespace nplb
 

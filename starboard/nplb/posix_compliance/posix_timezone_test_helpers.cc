@@ -52,7 +52,7 @@ void AssertTM(const tm& tminfo,
               const char* std_zone,
               const std::optional<const char*>& dst_zone,
               const char* tz,
-              SourceLocation location) {
+              starboard::SourceLocation location) {
   ASSERT_NE(tminfo.tm_zone, nullptr)
       << location << " tm_zone can not be nullptr for " << tz;
   EXPECT_EQ(tminfo.tm_gmtoff, -offset)

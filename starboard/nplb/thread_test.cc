@@ -23,7 +23,7 @@
 namespace nplb {
 namespace {
 
-class TestRunThread : public Thread {
+class TestRunThread : public starboard::Thread {
  public:
   TestRunThread() : Thread("TestThread") {}
 

@@ -208,7 +208,7 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   result = stat(path.data(), &executable_file_info);
   ASSERT_EQ(0, result);
 
-  int64_t now_usec = CurrentPosixTime();
+  int64_t now_usec = starboard::CurrentPosixTime();
   EXPECT_GT(now_usec, ToMicroseconds(executable_file_info.st_ctim));
 }
 

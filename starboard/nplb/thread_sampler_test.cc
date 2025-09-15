@@ -46,8 +46,8 @@ class CountingThread : public AbstractTestThread {
 
   bool IsCounting(int64_t timeout) {
     int32_t end_count = GetCount() + 2;
-    int64_t end_time = CurrentPosixTime() + timeout;
-    while (CurrentPosixTime() < end_time) {
+    int64_t end_time = starboard::CurrentPosixTime() + timeout;
+    while (starboard::CurrentPosixTime() < end_time) {
       if (GetCount() >= end_count) {
         return true;
       }

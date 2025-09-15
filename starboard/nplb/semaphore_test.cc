@@ -20,6 +20,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
+namespace {
+using ::starboard::Semaphore;
 
 TEST(Semaphore, PutAndTake) {
   Semaphore semaphore;
@@ -166,5 +168,5 @@ TEST(Semaphore, ThreadPuts) {
   thread.Join();
   semaphore.Put();
 }
-
+}  // namespace
 }  // namespace nplb

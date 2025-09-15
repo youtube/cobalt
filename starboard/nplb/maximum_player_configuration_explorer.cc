@@ -30,7 +30,7 @@ namespace nplb {
 
 namespace {
 
-using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 
 class HashFunction {
  public:

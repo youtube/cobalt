@@ -45,7 +45,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   // in extra sensitivity to make flakiness more apparent.
   constexpr int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    int64_t time_usec = CurrentPosixTime();
+    int64_t time_usec = starboard::CurrentPosixTime();
 
     constexpr int kFileSize = 12;
     ScopedRandomFile random_file(kFileSize);

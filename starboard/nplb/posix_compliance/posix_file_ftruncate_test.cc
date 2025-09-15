@@ -98,7 +98,7 @@ TEST(PosixFileFtruncateTest, TruncateUpInSize) {
   }
 
   char buffer[kEndSize] = {0};
-  int bytes = static_cast<int>(ReadAll(file, buffer, kEndSize));
+  int bytes = static_cast<int>(starboard::ReadAll(file, buffer, kEndSize));
   EXPECT_EQ(kEndSize, bytes);
 
   ScopedRandomFile::ExpectPattern(0, buffer, kStartSize, __LINE__);

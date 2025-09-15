@@ -29,7 +29,7 @@
 namespace nplb {
 namespace {
 
-using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
