@@ -25,6 +25,10 @@
 #include "src/base/SkTSearch.h"
 #include "src/core/SkTraceEvent.h"
 
+#if !defined(FT_CONFIG_OPTION_USE_BROTLI)
+#error Starboard uses WOFF2 fonts, which require BROTLI support.
+#endif
+
 namespace {
 
 // This logic is taken from SkTypeface_FreeType::ScanFont() and should be kept

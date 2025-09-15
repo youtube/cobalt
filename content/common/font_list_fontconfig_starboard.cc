@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/values.h"
 #include "content/common/font_list.h"
+
+#include "base/notreached.h"
+#include "base/values.h"
 
 namespace content {
 
 base::Value::List GetFontList_SlowBlocking() {
+  // Only a stub is needed for Starboard (similar to Android and Fuchsia).
+  NOTIMPLEMENTED();
   return base::Value::List();
 }
 
