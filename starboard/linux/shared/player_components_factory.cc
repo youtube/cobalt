@@ -68,8 +68,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      typedef ::starboard::shared::ffmpeg::FfmpegAudioDecoder
-          FfmpegAudioDecoder;
       typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
@@ -114,7 +112,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       using ::starboard::shared::de265::De265VideoDecoder;
-      using ::starboard::shared::ffmpeg::FfmpegVideoDecoder;
       using ::starboard::shared::libdav1d::Dav1dVideoDecoder;
       using ::starboard::shared::openh264::OpenH264VideoDecoder;
       using ::starboard::shared::vpx::VpxVideoDecoder;

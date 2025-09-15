@@ -26,7 +26,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 namespace {
 
@@ -38,7 +38,7 @@ SbMediaAudioSampleType GetSupportedSampleType() {
 }
 
 AVCodecID GetFfmpegCodecIdByMediaCodec(
-    starboard::media::AudioStreamInfo stream_info) {
+    const shared::starboard::media::AudioStreamInfo& stream_info) {
   SbMediaAudioCodec audio_codec = stream_info.codec;
 
   switch (audio_codec) {
@@ -237,7 +237,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
       channel_count, GetSampleType(), GetStorageType(),
       input_buffer.timestamp(),
       channel_count * av_frame.nb_samples *
-          starboard::media::GetBytesPerSample(GetSampleType()));
+          shared::starboard::media::GetBytesPerSample(GetSampleType()));
   if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
     memcpy(decoded_audio->data(), *av_frame.extended_data,
            decoded_audio->size_in_bytes());
@@ -423,4 +423,4 @@ void FfmpegAudioDecoderImpl<FFMPEG>::TeardownCodec() {
   ffmpeg_->FreeFrame(&av_frame_);
 }
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
