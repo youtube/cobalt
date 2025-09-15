@@ -23,6 +23,13 @@
 #include "ui/gl/scoped_restore_texture.h"
 
 namespace media {
+namespace {
+
+bool MakeContextCurrent(gpu::CommandBufferStub* stub) {
+  return stub && stub->decoder_context()->MakeCurrent();
+}
+
+}  // namespace
 
 StarboardGpuFactoryImpl::StarboardGpuFactoryImpl(GetStubCB get_stub_cb)
     : get_stub_cb_(std::move(get_stub_cb)) {
@@ -45,6 +52,19 @@ void StarboardGpuFactoryImpl::Initialize(base::UnguessableToken channel_token,
     stub_->AddDestructionObserver(this);
   }
   std::move(callback).Run();
+}
+
+void StarboardGpuFactoryImpl::RunSbDecodeTargetFunctionOnGpu(
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context,
+    base::WaitableEvent* done_event) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!MakeContextCurrent(stub_)) {
+    done_event->Signal();
+    return;
+  }
+  target_function(target_function_context);
+  done_event->Signal();
 }
 
 void StarboardGpuFactoryImpl::OnWillDestroyStub(bool /*have_context*/) {
