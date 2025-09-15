@@ -35,7 +35,7 @@
 namespace starboard {
 
 class AomVideoDecoder : public shared::starboard::player::filter::VideoDecoder,
-                        private shared::JobQueue::JobOwner {
+                        private JobQueue::JobOwner {
  public:
   AomVideoDecoder(SbMediaVideoCodec video_codec,
                   SbPlayerOutputMode output_mode,
