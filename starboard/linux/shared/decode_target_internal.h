@@ -39,7 +39,7 @@ namespace starboard {
 // Outputs a video frame into a SbDecodeTarget.
 SbDecodeTarget DecodeTargetCreate(
     SbDecodeTargetGraphicsContextProvider* provider,
-    scoped_refptr<shared::starboard::player::filter::CpuVideoFrame> frame,
+    scoped_refptr<shared::CpuVideoFrame> frame,
     // Possibly valid structure to reuse, instead of allocating a new object.
     SbDecodeTarget decode_target);
 

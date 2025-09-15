@@ -29,6 +29,7 @@
 #include "starboard/player.h"
 
 namespace {
+using starboard::CpuVideoFrame;
 
 const int kWindowWidth = 1920;
 const int kWindowHeight = 1080;
