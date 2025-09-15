@@ -29,7 +29,7 @@ namespace {
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
-typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
+using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
 
 class SbPlayerWriteSampleTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
