@@ -70,11 +70,11 @@ struct timespec CalculateDelayTimestamp(int64_t delay_us, bool use_monotonic) {
 // makes the tests flaky since none of these actions can be guaranteed to always
 // run within the specified time.
 
-void DoSunnyDay(posix::TakeThenSignalContext* context,
+void DoSunnyDay(TakeThenSignalContext* context,
                 bool check_timeout,
                 bool use_monotonic) {
   pthread_t thread = 0;
-  pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, context);
+  pthread_create(&thread, nullptr, TakeThenSignalEntryPoint, context);
 
   const int64_t kDelayUs = 10'000;  // 10ms
   // Allow two-millisecond-level precision.
@@ -132,7 +132,7 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
 
 // Test marked as flaky because it calls DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDay) {
-  posix::TakeThenSignalContext context;
+  TakeThenSignalContext context;
   context.delay_after_signal = 0;
 
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
@@ -149,9 +149,9 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDay) {
 // Test marked as flaky because it calls DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   {
-    posix::TakeThenSignalContext context = {posix::TestSemaphore(0),
-                                            PTHREAD_MUTEX_INITIALIZER,
-                                            PTHREAD_COND_INITIALIZER, 0};
+    TakeThenSignalContext context = {TestSemaphore(0),
+                                     PTHREAD_MUTEX_INITIALIZER,
+                                     PTHREAD_COND_INITIALIZER, 0};
 
     DoSunnyDay(&context, true, false);
   }
@@ -161,9 +161,9 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   // this mode, hoping to have the auto-initting contend in various ways.
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
-    posix::TakeThenSignalContext context = {posix::TestSemaphore(0),
-                                            PTHREAD_MUTEX_INITIALIZER,
-                                            PTHREAD_COND_INITIALIZER, 0};
+    TakeThenSignalContext context = {TestSemaphore(0),
+                                     PTHREAD_MUTEX_INITIALIZER,
+                                     PTHREAD_COND_INITIALIZER, 0};
     DoSunnyDay(&context, false, false);
   }
 }
@@ -172,14 +172,13 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
 // to DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   const int64_t kOtherDelaySec = 3'000'000;  // 3s
-  posix::TakeThenSignalContext context = {
-      posix::TestSemaphore(0), PTHREAD_MUTEX_INITIALIZER,
-      PTHREAD_COND_INITIALIZER, kOtherDelaySec};
+  TakeThenSignalContext context = {TestSemaphore(0), PTHREAD_MUTEX_INITIALIZER,
+                                   PTHREAD_COND_INITIALIZER, kOtherDelaySec};
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
 
   InitCondition(&context.condition, false /* use_monotonic */);
   pthread_t thread = 0;
-  pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, &context);
+  pthread_create(&thread, NULL, TakeThenSignalEntryPoint, &context);
 
   EXPECT_EQ(pthread_mutex_lock(&context.mutex), 0);
 

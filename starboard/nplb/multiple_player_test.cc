@@ -37,7 +37,7 @@ typedef std::function<void(const SbPlayerTestConfig&,
                            FakeGraphicsContextProvider*)>
     MultiplePlayerTestFunctor;
 
-class PlayerThread : public posix::AbstractTestThread {
+class PlayerThread : public AbstractTestThread {
  public:
   explicit PlayerThread(const std::function<void()>& functor)
       : functor_(functor) {}

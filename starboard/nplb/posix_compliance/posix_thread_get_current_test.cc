@@ -38,7 +38,7 @@ TEST(PosixThreadGetCurrentTest, SunnyDay) {
     void* result = NULL;
     EXPECT_EQ(pthread_join(threads[i], &result), 0);
     // NOLINTNEXTLINE(readability/casting)
-    EXPECT_EQ(posix::ToVoid((intptr_t)threads[i]), result);
+    EXPECT_EQ(ToVoid((intptr_t)threads[i]), result);
   }
 }
 
