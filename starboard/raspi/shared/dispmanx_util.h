@@ -166,8 +166,6 @@ class DispmanxVideoFrame
 
 class DispmanxVideoRenderer {
  public:
-  typedef starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
-
   DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer);
 
   void Update(const scoped_refptr<VideoFrame>& video_frame);

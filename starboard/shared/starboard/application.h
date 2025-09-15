@@ -41,8 +41,6 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class SB_EXPORT_ANDROID Application {
  public:
-  typedef shared::starboard::player::filter::VideoFrame VideoFrame;
-
   // Executes a SbEventHandle method callback.
   SbEventHandleCallback sb_event_handle_callback_ = NULL;
 

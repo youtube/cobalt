@@ -29,9 +29,6 @@ struct SbWindowPrivate {
 
   Window window;
 
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
-
   // The following functions composite graphics and the given video frame video
   // for this window. In kSbPlayerOutputModePunchOut mode, this is the only way
   // any graphics or video is presented in the window.  The video frame will be

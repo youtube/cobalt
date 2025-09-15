@@ -63,8 +63,6 @@ class OpenH264VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
 
  private:
   static const int kDefaultOpenH264BitsDepth = 8;
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
   // Operator to compare CpuVideoFrame by timestamp.
   struct VideoFrameTimeStampGreater {
     bool operator()(const scoped_refptr<CpuVideoFrame>& left,
