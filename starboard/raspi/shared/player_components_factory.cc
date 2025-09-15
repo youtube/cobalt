@@ -53,8 +53,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       auto decoder_creator =
           [](const media::AudioStreamInfo& audio_stream_info,
              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
-        using ::starboard::shared::opus::OpusAudioDecoder;
-
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto opus_audio_decoder =
               std::make_unique<OpusAudioDecoder>(audio_stream_info);
@@ -97,8 +95,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return std::unique_ptr<PlayerComponents::Factory>(
-      new PlayerComponentsFactory);
+  return std::make_unique<PlayerComponentsFactory>();
 }
 
 // static

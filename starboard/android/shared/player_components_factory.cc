@@ -163,19 +163,14 @@ class PlayerComponentsPassthrough
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
   typedef starboard::shared::starboard::media::MimeType MimeType;
-  typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
   typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
       AdaptiveAudioDecoder;
-  typedef starboard::shared::starboard::player::filter::AudioDecoder
-      AudioDecoder;
   typedef starboard::shared::starboard::player::filter::AudioRendererSink
       AudioRendererSink;
   typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
       AudioRendererSinkImpl;
   typedef starboard::shared::starboard::player::filter::PlayerComponents
       PlayerComponents;
-  typedef starboard::shared::starboard::player::filter::VideoDecoder
-      VideoDecoder;
   typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
       VideoRenderAlgorithm;
   typedef starboard::shared::starboard::player::filter::VideoRendererSink

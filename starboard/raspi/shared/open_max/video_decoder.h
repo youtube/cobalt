@@ -36,9 +36,7 @@
 
 namespace starboard {
 
-class OpenMaxVideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private JobQueue::JobOwner {
+class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   explicit OpenMaxVideoDecoder(SbMediaVideoCodec video_codec);
   ~OpenMaxVideoDecoder() override;

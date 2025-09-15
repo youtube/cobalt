@@ -22,8 +22,7 @@
 
 namespace starboard {
 
-class FfmpegAudioDecoder
-    : public shared::starboard::player::filter::AudioDecoder {
+class FfmpegAudioDecoder : public AudioDecoder {
  public:
   typedef shared::starboard::media::AudioStreamInfo AudioStreamInfo;
 

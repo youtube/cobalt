@@ -48,7 +48,7 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
   static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
   bool is_valid() const override;
 
-  // From: starboard::player::filter::AudioDecoder
+  // From: AudioDecoder
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
