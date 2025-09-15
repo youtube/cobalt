@@ -22,7 +22,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 // static
 FfmpegAudioDecoder* FfmpegAudioDecoder::Create(
@@ -64,4 +64,4 @@ FfmpegAudioDecoder* FfmpegAudioDecoder::Create(
   return audio_decoder;
 }
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
