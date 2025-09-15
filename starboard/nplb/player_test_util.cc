@@ -32,9 +32,9 @@ namespace nplb {
 
 namespace {
 
-using shared::starboard::media::AudioSampleInfo;
-using shared::starboard::media::VideoSampleInfo;
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using starboard::shared::starboard::media::AudioSampleInfo;
+using starboard::shared::starboard::media::VideoSampleInfo;
+using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -157,7 +157,7 @@ std::string GetSbPlayerTestConfigName(
   const char* video_filename = config.video_filename;
   const SbPlayerOutputMode output_mode = config.output_mode;
   const char* key_system = config.key_system;
-  std::string name(FormatString(
+  std::string name(starboard::FormatString(
       "audio_%s_video_%s_output_%s_key_system_%s",
       audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
       video_filename && strlen(video_filename) > 0 ? video_filename : "null",
@@ -226,7 +226,8 @@ SbPlayer CallSbPlayerCreate(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const shared::starboard::media::AudioStreamInfo* audio_stream_info,
+    const starboard::shared::starboard::media::AudioStreamInfo*
+        audio_stream_info,
     const char* max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
@@ -261,7 +262,7 @@ SbPlayer CallSbPlayerCreate(
 void CallSbPlayerWriteSamples(
     SbPlayer player,
     SbMediaType sample_type,
-    shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
+    starboard::shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
     int start_index,
     int number_of_samples_to_write,
     int64_t timestamp_offset,

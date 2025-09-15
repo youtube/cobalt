@@ -30,7 +30,7 @@ namespace {
 
 // Sets up an empty test fixture, required for typed tests.
 template <class SbFileWriteType>
-class PosixFileWriteTest : public testing::Test {};
+class PosixFileWriteTest : public starboard::testing::Test {};
 
 class PosixFileWriter {
  public:
@@ -46,7 +46,7 @@ class PosixFileWriterAll {
   }
 };
 
-typedef testing::Types<PosixFileWriter, PosixFileWriterAll>
+using starboard::testing::Types<PosixFileWriter, PosixFileWriterAll>
     PosixFileWriteTestTypes;
 
 TYPED_TEST_SUITE(PosixFileWriteTest, PosixFileWriteTestTypes);

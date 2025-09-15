@@ -23,7 +23,7 @@ namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
 
-class MadviseTest : public testing::Test {
+class MadviseTest : public starboard::testing::Test {
  public:
   void SetUp() override {
     // Allocate memory for use during the tests.

@@ -34,9 +34,9 @@ TEST(PosixThreadSleepTest, SunnyDayAtLeastDelay) {
   for (int trial = 0; trial < kTrials; ++trial) {
     // This tests several delays, between about 15 to about 4 milliseconds.
     const int64_t kDelay = 1'000'000LL / (one << ((trial % 3) + 6));
-    int64_t start = CurrentMonotonicTime();
+    int64_t start = starboard::CurrentMonotonicTime();
     usleep(kDelay);
-    int64_t end = CurrentMonotonicTime();
+    int64_t end = starboard::CurrentMonotonicTime();
     EXPECT_LE(start + kDelay, end + kPrecision)
         << "Trial " << trial << ", kDelay=" << kDelay;
   }

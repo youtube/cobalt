@@ -27,7 +27,7 @@
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using ::testing::Combine;
 using ::testing::ValuesIn;
 
@@ -53,7 +53,8 @@ class MaximumPlayerConfigurationExplorerTest
  protected:
   MaximumPlayerConfigurationExplorerTest() {}
 
-  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
+  starboard::testing::FakeGraphicsContextProvider
+      fake_graphics_context_provider_;
 };
 
 TEST_P(MaximumPlayerConfigurationExplorerTest, SunnyDay) {
@@ -96,7 +97,7 @@ std::string GetTestConfigName(
   SbPlayerOutputMode output_mode = std::get<0>(config);
   const char* key_system = std::get<1>(config);
 
-  std::string name = FormatString(
+  std::string name = starboard::FormatString(
       "output_%s_key_system_%s",
       output_mode == kSbPlayerOutputModeDecodeToTexture ? "decode_to_texture"
                                                         : "punch_out",

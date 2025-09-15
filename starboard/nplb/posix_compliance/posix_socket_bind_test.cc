@@ -119,7 +119,8 @@ TEST(PosixSocketBindTest, SunnyDayAnyAddr) {
 // Pair data input test
 std::string GetPosixSocketAddressTypeFilterPairName(
     ::testing::TestParamInfo<std::pair<int, int>> info) {
-  return FormatString("type_%d_filter_%d", info.param.first, info.param.second);
+  return starboard::FormatString("type_%d_filter_%d", info.param.first,
+                                 info.param.second);
 }
 
 class PosixSocketBindPairFilterTest

@@ -27,7 +27,7 @@
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
@@ -62,18 +62,18 @@ std::string GetMultipleSbPlayerTestConfigDescription(
     if (i > 0) {
       description += "_";
     }
-    description += FormatString(
+    description += starboard::FormatString(
         "audio%zu_%s_video%zu_%s", i,
         audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
         i,
         video_filename && strlen(video_filename) > 0 ? video_filename : "null");
   }
 
-  description += FormatString("_output_%s_key_system_%s",
-                              output_mode == kSbPlayerOutputModeDecodeToTexture
-                                  ? "decode_to_texture"
-                                  : "punch_out",
-                              strlen(key_system) > 0 ? key_system : "null");
+  description += starboard::FormatString(
+      "_output_%s_key_system_%s",
+      output_mode == kSbPlayerOutputModeDecodeToTexture ? "decode_to_texture"
+                                                        : "punch_out",
+      strlen(key_system) > 0 ? key_system : "null");
   std::replace(description.begin(), description.end(), '.', '_');
   std::replace(description.begin(), description.end(), '(', '_');
   std::replace(description.begin(), description.end(), ')', '_');

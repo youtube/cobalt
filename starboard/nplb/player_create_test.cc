@@ -95,7 +95,7 @@ class SbPlayerTest : public ::testing::Test {
     SB_DCHECK(error_occurred);
     *error_occurred = false;
 
-    const int64_t wait_end = CurrentMonotonicTime() + kWaitTimeout;
+    const int64_t wait_end = starboard::CurrentMonotonicTime() + kWaitTimeout;
 
     for (;;) {
       std::unique_lock lock(mutex_);
@@ -110,7 +110,7 @@ class SbPlayerTest : public ::testing::Test {
         return;
       }
 
-      auto now = CurrentMonotonicTime();
+      auto now = starboard::CurrentMonotonicTime();
       if (now > wait_end) {
         break;
       }
@@ -403,8 +403,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
                        << number_of_create_attempts << " times, with "
                        << created_players.size()
                        << " player created.\n Now creating player for "
-                       << GetMediaAudioCodecName(kAudioCodecs[k]) << " and "
-                       << GetMediaVideoCodecName(kVideoCodecs[l]);
+                       << starboard::GetMediaAudioCodecName(kAudioCodecs[k])
+                       << " and "
+                       << starboard::GetMediaVideoCodecName(kVideoCodecs[l]);
 
           audio_stream_info.codec = kAudioCodecs[k];
           created_players.push_back(CallSbPlayerCreate(

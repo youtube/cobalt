@@ -145,13 +145,14 @@ class SbDrmSessionTest : public ::testing::Test {
                                   int session_id_size);
 
   // Queue containing callback events for OnSessionUpdateRequestGeneratedFunc().
-  Queue<SessionUpdateRequestGeneratedCallbackEvent>
+  starboard::Queue<SessionUpdateRequestGeneratedCallbackEvent>
       session_update_request_callback_event_queue_;
   // Queue containing callback events for OnServerCertificateUpdatedFunc().
-  Queue<ServerCertificateUpdatedCallbackEvent>
+  starboard::Queue<ServerCertificateUpdatedCallbackEvent>
       server_certificate_updated_callback_event_queue_;
   // Queue containing callback events for OnSessionClosedFunc().
-  Queue<SessionClosedCallbackEvent> session_closed_callback_event_queue_;
+  starboard::Queue<SessionClosedCallbackEvent>
+      session_closed_callback_event_queue_;
 
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
 };

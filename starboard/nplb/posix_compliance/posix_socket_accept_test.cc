@@ -73,7 +73,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
 
   // Don't create a socket to connect to it.
   // Spin briefly to ensure that it won't accept.
-  int64_t start = CurrentMonotonicTime();
+  int64_t start = starboard::CurrentMonotonicTime();
   int accepted_socket_fd = 0;
   while (true) {
     accepted_socket_fd = accept(socket_listen_fd, NULL, NULL);
@@ -87,7 +87,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
 #endif
 
     // Check if we have passed our timeout.
-    if (CurrentMonotonicTime() - start >= kSocketTimeout) {
+    if (starboard::CurrentMonotonicTime() - start >= kSocketTimeout) {
       break;
     }
 

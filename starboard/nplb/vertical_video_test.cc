@@ -29,7 +29,7 @@
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -37,7 +37,8 @@ typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
-  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
+  starboard::testing::FakeGraphicsContextProvider
+      fake_graphics_context_provider_;
 };
 
 void CheckVerticalResolutionSupport(const char* mime) {

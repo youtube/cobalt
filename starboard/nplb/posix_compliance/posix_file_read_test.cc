@@ -27,7 +27,7 @@ namespace {
 
 // Sets up an empty test fixture, required for typed tests.
 template <class SbFileReadType>
-class PosixFileReadTest : public testing::Test {};
+class PosixFileReadTest : public starboard::testing::Test {};
 
 class PosixRead {
  public:
@@ -43,7 +43,7 @@ class PosixReadAll {
   }
 };
 
-typedef testing::Types<PosixRead, PosixReadAll> PosixFileReadTestTypes;
+using starboard::testing::Types<PosixRead, PosixReadAll> PosixFileReadTestTypes;
 
 template <typename T, size_t n>
 size_t array_size(const T (&)[n]) {

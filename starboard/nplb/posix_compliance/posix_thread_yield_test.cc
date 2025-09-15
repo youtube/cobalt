@@ -37,7 +37,7 @@ void* YieldingEntryPoint(void* context) {
   }
 
   int64_t* end_time = static_cast<int64_t*>(context);
-  *end_time = CurrentMonotonicTime();
+  *end_time = starboard::CurrentMonotonicTime();
   return NULL;
 }
 
@@ -47,7 +47,7 @@ void* UnyieldingEntryPoint(void* context) {
   }
 
   int64_t* end_time = static_cast<int64_t*>(context);
-  *end_time = CurrentMonotonicTime();
+  *end_time = starboard::CurrentMonotonicTime();
   return NULL;
 }
 

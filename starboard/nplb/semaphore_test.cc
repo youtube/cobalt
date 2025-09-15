@@ -73,9 +73,9 @@ class ThreadTakesWaitSemaphore : public AbstractTestThread {
         result_wait_time_(0) {}
   void Run() override {
     thread_started_ = true;
-    int64_t start_time = CurrentMonotonicTime();
+    int64_t start_time = starboard::CurrentMonotonicTime();
     result_signaled_ = semaphore_.TakeWait(wait_us_);
-    result_wait_time_ = CurrentMonotonicTime() - start_time;
+    result_wait_time_ = starboard::CurrentMonotonicTime() - start_time;
   }
 
   // Use a volatile bool to signal when the thread has started executing

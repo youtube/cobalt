@@ -70,9 +70,9 @@ class SbPlayerTestFixture {
     std::vector<VideoSamplesDescriptor> video_samples_;
   };
 
-  SbPlayerTestFixture(
-      const SbPlayerTestConfig& config,
-      testing::FakeGraphicsContextProvider* fake_graphics_context_provider);
+  SbPlayerTestFixture(const SbPlayerTestConfig& config,
+                      starboard::testing::FakeGraphicsContextProvider*
+                          fake_graphics_context_provider);
   ~SbPlayerTestFixture();
 
   void Seek(const int64_t time);
@@ -101,7 +101,8 @@ class SbPlayerTestFixture {
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
   static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
 
-  typedef shared::starboard::player::video_dmp::VideoDmpReader VideoDmpReader;
+  typedef starboard::shared::starboard::player::video_dmp::VideoDmpReader
+      VideoDmpReader;
 
   typedef enum CallbackEventType {
     kEmptyEvent,
@@ -193,19 +194,20 @@ class SbPlayerTestFixture {
     return player_state_set_.find(state) != player_state_set_.end();
   }
 
-  ThreadChecker thread_checker_;
+  starboard::ThreadChecker thread_checker_;
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;
   std::unique_ptr<VideoDmpReader> audio_dmp_reader_;
   std::unique_ptr<VideoDmpReader> video_dmp_reader_;
-  testing::FakeGraphicsContextProvider* fake_graphics_context_provider_;
+  starboard::testing::FakeGraphicsContextProvider*
+      fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
 
   // Queue of events from the underlying player.
-  Queue<CallbackEvent> callback_event_queue_;
+  starboard::Queue<CallbackEvent> callback_event_queue_;
 
   // States of if decoder can accept more inputs.
   bool can_accept_more_audio_data_ = false;
