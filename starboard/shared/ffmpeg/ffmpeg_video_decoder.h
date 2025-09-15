@@ -22,8 +22,7 @@
 
 namespace starboard {
 
-class FfmpegVideoDecoder
-    : public shared::starboard::player::filter::VideoDecoder {
+class FfmpegVideoDecoder : public VideoDecoder {
  public:
   // Create a video decoder for the currently loaded ffmpeg library.
   static FfmpegVideoDecoder* Create(

@@ -26,7 +26,7 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // This class decodes encoded video stream into video frames.
 class VideoDecoder {
@@ -109,6 +109,6 @@ class VideoDecoder {
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_

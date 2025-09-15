@@ -35,10 +35,9 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard {
 
-class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
-                             private JobQueue::JobOwner {
+class OpenH264VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
                        SbPlayerOutputMode output_mode,
@@ -133,6 +132,6 @@ class OpenH264VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::optional<shared::starboard::media::VideoConfig> video_config_;
 };
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_
