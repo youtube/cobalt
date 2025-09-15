@@ -24,7 +24,6 @@
 
 #include "starboard/common/source_location.h"
 
-namespace starboard {
 namespace nplb {
 
 // The declarations for tzname, timezone, and daylight are provided by <time.h>.
@@ -60,14 +59,14 @@ struct TimeSamples {
 TimeSamples GetTimeSamples(int year);
 
 // Helper to assert the values of a tm struct.
-void AssertTM(const tm& tminfo,
-              long offset,
-              const char* std_zone,
-              const std::optional<const char*>& dst_zone,
-              const char* tz,
-              SourceLocation location = SourceLocation::current());
+void AssertTM(
+    const tm& tminfo,
+    long offset,
+    const char* std_zone,
+    const std::optional<const char*>& dst_zone,
+    const char* tz,
+    starboard::SourceLocation location = starboard::SourceLocation::current());
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPERS_H_

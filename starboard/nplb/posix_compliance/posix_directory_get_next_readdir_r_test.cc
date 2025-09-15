@@ -25,7 +25,6 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -221,4 +220,3 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -18,7 +18,6 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -47,4 +46,3 @@ TEST(PosixArpaInetTest, LittleEndian) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

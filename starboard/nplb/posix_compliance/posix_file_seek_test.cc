@@ -24,7 +24,6 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -44,7 +43,7 @@ TEST(PosixFileSeekTest, InvalidFileErrors) {
 }
 
 TEST(PosixFileSeekTest, FromEndWorks) {
-  starboard::nplb::ScopedRandomFile random_file;
+  ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
@@ -68,7 +67,7 @@ TEST(PosixFileSeekTest, FromEndWorks) {
 }
 
 TEST(PosixFileSeekTest, FromCurrentWorks) {
-  starboard::nplb::ScopedRandomFile random_file;
+  ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
@@ -101,7 +100,7 @@ TEST(PosixFileSeekTest, FromCurrentWorks) {
 }
 
 TEST(PosixFileSeekTest, FromBeginWorks) {
-  starboard::nplb::ScopedRandomFile random_file;
+  ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
@@ -166,4 +165,3 @@ TEST(PosixFileSeekTest, FromEndInStaticContentWorks) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

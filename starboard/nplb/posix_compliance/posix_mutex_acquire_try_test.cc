@@ -20,7 +20,6 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -73,4 +72,3 @@ TEST(PosixMutexAcquireTryTest, RainyDayReentrant) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard
