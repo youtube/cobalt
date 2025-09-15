@@ -16,8 +16,11 @@
 #define MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/unguessable_token.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
+// TODO: dont use this
+#include "starboard/decode_target.h"
 
 namespace media {
 // StarboardGpuFactory allows to post tasks on gpu thread.
@@ -39,6 +42,11 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
   virtual void Initialize(base::UnguessableToken channel_token,
                           int32_t route_id,
                           base::OnceClosure callback) = 0;
+
+  virtual void RunClearNativeWindowFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) = 0;
 };
 
 }  // namespace media
