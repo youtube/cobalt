@@ -18,7 +18,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
@@ -57,4 +56,3 @@ TEST(SbAudioSinkGetNearestSupportedSampleFrequencyTest, Snap) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

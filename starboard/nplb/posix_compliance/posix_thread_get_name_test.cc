@@ -18,7 +18,6 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -49,4 +48,3 @@ TEST(PosixThreadGetNameTest, SunnyDay) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

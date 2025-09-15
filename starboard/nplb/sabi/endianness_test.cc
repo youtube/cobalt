@@ -15,8 +15,7 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace sabi {
+namespace nplb {
 namespace {
 
 static constexpr int32_t kCobalt21 = 0xC0BA1721;
@@ -35,5 +34,4 @@ TEST(SbSabiEndiannessTest, Endianness) {
   }
 }
 
-}  // namespace sabi
-}  // namespace starboard
+}  // namespace nplb

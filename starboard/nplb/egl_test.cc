@@ -15,7 +15,6 @@
 #include "starboard/egl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -68,4 +67,3 @@ TEST(SbEglInterfaceTest, HasValidEglInterface) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard
