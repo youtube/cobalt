@@ -10,18 +10,63 @@
 
 #include "p2p/base/packet_transport_internal.h"
 
-namespace rtc {
+#include <optional>
+#include <utility>
+
+#include "absl/functional/any_invocable.h"
+#include "api/sequence_checker.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/network/received_packet.h"
+#include "rtc_base/network_route.h"
+#include "rtc_base/socket.h"
+
+namespace webrtc {
 
 PacketTransportInternal::PacketTransportInternal() = default;
 
 PacketTransportInternal::~PacketTransportInternal() = default;
 
-bool PacketTransportInternal::GetOption(rtc::Socket::Option opt, int* value) {
+bool PacketTransportInternal::GetOption(Socket::Option /* opt */,
+                                        int* /* value */) {
   return false;
 }
 
-absl::optional<NetworkRoute> PacketTransportInternal::network_route() const {
-  return absl::optional<NetworkRoute>();
+std::optional<NetworkRoute> PacketTransportInternal::network_route() const {
+  return std::optional<NetworkRoute>();
 }
 
-}  // namespace rtc
+void PacketTransportInternal::RegisterReceivedPacketCallback(
+    void* id,
+    absl::AnyInvocable<void(PacketTransportInternal*, const ReceivedIpPacket&)>
+        callback) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  received_packet_callback_list_.AddReceiver(id, std::move(callback));
+}
+
+void PacketTransportInternal::DeregisterReceivedPacketCallback(void* id) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  received_packet_callback_list_.RemoveReceivers(id);
+}
+
+void PacketTransportInternal::SetOnCloseCallback(
+    absl::AnyInvocable<void() &&> callback) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  RTC_DCHECK(!on_close_ || !callback);
+  on_close_ = std::move(callback);
+}
+
+void PacketTransportInternal::NotifyPacketReceived(
+    const ReceivedIpPacket& packet) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  received_packet_callback_list_.Send(this, packet);
+}
+
+void PacketTransportInternal::NotifyOnClose() {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  if (on_close_) {
+    std::move(on_close_)();
+    on_close_ = nullptr;
+  }
+}
+
+}  // namespace webrtc

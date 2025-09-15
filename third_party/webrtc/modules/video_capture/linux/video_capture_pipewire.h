@@ -28,6 +28,7 @@ class VideoCaptureModulePipeWire : public VideoCaptureImpl {
   int32_t CaptureSettings(VideoCaptureCapability& settings) override;
 
   static VideoType PipeWireRawFormatToVideoType(uint32_t format);
+  static uint32_t VideoTypeToPipeWireRawFormat(VideoType type);
 
  private:
   static void OnStreamParamChanged(void* data,
@@ -43,13 +44,16 @@ class VideoCaptureModulePipeWire : public VideoCaptureImpl {
   void OnFormatChanged(const struct spa_pod* format);
   void ProcessBuffers();
 
-  rtc::scoped_refptr<PipeWireSession> session_;
-  int node_id_;
-  VideoCaptureCapability frameInfo_;
-  bool started_;
+  const webrtc::scoped_refptr<PipeWireSession> session_
+      RTC_GUARDED_BY(api_checker_);
+  bool initialized_ RTC_GUARDED_BY(api_checker_);
+  bool started_ RTC_GUARDED_BY(api_lock_);
+  int node_id_ RTC_GUARDED_BY(capture_checker_);
+  VideoCaptureCapability configured_capability_
+      RTC_GUARDED_BY(capture_checker_);
 
-  struct pw_stream* stream_;
-  struct spa_hook stream_listener_;
+  struct pw_stream* stream_ RTC_GUARDED_BY(capture_checker_) = nullptr;
+  struct spa_hook stream_listener_ RTC_GUARDED_BY(capture_checker_);
 };
 }  // namespace videocapturemodule
 }  // namespace webrtc

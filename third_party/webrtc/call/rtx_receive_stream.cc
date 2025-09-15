@@ -12,9 +12,13 @@
 
 #include <string.h>
 
+#include <cstdint>
+#include <map>
 #include <utility>
 
 #include "api/array_view.h"
+#include "api/sequence_checker.h"
+#include "call/rtp_packet_sink_interface.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
@@ -52,7 +56,7 @@ void RtxReceiveStream::OnRtpPacket(const RtpPacketReceived& rtx_packet) {
   if (rtp_receive_statistics_) {
     rtp_receive_statistics_->OnRtpPacket(rtx_packet);
   }
-  rtc::ArrayView<const uint8_t> payload = rtx_packet.payload();
+  ArrayView<const uint8_t> payload = rtx_packet.payload();
 
   if (payload.size() < kRtxHeaderSize) {
     return;
@@ -75,7 +79,7 @@ void RtxReceiveStream::OnRtpPacket(const RtpPacketReceived& rtx_packet) {
   media_packet.set_arrival_time(rtx_packet.arrival_time());
 
   // Skip the RTX header.
-  rtc::ArrayView<const uint8_t> rtx_payload = payload.subview(kRtxHeaderSize);
+  ArrayView<const uint8_t> rtx_payload = payload.subview(kRtxHeaderSize);
 
   uint8_t* media_payload = media_packet.AllocatePayload(rtx_payload.size());
   RTC_DCHECK(media_payload != nullptr);
