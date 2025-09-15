@@ -90,7 +90,10 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
     if (dir_entry.size() < kSbFileMaxName || !sb_certs_directory || !dir_entry.data()) {
       break;
     }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     int result = readdir_r(sb_certs_directory, &dirent_buffer, &dirent);
+#pragma GCC diagnostic pop
     if (result || !dirent) {
       break;
     }

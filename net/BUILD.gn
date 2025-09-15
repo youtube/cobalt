@@ -1630,7 +1630,7 @@ component("net") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
-  if (is_cobalt && !use_nss_certs) {
+  if (is_cobalt && is_linux && !use_nss_certs) {
     sources += [ "cert/test_root_certs_builtin.cc" ]
   }
   if (is_starboard) {
