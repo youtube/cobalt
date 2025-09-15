@@ -1896,7 +1896,7 @@ deps = {
 
 # Cobalt: imported
 # 'src/third_party/webrtc':
-#   Var('webrtc_git') + '/src.git' + '@' + '729f79c176c8b4c3a8c1b60f39df5fb43323b27b',
+#   Var('webrtc_git') + '/src.git' + '@' + 'e4445e46a910eb407571ec0b0b8b7043562678cf',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
