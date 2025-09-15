@@ -33,9 +33,6 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
   bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
     return trust_store_chrome_->Contains(trust_anchor);
   }
-  int64_t chrome_root_store_version() override {
-    return trust_store_chrome_->version();
-  }
  private:
   std::unique_ptr<TrustStoreChrome> trust_store_chrome_;
 };
