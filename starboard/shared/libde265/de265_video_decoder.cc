@@ -22,8 +22,6 @@
 
 namespace starboard::shared::de265 {
 
-using starboard::player::JobThread;
-
 De265VideoDecoder::De265VideoDecoder(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,

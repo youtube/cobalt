@@ -27,7 +27,7 @@ namespace starboard {
 
 class VideoRendererSinkImpl
     : public ::starboard::shared::starboard::player::filter::VideoRendererSink,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+      private JobQueue::JobOwner {
  public:
   explicit VideoRendererSinkImpl(SbPlayer player);
   ~VideoRendererSinkImpl() override;
