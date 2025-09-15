@@ -71,6 +71,7 @@ _COBALT_ANDROID_PLATFORMS = [
 ]
 _COBALT_TVOS_PLATFORMS = [
     'tvos-arm64-simulator',
+    'tvos-arm64',
 ]
 
 
