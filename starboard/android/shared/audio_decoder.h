@@ -36,10 +36,9 @@
 
 namespace starboard::android::shared {
 
-class MediaCodecAudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      public MediaCodecDecoder::Host,
-      private JobQueue::JobOwner {
+class MediaCodecAudioDecoder : public AudioDecoder,
+                               public MediaCodecDecoder::Host,
+                               private JobQueue::JobOwner {
  public:
   typedef ::starboard::shared::starboard::media::AudioStreamInfo
       AudioStreamInfo;

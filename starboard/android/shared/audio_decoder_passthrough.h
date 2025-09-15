@@ -34,8 +34,7 @@ namespace starboard::android::shared {
 // in, without actually decoding the input audio.  It can be used in situations
 // (like passthrough playbacks) where an AudioDecoder has to be used, but is
 // expected to not alter the input and pass it to the renderer as is.
-class AudioDecoderPassthrough
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder {
+class AudioDecoderPassthrough : public AudioDecoder {
  public:
   explicit AudioDecoderPassthrough(int samples_per_second)
       : samples_per_second_(samples_per_second) {}

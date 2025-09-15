@@ -19,7 +19,7 @@
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 
-namespace starboard::shared::aom {
+namespace starboard {
 
 AomVideoDecoder::AomVideoDecoder(SbMediaVideoCodec video_codec,
                                  SbPlayerOutputMode output_mode,
@@ -292,4 +292,4 @@ SbDecodeTarget AomVideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace starboard::shared::aom
+}  // namespace starboard

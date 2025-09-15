@@ -102,8 +102,7 @@ class AudioRendererPassthrough
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
   //       asynchronous, which comes with extra risks.
-  std::unique_ptr<::starboard::shared::starboard::player::filter::AudioDecoder>
-      decoder_;
+  std::unique_ptr<AudioDecoder> decoder_;
 
   // The following three variables are set in Initialize().
   ErrorCB error_cb_;
