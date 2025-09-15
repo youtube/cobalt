@@ -31,7 +31,7 @@ namespace starboard::shared::starboard::player::filter {
 
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  typedef std::function<std::unique_ptr<filter::AudioDecoder>(
+  typedef std::function<std::unique_ptr<AudioDecoder>(
       const media::AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system)>
       AudioDecoderCreator;
@@ -81,7 +81,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
 
-  std::unique_ptr<filter::AudioDecoder> audio_decoder_;
+  std::unique_ptr<AudioDecoder> audio_decoder_;
   std::unique_ptr<filter::AudioResampler> resampler_;
   std::unique_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
   InputBuffers pending_input_buffers_;

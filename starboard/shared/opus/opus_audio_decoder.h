@@ -30,8 +30,7 @@
 
 namespace starboard {
 
-class OpusAudioDecoder : public shared::starboard::player::filter::AudioDecoder,
-                         private JobQueue::JobOwner {
+class OpusAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   typedef shared::starboard::media::AudioStreamInfo AudioStreamInfo;
 

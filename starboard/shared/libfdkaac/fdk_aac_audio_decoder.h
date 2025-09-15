@@ -27,9 +27,7 @@
 
 namespace starboard {
 
-class FdkAacAudioDecoder
-    : public shared::starboard::player::filter::AudioDecoder,
-      private JobQueue::JobOwner {
+class FdkAacAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   // The max supportable channels to be decoded for fdk aac is 8.
   static constexpr int kMaxChannels = 8;
@@ -37,7 +35,7 @@ class FdkAacAudioDecoder
   FdkAacAudioDecoder();
   ~FdkAacAudioDecoder() override;
 
-  // Overriding functions from starboard::player::filter::AudioDecoder.
+  // Overriding functions from AudioDecoder.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
