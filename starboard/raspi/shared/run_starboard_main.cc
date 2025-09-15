@@ -52,7 +52,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-  starboard::raspi::shared::ApplicationDispmanx application(callback);
+  starboard::ApplicationDispmanx application(callback);
   int result = application.Run(argc, argv);
 
   starboard::shared::signal::UninstallSuspendSignalHandlers();

@@ -23,9 +23,6 @@
 #include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -105,7 +102,4 @@ SbDecodeTarget DecodeTargetCreate(
   return params.decode_target_out;
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

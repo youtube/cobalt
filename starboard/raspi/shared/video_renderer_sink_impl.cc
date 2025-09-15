@@ -20,8 +20,6 @@
 #include "starboard/shared/starboard/application.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -79,6 +77,4 @@ VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
   return kNotReleased;
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

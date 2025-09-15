@@ -26,9 +26,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -168,7 +165,4 @@ bool OpenMaxImageDecodeComponent::OnEnableOutputPort(
   }
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

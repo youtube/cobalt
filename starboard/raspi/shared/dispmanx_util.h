@@ -28,8 +28,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 class DispmanxRect : public VC_RECT_T {
  public:
@@ -191,8 +189,6 @@ class DispmanxVideoRenderer {
   void operator=(const DispmanxVideoRenderer&) = delete;
 };
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_DISPMANX_UTIL_H_
