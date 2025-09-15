@@ -21,8 +21,6 @@
 
 namespace starboard::shared::vpx {
 
-using starboard::player::JobThread;
-
 VpxVideoDecoder::VpxVideoDecoder(SbMediaVideoCodec video_codec,
                                  SbPlayerOutputMode output_mode,
                                  SbDecodeTargetGraphicsContextProvider*
