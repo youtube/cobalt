@@ -18,11 +18,12 @@
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/path_service.h"
 #include "base/logging.h"
+#include "base/notreached.h"
+#include "base/path_service.h"
 #include "base/time/time.h"
-#include "net/cert/pki/cert_errors.h"
 #include "net/cert/pem.h"
+#include "net/cert/pki/cert_errors.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "starboard/common/string.h"
@@ -31,7 +32,6 @@
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "third_party/boringssl/src/include/openssl/x509.h"
-#include "base/notreached.h"
 
 namespace net {
 
@@ -51,8 +51,9 @@ const char kCertsDirName[] = "certs";
 unsigned long CertNameHash(const void* data, size_t length) {
   unsigned long ret = 0;
   unsigned char md[SHA_DIGEST_LENGTH];
-  if (!EVP_Digest(data, length, md, NULL, EVP_sha1(), NULL))
+  if (!EVP_Digest(data, length, md, NULL, EVP_sha1(), NULL)) {
     return 0;
+  }
 
   ret = (((unsigned long)md[0]) | ((unsigned long)md[1] << 8L) |
          ((unsigned long)md[2] << 16L) | ((unsigned long)md[3] << 24L)) &
@@ -68,8 +69,7 @@ base::FilePath GetCertificateDirPath() {
 }
 
 std::unordered_set<std::string> GetCertNamesOnDisk() {
-  DIR* sb_certs_directory =
-      opendir(GetCertificateDirPath().value().c_str());
+  DIR* sb_certs_directory = opendir(GetCertificateDirPath().value().c_str());
   if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
 #if defined(STARBOARD_BUILD_TYPE_QA) || defined(STARBOARD_BUILD_TYPE_GOLD)
@@ -87,7 +87,8 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
   struct dirent* dirent;
 
   while (true) {
-    if (dir_entry.size() < kSbFileMaxName || !sb_certs_directory || !dir_entry.data()) {
+    if (dir_entry.size() < static_cast<size_t>(kSbFileMaxName) ||
+        !sb_certs_directory || !dir_entry.data()) {
       break;
     }
 #pragma GCC diagnostic push
@@ -108,7 +109,8 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
 }
 }  // namespace
 
-std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
+std::shared_ptr<const ParsedCertificate>
+TrustStoreInMemoryStarboard::TryLoadCert(
     const base::StringPiece& cert_name) const {
   auto hash = CertNameHash(cert_name.data(), cert_name.length());
   char cert_file_name[256];
@@ -122,7 +124,8 @@ std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCer
 
   char cert_buffer[kCertBufferSize];
   base::FilePath cert_path = GetCertificateDirPath().Append(cert_file_name);
-  base::File cert_file(cert_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
+  base::File cert_file(
+      cert_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
   // The file was in certs directory when we iterated the directory at startup,
   // opening it should not fail.
   if (!cert_file.IsValid()) {
@@ -138,8 +141,8 @@ std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCer
   auto crypto_buffer = x509_util::CreateCryptoBuffer(decoded);
   CertErrors errors;
   auto parsed = ParsedCertificate::Create(
-      std::move(crypto_buffer),
-      x509_util::DefaultParseCertificateOptions(), &errors);
+      std::move(crypto_buffer), x509_util::DefaultParseCertificateOptions(),
+      &errors);
   CHECK(parsed) << errors.ToDebugString();
   return parsed;
 }
@@ -168,8 +171,9 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
   }
 }
 
-CertificateTrust TrustStoreInMemoryStarboard::GetTrust(const ParsedCertificate* cert,
-                          base::SupportsUserData* debug_data) {
+CertificateTrust TrustStoreInMemoryStarboard::GetTrust(
+    const ParsedCertificate* cert,
+    base::SupportsUserData* debug_data) {
   base::AutoLock scoped_lock(load_mutex_);
   // Loop up the request certificate first in the trust store in memory.
   CertificateTrust trust = underlying_trust_store_.GetTrust(cert, debug_data);
@@ -187,4 +191,3 @@ CertificateTrust TrustStoreInMemoryStarboard::GetTrust(const ParsedCertificate* 
 }
 
 }  // namespace net
-
