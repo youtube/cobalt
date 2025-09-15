@@ -11,6 +11,7 @@ static_library("renderer") {
     "//android_webview/*",
     "//chrome/*",
     "//chromecast/*",
+    "//cobalt/*",
     "//components/cdm/*",
     "//content/shell/*",
     "//fuchsia_web/*",
