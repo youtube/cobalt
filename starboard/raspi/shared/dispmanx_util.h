@@ -145,8 +145,7 @@ class DispmanxElement {
   void operator=(const DispmanxElement&) = delete;
 };
 
-class DispmanxVideoFrame
-    : public starboard::shared::starboard::player::filter::VideoFrame {
+class DispmanxVideoFrame : public VideoFrame {
  public:
   DispmanxVideoFrame(int64_t time,
                      DispmanxYUV420Resource* resource,
