@@ -231,7 +231,6 @@ static_library("starboard_platform_sources") {
   ]
 
   deps = [
-    "//third_party/libevent",
     "//third_party/opus",
   ]
 }

@@ -3892,6 +3892,7 @@ test("base_unittests") {
       "//starboard:starboard_group",
       "//starboard/common",
     ]
+    data_deps = []
   } else {
   data_deps = [
     "//base/test:immediate_crash_test_helper",
