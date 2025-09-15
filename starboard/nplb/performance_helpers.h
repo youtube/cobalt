@@ -20,7 +20,6 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 // Default for parameter |count_calls| of TestPerformanceOfFunction.
@@ -37,20 +36,20 @@ void TestPerformanceOfFunction(const char* const name_of_f,
                                R (*const f)(Args...),
                                Args... args) {
   // Measure time pre calls to |f|.
-  const int64_t time_start = CurrentMonotonicTime();
+  const int64_t time_start = starboard::CurrentMonotonicTime();
 
-  SbLogPriority initial_log_level = GetMinLogLevel();
-  SetMinLogLevel(kSbLogPriorityFatal);
+  SbLogPriority initial_log_level = starboard::GetMinLogLevel();
+  starboard::SetMinLogLevel(kSbLogPriorityFatal);
 
   // Call |f| |count_calls| times.
   for (size_t i = 0; i < count_calls; ++i) {
     f(args...);
   }
 
-  SetMinLogLevel(initial_log_level);
+  starboard::SetMinLogLevel(initial_log_level);
 
   // Measure time post calls to |f|.
-  const int64_t time_last = CurrentMonotonicTime();
+  const int64_t time_last = starboard::CurrentMonotonicTime();
   const int64_t time_delta = time_last - time_start;
   const double time_per_call = static_cast<double>(time_delta) / count_calls;
 
@@ -92,6 +91,5 @@ void TestPerformanceOfFunction(const char* const name_of_f,
                                   __VA_ARGS__)
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_PERFORMANCE_HELPERS_H_

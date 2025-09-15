@@ -16,13 +16,12 @@
 
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::media::AudioStreamInfo;
-using shared::starboard::media::VideoStreamInfo;
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::shared::starboard::media::AudioStreamInfo;
+using ::starboard::shared::starboard::media::VideoStreamInfo;
+using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 
 }  // namespace
 
@@ -156,4 +155,3 @@ SbPlayerOutputMode GetPreferredOutputMode(
 }
 
 }  // namespace nplb
-}  // namespace starboard

@@ -23,14 +23,13 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
+using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
-typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
-typedef testing::FakeGraphicsContextProvider FakeGraphicsContextProvider;
+using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
 
 class SbPlayerWriteSampleTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
@@ -216,12 +215,12 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  int64_t start_system_time = CurrentMonotonicTime();
+  int64_t start_system_time = starboard::CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  int64_t end_system_time = CurrentMonotonicTime();
+  int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms;
@@ -300,12 +299,12 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  int64_t start_system_time = CurrentMonotonicTime();
+  int64_t start_system_time = starboard::CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  int64_t end_system_time = CurrentMonotonicTime();
+  int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms
@@ -402,4 +401,3 @@ INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

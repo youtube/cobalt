@@ -20,7 +20,6 @@
 #include "starboard/nplb/audio_sink_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
@@ -262,4 +261,3 @@ TEST(SbAudioSinkCreateTest, RainyDayInvalidCallback) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

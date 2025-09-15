@@ -20,7 +20,6 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -178,7 +177,7 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
 
   InitCondition(&context.condition, false /* use_monotonic */);
   pthread_t thread = 0;
-  pthread_create(&thread, NULL, TakeThenSignalEntryPoint, &context);
+  pthread_create(&thread, nullptr, TakeThenSignalEntryPoint, &context);
 
   EXPECT_EQ(pthread_mutex_lock(&context.mutex), 0);
 
@@ -214,4 +213,3 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard
