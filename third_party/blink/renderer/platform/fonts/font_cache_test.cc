@@ -74,7 +74,7 @@ TEST_F(FontCacheTest, NoFallbackForPrivateUseArea) {
   }
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 TEST_F(FontCacheTest, FallbackForEmojis) {
   FontCache& font_cache = FontCache::Get();
   FontCachePurgePreventer purge_preventer;

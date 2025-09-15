@@ -225,8 +225,10 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <sys/resource.h>
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "components/services/font/public/mojom/font_service.mojom.h"  // nogncheck
 #include "content/browser/font_service.h"  // nogncheck
+#endif
 #include "third_party/blink/public/mojom/memory_usage_monitor_linux.mojom.h"  // nogncheck
 
 #include "content/browser/child_thread_type_switcher_linux.h"

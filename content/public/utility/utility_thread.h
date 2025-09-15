@@ -27,7 +27,7 @@ class CONTENT_EXPORT UtilityThread : virtual public ChildThread {
   // Initializes blink if it hasn't already been initialized.
   virtual void EnsureBlinkInitialized() = 0;
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Initializes blink with web sandbox support.
   virtual void EnsureBlinkInitializedWithSandboxSupport() = 0;
 #endif

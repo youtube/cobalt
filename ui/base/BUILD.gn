@@ -571,7 +571,7 @@ component("base") {
     sources += [ "resource/resource_bundle_auralinux.cc" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [ "//third_party/fontconfig" ]
   }
 
