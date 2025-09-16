@@ -116,7 +116,7 @@ BASE_EXPORT std::string GetJavaStackTraceIfPresent();
 
 #if BUILDFLAG(IS_COBALT)
 // Utility method to find the java file name from the java stack trace.
-BASE_EXPORT std::string FindFirstJavaFileAndLine(const std::string& stackTrace);
+BASE_EXPORT std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches);
 #endif
 
 using MethodID = jni_zero::MethodID;
