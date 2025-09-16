@@ -80,9 +80,6 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
 #endif  // LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
-
   enum EventType {
     kInvalid,
     kReset,

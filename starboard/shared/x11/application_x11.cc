@@ -688,8 +688,6 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
-using shared::starboard::player::filter::CpuVideoFrame;
-
 ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
     : QueueApplication(sb_event_handle_callback),
       wake_up_atom_(None),

@@ -58,8 +58,6 @@ class Dav1dVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
   const int kDav1dSuccess = 0;
 
   const int kDav1dPlaneY = 0;
