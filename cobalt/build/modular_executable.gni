@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/content/ssl/certs.gni")
 import("//third_party/icu/config.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 
@@ -124,12 +123,6 @@ template("evergreen_final_target") {
       "//cobalt/shell:pak",
       "//third_party/icu:icudata",
     ]
-  }
-
-  copy("copy_${original_target_name}_certs") {
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    sources = network_certs
-    outputs = [ "$sb_static_contents_output_data_dir/app/${original_target_name}/content/ssl/certs/{{source_file_part}}" ]
   }
 
   copy("copy_${original_target_name}_lib") {

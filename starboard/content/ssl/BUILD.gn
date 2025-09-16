@@ -19,3 +19,8 @@ copy("copy_ssl_certificates_evergreen") {
   outputs =
       [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }
+
+copy("copy_ssl_certificates_prod_cobalt") {
+  sources = network_certs
+  outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content/ssl/certs/{{source_file_part}}" ]
+}
