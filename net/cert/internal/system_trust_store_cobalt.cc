@@ -4,12 +4,11 @@
 
 #include "net/cert/internal/system_trust_store.h"
 
-#include "base/memory/ptr_util.h"
-#include "build/build_config.h"
-
 #include <memory>
 
+#include "build/build_config.h"
 #include "net/cert/internal/trust_store_chrome.h"
+#include "net/net_buildflags.h"
 
 #if BUILDFLAG(IS_COBALT)
 
@@ -32,6 +31,9 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
   bool UsesSystemTrustStore() const override { return false; }
   bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
     return trust_store_chrome_->Contains(trust_anchor);
+  }
+  int64_t chrome_root_store_version() override {
+    return trust_store_chrome_->version();
   }
  private:
   std::unique_ptr<TrustStoreChrome> trust_store_chrome_;

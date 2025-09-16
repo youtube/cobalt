@@ -1644,9 +1644,7 @@ component("net") {
   } else if (is_cobalt && is_linux && chrome_root_store_supported) {
     # We use `is_cobalt` here because non-starboard configs builds Chromedriver
     # which needs to use the Chrome Root Store only.
-    sources += [
-      "cert/internal/system_trust_store_cobalt.cc",
-    ]
+    sources += [ "cert/internal/system_trust_store_cobalt.cc" ]
   }
   if (is_cobalt_hermetic_build) {
     sources += [
