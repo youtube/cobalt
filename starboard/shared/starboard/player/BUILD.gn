@@ -14,7 +14,7 @@
 
 import("//starboard/shared/starboard/player/testdata/sha1_files.gni")
 
-static_library("video_dmp") {
+source_set("video_dmp") {
   check_includes = false
   sources = [
     "//starboard/shared/starboard/player/file_cache_reader.cc",

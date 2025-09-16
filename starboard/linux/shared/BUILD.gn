@@ -319,6 +319,7 @@ static_library("starboard_platform_sources") {
 
   if (is_debug || is_devel) {
     defines += [ "SB_PLAYER_ENABLE_VIDEO_DUMPER" ]
+    public_deps += [ "//starboard/shared/starboard/player:video_dmp" ]
   }
 }
 
