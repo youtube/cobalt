@@ -45,8 +45,6 @@ namespace starboard::android::shared {
 
 namespace {
 
-using starboard::android::shared::ScopedLocalJavaRef;
-
 bool Has(const char* name) {
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedLocalJavaRef<jstring> j_name(JniNewStringStandardUTFOrAbort(env, name));
