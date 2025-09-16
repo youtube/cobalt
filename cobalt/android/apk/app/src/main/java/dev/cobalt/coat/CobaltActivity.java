@@ -41,6 +41,7 @@ import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
@@ -151,6 +152,7 @@ public abstract class CobaltActivity extends Activity {
               .findAny()
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
+      mStartupUrl = "https://www.youtube.com/tv";
     }
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
@@ -230,7 +232,6 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-
     // Initialize the platform's AudioSinkImpl. This is called here as this must come after the
     // browser client's feature list and field trials are initialized. The feature list and field
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
@@ -246,6 +247,7 @@ public abstract class CobaltActivity extends Activity {
             // Inject JavaBridge objects to the WebContents.
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
+            getStarboardBridge().setContentViewRenderView(getContentViewRenderView());
 
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
@@ -347,6 +349,15 @@ public abstract class CobaltActivity extends Activity {
   public WebContents getActiveWebContents() {
     Shell shell = getActiveShell();
     return shell != null ? shell.getWebContents() : null;
+  }
+
+  /**
+   * @return The {@link ContentViewRenderView} owned by the currently visible {@link Shell} or null if one is
+   *     not showing.
+   */
+  @Nullable
+  public ContentViewRenderView getContentViewRenderView() {
+    return mShellManager != null ? mShellManager.getContentViewRenderView() : null;
   }
 
   @Nullable

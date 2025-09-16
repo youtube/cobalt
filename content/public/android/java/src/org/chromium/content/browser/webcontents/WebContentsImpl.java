@@ -217,9 +217,13 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
 
     private WebContentsImpl(
             long nativeWebContentsAndroid, NavigationController navigationController) {
+        Log.w(TAG, "WebContentsImpl ctor");
+
         assert nativeWebContentsAndroid != 0;
+        Log.w(TAG, "WebContentsImpl ctor assert okay");
         mNativeWebContentsAndroid = nativeWebContentsAndroid;
         mNavigationController = navigationController;
+        Log.w(TAG, "WebContentsImpl ctor done");
     }
 
     @CalledByNative

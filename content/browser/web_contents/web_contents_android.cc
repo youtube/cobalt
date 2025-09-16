@@ -244,6 +244,7 @@ WebContentsAndroid::~WebContentsAndroid() {
 
 base::android::ScopedJavaLocalRef<jobject>
 WebContentsAndroid::GetJavaObject() {
+  LOG(INFO) << "Show splash!!!     13";
   return base::android::ScopedJavaLocalRef<jobject>(obj_);
 }
 

@@ -43,6 +43,8 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
   js_communication_host_ =
       std::make_unique<js_injection::JsCommunicationHost>(web_contents);
 
+  LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+               "@@@@@@@@@@@@@\n CobaltWebContentsObserver";
   RegisterInjectedJavaScript();
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -58,7 +60,7 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
   CobaltJavaScriptPolyfill::GenerateMap(resource_map);
 
   for (const auto& [file_name, file_contents] : resource_map) {
-    LOG(INFO) << "JS injection for filename: " << file_name;
+    LOG(INFO) << "1JS injection for filename: " << file_name;
     std::string js(reinterpret_cast<const char*>(file_contents.data),
                    file_contents.size);
 
@@ -77,8 +79,45 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
 }
 
 void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
+  LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+               "@@@@@@@@@@@@@\n PrimaryMainDocumentElementAvailable";
   migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
+
+  if (!!splash_ && !splashed.load()) {
+    splashed = true;
+    // GURL url = GURL("https://serve-dot-zipline.appspot.com/asset/"
+    //          "bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/5gtay4qr9bs/");
+    GURL url = GURL("https://www.google.com");
+    LOG(INFO) << "Show splash!!! 1111111111";
+    splash_ = Splash::Show(web_contents()->GetBrowserContext(),
+                           web_contents()->GetNativeView(), url);
+
+    LOG(INFO) << "AcquireAnchorView!!";
+#if BUILDFLAG(IS_ANDROIDTV)
+    if (splash_) {
+      LOG(INFO) << "AcquireAnchorView!!";
+      // anchor_view_ = splash_->GetNativeView()->AcquireAnchorView();
+      JNIEnv* env = base::android::AttachCurrentThread();
+      StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+      LOG(INFO) << "SetSplashWebContents!!";
+      starboard_bridge->SetSplashWebContents(
+          env, splash_.release()->GetJavaWebContents());
+    }
+#endif
+    if (splash_) {
+      LOG(INFO) << "AcquireAnchorView!!";
+
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&CobaltWebContentsObserver::DeleteSplash,
+                         base::Unretained(this)),
+          base::Milliseconds(5000));
+    }
+    LOG(INFO) << "splash_ delete scheduled!!";
+  } else {
+    LOG(INFO) << "splash already shown?";
+  }
 }
 
 namespace {
@@ -92,20 +131,46 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   // Not getting called for android.
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
-  if (!splashed.load()) {
-    splashed = true;
-    LOG(INFO) << "Show splash!!!";
-    splash_ = Splash::Show(web_contents()->GetBrowserContext(),
-                           web_contents()->GetNativeView(),
-                           GURL("https://www.example.com"));
-    // GURL("https://serve-dot-zipline.appspot.com/asset/"
-    //      "bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/5gtay4qr9bs/"));
 
-#if BUILDFLAG(IS_ANDROIDTV)
-    anchor_view_ = splash_->GetNativeView()->AcquireAnchorView();
+  if (!splash_ && !splashed.load()) {
+    splashed = true;
+    // GURL url = GURL("https://serve-dot-zipline.appspot.com/asset/"
+    //          "bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/5gtay4qr9bs/");
+    GURL url = GURL("https://www.example.com");
+    LOG(INFO) << "Show splash!!!     2222222222";
+    splash_ = Splash::Show(web_contents()->GetBrowserContext(),
+                           web_contents()->GetNativeView(), url);
+    LOG(INFO) << "Show splash!!!     2";
+
+#if BUILDFLAG(IS_ANDROID)
+    LOG(INFO) << "Show splash!!!     IS_ANDROIDTV";
+    if (splash_) {
+      LOG(INFO) << "Show splash!!!     3";
+      // anchor_view_ = splash_->GetNativeView()->AcquireAnchorView();
+      JNIEnv* env = base::android::AttachCurrentThread();
+      LOG(INFO) << "Show splash!!!     4";
+      StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+      LOG(INFO) << "Show splash!!!     5";
+      auto* s = splash_.release();
+      LOG(INFO) << "Show splash!!!     6";
+      starboard_bridge->SetSplashWebContents(env, s->GetJavaWebContents());
+      LOG(INFO) << "Show splash!!!     7";
+      // starboard_bridge->SetSplashWebContents(env,
+      // splash_->GetJavaWebContents());
+    }
 #endif
+
+    if (splash_) {
+      LOG(INFO) << "Show splash!!!     2222222222";
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&CobaltWebContentsObserver::DeleteSplash,
+                         base::Unretained(this)),
+          base::Milliseconds(5000));
+      LOG(INFO) << "splash_ delete scheduled!!";
+    }
   } else {
-    LOG(INFO) << "splash already shown?";
+    LOG(INFO) << "splash already shown? 22222";
   }
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
@@ -131,6 +196,9 @@ void CobaltWebContentsObserver::DidStopLoading() {
 void CobaltWebContentsObserver::DeleteSplash() {
   LOG(INFO) << "splash_ deleted!!";
 #if BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->ClearSplashWebContents(env);
   anchor_view_.Reset();
 #endif
   splash_.reset();
@@ -139,12 +207,12 @@ void CobaltWebContentsObserver::DeleteSplash() {
 void CobaltWebContentsObserver::DidFinishLoad(
     content::RenderFrameHost* render_frame_host,
     const GURL& validated_url) {
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&CobaltWebContentsObserver::DeleteSplash,
-                     base::Unretained(this)),
-      base::Milliseconds(5000));
-  LOG(INFO) << "splash_ delete scheduled!!";
+  // base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+  //     FROM_HERE,
+  //     base::BindOnce(&CobaltWebContentsObserver::DeleteSplash,
+  //                    base::Unretained(this)),
+  //     base::Milliseconds(5000));
+  // LOG(INFO) << "splash_ delete scheduled!!";
 }
 
 }  // namespace cobalt
