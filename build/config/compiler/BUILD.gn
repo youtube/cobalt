@@ -308,6 +308,11 @@ config("compiler") {
     configs += [ "//build/config/zos:compiler" ]
   }
 
+  if (is_cobalt) {
+    configs += [ "//build/config/cobalt:compiler" ]
+  }
+
+
   configs += [
     # See the definitions below.
     ":clang_revision",
