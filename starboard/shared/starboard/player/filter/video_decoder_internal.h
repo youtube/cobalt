@@ -33,8 +33,6 @@ class VideoDecoder {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
-
   enum Status {
     kNeedMoreInput,    // Signals that more input is required to produce output.
     kBufferFull,       // Signals that the decoder can no longer accept input.

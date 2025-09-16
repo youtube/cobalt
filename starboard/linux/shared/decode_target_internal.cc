@@ -31,8 +31,6 @@ SbDecodeTargetPrivate::Data::~Data() {
 namespace starboard {
 namespace {
 
-using shared::starboard::player::filter::CpuVideoFrame;
-
 struct CreateParamsForVideoFrame {
   SbDecodeTarget decode_target_out;
   scoped_refptr<CpuVideoFrame> frame;

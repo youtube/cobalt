@@ -32,7 +32,6 @@ class VideoRenderAlgorithm {
  public:
   typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
       MediaTimeProvider;
-  typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
   typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
       VideoRendererSink;
 

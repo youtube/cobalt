@@ -30,8 +30,6 @@ namespace starboard::shared::starboard::player::filter {
 // DrawFrameCB will be called for each frame that is going to be rendered.
 class VideoRendererSink : public RefCountedThreadSafe<VideoRendererSink> {
  public:
-  typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
-
   enum DrawFrameStatus { kNotReleased, kReleased };
 
   // TODO: Add Stop().

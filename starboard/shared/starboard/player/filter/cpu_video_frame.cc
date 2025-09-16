@@ -21,7 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -238,4 +238,4 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   return frame;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
