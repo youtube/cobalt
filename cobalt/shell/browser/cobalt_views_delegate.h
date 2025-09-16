@@ -15,8 +15,6 @@
 #ifndef COBALT_SHELL_BROWSER_COBALT_VIEWS_DELEGATE_H_
 #define COBALT_SHELL_BROWSER_COBALT_VIEWS_DELEGATE_H_
 
-#include <memory>
-
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "ui/views/layout/layout_provider.h"
