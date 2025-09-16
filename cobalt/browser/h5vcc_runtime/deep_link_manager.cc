@@ -36,6 +36,7 @@ DeepLinkManager* DeepLinkManager::GetInstance() {
 
 void DeepLinkManager::set_deep_link(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "Set deep link!!!!!!!!!!!!!";
   deep_link_ = url;
 }
 const std::string& DeepLinkManager::get_deep_link() const {
