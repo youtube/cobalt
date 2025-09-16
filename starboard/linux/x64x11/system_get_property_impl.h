@@ -19,9 +19,9 @@
 
 namespace starboard {
 
-bool GetSystemPropertyLinuxX64x11(SbSystemPropertyId property_id,
-                                  char* out_value,
-                                  int value_length);
+bool GetSystemPropertyLinux(SbSystemPropertyId property_id,
+                            char* out_value,
+                            int value_length);
 
 }  // namespace starboard
 

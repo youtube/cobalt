@@ -48,9 +48,9 @@ bool CopyStringAndTestIfSuccess(char* out_value,
 }
 }  // namespace
 
-bool GetSystemPropertyLinuxX64x11(SbSystemPropertyId property_id,
-                                  char* out_value,
-                                  int value_length) {
+bool GetSystemPropertyLinux(SbSystemPropertyId property_id,
+                            char* out_value,
+                            int value_length) {
   if (!out_value || !value_length) {
     return false;
   }
