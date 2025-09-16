@@ -28,8 +28,6 @@
 
 namespace starboard::android::shared::accessibility {
 
-using starboard::android::shared::ScopedLocalJavaRef;
-
 namespace {
 
 SbAccessibilityCaptionCharacterEdgeStyle AndroidEdgeTypeToSbEdgeStyle(
