@@ -56,8 +56,14 @@ jobs:
             --start-commit-ref="$(git rev-parse --verify post-chrobalt-tag)" --end-commit-ref="$(git rev-parse --verify origin/automated/linear_main)" \
             --output-file=${GITHUB_WORKSPACE}/automated_commits_m114.json
           git add automated_commits_m114.json
-          git commit -m "Linearization refresh on $(date +'%Y-%m-%d')."
-          export CP_COMMIT="$(git rev-parse --verify HEAD)"
+          git stash
           git checkout experimental/rebase_tools
-          git cherry-pick --strategy=recursive -X theirs $CP_COMMIT
-          git push --force origin experimental/rebase_tools:experimental/rebase_tools
+          rm -rf automated_commits_m114.json
+          git checkout stash -- automated_commits_m114.json
+          git add --ignore-removal automated_commits_m114.json
+          if git diff --quiet --cached; then
+            echo "No changes detected. Nothing to update."
+          else
+            git commit -m "Linearization refresh on $(date +'%Y-%m-%d')."
+            git push --force origin experimental/rebase_tools:experimental/rebase_tools
+          fi
