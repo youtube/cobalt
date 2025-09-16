@@ -349,7 +349,7 @@ jobs:
     if: ${{ !inputs.run_in_docker }}
     needs: [initialize]
     permissions: {}
-    runs-on: macos-latest
+    runs-on: macos-14-large
     name: ${{ matrix.name }}_${{ matrix.config }}
     strategy:
       fail-fast: false
