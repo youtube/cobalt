@@ -1,0 +1,19 @@
+{
+  "docker_service": "",
+  "platforms": [
+    "chromium_mac-arm64"
+  ],
+  "build_configs": [
+    "devel"
+  ],
+  "targets": [
+    "chromedriver",
+    "content_shell"
+  ],
+  "includes": [
+    {
+      "name": "mac",
+      "platform": "chromium_mac-arm64"
+    }
+  ]
+}
