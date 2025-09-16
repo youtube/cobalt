@@ -21,7 +21,7 @@
 #include "base/observer_list.h"
 #include "starboard/android/shared/text_to_speech_observer.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class CobaltTextToSpeechHelper {
  public:
@@ -29,8 +29,8 @@ class CobaltTextToSpeechHelper {
   static CobaltTextToSpeechHelper* GetInstance();
   void Initialize(JNIEnv* env);
 
-  void AddObserver(TextToSpeechObserver* observer);
-  void RemoveObserver(TextToSpeechObserver* observer);
+  void AddObserver(android::shared::TextToSpeechObserver* observer);
+  void RemoveObserver(android::shared::TextToSpeechObserver* observer);
 
   bool IsTextToSpeechEnabled(JNIEnv* env) const;
   void SendTextToSpeechChangeEvent() const;
@@ -44,11 +44,11 @@ class CobaltTextToSpeechHelper {
   ~CobaltTextToSpeechHelper() = default;
 
   // Thread-safe observer list for H5vccAccessibilityImpl.
-  base::ObserverList<TextToSpeechObserver> observers_
+  base::ObserverList<android::shared::TextToSpeechObserver> observers_
       GUARDED_BY(observers_lock_);
   mutable base::Lock observers_lock_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_

@@ -36,7 +36,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 public class AudioOutputManager {
   private List<AudioTrackBridge> audioTrackBridgeList;
   private Context context;

@@ -26,7 +26,12 @@
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
 #pragma GCC diagnostic pop
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace {
+
+using android::shared::MediaCapabilitiesCache;
+using android::shared::SupportedAudioCodecToMimeType;
+using android::shared::SupportedVideoCodecToMimeType;
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -35,8 +40,6 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
-
-namespace {
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -529,4 +532,4 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

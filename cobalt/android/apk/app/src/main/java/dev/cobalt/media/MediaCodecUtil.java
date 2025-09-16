@@ -34,7 +34,7 @@ import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 
 /** Utility functions for dealing with MediaCodec related things. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 public class MediaCodecUtil {
   // A low priority deny list of video codec names that should never be used.
   private static final Set<String> videoCodecDenyList = new HashSet<>();
