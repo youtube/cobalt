@@ -1977,7 +1977,7 @@ PA_NOINLINE void PartitionRoot::QuarantineForBrp(
 // static
 #if PA_CONFIG(ENABLE_SHADOW_METADATA)
 void PartitionRoot::EnableShadowMetadata(internal::PoolHandleMask mask) {
-#if PA_BUILDFLAG(IS_LINUX)
+#if PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   // TODO(crbug.com/40238514): implement ModuleCache() or something to
   // load required shared libraries in advance.
   // Since memfd_create() causes dlsym(), it is not possible to invoke
