@@ -26,8 +26,8 @@
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {
 // clang-format off
-#include "third_party/libjpeg_turbo/jpeglib.h"
-#include "third_party/libjpeg_turbo/jpegint.h"
+#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "third_party/libjpeg_turbo/src/jpegint.h"
 // clang-format on
 }
 
