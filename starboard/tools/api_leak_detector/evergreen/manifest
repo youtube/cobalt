@@ -25,7 +25,6 @@ ftell
 ftello
 fwrite
 getc
-getcwd
 getrlimit
 newlocale
 prctl
