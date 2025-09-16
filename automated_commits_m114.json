@@ -1,5 +1,18 @@
 [
   {
+    "hexsha": "42371d18dff4a5e0c2f64fcbd8c27ee66480f2cf",
+    "original_hexsha": "f25e09fab74ad57165a9cef1053470b9f2efd83a",
+    "author": "Eric Zhang",
+    "datetime": "2025-09-16T09:52:05-07:00",
+    "summary": "Fix for linearize_main for subsequent updates to automated commits (#7171)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "48eb71a5ab41890d9f731aff0229b47172b04f5b",
     "original_hexsha": "98db8f1802e4061079cf3c133a5773b3222b4ccd",
     "author": "Kyujung Youn",
