@@ -55,9 +55,6 @@ class AomVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
-
   void ReportError(const std::string& error_message);
 
   // The following four functions are only called on the decoder thread except

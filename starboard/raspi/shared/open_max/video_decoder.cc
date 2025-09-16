@@ -254,7 +254,7 @@ void OpenMaxVideoDecoder::RunLoop() {
   }
 }
 
-scoped_refptr<OpenMaxVideoDecoder::VideoFrame> OpenMaxVideoDecoder::CreateFrame(
+scoped_refptr<VideoFrame> OpenMaxVideoDecoder::CreateFrame(
     const OMX_BUFFERHEADERTYPE* buffer) {
   scoped_refptr<VideoFrame> frame;
   if (buffer->nFlags & OMX_BUFFERFLAG_EOS) {
