@@ -50,10 +50,9 @@ class VideoDecoder {
   // WriteInputBuffer() or WriteEndOfStream() is called.
   // Also note that calling Reset() or dtor from this callback *will* result in
   // deadlock.
-  typedef std::function<void(Status status,
-                             const scoped_refptr<VideoFrame>& frame)>
-      DecoderStatusCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
+  using DecoderStatusCB =
+      std::function<void(Status status,
+                         const scoped_refptr<VideoFrame>& frame)>;
 
   virtual ~VideoDecoder() {}
 
