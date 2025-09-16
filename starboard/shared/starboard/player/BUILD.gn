@@ -27,9 +27,15 @@ source_set("video_dmp") {
     "//starboard/shared/starboard/player/video_dmp_writer.h",
   ]
 
+  public_configs = [ ":video_dmp_config" ]
   public_deps = [ "//starboard/common" ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
+
+config("video_dmp_config") {
+  include_dirs = [ "//starboard/shared/starboard/player" ]
+}
+
 
 action("player_download_test_data") {
   if (enable_install_targets) {
