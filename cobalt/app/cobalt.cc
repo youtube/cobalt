@@ -66,6 +66,10 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
   cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
   const auto& init_argv = init_cmd_line.argv();
 
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  logging::SetMinLogLevel(logging::LOGGING_FATAL);
+#endif
+
   std::stringstream ss;
   std::vector<const char*> args;
   for (const auto& arg : init_argv) {
