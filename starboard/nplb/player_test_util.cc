@@ -32,8 +32,8 @@ namespace nplb {
 
 namespace {
 
-using ::starboard::shared::starboard::media::AudioSampleInfo;
-using ::starboard::shared::starboard::media::VideoSampleInfo;
+using ::starboard::AudioSampleInfo;
+using ::starboard::VideoSampleInfo;
 using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using std::placeholders::_1;
 using std::placeholders::_2;

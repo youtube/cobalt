@@ -24,8 +24,6 @@ namespace starboard {
 
 class FfmpegAudioDecoder : public AudioDecoder {
  public:
-  typedef shared::starboard::media::AudioStreamInfo AudioStreamInfo;
-
   // Create an audio decoder for the currently loaded ffmpeg library.
   static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
   // Returns true if the audio decoder is initialized successfully.

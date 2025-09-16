@@ -19,8 +19,6 @@
 namespace nplb {
 namespace {
 
-using ::starboard::shared::starboard::media::AudioStreamInfo;
-using ::starboard::shared::starboard::media::VideoStreamInfo;
 using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 
 }  // namespace

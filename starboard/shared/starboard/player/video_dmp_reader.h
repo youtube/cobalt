@@ -70,15 +70,15 @@ class VideoDmpReader {
     AudioAccessUnit(int64_t timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
-                    media::AudioSampleInfo audio_sample_info)
+                    AudioSampleInfo audio_sample_info)
         : AccessUnit(timestamp, drm_sample_info, std::move(data)),
           audio_sample_info_(std::move(audio_sample_info)) {}
-    const media::AudioSampleInfo& audio_sample_info() const {
+    const AudioSampleInfo& audio_sample_info() const {
       return audio_sample_info_;
     }
 
    private:
-    media::AudioSampleInfo audio_sample_info_;
+    AudioSampleInfo audio_sample_info_;
   };
 
   class VideoAccessUnit : public AccessUnit {
@@ -129,12 +129,12 @@ class VideoDmpReader {
   }
 
   SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index);
-  const media::AudioSampleInfo& GetAudioSampleInfo(size_t index);
+  const AudioSampleInfo& GetAudioSampleInfo(size_t index);
 
  private:
   struct DmpInfo {
     SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-    media::AudioSampleInfo audio_sample_info;
+    AudioSampleInfo audio_sample_info;
     size_t audio_access_units_size = 0;
     int64_t audio_bitrate = 0;
     int audio_duration = 0;

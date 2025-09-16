@@ -26,7 +26,6 @@ namespace starboard {
 namespace {
 
 // The codecs tested by these tests were introduced in SB_API_VERSION 14.
-using ::starboard::shared::starboard::media::AudioStreamInfo;
 using ::testing::NotNull;
 
 AudioStreamInfo CreateStreamInfoForCodec(SbMediaAudioCodec codec) {

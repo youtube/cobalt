@@ -373,7 +373,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      using starboard::shared::starboard::media::AudioStreamInfo;
       const bool enable_platform_opus_decoder =
           starboard::features::FeatureList::IsEnabled(
               starboard::features::kForcePlatformOpusDecoder);

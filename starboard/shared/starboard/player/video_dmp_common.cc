@@ -86,10 +86,10 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          media::AudioSampleInfo* audio_sample_info) {
+          AudioSampleInfo* audio_sample_info) {
   SB_DCHECK(audio_sample_info);
 
-  *audio_sample_info = media::AudioSampleInfo();
+  *audio_sample_info = AudioSampleInfo();
 
   media::AudioStreamInfo* audio_stream_info = &audio_sample_info->stream_info;
 

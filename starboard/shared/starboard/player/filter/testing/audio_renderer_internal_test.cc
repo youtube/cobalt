@@ -253,8 +253,8 @@ class AudioRendererTest : public ::testing::Test {
     return audio_stream_info;
   }
 
-  static const media::AudioSampleInfo& GetDefaultAudioSampleInfo() {
-    static starboard::media::AudioSampleInfo audio_sample_info;
+  static const AudioSampleInfo& GetDefaultAudioSampleInfo() {
+    static AudioSampleInfo audio_sample_info;
 
     audio_sample_info.stream_info = GetDefaultAudioStreamInfo();
 
