@@ -96,7 +96,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   void operator=(const InputBuffer&) = delete;
 };
 
-typedef std::vector<scoped_refptr<InputBuffer>> InputBuffers;
+using InputBuffers = std::vector<scoped_refptr<InputBuffer>>;
 
 template <typename SampleInfo>
 InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,

@@ -27,7 +27,6 @@ namespace starboard {
 namespace {
 
 using shared::starboard::media::VideoConfig;
-using shared::starboard::player::InputBuffer;
 
 }  // namespace
 

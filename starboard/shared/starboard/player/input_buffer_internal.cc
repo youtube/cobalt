@@ -25,6 +25,7 @@
 #include "starboard/common/string.h"
 
 namespace starboard {
+using shared::starboard::media::GetMixedRepresentation;
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);

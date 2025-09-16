@@ -21,7 +21,6 @@
 
 struct SbDrmSystemPrivate {
  public:
-  typedef starboard::shared::starboard::player::InputBuffer InputBuffer;
   enum DecryptStatus { kSuccess, kRetry, kFailure };
 
   virtual ~SbDrmSystemPrivate() {}
@@ -39,7 +38,7 @@ struct SbDrmSystemPrivate {
 
   virtual void CloseSession(const void* session_id, int session_id_size) = 0;
 
-  virtual DecryptStatus Decrypt(InputBuffer* buffer) = 0;
+  virtual DecryptStatus Decrypt(starboard::InputBuffer* buffer) = 0;
 
   virtual bool IsServerCertificateUpdatable() = 0;
 
