@@ -1,5 +1,122 @@
 [
   {
+    "hexsha": "48eb71a5ab41890d9f731aff0229b47172b04f5b",
+    "original_hexsha": "98db8f1802e4061079cf3c133a5773b3222b4ccd",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-15T16:18:03-07:00",
+    "summary": "starboard: Flatten various audio and decoder namespaces (#7156)",
+    "stats": {
+      "files": 37,
+      "insertions": 94,
+      "deletions": 131
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9875cbf9c721373bede9752682a8368f0fc1162a",
+    "original_hexsha": "756ce18e31db6d160826323a1315b55dac0d3861",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-15T13:54:04-07:00",
+    "summary": "starboard: Flatten starboard::nplb namespace (#7160)",
+    "stats": {
+      "files": 266,
+      "insertions": 272,
+      "deletions": 751
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eaca2d270184f4300912b7d78bb894a712fce666",
+    "original_hexsha": "fd0a528d84455ebdfa5ff42e9d4926b1323684f1",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-15T13:44:30-07:00",
+    "summary": "starboard: Flatten `starboard::shared::ffmpeg` namespace (#7153)",
+    "stats": {
+      "files": 21,
+      "insertions": 43,
+      "deletions": 50
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ecb7de987b7d4ab67b865b7a2bae85e91d117377",
+    "original_hexsha": "a28acda2205780d9b3f60b3c285280df66d7df62",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-15T12:57:06-07:00",
+    "summary": "Remove use_system_libdrm from args.gn (#7166)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2867e53d4918fbacf61499179aa17e57f84de635",
+    "original_hexsha": "3f5be3814239a90c0dd92e715dedc7c2497dcc6f",
+    "author": "fayev-g",
+    "datetime": "2025-09-15T12:52:03-07:00",
+    "summary": "[tvOS] Add tvos-arm64 to gn.py (#7065)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "632b3464a30842cd5d86c2ace09ecd98e358b514",
+    "original_hexsha": "2c8b2128820bbe64c5f65be1630594af1900b7f3",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-15T12:56:58-04:00",
+    "summary": "Feature/fonts (#7049)",
+    "stats": {
+      "files": 59,
+      "insertions": 4074,
+      "deletions": 224
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "93cdee65b203f8f2091a089911d3ef2609bbf7ba",
+    "original_hexsha": "225559d6cef93c1b56b07d9655a7435299b40f49",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-15T09:48:45-07:00",
+    "summary": "starboard: Move `starboard::shared::starboard::player::JobQueue` to flattened namespace (#7157)",
+    "stats": {
+      "files": 30,
+      "insertions": 40,
+      "deletions": 58
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ba6fe49f60d1878297a8f186cb2971e2a7e3c00a",
+    "original_hexsha": "62eadcd7679ce004411ae147926b22838f4f1827",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-15T09:41:40-07:00",
+    "summary": "starboard: Flatten `starboard::shared::posix` namespace (#7155)",
+    "stats": {
+      "files": 25,
+      "insertions": 62,
+      "deletions": 70
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a13d4c138604f6c4a8c42e2fae4bdda19a12317b",
+    "original_hexsha": "e381e3ac2b045e761eb43c04480d7430913e8409",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-15T09:14:50-07:00",
+    "summary": "starboard: Flatten starboard::raspi::shared::open_max namespace (#7161)",
+    "stats": {
+      "files": 31,
+      "insertions": 10,
+      "deletions": 143
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "9ae525f9a87fabc3a00480e6844d60ea03c6e69c",
     "original_hexsha": "ae74e356ad6831fd9a2f5fac8301cba26fd49283",
     "author": "Kyujung Youn",
