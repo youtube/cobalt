@@ -22,10 +22,6 @@ namespace starboard::shared::starboard::player::filter {
 
 class AudioRenderer {
  public:
-  typedef ::starboard::shared::starboard::player::filter::EndedCB EndedCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
-  typedef ::starboard::shared::starboard::player::filter::PrerolledCB
-      PrerolledCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 

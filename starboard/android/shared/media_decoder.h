@@ -44,11 +44,10 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
  public:
   typedef ::starboard::shared::starboard::media::AudioStreamInfo
       AudioStreamInfo;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t)> FrameRenderedCB;
-  typedef std::function<void(void)> FirstTunnelFrameReadyCB;
+  using FrameRenderedCB = std::function<void(int64_t)>;
+  using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
   // This class should be implemented by the users of MediaCodecDecoder to
   // receive various notifications.  Note that all such functions are called on

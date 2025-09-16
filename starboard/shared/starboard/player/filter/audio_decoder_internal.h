@@ -30,9 +30,8 @@ namespace starboard {
 // This class decodes encoded audio stream into playable audio data.
 class AudioDecoder {
  public:
-  typedef std::function<void()> ConsumedCB;
-  typedef std::function<void()> OutputCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
+  using ConsumedCB = std::function<void()>;
+  using OutputCB = std::function<void()>;
 
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
