@@ -23,7 +23,7 @@
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   base::android::InitVM(vm);
   // Also pass VM handle to Starboard JNI env
-  starboard::android::shared::JNIState::SetVM(vm);
+  starboard::JNIState::SetVM(vm);
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
   }

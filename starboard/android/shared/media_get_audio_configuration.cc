@@ -25,7 +25,6 @@ bool SbMediaGetAudioConfiguration(
     SbMediaAudioConfiguration* out_configuration) {
   using starboard::GetMediaAudioConnectorName;
   using starboard::android::shared::MediaCapabilitiesCache;
-  using starboard::android::shared::ScopedLocalJavaRef;
 
   if (output_index < 0) {
     SB_LOG(WARNING) << "output_index is " << output_index
