@@ -241,7 +241,7 @@ class AudioRendererTest : public ::testing::Test {
   }
 
   static const AudioStreamInfo& GetDefaultAudioStreamInfo() {
-    static starboard::AudioStreamInfo audio_stream_info;
+    static AudioStreamInfo audio_stream_info;
 
     audio_stream_info.codec = kSbMediaAudioCodecAac;
     audio_stream_info.mime = "";
