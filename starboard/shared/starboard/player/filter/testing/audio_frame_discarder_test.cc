@@ -43,8 +43,7 @@ scoped_refptr<DecodedAudio> MakeDecodedAudio(int channels, int64_t timestamp) {
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       channels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
-      media::GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) * channels *
-          1536);
+      GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) * channels * 1536);
 
   memset(decoded_audio->data(), timestamp % 256,
          decoded_audio->size_in_bytes());
@@ -99,7 +98,7 @@ TEST_P(AudioFrameDiscarderTest, PartialAudio) {
   InputBuffers input_buffers;
   std::vector<scoped_refptr<DecodedAudio>> decoded_audios;
   const auto& audio_stream_info = dmp_reader_.audio_stream_info();
-  const int64_t duration = media::AudioFramesToDuration(
+  const int64_t duration = AudioFramesToDuration(
       MakeDecodedAudio(audio_stream_info.number_of_channels, 0)->frames(),
       audio_stream_info.samples_per_second);
 

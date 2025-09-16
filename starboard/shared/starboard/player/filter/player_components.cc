@@ -81,14 +81,14 @@ int AlignUp(int value, int alignment) {
 }  // namespace
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info), drm_system_(drm_system) {
   SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const media::VideoStreamInfo& video_stream_info,
+    const VideoStreamInfo& video_stream_info,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
@@ -108,8 +108,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const media::AudioStreamInfo& audio_stream_info,
-    const media::VideoStreamInfo& video_stream_info,
+    const AudioStreamInfo& audio_stream_info,
+    const VideoStreamInfo& video_stream_info,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
@@ -246,7 +246,7 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
   SB_CHECK(audio_decoder);
   SB_CHECK(audio_renderer_sink);
 
-  auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
+  auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
     return std::make_unique<StubAudioDecoder>(audio_stream_info);
   };

@@ -52,14 +52,14 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
     SB_DCHECK_EQ(sample_type_, kSbMediaTypeAudio);
     return audio_sample_info_;
   }
-  const media::VideoSampleInfo& video_sample_info() const {
+  const VideoSampleInfo& video_sample_info() const {
     SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
     return video_sample_info_;
   }
-  const media::AudioStreamInfo& audio_stream_info() const {
+  const AudioStreamInfo& audio_stream_info() const {
     return audio_sample_info().stream_info;
   }
-  const media::VideoStreamInfo& video_stream_info() const {
+  const VideoStreamInfo& video_stream_info() const {
     return video_sample_info().stream_info;
   }
 
@@ -85,7 +85,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   int64_t timestamp_;  // microseconds
 
   AudioSampleInfo audio_sample_info_;
-  media::VideoSampleInfo video_sample_info_;
+  VideoSampleInfo video_sample_info_;
 
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;

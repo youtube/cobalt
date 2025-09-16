@@ -86,15 +86,15 @@ class VideoDmpReader {
     VideoAccessUnit(int64_t timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
-                    media::VideoSampleInfo video_sample_info)
+                    VideoSampleInfo video_sample_info)
         : AccessUnit(timestamp, drm_sample_info, std::move(data)),
           video_sample_info_(std::move(video_sample_info)) {}
-    const media::VideoSampleInfo& video_sample_info() const {
+    const VideoSampleInfo& video_sample_info() const {
       return video_sample_info_;
     }
 
    private:
-    media::VideoSampleInfo video_sample_info_;
+    VideoSampleInfo video_sample_info_;
   };
 
   explicit VideoDmpReader(
@@ -103,10 +103,10 @@ class VideoDmpReader {
   ~VideoDmpReader();
 
   SbMediaAudioCodec audio_codec() const { return dmp_info_.audio_codec; }
-  const media::AudioStreamInfo& audio_stream_info() const {
+  const AudioStreamInfo& audio_stream_info() const {
     return dmp_info_.audio_sample_info.stream_info;
   }
-  const media::VideoStreamInfo& video_stream_info() {
+  const VideoStreamInfo& video_stream_info() {
     EnsureSampleLoaded(kSbMediaTypeVideo, 0);
     SB_DCHECK(!video_access_units_.empty());
     return video_access_units_[0].video_sample_info().stream_info;

@@ -24,8 +24,6 @@ namespace starboard {
 
 namespace {
 
-using shared::starboard::media::GetBytesPerSample;
-
 typedef struct {
   int nb_streams;
   int nb_coupled_streams;

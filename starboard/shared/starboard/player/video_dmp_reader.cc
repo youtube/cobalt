@@ -406,7 +406,7 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  media::VideoSampleInfo video_sample_info;
+  VideoSampleInfo video_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &video_sample_info);
 
   return VideoAccessUnit(timestamp,

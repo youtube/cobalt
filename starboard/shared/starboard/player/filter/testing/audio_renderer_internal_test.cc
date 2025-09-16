@@ -206,8 +206,7 @@ class AudioRendererTest : public ::testing::Test {
                                                  int frames) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
         kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
-        frames * kDefaultNumberOfChannels *
-            media::GetBytesPerSample(sample_type_));
+        frames * kDefaultNumberOfChannels * GetBytesPerSample(sample_type_));
     memset(decoded_audio->data(), 0, decoded_audio->size_in_bytes());
     return decoded_audio;
   }
@@ -241,8 +240,8 @@ class AudioRendererTest : public ::testing::Test {
     free(const_cast<void*>(sample_buffer));
   }
 
-  static const media::AudioStreamInfo& GetDefaultAudioStreamInfo() {
-    static starboard::media::AudioStreamInfo audio_stream_info;
+  static const AudioStreamInfo& GetDefaultAudioStreamInfo() {
+    static starboard::AudioStreamInfo audio_stream_info;
 
     audio_stream_info.codec = kSbMediaAudioCodecAac;
     audio_stream_info.mime = "";

@@ -204,7 +204,7 @@ int AudioOutputManager::GetMinBufferSizeInFrames(
       env, GetAudioFormatSampleType(kSbMediaAudioCodingTypePcm, sample_type),
       sampling_frequency_hz, channels);
   return audio_track_min_buffer_size / channels /
-         ::starboard::shared::starboard::media::GetBytesPerSample(sample_type);
+         GetBytesPerSample(sample_type);
 }
 
 bool AudioOutputManager::GetAndResetHasAudioDeviceChanged(JNIEnv* env) {

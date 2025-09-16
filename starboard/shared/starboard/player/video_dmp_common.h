@@ -116,7 +116,7 @@ void Read(const ReadCB& read_cb,
           AudioSampleInfo* audio_sample_info);
 void Write(const WriteCB& write_cb,
            SbMediaAudioCodec audio_codec,
-           const media::AudioStreamInfo& audio_stream_info);
+           const AudioStreamInfo& audio_stream_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
@@ -125,10 +125,10 @@ void Write(const WriteCB& write_cb, const SbDrmSampleInfo& drm_sample_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          media::VideoSampleInfo* video_sample_info);
+          VideoSampleInfo* video_sample_info);
 void Write(const WriteCB& write_cb,
            SbMediaVideoCodec video_codec,
-           const media::VideoSampleInfo& video_sample_info);
+           const VideoSampleInfo& video_sample_info);
 
 }  // namespace starboard::shared::starboard::player::video_dmp
 

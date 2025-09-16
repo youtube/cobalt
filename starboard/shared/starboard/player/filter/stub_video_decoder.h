@@ -50,7 +50,7 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   scoped_refptr<VideoFrame> CreateOutputFrame(int64_t timestamp) const;
 
   DecoderStatusCB decoder_status_cb_;
-  media::VideoStreamInfo video_stream_info_;
+  VideoStreamInfo video_stream_info_;
 
   std::unique_ptr<JobThread> decoder_thread_;
   // std::set<> keeps frame timestamps sorted in ascending order.

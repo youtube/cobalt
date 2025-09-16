@@ -24,8 +24,6 @@
 namespace starboard::shared::starboard::player {
 namespace {
 
-using ::starboard::shared::starboard::media::GetBytesPerSample;
-
 constexpr int kChannels = 2;
 constexpr int64_t kTimestampUsec = 1'000'000;
 constexpr int kSizeInBytes = 4192;
@@ -250,10 +248,10 @@ TEST(DecodedAudioTest, AdjustForSeekTime) {
           kSampleRate, adjusted_decoded_audio->timestamp() + 1'000'000LL * 100);
       ASSERT_EQ(*original_decoded_audio, *adjusted_decoded_audio);
 
-      const int64_t duration = media::AudioFramesToDuration(
-          adjusted_decoded_audio->frames(), kSampleRate);
+      const int64_t duration =
+          AudioFramesToDuration(adjusted_decoded_audio->frames(), kSampleRate);
       const int64_t duration_of_one_frame =
-          media::AudioFramesToDuration(1, kSampleRate) + 1;
+          AudioFramesToDuration(1, kSampleRate) + 1;
       for (int i = 1; i < 10; ++i) {
         adjusted_decoded_audio = original_decoded_audio->Clone();
         // Adjust to the middle of `adjusted_decoded_audio`.
@@ -291,11 +289,10 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
       adjusted_decoded_audio->AdjustForDiscardedDurations(kSampleRate, 0, 0);
       ASSERT_EQ(*original_decoded_audio, *adjusted_decoded_audio);
 
-      auto duration_of_decoded_audio = media::AudioFramesToDuration(
-          original_decoded_audio->frames(), kSampleRate);
+      auto duration_of_decoded_audio =
+          AudioFramesToDuration(original_decoded_audio->frames(), kSampleRate);
       auto quarter_duration = duration_of_decoded_audio / 4;
-      auto duration_of_one_frame =
-          media::AudioFramesToDuration(1, kSampleRate) + 1;
+      auto duration_of_one_frame = AudioFramesToDuration(1, kSampleRate) + 1;
       adjusted_decoded_audio->AdjustForDiscardedDurations(
           kSampleRate, quarter_duration, quarter_duration);
       ASSERT_NEAR(adjusted_decoded_audio->frames(),

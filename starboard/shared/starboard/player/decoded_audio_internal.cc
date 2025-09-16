@@ -27,10 +27,6 @@ namespace starboard::shared::starboard::player {
 
 namespace {
 
-using ::starboard::shared::starboard::media::AudioDurationToFrames;
-using ::starboard::shared::starboard::media::AudioFramesToDuration;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
-
 void ConvertSample(const int16_t* source, float* destination) {
   *destination = static_cast<float>(*source) / 32768.f;
 }
@@ -110,7 +106,7 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   SB_DCHECK_NE(sample_rate, 0);
 
   int frames_to_skip =
-      media::AudioDurationToFrames(seeking_to_time - timestamp(), sample_rate);
+      AudioDurationToFrames(seeking_to_time - timestamp(), sample_rate);
 
   if (sample_rate == 0 || frames_to_skip < 0 || frames_to_skip >= frames()) {
     SB_LOG(WARNING) << "AdjustForSeekTime failed for seeking_to_time: "
@@ -126,7 +122,7 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
     offset_in_bytes_ += frames_to_skip * bytes_per_frame;
     size_in_bytes_ -= frames_to_skip * bytes_per_frame;
-    timestamp_ += media::AudioFramesToDuration(frames_to_skip, sample_rate);
+    timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate);
     return;
   }
 
@@ -145,7 +141,7 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   }
 
   storage_ = std::move(new_storage);
-  timestamp_ += media::AudioFramesToDuration(frames_to_skip, sample_rate);
+  timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate);
   offset_in_bytes_ = 0;
   size_in_bytes_ = new_frames * bytes_per_frame;
 }
@@ -198,8 +194,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
   }
 
   // Both sample types and storage types are different, use the slowest way.
-  int new_size =
-      media::GetBytesPerSample(new_sample_type) * frames() * channels();
+  int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
   scoped_refptr<DecodedAudio> new_decoded_audio = new DecodedAudio(
       channels(), new_sample_type, new_storage_type, timestamp(), new_size);
 
@@ -265,8 +260,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::Clone() const {
 
 scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
     SbMediaAudioSampleType new_sample_type) const {
-  int new_size =
-      media::GetBytesPerSample(new_sample_type) * frames() * channels();
+  int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
   scoped_refptr<DecodedAudio> new_decoded_audio = new DecodedAudio(
       channels(), new_sample_type, storage_type(), timestamp(), new_size);
 
@@ -297,7 +291,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchStorageTypeTo(
   scoped_refptr<DecodedAudio> new_decoded_audio =
       new DecodedAudio(channels(), sample_type(), new_storage_type, timestamp(),
                        size_in_bytes());
-  int bytes_per_sample = media::GetBytesPerSample(sample_type());
+  int bytes_per_sample = GetBytesPerSample(sample_type());
   const uint8_t* old_samples = this->data();
   uint8_t* new_samples = new_decoded_audio->data();
 
