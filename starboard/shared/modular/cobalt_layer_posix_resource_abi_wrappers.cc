@@ -15,6 +15,13 @@
 #include <sys/resource.h>
 
 extern "C" {
+
+int __abi_wrap_getpriority(int which, id_t who);
+
+int getpriority(int which, id_t who) {
+  return __abi_wrap_getpriority(which, who);
+}
+
 int __abi_wrap_setpriority(int which, id_t who, int prio);
 
 int setpriority(int which, id_t who, int prio) {

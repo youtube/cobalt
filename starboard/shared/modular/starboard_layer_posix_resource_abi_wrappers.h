@@ -29,6 +29,8 @@ extern "C" {
 #define MUSL_PRIO_PGRP 1
 #define MUSL_PRIO_USER 2
 
+SB_EXPORT int __abi_wrap_getpriority(int which, musl_id_t who);
+
 SB_EXPORT int __abi_wrap_setpriority(int which, musl_id_t who, int prio);
 
 #ifdef __cplusplus

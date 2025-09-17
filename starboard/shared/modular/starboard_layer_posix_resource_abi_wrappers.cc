@@ -27,6 +27,11 @@ int musl_which_to_platform_which(int musl_which) {
   }
 }
 
+int __abi_wrap_getpriority(int which, musl_id_t who) {
+  return getpriority(musl_which_to_platform_which(which),
+                     static_cast<id_t>(who));
+}
+
 int __abi_wrap_setpriority(int which, musl_id_t who, int prio) {
   return setpriority(musl_which_to_platform_which(which),
                      static_cast<id_t>(who), prio);
