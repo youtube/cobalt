@@ -21,7 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -393,4 +393,4 @@ std::unique_ptr<AudioChannelLayoutMixer> AudioChannelLayoutMixer::Create(
                                       output_channels));
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

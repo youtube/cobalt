@@ -55,9 +55,6 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   bool is_valid() const { return media_decoder_ != NULL; }
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::AudioFrameDiscarder
-      AudioFrameDiscarder;
-
   // The maximum amount of work that can exist in the union of |decoded_audios_|
   // and |media_decoder_->GetNumberOfPendingTasks()|.
   static const int kMaxPendingWorkSize = 64;

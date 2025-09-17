@@ -42,7 +42,7 @@ namespace starboard::android::shared {
 //       output to eac3.  Consider pushing some silence at the very beginning so
 //       the sound at the very beginning won't get lost during the switching.
 class AudioRendererPassthrough
-    : public ::starboard::shared::starboard::player::filter::AudioRenderer,
+    : public AudioRenderer,
       public MediaTimeProvider,
       private JobQueue::JobOwner {
  public:

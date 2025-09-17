@@ -43,17 +43,18 @@
 // when GetCurrentMediaTime() is called.
 // #define SB_LOG_MEDIA_TIME_STATS 1
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 const int kFramesInBufferBeginUnderflow = 1024;
 
 // A class that sits in between the audio decoder, the audio sink and the
 // pipeline to coordinate data transfer between these parties.  It also serves
 // as the authority of playback time.
-class AudioRendererPcm : public AudioRenderer,
-                         public MediaTimeProvider,
-                         private AudioRendererSink::RenderCallback,
-                         private JobQueue::JobOwner {
+class AudioRendererPcm
+    : public AudioRenderer,
+      public shared::starboard::player::filter::MediaTimeProvider,
+      private AudioRendererSink::RenderCallback,
+      private JobQueue::JobOwner {
  public:
   // |max_cached_frames| is a soft limit for the max audio frames this class can
   // cache so it can:
@@ -206,6 +207,6 @@ class AudioRendererPcm : public AudioRenderer,
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
