@@ -29,6 +29,8 @@
 #include "ui/display/screen.h"
 #include "ui/gfx/native_widget_types.h"
 
+#import "starboard/tvos/shared/starboard_application.h"
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
@@ -208,6 +210,14 @@ static const char kAllTracingCategories[] = "*";
         constraintEqualToAnchor:self.view.trailingAnchor],
     [_contentView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
   ]];
+
+  // UIView that will contain the video rendered by SbPlayer. The non-tvOS code
+  // path renders the video as an underlay, so add it before the web contents
+  // view. Each video will be rendered as a subview of this view.
+  UIView* playerContainerView = [[UIView alloc] init];
+  playerContainerView.accessibilityIdentifier = @"Player Container";
+  [_contentView addSubview:playerContainerView];
+  [SBDGetApplication() setPlayerContainerView:playerContainerView];
 
   UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
   [_contentView addSubview:web_contents_view];
