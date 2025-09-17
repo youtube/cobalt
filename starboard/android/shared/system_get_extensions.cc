@@ -37,7 +37,7 @@
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return starboard::android::shared::GetPlatformServiceApi();
+    return starboard::GetPlatformServiceApiAndroid();
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApiAndroid();
