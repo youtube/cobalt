@@ -262,8 +262,7 @@ bool AudioOutputManager::GetAudioConfiguration(
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
-  starboard::android::shared::MediaCapabilitiesCache::GetInstance()
-      ->ClearCache();
+  android::shared::MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
