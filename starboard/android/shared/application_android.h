@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
+<<<<<<< HEAD
 #include <atomic>
 #include <memory>
 #include <string>
@@ -28,13 +29,23 @@
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
+=======
+#include "starboard/android/shared/runtime_resource_overlay.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/command_line.h"
+#include "starboard/shared/starboard/application.h"
+>>>>>>> cd2300f75b3 (starboard: Remove QueueApplication dependencies from ApplicationAndroid (#7164))
 
 namespace starboard::android::shared {
 
 using ::starboard::shared::starboard::CommandLine;
 
+<<<<<<< HEAD
 class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
+=======
+class ApplicationAndroid : public Application {
+>>>>>>> cd2300f75b3 (starboard: Remove QueueApplication dependencies from ApplicationAndroid (#7164))
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
                      ScopedJavaGlobalRef<jobject> asset_manager,
@@ -51,13 +62,13 @@ class ApplicationAndroid
   int64_t app_start_with_android_fix() { return app_start_timestamp_; }
 
  protected:
-  // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() override { return false; }
-  Event* WaitForSystemEventWithTimeout(int64_t time) override {
-    SB_NOTIMPLEMENTED();
-    return NULL;
-  }
-  void WakeSystemEventWait() override {}
+  // --- Application pure virtual method implementations ---
+  Application::Event* GetNextEvent() override;
+  void Inject(Application::Event* event) override;
+  void InjectTimedEvent(Application::TimedEvent* timed_event) override;
+  void CancelTimedEvent(SbEventId event_id) override;
+  Application::TimedEvent* GetNextDueTimedEvent() override;
+  int64_t GetNextTimedEventTargetTime() override;
 
  private:
   // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
