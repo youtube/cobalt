@@ -83,7 +83,7 @@ std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer) {
                     static_cast<int>(buffer.side_data_.size()))
        << '\n';
   }
-  os << media::GetMixedRepresentation(buffer.data(), buffer.size(), 16) << '\n';
+  os << GetMixedRepresentation(buffer.data(), buffer.size(), 16) << '\n';
   return os;
 }
 

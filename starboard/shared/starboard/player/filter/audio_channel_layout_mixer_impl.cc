@@ -25,8 +25,6 @@ namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
-using media::GetBytesPerSample;
-
 // 1 -> 2
 const float kMonoToStereoMatrix[] = {
     1.0f,  // output.L = input

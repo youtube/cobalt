@@ -219,7 +219,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
   SB_CHECK(audio_decoder);
@@ -259,8 +259,8 @@ AssertionResult AlmostEqualTime(int64_t time1, int64_t time2) {
          << "time " << time1 << " doesn't match with time " << time2;
 }
 
-media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
-  shared::starboard::media::VideoStreamInfo video_stream_info = {};
+VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
+  VideoStreamInfo video_stream_info = {};
 
   video_stream_info.codec = codec;
   video_stream_info.mime = "";

@@ -221,7 +221,7 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   return SbPlayerSampleInfo();
 }
 
-const media::AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
+const AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
   EnsureSampleLoaded(kSbMediaTypeAudio, index);
 
   SB_DCHECK_LT(index, audio_access_units_.size());
@@ -381,7 +381,7 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  media::AudioSampleInfo audio_sample_info;
+  AudioSampleInfo audio_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &audio_sample_info);
 
   return AudioAccessUnit(timestamp,
@@ -406,7 +406,7 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  media::VideoSampleInfo video_sample_info;
+  VideoSampleInfo video_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &video_sample_info);
 
   return VideoAccessUnit(timestamp,

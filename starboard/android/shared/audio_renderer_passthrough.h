@@ -46,9 +46,6 @@ class AudioRendererPassthrough
       public ::starboard::shared::starboard::player::filter::MediaTimeProvider,
       private JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
                            bool enable_flush_during_seek);
