@@ -271,8 +271,8 @@ void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-scoped_refptr<FfmpegAudioDecoderImpl<FFMPEG>::DecodedAudio>
-FfmpegAudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
+scoped_refptr<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
