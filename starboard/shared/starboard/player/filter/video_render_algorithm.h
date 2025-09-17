@@ -24,17 +24,12 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // Used by VideoRenderer to pick the best frame to render according to the
 // current media time.
 class VideoRenderAlgorithm {
  public:
-  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
-      MediaTimeProvider;
-  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
-
   virtual ~VideoRenderAlgorithm() {}
 
   // |draw_frame_cb| can be empty.  When it is empty, this function simply runs
@@ -49,6 +44,6 @@ class VideoRenderAlgorithm {
   virtual int GetDroppedFrames() = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDER_ALGORITHM_H_

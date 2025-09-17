@@ -48,8 +48,6 @@ namespace starboard::android::shared {
 
 namespace {
 
-using VideoRenderAlgorithmBase =
-    ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -293,7 +291,7 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
-class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
+class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
  public:
   explicit VideoRenderAlgorithmTunneled(VideoFrameTracker* frame_tracker)
       : frame_tracker_(frame_tracker) {
@@ -319,8 +317,7 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
   VideoFrameTracker* frame_tracker_;
 };
 
-class MediaCodecVideoDecoder::Sink
-    : public MediaCodecVideoDecoder::VideoRendererSink {
+class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
  public:
   bool Render() {
     SB_DCHECK(render_cb_);
@@ -439,15 +436,14 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   }
 }
 
-scoped_refptr<MediaCodecVideoDecoder::VideoRendererSink>
-MediaCodecVideoDecoder::GetSink() {
+scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == NULL) {
     sink_ = new Sink;
   }
   return sink_;
 }
 
-std::unique_ptr<MediaCodecVideoDecoder::VideoRenderAlgorithm>
+std::unique_ptr<VideoRenderAlgorithm>
 MediaCodecVideoDecoder::GetRenderAlgorithm() {
   if (tunnel_mode_audio_session_id_ == -1) {
     return std::make_unique<VideoRenderAlgorithmAndroid>(
