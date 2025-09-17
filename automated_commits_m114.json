@@ -1,5 +1,148 @@
 [
   {
+    "hexsha": "f1f1ebb9040925332480695c14d395b5b95a6750",
+    "original_hexsha": "90729c605bf544bdeb857c3e311c13fa66c8ca9b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T20:15:45-07:00",
+    "summary": "starboard: Move deeply-nested `InputBuffer` to flattened namespace (#7176)",
+    "stats": {
+      "files": 11,
+      "insertions": 11,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "ab6d43c0b44ac40106254c34a989875b1764533d",
+    "original_hexsha": "98fd239027a9c45af71c566742ccf094404fe19b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T18:55:17-07:00",
+    "summary": "starboard: Move media stream info definitions into flattened namespace (#7183)",
+    "stats": {
+      "files": 56,
+      "insertions": 133,
+      "deletions": 181
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8bd549d79d4fe7c8fee8d88a933c4424a7f7c699",
+    "original_hexsha": "753198e2e3f3272902289862b9744915e58cc831",
+    "author": "Raphael Kubo da Costa",
+    "datetime": "2025-09-17T03:19:27+02:00",
+    "summary": "starboard: Do not set RPATH in \"starboard\" GN config (#7179)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9ac2f4ee1dc97e4c222115e86b8d02aec6f04e57",
+    "original_hexsha": "8a59f5f35487b2a60c73032e474aaea9c6576b88",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T18:11:13-07:00",
+    "summary": "starboard: Move Android JNI bridge definitions into flattened namespace (#7192)",
+    "stats": {
+      "files": 34,
+      "insertions": 67,
+      "deletions": 60
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8eb3d8188b9e64e9e1bb3ec475eaa43f57f6b06b",
+    "original_hexsha": "08110bf8ef9434d75db986601f1c95fd4dee2ae7",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T16:36:30-07:00",
+    "summary": "starboard: Move deeply-nested callback definitions into flattened namespace (#7180)",
+    "stats": {
+      "files": 5,
+      "insertions": 13,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5152f1a551709e29c9a14655a0d873074789fcc4",
+    "original_hexsha": "e7c66931b4bc4b3d904415d003af9373636e9d42",
+    "author": "Colin Liang",
+    "datetime": "2025-09-16T16:25:17-07:00",
+    "summary": "android: Capture top 4 Java stack frames on exception (#7191)",
+    "stats": {
+      "files": 2,
+      "insertions": 26,
+      "deletions": 25
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5e56ba38bfb4e66049c7991d660eba82d305ebdb",
+    "original_hexsha": "846fcc13f750313120e85dcc428f48ac533b54f3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T16:12:30-07:00",
+    "summary": "starboard: Move deeply-nested VideoFrame to flattened namespace  (#7163)",
+    "stats": {
+      "files": 23,
+      "insertions": 13,
+      "deletions": 48
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "88e6fb6333356ace178ea52c6bb359b8c5d566cd",
+    "original_hexsha": "2ab9ec976c84bd4d76d09801fb022398f88782c2",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T15:50:35-07:00",
+    "summary": "starboard: Move JNI helper definitions into flattened namespace (#7189)",
+    "stats": {
+      "files": 12,
+      "insertions": 16,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5e31e9e57001f1c0aa72adf39377c336de1fb81e",
+    "original_hexsha": "af176a3461f80f3c6b09fd320794f52c03f59e7b",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-09-16T14:09:25-07:00",
+    "summary": "Add missing workflows to BUILD_STATUS.md (#7147)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f10659d18a4d8e45cf04eef0ececf318c52dc143",
+    "original_hexsha": "7d545c84593d0f07d00d734d02ce062de0b1bde0",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-16T13:50:17-07:00",
+    "summary": "starboard: Use detailed SB_CHECK logging for all builds (#7174)",
+    "stats": {
+      "files": 1,
+      "insertions": 14,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "898a30e4ed71d836c1c8fdd78ae996eacf4d5dfc",
+    "original_hexsha": "32d60bd14de0669a0bdcdf170bef8540baf139a8",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-16T16:24:52-04:00",
+    "summary": "Set min log level to fatal for gold builds (#7173)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "42371d18dff4a5e0c2f64fcbd8c27ee66480f2cf",
     "original_hexsha": "f25e09fab74ad57165a9cef1053470b9f2efd83a",
     "author": "Eric Zhang",
