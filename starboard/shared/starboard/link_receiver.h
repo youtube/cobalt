@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_NEW_LINK_RECEIVER_H_
-#define STARBOARD_SHARED_STARBOARD_NEW_LINK_RECEIVER_H_
+#ifndef STARBOARD_SHARED_STARBOARD_LINK_RECEIVER_H_
+#define STARBOARD_SHARED_STARBOARD_LINK_RECEIVER_H_
 
 #include "starboard/shared/starboard/application.h"
 
@@ -47,4 +47,4 @@ class LinkReceiver {
 
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_NEW_LINK_RECEIVER_H_
+#endif  // STARBOARD_SHARED_STARBOARD_LINK_RECEIVER_H_

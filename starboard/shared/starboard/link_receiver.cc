@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/new_link_receiver.h"
+#include "starboard/shared/starboard/link_receiver.h"
 
 #include <arpa/inet.h>
 #include <fcntl.h>
