@@ -34,8 +34,6 @@ class AudioDecoder {
   using OutputCB = std::function<void()>;
 
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
   virtual ~AudioDecoder() {}
 

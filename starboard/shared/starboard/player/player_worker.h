@@ -68,8 +68,6 @@ class PlayerWorker {
     };
 
     typedef PlayerWorker::Bounds Bounds;
-    typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-    typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
     typedef std::function<
         void(int64_t media_time, int dropped_video_frames, bool is_progressing)>

@@ -21,7 +21,11 @@
 
 struct SbDrmSystemPrivate {
  public:
-  typedef starboard::shared::starboard::player::InputBuffer InputBuffer;
+  // Alias to prevent breaking the RDK build on CI.
+  // http://go/paste/5401222962085888
+  // TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
+  using InputBuffer = starboard::InputBuffer;
+
   enum DecryptStatus { kSuccess, kRetry, kFailure };
 
   virtual ~SbDrmSystemPrivate() {}
@@ -39,7 +43,7 @@ struct SbDrmSystemPrivate {
 
   virtual void CloseSession(const void* session_id, int session_id_size) = 0;
 
-  virtual DecryptStatus Decrypt(InputBuffer* buffer) = 0;
+  virtual DecryptStatus Decrypt(starboard::InputBuffer* buffer) = 0;
 
   virtual bool IsServerCertificateUpdatable() = 0;
 
