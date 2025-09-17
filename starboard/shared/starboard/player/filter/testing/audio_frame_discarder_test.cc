@@ -28,7 +28,6 @@ namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
  public:

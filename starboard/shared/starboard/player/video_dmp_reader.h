@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/player/file_cache_reader.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard {
 
 class VideoDmpReader {
  public:
@@ -180,6 +180,6 @@ class VideoDmpReader {
   std::vector<VideoAccessUnit> video_access_units_;
 };
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_

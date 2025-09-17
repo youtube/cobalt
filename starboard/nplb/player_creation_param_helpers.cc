@@ -19,7 +19,7 @@
 namespace nplb {
 namespace {
 
-using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 
 }  // namespace
 

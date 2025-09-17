@@ -101,9 +101,6 @@ class SbPlayerTestFixture {
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
   static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
 
-  typedef starboard::shared::starboard::player::video_dmp::VideoDmpReader
-      VideoDmpReader;
-
   typedef enum CallbackEventType {
     kEmptyEvent,
     kDecoderStateEvent,
@@ -198,8 +195,8 @@ class SbPlayerTestFixture {
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;
-  std::unique_ptr<VideoDmpReader> audio_dmp_reader_;
-  std::unique_ptr<VideoDmpReader> video_dmp_reader_;
+  std::unique_ptr<starboard::VideoDmpReader> audio_dmp_reader_;
+  std::unique_ptr<starboard::VideoDmpReader> video_dmp_reader_;
   starboard::testing::FakeGraphicsContextProvider*
       fake_graphics_context_provider_;
 
