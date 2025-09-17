@@ -29,8 +29,8 @@ class CobaltTextToSpeechHelper {
   static CobaltTextToSpeechHelper* GetInstance();
   void Initialize(JNIEnv* env);
 
-  void AddObserver(android::shared::TextToSpeechObserver* observer);
-  void RemoveObserver(android::shared::TextToSpeechObserver* observer);
+  void AddObserver(TextToSpeechObserver* observer);
+  void RemoveObserver(TextToSpeechObserver* observer);
 
   bool IsTextToSpeechEnabled(JNIEnv* env) const;
   void SendTextToSpeechChangeEvent() const;
@@ -44,7 +44,7 @@ class CobaltTextToSpeechHelper {
   ~CobaltTextToSpeechHelper() = default;
 
   // Thread-safe observer list for H5vccAccessibilityImpl.
-  base::ObserverList<android::shared::TextToSpeechObserver> observers_
+  base::ObserverList<TextToSpeechObserver> observers_
       GUARDED_BY(observers_lock_);
   mutable base::Lock observers_lock_;
 };
