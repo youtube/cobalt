@@ -23,6 +23,7 @@
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
+#include "starboard/shared/starboard/new_link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/common/command_line.h"
