@@ -1,4 +1,6 @@
 source_set("splash") {
+  testonly = true
+
   sources = [
     "splash.cc",
     "splash.h",
@@ -6,6 +8,14 @@ source_set("splash") {
 
   deps = [
     "//base",
+    "//cobalt/shell:cobalt_shell_lib",
     "//content/public/browser",
   ]
+
+  if (is_android) {
+    deps += [
+      "//starboard/android/shared:starboard_platform",
+      "//ui/android",
+    ]
+  }
 }
