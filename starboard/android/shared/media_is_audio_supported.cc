@@ -21,6 +21,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/features.h"
 
 namespace starboard::shared::starboard::media {
 
@@ -41,6 +42,10 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
+  if (is_passthrough) {
+    return false;
+  }
+
   bool enable_audio_passthrough = true;
   if (mime_type) {
     if (!mime_type->is_valid()) {
@@ -57,7 +62,8 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
   // Android uses a libopus based opus decoder for clear content, or a platform
   // opus decoder for encrypted content, if available.
-  if (audio_codec == kSbMediaAudioCodecOpus) {
+  if (!features::FeatureList::IsEnabled(features::kEnableExoPlayer) &&
+      audio_codec == kSbMediaAudioCodecOpus) {
     return true;
   }
 
