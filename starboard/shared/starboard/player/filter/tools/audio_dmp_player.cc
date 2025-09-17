@@ -28,8 +28,6 @@
 
 namespace {
 
-using starboard::shared::starboard::player::InputBuffer;
-using starboard::shared::starboard::player::InputBuffers;
 using starboard::shared::starboard::player::filter::AudioRenderer;
 using starboard::shared::starboard::player::filter::PlayerComponents;
 using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
