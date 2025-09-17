@@ -1,6 +1,16 @@
-// Standalone version of Starboard's LinkReceiver.
-// This implementation uses Linux-specific APIs (epoll, eventfd) and C++ STL,
-// and has no dependency on the Starboard library.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "starboard/shared/starboard/new_link_receiver.h"
 
@@ -20,18 +30,16 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-// A simple logging macro to replace SB_LOG.
-#define LOG_INFO(msg) std::cout << "INFO: " << msg << std::endl
-#define LOG_WARNING(msg) std::cerr << "WARNING: " << msg << std::endl
-#define LOG_ERROR(msg) \
-  std::cerr << "ERROR: " << msg << " (errno: " << errno << ")" << std::endl
+#include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 
-// A simple assertion macro to replace SB_DCHECK.
-#define ASSERT(condition) assert(condition)
+namespace starboard {
 
 // A wrapper to handle EINTR for syscalls.
 template <typename Func>
@@ -43,9 +51,10 @@ int HANDLE_EINTR(Func func) {
   return result;
 }
 
+// --- LinkReceiverImpl Class ---
 class LinkReceiverImpl {
  public:
-  LinkReceiverImpl(LinkCallback link_callback, int port);
+  LinkReceiverImpl(Application* application, int port);
   ~LinkReceiverImpl();
 
  private:
@@ -58,9 +67,9 @@ class LinkReceiverImpl {
       }
     }
 
-    void FlushLink(LinkCallback link_callback) {
+    void FlushLink(Application* application) {
       if (!data.empty()) {
-        link_callback(data.c_str());
+        application->Link(data.c_str());
         data.clear();
       }
     }
@@ -86,7 +95,7 @@ class LinkReceiverImpl {
                                   int size);
   static std::string GetTemporaryDirectory();
 
-  LinkCallback link_callback_;
+  Application* application_;
   const int specified_port_;
   int actual_port_;
   pthread_t thread_;
@@ -102,22 +111,10 @@ class LinkReceiverImpl {
   sem_t server_started_sem_;
 };
 
-// --- LinkReceiver Implementation ---
-
-LinkReceiver::LinkReceiver(LinkCallback link_callback)
-    : impl_(new LinkReceiverImpl(link_callback, 0)) {}
-
-LinkReceiver::LinkReceiver(LinkCallback link_callback, int port)
-    : impl_(new LinkReceiverImpl(link_callback, port)) {}
-
-LinkReceiver::~LinkReceiver() {
-  // The unique_ptr will handle deletion of impl_.
-}
-
 // --- LinkReceiverImpl Implementation ---
 
-LinkReceiverImpl::LinkReceiverImpl(LinkCallback link_callback, int port)
-    : link_callback_(link_callback), specified_port_(port), thread_(0) {
+LinkReceiverImpl::LinkReceiverImpl(Application* application, int port)
+    : application_(application), specified_port_(port), thread_(0) {
   sem_init(&server_started_sem_, 0, 0);
   pthread_create(&thread_, nullptr, &LinkReceiverImpl::RunThread, this);
   // Block until the server thread is initialized.
@@ -125,7 +122,7 @@ LinkReceiverImpl::LinkReceiverImpl(LinkCallback link_callback, int port)
 }
 
 LinkReceiverImpl::~LinkReceiverImpl() {
-  ASSERT(thread_ != pthread_self());
+  SB_CHECK(thread_ != pthread_self());
   quit_.store(true);
 
   // Wake up the epoll_wait() call by writing to the eventfd.
@@ -152,13 +149,14 @@ void LinkReceiverImpl::Run() {
   }
 
   if (listen_socket_ < 0) {
-    LOG_WARNING("Unable to start LinkReceiver on port " << specified_port_);
+    SB_LOG(WARNING) << "Unable to start LinkReceiver on port "
+                    << specified_port_;
     sem_post(&server_started_sem_);  // Unblock constructor
     return;
   }
 
   if (!GetBoundPort(listen_socket_, &actual_port_)) {
-    LOG_WARNING("Unable to get LinkReceiver bound port.");
+    SB_LOG(WARNING) << "Unable to get LinkReceiver bound port.";
     close(listen_socket_);
     listen_socket_ = -1;
     sem_post(&server_started_sem_);  // Unblock constructor
@@ -171,7 +169,7 @@ void LinkReceiverImpl::Run() {
 
   epoll_fd_ = epoll_create1(0);
   if (epoll_fd_ < 0) {
-    LOG_ERROR("epoll_create1() failed");
+    SB_LOG(ERROR) << "epoll_create1() failed";
     close(listen_socket_);
     listen_socket_ = -1;
     sem_post(&server_started_sem_);
@@ -180,7 +178,7 @@ void LinkReceiverImpl::Run() {
 
   event_fd_ = eventfd(0, EFD_NONBLOCK);
   if (event_fd_ < 0) {
-    LOG_ERROR("eventfd() failed");
+    SB_LOG(ERROR) << "eventfd() failed";
     close(listen_socket_);
     close(epoll_fd_);
     listen_socket_ = -1;
@@ -204,7 +202,7 @@ void LinkReceiverImpl::Run() {
         [&]() { return epoll_wait(epoll_fd_, events, kMaxEvents, -1); });
 
     if (num_events < 0) {
-      LOG_ERROR("epoll_wait() failed");
+      SB_LOG(ERROR) << "epoll_wait() failed";
       break;
     }
 
@@ -260,13 +258,13 @@ void LinkReceiverImpl::AddToEpoll(int fd, void* data_ptr) {
   event.events = EPOLLIN;
   event.data.ptr = data_ptr;
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) < 0) {
-    LOG_ERROR("epoll_ctl(ADD) failed");
+    SB_LOG(ERROR) << "epoll_ctl(ADD) failed";
   }
 }
 
 void LinkReceiverImpl::RemoveFromEpoll(int fd) {
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, NULL) < 0) {
-    LOG_ERROR("epoll_ctl(DEL) failed");
+    SB_LOG(ERROR) << "epoll_ctl(DEL) failed";
   }
 }
 
@@ -279,7 +277,7 @@ void LinkReceiverImpl::OnAcceptReady() {
         // No more pending connections.
         break;
       }
-      LOG_ERROR("accept() failed");
+      SB_LOG(ERROR) << "accept() failed";
       break;
     }
 
@@ -307,7 +305,7 @@ void LinkReceiverImpl::OnReadReady(Connection* connection) {
 
     if (bytes_read < 0) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        LOG_ERROR("recv() failed");
+        SB_LOG(ERROR) << "recv() failed";
         connection_closed = true;
       }
       break;  // No more data to read now.
@@ -327,7 +325,7 @@ void LinkReceiverImpl::OnReadReady(Connection* connection) {
         if (length > 0) {
           connection->data.append(&buffer[last_null], length);
         }
-        connection->FlushLink(link_callback_);
+        connection->FlushLink(application_);
         last_null = i + 1;
       }
     }
@@ -339,7 +337,7 @@ void LinkReceiverImpl::OnReadReady(Connection* connection) {
   }
 
   if (connection_closed) {
-    connection->FlushLink(link_callback_);
+    connection->FlushLink(application_);
     RemoveFromEpoll(connection->socket);
     connections_.erase(connection->socket);
   }
@@ -350,12 +348,12 @@ void LinkReceiverImpl::OnReadReady(Connection* connection) {
 bool LinkReceiverImpl::SetNonBlocking(int fd) {
   int flags = HANDLE_EINTR([&]() { return fcntl(fd, F_GETFL, 0); });
   if (flags == -1) {
-    LOG_ERROR("fcntl(F_GETFL) failed");
+    SB_LOG(ERROR) << "fcntl(F_GETFL) failed";
     return false;
   }
   if (HANDLE_EINTR([&]() { return fcntl(fd, F_SETFL, flags | O_NONBLOCK); }) ==
       -1) {
-    LOG_ERROR("fcntl(F_SETFL, O_NONBLOCK) failed");
+    SB_LOG(ERROR) << "fcntl(F_SETFL, O_NONBLOCK) failed";
     return false;
   }
   return true;
@@ -364,7 +362,7 @@ bool LinkReceiverImpl::SetNonBlocking(int fd) {
 int LinkReceiverImpl::CreateListeningSocket(int port, int address_family) {
   int sock_fd = socket(address_family, SOCK_STREAM, IPPROTO_TCP);
   if (sock_fd < 0) {
-    LOG_ERROR("socket() failed");
+    SB_LOG(ERROR) << "socket() failed";
     return -1;
   }
 
@@ -375,7 +373,7 @@ int LinkReceiverImpl::CreateListeningSocket(int port, int address_family) {
 
   int on = 1;
   if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
-    LOG_ERROR("setsockopt(SO_REUSEADDR) failed");
+    SB_LOG(ERROR) << "setsockopt(SO_REUSEADDR) failed";
     close(sock_fd);
     return -1;
   }
@@ -393,7 +391,7 @@ int LinkReceiverImpl::CreateListeningSocket(int port, int address_family) {
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-      LOG_ERROR("bind() failed for IPv4");
+      SB_LOG(ERROR) << "bind() failed for IPv4";
       close(sock_fd);
       return -1;
     }
@@ -406,19 +404,19 @@ int LinkReceiverImpl::CreateListeningSocket(int port, int address_family) {
     int off = 0;
     setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off));
     if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-      LOG_ERROR("bind() failed for IPv6");
+      SB_LOG(ERROR) << "bind() failed for IPv6";
       close(sock_fd);
       return -1;
     }
   } else {
-    LOG_ERROR("Unsupported address family");
+    SB_LOG(ERROR) << "Unsupported address family";
     close(sock_fd);
     return -1;
   }
 
   const int kMaxConn = 128;
   if (listen(sock_fd, kMaxConn) != 0) {
-    LOG_ERROR("listen() failed");
+    SB_LOG(ERROR) << "listen() failed";
     close(sock_fd);
     return -1;
   }
@@ -427,11 +425,11 @@ int LinkReceiverImpl::CreateListeningSocket(int port, int address_family) {
 }
 
 bool LinkReceiverImpl::GetBoundPort(int socket, int* out_port) {
-  ASSERT(out_port);
+  SB_CHECK(out_port);
   struct sockaddr_storage addr;
   socklen_t len = sizeof(addr);
   if (getsockname(socket, (struct sockaddr*)&addr, &len) < 0) {
-    LOG_ERROR("getsockname() failed");
+    SB_LOG(ERROR) << "getsockname() failed";
     return false;
   }
 
@@ -446,11 +444,17 @@ bool LinkReceiverImpl::GetBoundPort(int socket, int* out_port) {
 }
 
 std::string LinkReceiverImpl::GetTemporaryDirectory() {
-  const char* tmpdir = getenv("TMPDIR");
-  if (tmpdir && tmpdir[0]) {
-    return tmpdir;
+  const int kMaxPathLength = kSbFileMaxPath;
+  std::unique_ptr<char[]> temp_path(new char[kMaxPathLength]);
+  bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
+                                  kMaxPathLength);
+  if (!has_temp) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "No temporary directory.";
+    return "";
   }
-  return "/tmp";
+
+  return std::string(temp_path.get());
 }
 
 void LinkReceiverImpl::CreateTemporaryFile(const char* name,
@@ -465,12 +469,24 @@ void LinkReceiverImpl::CreateTemporaryFile(const char* name,
 
   FILE* file = fopen(path.c_str(), "w");
   if (!file) {
-    LOG_ERROR("Unable to create temporary file: " << path);
+    SB_LOG(ERROR) << "Unable to create temporary file: " << path;
     return;
   }
 
   fwrite(contents, 1, size, file);
   fclose(file);
+}
+
+// --- LinkReceiver Implementation ---
+
+LinkReceiver::LinkReceiver(Application* application)
+    : impl_(new LinkReceiverImpl(application, 0)) {}
+
+LinkReceiver::LinkReceiver(Application* application, int port)
+    : impl_(new LinkReceiverImpl(application, port)) {}
+
+LinkReceiver::~LinkReceiver() {
+  delete impl_;
 }
 
 // --- Example Usage ---
@@ -491,3 +507,5 @@ int main() {
     return 0;
 }
 */
+
+}  // namespace starboard

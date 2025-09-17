@@ -66,6 +66,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
 
   starboard::shared::x11::ApplicationX11 application(callback);
 
+  starboard::LinkReceiver receiver(&application);
   int result = application.Run(argc, argv);
 
   starboard::shared::signal::UninstallSuspendSignalHandlers();
