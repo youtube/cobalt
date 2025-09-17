@@ -34,7 +34,6 @@ using ::starboard::shared::starboard::media::MimeType;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
-using video_dmp::VideoDmpReader;
 
 }  // namespace
 

@@ -48,7 +48,6 @@ namespace {
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::std::placeholders::_1;
 using ::std::placeholders::_2;
-using video_dmp::VideoDmpReader;
 
 }  // namespace
 

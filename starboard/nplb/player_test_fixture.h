@@ -101,9 +101,6 @@ class SbPlayerTestFixture {
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
   static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
 
-  typedef starboard::shared::starboard::player::video_dmp::VideoDmpReader
-      VideoDmpReader;
-
   typedef enum CallbackEventType {
     kEmptyEvent,
     kDecoderStateEvent,

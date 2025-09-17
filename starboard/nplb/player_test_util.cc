@@ -33,8 +33,8 @@ namespace nplb {
 namespace {
 
 using ::starboard::AudioSampleInfo;
+using ::starboard::VideoDmpReader;
 using ::starboard::VideoSampleInfo;
-using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -261,7 +261,7 @@ SbPlayer CallSbPlayerCreate(
 void CallSbPlayerWriteSamples(
     SbPlayer player,
     SbMediaType sample_type,
-    starboard::shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
+    starboard::VideoDmpReader* dmp_reader,
     int start_index,
     int number_of_samples_to_write,
     int64_t timestamp_offset,
