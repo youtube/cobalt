@@ -1269,13 +1269,6 @@ if (use_blink && !is_cronet_build) {
       data_deps += [ "//content/web_test:web_test_common_mojom_js_data_deps" ]
     }
 
-    if (!is_win && !is_android) {
-      # Using the default toolchain for this tool, as it's run during tests not
-      # during the build. This places a symlink in the root_build_dir for scrips
-      # to use.
-      data_deps += [ "//third_party/breakpad:minidump_stackwalk" ]
-    }
-
     if (is_mac) {
       # Using the default toolchain for this tool, as it's run during tests not
       # during the build, and on Mac we support cross-building from a different

@@ -11,7 +11,8 @@
 #include "base/feature_list.h"
 #include "base/files/file.h"
 #include "build/build_config.h"
-#include "components/language_detection/core/language_detection_model.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "components/language_detection/core/language_detection_model.h" //nogncheck
 #include "partition_alloc/pointers/raw_ref.h"
 
 namespace translate {

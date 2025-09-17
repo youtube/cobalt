@@ -187,7 +187,6 @@ group("telemetry_chrome_test_without_chrome") {
 
       # These explicitly not defined for Windows builds in Breakpad.
       "//third_party/breakpad:minidump_dump",
-      "//third_party/breakpad:minidump_stackwalk",
     ]
   }
 

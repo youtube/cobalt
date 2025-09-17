@@ -462,7 +462,7 @@ shared_library("immediate_crash_test_helper") {
   }
 
   if (is_starboard) {
-    deps = [ "//starboard:starboard_group" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 }
 
