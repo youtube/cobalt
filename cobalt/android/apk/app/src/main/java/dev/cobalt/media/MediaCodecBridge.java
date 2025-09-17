@@ -45,7 +45,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 class MediaCodecBridge {
   // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
   // for several frames. As a result, the player may find that the time does not increase

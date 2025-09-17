@@ -22,7 +22,7 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
-using starboard::android::shared::StarboardBridge;
+using ::starboard::StarboardBridge;
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
