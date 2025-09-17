@@ -17,7 +17,7 @@
 #include <limits>
 #include "starboard/common/check_op.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard {
 
 #define DEFINE_READ_AS_INT32_FUNCTION(Type)                                \
   void Read(const ReadCB& read_cb, bool reverse_byte_order, Type* value) { \
@@ -285,4 +285,4 @@ void Write(const WriteCB& write_cb,
   }
 }
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard

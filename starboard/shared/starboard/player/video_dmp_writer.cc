@@ -29,7 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard {
 
 namespace {
 
@@ -192,4 +192,4 @@ int VideoDmpWriter::WriteToFile(const void* buffer, int size) {
   return result;
 }
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard

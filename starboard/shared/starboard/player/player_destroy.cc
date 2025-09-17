@@ -32,7 +32,7 @@ void SbPlayerDestroy(SbPlayer player) {
   UpdateActiveSessionPlatformPlaybackState(kNone);
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-  VideoDmpWriter::OnPlayerDestroy(player);
+  starboard::VideoDmpWriter::OnPlayerDestroy(player);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
   delete player;
