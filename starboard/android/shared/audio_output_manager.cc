@@ -25,7 +25,8 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioOutputManager_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace android::shared {
 
 namespace {
 
@@ -256,13 +257,14 @@ bool AudioOutputManager::GetAudioConfiguration(
 
   return true;
 }
+}  // namespace android::shared
 
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
-  MediaCapabilitiesCache::GetInstance()->ClearCache();
+  android::shared::MediaCapabilitiesCache::GetInstance()->ClearCache();
   ::starboard::shared::starboard::media::MimeSupportabilityCache::GetInstance()
       ->ClearCachedMimeSupportabilities();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
