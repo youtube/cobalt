@@ -21,7 +21,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard {
 
 // This class saves video data according to the format specified inside
 // video_dmp_common.h.
@@ -51,6 +51,6 @@ class VideoDmpWriter {
   WriteCB write_cb_;
 };
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_WRITER_H_
