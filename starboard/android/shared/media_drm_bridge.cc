@@ -29,7 +29,7 @@
 #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
 #include "starboard/common/check_op.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
@@ -363,4 +363,4 @@ std::ostream& operator<<(std::ostream& os, const DrmOperationResult& result) {
   return os << "}";
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

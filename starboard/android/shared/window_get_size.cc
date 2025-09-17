@@ -38,8 +38,7 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> display_dpi =
-      starboard::android::shared::StarboardBridge::GetInstance()
-          ->GetDeviceResolution(env);
+      starboard::StarboardBridge::GetInstance()->GetDeviceResolution(env);
 
   jclass sizeClass = env->FindClass("android/util/Size");
   jmethodID getWidthMethod = env->GetMethodID(sizeClass, "getWidth", "()I");

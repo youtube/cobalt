@@ -27,8 +27,7 @@ const char* SbTimeZoneGetName() {
   // Note tzset() is called in ApplicationAndroid::Initialize()
   JNIEnv* env = AttachCurrentThread();
   std::string time_zone_id =
-      starboard::android::shared::StarboardBridge::GetInstance()->GetTimeZoneId(
-          env);
+      starboard::StarboardBridge::GetInstance()->GetTimeZoneId(env);
 
   time_zone_id.push_back('\0');
   strncpy(s_time_zone_id, time_zone_id.c_str(), sizeof(s_time_zone_id));
