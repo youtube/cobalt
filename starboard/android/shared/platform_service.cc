@@ -42,8 +42,6 @@ typedef struct CobaltExtensionPlatformServicePrivate {
 } CobaltExtensionPlatformServicePrivate;
 
 namespace starboard {
-namespace android::shared {
-
 namespace {
 
 bool Has(const char* name) {
@@ -136,7 +134,6 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
     &Send};
 
 }  // namespace
-}  // namespace android::shared
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JNIEnv* env,
