@@ -1110,7 +1110,6 @@ group("content_shell_crash_test") {
   if (is_posix) {
     data_deps += [
       "//third_party/breakpad:dump_syms",
-      "//third_party/breakpad:minidump_stackwalk",
     ]
   }
   if (is_android) {

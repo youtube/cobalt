@@ -1051,10 +1051,6 @@ component("base") {
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
 
-  if (is_starboard) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
-
   # native_unwinder_android is intended for use solely via a dynamic feature
   # module, to avoid increasing Chrome's executable size.
   assert_no_deps = [ ":native_unwinder_android" ]
@@ -3781,6 +3777,8 @@ test("base_unittests") {
     if (!is_ios) {
       sources += [ "memory/shared_memory_switch_unittest.cc" ]
     }
+
+    data_deps = []
 
     data_deps += [ "//base/test:test_proto_descriptor" ]
     data += [ "$root_gen_dir/base/test/test_proto.descriptor" ]
