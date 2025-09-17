@@ -16,9 +16,10 @@
 
 #include <algorithm>
 #include <functional>
+
 #include "starboard/common/check_op.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard {
 
 namespace {
 
@@ -420,4 +421,4 @@ VideoDmpReader::Registry* VideoDmpReader::GetRegistry() {
   return &s_registry;
 }
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard

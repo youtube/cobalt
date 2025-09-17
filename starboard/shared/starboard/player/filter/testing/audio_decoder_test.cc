@@ -51,7 +51,6 @@ namespace {
 using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
 
