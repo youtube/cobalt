@@ -30,8 +30,6 @@
 namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
-using video_dmp::VideoDmpReader;
-
 const size_t kMaxNumberOfInputs = 256;
 
 class AudioDecoderHelper {

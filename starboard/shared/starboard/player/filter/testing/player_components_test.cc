@@ -43,7 +43,6 @@ using std::vector;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 typedef VideoDmpReader::AudioAccessUnit AudioAccessUnit;
 typedef VideoDmpReader::VideoAccessUnit VideoAccessUnit;

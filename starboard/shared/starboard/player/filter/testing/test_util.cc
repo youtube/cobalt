@@ -34,7 +34,6 @@ using ::starboard::shared::starboard::media::MimeType;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
-using video_dmp::VideoDmpReader;
 
 }  // namespace
 
@@ -281,9 +280,8 @@ bool IsPartialAudioSupported() {
   return true;
 }
 
-scoped_refptr<InputBuffer> GetAudioInputBuffer(
-    video_dmp::VideoDmpReader* dmp_reader,
-    size_t index) {
+scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
+                                               size_t index) {
   SB_DCHECK(dmp_reader);
 
   auto player_sample_info =
@@ -293,7 +291,7 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
 }
 
 scoped_refptr<InputBuffer> GetAudioInputBuffer(
-    video_dmp::VideoDmpReader* dmp_reader,
+    VideoDmpReader* dmp_reader,
     size_t index,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
