@@ -11,11 +11,15 @@ static_library("renderer") {
     "//android_webview/*",
     "//chrome/*",
     "//chromecast/*",
-    "//cobalt/*",
     "//components/cdm/*",
     "//content/shell/*",
     "//fuchsia_web/*",
   ]
+
+  if (is_cobalt) {
+    visibility += [ "//cobalt/*" ]
+  }
+
 
   sources = [
     "external_clear_key_key_system_info.cc",
