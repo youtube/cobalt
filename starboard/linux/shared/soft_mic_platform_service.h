@@ -15,15 +15,12 @@
 #ifndef STARBOARD_LINUX_SHARED_SOFT_MIC_PLATFORM_SERVICE_H_
 #define STARBOARD_LINUX_SHARED_SOFT_MIC_PLATFORM_SERVICE_H_
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace shared {
 
 const char* const kSoftMicPlatformServiceName = "com.google.youtube.tv.SoftMic";
 
 const void* GetSoftMicPlatformServiceApi();
 
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_SOFT_MIC_PLATFORM_SERVICE_H_
