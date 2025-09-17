@@ -323,7 +323,7 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  shared::starboard::media::MimeType mime_type(mime);
+  MimeType mime_type(mime);
   if (!mime_type.is_valid()) {
     SB_LOG(WARNING) << mime << " is not a valid mime type, assuming sdr video.";
     return true;

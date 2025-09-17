@@ -48,7 +48,6 @@ namespace starboard::android::shared {
 
 namespace {
 
-using ::starboard::shared::starboard::media::MimeType;
 using VideoRenderAlgorithmBase =
     ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm;
 using std::placeholders::_1;

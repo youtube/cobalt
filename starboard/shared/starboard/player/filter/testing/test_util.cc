@@ -30,7 +30,6 @@
 namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
-using ::starboard::shared::starboard::media::MimeType;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;

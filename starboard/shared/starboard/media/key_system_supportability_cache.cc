@@ -25,7 +25,7 @@
 #include "starboard/common/once.h"
 #include "starboard/media.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -162,4 +162,4 @@ void KeySystemSupportabilityCache::ClearCache() {
   GetContainer<SbMediaVideoCodec>()->ClearContainer();
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
