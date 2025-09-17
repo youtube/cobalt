@@ -216,6 +216,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
   // Always enable the HTTP cache.
   network_context_params->http_cache_enabled = true;
+  network_context_params->http_cache_max_size = 1024 * 1024 * 24;
 
   auto cookie_manager_params = network::mojom::CookieManagerParams::New();
   cookie_manager_params->block_third_party_cookies = true;
