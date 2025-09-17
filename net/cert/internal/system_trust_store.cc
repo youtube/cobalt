@@ -406,7 +406,7 @@ namespace {
 
 class StarboardSystemCerts {
  public:
-  StarboardSystemCerts() {}
+  StarboardSystemCerts() = default;
 
   TrustStoreInMemoryStarboard* system_trust_store() {
     return &system_trust_store_;
@@ -440,14 +440,9 @@ class SystemTrustStoreStarboard : public SystemTrustStore {
     return g_root_certs_starboard.Get().system_trust_store()->Contains(
         trust_anchor);
   }
-
-#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
-  int64_t chrome_root_store_version() override { return 0; }
-#endif
 };
 
 std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  LOG(INFO) << "Using STARBOARD SYSTEM TRUST STORE!!";
   return std::make_unique<SystemTrustStoreStarboard>();
 }
 
