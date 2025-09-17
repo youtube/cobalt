@@ -157,7 +157,7 @@ Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JNIEnv* env,
 }
 
 const void* GetPlatformServiceApiAndroid() {
-  return &android::shared::kPlatformServiceApi;
+  return &kPlatformServiceApi;
 }
 
 }  // namespace starboard
