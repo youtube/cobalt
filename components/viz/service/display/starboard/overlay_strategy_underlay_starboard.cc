@@ -9,30 +9,15 @@
 
 #include "base/containers/adapters.h"
 #include "base/logging.h"
-#include "base/no_destructor.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/quads/draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
 #include "components/viz/service/display/overlay_candidate_factory.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace viz {
-
-namespace {
-
-// This persistent mojo::Remote is bound then used by all the instances
-// of OverlayStrategyUnderlayStarboard.
-mojo::Remote<cobalt::media::mojom::VideoGeometrySetter>&
-GetVideoGeometrySetter() {
-  static base::NoDestructor<
-      mojo::Remote<cobalt::media::mojom::VideoGeometrySetter>>
-      g_video_geometry_setter;
-  return *g_video_geometry_setter;
-}
-
-}  // namespace
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
     OverlayProcessorUsingStrategy* capability_checker)
@@ -208,13 +193,6 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
 
 OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {
   return OverlayStrategy::kUnderlay;
-}
-
-// static
-void OverlayStrategyUnderlayStarboard::ConnectVideoGeometrySetter(
-    mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
-        video_geometry_setter) {
-  GetVideoGeometrySetter().Bind(std::move(video_geometry_setter));
 }
 
 }  // namespace viz
