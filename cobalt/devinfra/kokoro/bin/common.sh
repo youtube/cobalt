@@ -135,12 +135,12 @@ run_gn () {
   fi
 
   local out_dir=$1
-  local target_platform=$2
+  local starboard_target_platform=$2
   local gn_arguments=$3
 
   set +u
   echo 'Running GN...'
-  gn gen "${out_dir}" --args="target_platform=\"${target_platform}\" \
+  gn gen "${out_dir}" --args="starboard_target_platform=\"${starboard_target_platform}\" \
     ${SB_API_VERSION} \
     ${TARGET_OS} \
     ${TARGET_CPU} \

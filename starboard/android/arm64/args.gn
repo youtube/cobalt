@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_platform = "android-arm64"
+starboard_target_platform = "android-arm64"
 target_os = "android"
 target_cpu = "arm64"
