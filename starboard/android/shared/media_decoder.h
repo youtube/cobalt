@@ -42,8 +42,6 @@ namespace starboard::android::shared {
 class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                                 protected JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
   using FrameRenderedCB = std::function<void(int64_t)>;
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
 

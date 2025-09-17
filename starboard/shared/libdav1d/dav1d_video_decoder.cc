@@ -32,8 +32,6 @@ namespace starboard {
 
 namespace {
 
-using shared::starboard::player::InputBuffer;
-
 // Set max resolutions to 8K.
 constexpr int kMaxDecodedFrameWidth = 7680;
 constexpr int kMaxDecodedFrameHeight = 4320;
