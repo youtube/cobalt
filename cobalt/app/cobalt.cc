@@ -178,9 +178,11 @@ void SbEventHandle(const SbEvent* event) {
       g_platform_event_source->HandleEvent(event);
       break;
     case kSbEventTypeLink: {
-      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+      auto link = static_cast<const char*>(event->data);
       auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
-      manager->OnDeepLink(data->link);
+      if (link) {
+        manager->OnDeepLink(link);
+      }
       break;
     }
     case kSbEventTypeVerticalSync:
