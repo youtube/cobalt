@@ -23,8 +23,6 @@
 
 namespace starboard {
 
-using android::shared::TextToSpeechObserver;
-
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaGlobalRef;
