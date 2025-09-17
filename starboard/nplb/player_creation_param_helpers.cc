@@ -19,14 +19,12 @@
 namespace nplb {
 namespace {
 
-using ::starboard::shared::starboard::media::AudioStreamInfo;
-using ::starboard::shared::starboard::media::VideoStreamInfo;
 using ::starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 
 }  // namespace
 
-AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
-  AudioStreamInfo audio_stream_info = {};
+starboard::AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
+  starboard::AudioStreamInfo audio_stream_info = {};
 
   audio_stream_info.codec = codec;
   audio_stream_info.mime = "";
@@ -100,8 +98,8 @@ AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
   return audio_stream_info;
 }
 
-VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
-  VideoStreamInfo video_stream_info;
+starboard::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
+  starboard::VideoStreamInfo video_stream_info;
 
   video_stream_info.codec = codec;
 

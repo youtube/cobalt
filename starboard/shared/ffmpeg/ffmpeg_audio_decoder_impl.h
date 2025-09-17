@@ -40,8 +40,7 @@ template <>
 class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
                                        private JobQueue::JobOwner {
  public:
-  explicit FfmpegAudioDecoderImpl(
-      const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info);
+  explicit FfmpegAudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
   ~FfmpegAudioDecoderImpl() override;
 
   // From: FfmpegAudioDecoder
@@ -78,7 +77,7 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
 
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
-  FfmpegAudioDecoder::AudioStreamInfo audio_stream_info_;
+  AudioStreamInfo audio_stream_info_;
 };
 
 }  // namespace starboard

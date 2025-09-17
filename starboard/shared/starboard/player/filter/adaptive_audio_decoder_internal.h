@@ -32,7 +32,7 @@ namespace starboard::shared::starboard::player::filter {
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   typedef std::function<std::unique_ptr<AudioDecoder>(
-      const media::AudioStreamInfo& audio_stream_info,
+      const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system)>
       AudioDecoderCreator;
 
@@ -42,12 +42,12 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
                              int* output_number_of_channels)>
       OutputFormatAdjustmentCallback;
 
-  AdaptiveAudioDecoder(const media::AudioStreamInfo& audio_stream_info,
+  AdaptiveAudioDecoder(const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        const OutputFormatAdjustmentCallback&
                            output_adjustment_callback = nullptr);
-  AdaptiveAudioDecoder(const media::AudioStreamInfo& audio_stream_info,
+  AdaptiveAudioDecoder(const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        bool enable_reset_audio_decoder,
@@ -63,7 +63,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  void InitializeAudioDecoder(const media::AudioStreamInfo& audio_stream_info);
+  void InitializeAudioDecoder(const AudioStreamInfo& audio_stream_info);
   void TeardownAudioDecoder();
   void OnDecoderOutput();
   void ResetInternal();
@@ -76,7 +76,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   SbMediaAudioFrameStorageType output_storage_type_;
   int output_samples_per_second_;
   int output_number_of_channels_;
-  media::AudioStreamInfo input_audio_stream_info_;
+  AudioStreamInfo input_audio_stream_info_;
 
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
