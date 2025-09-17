@@ -73,6 +73,7 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
