@@ -17,9 +17,10 @@
 
 #include <jni.h>
 
-namespace starboard::android::shared {
+namespace starboard {
+
 bool RequestRecordAudioPermission(JNIEnv* env);
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  //  STARBOARD_ANDROID_SHARED_AUDIO_PERMISSION_REQUESTER_H_
