@@ -24,10 +24,19 @@
 extern "C" {
 #endif
 
-// MUSL specific values for specific |which| values in setpriority
+// MUSL specific values for specific |which| values in setpriority and
+// getpriority.
 #define MUSL_PRIO_PROCESS 0
 #define MUSL_PRIO_PGRP 1
 #define MUSL_PRIO_USER 2
+
+// Linux specific values for the lowest and highest priorities setPriority can
+// take. Since there is no hard set standard for the range of values |prio| can
+// be in setpriority, we'll use the Linux range of [-20, 19].
+#define LINUX_HIGHEST_PRIORITY -20
+#define LINUX_LOWEST_PRIORITY 19
+
+SB_EXPORT int __abi_wrap_getpriority(int which, musl_id_t who);
 
 SB_EXPORT int __abi_wrap_setpriority(int which, musl_id_t who, int prio);
 

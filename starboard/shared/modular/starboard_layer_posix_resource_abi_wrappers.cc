@@ -14,6 +14,9 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
 
+#include <errno.h>
+#include <algorithm>
+
 int musl_which_to_platform_which(int musl_which) {
   switch (musl_which) {
     case MUSL_PRIO_PROCESS:
@@ -27,7 +30,26 @@ int musl_which_to_platform_which(int musl_which) {
   }
 }
 
+int __abi_wrap_getpriority(int which, musl_id_t who) {
+  errno = 0;
+  int result =
+      getpriority(musl_which_to_platform_which(which), static_cast<id_t>(who));
+  if (errno != 0) {
+    return result;
+  }
+
+  // If getpriority returns a nice value that is outside the Linux standard
+  // range of [-20,19], we clamp the return value to the nearest boundary of the
+  // valid range.
+  return std::clamp(result, LINUX_HIGHEST_PRIORITY, LINUX_LOWEST_PRIORITY);
+}
+
 int __abi_wrap_setpriority(int which, musl_id_t who, int prio) {
+  // If a |prio| value is outside the Linux Standard range [-20,19], we will
+  // clamp |prio| to the nearest boundary of the valid range.
+
+  prio = std::clamp(prio, LINUX_HIGHEST_PRIORITY, LINUX_LOWEST_PRIORITY);
+
   return setpriority(musl_which_to_platform_which(which),
                      static_cast<id_t>(who), prio);
 }
