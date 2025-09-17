@@ -449,8 +449,7 @@ void SbPlayerTestFixture::Initialize() {
   // Initialize player.
   auto audio_codec = kSbMediaAudioCodecNone;
   auto video_codec = kSbMediaVideoCodecNone;
-  const starboard::shared::starboard::media::AudioStreamInfo*
-      audio_stream_info = NULL;
+  const starboard::AudioStreamInfo* audio_stream_info = nullptr;
 
   if (audio_dmp_reader_) {
     audio_codec = audio_dmp_reader_->audio_codec();

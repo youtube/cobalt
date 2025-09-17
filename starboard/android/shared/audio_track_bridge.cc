@@ -41,8 +41,6 @@ using ::base::android::JavaParamRef;
 using ::base::android::ScopedJavaGlobalRef;
 using ::base::android::ScopedJavaLocalRef;
 
-using ::starboard::shared::starboard::media::GetBytesPerSample;
-
 const jint kNoOffset = 0;
 
 }  // namespace

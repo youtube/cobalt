@@ -37,8 +37,7 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
-AVCodecID GetFfmpegCodecIdByMediaCodec(
-    const shared::starboard::media::AudioStreamInfo& stream_info) {
+AVCodecID GetFfmpegCodecIdByMediaCodec(const AudioStreamInfo& stream_info) {
   SbMediaAudioCodec audio_codec = stream_info.codec;
 
   switch (audio_codec) {
@@ -86,7 +85,7 @@ const bool g_registered =
 }  // namespace
 
 FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
-    const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info)
+    const AudioStreamInfo& audio_stream_info)
     : codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
@@ -108,7 +107,7 @@ FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
 
 // static
 FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
-    const FfmpegAudioDecoder::AudioStreamInfo& audio_stream_info) {
+    const AudioStreamInfo& audio_stream_info) {
   return new FfmpegAudioDecoderImpl<FFMPEG>(audio_stream_info);
 }
 
@@ -236,8 +235,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       channel_count, GetSampleType(), GetStorageType(),
       input_buffer.timestamp(),
-      channel_count * av_frame.nb_samples *
-          shared::starboard::media::GetBytesPerSample(GetSampleType()));
+      channel_count * av_frame.nb_samples * GetBytesPerSample(GetSampleType()));
   if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
     memcpy(decoded_audio->data(), *av_frame.extended_data,
            decoded_audio->size_in_bytes());
