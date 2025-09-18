@@ -77,8 +77,6 @@ class AudioRendererPassthrough
                               double* playback_rate) override;
 
  private:
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-
   struct AudioTrackState {
     double volume = 1.0;
     bool paused = true;

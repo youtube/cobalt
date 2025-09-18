@@ -19,7 +19,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 namespace {
 
 TEST(BufferTest, DefaultCtor) {
@@ -90,4 +90,4 @@ TEST(BufferTest, MoveAssignmentOperator) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

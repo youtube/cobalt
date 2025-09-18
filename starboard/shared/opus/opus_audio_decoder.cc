@@ -217,8 +217,7 @@ void OpusAudioDecoder::TeardownCodec() {
   }
 }
 
-scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
-    int* samples_per_second) {
+scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());

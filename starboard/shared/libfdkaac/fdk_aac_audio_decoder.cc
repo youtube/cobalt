@@ -69,8 +69,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
   ReadFromFdkDecoder(kDecodeModeDoNotFlush);
 }
 
-scoped_refptr<FdkAacAudioDecoder::DecodedAudio> FdkAacAudioDecoder::Read(
-    int* samples_per_second) {
+scoped_refptr<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
