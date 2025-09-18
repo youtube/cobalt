@@ -317,6 +317,12 @@ void ScrollEngine::HandleScrollStart(
     const math::Matrix3F& initial_transform) {
   DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
          scroll_engine_.task_runner());
+  
+  if (!scroll_container) {
+    LOG(WARNING) << "ScrollEngine::HandleScrollStart: No scroll container.";
+    return;
+  }
+
   active_transform_ = CalculateActiveTransform(initial_transform);
   auto initial_point =
       active_transform_ *
