@@ -26,11 +26,10 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -38,7 +37,8 @@ typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
-  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
+  starboard::testing::FakeGraphicsContextProvider
+      fake_graphics_context_provider_;
 };
 
 void CheckVerticalResolutionSupport(const char* mime) {
@@ -165,4 +165,3 @@ INSTANTIATE_TEST_SUITE_P(VerticalVideoTests,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

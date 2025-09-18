@@ -52,6 +52,8 @@ _CHROMIUM_PLATFORMS = [
     'chromium_android-arm',
     'chromium_android-arm64',
     'chromium_android-x86',
+    'chromium_ios-arm64',
+    'chromium_mac-arm64',
 ]
 _COBALT_STARBOARD_PLATFORMS = [
     'evergreen-arm-hardfp-raspi',
@@ -66,6 +68,10 @@ _COBALT_ANDROID_PLATFORMS = [
     'android-arm',
     'android-arm64',
     'android-x86',
+]
+_COBALT_TVOS_PLATFORMS = [
+    'tvos-arm64-simulator',
+    'tvos-arm64',
 ]
 
 
@@ -125,7 +131,7 @@ def parse_args():
       '--platform',
       default='linux-x64x11',
       choices=_CHROMIUM_PLATFORMS + _COBALT_STARBOARD_PLATFORMS +
-      _COBALT_ANDROID_PLATFORMS,
+      _COBALT_ANDROID_PLATFORMS + _COBALT_TVOS_PLATFORMS,
       help='The platform to build.')
   parser.add_argument(
       '-c',

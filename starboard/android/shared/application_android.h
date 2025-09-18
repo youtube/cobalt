@@ -15,20 +15,16 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
-#include <string>
-
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/command_line.h"
-#include "starboard/common/log.h"
-#include "starboard/shared/starboard/queue_application.h"
+#include "starboard/shared/starboard/application.h"
 
 namespace starboard::android::shared {
 
 using ::starboard::CommandLine;
 
-class ApplicationAndroid
-    : public ::starboard::shared::starboard::QueueApplication {
+class ApplicationAndroid : public Application {
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
                      base::android::ScopedJavaGlobalRef<jobject> asset_manager,
@@ -38,20 +34,19 @@ class ApplicationAndroid
   ~ApplicationAndroid();
 
   static ApplicationAndroid* Get() {
-    return static_cast<ApplicationAndroid*>(
-        ::starboard::shared::starboard::Application::Get());
+    return static_cast<ApplicationAndroid*>(Application::Get());
   }
 
   int64_t app_start_with_android_fix() { return app_start_timestamp_; }
 
  protected:
-  // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() override { return false; }
-  Event* WaitForSystemEventWithTimeout(int64_t time) override {
-    SB_NOTIMPLEMENTED();
-    return NULL;
-  }
-  void WakeSystemEventWait() override {}
+  // --- Application pure virtual method implementations ---
+  Application::Event* GetNextEvent() override;
+  void Inject(Application::Event* event) override;
+  void InjectTimedEvent(Application::TimedEvent* timed_event) override;
+  void CancelTimedEvent(SbEventId event_id) override;
+  Application::TimedEvent* GetNextDueTimedEvent() override;
+  int64_t GetNextTimedEventTargetTime() override;
 
  private:
   // starboard_bridge_ is a global singleton, use a raw pointer to not interfere

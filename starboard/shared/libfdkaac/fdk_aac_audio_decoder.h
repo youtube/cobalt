@@ -25,10 +25,9 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/libfdkaac/include/aacdecoder_lib.h"
 
-namespace starboard::shared::libfdkaac {
+namespace starboard {
 
-class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
-                           private starboard::player::JobQueue::JobOwner {
+class FdkAacAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   // The max supportable channels to be decoded for fdk aac is 8.
   static constexpr int kMaxChannels = 8;
@@ -36,7 +35,7 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
   FdkAacAudioDecoder();
   ~FdkAacAudioDecoder() override;
 
-  // Overriding functions from starboard::player::filter::AudioDecoder.
+  // Overriding functions from AudioDecoder.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
@@ -93,5 +92,5 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
   size_t audio_data_to_discard_in_bytes_ = 0;
 };
 
-}  // namespace starboard::shared::libfdkaac
+}  // namespace starboard
 #endif  // STARBOARD_SHARED_LIBFDKAAC_FDK_AAC_AUDIO_DECODER_H_

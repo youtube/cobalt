@@ -243,6 +243,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
+  REGISTER_SYMBOL(getcwd);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
@@ -274,6 +275,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);

@@ -14,7 +14,6 @@
 
 #include <vector>
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -37,4 +36,3 @@ static constexpr CheckInitializerTag kEmptyTag;
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

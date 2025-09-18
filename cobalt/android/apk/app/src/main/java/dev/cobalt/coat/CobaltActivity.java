@@ -236,15 +236,22 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents.
-    mShellManager.launchShell("");
-    // Inject JavaBridge objects to the WebContents.
-    initializeJavaBridge();
-    getStarboardBridge().setWebContents(getActiveWebContents());
+    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
+    // that the webContents are correctly created not null.
+    mShellManager.launchShell("",
+        new Shell.OnWebContentsReadyListener() {
+          @Override
+          public void onWebContentsReady() {
+            // Inject JavaBridge objects to the WebContents.
+            initializeJavaBridge();
+            getStarboardBridge().setWebContents(getActiveWebContents());
 
-    // Load the `url` with the same shell we created above.
-    Log.i(TAG, "shellManager load url:" + mStartupUrl);
-    mShellManager.getActiveShell().loadUrl(mStartupUrl);
+            // Load the `url` with the same shell we created above.
+            Log.i(TAG, "shellManager load url:" + mStartupUrl);
+            mShellManager.getActiveShell().loadUrl(mStartupUrl);
+          }
+        });
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -275,11 +282,19 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
+    // consumes the event as a VKEY_UNKNOWN
+    if (KeyEvent.isGamepadButton(keyCode)) {
+        return super.onKeyDown(keyCode, event);
+    }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
+    if (KeyEvent.isGamepadButton(keyCode)) {
+        return super.onKeyUp(keyCode, event);
+    }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
 

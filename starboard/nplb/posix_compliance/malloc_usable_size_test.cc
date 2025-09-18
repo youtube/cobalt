@@ -17,7 +17,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -58,4 +57,3 @@ TEST(MallocUsableSizeTest, CastAndWriteDataSize) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

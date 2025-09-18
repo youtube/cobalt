@@ -25,14 +25,11 @@ ftell
 ftello
 fwrite
 getc
-getcwd
 getrlimit
-localeconv
 newlocale
 prctl
 printf
 puts
-realpath
 rewind
 sched_getaffinity
 sdallocx
@@ -47,3 +44,5 @@ ungetc
 uselocale
 vfprintf
 vprintf
+TLS init function for partition_alloc::internal::g_thread_cache
+TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code

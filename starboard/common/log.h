@@ -32,17 +32,26 @@ extern "C++" {
 #include <sstream>
 #include <string>
 
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-#define SB_LOGGING_IS_OFFICIAL_BUILD 1
-#else
+// Force SB_LOGGING_IS_OFFICIAL_BUILD to 0 for all build configurations.
+//
+// In an "official" build (when this is 1), SB_CHECK(condition) expands to a
+// direct call to ::starboard::Break(), providing no diagnostic information in
+// the resulting crash stack reported to the prime. http://b/445154341#comment5
+//
+// By forcing the non-official path, a failing SB_CHECK will instead go through
+// the SB_LOG(FATAL) macro. This generates a rich log message containing the
+// failed condition and a stack trace, which is invaluable for debugging.
+//
+// While this introduces overhead, it is incurred only upon failure and,
+// critically, occurs *after* the condition is checked. This ensures that the
+// timing of the check is not altered, preventing this change from masking or
+// creating race conditions.
 #define SB_LOGGING_IS_OFFICIAL_BUILD 0
-#endif
 
 // This file provides a selected subset of the //base/logging/ macros and
 // assertions. See those files for more comments and details.
 
 namespace starboard {
-namespace logging {
 
 void SetMinLogLevel(SbLogPriority level);
 SbLogPriority GetMinLogLevel();
@@ -94,21 +103,27 @@ class LogMessageVoidify {
   void operator&(std::ostream&);
 };
 
+// Aliases not to break CI tests.
+// See https://paste.googleplex.com/4527409416241152
+// TODO: b/441955897 - Update CI test to use flattened namespace
+namespace logging {
+using ::starboard::SB_LOG_0;
+using ::starboard::SB_LOG_ERROR;
+using ::starboard::SB_LOG_FATAL;
+using ::starboard::SB_LOG_INFO;
+using ::starboard::SB_LOG_WARNING;
 }  // namespace logging
+
 }  // namespace starboard
 
-#define SB_LOG_MESSAGE_INFO                            \
-  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                   ::starboard::logging::SB_LOG_INFO)
-#define SB_LOG_MESSAGE_WARNING                         \
-  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                   ::starboard::logging::SB_LOG_WARNING)
-#define SB_LOG_MESSAGE_ERROR                           \
-  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                   ::starboard::logging::SB_LOG_ERROR)
-#define SB_LOG_MESSAGE_FATAL                           \
-  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                   ::starboard::logging::SB_LOG_FATAL)
+#define SB_LOG_MESSAGE_INFO \
+  ::starboard::LogMessage(__FILE__, __LINE__, ::starboard::SB_LOG_INFO)
+#define SB_LOG_MESSAGE_WARNING \
+  ::starboard::LogMessage(__FILE__, __LINE__, ::starboard::SB_LOG_WARNING)
+#define SB_LOG_MESSAGE_ERROR \
+  ::starboard::LogMessage(__FILE__, __LINE__, ::starboard::SB_LOG_ERROR)
+#define SB_LOG_MESSAGE_FATAL \
+  ::starboard::LogMessage(__FILE__, __LINE__, ::starboard::SB_LOG_FATAL)
 
 // Compatibility with base/logging.h which defines ERROR to be 0 to workaround
 // some system header defines that do the same thing.
@@ -116,20 +131,17 @@ class LogMessageVoidify {
 
 #define SB_LOG_STREAM(severity) SB_LOG_MESSAGE_##severity.stream()
 #define SB_LAZY_STREAM(stream, condition) \
-  !(condition) ? (void)0 : ::starboard::logging::LogMessageVoidify() & (stream)
+  !(condition) ? (void)0 : ::starboard::LogMessageVoidify() & (stream)
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && \
     !SB_IS(EVERGREEN_COMPATIBLE)
-#define SB_LOG_IS_ON(severity)                         \
-  ((::starboard::logging::SB_LOG_##severity >=         \
-    ::starboard::logging::SB_LOG_FATAL)                \
-       ? ((::starboard::logging::SB_LOG_##severity) >= \
-          ::starboard::logging::GetMinLogLevel())      \
+#define SB_LOG_IS_ON(severity)                                               \
+  ((::starboard::SB_LOG_##severity >= ::starboard::SB_LOG_FATAL)             \
+       ? ((::starboard::SB_LOG_##severity) >= ::starboard::GetMinLogLevel()) \
        : false)
 #else  // SB_LOGGING_IS_OFFICIAL_BUILD
-#define SB_LOG_IS_ON(severity)                  \
-  ((::starboard::logging::SB_LOG_##severity) >= \
-   ::starboard::logging::GetMinLogLevel())
+#define SB_LOG_IS_ON(severity) \
+  ((::starboard::SB_LOG_##severity) >= ::starboard::GetMinLogLevel())
 #endif  // SB_LOGGING_IS_OFFICIAL_BUILD
 
 #define SB_LOG_IF(severity, condition) \
@@ -137,12 +149,12 @@ class LogMessageVoidify {
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
 #define SB_EAT_STREAM_PARAMETERS SB_LOG_IF(INFO, false)
 #define SB_STACK_IF(severity, condition) \
-  SB_LOG_IF(severity, condition) << "\n" << ::starboard::logging::Stack(0)
+  SB_LOG_IF(severity, condition) << "\n" << ::starboard::Stack(0)
 #define SB_STACK(severity) SB_STACK_IF(severity, true)
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 #define SB_CHECK(condition) \
-  !(condition) ? ::starboard::logging::Break() : SB_EAT_STREAM_PARAMETERS
+  !(condition) ? ::starboard::Break() : SB_EAT_STREAM_PARAMETERS
 #elif defined(_PREFAST_)
 #define SB_CHECK(condition) \
   __analysis_assume(condition), SB_EAT_STREAM_PARAMETERS

@@ -74,15 +74,15 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 }  // namespace
 
-MediaDecoder::MediaDecoder(Host* host,
-                           const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system)
+MediaCodecDecoder::MediaCodecDecoder(Host* host,
+                                     const AudioStreamInfo& audio_stream_info,
+                                     SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0) {
-  SB_DCHECK(host_);
+  SB_CHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
@@ -104,7 +104,7 @@ MediaDecoder::MediaDecoder(Host* host,
   }
 }
 
-MediaDecoder::MediaDecoder(
+MediaCodecDecoder::MediaCodecDecoder(
     Host* host,
     SbMediaVideoCodec video_codec,
     int width_hint,
@@ -148,8 +148,8 @@ MediaDecoder::MediaDecoder(
   }
 }
 
-MediaDecoder::~MediaDecoder() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+MediaCodecDecoder::~MediaCodecDecoder() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
 
@@ -166,12 +166,11 @@ MediaDecoder::~MediaDecoder() {
     }
     // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
     media_codec_bridge_->Stop();
-    host_ = NULL;
   }
 }
 
-void MediaDecoder::Initialize(const ErrorCB& error_cb) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
@@ -182,8 +181,8 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
   }
 }
 
-void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -197,7 +196,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (!decoder_thread_) {
     pthread_t thread;
     const int result = pthread_create(
-        &thread, nullptr, &MediaDecoder::DecoderThreadEntryPoint, this);
+        &thread, nullptr, &MediaCodecDecoder::DecoderThreadEntryPoint, this);
     SB_CHECK_EQ(result, 0);
     decoder_thread_ = thread;
   }
@@ -213,8 +212,8 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 }
 
-void MediaDecoder::WriteEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+void MediaCodecDecoder::WriteEndOfStream() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
   std::lock_guard lock(mutex_);
@@ -225,16 +224,16 @@ void MediaDecoder::WriteEndOfStream() {
   }
 }
 
-void MediaDecoder::SetPlaybackRate(double playback_rate) {
+void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
 // static
-void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_DCHECK(context);
-  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+void* MediaCodecDecoder::DecoderThreadEntryPoint(void* context) {
+  SB_CHECK(context);
+  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
   if (decoder->media_type_ == kSbMediaTypeAudio) {
     SbThreadSetPriority(kSbThreadPriorityNormal);
@@ -246,7 +245,7 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   return NULL;
 }
 
-void MediaDecoder::DecoderThreadFunc() {
+void MediaCodecDecoder::DecoderThreadFunc() {
   SB_DCHECK(error_cb_);
 
   if (media_type_ == kSbMediaTypeAudio) {
@@ -388,8 +387,8 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
-void MediaDecoder::TerminateDecoderThread() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+void MediaCodecDecoder::TerminateDecoderThread() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
@@ -399,12 +398,12 @@ void MediaDecoder::TerminateDecoderThread() {
   }
 
   if (decoder_thread_) {
-    pthread_join(*decoder_thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(*decoder_thread_, nullptr), 0);
     decoder_thread_ = std::nullopt;
   }
 }
 
-void MediaDecoder::CollectPendingData_Locked(
+void MediaCodecDecoder::CollectPendingData_Locked(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices,
     std::vector<DequeueOutputResult>* dequeue_output_results) {
@@ -427,7 +426,7 @@ void MediaDecoder::CollectPendingData_Locked(
   dequeue_output_results_.clear();
 }
 
-bool MediaDecoder::ProcessOneInputBuffer(
+bool MediaCodecDecoder::ProcessOneInputBuffer(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
@@ -518,23 +517,24 @@ bool MediaDecoder::ProcessOneInputBuffer(
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_CODEC_CONFIG);
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, kNoOffset, size, kNoPts,
+        BUFFER_FLAG_CODEC_CONFIG, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-          pts_us);
+          pts_us, host_->IsBufferDecodeOnly(input_buffer));
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
+          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags,
+          host_->IsBufferDecodeOnly(input_buffer));
     }
   } else {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_END_OF_STREAM);
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, kNoOffset, size, kNoPts,
+        BUFFER_FLAG_END_OF_STREAM, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
@@ -550,7 +550,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   return true;
 }
 
-void MediaDecoder::HandleError(const char* action_name, jint status) {
+void MediaCodecDecoder::HandleError(const char* action_name, jint status) {
   SB_DCHECK_NE(status, MEDIA_CODEC_OK);
 
   bool retry = false;
@@ -598,10 +598,11 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   }
 }
 
-void MediaDecoder::ReportError(const SbPlayerError error,
-                               const std::string error_message) {
+void MediaCodecDecoder::ReportError(const SbPlayerError error,
+                                    const std::string error_message) {
   if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&MediaDecoder::ReportError, this, error, error_message));
+    Schedule(
+        std::bind(&MediaCodecDecoder::ReportError, this, error, error_message));
     return;
   }
   if (error_occurred_) {
@@ -616,10 +617,10 @@ void MediaDecoder::ReportError(const SbPlayerError error,
   }
 }
 
-void MediaDecoder::OnMediaCodecError(bool is_recoverable,
-                                     bool is_transient,
-                                     const std::string& diagnostic_info) {
-  SB_LOG(WARNING) << "MediaDecoder encountered "
+void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
+                                          bool is_transient,
+                                          const std::string& diagnostic_info) {
+  SB_LOG(WARNING) << "MediaCodecDecoder encountered "
                   << (is_recoverable ? "recoverable, " : "unrecoverable, ")
                   << (is_transient ? "transient " : "intransient ")
                   << " error with message: " << diagnostic_info;
@@ -638,7 +639,7 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
   }
 }
 
-void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -652,7 +653,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   }
 }
 
-void MediaDecoder::OnMediaCodecOutputBufferAvailable(
+void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     int buffer_index,
     int flags,
     int offset,
@@ -680,7 +681,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   condition_variable_.notify_one();
 }
 
-void MediaDecoder::OnMediaCodecOutputFormatChanged() {
+void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
 
   FrameSize frame_size = media_codec_bridge_->GetOutputSize();
@@ -694,22 +695,22 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.notify_one();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
+void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
 }
 
-void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
+void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {
   SB_DCHECK(tunnel_mode_enabled_);
 
   first_tunnel_frame_ready_cb_();
 }
 
-bool MediaDecoder::Flush() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+bool MediaCodecDecoder::Flush() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
-  // but MediaDecoder is on `audio_decoder` and `video_decoder`
+  // but MediaCodecDecoder is on `audio_decoder` and `video_decoder`
   // threads, let `player_worker` destroy `audio_decoder` and
   // `video_decoder` threads to clean up all pending tasks,
   // and Flush()/Start() |media_codec_bridge_|.

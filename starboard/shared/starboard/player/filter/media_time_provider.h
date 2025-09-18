@@ -19,7 +19,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class MediaTimeProvider {
  public:
@@ -37,6 +37,6 @@ class MediaTimeProvider {
   virtual ~MediaTimeProvider() {}
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_H_

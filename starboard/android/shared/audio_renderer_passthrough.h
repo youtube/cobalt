@@ -20,7 +20,6 @@
 #include <mutex>
 #include <queue>
 
-#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/common/ref_counted.h"
@@ -29,6 +28,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
@@ -43,12 +43,9 @@ namespace starboard::android::shared {
 //       the sound at the very beginning won't get lost during the switching.
 class AudioRendererPassthrough
     : public ::starboard::shared::starboard::player::filter::AudioRenderer,
-      public ::starboard::shared::starboard::player::filter::MediaTimeProvider,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+      public MediaTimeProvider,
+      private JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
                            bool enable_flush_during_seek);
@@ -80,10 +77,6 @@ class AudioRendererPassthrough
                               double* playback_rate) override;
 
  private:
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-  typedef ::starboard::shared::starboard::player::JobThread JobThread;
-  typedef ::starboard::shared::starboard::player::JobQueue::JobToken JobToken;
-
   struct AudioTrackState {
     double volume = 1.0;
     bool paused = true;
@@ -104,8 +97,7 @@ class AudioRendererPassthrough
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
   //       asynchronous, which comes with extra risks.
-  std::unique_ptr<::starboard::shared::starboard::player::filter::AudioDecoder>
-      decoder_;
+  std::unique_ptr<AudioDecoder> decoder_;
 
   // The following three variables are set in Initialize().
   ErrorCB error_cb_;
@@ -135,7 +127,7 @@ class AudioRendererPassthrough
   // after |audio_track_thread_| is destroyed (in Seek()).
   scoped_refptr<DecodedAudio> decoded_audio_writing_in_progress_;
   int decoded_audio_writing_offset_ = 0;
-  JobToken update_status_and_write_data_token_;
+  JobQueue::JobToken update_status_and_write_data_token_;
   int64_t total_frames_written_on_audio_track_thread_ = 0;
 
   std::atomic_bool audio_track_paused_{true};

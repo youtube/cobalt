@@ -36,18 +36,14 @@
 
 namespace starboard::android::shared {
 
-class AudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
-      private MediaDecoder::Host {
+class MediaCodecAudioDecoder : public AudioDecoder,
+                               public MediaCodecDecoder::Host,
+                               private JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-
-  AudioDecoder(const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system,
-               bool enable_flush_during_seek);
-  ~AudioDecoder() override;
+  MediaCodecAudioDecoder(const AudioStreamInfo& audio_stream_info,
+                         SbDrmSystem drm_system,
+                         bool enable_flush_during_seek);
+  ~MediaCodecAudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
@@ -73,6 +69,10 @@ class AudioDecoder
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override { return false; }
   void OnFlushing() override {}
+  bool IsBufferDecodeOnly(
+      const scoped_refptr<InputBuffer>& input_buffer) override {
+    return false;
+  }
 
   void ReportError(SbPlayerError error, const std::string& error_message);
 
@@ -93,7 +93,7 @@ class AudioDecoder
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
-  std::unique_ptr<MediaDecoder> media_decoder_;
+  std::unique_ptr<MediaCodecDecoder> media_decoder_;
 };
 
 }  // namespace starboard::android::shared

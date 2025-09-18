@@ -21,7 +21,7 @@
 #include "base/observer_list.h"
 #include "starboard/android/shared/text_to_speech_observer.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class CobaltTextToSpeechHelper {
  public:
@@ -49,6 +49,6 @@ class CobaltTextToSpeechHelper {
   mutable base::Lock observers_lock_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_

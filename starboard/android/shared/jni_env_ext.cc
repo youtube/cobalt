@@ -32,13 +32,13 @@ pthread_key_t g_tls_key = 0;
 
 void Destroy(void* value) {
   if (value != NULL) {
-    starboard::android::shared::JniOnThreadShutdown();
+    starboard::JniOnThreadShutdown();
   }
 }
 
 }  // namespace
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Warning: use __android_log_write for logging in this file.
 
@@ -290,4 +290,4 @@ void JniAbortOnException(JNIEnv* env) {
   SbSystemBreakIntoDebugger();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

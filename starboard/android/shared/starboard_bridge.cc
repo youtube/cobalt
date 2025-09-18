@@ -32,9 +32,13 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
+
+using android::shared::ApplicationAndroid;
+using android::shared::LogInit;
+using android::shared::SbFileAndroidTeardown;
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
@@ -98,8 +102,6 @@ jlong JNI_StarboardBridge_StartNativeStarboard(
         ConvertJavaStringToUTF8(env, j_files_dir),
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
-    // Ensure application init happens here
-    ApplicationAndroid::Get();
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
@@ -341,4 +343,4 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

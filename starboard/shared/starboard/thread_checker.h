@@ -20,7 +20,7 @@
 #include "build/build_config.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
@@ -75,6 +75,13 @@ class ThreadChecker {
 
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-}  // namespace starboard::shared::starboard
+// Alias to prevent breaking the RDK build on CI.
+// See https://paste.googleplex.com/4776103591936000
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
+namespace shared::starboard {
+using ThreadChecker = ::starboard::ThreadChecker;
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_

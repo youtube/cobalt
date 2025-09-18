@@ -23,7 +23,7 @@ namespace loader_app {
 // Creates and removes a file within its own lifetime. This class maintains the
 // path to the file, and the app key that it was created with, to provide a
 // convenient way of bundling the information and state of the file. This class
-// is very similar in concept to the starboard::nplb::ScopedRandomFile, except
+// is very similar in concept to the nplb::ScopedRandomFile, except
 // that it allows you to choose where to create the file.
 // |timestamp| is microseconds from Windows epoch UTC.
 class ScopedDrainFile {

@@ -42,7 +42,6 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
 
  private:
   class WaitEvent;
-  typedef starboard::player::JobQueue JobQueue;
 
   static void* ThreadFunc(void* param);
   void RunLoop(WaitEvent* wait_event);

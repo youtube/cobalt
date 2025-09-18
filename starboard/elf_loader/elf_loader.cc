@@ -64,8 +64,8 @@ bool ElfLoader::Load(const std::string& library_path,
                      bool use_compression,
                      bool use_memory_mapped_file) {
   if (is_relative_path) {
-    library_path_ = common::PrependContentPath(library_path);
-    content_path_ = common::PrependContentPath(content_path);
+    library_path_ = PrependContentPath(library_path);
+    content_path_ = PrependContentPath(content_path);
   } else {
     library_path_ = library_path;
     content_path_ = content_path;

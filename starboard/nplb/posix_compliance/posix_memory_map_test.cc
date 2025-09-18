@@ -30,7 +30,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
@@ -134,8 +134,7 @@ CopySumFunctionIntoMemory(void* memory) {
       (reinterpret_cast<uintptr_t>(sum_function_start) / kSbMemoryPageSize) *
           kSbMemoryPageSize +
       kSbMemoryPageSize);
-  if (!starboard::common::MemoryIsAligned(sum_function_page_end,
-                                          kSbMemoryPageSize)) {
+  if (!starboard::MemoryIsAligned(sum_function_page_end, kSbMemoryPageSize)) {
     return std::make_tuple(::testing::AssertionFailure()
                                << "Expected |Sum| page end ("
                                << static_cast<void*>(sum_function_page_end)
@@ -358,4 +357,4 @@ TEST_F(PosixMemoryMapFileTest, AnonymousMappingIsZeroed) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

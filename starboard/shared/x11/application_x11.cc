@@ -688,8 +688,6 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
-using shared::starboard::player::filter::CpuVideoFrame;
-
 ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
     : QueueApplication(sb_event_handle_callback),
       wake_up_atom_(None),
@@ -873,11 +871,11 @@ bool ApplicationX11::MayHaveSystemEvents() {
   return display_ && !windows_.empty();
 }
 
-shared::starboard::Application::Event*
-ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
+Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
+    int64_t time) {
   SB_DCHECK(display_);
 
-  shared::starboard::Application::Event* pending_event = GetPendingEvent();
+  Application::Event* pending_event = GetPendingEvent();
   if (pending_event) {
     return pending_event;
   }
@@ -888,7 +886,7 @@ ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
     return nullptr;
   }
 
-  shared::starboard::Application::Event* evdev_event =
+  Application::Event* evdev_event =
       dev_input_->WaitForSystemEventWithTimeout(time);
 
   if (!evdev_event && XPending(display_) != 0) {
@@ -964,7 +962,7 @@ void ApplicationX11::StopX() {
   wm_change_state_atom_ = None;
 }
 
-shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
+Application::Event* ApplicationX11::GetPendingEvent() {
   typedef struct {
     SbKey key;
     unsigned int modifiers;
@@ -1156,8 +1154,7 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
                    &DeleteDestructor<SbInputData>);
 }
 
-shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
-    XEvent* x_event) {
+Application::Event* ApplicationX11::XEventToEvent(XEvent* x_event) {
   switch (x_event->type) {
     case ClientMessage: {
       const XClientMessageEvent* client_message =

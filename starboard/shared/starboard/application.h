@@ -35,14 +35,12 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // A small application framework for managing the application life-cycle, and
 // dispatching events to the Starboard event handler, SbEventHandle.
 class SB_EXPORT_ANDROID Application {
  public:
-  typedef player::filter::VideoFrame VideoFrame;
-
   // Executes a SbEventHandle method callback.
   SbEventHandleCallback sb_event_handle_callback_ = NULL;
 
@@ -155,13 +153,9 @@ class SB_EXPORT_ANDROID Application {
   explicit Application(SbEventHandleCallback sb_event_handle_callback);
   virtual ~Application();
 
-  // Gets the current instance of the Application. DCHECKS if called before the
-  // application has been constructed.
-  static inline Application* Get() {
-    Application* instance = g_instance.load(std::memory_order_acquire);
-    SB_CHECK(instance);
-    return instance;
-  }
+  // Gets the current instance of the Application. This method CHECK application
+  // instance is constructed.
+  static Application* Get();
 
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
@@ -425,9 +419,6 @@ class SB_EXPORT_ANDROID Application {
   // DispatchAndDelete().
   bool HandleEventAndUpdateState(Application::Event* event);
 
-  // The single application instance.
-  static std::atomic<Application*> g_instance;
-
   // The error_level set by the last call to Stop().
   int error_level_;
 
@@ -453,6 +444,13 @@ class SB_EXPORT_ANDROID Application {
   std::vector<TeardownCallback> teardown_callbacks_;
 };
 
-}  // namespace starboard::shared::starboard
+// Alias to prevent breaking the RDK build on CI.
+// See https://paste.googleplex.com/6310485490270208
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
+namespace shared::starboard {
+using Application = ::starboard::Application;
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_APPLICATION_H_

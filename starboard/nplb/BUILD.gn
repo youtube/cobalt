@@ -82,6 +82,7 @@ test("nplb") {
     "player_test_fixture.h",
     "player_test_util.cc",
     "player_test_util.h",
+    "player_write_sample_test.cc",
   ]
 
   sources = [ "//starboard/common/test_main.cc" ]
@@ -158,6 +159,7 @@ test("nplb") {
       "posix_compliance/posix_file_temp_test.cc",
       "posix_compliance/posix_file_write_test.cc",
       "posix_compliance/posix_free_test.cc",
+      "posix_compliance/posix_getcwd_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
       "posix_compliance/posix_lstat_test.cc",
@@ -182,6 +184,7 @@ test("nplb") {
       "posix_compliance/posix_rand_test.cc",
       "posix_compliance/posix_random_test.cc",
       "posix_compliance/posix_readlink_test.cc",
+      "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
@@ -374,6 +377,7 @@ test("nplb") {
     data_deps += [
       "//starboard/content/fonts:copy_font_data",
       "//starboard/content/ssl:copy_ssl_certificates_evergreen",
+      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
     ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
   }

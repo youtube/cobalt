@@ -34,7 +34,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // A class that sits in between the video decoder, the video sink and the
 // pipeline to coordinate data transfer between these parties.
@@ -80,7 +80,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void OnSeekTimeout();
 
   MediaTimeProvider* const media_time_provider_;
-  std::unique_ptr<VideoRenderAlgorithm> algorithm_;
+  const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
 
@@ -144,6 +144,6 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 #endif                                  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_IMPL_H_

@@ -28,17 +28,18 @@
 #include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
 #include "starboard/common/check_op.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
+
+using android::shared::AudioOutputManager;
+using android::shared::GetAudioFormatSampleType;
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using ::base::android::AttachCurrentThread;
 using ::base::android::JavaParamRef;
 using ::base::android::ScopedJavaGlobalRef;
 using ::base::android::ScopedJavaLocalRef;
-
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 const jint kNoOffset = 0;
 
@@ -327,4 +328,4 @@ int AudioTrackBridge::GetStartThresholdInFrames(
                                                          j_audio_track_bridge_);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

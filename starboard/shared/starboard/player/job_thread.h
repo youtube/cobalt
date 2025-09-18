@@ -28,7 +28,7 @@
 #error "Only C++ files can include this header."
 #endif
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class implements a thread that holds a JobQueue.
 class JobThread {
@@ -89,6 +89,6 @@ class JobThread {
   std::unique_ptr<JobQueue> job_queue_;
 };
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_

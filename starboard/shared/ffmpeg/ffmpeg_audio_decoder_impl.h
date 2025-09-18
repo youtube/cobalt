@@ -29,25 +29,25 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
-class AudioDecoderImpl<FFMPEG>;
+class FfmpegAudioDecoderImpl<FFMPEG>;
 
 // Declare the explicit specialization of the class with value FFMPEG.
 template <>
-class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
-                                 private starboard::player::JobQueue::JobOwner {
+class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
+                                       private JobQueue::JobOwner {
  public:
-  explicit AudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
-  ~AudioDecoderImpl() override;
+  explicit FfmpegAudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
+  ~FfmpegAudioDecoderImpl() override;
 
-  // From: AudioDecoder
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  // From: FfmpegAudioDecoder
+  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
   bool is_valid() const override;
 
-  // From: starboard::player::filter::AudioDecoder
+  // From: AudioDecoder
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
@@ -80,6 +80,6 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   AudioStreamInfo audio_stream_info_;
 };
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_

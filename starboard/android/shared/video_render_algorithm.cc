@@ -37,20 +37,21 @@ jlong GetSystemNanoTime() {
 
 }  // namespace
 
-VideoRenderAlgorithm::VideoRenderAlgorithm(VideoDecoder* video_decoder,
-                                           VideoFrameTracker* frame_tracker)
+VideoRenderAlgorithmAndroid::VideoRenderAlgorithmAndroid(
+    MediaCodecVideoDecoder* video_decoder,
+    VideoFrameTracker* frame_tracker)
     : video_decoder_(video_decoder), frame_tracker_(frame_tracker) {
-  SB_DCHECK(video_decoder_);
+  SB_CHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
 }
 
-void VideoRenderAlgorithm::Render(
+void VideoRenderAlgorithmAndroid::Render(
     MediaTimeProvider* media_time_provider,
     std::list<scoped_refptr<VideoFrame>>* frames,
     VideoRendererSink::DrawFrameCB draw_frame_cb) {
-  SB_DCHECK(media_time_provider);
-  SB_DCHECK(frames);
-  SB_DCHECK(draw_frame_cb);
+  SB_CHECK(media_time_provider);
+  SB_CHECK(frames);
+  SB_CHECK(draw_frame_cb);
 
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
@@ -118,20 +119,20 @@ void VideoRenderAlgorithm::Render(
   }
 }
 
-void VideoRenderAlgorithm::Seek(int64_t seek_to_time) {
+void VideoRenderAlgorithmAndroid::Seek(int64_t seek_to_time) {
   if (frame_tracker_) {
     frame_tracker_->Seek(seek_to_time);
   }
 }
 
-int VideoRenderAlgorithm::GetDroppedFrames() {
+int VideoRenderAlgorithmAndroid::GetDroppedFrames() {
   if (frame_tracker_) {
     return frame_tracker_->UpdateAndGetDroppedFrames();
   }
   return dropped_frames_;
 }
 
-VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
+VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   JNIEnv* env = base::android::AttachCurrentThread();
   j_video_frame_release_time_helper_ = JniNewObjectOrAbort(
@@ -141,7 +142,7 @@ VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
   JniCallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
 }
 
-VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
+VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
   SB_DCHECK(j_video_frame_release_time_helper_);
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -150,10 +151,10 @@ VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
   j_video_frame_release_time_helper_ = nullptr;
 }
 
-jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
-    jlong frame_presentation_time_us,
-    jlong unadjusted_release_time_ns,
-    double playback_rate) {
+jlong VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
+    AdjustReleaseTime(jlong frame_presentation_time_us,
+                      jlong unadjusted_release_time_ns,
+                      double playback_rate) {
   SB_DCHECK(j_video_frame_release_time_helper_);
   JNIEnv* env = base::android::AttachCurrentThread();
   return JniCallLongMethodOrAbort(

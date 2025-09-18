@@ -35,7 +35,7 @@ import org.chromium.base.annotations.JNINamespace;
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
  * buffer is fully filled once.
  */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 public class AudioTrackBridge {
   // Also used by AudioOutputManager.
   static final int AV_SYNC_HEADER_V1_SIZE = 16;

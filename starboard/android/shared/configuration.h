@@ -15,10 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONFIGURATION_H_
 #define STARBOARD_ANDROID_SHARED_CONFIGURATION_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
-const void* GetConfigurationApi();
+const void* GetConfigurationApiAndroid();
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_CONFIGURATION_H_

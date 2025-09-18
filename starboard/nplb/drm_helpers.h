@@ -17,7 +17,6 @@
 
 #include "starboard/shared/starboard/drm/drm_test_helpers.h"
 
-namespace starboard {
 namespace nplb {
 
 using ::starboard::shared::starboard::drm::DummyServerCertificateUpdatedFunc;
@@ -35,6 +34,5 @@ using ::starboard::shared::starboard::drm::kWidevineCertificate;
 using ::starboard::shared::starboard::drm::kCencInitData;
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_DRM_HELPERS_H_

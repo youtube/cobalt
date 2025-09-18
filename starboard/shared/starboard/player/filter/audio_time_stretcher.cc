@@ -106,7 +106,7 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
 
   sample_type_ = sample_type;
   channels_ = channels;
-  bytes_per_frame_ = media::GetBytesPerSample(sample_type_) * channels_;
+  bytes_per_frame_ = GetBytesPerSample(sample_type_) * channels_;
   samples_per_second_ = samples_per_second;
   initial_capacity_ = capacity_ =
       ConvertMillisecondsToFrames(kStartingCapacityInMs);

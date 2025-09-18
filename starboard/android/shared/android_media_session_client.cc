@@ -27,8 +27,6 @@
 namespace starboard::android::shared {
 namespace {
 
-using ::starboard::android::shared::ScopedLocalJavaRef;
-
 // These constants are from android.media.session.PlaybackState
 const jlong kPlaybackStateActionStop = 1 << 0;
 const jlong kPlaybackStateActionPause = 1 << 1;
