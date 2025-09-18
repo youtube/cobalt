@@ -24,7 +24,7 @@
 #include "net/cert/multi_log_ct_verifier.h"
 #endif
 
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
 #include "net/cert/cert_verify_proc_builtin.h"
 #include "net/cert/internal/system_trust_store.h"
 #endif
@@ -98,7 +98,7 @@ class CertVerifyProcFactoryImpl : public net::CertVerifyProcFactory {
       scoped_refptr<net::CTPolicyEnforcer> ct_policy_enforcer,
       const net::CertVerifyProc::InstanceParams& instance_params,
       std::optional<network_time::TimeTracker> time_tracker) {
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
     return net::CreateCertVerifyProcBuiltin(
         std::move(cert_net_fetcher), std::move(crl_set), std::move(ct_verifier),
         std::move(ct_policy_enforcer), net::CreateSslSystemTrustStore(),

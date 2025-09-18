@@ -64,9 +64,9 @@ use_kerberos = false
 # We know we can trust clients to use https.
 include_transport_security_state_preload_list = false
 
-# Force the chrome root store for linux/3P platforms.
+# Disable the chrome root store for linux/3P platforms.
 chrome_root_store_optional = false
-chrome_root_store_only = true
+chrome_root_store_only = false
 
 # Disable linux audio APIs
 use_pulseaudio = false
