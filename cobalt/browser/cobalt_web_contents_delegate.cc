@@ -39,7 +39,7 @@ namespace {
 bool RequestRecordAudioPermission() {
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
   JNIEnv* env = AttachCurrentThread();
-  return starboard::android::shared::RequestRecordAudioPermission(env);
+  return starboard::RequestRecordAudioPermission(env);
 #else
   // It is expected that all 3P will have system-level permissions.
   return true;
