@@ -72,15 +72,15 @@ android_library("cobalt_shell_java") {
     "//base:base_java",
     "//base:jni_java",
     "//build/android:build_java",
+    "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
     "//components/download/internal/common:internal_java",
-    "//components/viz/service:service_java",
+
+    #"//components/viz/service:service_java",
     "//content/public/android:content_java",
     "//media/base/android:media_java",
     "//media/capture/video/android:capture_java",
     "//mojo/public/java:system_java",
     "//net/android:net_java",
-    "//ui/android:ui_java",
-    "//ui/android:ui_no_recycler_view_java",
     "//ui/base/cursor/mojom:cursor_type_java",
     "//url:gurl_java",
   ]
@@ -118,12 +118,12 @@ android_library("cobalt_shell_test_apk_java") {
     "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
+    "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-    "//ui/android:ui_java",
     "//url:gurl_java",
   ]
 
@@ -163,6 +163,7 @@ template("cobalt_shell_apk_tmpl") {
       ":cobalt_shell_java",
       ":cobalt_shell_test_apk_java",
       "//base:base_java_test_support",
+      "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
       "//content/public/test/android:android_test_message_pump_support_java",
@@ -170,7 +171,6 @@ template("cobalt_shell_apk_tmpl") {
       "//net/android:net_java",
       "//services/shape_detection:shape_detection_java",
       "//third_party/mesa_headers",
-      "//ui/android:ui_java",
     ]
   }
 }
@@ -202,6 +202,7 @@ android_library("cobalt_shell_test_java") {
     ":cobalt_shell_test_apk_java",
     "//base:base_java",
     "//base:base_java_test_support",
+    "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
     "//content/public/android:content_java",
     "//content/public/test/android:content_java_test_support",
     "//mojo/public/java/system:test_support_java",
@@ -209,7 +210,6 @@ android_library("cobalt_shell_test_java") {
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_java",
     "//third_party/junit:junit",
-    "//ui/android:ui_java",
     "//url:gurl_java",
   ]
   sources = [
@@ -225,10 +225,10 @@ android_library("cobalt_shell_browsertests_java") {
   deps = [
     ":cobalt_shell_java",
     "//base:base_java",
+    "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
     "//content/public/android:content_java",
     "//testing/android/native_test:native_test_java",
     "//third_party/androidx:androidx_core_core_java",
-    "//ui/android:ui_java",
   ]
   sources = [ "browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
 }

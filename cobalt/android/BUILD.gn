@@ -46,6 +46,7 @@ android_library("cobalt_main_java") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
+    "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
@@ -59,7 +60,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
-    "//ui/android:ui_java",
     "//url:gurl_java",
   ]
 
@@ -227,12 +227,12 @@ android_apk("cobalt_apk") {
     ":cobalt_apk_java",
     "//cobalt/shell/android:cobalt_shell_assets",
     "//cobalt/shell/android:cobalt_shell_java",
+    "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java",
     "//components/metrics:metrics_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/mesa_headers",
-    "//ui/android:ui_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
   include_size_info = is_official_build

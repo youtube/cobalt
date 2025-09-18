@@ -124,6 +124,14 @@ android_library("content_main_dex_java") {
     ":generate_sandboxed_service_srcjar",
   ]
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//ui/android:ui_no_recycler_view_java",
+    ]
+
+    deps += [ "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java", ]
+  }
 }
 
 android_library("content_full_java") {
@@ -390,6 +398,16 @@ android_library("content_full_java") {
   ]
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   proguard_configs = [ "proguard.flags" ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//device/bluetooth:java",
+      "//services/device:java",
+      "//ui/android:ui_no_recycler_view_java",
+    ]
+
+    deps += [ "//cobalt/shell/android/java/src/dev/cobalt/ui:ui_view_java", ]
+  }
 }
 
 java_strings_grd("content_strings_grd") {

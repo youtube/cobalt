@@ -28,7 +28,7 @@ import java.lang.ref.WeakReference;
 import java.util.BitSet;
 import java.util.List;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.ViewAndroidDelegate;
+import dev.cobalt.ui.base.ViewAndroidDelegate;
 
 /**
  * An ExploreByTouchHelper that create a virtual d-pad grid, so that Cobalt

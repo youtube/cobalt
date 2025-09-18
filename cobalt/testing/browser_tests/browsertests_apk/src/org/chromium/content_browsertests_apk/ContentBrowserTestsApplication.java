@@ -18,7 +18,7 @@ import android.content.Context;
 
 import org.chromium.base.PathUtils;
 import org.chromium.native_test.NativeBrowserTestApplication;
-import org.chromium.ui.base.ResourceBundle;
+import dev.cobalt.ui.base.ResourceBundle;
 
 /**
  * A basic content_public.browser.tests {@link android.app.Application}.

@@ -1,0 +1,76 @@
+import("//build/config/android/rules.gni")
+
+generate_jni("ui_android_jni_headers") {
+  sources = [
+    "base/ViewAndroidDelegate.java",
+    "widget/ToastManager.java",
+  ]
+}
+
+android_library("ui_view_java") {
+  sources = [
+    "KeyboardVisibilityDelegate.java",
+    "UiSwitches.java",
+    "base/ActivityIntentRequestTrackerDelegate.java",
+    "base/ActivityKeyboardVisibilityDelegate.java",
+    "base/ActivityWindowAndroid.java",
+    "base/ApplicationViewportInsetSupplier.java",
+    "base/ImmutableWeakReference.java",
+    "base/IntentRequestTracker.java",
+    "base/IntentRequestTrackerImpl.java",
+    "base/OverlayTransformApiHelper.java",
+    "base/ViewAndroidDelegate.java",
+    "base/ViewUtils.java",
+    "base/ViewportInsets.java",
+    "base/WindowAndroid.java",
+    "display/DisplayAndroid.java",
+    "display/DisplayAndroidManager.java",
+    "display/DisplaySwitches.java",
+    "display/PhysicalDisplayAndroid.java",
+    "dragdrop/AnimatedImageDragShadowBuilder.java",
+    "dragdrop/DragAndDropBrowserDelegate.java",
+    "dragdrop/DragAndDropDelegate.java",
+    "dragdrop/DragAndDropDelegateImpl.java",
+    "dragdrop/DragStateTracker.java",
+    "dragdrop/DropDataAndroid.java",
+    "dragdrop/DropDataProviderImpl.java",
+    "dragdrop/DropDataProviderUtils.java",
+    "modaldialog/DialogDismissalCause.java",
+    "modaldialog/ModalDialogManager.java",
+    "modaldialog/ModalDialogProperties.java",
+    "modaldialog/PendingDialogContainer.java",
+    "modelutil/PropertyKey.java",
+    "modelutil/PropertyModel.java",
+    "modelutil/PropertyObservable.java",
+    "permissions/ActivityAndroidPermissionDelegate.java",
+    "permissions/AndroidPermissionDelegate.java",
+    "permissions/AndroidPermissionDelegateWithRequester.java",
+    "permissions/PermissionCallback.java",
+    "permissions/PermissionConstants.java",
+    "permissions/PermissionPrefs.java",
+    "util/TokenHolder.java",
+    "widget/Toast.java",
+    "widget/ToastManager.java",
+    "widget/UiWidgetFactory.java",
+  ]
+
+  deps = [
+    ":ui_android_jni_headers",
+    "//base:base_java",
+    "//base:jni_java",
+    "//third_party/androidx:androidx_activity_activity_java",
+    "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_appcompat_appcompat_java",
+    "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
+    "//third_party/androidx:androidx_core_core_java",
+    "//ui/android:ui_java_resources",
+    "//ui/base/cursor/mojom:cursor_type_java",
+    "//ui/base/ime/mojom:mojom_java",
+    "//url:gurl_java",
+  ]
+
+  srcjar_deps = [ "//ui/android:java_enums_srcjar" ]
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+  resources_package = "dev.cobalt.ui"
+}
