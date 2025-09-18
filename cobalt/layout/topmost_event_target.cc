@@ -162,13 +162,21 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
   bool vertical_scroll_axis =
       major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Vertical;
 
-  if (scrolling_left && horizontal_scroll_axis) {
+  if (scrolling_left && horizontal_scroll_axis &&           
+      possible_scroll_targets->left &&   
+      possible_scroll_targets->left->GetUiNavItem()) { 
     return possible_scroll_targets->left;
-  } else if (scrolling_right && horizontal_scroll_axis) {
+  } else if (scrolling_right && horizontal_scroll_axis &&          
+             possible_scroll_targets->right &&  
+             possible_scroll_targets->right->GetUiNavItem()) {
     return possible_scroll_targets->right;
-  } else if (scrolling_up && vertical_scroll_axis) {
+  } else if (scrolling_up && vertical_scroll_axis &&             
+             possible_scroll_targets->up &&     
+             possible_scroll_targets->up->GetUiNavItem()) {
     return possible_scroll_targets->up;
-  } else if (scrolling_down && vertical_scroll_axis) {
+  } else if (scrolling_down && vertical_scroll_axis &&           
+             possible_scroll_targets->down &&   
+             possible_scroll_targets->down->GetUiNavItem()) {
     return possible_scroll_targets->down;
   }
   return nullptr;
