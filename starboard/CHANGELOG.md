@@ -86,6 +86,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `pthread_setschedparam`
 * `pthread_sigmask`
 * `readdir`
+* `realpath`
 * `sem_destroy`
 * `sem_init`
 * `sem_post`
