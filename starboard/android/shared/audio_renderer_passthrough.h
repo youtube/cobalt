@@ -43,7 +43,7 @@ namespace starboard::android::shared {
 //       the sound at the very beginning won't get lost during the switching.
 class AudioRendererPassthrough
     : public ::starboard::shared::starboard::player::filter::AudioRenderer,
-      public ::starboard::shared::starboard::player::filter::MediaTimeProvider,
+      public MediaTimeProvider,
       private JobQueue::JobOwner {
  public:
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,

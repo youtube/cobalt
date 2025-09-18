@@ -49,11 +49,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private JobQueue::JobOwner,
                                private VideoSurfaceHolder {
  public:
-  typedef ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm
-      VideoRenderAlgorithm;
-  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
-
   class Sink;
 
   MediaCodecVideoDecoder(const VideoStreamInfo& video_stream_info,

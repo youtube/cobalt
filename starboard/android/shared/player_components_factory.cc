@@ -170,10 +170,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       AudioRendererSinkImpl;
   typedef starboard::shared::starboard::player::filter::PlayerComponents
       PlayerComponents;
-  typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
-      VideoRenderAlgorithm;
-  typedef starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
 
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
@@ -230,9 +226,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         << "The maximum size in bytes of a buffer of data is "
         << max_video_input_size;
 
-    std::unique_ptr<
-        ::starboard::shared::starboard::player::filter::VideoRenderer>
-        video_renderer;
+    std::unique_ptr<VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
@@ -242,8 +236,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                              kForceSecurePipelineUnderTunnelMode,
                              max_video_input_size, error_message);
       if (video_decoder) {
-        using starboard::shared::starboard::player::filter::VideoRendererImpl;
-
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
         auto media_time_provider = audio_renderer.get();
