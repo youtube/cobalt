@@ -33,8 +33,6 @@ namespace starboard::shared::starboard::player::filter {
 // user of this class should destroy and recreate it.
 class AudioResampler {
  public:
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-
   virtual ~AudioResampler() {}
 
   // Write frames to the AudioResampler.  The format of the frames is determined
