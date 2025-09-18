@@ -220,6 +220,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir',
     'readdir_r',
     'readlink',
+    'realpath',
     'realloc',
     'recv',
     'recvfrom',

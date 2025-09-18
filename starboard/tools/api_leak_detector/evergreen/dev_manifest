@@ -32,7 +32,6 @@ newlocale
 prctl
 printf
 puts
-realpath
 rewind
 sched_getaffinity
 sdallocx
