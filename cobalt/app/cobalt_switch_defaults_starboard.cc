@@ -88,7 +88,12 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // switch.
         // TODO(mcasas): Ideally configure depending on policy.
         {switches::kForceGpuMemAvailableMb, "32"},
-        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/24"},
+        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
+        // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
+        // creation, but egl extension required to support the attribute is
+        // missing and causes errors. So Enable it by default.
+        {switches::kEnableFeatures,
+         "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
     // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
