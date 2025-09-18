@@ -263,8 +263,7 @@ void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
   android::shared::MediaCapabilitiesCache::GetInstance()->ClearCache();
-  ::starboard::shared::starboard::media::MimeSupportabilityCache::GetInstance()
-      ->ClearCachedMimeSupportabilities();
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
 }  // namespace starboard
