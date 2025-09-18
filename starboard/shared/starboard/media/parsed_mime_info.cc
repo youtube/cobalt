@@ -21,9 +21,10 @@
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
+using shared::starboard::media::GetAudioCodecFromString;
 
 const int64_t kDefaultAudioChannels = 2;
 
@@ -174,4 +175,4 @@ void ParsedMimeInfo::ResetCodecInfos() {
   video_info_.codec = kSbMediaVideoCodecNone;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
