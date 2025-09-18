@@ -20,7 +20,7 @@
 #include "starboard/shared/starboard/media/avc_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
 
 const uint8_t kIdrStartCode = 0x65;
@@ -260,4 +260,4 @@ TEST(CodecUtilTest, DoesNotParse1AsPcmForNonWavSubtypes) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
