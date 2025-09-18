@@ -35,6 +35,8 @@ public class ShellManager {
 
     private String mStartupUrl = DEFAULT_SHELL_URL;
 
+    private Shell.OnWebContentsReadyListener mNextWebContentsReadyListener;
+
     // The target for all content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
@@ -98,7 +100,18 @@ public class ShellManager {
      * @param url The URL the shell should load upon creation.
      */
     public void launchShell(String url) {
+        // Calls the overloaded method with a null listener.
+        launchShell(url, null);
+    }
+
+    /**
+     * Creates a new shell pointing to the specified URL.
+     * @param url The URL the shell should load upon creation.
+     * @param listener The listener to be notified when WebContents is ready.
+     */
+    public void launchShell(String url, Shell.OnWebContentsReadyListener listener) {
         ThreadUtils.assertOnUiThread();
+        mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url);
         if (previousShell != null) previousShell.close();
@@ -113,6 +126,8 @@ public class ShellManager {
 
         Shell shellView = new Shell(getContext());
         shellView.initialize(nativeShellPtr, mWindow);
+        shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
+        mNextWebContentsReadyListener = null;
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
         if (mActiveShell != null) removeShell(mActiveShell);
