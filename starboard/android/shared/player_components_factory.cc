@@ -135,8 +135,7 @@ class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
   std::atomic_bool error_occurred_{false};
 };
 
-class PlayerComponentsPassthrough
-    : public starboard::shared::starboard::player::filter::PlayerComponents {
+class PlayerComponentsPassthrough : PlayerComponents {
  public:
   PlayerComponentsPassthrough(
       std::unique_ptr<AudioRendererPassthrough> audio_renderer,
@@ -157,11 +156,7 @@ class PlayerComponentsPassthrough
 };
 }  // namespace
 
-class PlayerComponentsFactory : public starboard::shared::starboard::player::
-                                    filter::PlayerComponents::Factory {
-  typedef starboard::shared::starboard::player::filter::PlayerComponents
-      PlayerComponents;
-
+class PlayerComponentsFactory : public PlayerComponents::Factory {
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 
