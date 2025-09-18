@@ -50,11 +50,10 @@ const int kFramesInBufferBeginUnderflow = 1024;
 // A class that sits in between the audio decoder, the audio sink and the
 // pipeline to coordinate data transfer between these parties.  It also serves
 // as the authority of playback time.
-class AudioRendererPcm
-    : public AudioRenderer,
-      public shared::starboard::player::filter::MediaTimeProvider,
-      private AudioRendererSink::RenderCallback,
-      private JobQueue::JobOwner {
+class AudioRendererPcm : public AudioRenderer,
+                         public MediaTimeProvider,
+                         private AudioRendererSink::RenderCallback,
+                         private JobQueue::JobOwner {
  public:
   // |max_cached_frames| is a soft limit for the max audio frames this class can
   // cache so it can:
