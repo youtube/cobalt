@@ -20,7 +20,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -275,4 +275,4 @@ void StubAudioDecoder::DecodeEndOfStream() {
   Schedule(output_cb_);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

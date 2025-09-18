@@ -50,7 +50,8 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace android::shared {
 namespace {
 
 using base::android::AttachCurrentThread;
@@ -135,7 +136,7 @@ class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
   std::atomic_bool error_occurred_{false};
 };
 
-class PlayerComponentsPassthrough : PlayerComponents {
+class PlayerComponentsPassthrough : public PlayerComponents {
  public:
   PlayerComponentsPassthrough(
       std::unique_ptr<AudioRendererPassthrough> audio_renderer,
@@ -638,9 +639,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
-}  // namespace starboard::android::shared
-
-namespace starboard::shared::starboard::player::filter {
+}  // namespace android::shared
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
@@ -673,6 +672,6 @@ bool PlayerComponents::Factory::OutputModeSupported(
   return false;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_

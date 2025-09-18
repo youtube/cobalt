@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
@@ -59,6 +59,6 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   int total_input_count_ = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_VIDEO_DECODER_H_
