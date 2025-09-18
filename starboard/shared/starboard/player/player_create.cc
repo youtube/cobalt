@@ -34,10 +34,6 @@
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 using ::starboard::MimeType;
-using ::starboard::shared::starboard::player::PlayerWorker;
-using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
-using ::starboard::shared::starboard::player::filter::
-    FilterBasedPlayerWorkerHandler;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
@@ -203,10 +199,11 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 
   starboard::UpdateActiveSessionPlatformPlaybackState(starboard::kPlaying);
 
-  std::unique_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(creation_param, provider));
+  std::unique_ptr<starboard::PlayerWorker::Handler> handler =
+      std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
+          creation_param, provider);
 
-  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
+  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 

@@ -34,7 +34,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                                        private JobQueue::JobOwner {
@@ -88,7 +88,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // other accesses are happening from the same thread.
   std::mutex player_components_existence_mutex_;
 
-  std::unique_ptr<PlayerComponents> player_components_;
+  std::unique_ptr<shared::starboard::player::filter::PlayerComponents>
+      player_components_;
   // The following three variables cache the return values of member functions
   // of |player_components_|.  Their lifetime is tied to |player_components_|.
   MediaTimeProvider* media_time_provider_ = nullptr;
@@ -114,6 +115,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   const VideoStreamInfo video_stream_info_;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_
