@@ -763,8 +763,16 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
   if (IsSDRVideo(color_metadata.bits_per_channel,
                  color_metadata.primaries,
                  color_metadata.transfer,
-                 color_metadata.matrix))
+                 color_metadata.matrix)) {
     return;
+  }
+
+  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+  if (color_metadata.bits_per_channel <= 8 &&
+      color_metadata.matrix == kSbMediaMatrixIdInvalid &&
+      memcmp(&color_metadata.mastering_metadata, &kEmptyMasteringMetadata, sizeof(SbMediaMasteringMetadata)) == 0) {
+    return;
+  }
 
   GstVideoColorimetry colorimetry;
   colorimetry.range = RangeIdToGstVideoColorRange(color_metadata.range);
@@ -782,6 +790,7 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
     GST_DEBUG ("Setting \"colorimetry\" to %s", tmp);
     g_free (tmp);
   }
+
   GstVideoMasteringDisplayInfo mastering_display_info;
   gst_video_mastering_display_info_init (&mastering_display_info);
 
@@ -797,7 +806,7 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
   mastering_display_info.min_display_mastering_luminance = (guint32)ceil(color_metadata.mastering_metadata.luminance_min);
 
   gchar *tmp =
-      gst_video_mastering_display_info_to_string(&mastering_display_info);
+    gst_video_mastering_display_info_to_string(&mastering_display_info);
   gst_caps_set_simple (caps, "mastering-display-info", G_TYPE_STRING, tmp, NULL);
   GST_DEBUG ("Setting \"mastering-display-info\" to %s", tmp);
   g_free (tmp);
