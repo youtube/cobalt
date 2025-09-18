@@ -267,7 +267,7 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`.  We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  starboard::media::MimeType mime_type(std::string("key_system/") + key_system);
+  starboard::MimeType mime_type(std::string("key_system/") + key_system);
 
   if (!mime_type.is_valid()) {
     return false;

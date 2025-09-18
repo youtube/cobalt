@@ -17,7 +17,7 @@
 #include "starboard/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
 
 const bool kCheckAc3Audio = true;
@@ -84,4 +84,4 @@ TEST(ParsedMimeInfoTest, ParsesPcmCodec) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

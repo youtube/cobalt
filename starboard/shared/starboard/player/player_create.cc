@@ -33,7 +33,7 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-using ::starboard::shared::starboard::media::MimeType;
+using ::starboard::MimeType;
 using ::starboard::shared::starboard::player::PlayerWorker;
 using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using ::starboard::shared::starboard::player::filter::
