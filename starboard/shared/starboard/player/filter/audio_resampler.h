@@ -22,7 +22,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // Classes inherited from this interface can convert input audio samples in one
 // sample and storage type into another sample and storage type.  For example,
@@ -62,6 +62,6 @@ class AudioResampler {
       int channels);
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RESAMPLER_H_

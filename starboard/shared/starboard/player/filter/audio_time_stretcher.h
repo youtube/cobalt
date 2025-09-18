@@ -43,7 +43,7 @@
 #include "starboard/shared/starboard/player/filter/decoded_audio_queue.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class AudioTimeStretcher {
  public:
@@ -219,6 +219,6 @@ class AudioTimeStretcher {
   void operator=(const AudioTimeStretcher&) = delete;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_TIME_STRETCHER_H_
