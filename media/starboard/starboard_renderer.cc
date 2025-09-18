@@ -132,6 +132,8 @@ StarboardRenderer::StarboardRenderer(
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
+      audio_buffering_state_(BUFFERING_HAVE_NOTHING),
+      video_buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
@@ -303,12 +305,15 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
+    audio_buffering_state_ = BUFFERING_HAVE_NOTHING;
+    video_buffering_state_ = BUFFERING_HAVE_NOTHING;
     if (base::FeatureList::IsEnabled(
             media::kCobaltReportBufferingStateDuringFlush)) {
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
+                         weak_factory_.GetWeakPtr(), buffering_state_,
+                         BUFFERING_CHANGE_REASON_UNKNOWN));
     }
   }
 
@@ -917,10 +922,13 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePresenting:
       DCHECK(player_bridge_initialized_);
       buffering_state_ = BUFFERING_HAVE_ENOUGH;
+      audio_buffering_state_ = BUFFERING_HAVE_ENOUGH;
+      video_buffering_state_ = BUFFERING_HAVE_ENOUGH;
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
+                         weak_factory_.GetWeakPtr(), buffering_state_,
+                         BUFFERING_CHANGE_REASON_UNKNOWN));
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
@@ -967,6 +975,58 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
       NOTREACHED();
       break;
   }
+}
+
+void StarboardRenderer::OnRenderStatus(bool is_audio_playing,
+                                       bool has_video_renderer,
+                                       int number_of_frames,
+                                       bool is_video_eos_received,
+                                       bool has_enough_video_data,
+                                       bool has_audio_renderer,
+                                       bool is_audio_underflow) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (state_ != STATE_PLAYING) {
+    return;
+  }
+
+  has_video_renderer_ = has_video_renderer;
+  has_audio_renderer_ = has_audio_renderer;
+  // Transit to BUFFERING_HAVE_ENOUGH when:
+  //   1. |state_| is in STATE_PLAYING,
+  //   2. |buffering_state_| is BUFFERING_HAVE_NOTHING.
+  // Additionally, both of the following meet:
+  //   1. audio is not underflow, and
+  //   2. have enough video frames.
+  if (buffering_state_ == BUFFERING_HAVE_NOTHING) {
+    if (has_audio_renderer_ && !is_audio_underflow) {
+      UpdateUnderflow(DemuxerStream::AUDIO, BUFFERING_HAVE_ENOUGH);
+    }
+    if (has_video_renderer_ && number_of_frames > 0 && has_enough_video_data) {
+      UpdateUnderflow(DemuxerStream::VIDEO, BUFFERING_HAVE_ENOUGH);
+    }
+    was_audio_playing_ = is_audio_playing;
+    return;
+  }
+
+  // Transit to BUFFERING_HAVE_NOTHING when
+  //   1. |state_| is in STATE_PLAYING,
+  //   2. |buffering_state_| is not BUFFERING_HAVE_NOTHING.
+  // Additionally, for audio, underflow is determined by:
+  //   1. audio was playing, and
+  //   2. audio is underflow.
+  // For video, underflow is determined by:
+  //   1. don't have frames available, and
+  //   2. haven't received end of stream.
+  if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
+    if (has_audio_renderer_ && was_audio_playing_ && is_audio_underflow) {
+      UpdateUnderflow(DemuxerStream::AUDIO, BUFFERING_HAVE_NOTHING);
+    }
+    if (has_video_renderer_ && number_of_frames == 0 &&
+        !is_video_eos_received) {
+      UpdateUnderflow(DemuxerStream::VIDEO, BUFFERING_HAVE_NOTHING);
+    }
+  }
+  was_audio_playing_ = is_audio_playing;
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
@@ -1066,10 +1126,84 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
 }
 
-void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
+void StarboardRenderer::OnBufferingStateChange(
+    BufferingState buffering_state,
+    media::BufferingStateChangeReason reason) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  client_->OnBufferingStateChange(buffering_state,
-                                  BUFFERING_CHANGE_REASON_UNKNOWN);
+  client_->OnBufferingStateChange(buffering_state, reason);
+}
+
+bool StarboardRenderer::WaitingForEnoughData() const {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (state_ != STATE_PLAYING) {
+    return false;
+  }
+  if (has_audio_renderer_ && audio_buffering_state_ != BUFFERING_HAVE_ENOUGH) {
+    return true;
+  }
+  if (has_video_renderer_ && video_buffering_state_ != BUFFERING_HAVE_ENOUGH) {
+    return true;
+  }
+  return false;
+}
+
+void StarboardRenderer::UpdateUnderflow(DemuxerStream::Type type,
+                                        BufferingState new_buffering_state) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK((type == DemuxerStream::AUDIO) || (type == DemuxerStream::VIDEO));
+  BufferingState* buffering_state = type == DemuxerStream::AUDIO
+                                        ? &audio_buffering_state_
+                                        : &video_buffering_state_;
+  BufferingStateChangeReason reason = BUFFERING_CHANGE_REASON_UNKNOWN;
+  bool was_waiting_for_enough_data = WaitingForEnoughData();
+  *buffering_state = new_buffering_state;
+  // Renderer underflowed.
+  if (!was_waiting_for_enough_data && WaitingForEnoughData()) {
+    if (type == DemuxerStream::AUDIO) {
+      if (audio_stream_) {
+        reason =
+            audio_read_in_progress_ ? DEMUXER_UNDERFLOW : DECODER_UNDERFLOW;
+      }
+    } else {
+      if (video_stream_) {
+        reason =
+            video_read_in_progress_ ? DEMUXER_UNDERFLOW : DECODER_UNDERFLOW;
+      }
+    }
+    LOG(INFO) << __func__ << " "
+              << (type == DemuxerStream::AUDIO ? "audio " : "video ")
+              << "underflow, changed from "
+              << BufferingStateToString(buffering_state_) << " to "
+              << BufferingStateToString(BUFFERING_HAVE_NOTHING, reason);
+    playback_rate_before_underflow_ = playback_rate_;
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&StarboardRenderer::SetPlaybackRate,
+                                          weak_factory_.GetWeakPtr(), 0.0f));
+    buffering_state_ = BUFFERING_HAVE_NOTHING;
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_, reason));
+    return;
+  }
+  // Renderer prerolled.
+  if (was_waiting_for_enough_data && !WaitingForEnoughData()) {
+    LOG(INFO) << __func__ << " "
+              << (type == DemuxerStream::AUDIO ? "audio " : "video ")
+              << "prerolled, changed from "
+              << BufferingStateToString(buffering_state_) << " to "
+              << BufferingStateToString(BUFFERING_HAVE_ENOUGH);
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&StarboardRenderer::SetPlaybackRate,
+                                          weak_factory_.GetWeakPtr(),
+                                          playback_rate_before_underflow_));
+    buffering_state_ = BUFFERING_HAVE_ENOUGH;
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_, reason));
+    return;
+  }
 }
 
 }  // namespace media

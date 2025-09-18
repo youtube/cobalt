@@ -207,7 +207,6 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  bool was_playing = false;
   int frames_in_audio_track = 0;
 
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
@@ -227,7 +226,17 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       break;
     }
 
-    if (was_playing) {
+    // The audio data at the returned position by |bridge_.GetAudioTimestamp()|
+    // may either (1) already have been presented, or (2) may have not yet been
+    // presented but is committed to be presented. It is possible after
+    // |bridge_.Pause()|, the audio data is still committed to be presented as
+    // (2), which causes advancing media time gap when player resumes and
+    // dropping video frames, so player updates playback head positions when
+    // |bridge_| doesn't stop.
+    int audio_track_play_state = bridge_.GetPlayState();
+    SB_DCHECK(audio_track_play_state > 0);
+    if (audio_track_play_state == PLAYSTATE_PLAYING ||
+        audio_track_play_state == PLAYSTATE_PAUSED) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
       SB_DCHECK_GE(playback_head_position, last_playback_head_position);
@@ -275,11 +284,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
     }
 
-    if (was_playing && !is_playing) {
-      was_playing = false;
+    if (audio_track_play_state == PLAYSTATE_PLAYING && !is_playing) {
       bridge_.Pause();
-    } else if (!was_playing && is_playing) {
-      was_playing = true;
+    } else if (audio_track_play_state != PLAYSTATE_PLAYING && is_playing) {
       last_playback_head_event_at = -1;
       bridge_.Play();
     }

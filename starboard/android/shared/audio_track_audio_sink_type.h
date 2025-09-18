@@ -37,6 +37,15 @@
 
 namespace starboard::android::shared {
 
+// These must be in sync with AudioTrack.PLAYSTATE_XXX constants in
+// AudioTrack.java.
+// Indicates AudioTrack state is stopped.
+const jint PLAYSTATE_STOPPED = 1;
+// Indicates AudioTrack state is paused.
+const jint PLAYSTATE_PAUSED = 2;
+// Indicates AudioTrack state is playing.
+const jint PLAYSTATE_PLAYING = 3;
+
 class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
   static int GetMinBufferSizeInFrames(int channels,

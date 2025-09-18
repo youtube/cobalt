@@ -65,8 +65,11 @@ void VideoRenderAlgorithmAndroid::Render(
     bool is_audio_eos_played;
     bool is_underflow;
     double playback_rate;
+    bool has_audio_renderer;
+    bool is_audio_track_playing;
     int64_t playback_time = media_time_provider->GetCurrentMediaTime(
-        &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+        &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate,
+        &has_audio_renderer, &is_audio_track_playing);
     if (!is_audio_playing) {
       break;
     }

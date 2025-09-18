@@ -32,9 +32,15 @@ namespace starboard::shared::starboard::player {
 namespace {
 
 using std::placeholders::_1;
+using std::placeholders::_10;
 using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
+using std::placeholders::_5;
+using std::placeholders::_6;
+using std::placeholders::_7;
+using std::placeholders::_8;
+using std::placeholders::_9;
 
 int64_t CalculateMediaTime(int64_t media_time,
                            int64_t media_time_update_time,
@@ -54,14 +60,17 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
+    SbPlayerRenderStatusFunc player_render_status_func,
     void* context,
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
+      player_render_status_func_(player_render_status_func),
       context_(context),
       media_time_updated_at_(CurrentMonotonicTime()) {
   worker_ = std::unique_ptr<PlayerWorker>(PlayerWorker::CreateInstance(
       audio_codec, video_codec, std::move(player_worker_handler),
-      std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4),
+      std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4, _5,
+                _6, _7, _8, _9, _10),
       decoder_status_func, player_status_func, player_error_func, this,
       context));
 
@@ -78,11 +87,12 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
+    SbPlayerRenderStatusFunc player_render_status_func,
     void* context,
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
   SbPlayerPrivateImpl* ret = new SbPlayerPrivateImpl(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context,
+      player_status_func, player_error_func, player_render_status_func, context,
       std::move(player_worker_handler));
 
   if (ret && ret->worker_) {
@@ -183,15 +193,29 @@ void SbPlayerPrivateImpl::SetVolume(double volume) {
 void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
                                           int dropped_video_frames,
                                           int ticket,
-                                          bool is_progressing) {
-  std::lock_guard lock(mutex_);
-  if (ticket_ != ticket) {
-    return;
+                                          bool is_progressing,
+                                          bool is_audio_playing,
+                                          bool has_video_renderer,
+                                          int number_of_frames,
+                                          bool is_video_eos_received,
+                                          bool has_enough_video_data,
+                                          bool has_audio_renderer) {
+  {
+    std::lock_guard lock(mutex_);
+    if (ticket_ != ticket) {
+      return;
+    }
+    media_time_ = media_time;
+    is_progressing_ = is_progressing;
+    media_time_updated_at_ = CurrentMonotonicTime();
+    dropped_video_frames_ = dropped_video_frames;
   }
-  media_time_ = media_time;
-  is_progressing_ = is_progressing;
-  media_time_updated_at_ = CurrentMonotonicTime();
-  dropped_video_frames_ = dropped_video_frames;
+  if (player_render_status_func_) {
+    player_render_status_func_(this, context_, is_audio_playing,
+                               has_video_renderer, number_of_frames,
+                               is_video_eos_received, has_enough_video_data,
+                               has_audio_renderer, !is_progressing_);
+  }
 }
 
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
