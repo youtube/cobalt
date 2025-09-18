@@ -33,8 +33,6 @@ class AudioDecoder {
   using ConsumedCB = std::function<void()>;
   using OutputCB = std::function<void()>;
 
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-
   virtual ~AudioDecoder() {}
 
   // Whenever the decoder produces a new output, it calls |output_cb| once and

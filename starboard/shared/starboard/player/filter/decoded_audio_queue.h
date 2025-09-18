@@ -71,7 +71,7 @@ class DecodedAudioQueue {
 
  private:
   // Definition of the buffer queue.
-  typedef std::deque<scoped_refptr<DecodedAudio>> BufferQueue;
+  using BufferQueue = std::deque<scoped_refptr<DecodedAudio>>;
 
   // An internal method shared by ReadFrames() and SeekFrames() that actually
   // does reading. It reads a maximum of |frames| frames into |dest|. Returns

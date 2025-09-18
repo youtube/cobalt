@@ -27,8 +27,6 @@ namespace starboard::shared::starboard::player::filter {
 
 class AudioChannelLayoutMixer {
  public:
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-
   virtual ~AudioChannelLayoutMixer() {}
 
   virtual scoped_refptr<DecodedAudio> Mix(

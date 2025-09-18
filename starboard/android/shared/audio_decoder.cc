@@ -144,8 +144,8 @@ void MediaCodecAudioDecoder::WriteEndOfStream() {
   }
 }
 
-scoped_refptr<MediaCodecAudioDecoder::DecodedAudio>
-MediaCodecAudioDecoder::Read(int* samples_per_second) {
+scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
