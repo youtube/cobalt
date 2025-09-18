@@ -590,7 +590,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
 
 }  // namespace starboard::android::shared
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
@@ -610,4 +610,4 @@ void SbAudioSinkImpl::PlatformTearDown() {
   audio_track_audio_sink_type_ = NULL;
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard
