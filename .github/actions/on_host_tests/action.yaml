@@ -34,8 +34,6 @@ runs:
         env
 
         out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
-        # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
-        LD_LIBRARY_PATH="${out_dir}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
