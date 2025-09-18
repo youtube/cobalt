@@ -46,9 +46,6 @@ namespace starboard::shared::starboard::player::filter {
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-  typedef ::starboard::shared::starboard::player::filter::AudioRenderer
-      AudioRenderer;
-
   // This class creates PlayerComponents.
   class Factory {
    public:

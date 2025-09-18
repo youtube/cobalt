@@ -28,7 +28,6 @@
 
 namespace {
 
-using starboard::shared::starboard::player::filter::AudioRenderer;
 using starboard::shared::starboard::player::filter::PlayerComponents;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE

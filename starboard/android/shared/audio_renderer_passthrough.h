@@ -41,10 +41,9 @@ namespace starboard::android::shared {
 // TODO: The audio receiver often requires some warm up time to switch the
 //       output to eac3.  Consider pushing some silence at the very beginning so
 //       the sound at the very beginning won't get lost during the switching.
-class AudioRendererPassthrough
-    : public ::starboard::shared::starboard::player::filter::AudioRenderer,
-      public MediaTimeProvider,
-      private JobQueue::JobOwner {
+class AudioRendererPassthrough : public AudioRenderer,
+                                 public MediaTimeProvider,
+                                 private JobQueue::JobOwner {
  public:
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,

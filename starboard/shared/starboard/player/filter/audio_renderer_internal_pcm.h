@@ -43,7 +43,7 @@
 // when GetCurrentMediaTime() is called.
 // #define SB_LOG_MEDIA_TIME_STATS 1
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 const int kFramesInBufferBeginUnderflow = 1024;
 
@@ -206,6 +206,6 @@ class AudioRendererPcm : public AudioRenderer,
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_

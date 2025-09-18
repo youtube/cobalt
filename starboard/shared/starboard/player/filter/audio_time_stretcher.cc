@@ -28,7 +28,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // Waveform Similarity Overlap-and-add (WSOLA).
 //
@@ -143,11 +143,10 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
       num_candidate_blocks_ / 2 + (ola_window_size_ / 2 - 1);
 
   ola_window_.reset(new float[ola_window_size_]);
-  internal::GetPeriodicHanningWindow(ola_window_size_, ola_window_.get());
+  GetPeriodicHanningWindow(ola_window_size_, ola_window_.get());
 
   transition_window_.reset(new float[ola_window_size_ * 2]);
-  internal::GetPeriodicHanningWindow(2 * ola_window_size_,
-                                     transition_window_.get());
+  GetPeriodicHanningWindow(2 * ola_window_size_, transition_window_.get());
 
   wsola_output_ = new DecodedAudio(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
@@ -380,15 +379,15 @@ void AudioTimeStretcher::GetOptimalBlock() {
     PeekAudioWithZeroPrepend(search_block_index_, search_block_.get());
     int last_optimal =
         target_block_index_ - ola_hop_size_ - search_block_index_;
-    internal::Interval exclude_interval =
+    Interval exclude_interval =
         std::make_pair(last_optimal - kExcludeIntervalLengthFrames / 2,
                        last_optimal + kExcludeIntervalLengthFrames / 2);
 
     // |optimal_index| is in frames and it is relative to the beginning of the
     // |search_block_|.
-    optimal_index = internal::OptimalIndex(
-        search_block_.get(), target_block_.get(),
-        kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
+    optimal_index = OptimalIndex(search_block_.get(), target_block_.get(),
+                                 kSbMediaAudioFrameStorageTypeInterleaved,
+                                 exclude_interval);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
     // optimal block.
@@ -438,4 +437,4 @@ void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
                            dest);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

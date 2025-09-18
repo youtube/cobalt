@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
@@ -82,8 +82,8 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   ErrorCB error_cb_ = nullptr;
 
   std::unique_ptr<AudioDecoder> audio_decoder_;
-  std::unique_ptr<filter::AudioResampler> resampler_;
-  std::unique_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
+  std::unique_ptr<AudioResampler> resampler_;
+  std::unique_ptr<AudioChannelLayoutMixer> channel_mixer_;
   InputBuffers pending_input_buffers_;
   ConsumedCB pending_consumed_cb_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
@@ -95,6 +95,6 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool enable_reset_audio_decoder_ = false;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_ADAPTIVE_AUDIO_DECODER_INTERNAL_H_
