@@ -669,3 +669,101 @@ generate_jni("ui_javatest_jni_headers") {
   sources =
       [ "javatests/src/org/chromium/ui/base/ClipboardAndroidTestSupport.java" ]
 }
+
+if (is_cobalt) {
+  android_library("cobalt_ui_full_java") {
+    sources = [
+      "java/src/org/chromium/ui/KeyboardVisibilityDelegate.java",
+      "java/src/org/chromium/ui/MotionEventUtils.java",
+      "java/src/org/chromium/ui/OverscrollRefreshHandler.java",
+      "java/src/org/chromium/ui/UiSwitches.java",
+      "java/src/org/chromium/ui/base/ActivityIntentRequestTrackerDelegate.java",
+      "java/src/org/chromium/ui/base/ActivityKeyboardVisibilityDelegate.java",
+      "java/src/org/chromium/ui/base/ActivityWindowAndroid.java",
+      "java/src/org/chromium/ui/base/ApplicationViewportInsetSupplier.java",
+      "java/src/org/chromium/ui/base/DeviceFormFactor.java",
+      "java/src/org/chromium/ui/base/EventForwarder.java",
+      "java/src/org/chromium/ui/base/ImmutableWeakReference.java",
+      "java/src/org/chromium/ui/base/IntentRequestTracker.java",
+      "java/src/org/chromium/ui/base/IntentRequestTrackerImpl.java",
+      "java/src/org/chromium/ui/base/OverlayTransformApiHelper.java",
+      "java/src/org/chromium/ui/base/SPenSupport.java",
+      "java/src/org/chromium/ui/base/TouchDevice.java",
+      "java/src/org/chromium/ui/base/UiAndroidFeatureList.java",
+      "java/src/org/chromium/ui/base/ViewAndroidDelegate.java",
+      "java/src/org/chromium/ui/base/ViewUtils.java",
+      "java/src/org/chromium/ui/base/ViewportInsets.java",
+      "java/src/org/chromium/ui/base/WindowAndroid.java",
+      "java/src/org/chromium/ui/display/DisplayAndroid.java",
+      "java/src/org/chromium/ui/display/DisplayAndroidManager.java",
+      "java/src/org/chromium/ui/display/DisplaySwitches.java",
+      "java/src/org/chromium/ui/display/DisplayUtil.java",
+      "java/src/org/chromium/ui/display/PhysicalDisplayAndroid.java",
+      "java/src/org/chromium/ui/dragdrop/AnimatedImageDragShadowBuilder.java",
+
+      # TODO(b/444449219): remove dragdrop feature from Cobalt.
+      "java/src/org/chromium/ui/dragdrop/DragAndDropBrowserDelegate.java",
+      "java/src/org/chromium/ui/dragdrop/DragAndDropDelegate.java",
+      "java/src/org/chromium/ui/dragdrop/DragAndDropDelegateImpl.java",
+      "java/src/org/chromium/ui/dragdrop/DragStateTracker.java",
+      "java/src/org/chromium/ui/dragdrop/DropDataAndroid.java",
+      "java/src/org/chromium/ui/dragdrop/DropDataProviderImpl.java",
+      "java/src/org/chromium/ui/dragdrop/DropDataProviderUtils.java",
+      "java/src/org/chromium/ui/events/devices/InputDeviceObserver.java",
+      "java/src/org/chromium/ui/gfx/Animation.java",
+      "java/src/org/chromium/ui/gfx/ViewConfigurationHelper.java",
+      "java/src/org/chromium/ui/modaldialog/DialogDismissalCause.java",
+      "java/src/org/chromium/ui/modaldialog/ModalDialogManager.java",
+      "java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java",
+      "java/src/org/chromium/ui/modaldialog/PendingDialogContainer.java",
+      "java/src/org/chromium/ui/modelutil/PropertyKey.java",
+      "java/src/org/chromium/ui/modelutil/PropertyModel.java",
+      "java/src/org/chromium/ui/modelutil/PropertyObservable.java",
+      "java/src/org/chromium/ui/permissions/ActivityAndroidPermissionDelegate.java",
+      "java/src/org/chromium/ui/permissions/AndroidPermissionDelegate.java",
+      "java/src/org/chromium/ui/permissions/AndroidPermissionDelegateWithRequester.java",
+      "java/src/org/chromium/ui/permissions/PermissionCallback.java",
+      "java/src/org/chromium/ui/permissions/PermissionConstants.java",
+      "java/src/org/chromium/ui/permissions/PermissionPrefs.java",
+      "java/src/org/chromium/ui/resources/LayoutResource.java",
+      "java/src/org/chromium/ui/resources/Resource.java",
+      "java/src/org/chromium/ui/resources/ResourceFactory.java",
+      "java/src/org/chromium/ui/resources/ResourceLoader.java",
+      "java/src/org/chromium/ui/resources/ResourceManager.java",
+      "java/src/org/chromium/ui/resources/async/AsyncPreloadResourceLoader.java",
+      "java/src/org/chromium/ui/resources/dynamics/BitmapDynamicResource.java",
+      "java/src/org/chromium/ui/resources/dynamics/DynamicResource.java",
+      "java/src/org/chromium/ui/resources/dynamics/DynamicResourceLoader.java",
+      "java/src/org/chromium/ui/resources/dynamics/DynamicResourceSnapshot.java",
+      "java/src/org/chromium/ui/resources/statics/NinePatchData.java",
+      "java/src/org/chromium/ui/resources/statics/StaticResource.java",
+      "java/src/org/chromium/ui/resources/statics/StaticResourceLoader.java",
+      "java/src/org/chromium/ui/resources/system/SystemResourceLoader.java",
+      "java/src/org/chromium/ui/util/TokenHolder.java",
+      "java/src/org/chromium/ui/widget/Toast.java",
+      "java/src/org/chromium/ui/widget/ToastManager.java",
+      "java/src/org/chromium/ui/widget/UiWidgetFactory.java",
+    ]
+
+    deps = [
+      ":ui_android_features_java",
+      "//base:base_java",
+      "//base:jni_java",
+      "//third_party/androidx:androidx_activity_activity_java",
+      "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/androidx:androidx_appcompat_appcompat_java",
+      "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
+      "//third_party/androidx:androidx_core_core_java",
+      "//ui/android:ui_java_resources",
+      "//ui/base/cursor/mojom:cursor_type_java",
+      "//ui/base/ime/mojom:mojom_java",
+      "//ui/gfx",
+      "//url:gurl_java",
+    ]
+
+    srcjar_deps = [ "//ui/android:java_enums_srcjar" ]
+    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+    resources_package = "org.chromium.ui"
+  }
+}
