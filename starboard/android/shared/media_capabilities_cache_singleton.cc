@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_capabilities_cache_singleton.h"
 
 #include <jni.h>
 
@@ -356,10 +356,10 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 }
 
 // static
-SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
-                            MediaCapabilitiesCache::GetInstance)
+SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCacheSingleton,
+                            MediaCapabilitiesCacheSingleton::GetInstance)
 
-bool MediaCapabilitiesCache::IsWidevineSupported() {
+bool MediaCapabilitiesCacheSingleton::IsWidevineSupported() {
   if (!is_enabled_) {
     return GetIsWidevineSupported();
   }
@@ -368,7 +368,7 @@ bool MediaCapabilitiesCache::IsWidevineSupported() {
   return is_widevine_supported_;
 }
 
-bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
+bool MediaCapabilitiesCacheSingleton::IsCbcsSchemeSupported() {
   if (!is_enabled_) {
     return GetIsCbcsSupported();
   }
@@ -377,7 +377,7 @@ bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
   return is_cbcs_supported_;
 }
 
-bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
+bool MediaCapabilitiesCacheSingleton::IsHDRTransferCharacteristicsSupported(
     SbMediaTransferId transfer_id) {
   if (!is_enabled_) {
     std::set<SbMediaTransferId> supported_transfer_ids = GetSupportedHdrTypes();
@@ -390,7 +390,8 @@ bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
          supported_transfer_ids_.end();
 }
 
-bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
+bool MediaCapabilitiesCacheSingleton::IsPassthroughSupported(
+    SbMediaAudioCodec codec) {
   if (!is_enabled_) {
     return GetIsPassthroughSupported(codec);
   }
@@ -406,7 +407,7 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   return supported;
 }
 
-bool MediaCapabilitiesCache::GetAudioConfiguration(
+bool MediaCapabilitiesCacheSingleton::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* configuration) {
   SB_CHECK_GE(index, 0);
@@ -425,26 +426,28 @@ bool MediaCapabilitiesCache::GetAudioConfiguration(
   return false;
 }
 
-bool MediaCapabilitiesCache::HasAudioDecoderFor(const std::string& mime_type,
-                                                int bitrate) {
+bool MediaCapabilitiesCacheSingleton::HasAudioDecoderFor(
+    const std::string& mime_type,
+    int bitrate) {
   return !FindAudioDecoder(mime_type, bitrate).empty();
 }
 
-bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
-                                                bool must_support_secure,
-                                                bool must_support_hdr,
-                                                bool must_support_tunnel_mode,
-                                                int frame_width,
-                                                int frame_height,
-                                                int bitrate,
-                                                int fps) {
+bool MediaCapabilitiesCacheSingleton::HasVideoDecoderFor(
+    const std::string& mime_type,
+    bool must_support_secure,
+    bool must_support_hdr,
+    bool must_support_tunnel_mode,
+    int frame_width,
+    int frame_height,
+    int bitrate,
+    int fps) {
   return !FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
                            false, must_support_tunnel_mode, frame_width,
                            frame_height, bitrate, fps)
               .empty();
 }
 
-std::string MediaCapabilitiesCache::FindAudioDecoder(
+std::string MediaCapabilitiesCacheSingleton::FindAudioDecoder(
     const std::string& mime_type,
     int bitrate) {
   if (!is_enabled_) {
@@ -469,7 +472,7 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
   return "";
 }
 
-std::string MediaCapabilitiesCache::FindVideoDecoder(
+std::string MediaCapabilitiesCacheSingleton::FindVideoDecoder(
     const std::string& mime_type,
     bool must_support_secure,
     bool must_support_hdr,
@@ -542,13 +545,13 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   return "";
 }
 
-MediaCapabilitiesCache::MediaCapabilitiesCache() {
+MediaCapabilitiesCacheSingleton::MediaCapabilitiesCacheSingleton() {
   // Enable mime and key system caches.
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 }
 
-void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
+void MediaCapabilitiesCacheSingleton::UpdateMediaCapabilities_Locked() {
   if (capabilities_is_dirty_.exchange(false)) {
     // We use a different cache strategy (load and cache) for passthrough
     // supportabilities, so we only clear |passthrough_supportabilities_| here.
@@ -565,7 +568,7 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   }
 }
 
-void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
+void MediaCapabilitiesCacheSingleton::LoadCodecInfos_Locked() {
   SB_CHECK(audio_codec_capabilities_map_.empty());
   SB_CHECK(video_codec_capabilities_map_.empty());
 
@@ -607,7 +610,7 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
   }
 }
 
-void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
+void MediaCapabilitiesCacheSingleton::LoadAudioConfigurations_Locked() {
   SB_CHECK(audio_configurations_.empty());
 
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
@@ -626,7 +629,7 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   // Display device change could change hdr capabilities.
-  MediaCapabilitiesCache::GetInstance()->ClearCache();
+  MediaCapabilitiesCacheSingleton::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
