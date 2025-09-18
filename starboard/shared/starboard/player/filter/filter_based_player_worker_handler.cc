@@ -32,9 +32,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 namespace starboard {
-
 namespace {
-using shared::starboard::player::filter::PlayerComponents;
 using std::placeholders::_1;
 using std::placeholders::_2;
 

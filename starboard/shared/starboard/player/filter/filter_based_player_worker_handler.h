@@ -88,8 +88,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // other accesses are happening from the same thread.
   std::mutex player_components_existence_mutex_;
 
-  std::unique_ptr<shared::starboard::player::filter::PlayerComponents>
-      player_components_;
+  std::unique_ptr<PlayerComponents> player_components_;
   // The following three variables cache the return values of member functions
   // of |player_components_|.  Their lifetime is tied to |player_components_|.
   MediaTimeProvider* media_time_provider_ = nullptr;
