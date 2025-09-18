@@ -45,7 +45,10 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
   bool default_angle_metal =
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
   bool default_angle_vulkan = features::IsDefaultANGLEVulkan();
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-variable"
   const char* default_software_renderer = kANGLEImplementationSwiftShaderName;
+#pragma clang diagnostic pop
 #if BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(features::kAllowD3D11WarpFallback)) {
     default_software_renderer = kANGLEImplementationD3D11WarpName;
