@@ -64,6 +64,7 @@ static constexpr int kMaxNumberOfSamplesPerWrite = 1;
 static const char kCustomInstantRateChangeEventName[] = "custom-instant-rate-change";
 static const char kDidReceiveFirstSegmentMsgName[] = "did-receive-first-segment";
 static const char kDidReachBufferingTargetMsgName[] = "did-reach-buffering-target";
+static const char kDecryptToHostFieldName[] = "decrypt-to-host";
 
 // static
 int Player::MaxNumberOfSamplesPerWrite() {
@@ -1317,6 +1318,10 @@ class PlayerImpl : public Player {
   void HandleInititialSeek();
   void DidEnd();
 
+  bool ShouldDecryptToHost() const {
+    return SbDrmSystemIsValid(drm_system_) && max_video_capabilities_.HasLowResolution();
+  }
+
   SbPlayer player_;
   SbWindow window_;
   SbMediaVideoCodec video_codec_;
@@ -2257,6 +2262,8 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
       GstCaps* gst_caps = CodecToGstCaps(video_codec_);
       if (gst_caps) {
         AddVideoInfoToGstCaps(info, gst_caps);
+        if (ShouldDecryptToHost())
+          gst_caps_set_simple (gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
         PrintGstCaps(gst_caps);
         gst_app_src_set_caps(GST_APP_SRC(video_appsrc_), gst_caps);
         gst_caps_replace(&video_caps_, gst_caps);
@@ -2275,6 +2282,8 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
       const auto& audio_info = sample_infos[0].audio_sample_info.stream_info;
       GstCaps* gst_caps = CodecToGstCaps(audio_codec_, &audio_info);
       if (gst_caps) {
+        if (ShouldDecryptToHost())
+          gst_caps_set_simple (gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
         PrintGstCaps(gst_caps);
         gst_app_src_set_caps(GST_APP_SRC(audio_appsrc_), gst_caps);
         if (audio_codec_ == kSbMediaAudioCodecVorbis || audio_codec_ == kSbMediaAudioCodecFlac)
