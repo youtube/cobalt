@@ -1,5 +1,174 @@
 [
   {
+    "hexsha": "4d358c5ff69e694aab8dbb3c2537b371cfcf968a",
+    "original_hexsha": "3aca9613ec670021aedc1446c6d344719c7e049b",
+    "author": "billybw",
+    "datetime": "2025-09-18T16:46:18+09:00",
+    "summary": "update filter files of unit test for linux-x64x11-modular (#7124)",
+    "stats": {
+      "files": 11,
+      "insertions": 112,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "28621977508ea97aa6846e0261b6e7a7c2a83648",
+    "original_hexsha": "b35f5ed76f68fc01e30644fb68bede1efd60127e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T22:07:23-07:00",
+    "summary": "starboard: Move mime-handling classes into flattened namespace (#7210)",
+    "stats": {
+      "files": 23,
+      "insertions": 67,
+      "deletions": 41
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5ea97c0224c75aad695fb97fd2a8cefa685c77b5",
+    "original_hexsha": "28020be7a22b1bdcb5d1518785972db7af13e22e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T19:48:52-07:00",
+    "summary": "starboard: Move `DecodedAudio` and `Buffer` into flattened namespace (#7197)",
+    "stats": {
+      "files": 13,
+      "insertions": 15,
+      "deletions": 25
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "898f703f39b85e67660e05baaedfe5b1740439ad",
+    "original_hexsha": "66ab6c0463d715d8303667a8b48004d9b5010d07",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T18:40:49-07:00",
+    "summary": "starboard: Move RequestRecordAudioPermission into flattened namespace (#7201)",
+    "stats": {
+      "files": 3,
+      "insertions": 6,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "92d70f9b32c979b7d5f51179fc2eb4c5fa87aeec",
+    "original_hexsha": "95c3a93e42c37ef52cf65fc0dd846356a66d9889",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-17T20:59:39-04:00",
+    "summary": "Use bundled SSL certs for Starboard (#7170)",
+    "stats": {
+      "files": 13,
+      "insertions": 350,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6eb792613a54e9cf74c18d104406d6a13c98920e",
+    "original_hexsha": "e9a120123b3e13a7738405b352fe59071ad0fd95",
+    "author": "John Ocampo",
+    "datetime": "2025-09-18T00:36:53+00:00",
+    "summary": "POSIX: Register getcwd as Starboard Symbol (#7181)",
+    "stats": {
+      "files": 7,
+      "insertions": 84,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8b124886a8913055a9c8c88334a6e9b76d7f46cf",
+    "original_hexsha": "3182d07a1e7de91878aca70671a5b300fc9b5c42",
+    "author": "John Ocampo",
+    "datetime": "2025-09-18T00:14:32+00:00",
+    "summary": "POSIX: Register realpath as Starboard Symbol (#7188)",
+    "stats": {
+      "files": 7,
+      "insertions": 248,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7bf0736c423d08f632f442bf11af3f385268a56c",
+    "original_hexsha": "03408e7525ca1c40ace3bbd82db667134c6c19bb",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T14:28:45-07:00",
+    "summary": "starboard: Move `VideoDmpReader` into flattened namespace (#7196)",
+    "stats": {
+      "files": 31,
+      "insertions": 40,
+      "deletions": 56
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f73067bb2e07b363565796e30277916c39e1defb",
+    "original_hexsha": "05366926be1e3e3315c18aad295fbfd2f8e16494",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T12:49:29-07:00",
+    "summary": "starboard: Move `PlaybackState` into flattened namespace (#7198)",
+    "stats": {
+      "files": 5,
+      "insertions": 8,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bc77d22afcf391540965240d8940c392d578acdf",
+    "original_hexsha": "cd2300f75b39de5490799ae6a965ba275c8739ec",
+    "author": "Abhijeet",
+    "datetime": "2025-09-17T23:47:06+05:30",
+    "summary": "starboard: Remove QueueApplication dependencies from ApplicationAndroid (#7164)",
+    "stats": {
+      "files": 2,
+      "insertions": 50,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "60b82aa6f84a485ccc4e34d934bc7c488b53be09",
+    "original_hexsha": "64a9f9ee3a7ffa163c8546d00f81b75ee58a38c3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T09:16:50-07:00",
+    "summary": "starboard: Flatten `starboard::shared` namespace used for linux build (#7159)",
+    "stats": {
+      "files": 20,
+      "insertions": 30,
+      "deletions": 91
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9d50945cae40b93ca02ed92759d6596a674c7d8e",
+    "original_hexsha": "09291b701d22ec16b87c439b65d36631678b5997",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-17T09:14:16-07:00",
+    "summary": "starboard: Move TextToSpeechObserver into flattened namespace (#7195)",
+    "stats": {
+      "files": 4,
+      "insertions": 7,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cf7a664ffd2d7339f0b9f40a0c06357e3d8c7276",
+    "original_hexsha": "9a97b4c97bf0d57d0a7bcfe6c57c0b2436234411",
+    "author": "Hao",
+    "datetime": "2025-09-17T11:02:22-04:00",
+    "summary": "Create cobalt_shell_test_lib static library (#7158)",
+    "stats": {
+      "files": 6,
+      "insertions": 266,
+      "deletions": 118
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "f1f1ebb9040925332480695c14d395b5b95a6750",
     "original_hexsha": "90729c605bf544bdeb857c3e311c13fa66c8ca9b",
     "author": "Kyujung Youn",
