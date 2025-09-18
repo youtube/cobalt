@@ -40,7 +40,7 @@
 #include "starboard/common/check_op.h"
 #endif
 
-namespace starboard::shared::starboard::player::filter::internal {
+namespace starboard {
 
 namespace {
 
@@ -347,4 +347,4 @@ void GetPeriodicHanningWindow(int window_length, float* window) {
   }
 }
 
-}  // namespace starboard::shared::starboard::player::filter::internal
+}  // namespace starboard

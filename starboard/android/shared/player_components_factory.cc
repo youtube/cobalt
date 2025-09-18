@@ -66,8 +66,7 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
-class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
-                                     filter::AudioRendererSinkImpl {
+class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
@@ -111,9 +110,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
   const int tunnel_mode_audio_session_id_;
 };
 
-class AudioRendererSinkCallbackStub
-    : public starboard::shared::starboard::player::filter::AudioRendererSink::
-          RenderCallback {
+class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
  public:
   bool error_occurred() const { return error_occurred_.load(); }
 
@@ -162,12 +159,6 @@ class PlayerComponentsPassthrough
 
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
-  typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
-      AdaptiveAudioDecoder;
-  typedef starboard::shared::starboard::player::filter::AudioRendererSink
-      AudioRendererSink;
-  typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
-      AudioRendererSinkImpl;
   typedef starboard::shared::starboard::player::filter::PlayerComponents
       PlayerComponents;
 

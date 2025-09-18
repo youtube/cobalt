@@ -21,7 +21,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -164,4 +164,4 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
   return resampled_audio;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
