@@ -42,6 +42,7 @@ extern "C" {
 typedef int musl_pid_t;
 typedef unsigned int musl_uid_t;
 typedef unsigned int musl_gid_t;
+typedef unsigned musl_id_t;
 
 typedef struct musl_sigset_t {
   unsigned long __bits[128 / sizeof(long)];

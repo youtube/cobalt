@@ -241,6 +241,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'send',
     'sendmsg',
     'sendto',
+    'setpriority',
     'setsockopt',
     'shutdown',
     'sigaction',
