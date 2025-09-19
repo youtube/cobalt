@@ -61,6 +61,7 @@ jobs:
             cobalt/build
             cobalt/docker
             cobalt/testing/filters
+            cobalt/testing/tools
             cobalt/tools
             docker-compose.yaml
       - name: Remove runtest if exists
@@ -337,6 +338,29 @@ jobs:
       - name: Run API Leak Detector
         uses: ./src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
+
+  check_binary_size:
+    needs: [initialize, build]
+    runs-on: ubuntu-latest
+    name: Check Binary Sizes
+    if: startsWith(inputs.platform, 'evergreen-arm') && contains(fromJson(needs.initialize.outputs.build_configs), 'gold')
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+
+      - name: Download all size artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: size_artifacts_evergreen-arm-*_gold
+          path: size_artifacts
+
+      - name: Process size artifacts
+        run: |
+          chmod +x cobalt/testing/tools/process_size_artifacts.sh
+          cobalt/testing/tools/process_size_artifacts.sh
+        shell: bash
 
   on-device-test:
     needs: [initialize, build]

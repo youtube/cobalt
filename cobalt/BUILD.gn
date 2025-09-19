@@ -15,6 +15,7 @@
 import("//build/linux/strip_binary.gni")
 import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
+import("//tools/binary_size/sizes.gni")
 import("//ui/base/ui_features.gni")
 
 # This arg temporarily enables or disables the updater_sandbox target.
@@ -242,5 +243,18 @@ test("cobalt_unittests") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
+  }
+}
+
+if (use_evergreen) {
+  sizes_test("cobalt_sizes") {
+    data_deps = [ ":cobalt" ]
+    data = [ "${root_out_dir}/libcobalt.so" ]
+    executable_args = [
+      "--platform",
+      "cobalt-evergreen",
+      "--isolated-script-test-output",
+      "${root_out_dir}/test_results.json",
+    ]
   }
 }
