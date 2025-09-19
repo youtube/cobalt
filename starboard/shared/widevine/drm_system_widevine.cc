@@ -35,7 +35,7 @@
 
 using wv3cdm = ::widevine::Cdm;
 
-namespace starboard::shared::widevine {
+namespace starboard {
 namespace {
 
 const int kInitializationVectorSize = 16;
@@ -794,4 +794,4 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
       message.c_str(), static_cast<int>(message.size()), NULL);
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard

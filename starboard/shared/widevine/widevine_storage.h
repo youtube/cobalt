@@ -22,7 +22,7 @@
 
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 // Manages the load and save of name/value pairs in std::string.  It is used by
 // Widevine to store persistent data like device provisioning.
@@ -57,6 +57,6 @@ class WidevineStorage : public ::widevine::Cdm::IStorage {
   std::map<std::string, std::string> cache_;
 };
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_STORAGE_H_

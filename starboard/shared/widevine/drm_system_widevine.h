@@ -29,7 +29,7 @@
 #include "starboard/thread.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 // Adapts Widevine's |Content Decryption Module v 3.5| to Starboard's
 // |SbDrmSystem|.
@@ -200,6 +200,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::atomic_bool first_update_session_received_{false};
 };
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_

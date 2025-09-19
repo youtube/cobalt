@@ -19,12 +19,12 @@
 
 #include "starboard/types.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 // Computes the checksum of the Widevine Keybox.
 // NOTE: this is not a cryptographic hash, but serves our purposes here.
 std::string GetWidevineKeyboxHash();
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
