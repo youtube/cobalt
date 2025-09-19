@@ -25,7 +25,7 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::testing::Combine;
@@ -352,4 +352,4 @@ INSTANTIATE_TEST_CASE_P(AudioChannelLayoutMixerTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

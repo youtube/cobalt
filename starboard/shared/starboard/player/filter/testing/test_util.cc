@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::testing::AssertionFailure;
@@ -306,4 +306,4 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   return input_buffer;
 }
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

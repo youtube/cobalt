@@ -42,7 +42,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
@@ -361,4 +361,4 @@ scoped_refptr<InputBuffer> VideoDecoderTestFixture::GetVideoInputBuffer(
   return input_buffer;
 }
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

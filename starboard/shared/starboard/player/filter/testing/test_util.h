@@ -30,7 +30,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 
 typedef std::tuple<const char*, SbPlayerOutputMode> VideoTestParam;
 
@@ -73,6 +73,6 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back);
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_
