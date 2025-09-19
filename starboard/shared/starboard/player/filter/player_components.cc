@@ -156,8 +156,10 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   bool use_stub_audio_decoder = false;
   bool use_stub_video_decoder = false;
 #if BUILDFLAG(IS_ANDROID)
-  use_stub_audio_decoder = FeatureList::IsEnabled(kUseStubAudioDecoder);
-  use_stub_video_decoder = FeatureList::IsEnabled(kUseStubVideoDecoder);
+  use_stub_audio_decoder =
+      FeatureList::IsEnabled(features::kUseStubAudioDecoder);
+  use_stub_video_decoder =
+      FeatureList::IsEnabled(features::kUseStubVideoDecoder);
 #else
   auto command_line = Application::Get()->GetCommandLine();
   use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
