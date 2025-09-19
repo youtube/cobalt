@@ -38,7 +38,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // This class holds necessary media stack components required by
 // by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
@@ -208,6 +208,6 @@ class PlayerComponents {
   void operator=(const PlayerComponents&) = delete;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
