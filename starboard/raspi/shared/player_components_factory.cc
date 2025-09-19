@@ -28,11 +28,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-
 namespace {
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
@@ -106,8 +101,4 @@ bool PlayerComponents::Factory::OutputModeSupported(
   return output_mode == kSbPlayerOutputModePunchOut;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard
