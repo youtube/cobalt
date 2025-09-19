@@ -70,6 +70,37 @@ class ContinuousAudioTrackSink
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
+  // The following methods are called inside AudioThreadFunc() on the audio
+  // thread.
+  void ProcessConsumedFrames(int* frames_in_audio_track,
+                             int* last_playback_head_position,
+                             int64_t* last_playback_head_event_at,
+                             int initial_silence_frames,
+                             int dropped_frames,
+                             int* reported_dropped_frames);
+  void UpdatePlayState(bool* was_playing,
+                       bool is_playing,
+                       bool* is_initial_silence_feeding,
+                       int initial_silence_frames,
+                       int* dropped_frames,
+                       int* offset_in_frames,
+                       const std::optional<Timestamp>& last_timestamp);
+  void HandleInitialSilenceFeeding(
+      JNIEnv* env,
+      int* initial_silence_frames,
+      int64_t* silence_fed_at_us,
+      const std::optional<Timestamp>& last_timestamp,
+      const std::vector<uint8_t>& silence_frames);
+  void WriteAudioData(JNIEnv* env,
+                      int frames_in_buffer,
+                      int offset_in_frames,
+                      bool is_eos_reached,
+                      int* frames_in_audio_track,
+                      int64_t* frames_consumed_at);
+  void CheckForPlaybackStart(JNIEnv* env,
+                             int64_t* last_real_frame_head,
+                             int64_t silence_fed_at_us);
+
   int WriteData(JNIEnv* env, const void* buffer, int size);
 
   void ReportError(bool capability_changed, const std::string& error_message);
