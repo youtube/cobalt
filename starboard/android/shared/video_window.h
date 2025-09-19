@@ -18,7 +18,7 @@
 #include <android/native_window.h>
 #include <jni.h>
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class VideoSurfaceHolder {
  public:
@@ -49,6 +49,6 @@ class VideoSurfaceHolder {
   void ClearVideoWindow(bool force_reset_surface);
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_WINDOW_H_

@@ -26,7 +26,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
 
-namespace starboard::android::shared::accessibility {
+namespace starboard {
 
 namespace {
 
@@ -134,4 +134,4 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   return true;
 }
 
-}  // namespace starboard::android::shared::accessibility
+}  // namespace starboard

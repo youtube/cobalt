@@ -42,6 +42,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
 } CobaltExtensionPlatformServicePrivate;
 
 namespace starboard {
+
 namespace {
 
 bool Has(const char* name) {

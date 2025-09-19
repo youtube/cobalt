@@ -27,7 +27,7 @@
 #include "starboard/common/string.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
@@ -762,4 +762,4 @@ bool MediaCodecDecoder::Flush() {
   return true;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

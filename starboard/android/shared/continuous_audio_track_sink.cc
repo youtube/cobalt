@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
@@ -347,4 +347,4 @@ int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
   return bridge_.GetStartThresholdInFrames();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

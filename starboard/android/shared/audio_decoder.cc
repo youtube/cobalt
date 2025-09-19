@@ -50,7 +50,7 @@
 #define VERBOSE_MEDIA_LOG() SB_EAT_STREAM_PARAMETERS
 #endif
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
@@ -297,4 +297,4 @@ void MediaCodecAudioDecoder::ReportError(SbPlayerError error,
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

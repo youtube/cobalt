@@ -17,7 +17,7 @@
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 // Variable that designates what extension version is used.
 const uint32_t FEATURES_API_EXTENSION_VERSION = 1u;
 
@@ -43,4 +43,4 @@ const void* GetFeaturesApi() {
   return &kFeaturesApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

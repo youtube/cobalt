@@ -35,7 +35,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
@@ -214,6 +214,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_

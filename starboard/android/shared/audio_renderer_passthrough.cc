@@ -25,7 +25,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::ScopedJavaLocalRef;
@@ -630,4 +630,4 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   decoded_audios_.push(decoded_audio);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
