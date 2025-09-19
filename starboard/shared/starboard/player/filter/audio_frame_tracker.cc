@@ -19,6 +19,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -26,6 +27,7 @@ namespace starboard {
 void AudioFrameTracker::Reset() {
   frame_records_.clear();
   frames_played_adjusted_to_playback_rate_ = 0;
+  overflowed_frames_ = 0;
 }
 
 void AudioFrameTracker::AddFrames(int number_of_frames, double playback_rate) {
@@ -61,8 +63,8 @@ void AudioFrameTracker::RecordPlayedFrames(int number_of_frames) {
       frame_records_.erase(frame_records_.begin());
     }
   }
-  SB_LOG_IF(ERROR, number_of_frames != 0)
-      << "played frames overflow " << number_of_frames;
+
+  overflowed_frames_ += number_of_frames;
 }
 
 int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
@@ -92,6 +94,15 @@ int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
           static_cast<int>(record.number_of_frames * record.playback_rate);
     }
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (features::FeatureList::IsEnabled(
+          features::kContinueMediaTimeAfterAudioEOS)) {
+    // A simple workaround to handle silence frames for tunnel mode player.
+    // |last_playback_rate_| is used for all silence frames.
+    frames_played += static_cast<int>(overflowed_frames_ * last_playback_rate_);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   return frames_played;
 }

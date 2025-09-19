@@ -50,6 +50,8 @@ class AudioFrameTracker {
   std::vector<FrameRecord> frame_records_;
   int64_t frames_played_adjusted_to_playback_rate_ = 0;
   double last_playback_rate_ = 1.0;
+  // A record of overflowed frames.
+  int64_t overflowed_frames_ = 0;
 };
 
 }  // namespace starboard
