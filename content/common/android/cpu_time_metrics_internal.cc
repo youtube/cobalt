@@ -34,6 +34,7 @@
 #include "content/common/process_visibility_tracker.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/process_type.h"
+#include "base/logging.h"
 
 namespace content {
 namespace internal {
@@ -211,6 +212,7 @@ class ProcessCpuTimeMetrics::DetailedCpuTimeMetrics {
 
   void CollectOnThreadPool() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(thread_pool_);
+    base::TimeTicks time = base::TimeTicks::Now();
 
     // This might overflow. We only care that it is different for each cycle.
     current_cycle_++;
@@ -218,12 +220,13 @@ class ProcessCpuTimeMetrics::DetailedCpuTimeMetrics {
     // Skip reporting any values into histograms until histogram persistence is
     // set up. Otherwise, we would create the histograms without persistence and
     // lose data at process termination (particularly in child processes).
-    if (!base::GlobalHistogramAllocator::Get() &&
+    /*if (!base::GlobalHistogramAllocator::Get() &&
         !g_ignore_histogram_allocator_for_testing) {
       return;
-    }
+    }*/
 
     // GetCumulativeCPUUsage() may return a negative value if sampling failed.
+    std::string result = "";
     base::TimeDelta cumulative_cpu_time =
         process_metrics_->GetCumulativeCPUUsage();
     base::TimeDelta process_cpu_time_delta =
@@ -231,6 +234,8 @@ class ProcessCpuTimeMetrics::DetailedCpuTimeMetrics {
     if (process_cpu_time_delta.is_positive()) {
       reported_cpu_time_ = cumulative_cpu_time;
     }
+    
+    result += "cobalt:" + std::to_string(process_cpu_time_delta.InMicroseconds());
 
     // Also report a breakdown by thread type.
     base::TimeDelta unattributed_delta = process_cpu_time_delta;
@@ -265,7 +270,11 @@ class ProcessCpuTimeMetrics::DetailedCpuTimeMetrics {
             cumulative_time - thread_details->reported_cpu_time;
         unattributed_delta -= thread_delta;
 
-        ReportThreadCpuTimeDelta(thread_details->type, thread_delta);
+        // ReportThreadCpuTimeDelta(thread_details->type, thread_delta);
+        /*LOG(ERROR) << "Cobalt: " << __func__
+                   << " " << base::ThreadIdNameManager::GetInstance()->GetName(tid)
+                   << ": " << thread_delta.InMicroseconds();*/
+        result += std::string(",") + base::ThreadIdNameManager::GetInstance()->GetName(tid) + std::string(":") + std::to_string(thread_delta.InMicroseconds());
         thread_details->reported_cpu_time = cumulative_time;
       }
 
@@ -280,11 +289,21 @@ class ProcessCpuTimeMetrics::DetailedCpuTimeMetrics {
       }
     }
 
+    if (reported_cpu_time_.is_zero()) {
+      // First call, just set the last values.
+      last_cpu_time_ = time;
+    } else {
+      base::TimeDelta time_delta = time - last_cpu_time_;
+      last_cpu_time_ = time;
+      result += ",total:" + std::to_string(time_delta.InMicroseconds());
+      LOG(ERROR) << result;
+    }
+
     // Report the difference of the process's total CPU time and all thread's
     // CPU time as unattributed time (e.g. time consumed by threads that died).
     if (unattributed_delta.is_positive()) {
-      ReportThreadCpuTimeDelta(CpuTimeMetricsThreadType::kUnattributedThread,
-                               unattributed_delta);
+      // ReportThreadCpuTimeDelta(CpuTimeMetricsThreadType::kUnattributedThread,
+      //                          unattributed_delta);
     }
   }
 
@@ -324,6 +343,7 @@ class ProcessCpuTimeMetrics::DetailedCpuTimeMetrics {
   uint32_t current_cycle_ = 0;
   base::PlatformThreadId main_thread_id_;
   base::TimeDelta reported_cpu_time_;
+  base::TimeTicks last_cpu_time_;
   base::flat_map<base::PlatformThreadId, ThreadDetails> thread_details_;
   // Stored as instance variable to avoid allocation churn.
   base::ProcessMetrics::CPUUsagePerThread cumulative_thread_times_;
@@ -353,9 +373,9 @@ ProcessCpuTimeMetrics::ProcessCpuTimeMetrics()
   // tasks. For these processes, choose a higher reporting interval.
   if (process_type_ == ProcessTypeForUma::kBrowser ||
       process_type_ == ProcessTypeForUma::kGpu) {
-    reporting_interval_ = kReportAfterEveryNTasksPersistentProcess;
+    reporting_interval_ = 50; //kReportAfterEveryNTasksPersistentProcess;
   } else {
-    reporting_interval_ = kReportAfterEveryNTasksOtherProcess;
+    reporting_interval_ = 20; //kReportAfterEveryNTasksOtherProcess;
   }
 
   task_runner_->PostTask(
