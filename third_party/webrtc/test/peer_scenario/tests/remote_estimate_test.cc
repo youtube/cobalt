@@ -23,8 +23,7 @@ namespace test {
 namespace {
 RtpHeaderExtensionMap AudioExtensions(
     const SessionDescriptionInterface& session) {
-  auto* audio_desc =
-      cricket::GetFirstAudioContentDescription(session.description());
+  auto* audio_desc = GetFirstAudioContentDescription(session.description());
   return RtpHeaderExtensionMap(audio_desc->rtp_header_extensions());
 }
 
@@ -61,7 +60,8 @@ TEST(RemoteEstimateEndToEnd, OfferedCapabilityIsInAnswer) {
 }
 
 TEST(RemoteEstimateEndToEnd, AudioUsesAbsSendTimeExtension) {
-  // Defined before PeerScenario so it gets destructed after, to avoid use after free.
+  // Defined before PeerScenario so it gets destructed after, to avoid use after
+  // free.
   std::atomic<bool> received_abs_send_time(false);
   PeerScenario s(*test_info_);
 
@@ -75,7 +75,7 @@ TEST(RemoteEstimateEndToEnd, AudioUsesAbsSendTimeExtension) {
   s.net()->CreateRoute(callee->endpoint(), {ret_node}, caller->endpoint());
 
   auto signaling = s.ConnectSignaling(caller, callee, {send_node}, {ret_node});
-  caller->CreateAudio("AUDIO", cricket::AudioOptions());
+  caller->CreateAudio("AUDIO", AudioOptions());
   signaling.StartIceSignaling();
   RtpHeaderExtensionMap extension_map;
   std::atomic<bool> offer_exchange_done(false);

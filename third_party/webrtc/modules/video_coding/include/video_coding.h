@@ -11,26 +11,22 @@
 #ifndef MODULES_VIDEO_CODING_INCLUDE_VIDEO_CODING_H_
 #define MODULES_VIDEO_CODING_INCLUDE_VIDEO_CODING_H_
 
-#include "api/field_trials_view.h"
-#include "api/video/video_frame.h"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+
+#include "api/environment/environment.h"
+#include "api/rtp_headers.h"
 #include "api/video_codecs/video_decoder.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 
 namespace webrtc {
 
-class Clock;
-class EncodedImageCallback;
-class VideoDecoder;
-class VideoEncoder;
-struct CodecSpecificInfo;
-
 class VideoCodingModule {
  public:
-  // DEPRECATED.
-  static VideoCodingModule* Create(
-      Clock* clock,
-      const FieldTrialsView* field_trials = nullptr);
+  [[deprecated]] static std::unique_ptr<VideoCodingModule> CreateDeprecated(
+      const Environment& env);
 
   virtual ~VideoCodingModule() = default;
 

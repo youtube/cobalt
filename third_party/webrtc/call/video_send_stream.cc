@@ -10,9 +10,13 @@
 
 #include "call/video_send_stream.h"
 
+#include <cstdint>
+#include <string>
 #include <utility>
 
-#include "api/crypto/frame_encryptor_interface.h"
+#include "api/call/transport.h"
+#include "api/video_codecs/video_encoder.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/strings/string_format.h"
 
@@ -39,7 +43,7 @@ VideoSendStream::StreamStats::~StreamStats() = default;
 
 std::string VideoSendStream::StreamStats::ToString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "type: " << StreamTypeToString(type);
   if (referenced_media_ssrc.has_value())
     ss << " (for: " << referenced_media_ssrc.value() << ")";
@@ -53,11 +57,9 @@ std::string VideoSendStream::StreamStats::ToString() const {
   ss << "avg_delay_ms: " << avg_delay_ms << ", ";
   ss << "max_delay_ms: " << max_delay_ms << ", ";
   if (report_block_data) {
-    ss << "cum_loss: " << report_block_data->report_block().packets_lost
-       << ", ";
+    ss << "cum_loss: " << report_block_data->cumulative_lost() << ", ";
     ss << "max_ext_seq: "
-       << report_block_data->report_block().extended_highest_sequence_number
-       << ", ";
+       << report_block_data->extended_highest_sequence_number() << ", ";
   }
   ss << "nack: " << rtcp_packet_type_counts.nack_packets << ", ";
   ss << "fir: " << rtcp_packet_type_counts.fir_packets << ", ";
@@ -70,9 +72,9 @@ VideoSendStream::Stats::~Stats() = default;
 
 std::string VideoSendStream::Stats::ToString(int64_t time_ms) const {
   char buf[2048];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "VideoSendStream stats: " << time_ms << ", {";
-  ss << "input_fps: " << rtc::StringFormat("%.1f", input_frame_rate) << ", ";
+  ss << "input_fps: " << StringFormat("%.1f", input_frame_rate) << ", ";
   ss << "encode_fps: " << encode_frame_rate << ", ";
   ss << "encode_ms: " << avg_encode_time_ms << ", ";
   ss << "encode_usage_perc: " << encode_usage_percent << ", ";
@@ -112,7 +114,7 @@ VideoSendStream::Config::Config::~Config() = default;
 
 std::string VideoSendStream::Config::ToString() const {
   char buf[2 * 1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{encoder_settings: { experiment_cpu_load_estimator: "
      << (encoder_settings.experiment_cpu_load_estimator ? "on" : "off") << "}}";
   ss << ", rtp: " << rtp.ToString();

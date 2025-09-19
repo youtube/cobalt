@@ -10,35 +10,28 @@
 
 #include "rtc_base/socket_address.h"
 
-#include "absl/strings/string_view.h"
-#include "rtc_base/numerics/safe_conversions.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #if defined(WEBRTC_POSIX)
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #if defined(OPENBSD)
 #include <netinet/in_systm.h>
 #endif
 #if !defined(__native_client__)
-#include <netinet/ip.h>
 #endif
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <unistd.h>
 #endif
 
+#include "absl/strings/string_view.h"
 #include "rtc_base/byte_order.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/net_helpers.h"
+#include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/strings/string_builder.h"
 
-#if defined(WEBRTC_WIN)
-#include "rtc_base/win32.h"
-#endif
-
-namespace rtc {
+namespace webrtc {
 
 SocketAddress::SocketAddress() {
   Clear();
@@ -122,7 +115,7 @@ void SocketAddress::SetResolvedIP(const IPAddress& ip) {
 }
 
 void SocketAddress::SetPort(int port) {
-  port_ = rtc::dchecked_cast<uint16_t>(port);
+  port_ = dchecked_cast<uint16_t>(port);
 }
 
 uint32_t SocketAddress::ip() const {
@@ -167,14 +160,14 @@ std::string SocketAddress::PortAsString() const {
 
 std::string SocketAddress::ToString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder sb(buf);
+  SimpleStringBuilder sb(buf);
   sb << HostAsURIString() << ":" << port();
   return sb.str();
 }
 
 std::string SocketAddress::ToSensitiveString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder sb(buf);
+  SimpleStringBuilder sb(buf);
   sb << HostAsSensitiveURIString() << ":" << port();
   return sb.str();
 }
@@ -184,7 +177,7 @@ std::string SocketAddress::ToSensitiveNameAndAddressString() const {
     return ToSensitiveString();
   }
   char buf[1024];
-  rtc::SimpleStringBuilder sb(buf);
+  SimpleStringBuilder sb(buf);
   sb << HostAsSensitiveURIString() << ":" << port();
   sb << " (";
   if (ip_.family() == AF_INET6) {
@@ -351,4 +344,4 @@ SocketAddress EmptySocketAddressWithFamily(int family) {
   return SocketAddress();
 }
 
-}  // namespace rtc
+}  // namespace webrtc

@@ -10,21 +10,11 @@
 
 #include "modules/desktop_capture/mac/desktop_configuration.h"
 
+#include <Cocoa/Cocoa.h>
 #include <math.h>
 #include <algorithm>
-#include <Cocoa/Cocoa.h>
 
 #include "rtc_base/checks.h"
-
-#if !defined(MAC_OS_X_VERSION_10_7) || \
-    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_7
-
-@interface NSScreen (LionAPI)
-- (CGFloat)backingScaleFactor;
-- (NSRect)convertRectToBacking:(NSRect)aRect;
-@end
-
-#endif  // MAC_OS_X_VERSION_10_7
 
 namespace webrtc {
 
@@ -40,12 +30,12 @@ DesktopRect NSRectToDesktopRect(const NSRect& ns_rect) {
 
 // Inverts the position of `rect` from bottom-up coordinates to top-down,
 // relative to `bounds`.
-void InvertRectYOrigin(const DesktopRect& bounds,
-                       DesktopRect* rect) {
+void InvertRectYOrigin(const DesktopRect& bounds, DesktopRect* rect) {
   RTC_DCHECK_EQ(bounds.top(), 0);
-  *rect = DesktopRect::MakeXYWH(
-      rect->left(), bounds.bottom() - rect->bottom(),
-      rect->width(), rect->height());
+  *rect = DesktopRect::MakeXYWH(rect->left(),
+                                bounds.bottom() - rect->bottom(),
+                                rect->width(),
+                                rect->height());
 }
 
 MacDisplayConfiguration GetConfigurationForScreen(NSScreen* screen) {
@@ -60,16 +50,9 @@ MacDisplayConfiguration GetConfigurationForScreen(NSScreen* screen) {
   NSRect ns_bounds = [screen frame];
   display_config.bounds = NSRectToDesktopRect(ns_bounds);
 
-  // If the host is running Mac OS X 10.7+ or later, query the scaling factor
-  // between logical and physical (aka "backing") pixels, otherwise assume 1:1.
-  if ([screen respondsToSelector:@selector(backingScaleFactor)] &&
-      [screen respondsToSelector:@selector(convertRectToBacking:)]) {
-    display_config.dip_to_pixel_scale = [screen backingScaleFactor];
-    NSRect ns_pixel_bounds = [screen convertRectToBacking: ns_bounds];
-    display_config.pixel_bounds = NSRectToDesktopRect(ns_pixel_bounds);
-  } else {
-    display_config.pixel_bounds = display_config.bounds;
-  }
+  display_config.dip_to_pixel_scale = [screen backingScaleFactor];
+  NSRect ns_pixel_bounds = [screen convertRectToBacking:ns_bounds];
+  display_config.pixel_bounds = NSRectToDesktopRect(ns_pixel_bounds);
 
   // Determine if the display is built-in or external.
   display_config.is_builtin = CGDisplayIsBuiltin(display_config.id);
@@ -114,7 +97,7 @@ MacDesktopConfiguration MacDesktopConfiguration::GetCurrent(Origin origin) {
   // DPI match that of the primary monitor.
   for (NSUInteger i = 0; i < [screens count]; ++i) {
     MacDisplayConfiguration display_config =
-        GetConfigurationForScreen([screens objectAtIndex: i]);
+        GetConfigurationForScreen([screens objectAtIndex:i]);
 
     if (i == 0)
       desktop_config.dip_to_pixel_scale = display_config.dip_to_pixel_scale;
@@ -156,8 +139,7 @@ MacDesktopConfiguration MacDesktopConfiguration::GetCurrent(Origin origin) {
 // MacDesktopConfiguration::Equals.
 bool operator==(const MacDisplayConfiguration& left,
                 const MacDisplayConfiguration& right) {
-  return left.id == right.id &&
-      left.bounds.equals(right.bounds) &&
+  return left.id == right.id && left.bounds.equals(right.bounds) &&
       left.pixel_bounds.equals(right.pixel_bounds) &&
       left.dip_to_pixel_scale == right.dip_to_pixel_scale;
 }
@@ -170,18 +152,20 @@ bool MacDesktopConfiguration::Equals(const MacDesktopConfiguration& other) {
 }
 
 const MacDisplayConfiguration*
-MacDesktopConfiguration::FindDisplayConfigurationById(
-    CGDirectDisplayID id) {
+    MacDesktopConfiguration::FindDisplayConfigurationById(
+        CGDirectDisplayID id) {
   bool is_builtin = CGDisplayIsBuiltin(id);
   for (MacDisplayConfigurations::const_iterator it = displays.begin();
-      it != displays.end(); ++it) {
+       it != displays.end();
+       ++it) {
     // The MBP having both discrete and integrated graphic cards will do
     // automate graphics switching by default. When it switches from discrete to
     // integrated one, the current display ID of the built-in display will
     // change and this will cause screen capture stops.
     // So make screen capture of built-in display continuing even if its display
     // ID is changed.
-    if ((is_builtin && it->is_builtin) || (!is_builtin && it->id == id)) return &(*it);
+    if ((is_builtin && it->is_builtin) || (!is_builtin && it->id == id))
+      return &(*it);
   }
   return NULL;
 }

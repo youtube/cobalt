@@ -18,17 +18,19 @@ namespace webrtc {
 
 class DataChannelDelegateAdapter : public DataChannelObserver {
  public:
-  DataChannelDelegateAdapter(RTC_OBJC_TYPE(RTCDataChannel) * channel) { channel_ = channel; }
+  DataChannelDelegateAdapter(RTC_OBJC_TYPE(RTCDataChannel) * channel) {
+    channel_ = channel;
+  }
 
   void OnStateChange() override {
     [channel_.delegate dataChannelDidChangeState:channel_];
   }
 
-  void OnMessage(const DataBuffer& buffer) override {
+  void OnMessage(const DataBuffer &buffer) override {
     RTC_OBJC_TYPE(RTCDataBuffer) *data_buffer =
         [[RTC_OBJC_TYPE(RTCDataBuffer) alloc] initWithNativeBuffer:buffer];
     [channel_.delegate dataChannel:channel_
-       didReceiveMessageWithBuffer:data_buffer];
+        didReceiveMessageWithBuffer:data_buffer];
   }
 
   void OnBufferedAmountChange(uint64_t previousAmount) override {
@@ -42,7 +44,7 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
  private:
   __weak RTC_OBJC_TYPE(RTCDataChannel) * channel_;
 };
-}
+}  // namespace webrtc
 
 @implementation RTC_OBJC_TYPE (RTCDataBuffer) {
   std::unique_ptr<webrtc::DataBuffer> _dataBuffer;
@@ -50,9 +52,10 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
 
 - (instancetype)initWithData:(NSData *)data isBinary:(BOOL)isBinary {
   NSParameterAssert(data);
-  if (self = [super init]) {
-    rtc::CopyOnWriteBuffer buffer(
-        reinterpret_cast<const uint8_t*>(data.bytes), data.length);
+  self = [super init];
+  if (self) {
+    webrtc::CopyOnWriteBuffer buffer(
+        reinterpret_cast<const uint8_t *>(data.bytes), data.length);
     _dataBuffer.reset(new webrtc::DataBuffer(buffer, isBinary));
   }
   return self;
@@ -69,8 +72,9 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
 
 #pragma mark - Private
 
-- (instancetype)initWithNativeBuffer:(const webrtc::DataBuffer&)nativeBuffer {
-  if (self = [super init]) {
+- (instancetype)initWithNativeBuffer:(const webrtc::DataBuffer &)nativeBuffer {
+  self = [super init];
+  if (self) {
     _dataBuffer.reset(new webrtc::DataBuffer(nativeBuffer));
   }
   return self;
@@ -84,7 +88,7 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
 
 @implementation RTC_OBJC_TYPE (RTCDataChannel) {
   RTC_OBJC_TYPE(RTCPeerConnectionFactory) * _factory;
-  rtc::scoped_refptr<webrtc::DataChannelInterface> _nativeDataChannel;
+  webrtc::scoped_refptr<webrtc::DataChannelInterface> _nativeDataChannel;
   std::unique_ptr<webrtc::DataChannelDelegateAdapter> _observer;
   BOOL _isObserverRegistered;
 }
@@ -114,11 +118,19 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
 }
 
 - (uint16_t)maxPacketLifeTime {
-  return _nativeDataChannel->maxRetransmitTime();
+  // Emulate deprecated API that will be removed.
+  if (_nativeDataChannel->maxPacketLifeTime()) {
+    return *_nativeDataChannel->maxPacketLifeTime();
+  }
+  return -1;
 }
 
 - (uint16_t)maxRetransmits {
-  return _nativeDataChannel->maxRetransmits();
+  // Emulate deprecated API that will be removed.
+  if (_nativeDataChannel->maxRetransmitsOpt()) {
+    return *_nativeDataChannel->maxRetransmitsOpt();
+  }
+  return -1;
 }
 
 - (NSString *)protocol {
@@ -138,8 +150,8 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
 }
 
 - (RTCDataChannelState)readyState {
-  return [[self class] dataChannelStateForNativeState:
-      _nativeDataChannel->state()];
+  return
+      [[self class] dataChannelStateForNativeState:_nativeDataChannel->state()];
 }
 
 - (uint64_t)bufferedAmount {
@@ -155,19 +167,22 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
 }
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"RTC_OBJC_TYPE(RTCDataChannel):\n%ld\n%@\n%@",
-                                    (long)self.channelId,
-                                    self.label,
-                                    [[self class] stringForState:self.readyState]];
+  return
+      [NSString stringWithFormat:@"RTC_OBJC_TYPE(RTCDataChannel):\n%ld\n%@\n%@",
+                                 (long)self.channelId,
+                                 self.label,
+                                 [[self class] stringForState:self.readyState]];
 }
 
 #pragma mark - Private
 
-- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-              nativeDataChannel:
-                  (rtc::scoped_refptr<webrtc::DataChannelInterface>)nativeDataChannel {
+- (instancetype)
+      initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+    nativeDataChannel:
+        (webrtc::scoped_refptr<webrtc::DataChannelInterface>)nativeDataChannel {
   NSParameterAssert(nativeDataChannel);
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _factory = factory;
     _nativeDataChannel = nativeDataChannel;
     _observer.reset(new webrtc::DataChannelDelegateAdapter(self));
@@ -176,8 +191,8 @@ class DataChannelDelegateAdapter : public DataChannelObserver {
   return self;
 }
 
-+ (webrtc::DataChannelInterface::DataState)
-    nativeDataChannelStateForState:(RTCDataChannelState)state {
++ (webrtc::DataChannelInterface::DataState)nativeDataChannelStateForState:
+    (RTCDataChannelState)state {
   switch (state) {
     case RTCDataChannelStateConnecting:
       return webrtc::DataChannelInterface::DataState::kConnecting;

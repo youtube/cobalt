@@ -28,7 +28,7 @@ class FuzzerTimeout : public Timeout {
   explicit FuzzerTimeout(std::set<TimeoutID>& active_timeouts)
       : active_timeouts_(active_timeouts) {}
 
-  void Start(DurationMs duration_ms, TimeoutID timeout_id) override {
+  void Start(DurationMs /* duration_ms */, TimeoutID timeout_id) override {
     // Start is only allowed to be called on stopped or expired timeouts.
     if (timeout_id_.has_value()) {
       // It has been started before, but maybe it expired. Ensure that it's not
@@ -44,42 +44,45 @@ class FuzzerTimeout : public Timeout {
     // expired.
     RTC_DCHECK(timeout_id_.has_value());
     RTC_DCHECK(active_timeouts_.erase(*timeout_id_) == 1);
-    timeout_id_ = absl::nullopt;
+    timeout_id_ = std::nullopt;
   }
 
   // A set of all active timeouts, managed by `FuzzerCallbacks`.
   std::set<TimeoutID>& active_timeouts_;
   // If present, the timout is active and will expire reported as `timeout_id`.
-  absl::optional<TimeoutID> timeout_id_;
+  std::optional<TimeoutID> timeout_id_;
 };
 
 class FuzzerCallbacks : public DcSctpSocketCallbacks {
  public:
   static constexpr int kRandomValue = 42;
-  void SendPacket(rtc::ArrayView<const uint8_t> data) override {
+  void SendPacket(webrtc::ArrayView<const uint8_t> data) override {
     sent_packets_.emplace_back(std::vector<uint8_t>(data.begin(), data.end()));
   }
   std::unique_ptr<Timeout> CreateTimeout(
-      webrtc::TaskQueueBase::DelayPrecision precision) override {
+      webrtc::TaskQueueBase::DelayPrecision /* precision */) override {
     // The fuzzer timeouts don't implement |precision|.
     return std::make_unique<FuzzerTimeout>(active_timeouts_);
   }
-  TimeMs TimeMillis() override { return TimeMs(42); }
-  uint32_t GetRandomInt(uint32_t low, uint32_t high) override {
+  webrtc::Timestamp Now() override { return webrtc::Timestamp::Millis(42); }
+  uint32_t GetRandomInt(uint32_t /* low */, uint32_t /* high */) override {
     return kRandomValue;
   }
-  void OnMessageReceived(DcSctpMessage message) override {}
-  void OnError(ErrorKind error, absl::string_view message) override {}
-  void OnAborted(ErrorKind error, absl::string_view message) override {}
+  void OnMessageReceived(DcSctpMessage /* message */) override {}
+  void OnError(ErrorKind /* error */,
+               absl::string_view /* message */) override {}
+  void OnAborted(ErrorKind /* error */,
+                 absl::string_view /* message */) override {}
   void OnConnected() override {}
   void OnClosed() override {}
   void OnConnectionRestarted() override {}
-  void OnStreamsResetFailed(rtc::ArrayView<const StreamID> outgoing_streams,
-                            absl::string_view reason) override {}
+  void OnStreamsResetFailed(
+      webrtc::ArrayView<const StreamID> /* outgoing_streams */,
+      absl::string_view /* reason */) override {}
   void OnStreamsResetPerformed(
-      rtc::ArrayView<const StreamID> outgoing_streams) override {}
+      webrtc::ArrayView<const StreamID> outgoing_streams) override {}
   void OnIncomingStreamsReset(
-      rtc::ArrayView<const StreamID> incoming_streams) override {}
+      webrtc::ArrayView<const StreamID> incoming_streams) override {}
 
   std::vector<uint8_t> ConsumeSentPacket() {
     if (sent_packets_.empty()) {
@@ -91,7 +94,7 @@ class FuzzerCallbacks : public DcSctpSocketCallbacks {
   }
 
   // Given an index among the active timeouts, will expire that one.
-  absl::optional<TimeoutID> ExpireTimeout(size_t index) {
+  std::optional<TimeoutID> ExpireTimeout(size_t index) {
     if (index < active_timeouts_.size()) {
       auto it = active_timeouts_.begin();
       std::advance(it, index);
@@ -99,7 +102,7 @@ class FuzzerCallbacks : public DcSctpSocketCallbacks {
       active_timeouts_.erase(it);
       return timeout_id;
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
  private:
@@ -112,7 +115,7 @@ class FuzzerCallbacks : public DcSctpSocketCallbacks {
 // API methods.
 void FuzzSocket(DcSctpSocketInterface& socket,
                 FuzzerCallbacks& cb,
-                rtc::ArrayView<const uint8_t> data);
+                webrtc::ArrayView<const uint8_t> data);
 
 }  // namespace dcsctp_fuzzers
 }  // namespace dcsctp

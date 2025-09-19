@@ -10,6 +10,13 @@
 
 #include "api/units/data_rate.h"
 
+#include <cstdint>
+#include <limits>
+
+#include "api/units/data_size.h"
+#include "api/units/frequency.h"
+#include "api/units/time_delta.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "test/gtest.h"
 
@@ -27,6 +34,7 @@ TEST(DataRateTest, ConstExpr) {
   constexpr int64_t kValue = 12345;
   constexpr DataRate kDataRateZero = DataRate::Zero();
   constexpr DataRate kDataRateInf = DataRate::Infinity();
+  static_assert(DataRate() == kDataRateZero);
   static_assert(kDataRateZero.IsZero(), "");
   static_assert(kDataRateInf.IsInfinite(), "");
   static_assert(kDataRateInf.bps_or(-1) == -1, "");

@@ -24,9 +24,8 @@ namespace jni {
 
 class JavaMediaStream {
  public:
-  explicit JavaMediaStream(
-      JNIEnv* env,
-      rtc::scoped_refptr<MediaStreamInterface> media_stream);
+  explicit JavaMediaStream(JNIEnv* env,
+                           scoped_refptr<MediaStreamInterface> media_stream);
   ~JavaMediaStream();
 
   const ScopedJavaGlobalRef<jobject>& j_media_stream() {

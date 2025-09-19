@@ -13,6 +13,8 @@
 #include <cstdint>
 
 #include "api/array_view.h"
+#include "api/environment/environment_factory.h"
+#include "api/media_types.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/include/receive_side_congestion_controller.h"
@@ -28,10 +30,9 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   Timestamp arrival_time = Timestamp::Micros(123'456'789);
   SimulatedClock clock(arrival_time);
   ReceiveSideCongestionController cc(
-      &clock,
+      CreateEnvironment(&clock),
       /*feedback_sender=*/[](auto...) {},
-      /*remb_sender=*/[](auto...) {},
-      /*network_state_estimator=*/nullptr);
+      /*remb_sender=*/[](auto...) {});
   RtpHeaderExtensionMap extensions;
   extensions.Register<TransmissionOffset>(1);
   extensions.Register<AbsoluteSendTime>(2);
@@ -47,7 +48,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
     arrival_time += TimeDelta::Millis(ByteReader<uint8_t>::ReadBigEndian(data));
     data += sizeof(uint8_t);
     packet_size = std::min<size_t>(end_data - data, packet_size);
-    auto raw_packet = rtc::MakeArrayView(data, packet_size);
+    auto raw_packet = webrtc::MakeArrayView(data, packet_size);
     data += packet_size;
 
     if (!rtp_packet.Parse(raw_packet)) {

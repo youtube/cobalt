@@ -14,7 +14,8 @@
 
 namespace {
 
-class SSLCertificateVerifierAdapter final : public rtc::SSLCertificateVerifier {
+class SSLCertificateVerifierAdapter final
+    : public webrtc::SSLCertificateVerifier {
  public:
   SSLCertificateVerifierAdapter(
       id<RTC_OBJC_TYPE(RTCSSLCertificateVerifier)> objc_certificate_verifier)
@@ -22,12 +23,13 @@ class SSLCertificateVerifierAdapter final : public rtc::SSLCertificateVerifier {
     RTC_DCHECK(objc_certificate_verifier_ != nil);
   }
 
-  bool Verify(const rtc::SSLCertificate& certificate) override {
+  bool Verify(const webrtc::SSLCertificate& certificate) override {
     @autoreleasepool {
-      rtc::Buffer der_buffer;
+      webrtc::Buffer der_buffer;
       certificate.ToDER(&der_buffer);
-      NSData* serialized_certificate = [[NSData alloc] initWithBytes:der_buffer.data()
-                                                              length:der_buffer.size()];
+      NSData* serialized_certificate =
+          [[NSData alloc] initWithBytes:der_buffer.data()
+                                 length:der_buffer.size()];
       return [objc_certificate_verifier_ verify:serialized_certificate];
     }
   }
@@ -36,13 +38,14 @@ class SSLCertificateVerifierAdapter final : public rtc::SSLCertificateVerifier {
   id<RTC_OBJC_TYPE(RTCSSLCertificateVerifier)> objc_certificate_verifier_;
 };
 
-}
+}  // namespace
 
 namespace webrtc {
 
-std::unique_ptr<rtc::SSLCertificateVerifier> ObjCToNativeCertificateVerifier(
+std::unique_ptr<webrtc::SSLCertificateVerifier> ObjCToNativeCertificateVerifier(
     id<RTC_OBJC_TYPE(RTCSSLCertificateVerifier)> objc_certificate_verifier) {
-  return std::make_unique<SSLCertificateVerifierAdapter>(objc_certificate_verifier);
+  return std::make_unique<SSLCertificateVerifierAdapter>(
+      objc_certificate_verifier);
 }
 
 }  // namespace webrtc

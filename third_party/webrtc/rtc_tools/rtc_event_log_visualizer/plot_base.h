@@ -10,18 +10,18 @@
 #ifndef RTC_TOOLS_RTC_EVENT_LOG_VISUALIZER_PLOT_BASE_H_
 #define RTC_TOOLS_RTC_EVENT_LOG_VISUALIZER_PLOT_BASE_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/types/optional.h"
-#include "rtc_base/ignore_wundef.h"
+#include "absl/strings/string_view.h"
 
-RTC_PUSH_IGNORING_WUNDEF()
+// Generated at build-time by the protobuf compiler.
 #include "rtc_tools/rtc_event_log_visualizer/proto/chart.pb.h"
-RTC_POP_IGNORING_WUNDEF()
 
 namespace webrtc {
 
@@ -155,6 +155,7 @@ class Plot {
   // the title might change in future releases whereas the ID should be stable
   // over time.
   void SetId(const std::string& id);
+  void SetId(absl::string_view id);
 
   // Add a new TimeSeries to the plot.
   void AppendTimeSeries(TimeSeries&& time_series);
@@ -167,7 +168,8 @@ class Plot {
   void AppendTimeSeriesIfNotEmpty(TimeSeries&& time_series);
 
   // Replaces PythonPlot::Draw()
-  void PrintPythonCode() const;
+  void PrintPythonCode(
+      absl::string_view figure_output_path = absl::string_view()) const;
 
   // Replaces ProtobufPlot::Draw()
   void ExportProtobuf(webrtc::analytics::Chart* chart) const;
@@ -195,19 +197,23 @@ class PlotCollection {
 
   virtual Plot* AppendNewPlot();
 
+  virtual Plot* AppendNewPlot(absl::string_view);
+
   void SetCallTimeToUtcOffsetMs(int64_t calltime_to_utc_ms) {
     calltime_to_utc_ms_ = calltime_to_utc_ms;
   }
 
   // Replaces PythonPlotCollection::Draw()
-  void PrintPythonCode(bool shared_xaxis) const;
+  void PrintPythonCode(
+      bool shared_xaxis,
+      absl::string_view figure_output_path = absl::string_view()) const;
 
   // Replaces ProtobufPlotCollections::Draw()
   void ExportProtobuf(webrtc::analytics::ChartCollection* collection) const;
 
  protected:
   std::vector<std::unique_ptr<Plot>> plots_;
-  absl::optional<int64_t> calltime_to_utc_ms_;
+  std::optional<int64_t> calltime_to_utc_ms_;
 };
 
 }  // namespace webrtc

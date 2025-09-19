@@ -10,26 +10,28 @@
 
 #include "media/base/media_channel_impl.h"
 
+#include <cstdint>
 #include <map>
 #include <string>
-#include <type_traits>
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
+#include "api/array_view.h"
 #include "api/audio_options.h"
+#include "api/call/transport.h"
 #include "api/media_stream_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_sender_interface.h"
-#include "api/units/time_delta.h"
-#include "api/video/video_timing.h"
-#include "api/video_codecs/scalability_mode.h"
-#include "common_video/include/quality_limitation_reason.h"
-#include "media/base/codec.h"
+#include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "media/base/media_channel.h"
 #include "media/base/rtp_utils.h"
-#include "media/base/stream_params.h"
-#include "modules/rtp_rtcp/include/report_block_data.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/dscp.h"
+#include "rtc_base/socket.h"
 
 namespace webrtc {
 
@@ -42,206 +44,62 @@ webrtc::RTCError InvokeSetParametersCallback(SetParametersCallback& callback,
   return error;
 }
 
-}  // namespace webrtc
-
-namespace cricket {
-using webrtc::FrameDecryptorInterface;
-using webrtc::FrameEncryptorInterface;
-using webrtc::FrameTransformerInterface;
-using webrtc::PendingTaskSafetyFlag;
-using webrtc::SafeTask;
-using webrtc::TaskQueueBase;
-using webrtc::VideoTrackInterface;
-
 VideoOptions::VideoOptions()
     : content_hint(VideoTrackInterface::ContentHint::kNone) {}
 VideoOptions::~VideoOptions() = default;
 
-MediaChannel::MediaChannel(Role role,
-                           TaskQueueBase* network_thread,
-                           bool enable_dscp)
-    : role_(role),
-      enable_dscp_(enable_dscp),
-      network_safety_(PendingTaskSafetyFlag::CreateDetachedInactive()),
-      network_thread_(network_thread) {}
+MediaChannelUtil::MediaChannelUtil(TaskQueueBase* network_thread,
+                                   bool enable_dscp)
+    : transport_(network_thread, enable_dscp) {}
 
-MediaChannel::~MediaChannel() {
-  RTC_DCHECK(!network_interface_);
+MediaChannelUtil::~MediaChannelUtil() {}
+
+void MediaChannelUtil::SetInterface(MediaChannelNetworkInterface* iface) {
+  transport_.SetInterface(iface);
 }
 
-void MediaChannel::SetInterface(MediaChannelNetworkInterface* iface) {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  iface ? network_safety_->SetAlive() : network_safety_->SetNotAlive();
-  network_interface_ = iface;
-  UpdateDscp();
-}
-
-int MediaChannel::GetRtpSendTimeExtnId() const {
+int MediaChannelUtil::GetRtpSendTimeExtnId() const {
   return -1;
 }
 
-void MediaChannel::SetFrameEncryptor(
-    uint32_t ssrc,
-    rtc::scoped_refptr<FrameEncryptorInterface> frame_encryptor) {
-  // Placeholder should be pure virtual once internal supports it.
+bool MediaChannelUtil::SendPacket(CopyOnWriteBuffer* packet,
+                                  const AsyncSocketPacketOptions& options) {
+  return transport_.DoSendPacket(packet, false, options);
 }
 
-void MediaChannel::SetFrameDecryptor(
-    uint32_t ssrc,
-    rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) {
-  // Placeholder should be pure virtual once internal supports it.
+bool MediaChannelUtil::SendRtcp(CopyOnWriteBuffer* packet,
+                                const AsyncSocketPacketOptions& options) {
+  return transport_.DoSendPacket(packet, true, options);
 }
 
-bool MediaChannel::SendPacket(rtc::CopyOnWriteBuffer* packet,
-                              const rtc::PacketOptions& options) {
-  return DoSendPacket(packet, false, options);
-}
-
-bool MediaChannel::SendRtcp(rtc::CopyOnWriteBuffer* packet,
-                            const rtc::PacketOptions& options) {
-  return DoSendPacket(packet, true, options);
-}
-
-int MediaChannel::SetOption(MediaChannelNetworkInterface::SocketType type,
-                            rtc::Socket::Option opt,
-                            int option) {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  return SetOptionLocked(type, opt, option);
+int MediaChannelUtil::SetOption(MediaChannelNetworkInterface::SocketType type,
+                                webrtc::Socket::Option opt,
+                                int option) {
+  return transport_.SetOption(type, opt, option);
 }
 
 // Corresponds to the SDP attribute extmap-allow-mixed, see RFC8285.
 // Set to true if it's allowed to mix one- and two-byte RTP header extensions
 // in the same stream. The setter and getter must only be called from
 // worker_thread.
-void MediaChannel::SetExtmapAllowMixed(bool extmap_allow_mixed) {
+void MediaChannelUtil::SetExtmapAllowMixed(bool extmap_allow_mixed) {
   extmap_allow_mixed_ = extmap_allow_mixed;
 }
 
-bool MediaChannel::ExtmapAllowMixed() const {
+bool MediaChannelUtil::ExtmapAllowMixed() const {
   return extmap_allow_mixed_;
 }
 
-bool MediaChannel::HasNetworkInterface() const {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  return network_interface_ != nullptr;
+bool MediaChannelUtil::HasNetworkInterface() const {
+  return transport_.HasNetworkInterface();
 }
 
-void MediaChannel::SetEncoderToPacketizerFrameTransformer(
-    uint32_t ssrc,
-    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) {}
-
-void MediaChannel::SetDepacketizerToDecoderFrameTransformer(
-    uint32_t ssrc,
-    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) {}
-
-int MediaChannel::SetOptionLocked(MediaChannelNetworkInterface::SocketType type,
-                                  rtc::Socket::Option opt,
-                                  int option) {
-  if (!network_interface_)
-    return -1;
-  return network_interface_->SetOption(type, opt, option);
+bool MediaChannelUtil::DscpEnabled() const {
+  return transport_.DscpEnabled();
 }
 
-bool MediaChannel::DscpEnabled() const {
-  return enable_dscp_;
-}
-
-// This is the DSCP value used for both RTP and RTCP channels if DSCP is
-// enabled. It can be changed at any time via `SetPreferredDscp`.
-rtc::DiffServCodePoint MediaChannel::PreferredDscp() const {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  return preferred_dscp_;
-}
-
-void MediaChannel::SetPreferredDscp(rtc::DiffServCodePoint new_dscp) {
-  if (!network_thread_->IsCurrent()) {
-    // This is currently the common path as the derived channel classes
-    // get called on the worker thread. There are still some tests though
-    // that call directly on the network thread.
-    network_thread_->PostTask(SafeTask(
-        network_safety_, [this, new_dscp]() { SetPreferredDscp(new_dscp); }));
-    return;
-  }
-
-  RTC_DCHECK_RUN_ON(network_thread_);
-  if (new_dscp == preferred_dscp_)
-    return;
-
-  preferred_dscp_ = new_dscp;
-  UpdateDscp();
-}
-
-rtc::scoped_refptr<PendingTaskSafetyFlag> MediaChannel::network_safety() {
-  return network_safety_;
-}
-
-void MediaChannel::UpdateDscp() {
-  rtc::DiffServCodePoint value =
-      enable_dscp_ ? preferred_dscp_ : rtc::DSCP_DEFAULT;
-  int ret = SetOptionLocked(MediaChannelNetworkInterface::ST_RTP,
-                            rtc::Socket::OPT_DSCP, value);
-  if (ret == 0)
-    SetOptionLocked(MediaChannelNetworkInterface::ST_RTCP,
-                    rtc::Socket::OPT_DSCP, value);
-}
-
-bool MediaChannel::DoSendPacket(rtc::CopyOnWriteBuffer* packet,
-                                bool rtcp,
-                                const rtc::PacketOptions& options) {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  if (!network_interface_)
-    return false;
-
-  return (!rtcp) ? network_interface_->SendPacket(packet, options)
-                 : network_interface_->SendRtcp(packet, options);
-}
-
-void MediaChannel::SendRtp(const uint8_t* data,
-                           size_t len,
-                           const webrtc::PacketOptions& options) {
-  auto send =
-      [this, packet_id = options.packet_id,
-       included_in_feedback = options.included_in_feedback,
-       included_in_allocation = options.included_in_allocation,
-       packet = rtc::CopyOnWriteBuffer(data, len, kMaxRtpPacketLen)]() mutable {
-        rtc::PacketOptions rtc_options;
-        rtc_options.packet_id = packet_id;
-        if (DscpEnabled()) {
-          rtc_options.dscp = PreferredDscp();
-        }
-        rtc_options.info_signaled_after_sent.included_in_feedback =
-            included_in_feedback;
-        rtc_options.info_signaled_after_sent.included_in_allocation =
-            included_in_allocation;
-        SendPacket(&packet, rtc_options);
-      };
-
-  // TODO(bugs.webrtc.org/11993): ModuleRtpRtcpImpl2 and related classes (e.g.
-  // RTCPSender) aren't aware of the network thread and may trigger calls to
-  // this function from different threads. Update those classes to keep
-  // network traffic on the network thread.
-  if (network_thread_->IsCurrent()) {
-    send();
-  } else {
-    network_thread_->PostTask(SafeTask(network_safety_, std::move(send)));
-  }
-}
-
-void MediaChannel::SendRtcp(const uint8_t* data, size_t len) {
-  auto send = [this, packet = rtc::CopyOnWriteBuffer(
-                         data, len, kMaxRtpPacketLen)]() mutable {
-    rtc::PacketOptions rtc_options;
-    if (DscpEnabled()) {
-      rtc_options.dscp = PreferredDscp();
-    }
-    SendRtcp(&packet, rtc_options);
-  };
-
-  if (network_thread_->IsCurrent()) {
-    send();
-  } else {
-    network_thread_->PostTask(SafeTask(network_safety_, std::move(send)));
-  }
+void MediaChannelUtil::SetPreferredDscp(webrtc::DiffServCodePoint new_dscp) {
+  transport_.SetPreferredDscp(new_dscp);
 }
 
 MediaSenderInfo::MediaSenderInfo() = default;
@@ -280,32 +138,159 @@ VideoMediaReceiveInfo::~VideoMediaReceiveInfo() = default;
 VoiceMediaReceiveInfo::VoiceMediaReceiveInfo() = default;
 VoiceMediaReceiveInfo::~VoiceMediaReceiveInfo() = default;
 
-AudioSendParameters::AudioSendParameters() = default;
-AudioSendParameters::~AudioSendParameters() = default;
+AudioSenderParameter::AudioSenderParameter() = default;
+AudioSenderParameter::~AudioSenderParameter() = default;
 
-std::map<std::string, std::string> AudioSendParameters::ToStringMap() const {
-  auto params = RtpSendParameters<AudioCodec>::ToStringMap();
+std::map<std::string, std::string> AudioSenderParameter::ToStringMap() const {
+  auto params = SenderParameters::ToStringMap();
   params["options"] = options.ToString();
   return params;
 }
 
-cricket::MediaType VoiceMediaChannel::media_type() const {
-  return cricket::MediaType::MEDIA_TYPE_AUDIO;
-}
+VideoSenderParameters::VideoSenderParameters() = default;
+VideoSenderParameters::~VideoSenderParameters() = default;
 
-VideoSendParameters::VideoSendParameters() = default;
-VideoSendParameters::~VideoSendParameters() = default;
-
-std::map<std::string, std::string> VideoSendParameters::ToStringMap() const {
-  auto params = RtpSendParameters<VideoCodec>::ToStringMap();
+std::map<std::string, std::string> VideoSenderParameters::ToStringMap() const {
+  auto params = SenderParameters::ToStringMap();
   params["conference_mode"] = (conference_mode ? "yes" : "no");
   return params;
 }
 
-cricket::MediaType VideoMediaChannel::media_type() const {
-  return cricket::MediaType::MEDIA_TYPE_VIDEO;
+// --------------------- MediaChannelUtil::TransportForMediaChannels -----
+
+MediaChannelUtil::TransportForMediaChannels::TransportForMediaChannels(
+    webrtc::TaskQueueBase* network_thread,
+    bool enable_dscp)
+    : network_safety_(webrtc::PendingTaskSafetyFlag::CreateDetachedInactive()),
+      network_thread_(network_thread),
+
+      enable_dscp_(enable_dscp) {}
+
+MediaChannelUtil::TransportForMediaChannels::~TransportForMediaChannels() {
+  RTC_DCHECK(!network_interface_);
 }
 
-void VideoMediaChannel::SetVideoCodecSwitchingEnabled(bool enabled) {}
+AsyncSocketPacketOptions
+MediaChannelUtil::TransportForMediaChannels::TranslatePacketOptions(
+    const PacketOptions& options) {
+  AsyncSocketPacketOptions rtc_options;
+  rtc_options.packet_id = options.packet_id;
+  if (DscpEnabled()) {
+    rtc_options.dscp = PreferredDscp();
+  }
+  rtc_options.info_signaled_after_sent.included_in_feedback =
+      options.included_in_feedback;
+  rtc_options.info_signaled_after_sent.included_in_allocation =
+      options.included_in_allocation;
+  rtc_options.info_signaled_after_sent.is_media = options.is_media;
+  rtc_options.ecn_1 = options.send_as_ect1;
+  rtc_options.batchable = options.batchable;
+  rtc_options.last_packet_in_batch = options.last_packet_in_batch;
+  return rtc_options;
+}
 
-}  // namespace cricket
+bool MediaChannelUtil::TransportForMediaChannels::SendRtcp(
+    ArrayView<const uint8_t> packet,
+    const PacketOptions& options) {
+  auto send = [this,
+               packet = CopyOnWriteBuffer(packet, webrtc::kMaxRtpPacketLen),
+               options]() mutable {
+    DoSendPacket(&packet, true, TranslatePacketOptions(options));
+  };
+
+  if (network_thread_->IsCurrent()) {
+    send();
+  } else {
+    network_thread_->PostTask(SafeTask(network_safety_, std::move(send)));
+  }
+  return true;
+}
+
+bool MediaChannelUtil::TransportForMediaChannels::SendRtp(
+    ArrayView<const uint8_t> packet,
+    const webrtc::PacketOptions& options) {
+  auto send = [this,
+               packet = CopyOnWriteBuffer(packet, webrtc::kMaxRtpPacketLen),
+               options]() mutable {
+    DoSendPacket(&packet, false, TranslatePacketOptions(options));
+  };
+
+  // TODO(bugs.webrtc.org/11993): ModuleRtpRtcpImpl2 and related classes (e.g.
+  // RTCPSender) aren't aware of the network thread and may trigger calls to
+  // this function from different threads. Update those classes to keep
+  // network traffic on the network thread.
+  if (network_thread_->IsCurrent()) {
+    send();
+  } else {
+    network_thread_->PostTask(SafeTask(network_safety_, std::move(send)));
+  }
+  return true;
+}
+
+void MediaChannelUtil::TransportForMediaChannels::SetInterface(
+    MediaChannelNetworkInterface* iface) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  iface ? network_safety_->SetAlive() : network_safety_->SetNotAlive();
+  network_interface_ = iface;
+  UpdateDscp();
+}
+
+void MediaChannelUtil::TransportForMediaChannels::UpdateDscp() {
+  webrtc::DiffServCodePoint value =
+      enable_dscp_ ? preferred_dscp_ : webrtc::DSCP_DEFAULT;
+  int ret = SetOptionLocked(MediaChannelNetworkInterface::ST_RTP,
+                            webrtc::Socket::OPT_DSCP, value);
+  if (ret == 0)
+    SetOptionLocked(MediaChannelNetworkInterface::ST_RTCP,
+                    webrtc::Socket::OPT_DSCP, value);
+}
+
+bool MediaChannelUtil::TransportForMediaChannels::DoSendPacket(
+    CopyOnWriteBuffer* packet,
+    bool rtcp,
+    const AsyncSocketPacketOptions& options) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  if (!network_interface_)
+    return false;
+
+  return (!rtcp) ? network_interface_->SendPacket(packet, options)
+                 : network_interface_->SendRtcp(packet, options);
+}
+
+int MediaChannelUtil::TransportForMediaChannels::SetOption(
+    MediaChannelNetworkInterface::SocketType type,
+    webrtc::Socket::Option opt,
+    int option) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  return SetOptionLocked(type, opt, option);
+}
+
+int MediaChannelUtil::TransportForMediaChannels::SetOptionLocked(
+    MediaChannelNetworkInterface::SocketType type,
+    webrtc::Socket::Option opt,
+    int option) {
+  if (!network_interface_)
+    return -1;
+  return network_interface_->SetOption(type, opt, option);
+}
+
+void MediaChannelUtil::TransportForMediaChannels::SetPreferredDscp(
+    webrtc::DiffServCodePoint new_dscp) {
+  if (!network_thread_->IsCurrent()) {
+    // This is currently the common path as the derived channel classes
+    // get called on the worker thread. There are still some tests though
+    // that call directly on the network thread.
+    network_thread_->PostTask(SafeTask(
+        network_safety_, [this, new_dscp]() { SetPreferredDscp(new_dscp); }));
+    return;
+  }
+
+  RTC_DCHECK_RUN_ON(network_thread_);
+  if (new_dscp == preferred_dscp_)
+    return;
+
+  preferred_dscp_ = new_dscp;
+  UpdateDscp();
+}
+
+}  // namespace webrtc

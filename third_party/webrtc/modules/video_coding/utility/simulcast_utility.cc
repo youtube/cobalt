@@ -12,8 +12,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/video_codec.h"
+#include "modules/video_coding/svc/scalability_mode_util.h"
 #include "rtc_base/checks.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 
@@ -74,20 +79,53 @@ bool SimulcastUtility::ValidSimulcastParameters(const VideoCodec& codec,
 
 bool SimulcastUtility::IsConferenceModeScreenshare(const VideoCodec& codec) {
   return codec.mode == VideoCodecMode::kScreensharing &&
-         codec.legacy_conference_mode;
+         codec.legacy_conference_mode &&
+         (codec.codecType == kVideoCodecVP8 ||
+          codec.codecType == kVideoCodecH264);
+}
+
+bool SimulcastUtility::IsConferenceModeScreenshare(
+    const VideoEncoderConfig& encoder_config) {
+  return encoder_config.content_type ==
+             VideoEncoderConfig::ContentType::kScreen &&
+         encoder_config.legacy_conference_mode &&
+         (encoder_config.codec_type == VideoCodecType::kVideoCodecVP8 ||
+          encoder_config.codec_type == VideoCodecType::kVideoCodecH264);
 }
 
 int SimulcastUtility::NumberOfTemporalLayers(const VideoCodec& codec,
                                              int spatial_id) {
-  uint8_t num_temporal_layers =
-      std::max<uint8_t>(1, codec.VP8().numberOfTemporalLayers);
+  int num_temporal_layers = 0;
+  if (auto scalability_mode = codec.GetScalabilityMode(); scalability_mode) {
+    num_temporal_layers = ScalabilityModeToNumTemporalLayers(*scalability_mode);
+  } else {
+    switch (codec.codecType) {
+      case kVideoCodecVP8:
+        num_temporal_layers = codec.VP8().numberOfTemporalLayers;
+        break;
+      case kVideoCodecVP9:
+        num_temporal_layers = codec.VP9().numberOfTemporalLayers;
+        break;
+      case kVideoCodecH264:
+        num_temporal_layers = codec.H264().numberOfTemporalLayers;
+        break;
+      // For AV1 and H.265 we get temporal layer count from scalability mode,
+      // instead of from codec-specifics.
+      case kVideoCodecAV1:
+      case kVideoCodecH265:
+      case kVideoCodecGeneric:
+        break;
+    }
+  }
+
   if (codec.numberOfSimulcastStreams > 0) {
     RTC_DCHECK_LT(spatial_id, codec.numberOfSimulcastStreams);
     num_temporal_layers =
         std::max(num_temporal_layers,
-                 codec.simulcastStream[spatial_id].numberOfTemporalLayers);
+                 static_cast<int>(
+                     codec.simulcastStream[spatial_id].numberOfTemporalLayers));
   }
-  return num_temporal_layers;
+  return std::max(1, num_temporal_layers);
 }
 
 }  // namespace webrtc

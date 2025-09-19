@@ -17,35 +17,42 @@
 #import "helpers/NSString+StdString.h"
 
 @implementation RTC_OBJC_TYPE (RTCVideoTrack) {
-  rtc::Thread *_workerThread;
+  webrtc::Thread *_workerThread;
   NSMutableArray *_adapters /* accessed on _workerThread */;
 }
 
 @synthesize source = _source;
 
-- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+- (instancetype)initWithFactory:
+                    (RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
                          source:(RTC_OBJC_TYPE(RTCVideoSource) *)source
                         trackId:(NSString *)trackId {
   NSParameterAssert(factory);
   NSParameterAssert(source);
   NSParameterAssert(trackId.length);
   std::string nativeId = [NSString stdStringForString:trackId];
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> track =
-      factory.nativeFactory->CreateVideoTrack(source.nativeVideoSource, nativeId);
-  if (self = [self initWithFactory:factory nativeTrack:track type:RTCMediaStreamTrackTypeVideo]) {
+  webrtc::scoped_refptr<webrtc::VideoTrackInterface> track =
+      factory.nativeFactory->CreateVideoTrack(source.nativeVideoSource,
+                                              nativeId);
+  self = [self initWithFactory:factory
+                   nativeTrack:track
+                          type:RTCMediaStreamTrackTypeVideo];
+  if (self) {
     _source = source;
   }
   return self;
 }
 
-- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                    nativeTrack:
-                        (rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>)nativeMediaTrack
-                           type:(RTCMediaStreamTrackType)type {
+- (instancetype)
+    initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+        nativeTrack:(webrtc::scoped_refptr<webrtc::MediaStreamTrackInterface>)
+                        nativeMediaTrack
+               type:(RTCMediaStreamTrackType)type {
   NSParameterAssert(factory);
   NSParameterAssert(nativeMediaTrack);
   NSParameterAssert(type == RTCMediaStreamTrackTypeVideo);
-  if (self = [super initWithFactory:factory nativeTrack:nativeMediaTrack type:type]) {
+  self = [super initWithFactory:factory nativeTrack:nativeMediaTrack type:type];
+  if (self) {
     _adapters = [NSMutableArray array];
     _workerThread = factory.workerThread;
   }
@@ -60,11 +67,12 @@
 
 - (RTC_OBJC_TYPE(RTCVideoSource) *)source {
   if (!_source) {
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> source(
+    webrtc::scoped_refptr<webrtc::VideoTrackSourceInterface> source(
         self.nativeVideoTrack->GetSource());
     if (source) {
-      _source = [[RTC_OBJC_TYPE(RTCVideoSource) alloc] initWithFactory:self.factory
-                                                     nativeVideoSource:source];
+      _source =
+          [[RTC_OBJC_TYPE(RTCVideoSource) alloc] initWithFactory:self.factory
+                                               nativeVideoSource:source];
     }
   }
   return _source;
@@ -72,7 +80,8 @@
 
 - (void)addRenderer:(id<RTC_OBJC_TYPE(RTCVideoRenderer)>)renderer {
   if (!_workerThread->IsCurrent()) {
-    _workerThread->BlockingCall([renderer, self] { [self addRenderer:renderer]; });
+    _workerThread->BlockingCall(
+        [renderer, self] { [self addRenderer:renderer]; });
     return;
   }
 
@@ -84,29 +93,30 @@
     }
   }
   // Create a wrapper that provides a native pointer for us.
-  RTCVideoRendererAdapter* adapter =
+  RTCVideoRendererAdapter *adapter =
       [[RTCVideoRendererAdapter alloc] initWithNativeRenderer:renderer];
   [_adapters addObject:adapter];
   self.nativeVideoTrack->AddOrUpdateSink(adapter.nativeVideoRenderer,
-                                         rtc::VideoSinkWants());
+                                         webrtc::VideoSinkWants());
 }
 
 - (void)removeRenderer:(id<RTC_OBJC_TYPE(RTCVideoRenderer)>)renderer {
   if (!_workerThread->IsCurrent()) {
-    _workerThread->BlockingCall([renderer, self] { [self removeRenderer:renderer]; });
+    _workerThread->BlockingCall(
+        [renderer, self] { [self removeRenderer:renderer]; });
     return;
   }
   __block NSUInteger indexToRemove = NSNotFound;
-  [_adapters enumerateObjectsUsingBlock:^(RTCVideoRendererAdapter *adapter,
-                                          NSUInteger idx,
-                                          BOOL *stop) {
+  [_adapters enumerateObjectsUsingBlock:^(
+                 RTCVideoRendererAdapter *adapter, NSUInteger idx, BOOL *stop) {
     if (adapter.videoRenderer == renderer) {
       indexToRemove = idx;
       *stop = YES;
     }
   }];
   if (indexToRemove == NSNotFound) {
-    RTC_LOG(LS_INFO) << "removeRenderer called with a renderer that has not been previously added";
+    RTC_LOG(LS_INFO) << "removeRenderer called with a renderer that has not "
+                        "been previously added";
     return;
   }
   RTCVideoRendererAdapter *adapterToRemove =
@@ -117,8 +127,8 @@
 
 #pragma mark - Private
 
-- (rtc::scoped_refptr<webrtc::VideoTrackInterface>)nativeVideoTrack {
-  return rtc::scoped_refptr<webrtc::VideoTrackInterface>(
+- (webrtc::scoped_refptr<webrtc::VideoTrackInterface>)nativeVideoTrack {
+  return webrtc::scoped_refptr<webrtc::VideoTrackInterface>(
       static_cast<webrtc::VideoTrackInterface *>(self.nativeTrack.get()));
 }
 

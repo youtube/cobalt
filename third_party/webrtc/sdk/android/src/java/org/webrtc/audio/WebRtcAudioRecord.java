@@ -283,7 +283,7 @@ class WebRtcAudioRecord {
     final int bytesPerFrame = channels * getBytesPerSample(audioFormat);
     final int framesPerBuffer = sampleRate / BUFFERS_PER_SECOND;
     byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
-    if (!(byteBuffer.hasArray())) {
+    if (!byteBuffer.hasArray()) {
       reportWebRtcAudioRecordInitError("ByteBuffer does not have backing array.");
       return -1;
     }
@@ -511,6 +511,18 @@ class WebRtcAudioRecord {
     microphoneMute = mute;
   }
 
+  // Sets whether NoiseSuppressor should be enabled or disabled.
+  // Returns true if the enabling was successful, otherwise false is returned (this is also the case
+  // if the NoiseSuppressor effect is not supported).
+  public boolean setNoiseSuppressorEnabled(boolean enabled) {
+    if (!WebRtcAudioEffects.isNoiseSuppressorSupported()) {
+      Logging.e(TAG, "Noise suppressor is not supported.");
+      return false;
+    }
+    Logging.w(TAG, "SetNoiseSuppressorEnabled(" + enabled + ")");
+    return effects.toggleNS(enabled);
+  }
+
   // Releases the native AudioRecord resources.
   private void releaseAudioResources() {
     Logging.d(TAG, "releaseAudioResources");
@@ -709,7 +721,7 @@ class WebRtcAudioRecord {
   // Returns true if device A parameters matches those of device B.
   // TODO(henrika): can be improved by adding AudioDeviceInfo#getAddress() but it requires API 29.
   private static boolean checkDeviceMatch(AudioDeviceInfo devA, AudioDeviceInfo devB) {
-    return ((devA.getId() == devB.getId() && (devA.getType() == devB.getType())));
+    return (devA.getId() == devB.getId() && (devA.getType() == devB.getType()));
   }
 
   private static String audioStateToString(int state) {

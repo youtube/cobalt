@@ -19,26 +19,27 @@
 
 namespace {
 
-rtc::AdapterType AdapterTypeFromInterfaceType(nw_interface_type_t interfaceType) {
-  rtc::AdapterType adapterType = rtc::ADAPTER_TYPE_UNKNOWN;
+webrtc::AdapterType AdapterTypeFromInterfaceType(
+    nw_interface_type_t interfaceType) {
+  webrtc::AdapterType adapterType = webrtc::ADAPTER_TYPE_UNKNOWN;
   switch (interfaceType) {
     case nw_interface_type_other:
-      adapterType = rtc::ADAPTER_TYPE_UNKNOWN;
+      adapterType = webrtc::ADAPTER_TYPE_UNKNOWN;
       break;
     case nw_interface_type_wifi:
-      adapterType = rtc::ADAPTER_TYPE_WIFI;
+      adapterType = webrtc::ADAPTER_TYPE_WIFI;
       break;
     case nw_interface_type_cellular:
-      adapterType = rtc::ADAPTER_TYPE_CELLULAR;
+      adapterType = webrtc::ADAPTER_TYPE_CELLULAR;
       break;
     case nw_interface_type_wired:
-      adapterType = rtc::ADAPTER_TYPE_ETHERNET;
+      adapterType = webrtc::ADAPTER_TYPE_ETHERNET;
       break;
     case nw_interface_type_loopback:
-      adapterType = rtc::ADAPTER_TYPE_LOOPBACK;
+      adapterType = webrtc::ADAPTER_TYPE_LOOPBACK;
       break;
     default:
-      adapterType = rtc::ADAPTER_TYPE_UNKNOWN;
+      adapterType = webrtc::ADAPTER_TYPE_UNKNOWN;
       break;
   }
   return adapterType;
@@ -54,7 +55,8 @@ rtc::AdapterType AdapterTypeFromInterfaceType(nw_interface_type_t interfaceType)
 
 - (instancetype)initWithObserver:(webrtc::NetworkMonitorObserver *)observer {
   RTC_DCHECK(observer);
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _observer = observer;
     if (@available(iOS 12, *)) {
       _pathMonitor = nw_path_monitor_create();
@@ -65,10 +67,10 @@ rtc::AdapterType AdapterTypeFromInterfaceType(nw_interface_type_t interfaceType)
       RTCLog(@"NW path monitor created.");
       __weak RTCNetworkMonitor *weakSelf = self;
       nw_path_monitor_set_update_handler(_pathMonitor, ^(nw_path_t path) {
-        if (weakSelf == nil) {
+        RTCNetworkMonitor *strongSelf = weakSelf;
+        if (strongSelf == nil) {
           return;
         }
-        RTCNetworkMonitor *strongSelf = weakSelf;
         RTCLog(@"NW path monitor: updated.");
         nw_path_status_t status = nw_path_get_status(path);
         if (status == nw_path_status_invalid) {
@@ -80,27 +82,30 @@ rtc::AdapterType AdapterTypeFromInterfaceType(nw_interface_type_t interfaceType)
         } else if (status == nw_path_status_satisfiable) {
           RTCLog(@"NW path monitor status: satisfiable.");
         }
-        std::map<std::string, rtc::AdapterType, rtc::AbslStringViewCmp> *map =
-            new std::map<std::string, rtc::AdapterType, rtc::AbslStringViewCmp>();
-        nw_path_enumerate_interfaces(
-            path, (nw_path_enumerate_interfaces_block_t) ^ (nw_interface_t interface) {
-              const char *name = nw_interface_get_name(interface);
-              nw_interface_type_t interfaceType = nw_interface_get_type(interface);
-              RTCLog(@"NW path monitor available interface: %s", name);
-              rtc::AdapterType adapterType = AdapterTypeFromInterfaceType(interfaceType);
-              map->insert(std::pair<std::string, rtc::AdapterType>(name, adapterType));
-            });
+        std::map<std::string, webrtc::AdapterType, webrtc::AbslStringViewCmp>
+            owned_map;
+        auto map = &owned_map;  // Capture raw pointer for Objective-C block
+        nw_path_enumerate_interfaces(path, ^(nw_interface_t interface) {
+          const char *name = nw_interface_get_name(interface);
+          nw_interface_type_t interfaceType = nw_interface_get_type(interface);
+          RTCLog(@"NW path monitor available interface: %s", name);
+          webrtc::AdapterType adapterType =
+              AdapterTypeFromInterfaceType(interfaceType);
+          map->emplace(name, adapterType);
+          return true;
+        });
         @synchronized(strongSelf) {
-          webrtc::NetworkMonitorObserver *observer = strongSelf->_observer;
-          if (observer) {
-            observer->OnPathUpdate(std::move(*map));
+          webrtc::NetworkMonitorObserver *strongObserver =
+              strongSelf->_observer;
+          if (strongObserver) {
+            strongObserver->OnPathUpdate(std::move(owned_map));
           }
         }
-        delete map;
       });
       nw_path_monitor_set_queue(
           _pathMonitor,
-          [RTC_OBJC_TYPE(RTCDispatcher) dispatchQueueForType:RTCDispatcherTypeNetworkMonitor]);
+          [RTC_OBJC_TYPE(RTCDispatcher)
+              dispatchQueueForType:RTCDispatcherTypeNetworkMonitor]);
       nw_path_monitor_start(_pathMonitor);
     }
   }

@@ -19,6 +19,9 @@
 #include "api/sequence_checker.h"
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/h264/h264_bitstream_parser.h"
+#ifdef RTC_ENABLE_H265
+#include "common_video/h265/h265_bitstream_parser.h"
+#endif
 #include "rtc_base/race_checker.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "sdk/android/src/jni/jni_helpers.h"
@@ -62,7 +65,7 @@ class VideoDecoderWrapper : public VideoDecoder {
 
     uint32_t timestamp_rtp;
     int64_t timestamp_ntp;
-    absl::optional<uint8_t> qp;
+    std::optional<uint8_t> qp;
 
     FrameExtraInfo();
     FrameExtraInfo(const FrameExtraInfo&);
@@ -78,7 +81,7 @@ class VideoDecoderWrapper : public VideoDecoder {
                            const char* method_name)
       RTC_RUN_ON(decoder_thread_checker_);
 
-  absl::optional<uint8_t> ParseQP(const EncodedImage& input_image)
+  std::optional<uint8_t> ParseQP(const EncodedImage& input_image)
       RTC_RUN_ON(decoder_thread_checker_);
 
   const ScopedJavaGlobalRef<jobject> decoder_;
@@ -87,7 +90,7 @@ class VideoDecoderWrapper : public VideoDecoder {
   SequenceChecker decoder_thread_checker_;
   // Callbacks must be executed sequentially on an arbitrary thread. We do not
   // own this thread so a thread checker cannot be used.
-  rtc::RaceChecker callback_race_checker_;
+  RaceChecker callback_race_checker_;
 
   // Initialized on Configure and immutable after that.
   VideoDecoder::Settings decoder_settings_
@@ -96,6 +99,10 @@ class VideoDecoderWrapper : public VideoDecoder {
   bool initialized_ RTC_GUARDED_BY(decoder_thread_checker_);
   H264BitstreamParser h264_bitstream_parser_
       RTC_GUARDED_BY(decoder_thread_checker_);
+#ifdef RTC_ENABLE_H265
+  H265BitstreamParser h265_bitstream_parser_
+      RTC_GUARDED_BY(decoder_thread_checker_);
+#endif
 
   DecodedImageCallback* callback_ RTC_GUARDED_BY(callback_race_checker_);
 
@@ -111,7 +118,8 @@ class VideoDecoderWrapper : public VideoDecoder {
  */
 std::unique_ptr<VideoDecoder> JavaToNativeVideoDecoder(
     JNIEnv* jni,
-    const JavaRef<jobject>& j_decoder);
+    const JavaRef<jobject>& j_decoder,
+    jlong webrtcEnvRef);
 
 }  // namespace jni
 }  // namespace webrtc

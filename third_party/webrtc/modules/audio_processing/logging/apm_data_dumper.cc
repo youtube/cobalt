@@ -36,7 +36,7 @@ std::string FormFileName(absl::string_view output_dir,
                          int reinit_index,
                          absl::string_view suffix) {
   char buf[1024];
-  rtc::SimpleStringBuilder ss(buf);
+  webrtc::SimpleStringBuilder ss(buf);
   if (!output_dir.empty()) {
     ss << output_dir;
     if (output_dir.back() != kPathDelimiter) {
@@ -54,14 +54,14 @@ std::string FormFileName(absl::string_view output_dir,
 ApmDataDumper::ApmDataDumper(int instance_index)
     : instance_index_(instance_index) {}
 #else
-ApmDataDumper::ApmDataDumper(int instance_index) {}
+ApmDataDumper::ApmDataDumper(int /* instance_index */) {}
 #endif
 
 ApmDataDumper::~ApmDataDumper() = default;
 
 #if WEBRTC_APM_DEBUG_DUMP == 1
 bool ApmDataDumper::recording_activated_ = false;
-absl::optional<int> ApmDataDumper::dump_set_to_use_;
+std::optional<int> ApmDataDumper::dump_set_to_use_;
 char ApmDataDumper::output_dir_[] = "";
 
 FILE* ApmDataDumper::GetRawFile(absl::string_view name) {

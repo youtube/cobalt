@@ -42,6 +42,7 @@ public class Camera2CapturerTest {
     @Nullable CameraDevice cameraDevice; // Guarded by cameraDeviceLock
     boolean openSucceeded; // Guarded by cameraDeviceLock
 
+    @SuppressWarnings("ClassCanBeStatic")
     private class LooperThread extends Thread {
       final CountDownLatch startedSignal = new CountDownLatch(1);
       private Handler handler;

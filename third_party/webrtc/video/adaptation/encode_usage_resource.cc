@@ -10,18 +10,28 @@
 
 #include "video/adaptation/encode_usage_resource.h"
 
+#include <cstdint>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <utility>
 
+#include "api/adaptation/resource.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/video/video_frame.h"
 #include "rtc_base/checks.h"
+#include "video/adaptation/overuse_frame_detector.h"
+#include "video/adaptation/video_stream_encoder_resource.h"
 
 namespace webrtc {
 
 // static
-rtc::scoped_refptr<EncodeUsageResource> EncodeUsageResource::Create(
+scoped_refptr<EncodeUsageResource> EncodeUsageResource::Create(
     std::unique_ptr<OveruseFrameDetector> overuse_detector) {
-  return rtc::make_ref_counted<EncodeUsageResource>(
-      std::move(overuse_detector));
+  return make_ref_counted<EncodeUsageResource>(std::move(overuse_detector));
 }
 
 EncodeUsageResource::EncodeUsageResource(
@@ -29,7 +39,7 @@ EncodeUsageResource::EncodeUsageResource(
     : VideoStreamEncoderResource("EncoderUsageResource"),
       overuse_detector_(std::move(overuse_detector)),
       is_started_(false),
-      target_frame_rate_(absl::nullopt) {
+      target_frame_rate_(std::nullopt) {
   RTC_DCHECK(overuse_detector_);
 }
 
@@ -56,7 +66,7 @@ void EncodeUsageResource::StopCheckForOveruse() {
 }
 
 void EncodeUsageResource::SetTargetFrameRate(
-    absl::optional<double> target_frame_rate) {
+    std::optional<double> target_frame_rate) {
   RTC_DCHECK_RUN_ON(encoder_queue());
   if (target_frame_rate == target_frame_rate_)
     return;
@@ -77,7 +87,7 @@ void EncodeUsageResource::OnEncodeCompleted(
     uint32_t timestamp,
     int64_t time_sent_in_us,
     int64_t capture_time_us,
-    absl::optional<int> encode_duration_us) {
+    std::optional<int> encode_duration_us) {
   RTC_DCHECK_RUN_ON(encoder_queue());
   // TODO(hbos): Rename FrameSent() to something more appropriate (e.g.
   // "OnEncodeCompleted"?).

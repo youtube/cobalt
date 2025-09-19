@@ -43,35 +43,15 @@
                                                   timeStampNs:_timeStampNs];
 }
 
-- (instancetype)initWithPixelBuffer:(CVPixelBufferRef)pixelBuffer
-                           rotation:(RTCVideoRotation)rotation
-                        timeStampNs:(int64_t)timeStampNs {
-  // Deprecated.
-  return nil;
-}
-
-- (instancetype)initWithPixelBuffer:(CVPixelBufferRef)pixelBuffer
-                        scaledWidth:(int)scaledWidth
-                       scaledHeight:(int)scaledHeight
-                          cropWidth:(int)cropWidth
-                         cropHeight:(int)cropHeight
-                              cropX:(int)cropX
-                              cropY:(int)cropY
-                           rotation:(RTCVideoRotation)rotation
-                        timeStampNs:(int64_t)timeStampNs {
-  // Deprecated.
-  return nil;
-}
-
 - (instancetype)initWithBuffer:(id<RTC_OBJC_TYPE(RTCVideoFrameBuffer)>)buffer
                       rotation:(RTCVideoRotation)rotation
                    timeStampNs:(int64_t)timeStampNs {
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _buffer = buffer;
     _rotation = rotation;
     _timeStampNs = timeStampNs;
   }
-
   return self;
 }
 

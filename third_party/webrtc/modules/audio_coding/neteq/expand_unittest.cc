@@ -12,7 +12,11 @@
 
 #include "modules/audio_coding/neteq/expand.h"
 
-#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+
+#include "api/neteq/tick_timer.h"
 #include "modules/audio_coding/neteq/background_noise.h"
 #include "modules/audio_coding/neteq/random_vector.h"
 #include "modules/audio_coding/neteq/statistics_calculator.h"
@@ -30,7 +34,8 @@ TEST(Expand, CreateAndDestroy) {
   BackgroundNoise bgn(channels);
   SyncBuffer sync_buffer(1, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   Expand expand(&bgn, &sync_buffer, &random_vector, &statistics, fs, channels);
 }
 
@@ -40,18 +45,22 @@ TEST(Expand, CreateUsingFactory) {
   BackgroundNoise bgn(channels);
   SyncBuffer sync_buffer(1, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   ExpandFactory expand_factory;
   Expand* expand = expand_factory.Create(&bgn, &sync_buffer, &random_vector,
                                          &statistics, fs, channels);
-  EXPECT_TRUE(expand != NULL);
+  EXPECT_TRUE(expand != nullptr);
   delete expand;
 }
 
 namespace {
 class FakeStatisticsCalculator : public StatisticsCalculator {
  public:
-  void LogDelayedPacketOutageEvent(int num_samples, int fs_hz) override {
+  FakeStatisticsCalculator(TickTimer* tick_timer)
+      : StatisticsCalculator(tick_timer) {}
+
+  void LogDelayedPacketOutageEvent(int num_samples, int /* fs_hz */) override {
     last_outage_duration_samples_ = num_samples;
   }
 
@@ -77,6 +86,7 @@ class ExpandTest : public ::testing::Test {
         background_noise_(num_channels_),
         sync_buffer_(num_channels_,
                      kNetEqSyncBufferLengthMs * test_sample_rate_hz_ / 1000),
+        statistics_(&tick_timer_),
         expand_(&background_noise_,
                 &sync_buffer_,
                 &random_vector_,
@@ -106,6 +116,7 @@ class ExpandTest : public ::testing::Test {
   BackgroundNoise background_noise_;
   SyncBuffer sync_buffer_;
   RandomVector random_vector_;
+  TickTimer tick_timer_;
   FakeStatisticsCalculator statistics_;
   Expand expand_;
 };
@@ -125,7 +136,7 @@ TEST_F(ExpandTest, DelayedPacketOutage) {
   }
   expand_.SetParametersForNormalAfterExpand();
   // Convert `sum_output_len_samples` to milliseconds.
-  EXPECT_EQ(rtc::checked_cast<int>(sum_output_len_samples),
+  EXPECT_EQ(checked_cast<int>(sum_output_len_samples),
             statistics_.last_outage_duration_samples());
 }
 
@@ -163,7 +174,7 @@ TEST_F(ExpandTest, CheckOutageStatsAfterReset) {
   }
   expand_.SetParametersForNormalAfterExpand();
   // Convert `sum_output_len_samples` to milliseconds.
-  EXPECT_EQ(rtc::checked_cast<int>(sum_output_len_samples),
+  EXPECT_EQ(checked_cast<int>(sum_output_len_samples),
             statistics_.last_outage_duration_samples());
 }
 

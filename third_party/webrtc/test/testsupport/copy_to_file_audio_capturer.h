@@ -12,9 +12,9 @@
 #define TEST_TESTSUPPORT_COPY_TO_FILE_AUDIO_CAPTURER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_device/include/test_audio_device.h"
@@ -36,7 +36,7 @@ class CopyToFileAudioCapturer : public TestAudioDeviceModule::Capturer {
 
   int SamplingFrequency() const override;
   int NumChannels() const override;
-  bool Capture(rtc::BufferT<int16_t>* buffer) override;
+  bool Capture(BufferT<int16_t>* buffer) override;
 
  private:
   std::unique_ptr<TestAudioDeviceModule::Capturer> delegate_;

@@ -11,10 +11,10 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
@@ -36,16 +36,16 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 constexpr int AbortChunk::kType;
 
-absl::optional<AbortChunk> AbortChunk::Parse(
-    rtc::ArrayView<const uint8_t> data) {
-  absl::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
+std::optional<AbortChunk> AbortChunk::Parse(
+    webrtc::ArrayView<const uint8_t> data) {
+  std::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
   if (!reader.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
-  absl::optional<Parameters> error_causes =
+  std::optional<Parameters> error_causes =
       Parameters::Parse(reader->variable_data());
   if (!error_causes.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   uint8_t flags = reader->Load8<1>();
   bool filled_in_verification_tag = (flags & (1 << kFlagsBitT)) == 0;
@@ -53,7 +53,7 @@ absl::optional<AbortChunk> AbortChunk::Parse(
 }
 
 void AbortChunk::SerializeTo(std::vector<uint8_t>& out) const {
-  rtc::ArrayView<const uint8_t> error_causes = error_causes_.data();
+  webrtc::ArrayView<const uint8_t> error_causes = error_causes_.data();
   BoundedByteWriter<kHeaderSize> writer = AllocateTLV(out, error_causes.size());
   writer.Store8<1>(filled_in_verification_tag_ ? 0 : (1 << kFlagsBitT));
   writer.CopyToVariableData(error_causes);

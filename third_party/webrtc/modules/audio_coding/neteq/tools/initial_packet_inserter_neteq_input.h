@@ -11,10 +11,11 @@
 #ifndef MODULES_AUDIO_CODING_NETEQ_TOOLS_INITIAL_PACKET_INSERTER_NETEQ_INPUT_H_
 #define MODULES_AUDIO_CODING_NETEQ_TOOLS_INITIAL_PACKET_INSERTER_NETEQ_INPUT_H_
 
-#include <map>
+#include <cstdint>
 #include <memory>
-#include <string>
+#include <optional>
 
+#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 
 namespace webrtc {
@@ -27,14 +28,14 @@ class InitialPacketInserterNetEqInput final : public NetEqInput {
   InitialPacketInserterNetEqInput(std::unique_ptr<NetEqInput> source,
                                   int number_of_initial_packets,
                                   int sample_rate_hz);
-  absl::optional<int64_t> NextPacketTime() const override;
-  absl::optional<int64_t> NextOutputEventTime() const override;
-  absl::optional<SetMinimumDelayInfo> NextSetMinimumDelayInfo() const override;
+  std::optional<int64_t> NextPacketTime() const override;
+  std::optional<int64_t> NextOutputEventTime() const override;
+  std::optional<SetMinimumDelayInfo> NextSetMinimumDelayInfo() const override;
   std::unique_ptr<PacketData> PopPacket() override;
   void AdvanceOutputEvent() override;
   void AdvanceSetMinimumDelay() override;
   bool ended() const override;
-  absl::optional<RTPHeader> NextHeader() const override;
+  std::optional<RTPHeader> NextHeader() const override;
 
  private:
   const std::unique_ptr<NetEqInput> source_;

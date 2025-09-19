@@ -10,9 +10,13 @@
 
 #include "modules/rtp_rtcp/source/rtcp_packet/target_bitrate.h"
 
-#include "modules/rtp_rtcp/source/byte_io.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <optional>
+#include <vector>
+
 #include "modules/rtp_rtcp/source/rtcp_packet/extended_reports.h"
-#include "rtc_base/buffer.h"
 #include "test/gtest.h"
 #include "test/rtcp_packet_parser.h"
 
@@ -67,7 +71,7 @@ TEST(TargetBitrateTest, FullPacket) {
   rtcp::ExtendedReports xr;
   EXPECT_TRUE(ParseSinglePacket(kRtcpPacket, &xr));
   EXPECT_EQ(kSsrc, xr.sender_ssrc());
-  const absl::optional<TargetBitrate>& target_bitrate = xr.target_bitrate();
+  const std::optional<TargetBitrate>& target_bitrate = xr.target_bitrate();
   ASSERT_TRUE(static_cast<bool>(target_bitrate));
   CheckBitrateItems(target_bitrate->GetTargetBitrates());
 }

@@ -10,7 +10,10 @@
 
 package org.webrtc;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -416,7 +419,7 @@ public class PeerConnection {
     }
   }
 
-  /** Java version of rtc::KeyType */
+  /** Java version of webrtc::KeyType */
   public enum KeyType { RSA, ECDSA }
 
   /** Java version of PeerConnectionInterface.ContinualGatheringPolicy */
@@ -455,6 +458,15 @@ public class PeerConnection {
     @Deprecated PLAN_B,
     UNIFIED_PLAN
   }
+
+  // Keep in sync with webrtc/p2p/base/port_allocator.h
+  @IntDef(
+      flag = true,
+      value = {PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS})
+  @Retention(RetentionPolicy.SOURCE)
+  public @interface PortAllocatorFlags {}
+
+  public static final int PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS = 0x8000;
 
   /** Java version of PeerConnectionInterface.RTCConfiguration */
   // TODO(qingsi): Resolve the naming inconsistency of fields with/without units.
@@ -528,7 +540,6 @@ public class PeerConnection {
     public boolean enableCpuOveruseDetection;
     public boolean suspendBelowMinBitrate;
     @Nullable public Integer screencastMinBitrate;
-    @Nullable public Boolean combinedAudioVideoBwe;
     // Use "Unknown" to represent no preference of adapter types, not the
     // preference of adapters of unknown types.
     public AdapterType networkPreference;
@@ -540,11 +551,6 @@ public class PeerConnection {
     // Actively reset the SRTP parameters whenever the DTLS transports underneath are reset for
     // every offer/answer negotiation.This is only intended to be a workaround for crbug.com/835958
     public boolean activeResetSrtpParams;
-
-    // Whether this client is allowed to switch encoding codec mid-stream. This is a workaround for
-    // a WebRTC bug where the receiver could get confussed if a codec switch happened mid-call.
-    // Null indicates no change to currently configured value.
-    @Nullable public Boolean allowCodecSwitching;
 
     /**
      * Defines advanced optional cryptographic settings related to SRTP and
@@ -573,6 +579,13 @@ public class PeerConnection {
      */
     public boolean offerExtmapAllowMixed;
 
+    /** Limit ports used for connections. */
+    public int portAllocatorMinPort;
+    public int portAllocatorMaxPort;
+
+    /** Control port allocation, including what kinds of ports are allocated. */
+    @PortAllocatorFlags public int portAllocatorFlags;
+
     // TODO(deadbeef): Instead of duplicating the defaults here, we should do
     // something to pick up the defaults from C++. The Objective-C equivalent
     // of RTCConfiguration does that.
@@ -583,7 +596,7 @@ public class PeerConnection {
       tcpCandidatePolicy = TcpCandidatePolicy.ENABLED;
       candidateNetworkPolicy = CandidateNetworkPolicy.ALL;
       this.iceServers = iceServers;
-      audioJitterBufferMaxPackets = 50;
+      audioJitterBufferMaxPackets = 200;
       audioJitterBufferFastAccelerate = false;
       iceConnectionReceivingTimeout = -1;
       iceBackupCandidatePairPingInterval = -1;
@@ -607,15 +620,16 @@ public class PeerConnection {
       enableCpuOveruseDetection = true;
       suspendBelowMinBitrate = false;
       screencastMinBitrate = null;
-      combinedAudioVideoBwe = null;
       networkPreference = AdapterType.UNKNOWN;
       sdpSemantics = SdpSemantics.UNIFIED_PLAN;
       activeResetSrtpParams = false;
       cryptoOptions = null;
       turnLoggingId = null;
-      allowCodecSwitching = null;
       enableImplicitRollback = false;
       offerExtmapAllowMixed = true;
+      portAllocatorMinPort = 0;
+      portAllocatorMaxPort = 0;
+      portAllocatorFlags = 0;
     }
 
     @CalledByNative("RTCConfiguration")
@@ -788,12 +802,6 @@ public class PeerConnection {
       return screencastMinBitrate;
     }
 
-    @Nullable
-    @CalledByNative("RTCConfiguration")
-    Boolean getCombinedAudioVideoBwe() {
-      return combinedAudioVideoBwe;
-    }
-
     @CalledByNative("RTCConfiguration")
     AdapterType getNetworkPreference() {
       return networkPreference;
@@ -807,12 +815,6 @@ public class PeerConnection {
     @CalledByNative("RTCConfiguration")
     boolean getActiveResetSrtpParams() {
       return activeResetSrtpParams;
-    }
-
-    @Nullable
-    @CalledByNative("RTCConfiguration")
-    Boolean getAllowCodecSwitching() {
-      return allowCodecSwitching;
     }
 
     @Nullable
@@ -835,6 +837,22 @@ public class PeerConnection {
     @CalledByNative("RTCConfiguration")
     boolean getOfferExtmapAllowMixed() {
       return offerExtmapAllowMixed;
+    }
+
+    @CalledByNative("RTCConfiguration")
+    int getPortAllocatorMinPort() {
+      return portAllocatorMinPort;
+    }
+
+    @CalledByNative("RTCConfiguration")
+    int getPortAllocatorMaxPort() {
+      return portAllocatorMaxPort;
+    }
+
+    @CalledByNative("RTCConfiguration")
+    @PortAllocatorFlags
+    int getPortAllocatorFlags() {
+      return portAllocatorFlags;
     }
   };
 

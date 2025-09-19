@@ -11,8 +11,10 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/nack.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
@@ -21,8 +23,6 @@
 
 namespace webrtc {
 namespace rtcp {
-constexpr uint8_t Nack::kFeedbackMessageType;
-constexpr size_t Nack::kNackItemLength;
 // RFC 4585: Feedback format.
 //
 // Common packet format:
@@ -103,8 +103,7 @@ bool Nack::Create(uint8_t* packet,
 
     size_t payload_size_bytes =
         kCommonFeedbackLength + (num_nack_fields * kNackItemLength);
-    size_t payload_size_32bits =
-        rtc::CheckedDivExact<size_t>(payload_size_bytes, 4);
+    size_t payload_size_32bits = CheckedDivExact<size_t>(payload_size_bytes, 4);
     CreateHeader(kFeedbackMessageType, kPacketType, payload_size_32bits, packet,
                  index);
 

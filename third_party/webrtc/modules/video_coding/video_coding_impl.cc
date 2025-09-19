@@ -11,16 +11,25 @@
 #include "modules/video_coding/video_coding_impl.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 
-#include "api/field_trials_view.h"
+#include "api/environment/environment.h"
+#include "api/rtp_headers.h"
 #include "api/sequence_checker.h"
-#include "api/transport/field_trial_based_config.h"
 #include "api/video/encoded_image.h"
-#include "modules/video_coding/include/video_codec_interface.h"
+#include "api/video/render_resolution.h"
+#include "api/video_codecs/video_decoder.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/video_coding/encoded_frame.h"
+#include "modules/video_coding/generic_decoder.h"
+#include "modules/video_coding/include/video_coding.h"
+#include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/timing.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/memory/always_valid_pointer.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -57,7 +66,7 @@ VideoDecoder* DEPRECATED_VCMDecoderDataBase::DeregisterExternalDecoder(
   // frame after RegisterReceiveCodec).
   if (current_decoder_ && current_decoder_->IsSameDecoder(it->second)) {
     // Release it if it was registered and in use.
-    current_decoder_ = absl::nullopt;
+    current_decoder_ = std::nullopt;
   }
   VideoDecoder* ret = it->second;
   decoders_.erase(it);
@@ -87,7 +96,7 @@ void DEPRECATED_VCMDecoderDataBase::RegisterReceiveCodec(
     const VideoDecoder::Settings& settings) {
   // If payload value already exists, erase old and insert new.
   if (payload_type == current_payload_type_) {
-    current_payload_type_ = absl::nullopt;
+    current_payload_type_ = std::nullopt;
   }
   decoder_settings_[payload_type] = settings;
 }
@@ -99,7 +108,7 @@ bool DEPRECATED_VCMDecoderDataBase::DeregisterReceiveCodec(
   }
   if (payload_type == current_payload_type_) {
     // This codec is currently in use.
-    current_payload_type_ = absl::nullopt;
+    current_payload_type_ = std::nullopt;
   }
   return true;
 }
@@ -115,12 +124,12 @@ VCMGenericDecoder* DEPRECATED_VCMDecoderDataBase::GetDecoder(
   }
   // If decoder exists - delete.
   if (current_decoder_.has_value()) {
-    current_decoder_ = absl::nullopt;
-    current_payload_type_ = absl::nullopt;
+    current_decoder_ = std::nullopt;
+    current_payload_type_ = std::nullopt;
   }
 
   CreateAndInitDecoder(frame);
-  if (current_decoder_ == absl::nullopt) {
+  if (current_decoder_ == std::nullopt) {
     return nullptr;
   }
 
@@ -128,7 +137,7 @@ VCMGenericDecoder* DEPRECATED_VCMDecoderDataBase::GetDecoder(
   callback->OnIncomingPayloadType(payload_type);
   if (current_decoder_->RegisterDecodeCompleteCallback(decoded_frame_callback) <
       0) {
-    current_decoder_ = absl::nullopt;
+    current_decoder_ = std::nullopt;
     return nullptr;
   }
 
@@ -164,7 +173,7 @@ void DEPRECATED_VCMDecoderDataBase::CreateAndInitDecoder(
     decoder_item->second.set_max_render_resolution(frame_resolution);
   }
   if (!current_decoder_->Configure(decoder_item->second)) {
-    current_decoder_ = absl::nullopt;
+    current_decoder_ = std::nullopt;
     RTC_LOG(LS_ERROR) << "Failed to initialize decoder.";
   }
 }
@@ -175,12 +184,10 @@ namespace {
 
 class VideoCodingModuleImpl : public VideoCodingModule {
  public:
-  explicit VideoCodingModuleImpl(Clock* clock,
-                                 const FieldTrialsView* field_trials)
-      : VideoCodingModule(),
-        field_trials_(field_trials),
-        timing_(new VCMTiming(clock, *field_trials_)),
-        receiver_(clock, timing_.get(), *field_trials_) {}
+  explicit VideoCodingModuleImpl(const Environment& env)
+      : env_(env),
+        timing_(&env_.clock(), env_.field_trials()),
+        receiver_(&env_.clock(), &timing_, env_.field_trials()) {}
 
   ~VideoCodingModuleImpl() override = default;
 
@@ -234,21 +241,18 @@ class VideoCodingModuleImpl : public VideoCodingModule {
   }
 
  private:
-  AlwaysValidPointer<const FieldTrialsView, FieldTrialBasedConfig>
-      field_trials_;
+  const Environment env_;
   SequenceChecker construction_thread_;
-  const std::unique_ptr<VCMTiming> timing_;
+  VCMTiming timing_;
   vcm::VideoReceiver receiver_;
 };
 }  // namespace
 
 // DEPRECATED.  Create method for current interface, will be removed when the
 // new jitter buffer is in place.
-VideoCodingModule* VideoCodingModule::Create(
-    Clock* clock,
-    const FieldTrialsView* field_trials) {
-  RTC_DCHECK(clock);
-  return new VideoCodingModuleImpl(clock, field_trials);
+std::unique_ptr<VideoCodingModule> VideoCodingModule::CreateDeprecated(
+    const Environment& env) {
+  return std::make_unique<VideoCodingModuleImpl>(env);
 }
 
 }  // namespace webrtc

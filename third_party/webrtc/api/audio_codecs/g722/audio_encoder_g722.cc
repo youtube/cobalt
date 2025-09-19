@@ -10,37 +10,47 @@
 
 #include "api/audio_codecs/g722/audio_encoder_g722.h"
 
+#include <stddef.h>
+
+#include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/strings/match.h"
+#include "api/audio_codecs/audio_codec_pair_id.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/audio_codecs/audio_format.h"
+#include "api/audio_codecs/g722/audio_encoder_g722_config.h"
+#include "api/field_trials_view.h"
 #include "modules/audio_coding/codecs/g722/audio_encoder_g722.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/string_to_number.h"
 
 namespace webrtc {
 
-absl::optional<AudioEncoderG722Config> AudioEncoderG722::SdpToConfig(
+std::optional<AudioEncoderG722Config> AudioEncoderG722::SdpToConfig(
     const SdpAudioFormat& format) {
   if (!absl::EqualsIgnoreCase(format.name, "g722") ||
       format.clockrate_hz != 8000) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   AudioEncoderG722Config config;
-  config.num_channels = rtc::checked_cast<int>(format.num_channels);
+  config.num_channels = checked_cast<int>(format.num_channels);
   auto ptime_iter = format.parameters.find("ptime");
   if (ptime_iter != format.parameters.end()) {
-    auto ptime = rtc::StringToNumber<int>(ptime_iter->second);
+    auto ptime = StringToNumber<int>(ptime_iter->second);
     if (ptime && *ptime > 0) {
       const int whole_packets = *ptime / 10;
-      config.frame_size_ms = rtc::SafeClamp<int>(whole_packets * 10, 10, 60);
+      config.frame_size_ms = SafeClamp<int>(whole_packets * 10, 10, 60);
     }
   }
   if (!config.IsOk()) {
     RTC_DCHECK_NOTREACHED();
-    return absl::nullopt;
+    return std::nullopt;
   }
   return config;
 }
@@ -55,15 +65,15 @@ void AudioEncoderG722::AppendSupportedEncoders(
 AudioCodecInfo AudioEncoderG722::QueryAudioEncoder(
     const AudioEncoderG722Config& config) {
   RTC_DCHECK(config.IsOk());
-  return {16000, rtc::dchecked_cast<size_t>(config.num_channels),
+  return {16000, dchecked_cast<size_t>(config.num_channels),
           64000 * config.num_channels};
 }
 
 std::unique_ptr<AudioEncoder> AudioEncoderG722::MakeAudioEncoder(
     const AudioEncoderG722Config& config,
     int payload_type,
-    absl::optional<AudioCodecPairId> /*codec_pair_id*/,
-    const FieldTrialsView* field_trials) {
+    std::optional<AudioCodecPairId> /*codec_pair_id*/,
+    const FieldTrialsView* /* field_trials */) {
   if (!config.IsOk()) {
     RTC_DCHECK_NOTREACHED();
     return nullptr;

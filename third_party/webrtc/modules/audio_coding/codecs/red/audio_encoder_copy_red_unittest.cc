@@ -10,12 +10,20 @@
 
 #include "modules/audio_coding/codecs/red/audio_encoder_copy_red.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
-#include "rtc_base/checks.h"
+#include "api/array_view.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/units/time_delta.h"
+#include "rtc_base/buffer.h"
 #include "rtc_base/numerics/safe_conversions.h"
-#include "test/field_trial.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_audio_encoder.h"
 #include "test/scoped_key_value_config.h"
@@ -46,7 +54,7 @@ class AudioEncoderCopyRedTest : public ::testing::Test {
         timestamp_(4711),
         sample_rate_hz_(16000),
         num_audio_samples_10ms(sample_rate_hz_ / 100),
-        red_payload_type_(200) {
+        red_payload_type_(63) {
     AudioEncoderCopyRed::Config config;
     config.payload_type = red_payload_type_;
     config.speech_encoder = std::unique_ptr<AudioEncoder>(mock_encoder_);
@@ -60,13 +68,12 @@ class AudioEncoderCopyRedTest : public ::testing::Test {
   void TearDown() override { red_.reset(); }
 
   void Encode() {
-    ASSERT_TRUE(red_.get() != NULL);
+    ASSERT_TRUE(red_.get() != nullptr);
     encoded_.Clear();
     encoded_info_ = red_->Encode(
-        timestamp_,
-        rtc::ArrayView<const int16_t>(audio_, num_audio_samples_10ms),
+        timestamp_, ArrayView<const int16_t>(audio_, num_audio_samples_10ms),
         &encoded_);
-    timestamp_ += rtc::checked_cast<uint32_t>(num_audio_samples_10ms);
+    timestamp_ += checked_cast<uint32_t>(num_audio_samples_10ms);
   }
 
   test::ScopedKeyValueConfig field_trials_;
@@ -76,7 +83,7 @@ class AudioEncoderCopyRedTest : public ::testing::Test {
   int16_t audio_[kMaxNumSamples];
   const int sample_rate_hz_;
   size_t num_audio_samples_10ms;
-  rtc::Buffer encoded_;
+  Buffer encoded_;
   AudioEncoder::EncodedInfo encoded_info_;
   const int red_payload_type_;
 };
@@ -106,8 +113,8 @@ TEST_F(AudioEncoderCopyRedTest, CheckMaxFrameSizePropagation) {
 
 TEST_F(AudioEncoderCopyRedTest, CheckTargetAudioBitratePropagation) {
   EXPECT_CALL(*mock_encoder_,
-              OnReceivedUplinkBandwidth(4711, absl::optional<int64_t>()));
-  red_->OnReceivedUplinkBandwidth(4711, absl::nullopt);
+              OnReceivedUplinkBandwidth(4711, std::optional<int64_t>()));
+  red_->OnReceivedUplinkBandwidth(4711, std::nullopt);
 }
 
 TEST_F(AudioEncoderCopyRedTest, CheckPacketLossFractionPropagation) {
@@ -119,7 +126,7 @@ TEST_F(AudioEncoderCopyRedTest, CheckGetFrameLengthRangePropagation) {
   auto expected_range =
       std::make_pair(TimeDelta::Millis(20), TimeDelta::Millis(20));
   EXPECT_CALL(*mock_encoder_, GetFrameLengthRange())
-      .WillRepeatedly(Return(absl::make_optional(expected_range)));
+      .WillRepeatedly(Return(std::make_optional(expected_range)));
   EXPECT_THAT(red_->GetFrameLengthRange(), Optional(Eq(expected_range)));
 }
 
@@ -200,7 +207,7 @@ TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes1) {
 // Checks that the correct payload sizes are populated into the redundancy
 // information for a redundancy level of 0.
 TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes0) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
+  test::ScopedKeyValueConfig field_trials(
       field_trials_, "WebRTC-Audio-Red-For-Opus/Enabled-0/");
   // Recreate the RED encoder to take the new field trial setting into account.
   AudioEncoderCopyRed::Config config;
@@ -226,7 +233,7 @@ TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes0) {
 // Checks that the correct payload sizes are populated into the redundancy
 // information for a redundancy level of 2.
 TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes2) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
+  test::ScopedKeyValueConfig field_trials(
       field_trials_, "WebRTC-Audio-Red-For-Opus/Enabled-2/");
   // Recreate the RED encoder to take the new field trial setting into account.
   AudioEncoderCopyRed::Config config;
@@ -268,7 +275,7 @@ TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes2) {
 // Checks that the correct payload sizes are populated into the redundancy
 // information for a redundancy level of 3.
 TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes3) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
+  test::ScopedKeyValueConfig field_trials(
       field_trials_, "WebRTC-Audio-Red-For-Opus/Enabled-3/");
   // Recreate the RED encoder to take the new field trial setting into account.
   AudioEncoderCopyRed::Config config;
@@ -313,6 +320,23 @@ TEST_F(AudioEncoderCopyRedTest, CheckPayloadSizes3) {
     EXPECT_EQ(13 + i + (i - 1) + (i - 2) + (i - 3),
               encoded_info_.encoded_bytes);
   }
+}
+
+// Checks that packets encoded larger than REDs 1024 maximum are returned as-is.
+TEST_F(AudioEncoderCopyRedTest, VeryLargePacket) {
+  AudioEncoder::EncodedInfo info;
+  info.payload_type = 63;
+  info.encoded_bytes =
+      1111;  // Must be > 1024 which is the maximum size encodable by RED.
+  info.encoded_timestamp = timestamp_;
+
+  EXPECT_CALL(*mock_encoder_, EncodeImpl(_, _, _))
+      .WillOnce(Invoke(MockAudioEncoder::FakeEncoding(info)));
+
+  Encode();
+  ASSERT_EQ(0u, encoded_info_.redundant.size());
+  ASSERT_EQ(info.encoded_bytes, encoded_info_.encoded_bytes);
+  ASSERT_EQ(info.payload_type, encoded_info_.payload_type);
 }
 
 // Checks that the correct timestamps are returned.
@@ -458,14 +482,14 @@ TEST_F(AudioEncoderCopyRedTest, CheckRFC2198Header) {
   EXPECT_EQ(encoded_[2] & 0x3u, encoded_info_.redundant[1].encoded_bytes >> 8);
   EXPECT_EQ(encoded_[3], encoded_info_.redundant[1].encoded_bytes & 0xff);
 
-  EXPECT_EQ(encoded_[4], primary_payload_type | 0x80);
+  EXPECT_EQ(encoded_[4], primary_payload_type);
   timestamp_delta = encoded_info_.encoded_timestamp -
                     encoded_info_.redundant[1].encoded_timestamp;
 }
 
 // Variant with a redundancy of 0.
 TEST_F(AudioEncoderCopyRedTest, CheckRFC2198Header0) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
+  test::ScopedKeyValueConfig field_trials(
       field_trials_, "WebRTC-Audio-Red-For-Opus/Enabled-0/");
   // Recreate the RED encoder to take the new field trial setting into account.
   AudioEncoderCopyRed::Config config;
@@ -493,7 +517,7 @@ TEST_F(AudioEncoderCopyRedTest, CheckRFC2198Header0) {
 }
 // Variant with a redundancy of 2.
 TEST_F(AudioEncoderCopyRedTest, CheckRFC2198Header2) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
+  test::ScopedKeyValueConfig field_trials(
       field_trials_, "WebRTC-Audio-Red-For-Opus/Enabled-2/");
   // Recreate the RED encoder to take the new field trial setting into account.
   AudioEncoderCopyRed::Config config;
@@ -626,9 +650,9 @@ TEST_F(AudioEncoderCopyRedDeathTest, WrongFrameSize) {
 
 TEST_F(AudioEncoderCopyRedDeathTest, NullSpeechEncoder) {
   test::ScopedKeyValueConfig field_trials;
-  AudioEncoderCopyRed* red = NULL;
+  AudioEncoderCopyRed* red = nullptr;
   AudioEncoderCopyRed::Config config;
-  config.speech_encoder = NULL;
+  config.speech_encoder = nullptr;
   RTC_EXPECT_DEATH(
       red = new AudioEncoderCopyRed(std::move(config), field_trials),
       "Speech encoder not provided.");
