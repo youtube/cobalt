@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/signal/signal_internal.h"
 
-namespace starboard::shared::signal {
+namespace starboard {
 
 namespace {
 
@@ -42,4 +42,4 @@ void UninstallDebugSignalHandlers() {
   ::signal(SIGRTMIN, SIG_DFL);
 }
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard
