@@ -61,35 +61,31 @@ class ContinuousAudioTrackSink
   int GetUnderrunCount();
   int GetStartThresholdInFrames();
 
-  struct Timestamp {
-    int64_t frame_position;
-    int64_t rendered_at_us;
-  };
-
  private:
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
   // The following methods are called inside AudioThreadFunc() on the audio
   // thread.
-  void ProcessConsumedFrames(int* frames_in_audio_track,
+  void ProcessConsumedFrames(JNIEnv* env,
+                             int* frames_in_audio_track,
                              int* last_playback_head_position,
-                             int64_t* last_playback_head_event_at,
                              int initial_silence_frames,
                              int dropped_frames,
                              int* reported_dropped_frames);
-  void UpdatePlayState(bool* was_playing,
-                       bool is_playing,
-                       bool* is_initial_silence_feeding,
-                       int initial_silence_frames,
-                       int* dropped_frames,
-                       int* offset_in_frames,
-                       const std::optional<Timestamp>& last_timestamp);
+  void UpdatePlayState(
+      bool* was_playing,
+      bool is_playing,
+      bool* is_initial_silence_feeding,
+      int initial_silence_frames,
+      int* dropped_frames,
+      int* offset_in_frames,
+      const std::optional<AudioTrackBridge::AudioTimestamp>& last_timestamp);
   void HandleInitialSilenceFeeding(
       JNIEnv* env,
       int* initial_silence_frames,
       int64_t* silence_fed_at_us,
-      const std::optional<Timestamp>& last_timestamp,
+      const std::optional<AudioTrackBridge::AudioTimestamp>& last_timestamp,
       const std::vector<uint8_t>& silence_frames);
   void WriteAudioData(JNIEnv* env,
                       int frames_in_buffer,
@@ -105,9 +101,8 @@ class ContinuousAudioTrackSink
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
-  std::optional<Timestamp> GetTimestamp(JNIEnv* env);
   int64_t EstimateFramePosition(
-      const std::optional<Timestamp>& timestamp) const;
+      const std::optional<AudioTrackBridge::AudioTimestamp>& timestamp) const;
   int64_t GetFramesDurationUs(int64_t frames) const;
   int64_t GetFrames(int64_t duration_us) const;
 

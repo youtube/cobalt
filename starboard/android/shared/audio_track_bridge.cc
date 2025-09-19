@@ -299,6 +299,49 @@ int64_t AudioTrackBridge::GetAudioTimestamp(
   return env->GetLongField(j_audio_timestamp.obj(), cache.frame_position_field);
 }
 
+std::optional<AudioTrackBridge::AudioTimestamp>
+AudioTrackBridge::GetRawAudioTimestamp(JNIEnv* env) {
+  SB_CHECK(env);
+  SB_CHECK(is_valid());
+
+  // Cache the class and field IDs to avoid the overhead induced by the frequent
+  // lookup.
+  struct AudioTimestampJniCache {
+    jclass timestamp_class = nullptr;
+    jfieldID nano_time_field = nullptr;
+    jfieldID frame_position_field = nullptr;
+  };
+
+  static std::once_flag once_flag;
+  static AudioTimestampJniCache cache;
+
+  std::call_once(once_flag, [env]() {
+    jclass local_class = env->FindClass("android/media/AudioTimestamp");
+    cache.timestamp_class = static_cast<jclass>(env->NewGlobalRef(local_class));
+    env->DeleteLocalRef(local_class);
+    SB_DCHECK(cache.timestamp_class);
+
+    cache.nano_time_field =
+        env->GetFieldID(cache.timestamp_class, "nanoTime", "J");
+    SB_DCHECK(cache.nano_time_field);
+
+    cache.frame_position_field =
+        env->GetFieldID(cache.timestamp_class, "framePosition", "J");
+    SB_DCHECK(cache.frame_position_field);
+  });
+
+  ScopedJavaLocalRef<jobject> j_audio_timestamp =
+      Java_AudioTrackBridge_getRawAudioTimestamp(env, j_audio_track_bridge_);
+  if (j_audio_timestamp.is_null()) {
+    return std::nullopt;
+  }
+
+  return AudioTimestamp{
+      env->GetLongField(j_audio_timestamp.obj(), cache.frame_position_field),
+      env->GetLongField(j_audio_timestamp.obj(), cache.nano_time_field) / 1'000,
+  };
+}
+
 bool AudioTrackBridge::GetAndResetHasAudioDeviceChanged(
     JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
@@ -323,6 +366,13 @@ int AudioTrackBridge::GetStartThresholdInFrames(
 
   return Java_AudioTrackBridge_getStartThresholdInFrames(env,
                                                          j_audio_track_bridge_);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackBridge::AudioTimestamp& timestamp) {
+  os << "{frame_position=" << timestamp.frame_position
+     << ",rendered_at_us=" << timestamp.rendered_at_us << "}";
+  return os;
 }
 
 }  // namespace starboard
