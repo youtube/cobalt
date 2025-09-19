@@ -24,12 +24,6 @@
 
 namespace starboard {
 
-namespace {
-
-using shared::starboard::media::VideoConfig;
-
-}  // namespace
-
 OpenH264VideoDecoder::OpenH264VideoDecoder(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
