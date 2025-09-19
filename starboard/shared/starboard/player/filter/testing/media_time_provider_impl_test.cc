@@ -19,7 +19,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 const int64_t kOneSecondInMicroseconds = 1'000'000;
@@ -274,4 +274,4 @@ TEST_F(MediaTimeProviderImplTest, Pause) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

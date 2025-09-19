@@ -16,7 +16,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 static const int kTimesToIterate = 20000;
@@ -101,4 +101,4 @@ TEST(VideoFrameCadencePatternGeneratorTest, 24fpsFrameRateOn60fpsRefreshRate) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

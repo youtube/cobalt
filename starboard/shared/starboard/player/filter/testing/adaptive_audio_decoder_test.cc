@@ -39,7 +39,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using std::deque;
@@ -50,16 +50,6 @@ using ::testing::Combine;
 using ::testing::ValuesIn;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
-
-scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
-                                               size_t index) {
-  SB_DCHECK(dmp_reader);
-
-  auto player_sample_info =
-      dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-  return new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
-                         player_sample_info);
-}
 
 class AdaptiveAudioDecoderTest
     : public ::testing::TestWithParam<std::tuple<vector<const char*>, bool>> {
@@ -413,4 +403,4 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

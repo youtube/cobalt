@@ -21,7 +21,7 @@
 #include "starboard/shared/internal_only.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class MockAudioRendererSink : public AudioRendererSink {
  public:
@@ -53,6 +53,6 @@ class MockAudioRendererSink : public AudioRendererSink {
   bool has_started_ = false;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_RENDERER_SINK_H_
