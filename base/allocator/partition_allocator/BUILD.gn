@@ -22,7 +22,3 @@ if (use_allocator_shim) {
     public_deps = [ "src/partition_alloc:allocator_shim" ]
   }
 }
-
-if (is_cobalt) {
-  import("//cobalt/build/configs/modular_variables.gni")
-}
