@@ -1,0 +1,8 @@
+{
+  "evergreen-arm-hardfp-rdk_gold": {
+    "libcobalt.so-stripped": {
+      "size": 92482716,
+      "unit": "bytes"
+    }
+  }
+}

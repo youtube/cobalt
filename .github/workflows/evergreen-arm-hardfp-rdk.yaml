@@ -33,3 +33,28 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
+
+  check_metrics:
+    needs: evergreen-arm-hardfp-rdk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: out
+          path: out
+
+      - name: Check binary size
+        run: |
+          out/evergreen-arm-hardfp-rdk_gold/bin/run_cobalt_sizes
+
+      - name: Compare binary size
+        run: |
+          python3 tools/binary_size/compare_sizes.py \
+            --current out/evergreen-arm-hardfp-rdk_gold/sizes/perf_results.json \
+            --reference cobalt/testing/tools/reference_metrics.json \
+            --platform evergreen-arm-hardfp-rdk \
+            --config gold

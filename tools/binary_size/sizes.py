@@ -242,12 +242,7 @@ def main_linux(output_directory, results_collector, size_path):
   """
   assert size_path is None
   binaries = [
-      'chrome',
-      'nacl_helper',
-      'nacl_helper_bootstrap',
-      'libffmpegsumo.so',
-      'libgcflashplayer.so',
-      'libppGoogleNaClPluginChrome.so',
+      'libcobalt.so',
   ]
 
   result = 0
