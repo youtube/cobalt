@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/android/shared/video_window.h"
+#include "starboard/shared/starboard/features.h"
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -58,7 +59,6 @@ SbDecodeTargetGraphicsContextProvider* g_gpu_provider = nullptr;
 
 void ClearNativeWindow(ANativeWindow* native_window) {
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  eglInitialize(display, NULL, NULL);
   if (display == EGL_NO_DISPLAY) {
     SB_DLOG(ERROR) << "Found no EGL display in ClearVideoWindow";
     return;
@@ -125,8 +125,6 @@ void ClearNativeWindow(ANativeWindow* native_window) {
   /* connect the context to the surface */
   EGL_CALL(eglMakeCurrent(display, surface, surface, context));
 
-  SB_LOG(INFO) << "John I am being called";
-
   GL_CALL(glClearColor(0, 0, 0, 1));
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
   GL_CALL(glFlush());
@@ -164,14 +162,9 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     g_j_video_surface = env->NewGlobalRef(surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface);
 
-    // ClearNativeWindow(g_native_video_window);
-    /*
-    std::function<void()> closure =
-        std::bind(ClearNativeWindow, g_native_video_window);
-    SB_LOG(INFO) << "John nativeOnVideoSurfaceChanged is happening.";
-    g_gpu_provider->gles_context_runner(g_gpu_provider, &RunOnContextRunner,
-                                        &closure);
-  */
+    // C25 clears the native window here, but since this function
+    // can be called without needing Starboard Renderer (which passes down the
+    // graphics provider), we do not make the call here.
   }
 }
 
@@ -242,9 +235,11 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
     return;
   }
 
-  if (false) {
+  bool clear_surface =
+      starboard::features::FeatureList::IsEnabled(features::kClearSurfaceView);
+
+  if (!clear_surface) {
     StarboardBridge::GetInstance()->ResetVideoSurface(env);
-    SB_LOG(INFO) << "Video surface has been reset.";
     return;
   } else if (g_reset_surface_on_clear_window) {
     int width = ANativeWindow_getWidth(g_native_video_window);
@@ -254,12 +249,10 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
       return;
     }
   }
-  SB_LOG(INFO) << "John posting task to gpu";
   std::function<void()> closure =
       std::bind(ClearNativeWindow, g_native_video_window);
 
   g_gpu_provider->gles_context_runner(g_gpu_provider, &RunOnContextRunner,
                                       &closure);
-  SB_LOG(INFO) << "John finished posting task.";
 }
 }  // namespace starboard::android::shared

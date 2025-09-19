@@ -133,6 +133,8 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+
+STARBOARD_FEATURE(kClearSurfaceView, "ClearSurfaceView", false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 

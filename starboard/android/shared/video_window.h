@@ -66,16 +66,6 @@ class VideoSurfaceHolder {
 
   void SetGpuProvider(SbDecodeTargetGraphicsContextProvider* gpu_provider);
 
-  // void ClearNativeWindow(ANativeWindow* native_window);
-
-  // GraphicsContextRunner
-  // ClearNativeWindowGlesContextRunner gles_context_runner_;
-
-  // Should probably include the egl filese in here
-  // starboardrendererwrapper
-  // void* gles_context_runner_context_;
-};
-
 }  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_WINDOW_H_
