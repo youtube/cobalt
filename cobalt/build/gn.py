@@ -71,8 +71,11 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
+    f.write(f'use_siso = false {gen_comment}\n')
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
+    f.write(
+        f'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
