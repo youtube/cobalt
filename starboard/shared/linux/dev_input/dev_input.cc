@@ -43,7 +43,7 @@
 #include "starboard/key.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
-namespace starboard::shared::dev_input {
+namespace starboard {
 namespace {
 
 typedef int FileDescriptor;
@@ -1311,4 +1311,4 @@ DevInput* DevInput::Create(SbWindow window, int wake_up_fd) {
   return new DevInputImpl(window, wake_up_fd);
 }
 
-}  // namespace starboard::shared::dev_input
+}  // namespace starboard
