@@ -10,6 +10,8 @@
 #include <limits>
 #include <type_traits>
 
+#include "build/build_config.h"
+
 #if defined(__GNUC__) || defined(__clang__)
 #define BASE_NUMERICS_LIKELY(x) __builtin_expect(!!(x), 1)
 #define BASE_NUMERICS_UNLIKELY(x) __builtin_expect(!!(x), 0)
@@ -88,7 +90,23 @@ constexpr typename std::make_unsigned<T>::type SafeUnsignedAbs(T value) {
 
 // TODO(jschuh): Switch to std::is_constant_evaluated() once C++20 is supported.
 // Alternately, the usage could be restructured for "consteval if" in C++23.
+#if __cplusplus <= 201811L && (BUILDFLAG(IS_NATIVE_TARGET_BUILD) || BUILDFLAG(IS_STARBOARD_TOOLCHAIN))
+constexpr bool is_constant_evaluated_emulated() noexcept {
+    struct C {};
+    struct M : C { int a; };
+    struct N : C { int a; };
+    // At compile-time, &M::a != static_cast<int C::*>(&N::a) is true
+    // because the exact member pointers are compared.
+    // At runtime, the comparison might be false because only offsets are considered.
+    // This difference allows detection of constant evaluation.
+    return &M::a != static_cast<int C::*>(&N::a);
+}
+
+#define IsConstantEvaluated() (is_constant_evaluated_emulated())
+
+#else
 #define IsConstantEvaluated() (__builtin_is_constant_evaluated())
+#endif
 
 // TODO(jschuh): Debug builds don't reliably propagate constants, so we restrict
 // some accelerated runtime paths to release builds until this can be forced

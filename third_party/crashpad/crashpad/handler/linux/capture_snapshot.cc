@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "build/build_config.h"
 #include "snapshot/crashpad_info_client_options.h"
 #include "snapshot/sanitized/sanitization_information.h"
 #include "util/misc/metrics.h"
@@ -34,7 +35,12 @@ bool CaptureSnapshot(
     std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot) {
   std::unique_ptr<ProcessSnapshotLinux> process_snapshot(
       new ProcessSnapshotLinux());
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+  if (!process_snapshot->Initialize(connection,
+                                    info.evergreen_information_address)) {
+#else
   if (!process_snapshot->Initialize(connection)) {
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     Metrics::ExceptionCaptureResult(Metrics::CaptureResult::kSnapshotFailed);
     return false;
   }

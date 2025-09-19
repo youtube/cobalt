@@ -687,6 +687,15 @@ group("gn_all") {
         "//third_party/crashpad/crashpad/handler:crashpad_handler",
         "//third_party/crashpad/crashpad/tools:crashpad_database_util",
       ]
+
+      if (is_cobalt) {
+        # In Cobalt builds we only want these targets from the native_target
+        # toolchian; these deps are added to //cobalt:gn_all.
+        deps -= [
+          "//third_party/crashpad/crashpad/handler:crashpad_handler",
+          "//third_party/crashpad/crashpad/tools:crashpad_database_util",
+        ]
+      }
     }
 
     if (enable_message_center) {

@@ -1,4 +1,4 @@
-# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,6 @@
 # limitations under the License.
 
 declare_args() {
-  is_starboard = is_cobalt && target_os != "android" && target_os != "ios" &&
-                 current_toolchain == default_toolchain
+  # For code that should only be built natively, without Starboard.
+  is_native_target_build = false
 }
-
-declare_args() {
-  # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
-  use_custom_libc = false
-}
-

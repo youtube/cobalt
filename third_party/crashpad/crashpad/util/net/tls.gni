@@ -15,7 +15,8 @@
 import("../../build/crashpad_buildconfig.gni")
 
 declare_args() {
-  if (crashpad_is_fuchsia || crashpad_is_android) {
+  if (current_toolchain == native_target || crashpad_is_fuchsia || crashpad_is_android) {
+    # TODO: b/406511608 - Cobalt: we may try to actually use libcurl in c26.
     crashpad_http_transport_impl = "socket"
   } else if (crashpad_is_linux) {
     crashpad_http_transport_impl = "libcurl"
