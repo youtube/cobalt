@@ -15,5 +15,7 @@
 assert(is_cobalt)
 
 config("compiler") {
-  cflags_cc = [ "-Wno-vla-cxx-extension" ]
+  cflags_cc = [ "-Wno-vla-cxx-extension",
+                "-Wno-unreachable-code-return",
+              ]
 }
