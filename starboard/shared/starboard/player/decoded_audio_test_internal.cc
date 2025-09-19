@@ -21,7 +21,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 namespace {
 
 constexpr int kChannels = 2;
@@ -370,4 +370,4 @@ TEST(DecodedAudioTest, Clone) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
