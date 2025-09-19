@@ -117,6 +117,11 @@ struct SbFeatureParamExt : public SbFeatureParam {
 
   constexpr SbFeatureParamExt(const SbFeature& feature, const char* name)
       : SbFeatureParam{feature.name, name} {}
+
+  // Function used to retrieve the parameter value for a given param. Outside
+  // code will call this function, which will then call the corresponding
+  // FeatureList::GetParam function.
+  T Get() const { return FeatureList::GetParam(*this); }
 };
 
 template <>

@@ -465,8 +465,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(kForceFlushDecoderDuringReset);
-    int64_t flush_delay_usec = FeatureList::GetParam(kFlushDelayUsec);
-    int64_t reset_delay_usec = FeatureList::GetParam(kResetDelayUsec);
+    int64_t flush_delay_usec = kFlushDelayUsec.Get();
+    int64_t reset_delay_usec = kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
