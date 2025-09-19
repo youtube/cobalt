@@ -19,7 +19,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 class WidevineTimer::WaitEvent {
  public:
@@ -148,4 +148,4 @@ void WidevineTimer::CancelAllJobsOnClient(IClient* client,
   wait_event->Signal();
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard

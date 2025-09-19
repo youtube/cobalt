@@ -18,13 +18,13 @@
 #include "starboard/decode_target.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::libjpeg {
+namespace starboard {
 
 SbDecodeTarget Decode(SbDecodeTargetGraphicsContextProvider* context_provider,
                       SbDecodeTargetFormat decode_target_format,
                       const uint8_t* data,
                       size_t size);
 
-}  // namespace starboard::shared::libjpeg
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LIBJPEG_JPEG_IMAGE_DECODER_H_
