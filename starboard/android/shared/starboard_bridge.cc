@@ -74,7 +74,7 @@ jboolean JNI_StarboardBridge_InitJNI(
 }
 
 void JNI_StarboardBridge_OnStop(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
+  SbAudioSinkImpl::TearDown();
   SbFileAndroidTeardown();
 }
 
@@ -109,7 +109,7 @@ void JNI_StarboardBridge_CloseNativeStarboard(JNIEnv* env, jlong nativeApp) {
 }
 
 void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  SbAudioSinkImpl::Initialize();
 }
 
 void JNI_StarboardBridge_HandleDeepLink(JNIEnv* env,

@@ -34,8 +34,7 @@
 
 namespace starboard {
 
-class ContinuousAudioTrackSink
-    : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
+class ContinuousAudioTrackSink : public SbAudioSinkImpl {
  public:
   ContinuousAudioTrackSink(
       Type* type,

@@ -26,7 +26,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 namespace {
 
 class StubAudioSink : public SbAudioSinkPrivate {
@@ -146,4 +146,4 @@ SbAudioSink StubAudioSinkType::Create(
                            context);
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard
