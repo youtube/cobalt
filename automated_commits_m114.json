@@ -1,5 +1,83 @@
 [
   {
+    "hexsha": "fc2044bc04f47b0d350a0f8b096d1eab664ec215",
+    "original_hexsha": "0fe4519fd8607a37d473e5d5965bfd34de2a7ac3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-18T21:04:09-07:00",
+    "summary": "starboard: Move PlayerComponents into flattened namespace (#7220)",
+    "stats": {
+      "files": 28,
+      "insertions": 61,
+      "deletions": 89
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8789d5ff045f356cb42aa4b2c969e4df6af20b30",
+    "original_hexsha": "6c63c87696916f971b942e5eb23ff0b8cae2d355",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-18T15:34:17-07:00",
+    "summary": "starboard: Move audio components into flattened namespace (#7212)",
+    "stats": {
+      "files": 30,
+      "insertions": 64,
+      "deletions": 82
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1de0a1a89f91c1c0f2d6e63ca957924fc2926e29",
+    "original_hexsha": "25abfec1bebfccf7866d70e0af05bec5469558ef",
+    "author": "Santosh Mahto",
+    "datetime": "2025-09-19T02:36:54+05:30",
+    "summary": "Enable feature DefaultEnableANGLEValidation in gold build (#7165)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "31255acc406a168800890ea05b327e8d48ae5379",
+    "original_hexsha": "6f4d5dcf949cb174dae57794a911c9a87ed25b85",
+    "author": "Charley Kim",
+    "datetime": "2025-09-18T10:43:23-07:00",
+    "summary": "cobalt/android: Adding WebContents Listener to Shell.java (#7208)",
+    "stats": {
+      "files": 3,
+      "insertions": 46,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9e9906749609fafd01dedbd5678c836574de9571",
+    "original_hexsha": "cd556ec3c48c60cf085399f513a372cab0236baf",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-18T09:51:41-07:00",
+    "summary": "starboard: Move VideoRenderer classes into flattened namespace (#7209)",
+    "stats": {
+      "files": 15,
+      "insertions": 25,
+      "deletions": 53
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d0f23b79ac9e1565204fa3e6a422a415c9eaa176",
+    "original_hexsha": "b0ab80b53ba5e6897f41ef5c3df0308341577330",
+    "author": "Holden Warriner",
+    "datetime": "2025-09-18T13:52:58+00:00",
+    "summary": "Revert \"starboard: Do not set RPATH in \"starboard\" GN config\" (#7203)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "4d358c5ff69e694aab8dbb3c2537b371cfcf968a",
     "original_hexsha": "3aca9613ec670021aedc1446c6d344719c7e049b",
     "author": "billybw",
