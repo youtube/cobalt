@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -299,4 +299,4 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

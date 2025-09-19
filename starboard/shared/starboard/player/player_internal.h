@@ -59,7 +59,7 @@ struct SbPlayerPrivate {
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
 };
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
@@ -131,6 +131,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   static int number_of_players_;
 };
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_

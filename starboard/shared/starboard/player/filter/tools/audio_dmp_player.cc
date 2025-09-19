@@ -28,7 +28,7 @@
 
 namespace {
 
-using starboard::shared::starboard::player::filter::PlayerComponents;
+using ::starboard::PlayerComponents;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
