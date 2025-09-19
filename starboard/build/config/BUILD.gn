@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/compiler/compiler.gni")
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 
@@ -167,9 +168,11 @@ config("starboard") {
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
 
-  sb_out_dir =
-      get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
-  ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
+  if (is_linux && !enable_cobalt_hermetic_hacks) {
+    sb_out_dir =
+        get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
+    ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
+  }
 }
 
 config("native_target_build") {
