@@ -21,6 +21,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 namespace starboard {
 
@@ -91,7 +92,6 @@ void VideoRenderAlgorithmAndroid::Render(
         break;
       }
     }
-
     jlong early_us = (frames->front()->timestamp() - playback_time) /
                      (playback_rate != 0 ? playback_rate : 1);
 
@@ -106,9 +106,24 @@ void VideoRenderAlgorithmAndroid::Render(
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
+      SB_LOG_IF(INFO, index_ < 20)
+          << __func__ << " > Dropped: index=" << index_
+          << ", playback_time=" << FormatWithDigitSeparators(playback_time)
+          << ", pts="
+          << FormatWithDigitSeparators(frames->front()->timestamp());
+      index_++;
+
       frames->pop_front();
       ++dropped_frames_;
+
     } else if (early_us < kBufferReadyThreshold) {
+      SB_LOG_IF(INFO, index_ < 20)
+          << __func__ << " > Schedule: index=" << index_
+          << ", playback_time=" << FormatWithDigitSeparators(playback_time)
+          << ", pts="
+          << FormatWithDigitSeparators(frames->front()->timestamp());
+      index_++;
+
       [[maybe_unused]] auto status =
           draw_frame_cb(frames->front(), adjusted_release_time_ns);
       SB_DCHECK_EQ(status, VideoRendererSink::kReleased);

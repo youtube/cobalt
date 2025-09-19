@@ -30,7 +30,12 @@
 namespace starboard {
 namespace {
 
-using ::base::android::AttachCurrentThread;
+std::ostream& operator<<(std::ostream& os,
+                         const ContinuousAudioTrackSink::Timestamp& timestamp) {
+  os << "{frame_position=" << timestamp.frame_position
+     << ",rendered_at_us=" << timestamp.rendered_at_us << "}";
+  return os;
+}
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -77,12 +82,16 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
               /*tunnel_mode_audio_session_id=*/-1,
-              is_web_audio) {
+              is_web_audio),
+      initial_frames_(bridge_.GetStartThresholdInFrames()) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_
+               << ", initial_frames=" << initial_frames_
+               << ", initial_frames(msec)="
+               << GetFramesDurationUs(initial_frames_) / 1'000;
 
   if (!bridge_.is_valid()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -134,6 +143,24 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
+std::optional<ContinuousAudioTrackSink::Timestamp>
+ContinuousAudioTrackSink::GetTimestamp(JNIEnv* env) {
+  int64_t rendered_at_us;
+  int64_t frame_position = bridge_.GetAudioTimestamp(&rendered_at_us, env);
+  return frame_position == 0 ? std::optional<Timestamp>(std::nullopt)
+                             : Timestamp{frame_position, rendered_at_us};
+}
+
+int64_t ContinuousAudioTrackSink::EstimateFramePosition(
+    const std::optional<Timestamp>& timestamp) const {
+  if (!timestamp) {
+    // head_frame of 0 means that playback didn't start yet.
+    return 0;
+  }
+  int64_t elapsed_us = CurrentMonotonicTime() - timestamp->rendered_at_us;
+  return timestamp->frame_position + GetFrames(elapsed_us);
+}
+
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -145,8 +172,26 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
+  bool is_initial_silence_feeding = true;
+  int initial_silence_frames = 0;
+  int dropped_frames = 0;
+  int reported_dropped_frames = 0;
+  int64_t silence_fed_at_us = 0;
+  const int64_t start_us = CurrentMonotonicTime();
+  bridge_.Play();
+  const int64_t elapsed_us = CurrentMonotonicTime() - start_us;
+  SB_LOG(INFO) << "Initial Play complete time(msec)=" << elapsed_us / 1'000;
+
+  constexpr int kSilenceIntervalUs = 10'000;
+  const int kSilenceIntervalFrames =
+      kSilenceIntervalUs * sampling_frequency_hz_ / 1'000'000;
+  std::optional<Timestamp> last_timestamp;
+  const std::vector<uint8_t> silence_frames(
+      channels_ * GetBytesPerSample(sample_type_) * kSilenceIntervalFrames);
+
+  int64_t last_real_frame_head = 0;
   while (!quit_) {
-    int playback_head_position = 0;
+    int64_t playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
@@ -155,13 +200,45 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
 
-    if (was_playing) {
+    int64_t ignore_us;
+    int real_frame_head = bridge_.GetAudioTimestamp(&ignore_us, env);
+    if (!playback_started_ && real_frame_head != last_real_frame_head) {
+      // SB_CHECK_NE(silence_fed_at_us, 0);
+      int64_t elapsed_ms =
+          silence_fed_at_us > 0
+              ? (CurrentMonotonicTime() - silence_fed_at_us) / 1'000
+              : 0;
+      SB_LOG(INFO) << "audio playback started: frames_consumed="
+                   << FormatWithDigitSeparators(real_frame_head -
+                                                last_real_frame_head)
+                   << ", elased after silence feed(msec)="
+                   << (elapsed_ms != 0 ? std::to_string(elapsed_ms) : "(null)");
+      playback_started_ = true;
+    }
+    last_real_frame_head = real_frame_head;
+
+    if (is_initial_silence_feeding) {
+      last_timestamp = GetTimestamp(env);
+      // SB_LOG(INFO) << "Silence feeding: last_timestamp=" << last_timestamp;
+    } else if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
+      if (playback_head_position < initial_silence_frames) {
+        // SB_LOG(INFO)
+        //    << "Still playing initial_silence_frames:
+        //    playback_head_positions="
+        //    << playback_head_position
+        //    << ", initial_silence_frames=" << initial_silence_frames;
+        playback_head_position = 0;
+      } else {
+        playback_head_position -= initial_silence_frames;
+      }
+
       SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
+
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
@@ -183,9 +260,29 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       last_playback_head_position = playback_head_position;
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
-      if (frames_consumed != 0) {
-        SB_DCHECK_GE(frames_consumed, 0);
-        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+      SB_CHECK(started_us_);
+      int to_report_dropped_frames = 0;
+      if (reported_dropped_frames < dropped_frames) {
+        const int max_dropped_frames =
+            std::min<int>(GetFrames(now - *started_us_), dropped_frames);
+        SB_CHECK_GE(max_dropped_frames, reported_dropped_frames);
+        to_report_dropped_frames = max_dropped_frames - reported_dropped_frames;
+        SB_LOG_IF(INFO, to_report_dropped_frames > 0)
+            << "to_report_dropped_frames="
+            << FormatWithDigitSeparators(to_report_dropped_frames)
+            << ", dropped_frames=" << FormatWithDigitSeparators(dropped_frames)
+            << ", reported_dropped_frames="
+            << FormatWithDigitSeparators(reported_dropped_frames);
+        reported_dropped_frames += to_report_dropped_frames;
+      }
+
+      const int effective_frames_consumed =
+          frames_consumed + to_report_dropped_frames;
+
+      if (effective_frames_consumed != 0) {
+        SB_CHECK_GE(effective_frames_consumed, 0);
+        consume_frames_func_(effective_frames_consumed, frames_consumed_at,
+                             context_);
         frames_in_audio_track -= frames_consumed;
       }
     }
@@ -209,7 +306,73 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      bridge_.Play();
+      if (is_initial_silence_feeding) {
+        if (!started_us_) {
+          started_us_ = CurrentMonotonicTime();
+        }
+
+        is_initial_silence_feeding = false;
+        const int64_t initial_silence_us =
+            GetFramesDurationUs(initial_silence_frames);
+        const int64_t not_played_silence_frames =
+            initial_silence_frames - EstimateFramePosition(last_timestamp);
+        SB_CHECK_GE(not_played_silence_frames, 0);
+
+        dropped_frames = not_played_silence_frames;
+        offset_in_frames += dropped_frames;
+
+        SB_LOG(INFO) << "Switch to real audio: initial_silence(msec)="
+                     << initial_silence_us / 1'000
+                     << ", dropped_frames=" << dropped_frames
+                     << ", dropped_frames(msec)="
+                     << GetFramesDurationUs(dropped_frames) / 1'000;
+      } else {
+        bridge_.Play();
+      }
+    }
+
+    if (!is_playing && is_initial_silence_feeding) {
+      if (!last_timestamp) {
+        if (initial_silence_frames >= initial_frames_) {
+          // SB_LOG(INFO) << "Reached max initial silence(msec)="
+          //             << GetFramesDurationUs(initial_silence_frames) / 1'000;
+        } else {
+          while (initial_silence_frames < initial_frames_) {
+            int frames_to_feed =
+                std::min(kSilenceIntervalFrames,
+                         initial_frames_ - initial_silence_frames);
+            frames_to_feed = kSilenceIntervalFrames;
+            int written = WriteData(env, silence_frames.data(), frames_to_feed);
+            // SB_CHECK_EQ(written, frames_to_feed);
+            initial_silence_frames += written;
+          }
+          SB_LOG(INFO) << "Feeds initial silences(msec)="
+                       << GetFramesDurationUs(initial_silence_frames) / 1'000
+                       << ", frames=" << initial_silence_frames;
+          silence_fed_at_us = CurrentMonotonicTime();
+        }
+      } else {
+        const int64_t silence_frame_head =
+            EstimateFramePosition(last_timestamp);
+        const int64_t initial_silence_us =
+            GetFramesDurationUs(initial_silence_frames);
+        const int64_t current_silence_us =
+            GetFramesDurationUs(silence_frame_head);
+        const int64_t silence_to_play_us =
+            initial_silence_us - current_silence_us;
+        if (silence_to_play_us > 10'000) {
+          // SB_LOG(INFO) << "Reached max running silence(msec)="
+          //             << silence_to_play_us / 1'000;
+        } else {
+          initial_silence_frames += kSilenceIntervalFrames;
+          WriteData(env, silence_frames.data(), kSilenceIntervalFrames);
+          SB_LOG(INFO) << "Feeds silences interval(msec)="
+                       << GetFramesDurationUs(kSilenceIntervalFrames) / 1'000
+                       << ", frames=" << initial_silence_frames;
+        }
+      }
+      usleep(10'000);
+      continue;
     }
 
     if (!is_playing || frames_in_buffer == 0) {
@@ -319,7 +482,7 @@ int ContinuousAudioTrackSink::WriteData(JNIEnv* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK_EQ(samples_written % channels_, 0);
+  SB_CHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 
@@ -331,8 +494,12 @@ void ContinuousAudioTrackSink::ReportError(bool capability_changed,
   }
 }
 
-int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int frames) const {
+int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int64_t frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
+}
+
+int64_t ContinuousAudioTrackSink::GetFrames(int64_t duration_us) const {
+  return duration_us * sampling_frequency_hz_ / 1'000'000;
 }
 
 void ContinuousAudioTrackSink::SetVolume(double volume) {
@@ -341,10 +508,6 @@ void ContinuousAudioTrackSink::SetVolume(double volume) {
 
 int ContinuousAudioTrackSink::GetUnderrunCount() {
   return bridge_.GetUnderrunCount();
-}
-
-int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
-  return bridge_.GetStartThresholdInFrames();
 }
 
 }  // namespace starboard
