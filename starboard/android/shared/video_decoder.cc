@@ -44,7 +44,7 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -1286,14 +1286,14 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_VideoSurfaceTexture_nativeOnFrameAvailable(
     JNIEnv* env,
     jobject unused_this,
     jlong native_video_decoder) {
-  using starboard::android::shared::MediaCodecVideoDecoder;
+  using starboard::MediaCodecVideoDecoder;
 
   MediaCodecVideoDecoder* video_decoder =
       reinterpret_cast<MediaCodecVideoDecoder*>(native_video_decoder);

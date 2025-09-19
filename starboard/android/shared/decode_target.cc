@@ -28,7 +28,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/shared/gles/gl_call.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
@@ -128,4 +128,4 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -24,9 +24,9 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
-  using starboard::android::shared::DrmSystem;
-  using starboard::android::shared::IsWidevineL1;
-  using starboard::android::shared::IsWidevineL3;
+  using starboard::DrmSystem;
+  using starboard::IsWidevineL1;
+  using starboard::IsWidevineL3;
 
   if (!update_request_callback || !session_updated_callback ||
       !key_statuses_changed_callback || !server_certificate_updated_callback ||

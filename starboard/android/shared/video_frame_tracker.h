@@ -21,7 +21,7 @@
 
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class VideoFrameTracker {
  public:
@@ -54,6 +54,6 @@ class VideoFrameTracker {
   std::vector<int64_t> rendered_frames_on_decoder_thread_;  // microseconds
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_

@@ -21,5 +21,5 @@
 
 void SbLogRaw(const char* message) {
   __android_log_write(ANDROID_LOG_INFO, "starboard", message);
-  usleep(::starboard::android::shared::GetLogSleepTime());
+  usleep(::starboard::GetLogSleepTime());
 }
