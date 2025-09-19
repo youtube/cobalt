@@ -151,6 +151,16 @@ public class Shell {
     }
 
     /**
+     * Processes the given URL to include device authentication parameters.
+     *
+     * @param url The initial URL to be loaded by the shell.
+     * @return The URL with added device authentication query parameters.
+     */
+    public String getStartupURL(String url) {
+        return ShellJni.get().getStartupURLWithDeviceAuth(mNativeShell, url);
+    }
+
+    /**
      * Loads an URL.  This will perform minimal amounts of sanitizing of the URL to attempt to
      * make it valid.
      *
@@ -298,5 +308,6 @@ public class Shell {
     @NativeMethods
     interface Natives {
         void closeShell(long shellPtr);
+        String getStartupURLWithDeviceAuth(long shellPtr, String startupUrl);
     }
 }

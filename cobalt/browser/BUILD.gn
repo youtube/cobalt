@@ -90,12 +90,17 @@ source_set("browser") {
 }
 
 source_set("switches") {
+  testonly = true
+
   sources = [
     "switches.cc",
     "switches.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//cobalt/shell:cobalt_shell_lib",
+  ]
 }
 
 config("embed_polyfilled_javascript_config") {

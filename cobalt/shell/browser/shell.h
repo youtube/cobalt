@@ -75,6 +75,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void CloseDevTools();
   // Resizes the web content view to the given dimensions.
   void ResizeWebContentForTests(const gfx::Size& content_size);
+  std::string GetStartupURLWithDeviceAuth(const std::string& startup_url);
 
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
