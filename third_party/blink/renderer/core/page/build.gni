@@ -95,6 +95,8 @@ blink_core_sources_page = [
   "spatial_navigation.h",
   "spatial_navigation_controller.cc",
   "spatial_navigation_controller.h",
+  "stub_context_menu_controller.cc",
+  "stub_context_menu_controller.h",
   "touch_adjustment.cc",
   "touch_adjustment.h",
   "validation_message_client.h",
