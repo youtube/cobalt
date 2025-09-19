@@ -36,10 +36,6 @@ namespace starboard {
 
 namespace {
 
-using android::shared::ApplicationAndroid;
-using android::shared::LogInit;
-using android::shared::SbFileAndroidTeardown;
-
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;

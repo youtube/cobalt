@@ -40,7 +40,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 using base::android::ScopedJavaGlobalRef;
 
@@ -165,4 +165,4 @@ int64_t ApplicationAndroid::GetNextTimedEventTargetTime() {
   return std::numeric_limits<int64_t>::max();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

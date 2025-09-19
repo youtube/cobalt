@@ -22,7 +22,7 @@
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_info.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -67,4 +67,4 @@ const void* GetPlatformInfoApi() {
   return &kPlatformInfoApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

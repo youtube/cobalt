@@ -34,7 +34,7 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_discarder.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class MediaCodecAudioDecoder : public AudioDecoder,
                                public MediaCodecDecoder::Host,
@@ -93,6 +93,6 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_

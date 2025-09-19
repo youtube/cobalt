@@ -30,12 +30,7 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
 
-namespace {
-starboard::android::shared::AudioTrackAudioSinkType*
-    audio_track_audio_sink_type_;
-}
-
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
@@ -70,6 +65,8 @@ const int kMinStablePlayedFrames = 12 * 1024;
 
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
+
+AudioTrackAudioSinkType* audio_track_audio_sink_type_;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
@@ -588,15 +585,14 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
                                  : kMaxRequiredFramesLocal;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 namespace starboard::shared::starboard::audio_sink {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
   SB_DCHECK(!audio_track_audio_sink_type_);
-  audio_track_audio_sink_type_ =
-      new ::starboard::android::shared::AudioTrackAudioSinkType;
+  audio_track_audio_sink_type_ = new ::starboard::AudioTrackAudioSinkType;
   SetPrimaryType(audio_track_audio_sink_type_);
   EnableFallbackToStub();
   audio_track_audio_sink_type_->TestMinRequiredFrames();

@@ -35,7 +35,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
@@ -159,6 +159,6 @@ class AudioTrackAudioSink
   double playback_rate_ = 1.0;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_

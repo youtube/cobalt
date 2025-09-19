@@ -51,7 +51,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard {
-namespace android::shared {
 namespace {
 
 using base::android::AttachCurrentThread;
@@ -639,11 +638,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
-}  // namespace android::shared
-
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return std::make_unique<android::shared::PlayerComponentsFactory>();
+  return std::make_unique<PlayerComponentsFactory>();
 }
 
 // static
@@ -651,8 +648,6 @@ bool PlayerComponents::Factory::OutputModeSupported(
     SbPlayerOutputMode output_mode,
     SbMediaVideoCodec codec,
     SbDrmSystem drm_system) {
-  using ::starboard::android::shared::DrmSystem;
-
   if (output_mode == kSbPlayerOutputModePunchOut) {
     return true;
   }

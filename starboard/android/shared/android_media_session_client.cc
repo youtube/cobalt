@@ -24,7 +24,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 // These constants are from android.media.session.PlaybackState
@@ -285,12 +285,12 @@ const void* GetMediaSessionApi() {
   return &kMediaSessionApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_CobaltMediaSession_nativeInvokeAction(JNIEnv* env,
                                                            jclass unused_clazz,
                                                            jlong action,
                                                            jlong seek_ms) {
-  starboard::android::shared::NativeInvokeAction(action, seek_ms);
+  starboard::NativeInvokeAction(action, seek_ms);
 }

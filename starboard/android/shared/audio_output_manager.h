@@ -22,7 +22,7 @@
 #include "base/memory/singleton.h"
 #include "starboard/media.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class AudioOutputManager {
  public:
@@ -81,6 +81,6 @@ class AudioOutputManager {
   base::android::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  //  STARBOARD_ANDROID_SHARED_AUDIO_OUTPUT_MANAGER_H_

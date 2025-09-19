@@ -31,7 +31,7 @@
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -176,4 +176,4 @@ void AssetManager::ClearTempDir() {
   mkdir(tmp_root_.c_str(), 0700);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

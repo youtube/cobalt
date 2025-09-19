@@ -15,7 +15,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/system.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -27,8 +27,8 @@ bool IsSystemNetworkConnected() {
   return j_is_connected == JNI_TRUE;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 bool SbSystemNetworkIsDisconnected() {
-  return !starboard::android::shared::IsSystemNetworkConnected();
+  return !starboard::IsSystemNetworkConnected();
 }

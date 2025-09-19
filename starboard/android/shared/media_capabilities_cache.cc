@@ -37,7 +37,7 @@
 
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
@@ -628,4 +628,4 @@ Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

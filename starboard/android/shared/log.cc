@@ -57,5 +57,5 @@ void SbLog(SbLogPriority priority, const char* message) {
 
   // In unit tests the logging is too fast for the android log to be read out
   // and we end up losing crucial logs. The test runner specifies a sleep time.
-  usleep(::starboard::android::shared::GetLogSleepTime());
+  usleep(::starboard::GetLogSleepTime());
 }

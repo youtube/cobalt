@@ -22,7 +22,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -162,4 +162,4 @@ jlong VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

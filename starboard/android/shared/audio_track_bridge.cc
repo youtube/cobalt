@@ -32,9 +32,6 @@ namespace starboard {
 
 namespace {
 
-using android::shared::AudioOutputManager;
-using android::shared::GetAudioFormatSampleType;
-
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using ::base::android::AttachCurrentThread;
 using ::base::android::JavaParamRef;
