@@ -184,6 +184,22 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     std::string* error_message) {
+  SB_LOG(INFO)
+      << __func__ << ": video_codec=" << video_codec
+      << ", width_hint=" << width_hint << ", height_hint=" << height_hint
+      << ", fps=" << fps << ", max_width="
+      << (max_width.has_value() ? std::to_string(max_width.value()) : "(n/a)")
+      << ", max_height="
+      << (max_height.has_value() ? std::to_string(max_height.value()) : "(n/a)")
+      << ", has_color_metadata=" << (color_metadata ? "true" : "false")
+      << ", require_secured_decoder="
+      << (require_secured_decoder ? "true" : "false")
+      << ", require_software_codec="
+      << (require_software_codec ? "true" : "false")
+      << ", tunnel_mode_audio_session_id=" << tunnel_mode_audio_session_id
+      << ", force_big_endian_hdr_metadata="
+      << (force_big_endian_hdr_metadata ? "true" : "false")
+      << ", max_video_input_size=" << max_video_input_size;
   SB_DCHECK(error_message);
   SB_DCHECK_EQ(max_width.has_value(), max_height.has_value());
   SB_DCHECK_GT(max_width.value_or(1920), 0);
@@ -498,6 +514,14 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(
     jlong presentation_time_us,
     jlong render_at_system_time_ns) {
   handler_->OnMediaCodecFrameRendered(presentation_time_us);
+
+  int64_t rendered_ms = render_at_system_time_ns / 1'000'000;
+  if (rendered_frame_count_ < 10 && last_rendered_ms_) {
+    SB_LOG(INFO) << __func__
+                 << ": gap(msec)=" << (rendered_ms - *last_rendered_ms_);
+  }
+  last_rendered_ms_ = rendered_ms;
+  rendered_frame_count_++;
 }
 
 void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {

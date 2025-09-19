@@ -65,11 +65,46 @@ class ContinuousAudioTrackSink
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
+  // The following methods are called inside AudioThreadFunc() on the audio
+  // thread.
+  void ProcessConsumedFrames(JNIEnv* env,
+                             int* frames_in_audio_track,
+                             int* last_playback_head_position,
+                             int initial_silence_frames,
+                             int dropped_frames,
+                             int* reported_dropped_frames);
+  void UpdatePlayState(
+      bool* was_playing,
+      bool is_playing,
+      bool* is_initial_silence_feeding,
+      int initial_silence_frames,
+      int* dropped_frames,
+      int* offset_in_frames,
+      const std::optional<AudioTrackBridge::AudioTimestamp>& last_timestamp);
+  void HandleInitialSilenceFeeding(
+      JNIEnv* env,
+      int* initial_silence_frames,
+      int64_t* silence_fed_at_us,
+      const std::optional<AudioTrackBridge::AudioTimestamp>& last_timestamp,
+      const std::vector<uint8_t>& silence_frames);
+  void WriteAudioData(JNIEnv* env,
+                      int frames_in_buffer,
+                      int offset_in_frames,
+                      bool is_eos_reached,
+                      int* frames_in_audio_track,
+                      int64_t* frames_consumed_at);
+  void CheckForPlaybackStart(JNIEnv* env,
+                             int64_t* last_real_frame_head,
+                             int64_t silence_fed_at_us);
+
   int WriteData(JNIEnv* env, const void* buffer, int size);
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
-  int64_t GetFramesDurationUs(int frames) const;
+  int64_t EstimateFramePosition(
+      const std::optional<AudioTrackBridge::AudioTimestamp>& timestamp) const;
+  int64_t GetFramesDurationUs(int64_t frames) const;
+  int64_t GetFrames(int64_t duration_us) const;
 
   Type* const type_;
   const int channels_;
@@ -84,6 +119,9 @@ class ContinuousAudioTrackSink
   void* const context_;
 
   AudioTrackBridge bridge_;
+  const int initial_frames_;
+  bool playback_started_ = false;
+  std::optional<int64_t> started_us_;
 
   volatile bool quit_ = false;
   std::optional<pthread_t> audio_out_thread_;
