@@ -1,0 +1,8 @@
+{
+  "failing_tests": [
+    "ScopedDirTest.CloseOutOfScope",
+    "SubprocessTest.Entrypoint",
+    "SubprocessTest.InvalidPath",
+    "TracingServiceImplTest.WriteIntoFileAndStopOnMaxSize"
+  ]
+}
