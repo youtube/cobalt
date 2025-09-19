@@ -36,9 +36,9 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   mallopt(M_ARENA_MAX, 2);
 
   tzset();
-  starboard::shared::signal::InstallCrashSignalHandlers();
-  starboard::shared::signal::InstallDebugSignalHandlers();
-  starboard::shared::signal::InstallSuspendSignalHandlers();
+  starboard::InstallCrashSignalHandlers();
+  starboard::InstallDebugSignalHandlers();
+  starboard::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
   auto command_line = starboard::CommandLine(argc, argv);
@@ -67,9 +67,9 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
 
   int result = application.Run(argc, argv);
 
-  starboard::shared::signal::UninstallSuspendSignalHandlers();
-  starboard::shared::signal::UninstallDebugSignalHandlers();
-  starboard::shared::signal::UninstallCrashSignalHandlers();
+  starboard::UninstallSuspendSignalHandlers();
+  starboard::UninstallDebugSignalHandlers();
+  starboard::UninstallCrashSignalHandlers();
 
   return result;
 }
