@@ -19,19 +19,19 @@
 
 namespace nplb {
 
-using ::starboard::shared::starboard::drm::DummyServerCertificateUpdatedFunc;
-using ::starboard::shared::starboard::drm::DummySessionClosedFunc;
-using ::starboard::shared::starboard::drm::DummySessionKeyStatusesChangedFunc;
-using ::starboard::shared::starboard::drm::DummySessionUpdatedFunc;
-using ::starboard::shared::starboard::drm::DummySessionUpdateRequestFunc;
+using ::starboard::DummyServerCertificateUpdatedFunc;
+using ::starboard::DummySessionClosedFunc;
+using ::starboard::DummySessionKeyStatusesChangedFunc;
+using ::starboard::DummySessionUpdatedFunc;
+using ::starboard::DummySessionUpdateRequestFunc;
 
-using ::starboard::shared::starboard::drm::CreateDummyDrmSystem;
+using ::starboard::CreateDummyDrmSystem;
 
-using ::starboard::shared::starboard::drm::kEncryptionSchemes;
-using ::starboard::shared::starboard::drm::kKeySystems;
-using ::starboard::shared::starboard::drm::kWidevineCertificate;
+using ::starboard::kEncryptionSchemes;
+using ::starboard::kKeySystems;
+using ::starboard::kWidevineCertificate;
 
-using ::starboard::shared::starboard::drm::kCencInitData;
+using ::starboard::kCencInitData;
 
 }  // namespace nplb
 
