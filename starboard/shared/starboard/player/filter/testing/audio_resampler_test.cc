@@ -19,7 +19,7 @@
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::testing::Combine;
@@ -183,4 +183,4 @@ INSTANTIATE_TEST_CASE_P(AudioResamplerTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

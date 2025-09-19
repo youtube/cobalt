@@ -60,7 +60,7 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
           decode_target_graphics_context_provider);
   bool is_valid() const override;
 
-  // From: starboard::player::filter::VideoDecoder
+  // From: VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 8; }

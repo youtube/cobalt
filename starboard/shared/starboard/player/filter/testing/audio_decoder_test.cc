@@ -45,7 +45,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::testing::Bool;
@@ -181,7 +181,7 @@ class AudioDecoderTest
 
     can_accept_more_input_ = false;
 
-    last_input_buffer_ = GetAudioInputBuffer(index);
+    last_input_buffer_ = GetTestAudioInputBuffer(index);
     audio_decoder_->Decode({last_input_buffer_}, consumed_cb());
     written_inputs_.push_back(last_input_buffer_);
   }
@@ -196,7 +196,7 @@ class AudioDecoderTest
 
     can_accept_more_input_ = false;
 
-    last_input_buffer_ = GetAudioInputBuffer(
+    last_input_buffer_ = GetTestAudioInputBuffer(
         index, discarded_duration_from_front, discarded_duration_from_back);
     audio_decoder_->Decode({last_input_buffer_}, consumed_cb());
     written_inputs_.push_back(last_input_buffer_);
@@ -410,8 +410,8 @@ class AudioDecoderTest
     }
   }
 
-  scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
-    auto input_buffer = testing::GetAudioInputBuffer(&dmp_reader_, index);
+  scoped_refptr<InputBuffer> GetTestAudioInputBuffer(size_t index) {
+    auto input_buffer = GetAudioInputBuffer(&dmp_reader_, index);
     auto iter = invalid_inputs_.find(index);
     if (iter != invalid_inputs_.end()) {
       std::vector<uint8_t> content(input_buffer->size(), iter->second);
@@ -421,15 +421,15 @@ class AudioDecoderTest
     return input_buffer;
   }
 
-  scoped_refptr<InputBuffer> GetAudioInputBuffer(
+  scoped_refptr<InputBuffer> GetTestAudioInputBuffer(
       size_t index,
       int64_t discarded_duration_from_front,
       int64_t discarded_duration_from_back) {
     SB_DCHECK(IsPartialAudioSupported());
 
-    auto input_buffer = testing::GetAudioInputBuffer(
-        &dmp_reader_, index, discarded_duration_from_front,
-        discarded_duration_from_back);
+    auto input_buffer =
+        GetAudioInputBuffer(&dmp_reader_, index, discarded_duration_from_front,
+                            discarded_duration_from_back);
     auto iter = invalid_inputs_.find(index);
     if (iter != invalid_inputs_.end()) {
       std::vector<uint8_t> content(input_buffer->size(), iter->second);
@@ -974,4 +974,4 @@ INSTANTIATE_TEST_CASE_P(
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard
