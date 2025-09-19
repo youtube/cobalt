@@ -26,7 +26,6 @@
 #include "cobalt/android/jni_headers/AudioOutputManager_jni.h"
 
 namespace starboard {
-namespace android::shared {
 
 namespace {
 
@@ -257,12 +256,11 @@ bool AudioOutputManager::GetAudioConfiguration(
 
   return true;
 }
-}  // namespace android::shared
 
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
-  android::shared::MediaCapabilitiesCache::GetInstance()->ClearCache();
+  MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 

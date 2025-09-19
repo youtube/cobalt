@@ -20,7 +20,7 @@
 #include "starboard/common/command_line.h"
 #include "starboard/shared/starboard/application.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 using ::starboard::CommandLine;
 
@@ -57,6 +57,6 @@ class ApplicationAndroid : public Application {
   int64_t app_start_timestamp_ = 0;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_

@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
                             RuntimeResourceOverlay::GetInstance)
@@ -43,4 +43,4 @@ RuntimeResourceOverlay::RuntimeResourceOverlay() {
                << "\n\tmax_video_buffer_budget: " << max_video_buffer_budget_;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

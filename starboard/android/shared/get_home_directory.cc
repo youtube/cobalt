@@ -25,7 +25,7 @@
 namespace starboard::shared::starboard {
 
 using ::base::android::ScopedJavaGlobalRef;
-using ::starboard::android::shared::g_app_files_dir;
+using ::starboard::g_app_files_dir;
 
 bool GetHomeDirectory(char* out_path, int path_size) {
   int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);

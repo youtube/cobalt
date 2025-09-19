@@ -17,7 +17,7 @@
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -25,8 +25,7 @@ namespace {
 // are added here.
 
 void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size) {
-  starboard::android::shared::SetMaxVideoInputSizeForCurrentThread(
-      max_video_input_size);
+  starboard::SetMaxVideoInputSizeForCurrentThread(max_video_input_size);
 }
 
 const StarboardExtensionPlayerSetMaxVideoInputSizeApi
@@ -42,4 +41,4 @@ const void* GetPlayerSetMaxVideoInputSizeApi() {
   return &kPlayerSetMaxVideoInputSizeApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -36,7 +36,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: The audio receiver often requires some warm up time to switch the
 //       output to eac3.  Consider pushing some silence at the very beginning so
@@ -138,6 +138,6 @@ class AudioRendererPassthrough : public AudioRenderer,
   std::unique_ptr<JobThread> audio_track_thread_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_PASSTHROUGH_H_

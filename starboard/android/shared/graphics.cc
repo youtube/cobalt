@@ -19,7 +19,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/extension/graphics.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -37,7 +37,7 @@ float GetMinimumFrameIntervalInMilliseconds() {
 bool IsMapToMeshEnabled() {
   // TODO(cobalt b/375669373): revisit RRO settings.
   // bool supports_spherical_videos =
-  //     starboard::android::shared::RuntimeResourceOverlay::GetInstance()
+  //     starboard::RuntimeResourceOverlay::GetInstance()
   //         ->supports_spherical_videos();
   bool supports_spherical_videos = false;
   return supports_spherical_videos;
@@ -94,4 +94,4 @@ const void* GetGraphicsApi() {
   return &kGraphicsApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

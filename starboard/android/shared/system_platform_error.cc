@@ -24,7 +24,7 @@
 
 namespace {
 using base::android::ScopedJavaGlobalRef;
-using starboard::android::shared::ApplicationAndroid;
+using starboard::ApplicationAndroid;
 
 typedef std::function<void(SbSystemPlatformErrorResponse error_response)>
     SendResponseCallback;
