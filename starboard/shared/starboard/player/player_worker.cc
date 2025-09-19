@@ -28,17 +28,15 @@
 #include "starboard/common/player.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 namespace {
 
-using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
-typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
-    HandlerResult;
+using HandlerResult = PlayerWorker::Handler::HandlerResult;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kPlayerStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
@@ -434,4 +432,4 @@ void PlayerWorker::UpdateDecoderState(SbMediaType type,
   decoder_status_func_(player_, context_, type, state, ticket_);
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

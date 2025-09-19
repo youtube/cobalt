@@ -29,7 +29,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
  public:
@@ -67,6 +67,6 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   int dropped_frames_ = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDER_ALGORITHM_IMPL_H_

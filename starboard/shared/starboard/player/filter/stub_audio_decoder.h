@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
@@ -65,6 +65,6 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   int total_input_count_ = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_AUDIO_DECODER_H_
