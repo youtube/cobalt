@@ -17,5 +17,5 @@
 #include "starboard/shared/x11/application_x11.h"
 
 SbWindow SbWindowCreate(const SbWindowOptions* options) {
-  return starboard::shared::x11::ApplicationX11::Get()->CreateWindow(options);
+  return starboard::ApplicationX11::Get()->CreateWindow(options);
 }

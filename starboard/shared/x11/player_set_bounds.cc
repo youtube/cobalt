@@ -29,6 +29,6 @@ void SbPlayerSetBounds(SbPlayer player,
     return;
   }
   player->SetBounds(z_index, x, y, width, height);
-  starboard::shared::x11::ApplicationX11::Get()->PlayerSetBounds(
-      player, z_index, x, y, width, height);
+  starboard::ApplicationX11::Get()->PlayerSetBounds(player, z_index, x, y,
+                                                    width, height);
 }

@@ -38,15 +38,11 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
 
+namespace starboard {
+
 namespace {
+
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
-}
-
-namespace starboard::shared::x11 {
-
-using ::starboard::shared::dev_input::DevInput;
-
-namespace {
 
 enum {
   kNoneDeviceId,
@@ -1356,4 +1352,4 @@ SbWindow ApplicationX11::FindWindow(Window window) {
   return kSbWindowInvalid;
 }
 
-}  // namespace starboard::shared::x11
+}  // namespace starboard
