@@ -30,7 +30,7 @@
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
-namespace starboard::shared::signal {
+namespace starboard {
 
 namespace {
 
@@ -165,4 +165,4 @@ void UninstallSuspendSignalHandlers() {
   ConfigureSignalHandlerThread(false);
 }
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard
