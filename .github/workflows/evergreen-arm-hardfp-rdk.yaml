@@ -33,3 +33,10 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
+
+  check_binary_size:
+    uses: ./.github/workflows/check_binary_size.yaml
+    needs: evergreen-arm-hardfp-rdk
+    with:
+      platform: evergreen-arm-hardfp-rdk
+      build_job_name: evergreen-arm-hardfp-rdk

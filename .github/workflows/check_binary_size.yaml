@@ -1,0 +1,40 @@
+name: Check Binary Size
+permissions: read-all
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'The platform to check (e.g., evergreen-arm-hardfp-rdk)'
+        required: true
+        type: string
+      build_job_name:
+        description: 'The name of the build job to depend on'
+        required: true
+        type: string
+
+jobs:
+  check_metrics:
+    runs-on: ubuntu-latest
+    needs: ${{ inputs.build_job_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: out
+          path: out
+
+      - name: Check binary size
+        run: |
+          out/${{ inputs.platform }}_gold/bin/run_cobalt_sizes
+
+      - name: Compare binary size
+        run: |
+          python3 cobalt/testing/tools/compare_sizes.py \
+            --current out/${{ inputs.platform }}_gold/sizes/perf_results.json \
+            --reference cobalt/testing/tools/reference_metrics.json \
+            --platform ${{ inputs.platform }} \
+            --config gold
