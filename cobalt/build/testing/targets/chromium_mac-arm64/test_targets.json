@@ -1,0 +1,12 @@
+{
+    "test_targets": [
+        "base:base_unittests",
+        "media:media_unittests",
+        "mojo:mojo_unittests",
+        "net:net_unittests",
+        "skia:skia_unittests",
+        "sql:sql_unittests",
+        "url:url_unittests"
+    ],
+    "executables": []
+}
