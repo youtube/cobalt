@@ -44,14 +44,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Loader.Decompression.Duration" units="microseconds"
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
-  <owner>nyardi@google.com</owner>
+  <owner>hwarriner@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
-    The time taken to decompress the ELF binary (e.g., libcobalt.so.lz4)
-    during application startup. This is only recorded when the binary is
-    loaded from a compressed file.
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
   </summary>
 </histogram>
 
