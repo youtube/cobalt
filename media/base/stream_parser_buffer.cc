@@ -103,7 +103,7 @@ StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
                                        Type type,
                                        TrackId track_id)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    : DecoderBuffer(type, data, data_size), type_(type), track_id_(track_id) {
+    : DecoderBuffer(type, data.data(), data.size()), type_(type), track_id_(track_id) {
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(data), type_(type), track_id_(track_id) {
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)

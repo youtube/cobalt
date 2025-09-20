@@ -222,7 +222,11 @@ class MEDIA_EXPORT DecoderBuffer
   // The number of bytes in the buffer.
   size_t size() const {
     DCHECK(!end_of_stream());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return size_;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().size() : data_.size();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // Prefer writable_span(), though it should also be removed.
@@ -240,15 +244,24 @@ class MEDIA_EXPORT DecoderBuffer
 
   // TODO(crbug.com/41383992): Remove writable_span().
   base::span<uint8_t> writable_span() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return UNSAFE_TODO(base::span(data_, size_));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     // TODO(crbug.com/40284755): `data_` should be converted to HeapArray, then
     // it can give out a span safely.
     return UNSAFE_TODO(base::span(writable_data(), size()));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   bool empty() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return size_ == 0u;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().empty() : data_.empty();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Read-only iteration as bytes. This allows this type to meet the
   // requirements of `std::ranges::contiguous_range`, and thus be implicitly
   // convertible to a span.
@@ -266,6 +279,7 @@ class MEDIA_EXPORT DecoderBuffer
     return external_memory_ ? external_memory_->Span().subspan(offset, count)
                             : data_.subspan(offset, count);
   }
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(crbug.com/365814210): Change the return type to std::optional.
   DiscardPadding discard_padding() const {
@@ -372,6 +386,7 @@ class MEDIA_EXPORT DecoderBuffer
   // Encoded data, allocated from DecoderBuffer::Allocator.
   uint8_t* data_ = nullptr;
   size_t allocated_size_ = 0;
+  size_t size_ = 0;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Encoded data, if it is stored on the heap.
   const base::HeapArray<uint8_t> data_;
