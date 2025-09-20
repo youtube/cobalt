@@ -1,5 +1,83 @@
 [
   {
+    "hexsha": "c1f61902c1e337b7ad1b8796b371e2a0b054cda6",
+    "original_hexsha": "d9823dbab3a1b2d49d17b122503ac680de302d4b",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-19T15:25:11-07:00",
+    "summary": "starboard: Move drm test helper function to flattened namespace (#7227)",
+    "stats": {
+      "files": 4,
+      "insertions": 15,
+      "deletions": 15
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f75a14f752845775834baaf31922043549e11eae",
+    "original_hexsha": "9fcb7b18c263710447dfd53ef24db15a23123b1d",
+    "author": "Igor Sarkisov",
+    "datetime": "2025-09-19T15:24:37-07:00",
+    "summary": "Add on-device test support to RDK builder (#7089)",
+    "stats": {
+      "files": 3,
+      "insertions": 11,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e462797100675fbb05e4127ea90d763c0112ffc5",
+    "original_hexsha": "180f5065356362ba645a1fd3917a80f85dddaa30",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-19T15:23:09-07:00",
+    "summary": "starboard: Flatten signal handling namespace (#7226)",
+    "stats": {
+      "files": 11,
+      "insertions": 30,
+      "deletions": 30
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dba63bf3ddd40c30f7a4cc75410d2004cddcd47f",
+    "original_hexsha": "8eb761c1df1d0dbdd4420b0a4134062b417f191c",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-19T15:22:52-07:00",
+    "summary": "starboard: Move CPU feature helper functions to flatten namespace (#7228)",
+    "stats": {
+      "files": 3,
+      "insertions": 8,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3f0fbc8f160b5dd2a2ef04b85d32bb7fcd5fc283",
+    "original_hexsha": "6edd729c4dd90ae1bf6de600864852c40959190e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-19T11:17:28-07:00",
+    "summary": "starboard: Flatten remaining `starboard::shared::starboard::player` namespaces (#7224)",
+    "stats": {
+      "files": 23,
+      "insertions": 54,
+      "deletions": 65
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7e2c444997e772ea822e3e872581d80b54268f4b",
+    "original_hexsha": "b46247fc926e917b721734a0fb182c8f99eb7b33",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-19T10:13:59-07:00",
+    "summary": "starboard: Flatten `starboard::shared::android` namespace (#7162)",
+    "stats": {
+      "files": 99,
+      "insertions": 220,
+      "deletions": 255
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "fc2044bc04f47b0d350a0f8b096d1eab664ec215",
     "original_hexsha": "0fe4519fd8607a37d473e5d5965bfd34de2a7ac3",
     "author": "Kyujung Youn",
