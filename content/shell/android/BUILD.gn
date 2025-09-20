@@ -226,6 +226,16 @@ content_shell_apk_tmpl("content_shell_apk") {
   command_line_flags_file = "content-shell-command-line"
 }
 
+content_shell_apk_tmpl("cobalt_shell_apk") {
+  target_type = "android_apk"
+  apk_name = "CobaltShell"
+  android_manifest = content_shell_manifest
+  android_manifest_dep = ":content_shell_manifest"
+  shared_libraries = [ ":libcontent_shell_content_view" ]
+  command_line_flags_file = "content-shell-command-line"
+}
+
+
 content_shell_apk_tmpl("content_shell_test_apk") {
   target_type = "instrumentation_test_apk"
   apk_name = "ContentShellTest"
