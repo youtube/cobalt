@@ -47,25 +47,25 @@ void RecordLoaderAppMetrics() {
     return;
   }
 
-  LOG(INFO) << "LoaderAppMetrics: Extension found and version is OK.";
-
-  if (loader_app_metrics->GetElfLibraryStoredCompressed()) {
-    LOG(INFO) << "LoaderAppMetrics: ELF was stored compressed.";
-    int64_t decompression_duration_us =
-        loader_app_metrics->GetElfDecompressionDurationMicroseconds();
-    if (decompression_duration_us >= 0) {
-      base::UmaHistogramTimes("Cobalt.Loader.Decompression.Duration",
-                              base::Microseconds(decompression_duration_us));
-      LOG(INFO) << "LoaderAppMetrics: Logging ELF Decompression Duration: "
-                << decompression_duration_us << " us";
-    } else {
-      LOG(WARNING) << "LoaderAppMetrics: Decompression duration is negative, "
-                      "not logging.";
-    }
-  } else {
+  if (!loader_app_metrics->GetElfLibraryStoredCompressed()) {
     LOG(INFO) << "LoaderAppMetrics: ELF was not stored compressed. Skipping "
                  "decompression metric.";
+    return;
   }
+
+  int64_t elf_decompression_duration_us =
+      loader_app_metrics->GetElfDecompressionDurationMicroseconds();
+
+  if (elf_decompression_duration_us < 0) {
+    LOG(ERROR) << "LoaderAppMetrics: Decompression duration is negative, "
+                  "not logging.";
+    return;
+  }
+
+  base::UmaHistogramTimes("Cobalt.LoaderApp.ElfDecompressionDuration",
+                          base::Microseconds(elf_decompression_duration_us));
+  LOG(INFO) << "LoaderAppMetrics: Logging ELF Decompression Duration: "
+            << elf_decompression_duration_us << " us";
 }
 
 }  // namespace browser
