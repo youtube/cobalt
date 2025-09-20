@@ -251,7 +251,7 @@ if (use_evergreen) {
     data = [ "${root_out_dir}/libcobalt.so" ]
     executable_args = [
       "--platform",
-      "linux",
+      "cobalt-evergreen",
       "--isolated-script-test-output",
       "${root_out_dir}/test_results.json",
     ]

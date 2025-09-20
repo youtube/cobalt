@@ -338,6 +338,37 @@ jobs:
         uses: ./src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
 
+  check_binary_size:
+    needs: [initialize, build]
+    runs-on: ubuntu-latest
+    name: Check Binary Sizes
+    if: contains(fromJson(needs.initialize.outputs.build_configs), 'gold') # Only run if gold is built
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+
+      - name: Download all size artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: size_artifacts_evergreen-arm-*_gold
+          path: size_artifacts
+
+      - name: Process size artifacts
+        run: |
+          # The artifacts are downloaded to out/${{ matrix.platform }}_${{ matrix.config }}/
+          echo "Running Check binary size for ${{ matrix.platform }}"
+          out/${{ matrix.platform }}_${{ matrix.config }}/bin/run_cobalt_sizes
+
+          echo "Running Compare binary size for ${{ matrix.platform }}"
+          python3 cobalt/testing/tools/compare_sizes.py \
+            --current out/${{ matrix.platform }}_${{ matrix.config }}/sizes/perf_results.json \
+            --reference cobalt/testing/tools/reference_metrics.json \
+            --platform ${{ matrix.platform }} \
+            --config ${{ matrix.config }}
+        shell: bash
+
   on-device-test:
     needs: [initialize, build]
     if: needs.initialize.outputs.test_on_device == 'true' &&
