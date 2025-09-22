@@ -29,13 +29,11 @@
 #endif
 
 namespace starboard {
-namespace client_porting {
-namespace wrap_main {
 // A main-style function.
 typedef int (*MainFunction)(int argc, char** argv);
 
 template <MainFunction main_function>
-void SimpleEventHandler(const SbEvent* event) {
+void ClientPortingSimpleEventHandler(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
@@ -56,10 +54,9 @@ void SimpleEventHandler(const SbEvent* event) {
 }  // namespace client_porting
 }  // namespace starboard
 
-#define STARBOARD_WRAP_SIMPLE_MAIN(main_function)                              \
-  void SbEventHandle(const SbEvent* event) {                                   \
-    ::starboard::client_porting::wrap_main::SimpleEventHandler<main_function>( \
-        event);                                                                \
+#define STARBOARD_WRAP_SIMPLE_MAIN(main_function)          \
+  void SbEventHandle(const SbEvent* event) {               \
+    ClientPortingSimpleEventHandler<main_function>(event); \
   }
 
 #endif  // STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
