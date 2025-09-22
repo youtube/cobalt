@@ -108,6 +108,8 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
         // we set it explicitly just in case.
         {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
+        // Enable precise memory info so we can make accurate client-side
+        // measurements.
         {switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
   });
   return cobalt_param_switch_defaults;
