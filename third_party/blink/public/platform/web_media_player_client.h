@@ -32,6 +32,11 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_PLAYER_CLIENT_H_
 
 #include "build/build_config.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string>
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #include "third_party/blink/public/platform/web_common.h"
 
 namespace media {
