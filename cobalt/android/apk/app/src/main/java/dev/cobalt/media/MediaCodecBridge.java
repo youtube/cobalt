@@ -400,9 +400,11 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
-  private boolean isDecodeOnlyFlagEnabled() {
-    // Right now, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
-    if (!mIsTunnelingPlayback) {
+  private boolean isDecodeOnlyFlagEnabled(boolean nonTunneledDecodeOnlyEnabled) {
+    // By default, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
+    // We enable BUFFER_FLAG_DECODE_ONLY for non-tunneling playback if the
+    // starboard experiment for it is enabled.
+    if (!mIsTunnelingPlayback && !nonTunneledDecodeOnlyEnabled) {
       return false;
     }
     // BUFFER_FLAG_DECODE_ONLY is added in Android 14.
@@ -745,11 +747,11 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly, boolean nonTunneledDecodeOnlyEnabled) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      if (isDecodeOnlyFlagEnabled()
-          && is_decode_only
+      if (isDecodeOnlyFlagEnabled(nonTunneledDecodeOnlyEnabled)
+          && isDecodeOnly
           && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
@@ -774,7 +776,8 @@ class MediaCodecBridge {
       int blocksToEncrypt,
       int blocksToSkip,
       long presentationTimeUs,
-      boolean is_decode_only) {
+      boolean isDecodeOnly,
+      boolean nonTunneledDecodeOnlyEnabled) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
@@ -789,7 +792,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
+      if (isDecodeOnlyFlagEnabled(nonTunneledDecodeOnlyEnabled) && isDecodeOnly) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
 
