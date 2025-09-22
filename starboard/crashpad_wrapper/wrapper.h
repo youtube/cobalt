@@ -19,9 +19,7 @@
 
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 
-namespace third_party {
 namespace crashpad {
-namespace wrapper {
 
 // The key name used in Crashpad for the version annotation.
 extern const char kCrashpadVersionKey[];
@@ -50,8 +48,6 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 // key. Returns true on success and false on failure.
 bool InsertCrashpadAnnotation(const char* key, const char* value);
 
-}  // namespace wrapper
 }  // namespace crashpad
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_

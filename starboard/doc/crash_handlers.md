@@ -32,7 +32,7 @@ const void* SbSystemGetExtension(const char* name) {
 }
 ```
 
-3. Calling the `third_party::crashpad::wrapper::InstallCrashpadHandler()` hook
+3. Calling the `crashpad::InstallCrashpadHandler()` hook
 directly after installing system crash handlers. On linux, for example, this
 could look like:
 
@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   starboard::InstallSuspendSignalHandlers();
 
   std::string ca_certificates_path = starboard::GetCACertificatesPath();
-  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
 
   int result = application.Run(argc, argv);
   ...

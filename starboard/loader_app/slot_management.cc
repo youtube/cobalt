@@ -443,8 +443,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     EvergreenInfo evergreen_info;
     GetEvergreenInfo(&evergreen_info);
-    if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
-            evergreen_info)) {
+    if (!crashpad::AddEvergreenInfoToCrashpad(evergreen_info)) {
       SB_LOG(ERROR)
           << "Could not send Cobalt library information into Crashpad.";
     } else {
@@ -477,9 +476,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
       starboard::strlcpy(buffer.data(), get_user_agent_func(),
                          USER_AGENT_STRING_MAX_SIZE);
-      if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
-              third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
-              buffer.data())) {
+      if (crashpad::InsertCrashpadAnnotation(
+              crashpad::kCrashpadUserAgentStringKey, buffer.data())) {
         SB_DLOG(INFO) << "Added user agent string to Crashpad.";
       } else {
         SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";

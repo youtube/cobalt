@@ -20,7 +20,6 @@
 #include "starboard/elf_loader/dynamic_section.h"
 #include "starboard/elf_loader/program_table.h"
 
-namespace starboard {
 namespace elf_loader {
 
 enum RelocationType {
@@ -89,6 +88,5 @@ class Relocations {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_RELOCATIONS_H_

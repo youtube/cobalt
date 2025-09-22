@@ -28,7 +28,6 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
-namespace starboard {
 namespace elf_loader {
 
 namespace {
@@ -201,4 +200,3 @@ ElfLoaderImpl::~ElfLoaderImpl() {
   }
 }
 }  // namespace elf_loader
-}  // namespace starboard

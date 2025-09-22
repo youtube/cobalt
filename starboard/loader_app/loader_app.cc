@@ -56,7 +56,7 @@ const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
 const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
 
 // Portable ELF loader.
-starboard::elf_loader::ElfLoader g_elf_loader;
+elf_loader::ElfLoader g_elf_loader;
 
 // Pointer to the |SbEventHandle| function in the
 // Cobalt binary.
@@ -145,8 +145,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
 
   EvergreenInfo evergreen_info;
   GetEvergreenInfo(&evergreen_info);
-  if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
-          evergreen_info)) {
+  if (!crashpad::AddEvergreenInfoToCrashpad(evergreen_info)) {
     SB_LOG(ERROR) << "Could not send Cobalt library information into Crashpad.";
   } else {
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
@@ -168,9 +167,8 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
     starboard::strlcpy(buffer.data(), get_user_agent_func(),
                        USER_AGENT_STRING_MAX_SIZE);
-    if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
-            third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
-            buffer.data())) {
+    if (crashpad::InsertCrashpadAnnotation(
+            crashpad::kCrashpadUserAgentStringKey, buffer.data())) {
       SB_DLOG(INFO) << "Added user agent string to Crashpad.";
     } else {
       SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
