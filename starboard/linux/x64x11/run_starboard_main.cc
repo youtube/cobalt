@@ -63,7 +63,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   SbLogRawDumpStack(3);
 #endif
 
-  starboard::shared::x11::ApplicationX11 application(callback);
+  starboard::ApplicationX11 application(callback);
 
   int result = application.Run(argc, argv);
 
