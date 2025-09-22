@@ -42,7 +42,6 @@
 #include "third_party/jsoncpp/source/include/json/reader.h"
 #include "third_party/jsoncpp/source/include/json/value.h"
 
-namespace starboard {
 namespace loader_app {
 namespace {
 
@@ -128,8 +127,8 @@ bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
     return false;
   }
 
-  ScopedFile manifest_file(manifest_file_path->data(), O_RDONLY,
-                           S_IRWXU | S_IRGRP);
+  starboard::ScopedFile manifest_file(manifest_file_path->data(), O_RDONLY,
+                                      S_IRWXU | S_IRGRP);
   int64_t file_size = manifest_file.GetSize();
   std::vector<char> file_data(file_size);
   int read_size = manifest_file.ReadAll(file_data.data(), file_size);
@@ -184,14 +183,13 @@ int RevertBack(int current_installation,
     if (ImGetInstallationPath(current_installation, installation_path.data(),
                               kSbFileMaxPath) != IM_ERROR) {
       std::string bad_app_key_file_path =
-          starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
-                                                      app_key);
+          loader_app::GetBadAppKeyFilePath(installation_path.data(), app_key);
       if (bad_app_key_file_path.empty()) {
         SB_LOG(WARNING) << "Failed to get bad app key file path for path="
                         << installation_path.data()
                         << " and app_key=" << app_key;
       } else {
-        if (!starboard::loader_app::CreateAppKeyFile(bad_app_key_file_path)) {
+        if (!loader_app::CreateAppKeyFile(bad_app_key_file_path)) {
           SB_LOG(WARNING) << "Failed to create bad app key file: "
                           << bad_app_key_file_path;
         }
@@ -207,7 +205,7 @@ int RevertBack(int current_installation,
 
 bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   std::string bad_app_key_file_path =
-      starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
+      loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
   struct stat info;
   bool file_exists = stat(bad_app_key_file_path.c_str(), &info) == 0;
@@ -229,7 +227,7 @@ bool AdoptInstallation(int current_installation,
     return false;
   }
   std::string good_app_key_file_path =
-      starboard::loader_app::GetGoodAppKeyFilePath(installation_path, app_key);
+      loader_app::GetGoodAppKeyFilePath(installation_path, app_key);
   if (good_app_key_file_path.empty()) {
     SB_LOG(WARNING) << "Failed to get good app key file path for app_key="
                     << app_key;
@@ -237,7 +235,7 @@ bool AdoptInstallation(int current_installation,
   }
   struct stat info;
   if (stat(good_app_key_file_path.c_str(), &info) != 0) {
-    if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
+    if (!loader_app::CreateAppKeyFile(good_app_key_file_path)) {
       SB_LOG(WARNING) << "Failed to create good app key file";
       return false;
     }
@@ -509,4 +507,3 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 }
 
 }  // namespace loader_app
-}  // namespace starboard

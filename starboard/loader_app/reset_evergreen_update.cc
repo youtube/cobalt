@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
 namespace loader_app {
 
 bool ResetEvergreenUpdate() {
@@ -33,8 +32,7 @@ bool ResetEvergreenUpdate() {
     return false;
   }
 
-  return SbFileDeleteRecursive(storage_dir.data(), true);
+  return starboard::SbFileDeleteRecursive(storage_dir.data(), true);
 }
 
 }  // namespace loader_app
-}  // namespace starboard

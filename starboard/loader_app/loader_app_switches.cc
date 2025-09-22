@@ -14,7 +14,6 @@
 
 #include "starboard/loader_app/loader_app_switches.h"
 
-namespace starboard {
 namespace loader_app {
 
 const char kContent[] = "content";
@@ -28,4 +27,3 @@ const char kLoaderTrackMemory[] = "loader_track_memory";
 const char kResetEvergreenUpdate[] = "reset_evergreen_update";
 
 }  // namespace loader_app
-}  // namespace starboard
