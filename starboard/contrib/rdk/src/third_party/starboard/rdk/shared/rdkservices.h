@@ -52,12 +52,6 @@ public:
   static uint32_t GetHDRCaps();
 };
 
-class DeviceIdentification {
-public:
-  static std::string GetChipset();
-  static std::string GetFirmwareVersion();
-};
-
 class NetworkInfo {
 public:
   static void Initialize();
@@ -113,6 +107,8 @@ class DeviceInfo {
 public:
   static bool GetAudioConfiguration(int index, SbMediaAudioConfiguration* out_audio_configuration);
   static bool GetBrandName(std::string& out);
+  static bool GetChipset(std::string& out);
+  static bool GetFirmwareVersion(std::string& out);
 };
 
 void TeardownJSONRPCLink();

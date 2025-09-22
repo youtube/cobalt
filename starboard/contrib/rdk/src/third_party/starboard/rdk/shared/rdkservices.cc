@@ -32,7 +32,6 @@
 
 #include <interfaces/json/JsonData_HDRProperties.h>
 #include <interfaces/json/JsonData_PlayerProperties.h>
-#include <interfaces/json/JsonData_DeviceIdentification.h>
 #include <interfaces/json/JsonData_DeviceInfo.h>
 
 #ifdef HAS_SECURITY_AGENT
@@ -65,7 +64,6 @@ namespace {
 const uint32_t kDefaultTimeoutMs = 100;
 const char kDisplayInfoCallsign[] = "DisplayInfo.1";
 const char kPlayerInfoCallsign[] = "PlayerInfo.1";
-const char kDeviceIdentificationCallsign[] = "DeviceIdentification.1";
 const char kNetworkCallsign[] = "org.rdk.Network.1";
 const char kTTSCallsign[] = "org.rdk.TextToSpeech.1";
 const char kAuthServiceCallsign[] = "org.rdk.AuthService.1";
@@ -212,31 +210,6 @@ struct VariableTimeout {
       : min_ms;
   }
 };
-
-struct DeviceIdImpl {
-  DeviceIdImpl() {
-    JsonData::DeviceIdentification::DeviceidentificationData data;
-    uint32_t rc = ServiceLink(kDeviceIdentificationCallsign)
-      .Get(2000, "deviceidentification", data);
-    if (Core::ERROR_NONE == rc) {
-      chipset = data.Chipset.Value();
-      firmware_version = data.Firmwareversion.Value();
-      std::replace(chipset.begin(), chipset.end(), ' ', '-');
-    }
-    if (Core::ERROR_NONE != rc) {
-      #if defined(SB_PLATFORM_CHIPSET_MODEL_NUMBER_STRING)
-      chipset = SB_PLATFORM_CHIPSET_MODEL_NUMBER_STRING;
-      #endif
-      #if defined(SB_PLATFORM_FIRMWARE_VERSION_STRING)
-      firmware_version = SB_PLATFORM_FIRMWARE_VERSION_STRING;
-      #endif
-    }
-  }
-  std::string chipset;
-  std::string firmware_version;
-};
-
-SB_ONCE_INITIALIZE_FUNCTION(DeviceIdImpl, GetDeviceIdImpl);
 
 struct AccessibilityImpl {
 private:
@@ -1214,6 +1187,8 @@ struct DeviceInfoImpl {
   }
 
   bool GetBrandName(std::string& out);
+  bool GetChipset(std::string& out);
+  bool GetFirmwareVersion(std::string& out);
 
 private:
   struct DeviceDetailsData : public Core::JSON::Container {
@@ -1307,6 +1282,8 @@ private:
 
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
   Core::OptionalType<std::string> brand_name_;
+  Core::OptionalType<std::string> chipset;
+  Core::OptionalType<std::string> firmware_version;
 
   static constexpr SbMediaAudioConnector kAudioConnectorUnknown = static_cast<SbMediaAudioConnector>(0);
 };
@@ -1512,6 +1489,60 @@ bool DeviceInfoImpl::GetBrandName(std::string& out) {
   return !out.empty();
 }
 
+bool DeviceInfoImpl::GetChipset(std::string& out) {
+  if (!chipset.IsSet()) {
+    struct ChipsetInfo : public Core::JSON::Container {
+      ChipsetInfo() : Core::JSON::Container() {
+          Add(_T("chipset"), &Chipset);
+      }
+      Core::JSON::String Chipset;
+    } info;
+    uint32_t rc = device_info_.Get(kDefaultTimeoutMs, "chipset", info);
+    if (Core::ERROR_NONE != rc) {
+      SB_LOG(ERROR) << "Failed to get '" << kDeviceInfoCallsign
+                    << ".chipset', rc=" << rc
+                    << " ( " << Core::ErrorToString(rc) << " ).";
+      if (rc == Core::ERROR_ASYNC_FAILED || rc == Core::ERROR_TIMEDOUT) {
+        chipset.Clear();
+      } else {
+      chipset = "";
+      }
+    } else {
+      chipset = info.Chipset.Value();
+      SB_LOG(INFO) << "Device chipset: " << chipset.Value();
+    }
+  }
+  out = chipset.Value();
+  return !out.empty();
+}
+
+bool DeviceInfoImpl::GetFirmwareVersion(std::string& out) {
+  if (!firmware_version.IsSet()) {
+    struct FirmwareVersionInfo : public Core::JSON::Container {
+      FirmwareVersionInfo() : Core::JSON::Container() {
+          Add(_T("releaseversion"), &FirmwareVersion);
+      }
+      Core::JSON::String FirmwareVersion;
+    } info;
+    uint32_t rc = device_info_.Get(kDefaultTimeoutMs, "releaseversion", info);
+    if (Core::ERROR_NONE != rc) {
+      SB_LOG(ERROR) << "Failed to get '" << kDeviceInfoCallsign
+                    << ".firmwareversion', rc=" << rc
+                    << " ( " << Core::ErrorToString(rc) << " ).";
+      if (rc == Core::ERROR_ASYNC_FAILED || rc == Core::ERROR_TIMEDOUT) {
+        firmware_version.Clear();
+      } else {
+      firmware_version = "";
+      }
+    } else {
+      firmware_version = info.FirmwareVersion.Value();
+      SB_LOG(INFO) << "Device firmwareversion: " << firmware_version.Value();
+    }
+  }
+  out = firmware_version.Value();
+  return !out.empty();
+}
+
 struct UserSettingsImpl {
 private:
   std::mutex mutex_;
@@ -1667,18 +1698,9 @@ uint32_t DisplayInfo::GetHDRCaps() {
   return GetDisplayInfo()->GetHDRCaps();
 }
 
-std::string DeviceIdentification::GetChipset() {
-  return GetDeviceIdImpl()->chipset;
-}
-
-std::string DeviceIdentification::GetFirmwareVersion() {
-  return GetDeviceIdImpl()->firmware_version;
-}
-
 void NetworkInfo::Initialize() {
   GetNetworkInfo()->Initialize();
 }
-
 bool NetworkInfo::IsConnectionTypeWireless() {
   return GetNetworkInfo()->IsConnectionTypeWireless();
 }
@@ -1792,6 +1814,14 @@ bool DeviceInfo::GetAudioConfiguration(int index, SbMediaAudioConfiguration* out
 
 bool DeviceInfo::GetBrandName(std::string& out) {
   return GetDeviceInfo()->GetBrandName(out);
+}
+
+bool DeviceInfo::GetChipset(std::string& out) {
+  return GetDeviceInfo()->GetChipset(out);
+}
+
+bool DeviceInfo::GetFirmwareVersion(std::string& out) {
+  return GetDeviceInfo()->GetFirmwareVersion(out);
 }
 
 void TeardownJSONRPCLink() {
