@@ -19,7 +19,7 @@
 
 #include "starboard/decode_target.h"
 
-namespace starboard::shared::starboard::decode_target {
+namespace starboard {
 
 class DecodeTargetContextRunner {
  public:
@@ -35,6 +35,6 @@ class DecodeTargetContextRunner {
   SbDecodeTargetGraphicsContextProvider* provider_;
 };
 
-}  // namespace starboard::shared::starboard::decode_target
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_DECODE_TARGET_DECODE_TARGET_CONTEXT_RUNNER_H_
