@@ -26,6 +26,7 @@
 #include "starboard/system.h"
 
 namespace elf_loader {
+using ::starboard::CurrentMonotonicTime;
 
 LZ4FileImpl::LZ4FileImpl() {
   const LZ4F_errorCode_t lz4f_error_code =
@@ -80,7 +81,7 @@ bool LZ4FileImpl::Open(const char* name) {
     return false;
   }
 
-  int64_t decompression_start_time_us = starboard::CurrentMonotonicTime();
+  int64_t decompression_start_time_us = CurrentMonotonicTime();
 
   size_t header_size = PeekHeaderSize();
   if (LZ4F_isError(header_size)) {
@@ -115,7 +116,7 @@ bool LZ4FileImpl::Open(const char* name) {
   bool result = Decompress(file_info.st_size, header_size,
                            max_compressed_buffer_size, source_bytes_hint);
 
-  int64_t decompression_end_time_us = starboard::CurrentMonotonicTime();
+  int64_t decompression_end_time_us = CurrentMonotonicTime();
   int64_t decompression_duration_us =
       decompression_end_time_us - decompression_start_time_us;
   SB_LOG(INFO) << "Decompression took: " << decompression_duration_us / 1000
