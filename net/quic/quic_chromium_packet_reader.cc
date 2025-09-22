@@ -115,7 +115,7 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
   }
   if (result < 0) {
     // Report all other errors to the visitor.
-    return visitor_->OnReadError(result, socket_);
+    return visitor_->OnReadError(result, socket_.get());
   }
 
   // Since we only work on connected sockets, the local and peer address don't
@@ -246,7 +246,10 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
   }
 
   DscpAndEcn tos = socket_->GetLastTos();
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-variable"
   quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
+#pragma clang diagnostic pop
 #if BUILDFLAG(IS_COBALT)
   quic::QuicReceivedPacket packet(read_buffer_->data(), result,
                                   clock_->ApproximateNow());
