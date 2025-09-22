@@ -200,18 +200,20 @@ bool GetManufacturerName(char* out_value, int value_length) {
 
 bool GetChipsetModelNumber(char* out_value, int value_length) {
   std::string chipset;
-  if (SystemProperties::GetChipset(chipset) || DeviceInfo::GetChipset(chipset)) {
-    return CopyStringAndTestIfSuccess(
-      out_value, value_length, chipset.c_str());
+  if (!SystemProperties::GetChipset(chipset)) {
+    DeviceInfo::GetChipset(chipset);
   }
+  return CopyStringAndTestIfSuccess(
+    out_value, value_length, chipset.c_str());
 }
 
 bool GetFirmwareVersion(char* out_value, int value_length) {
   std::string firmware_version;
-  if (SystemProperties::GetFirmwareVersion(firmware_version) || DeviceInfo::GetFirmwareVersion(firmware_version)) {
-    return CopyStringAndTestIfSuccess(
-      out_value, value_length, firmware_version.c_str());
+  if (!SystemProperties::GetFirmwareVersion(firmware_version)) {
+    DeviceInfo::GetFirmwareVersion(firmware_version);
   }
+  return CopyStringAndTestIfSuccess(
+    out_value, value_length, firmware_version.c_str());
 }
 
 bool GetCertificationScope(char* out_value, int value_length) {
