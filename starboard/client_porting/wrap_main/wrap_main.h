@@ -50,8 +50,6 @@ void ClientPortingSimpleEventHandler(const SbEvent* event) {
   }
 }
 
-}  // namespace wrap_main
-}  // namespace client_porting
 }  // namespace starboard
 
 #define STARBOARD_WRAP_SIMPLE_MAIN(main_function)          \
