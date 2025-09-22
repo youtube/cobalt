@@ -64,13 +64,10 @@ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
-                             size_t size,
-                             const uint8_t* side_data,
-                             size_t side_data_size)
-    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+                             size_t size)
+    : size_(size), is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
-    CHECK(!side_data);
     return;
   }
 
@@ -78,13 +75,6 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
 
   memcpy(data_, data, size_);
 
-  if (!side_data) {
-    CHECK_EQ(side_data_size, 0u);
-    return;
-  }
-
-  DCHECK_GT(side_data_size_, 0u);
-  memcpy(side_data_.get(), side_data, side_data_size_);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
