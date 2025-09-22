@@ -28,11 +28,10 @@
 
 #include "third_party/blink/renderer/core/page/context_menu_controller.h"
 
+#if BUILDFLAG(IS_COBALT)
 namespace blink {
 
-// This class intercepts the showing of context menus to prevent them from
-// appearing when triggered by a touch event, passing all other invocations
-// through to the default implementation.
+// A stub context menu controller that by default does not show context menus
 class StubContextMenuController final : public ContextMenuController {
  public:
   explicit StubContextMenuController(Page*);
@@ -46,5 +45,5 @@ class StubContextMenuController final : public ContextMenuController {
 };
 
 }  // namespace blink
-
+#endif
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_STUB_CONTEXT_MENU_CONTROLLER_H_
