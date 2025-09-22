@@ -25,7 +25,6 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
-namespace starboard {
 namespace elf_loader {
 
 LZ4FileImpl::LZ4FileImpl() {
@@ -217,4 +216,3 @@ bool LZ4FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

@@ -19,7 +19,6 @@
 
 #include <string>
 
-namespace starboard {
 namespace elf_loader {
 
 // Starboard implementation for reading a file.
@@ -41,6 +40,5 @@ class FileImpl : public File {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_FILE_IMPL_H_

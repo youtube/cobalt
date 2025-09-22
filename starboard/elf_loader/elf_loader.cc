@@ -29,7 +29,6 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/system.h"
 
-namespace starboard {
 namespace elf_loader {
 
 std::atomic<ElfLoader*> ElfLoader::g_instance{NULL};
@@ -103,4 +102,3 @@ void* ElfLoader::LookupSymbol(const char* symbol) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

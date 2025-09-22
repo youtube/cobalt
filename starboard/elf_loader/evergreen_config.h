@@ -19,7 +19,6 @@
 
 #include "starboard/configuration.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // This is configuration published by the Evergreen loader.
@@ -53,6 +52,5 @@ struct EvergreenConfig {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_EVERGREEN_CONFIG_H_
