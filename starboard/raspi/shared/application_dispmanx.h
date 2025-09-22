@@ -85,7 +85,7 @@ class ApplicationDispmanx : public QueueApplication {
   SbWindow window_;
 
   // The /dev/input input handler. Only set when there is an open window.
-  std::unique_ptr<::starboard::shared::dev_input::DevInput> input_;
+  std::unique_ptr<DevInput> input_;
 };
 
 }  // namespace starboard
