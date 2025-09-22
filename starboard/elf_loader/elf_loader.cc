@@ -30,12 +30,10 @@
 #include "starboard/system.h"
 
 namespace elf_loader {
-namespace {
 using ::starboard::CurrentMonotonicTime;
 using ::starboard::PrependContentPath;
 
 std::atomic<ElfLoader*> ElfLoader::g_instance{NULL};
-}  // namespace
 
 ElfLoader::ElfLoader() {
   ElfLoader* old_instance{NULL};
@@ -67,8 +65,8 @@ bool ElfLoader::Load(const std::string& library_path,
                      bool use_compression,
                      bool use_memory_mapped_file) {
   if (is_relative_path) {
-    library_path_ = ::starboard::PrependContentPath(library_path);
-    content_path_ = ::starboard::PrependContentPath(content_path);
+    library_path_ = PrependContentPath(library_path);
+    content_path_ = PrependContentPath(content_path);
   } else {
     library_path_ = library_path;
     content_path_ = content_path;
