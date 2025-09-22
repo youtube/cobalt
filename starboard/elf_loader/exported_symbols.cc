@@ -87,7 +87,6 @@
     map_[#s] = reinterpret_cast<const void*>(&__abi_wrap_##s); \
   } while (0)
 
-namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
@@ -449,4 +448,3 @@ const void* ExportedSymbols::Lookup(const char* name) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

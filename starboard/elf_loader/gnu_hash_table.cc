@@ -19,7 +19,6 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // Compute the GNU hash of a given symbol.
@@ -148,4 +147,3 @@ const Sym* GnuHashTable::LookupByName(const char* symbol_name,
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

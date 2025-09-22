@@ -21,7 +21,6 @@
 #include "starboard/elf_loader/gnu_hash_table.h"
 #include "starboard/elf_loader/program_table.h"
 
-namespace starboard {
 namespace elf_loader {
 
 typedef void (*linker_function_t)();
@@ -94,6 +93,5 @@ class DynamicSection {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_DYNAMIC_SECTION_H_

@@ -14,9 +14,7 @@
 
 #include "starboard/crashpad_wrapper/wrapper.h"
 
-namespace third_party {
 namespace crashpad {
-namespace wrapper {
 
 const char kCrashpadVersionKey[] = "";
 const char kCrashpadProductKey[] = "";
@@ -33,6 +31,4 @@ bool InsertCrashpadAnnotation(const char* key, const char* value) {
   return false;
 }
 
-}  // namespace wrapper
 }  // namespace crashpad
-}  // namespace third_party
