@@ -30,8 +30,6 @@
 
 namespace starboard {
 
-using ::starboard::shared::dev_input::DevInput;
-
 namespace {
 const int kVideoLayer = -1;
 }  // namespace
