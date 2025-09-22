@@ -33,8 +33,8 @@
 namespace nplb {
 namespace {
 
+using ::starboard::FakeGraphicsContextProvider;
 using ::starboard::VideoDmpReader;
-using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 const int64_t kDuration = 500'000;          // 0.5 seconds
