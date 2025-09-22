@@ -188,7 +188,7 @@ TEST(PagedMemoryTest, GuardRegions) {
     !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) &&                                    \
     !PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA) && !defined(ADDRESS_SANITIZER) && \
     !defined(LEAK_SANITIZER) && !defined(THREAD_SANITIZER) &&                  \
-    !defined(MEMORY_SANITIZER)
+    !defined(MEMORY_SANITIZER) && GTEST_HAS_DEATH_TEST
 // Glibc headers hit this on RLIMIT_ macros.
 #pragma GCC diagnostic push
 #if defined(__clang__)
