@@ -63,8 +63,8 @@ bool ElfLoader::Load(const std::string& library_path,
                      bool use_compression,
                      bool use_memory_mapped_file) {
   if (is_relative_path) {
-    library_path_ = PrependContentPath(library_path);
-    content_path_ = PrependContentPath(content_path);
+    library_path_ = starboard::PrependContentPath(library_path);
+    content_path_ = starboard::PrependContentPath(content_path);
   } else {
     library_path_ = library_path;
     content_path_ = content_path;
@@ -77,10 +77,10 @@ bool ElfLoader::Load(const std::string& library_path,
   EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
-  int64_t start_time_us = CurrentMonotonicTime();
+  int64_t start_time_us = starboard::CurrentMonotonicTime();
   bool res = impl_->Load(library_path_.c_str(), use_compression,
                          use_memory_mapped_file);
-  int64_t end_time_us = CurrentMonotonicTime();
+  int64_t end_time_us = starboard::CurrentMonotonicTime();
   int64_t elf_load_duration_us = end_time_us - start_time_us;
   SB_LOG(INFO) << "Loading took: " << elf_load_duration_us / 1000 << " ms";
   auto metrics_extension =
