@@ -32,7 +32,7 @@ void FreezeDone(void* /*context*/) {
 
 void SbSystemRequestFreeze() {
 #if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-  if (starboard::loader_app::IsPendingRestart()) {
+  if (::loader_app::IsPendingRestart()) {
     SbLogRawFormatF("\nPending update restart . Stopping.\n");
     SbLogFlush();
     starboard::Application::Get()->Stop(0);
