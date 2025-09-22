@@ -21,6 +21,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -163,8 +164,12 @@ class BASE_EXPORT SequenceManager {
     Settings& operator=(const Settings&) = delete;
     // In the future MessagePump (which is move-only) will also be a setting,
     // so we are making Settings move-only in preparation.
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD) || BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+    // Compiler doesn't agree about the noexcept specification.
+    Settings(Settings&& move_from);
+#else
     Settings(Settings&& move_from) noexcept;
-
+#endif
     ~Settings();
 
     MessagePumpType message_loop_type = MessagePumpType::DEFAULT;

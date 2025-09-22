@@ -168,6 +168,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
     starboard::strlcpy(buffer.data(), get_user_agent_func(),
                        USER_AGENT_STRING_MAX_SIZE);
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
             third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
             buffer.data())) {
@@ -175,6 +176,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     } else {
       SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
     }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
@@ -259,6 +261,8 @@ void SbEventHandle(const SbEvent* event) {
         memory_tracker_thread.Start();
       }
     }
+
+    third_party::crashpad::wrapper::InstallCrashpadHandler();
 
     if (is_evergreen_lite) {
       starboard::loader_app::RecordSlotSelectionStatus(

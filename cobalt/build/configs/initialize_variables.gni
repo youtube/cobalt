@@ -51,6 +51,10 @@ assert(!(is_starboard && is_native_target_build),
 # that since the intent is more clear.
 use_cobalt_customizations = true
 
+
+# TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
+is_cobalt_hermetic_build = (is_starboard || is_native_target_build) && use_custom_libc
+
 # TODO(b/371589344): Investigate if we need cobalt_is_debug which
 # avoids overriding chrome's is_debug.
 is_devel = build_type == "devel"

@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -80,6 +81,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   if (!get_user_agent_func) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
     starboard::strlcpy(buffer.data(), get_user_agent_func(),
                        USER_AGENT_STRING_MAX_SIZE);
@@ -90,6 +92,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     } else {
       SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
     }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   }
 
   if (!g_sb_event_func) {
@@ -110,6 +113,13 @@ void SbEventHandle(const SbEvent* event) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
     const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
+
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    // TODO: b/406511608 - we may want to move this installation to a common
+    // location when the loader_app is well supported.
+    third_party::crashpad::wrapper::InstallCrashpadHandler();
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+
     LoadLibraryAndInitialize(
         command_line.GetSwitchValue(starboard::elf_loader::kEvergreenLibrary),
         command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent));

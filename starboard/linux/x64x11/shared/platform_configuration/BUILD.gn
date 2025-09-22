@@ -24,6 +24,14 @@ config("platform_configuration") {
       ":linker_flags",
     ]
   }
+
+  if (current_toolchain == native_target) {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/shared/platform_configuration:compiler_flags",
+      "//starboard/linux/shared/platform_configuration:no_pedantic_warnings",
+    ]
+  }
 }
 
 config("libraries") {
