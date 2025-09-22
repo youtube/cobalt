@@ -17,7 +17,6 @@
 
 #include <string>
 
-namespace starboard {
 namespace loader_app {
 
 // Creates and removes a file within its own lifetime. This class maintains the
@@ -47,6 +46,5 @@ class ScopedDrainFile {
 };
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_DRAIN_FILE_HELPER_H_
