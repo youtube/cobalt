@@ -98,8 +98,8 @@ bool GetExecutablePath(char* out_path, int path_size) {
 // on the Evergreen binary executed.
 // Returns false if it failed.
 bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
-  const starboard::elf_loader::EvergreenConfig* evergreen_config =
-      starboard::elf_loader::EvergreenConfig::GetInstance();
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
   if (!evergreen_config) {
     return true;
   }

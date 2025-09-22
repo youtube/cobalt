@@ -23,7 +23,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace elf_loader {
 
 namespace {
@@ -185,4 +184,3 @@ TEST_F(ProgramTableTest, LoadSegments) {
 
 }  // namespace
 }  // namespace elf_loader
-}  // namespace starboard

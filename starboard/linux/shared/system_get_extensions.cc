@@ -41,8 +41,8 @@
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  const starboard::elf_loader::EvergreenConfig* evergreen_config =
-      starboard::elf_loader::EvergreenConfig::GetInstance();
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
       evergreen_config->custom_get_extension_ != NULL) {
     const void* ext = evergreen_config->custom_get_extension_(name);
