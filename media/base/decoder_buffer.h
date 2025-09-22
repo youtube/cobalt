@@ -265,12 +265,12 @@ class MEDIA_EXPORT DecoderBuffer
   auto begin() const { return data(); }
   auto end() const { return data() + size(); }
   auto first(size_t count) const {
-    DCHECK_LE(count, size());
+    CHECK_LE(count, size());
     return base::span<const uint8_t>(data(), count);
   }
   auto subspan(size_t offset, size_t count) const {
-    DCHECK_LE(offset, size());
-    DCHECK_LE(offset + count, size());
+    CHECK_LE(offset, size());
+    CHECK_LE(offset + count, size());
     return base::span<const uint8_t>(data() + offset, count);
   }
 #else
