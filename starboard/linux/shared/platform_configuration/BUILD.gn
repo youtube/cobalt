@@ -75,6 +75,9 @@ config("compiler_flags") {
 
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
+
+      # Do not warn about variable length arrays
+      "-Wno-vla-cxx-extension"
     ]
 
     if (is_gold) {
