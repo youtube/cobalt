@@ -32,7 +32,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -339,4 +339,4 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

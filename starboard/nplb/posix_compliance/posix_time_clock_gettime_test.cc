@@ -24,7 +24,6 @@
 #include <type_traits>
 #include <vector>
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -410,4 +409,3 @@ TEST(PosixTimeClockGettimeTests, ReturnsEinvalForInvalidClockId) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

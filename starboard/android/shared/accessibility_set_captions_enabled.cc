@@ -16,10 +16,10 @@
 
 #include "starboard/android/shared/accessibility_extension.h"
 
-namespace starboard::android::shared::accessibility {
+namespace starboard {
 
 bool SetCaptionsEnabled(bool enabled) {
   return false;
 }
 
-}  // namespace starboard::android::shared::accessibility
+}  // namespace starboard

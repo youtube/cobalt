@@ -27,11 +27,10 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -348,4 +347,4 @@ int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
   return bridge_.GetStartThresholdInFrames();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

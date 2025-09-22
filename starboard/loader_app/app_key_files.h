@@ -17,7 +17,6 @@
 
 #include <string>
 
-namespace starboard {
 namespace loader_app {
 
 // Gets the file path for a good app key file in the |dir| directory.
@@ -40,6 +39,5 @@ bool CreateAppKeyFile(const std::string& file_name_path);
 bool AnyGoodAppKeyFile(const std::string& dir);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_APP_KEY_FILES_H_

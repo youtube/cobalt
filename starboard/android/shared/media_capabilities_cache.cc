@@ -37,15 +37,13 @@
 
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
-using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
-using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
 const jint HDR_TYPE_DOLBY_VISION = 1;
@@ -630,4 +628,4 @@ Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

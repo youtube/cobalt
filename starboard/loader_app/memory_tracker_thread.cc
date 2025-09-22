@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
 namespace loader_app {
 
 MemoryTrackerThread::MemoryTrackerThread(int period_in_millis)
@@ -43,4 +42,3 @@ void MemoryTrackerThread::Run() {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

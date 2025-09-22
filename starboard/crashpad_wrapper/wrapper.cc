@@ -33,9 +33,7 @@
 
 using starboard::kSystemPropertyMaxLength;
 
-namespace third_party {
 namespace crashpad {
-namespace wrapper {
 
 const char kCrashpadVersionKey[] = "ver";
 const char kCrashpadProductKey[] = "prod";
@@ -265,6 +263,4 @@ bool InsertCrashpadAnnotation(const char* key, const char* value) {
   return client->InsertAnnotationForHandler(key, value);
 }
 
-}  // namespace wrapper
 }  // namespace crashpad
-}  // namespace third_party

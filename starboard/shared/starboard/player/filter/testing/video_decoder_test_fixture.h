@@ -41,7 +41,7 @@
 // as SbPlayer.
 struct SbPlayerPrivate {};
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 
 class VideoDecoderTestFixture {
  public:
@@ -125,7 +125,7 @@ class VideoDecoderTestFixture {
   const std::unique_ptr<VideoDecoder>& video_decoder() const {
     return video_decoder_;
   }
-  const video_dmp::VideoDmpReader& dmp_reader() const { return dmp_reader_; }
+  const VideoDmpReader& dmp_reader() const { return dmp_reader_; }
   SbPlayerOutputMode output_mode() const { return output_mode_; }
   size_t GetDecodedFramesCount() const { return decoded_frames_.size(); }
   void PopDecodedFrame() { decoded_frames_.pop_front(); }
@@ -149,7 +149,7 @@ class VideoDecoderTestFixture {
 
   ::starboard::testing::FakeGraphicsContextProvider*
       fake_graphics_context_provider_;
-  video_dmp::VideoDmpReader dmp_reader_;
+  VideoDmpReader dmp_reader_;
   std::unique_ptr<VideoDecoder> video_decoder_;
 
   bool need_more_input_ = true;
@@ -165,6 +165,6 @@ class VideoDecoderTestFixture {
   std::map<size_t, uint8_t> invalid_inputs_;
 };
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_VIDEO_DECODER_TEST_FIXTURE_H_

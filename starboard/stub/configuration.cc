@@ -18,11 +18,9 @@
 #include "starboard/extension/configuration.h"
 
 namespace starboard {
-namespace stub {
-
 namespace {
 
-const char* CobaltRasterizerType() {
+const char* CobaltRasterizerTypeStub() {
   return "stub";
 }
 
@@ -49,7 +47,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &CobaltReduceCpuMemoryByDefault,
     &CobaltReduceGpuMemoryByDefault,
     &CobaltGcZealDefault,
-    &CobaltRasterizerType,
+    &CobaltRasterizerTypeStub,
     &CobaltEnableJitDefault,
     &CobaltFallbackSplashScreenTopicsDefault,
     &CobaltCanStoreCompiledJavascriptDefault,
@@ -57,9 +55,8 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiStub() {
   return &kConfigurationApi;
 }
 
-}  // namespace stub
 }  // namespace starboard

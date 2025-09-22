@@ -14,7 +14,6 @@
 
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 
-namespace starboard {
 namespace nplb {
 
 time_t CreateTime(int year, int month, int day) {
@@ -53,7 +52,7 @@ void AssertTM(const tm& tminfo,
               const char* std_zone,
               const std::optional<const char*>& dst_zone,
               const char* tz,
-              SourceLocation location) {
+              starboard::SourceLocation location) {
   ASSERT_NE(tminfo.tm_zone, nullptr)
       << location << " tm_zone can not be nullptr for " << tz;
   EXPECT_EQ(tminfo.tm_gmtoff, -offset)
@@ -72,4 +71,3 @@ void AssertTM(const tm& tminfo,
 }
 
 }  // namespace nplb
-}  // namespace starboard

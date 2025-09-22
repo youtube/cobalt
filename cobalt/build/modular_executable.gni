@@ -111,6 +111,11 @@ template("evergreen_final_target") {
   copy("copy_${original_target_name}_content") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     sources = [ "$root_out_dir/cobalt_shell.pak" ]
+
+    if (icu_use_data_file) {
+      sources += [ "$root_out_dir/icudtl.dat" ]
+    }
+
     outputs = [
       "$root_out_dir/app/${original_target_name}/content/{{source_file_part}}",
     ]
@@ -118,9 +123,6 @@ template("evergreen_final_target") {
       "//cobalt/shell:pak",
       "//third_party/icu:icudata",
     ]
-    if (icu_use_data_file) {
-      sources = [ "$root_out_dir/icudtl.dat" ]
-    }
   }
 
   copy("copy_${original_target_name}_lib") {

@@ -18,7 +18,6 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -26,35 +25,33 @@ TEST(PosixThreadCreateTest, SunnyDay) {
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     pthread_t thread;
-    EXPECT_EQ(pthread_create(&thread, NULL, posix::AddOneEntryPoint,
-                             posix::kSomeContext),
+    EXPECT_EQ(pthread_create(&thread, nullptr, AddOneEntryPoint, kSomeContext),
               0);
-    void* result = NULL;
+    void* result = nullptr;
     EXPECT_EQ(pthread_join(thread, &result), 0);
-    EXPECT_EQ(posix::kSomeContextPlusOne, result);
+    EXPECT_EQ(kSomeContextPlusOne, result);
   }
 }
 
 TEST(PosixThreadCreateTest, SunnyDayNoContext) {
   pthread_t thread;
-  EXPECT_EQ(pthread_create(&thread, NULL, posix::AddOneEntryPoint, NULL), 0);
-  void* result = NULL;
+  EXPECT_EQ(pthread_create(&thread, nullptr, AddOneEntryPoint, nullptr), 0);
+  void* result = nullptr;
   EXPECT_EQ(pthread_join(thread, &result), 0);
-  EXPECT_EQ(posix::ToVoid(1), result);
+  EXPECT_EQ(ToVoid(1), result);
 }
 
 TEST(PosixThreadCreateTest, Summertime) {
   const int kMany = kSbMaxThreads;
   std::vector<pthread_t> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
-    EXPECT_EQ(pthread_create(&(threads[i]), NULL, posix::AddOneEntryPoint,
-                             posix::ToVoid(i)),
-              0);
+    EXPECT_EQ(
+        pthread_create(&(threads[i]), nullptr, AddOneEntryPoint, ToVoid(i)), 0);
   }
 
   for (int i = 0; i < kMany; ++i) {
-    void* result = NULL;
-    void* const kExpected = posix::ToVoid(i + 1);
+    void* result = nullptr;
+    void* const kExpected = ToVoid(i + 1);
 
     EXPECT_EQ(pthread_join(threads[i], &result), 0);
     EXPECT_EQ(kExpected, result);
@@ -63,4 +60,3 @@ TEST(PosixThreadCreateTest, Summertime) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -15,7 +15,6 @@
 #ifndef STARBOARD_LOADER_APP_PENDING_RESTART_H_
 #define STARBOARD_LOADER_APP_PENDING_RESTART_H_
 
-namespace starboard {
 namespace loader_app {
 
 // Checks whether there is a pending restart.
@@ -26,6 +25,5 @@ bool IsPendingRestart();
 void SetPendingRestart(bool value);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_PENDING_RESTART_H_

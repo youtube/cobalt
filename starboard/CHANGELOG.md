@@ -19,6 +19,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `epoll_create1`
 * `epoll_ctl`
 * `epoll_wait`
+* `getcwd`
 * `getpeername`
 * `getsockopt`
 * `isatty`
@@ -86,6 +87,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `pthread_setschedparam`
 * `pthread_sigmask`
 * `readdir`
+* `realpath`
 * `sem_destroy`
 * `sem_init`
 * `sem_post`

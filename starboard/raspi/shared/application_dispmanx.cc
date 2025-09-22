@@ -29,10 +29,6 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-
-using ::starboard::shared::dev_input::DevInput;
 
 namespace {
 const int kVideoLayer = -1;
@@ -110,14 +106,13 @@ bool ApplicationDispmanx::MayHaveSystemEvents() {
   return input_ != NULL;
 }
 
-::starboard::shared::starboard::Application::Event*
-ApplicationDispmanx::PollNextSystemEvent() {
+Application::Event* ApplicationDispmanx::PollNextSystemEvent() {
   SB_DCHECK(input_);
   return input_->PollNextSystemEvent();
 }
 
-::starboard::shared::starboard::Application::Event*
-ApplicationDispmanx::WaitForSystemEventWithTimeout(int64_t duration) {
+Application::Event* ApplicationDispmanx::WaitForSystemEventWithTimeout(
+    int64_t duration) {
   SB_DCHECK(input_);
   Event* event = input_->WaitForSystemEventWithTimeout(duration);
   return event;
@@ -147,6 +142,4 @@ void ApplicationDispmanx::ShutdownDispmanx() {
   display_.reset();
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

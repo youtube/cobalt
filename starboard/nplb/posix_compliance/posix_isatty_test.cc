@@ -22,7 +22,6 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -190,7 +189,7 @@ TEST_F(PosixIsattyTest, HandlesInvalidFd) {
 
 // Tests that isatty() does not recognize closed file descriptors as a tty.
 TEST_F(PosixIsattyTest, HandlesClosedFd) {
-  starboard::nplb::ScopedRandomFile random_file;
+  ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDONLY);
@@ -203,7 +202,7 @@ TEST_F(PosixIsattyTest, HandlesClosedFd) {
 
 // Tests that isatty() sets ENOTTY on an open file.
 TEST_F(PosixIsattyTest, HandlesOpenFile) {
-  starboard::nplb::ScopedRandomFile random_file;
+  ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDONLY);
@@ -317,4 +316,3 @@ TEST_F(PosixIsattyTest, HandlesPipes) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

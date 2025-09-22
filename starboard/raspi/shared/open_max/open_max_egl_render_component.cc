@@ -21,9 +21,6 @@
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 OpenMaxEglRenderComponent::OpenMaxEglRenderComponent()
     : OpenMaxComponent("OMX.broadcom.egl_render"),
@@ -63,7 +60,4 @@ OMX_BUFFERHEADERTYPE* OpenMaxEglRenderComponent::AllocateBuffer(int port,
   }
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

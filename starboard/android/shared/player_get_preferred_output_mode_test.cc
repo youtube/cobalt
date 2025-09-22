@@ -23,10 +23,10 @@
 // The Android TV `SbPlayerGetPreferredOutputMode()` implementation has special
 // constraints that requires it own tests.
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
-using ::starboard::shared::starboard::drm::CreateDummyDrmSystem;
+using ::starboard::CreateDummyDrmSystem;
 
 SbPlayerCreationParam GetDefaultPlaybackParam() {
   SbPlayerCreationParam creation_param = {
@@ -142,4 +142,4 @@ TEST(SbPlayerGetPreferredOutputModeTest,
 }
 
 }  // namespace
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -28,6 +28,5 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
-  return starboard::shared::starboard::media::CanPlayMimeAndKeySystem(
-      mime, key_system);
+  return starboard::CanPlayMimeAndKeySystem(mime, key_system);
 }

@@ -26,7 +26,7 @@
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Warning: use __android_log_write for logging in this file to avoid infinite
 // recursion.
@@ -235,6 +235,6 @@ X(jdouble, Double)
 
 #undef X
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_JNI_ENV_EXT_H_

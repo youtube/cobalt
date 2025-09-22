@@ -17,13 +17,11 @@
 
 #include <string>
 
-namespace starboard {
 namespace loader_app {
 
 // Returns an app key generated from the provided |url|.
 std::string GetAppKey(const std::string& url);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_APP_KEY_H_

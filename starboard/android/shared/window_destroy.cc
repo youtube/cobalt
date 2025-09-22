@@ -17,6 +17,5 @@
 #include "starboard/android/shared/application_android.h"
 
 bool SbWindowDestroy(SbWindow window) {
-  return starboard::android::shared::ApplicationAndroid::Get()->DestroyWindow(
-      window);
+  return starboard::ApplicationAndroid::Get()->DestroyWindow(window);
 }

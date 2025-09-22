@@ -16,18 +16,15 @@
 
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::media::AudioStreamInfo;
-using shared::starboard::media::VideoStreamInfo;
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 
 }  // namespace
 
-AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
-  AudioStreamInfo audio_stream_info = {};
+starboard::AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
+  starboard::AudioStreamInfo audio_stream_info = {};
 
   audio_stream_info.codec = codec;
   audio_stream_info.mime = "";
@@ -101,8 +98,8 @@ AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
   return audio_stream_info;
 }
 
-VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
-  VideoStreamInfo video_stream_info;
+starboard::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
+  starboard::VideoStreamInfo video_stream_info;
 
   video_stream_info.codec = codec;
 
@@ -156,4 +153,3 @@ SbPlayerOutputMode GetPreferredOutputMode(
 }
 
 }  // namespace nplb
-}  // namespace starboard

@@ -263,7 +263,7 @@ component("skia") {
   if (is_android) {
     sources += [ "ext/fontmgr_default_android.cc" ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [ "ext/fontmgr_default_linux.cc" ]
   }
   if (is_ios) {
@@ -280,6 +280,9 @@ component("skia") {
       "ext/fontmgr_default_win.cc",
       "ext/skia_utils_win.cc",
     ]
+  }
+  if (is_cobalt_hermetic_build) {
+    sources += ["ext/fontmgr_default_starboard.cc"]
   }
 
   if (use_blink) {
@@ -427,7 +430,7 @@ component("skia") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "//third_party/skia/src/ports/SkFontConfigInterface.cpp",
       "//third_party/skia/src/ports/SkFontConfigInterface_direct.cpp",
@@ -436,7 +439,33 @@ component("skia") {
     ]
   }
 
-  if (is_linux && !is_starboard || is_chromeos || is_android) {
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h",
+    ]
+    public += [ "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h" ]
+    deps += [
+      "//cobalt/configuration",
+      "//starboard:starboard_group",
+      "//starboard/content/fonts:copy_font_data",
+      "//third_party/libxml",
+    ]
+  }
+
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos || is_android) {
     sources += [
       # Retain the files for the SkFontMgr_Android on linux to emulate android
       # fonts. See content/zygote/zygote_main_linux.cc
@@ -505,7 +534,7 @@ component("skia") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       "//third_party/expat",
       "//third_party/fontconfig",

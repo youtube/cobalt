@@ -29,7 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 
-namespace starboard::shared::starboard::player::video_dmp {
+namespace starboard {
 
 namespace {
 
@@ -141,7 +141,7 @@ void VideoDmpWriter::DumpConfigs(
   Write(write_cb_, audio_codec);
   if (audio_codec != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_stream_info);
-    Write(write_cb_, audio_codec, media::AudioStreamInfo(*audio_stream_info));
+    Write(write_cb_, audio_codec, AudioStreamInfo(*audio_stream_info));
   }
 
   Write(write_cb_, kRecordTypeVideoConfig);
@@ -192,4 +192,4 @@ int VideoDmpWriter::WriteToFile(const void* buffer, int size) {
   return result;
 }
 
-}  // namespace starboard::shared::starboard::player::video_dmp
+}  // namespace starboard

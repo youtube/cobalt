@@ -87,7 +87,6 @@
     map_[#s] = reinterpret_cast<const void*>(&__abi_wrap_##s); \
   } while (0)
 
-namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
@@ -243,6 +242,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
+  REGISTER_SYMBOL(getcwd);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
@@ -274,6 +274,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
@@ -447,4 +448,3 @@ const void* ExportedSymbols::Lookup(const char* name) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

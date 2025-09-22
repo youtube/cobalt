@@ -30,11 +30,10 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
@@ -138,10 +137,10 @@ class SbMediaSetAudioWriteDurationTest
   }
 
   void WaitForPlayerState(SbPlayerState desired_state) {
-    int64_t start_of_wait = CurrentMonotonicTime();
+    int64_t start_of_wait = starboard::CurrentMonotonicTime();
     const int64_t kMaxWaitTime = 3'000'000LL;  // 3 seconds
     while (player_state_ != desired_state &&
-           (CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
+           (starboard::CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
       usleep(kSmallWaitInterval);
       TryToWritePendingSample();
     }
@@ -203,9 +202,9 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 
   // Wait until the playback time is > 0.
   const int64_t kMaxWaitTime = 5'000'000;  // 5 seconds
-  int64_t start_of_wait = CurrentMonotonicTime();
+  int64_t start_of_wait = starboard::CurrentMonotonicTime();
   SbPlayerInfo info = {};
-  while (CurrentMonotonicTime() - start_of_wait < kMaxWaitTime &&
+  while (starboard::CurrentMonotonicTime() - start_of_wait < kMaxWaitTime &&
          info.current_media_timestamp == 0) {
     usleep(500'000);
     SbPlayerGetInfo(player, &info);
@@ -233,12 +232,12 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   // Wait for the player to play far enough. It may not play all the way to
   // the end, but it should leave off no more than |kDuration|.
   int64_t min_ending_playback_time = total_duration_ - kDuration;
-  int64_t start_of_wait = CurrentMonotonicTime();
+  int64_t start_of_wait = starboard::CurrentMonotonicTime();
   const int64_t kMaxWaitTime = total_duration_ + 5'000'000LL;
   SbPlayerInfo info;
   SbPlayerGetInfo(player, &info);
   while (info.current_media_timestamp < min_ending_playback_time &&
-         (CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
+         (starboard::CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
     SbPlayerGetInfo(player, &info);
     usleep(kSmallWaitInterval);
     TryToWritePendingSample();
@@ -252,4 +251,3 @@ INSTANTIATE_TEST_SUITE_P(SbMediaSetAudioWriteDurationTests,
                          ValuesIn(GetStereoAudioTestFiles()));
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

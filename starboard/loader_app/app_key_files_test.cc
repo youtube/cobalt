@@ -24,7 +24,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace loader_app {
 namespace {
 
@@ -103,4 +102,3 @@ TEST_F(AppKeyFilesTest, TestAnyGoodKeyFile) {
 
 }  // namespace
 }  // namespace loader_app
-}  // namespace starboard

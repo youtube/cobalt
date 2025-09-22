@@ -17,14 +17,13 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
+using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
-typedef testing::FakeGraphicsContextProvider FakeGraphicsContextProvider;
 
 class SbPlayerGetMediaTimeTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
@@ -60,12 +59,12 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  int64_t start_system_time = CurrentMonotonicTime();
+  int64_t start_system_time = starboard::CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  int64_t end_system_time = CurrentMonotonicTime();
+  int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
@@ -129,12 +128,12 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  int64_t start_system_time = CurrentMonotonicTime();
+  int64_t start_system_time = starboard::CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  int64_t end_system_time = CurrentMonotonicTime();
+  int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
@@ -167,4 +166,3 @@ INSTANTIATE_TEST_SUITE_P(SbPlayerGetMediaTimeTests,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

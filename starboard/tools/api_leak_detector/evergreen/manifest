@@ -25,14 +25,11 @@ ftell
 ftello
 fwrite
 getc
-getcwd
 getrlimit
-localeconv
 newlocale
 prctl
 printf
 puts
-realpath
 rewind
 sched_getaffinity
 sdallocx

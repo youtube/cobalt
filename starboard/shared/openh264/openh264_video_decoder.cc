@@ -22,34 +22,32 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard {
 
 namespace {
 
 using shared::starboard::media::VideoConfig;
-using starboard::player::InputBuffer;
-using starboard::player::JobThread;
-using starboard::player::filter::CpuVideoFrame;
 
 }  // namespace
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
-                           SbPlayerOutputMode output_mode,
-                           SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
+OpenH264VideoDecoder::OpenH264VideoDecoder(
+    SbMediaVideoCodec video_codec,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider)
     : output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider) {
   SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);
 }
 
-VideoDecoder::~VideoDecoder() {
+OpenH264VideoDecoder::~OpenH264VideoDecoder() {
   SB_DCHECK(BelongsToCurrentThread());
   Reset();
 }
 
-void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                              const ErrorCB& error_cb) {
+void OpenH264VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                                      const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
@@ -60,13 +58,13 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 }
 
-void VideoDecoder::Reset() {
+void OpenH264VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
     decoder_thread_->job_queue()->ScheduleAndWait(
-        std::bind(&VideoDecoder::TeardownCodec, this));
+        std::bind(&OpenH264VideoDecoder::TeardownCodec, this));
     decoder_thread_.reset();
   }
 
@@ -81,7 +79,7 @@ void VideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void VideoDecoder::InitializeCodec() {
+void OpenH264VideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(!decoder_);
 
@@ -105,7 +103,7 @@ void VideoDecoder::InitializeCodec() {
   }
 }
 
-void VideoDecoder::TeardownCodec() {
+void OpenH264VideoDecoder::TeardownCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   if (decoder_) {
     decoder_->Uninitialize();
@@ -127,7 +125,8 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void OpenH264VideoDecoder::WriteInputBuffers(
+    const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
@@ -143,10 +142,10 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
   const auto& input_buffer = input_buffers[0];
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeOneBuffer, this, input_buffer));
+      std::bind(&OpenH264VideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
-void VideoDecoder::DecodeOneBuffer(
+void OpenH264VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
@@ -183,7 +182,7 @@ void VideoDecoder::DecodeOneBuffer(
   }
 }
 
-void VideoDecoder::FlushFrames() {
+void OpenH264VideoDecoder::FlushFrames() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(decoder_);
 
@@ -215,9 +214,9 @@ void VideoDecoder::FlushFrames() {
   }
 }
 
-void VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
-                                       const SBufferInfo& buffer_info,
-                                       bool flushing) {
+void OpenH264VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
+                                               const SBufferInfo& buffer_info,
+                                               bool flushing) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   if (buffer_info.UsrData.sSystemBuffer.iFormat != videoFormatI420) {
     ReportError(FormatString("Invalid video format %d.",
@@ -260,7 +259,7 @@ void VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
   }
 }
 
-void VideoDecoder::WriteEndOfStream() {
+void OpenH264VideoDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
@@ -275,17 +274,17 @@ void VideoDecoder::WriteEndOfStream() {
     return;
   }
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeEndOfStream, this));
+      std::bind(&OpenH264VideoDecoder::DecodeEndOfStream, this));
 }
 
-void VideoDecoder::DecodeEndOfStream() {
+void OpenH264VideoDecoder::DecodeEndOfStream() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   FlushFrames();
   Schedule(
       std::bind(decoder_status_cb_, kBufferFull, VideoFrame::CreateEOSFrame()));
 }
 
-void VideoDecoder::UpdateDecodeTarget_Locked(
+void OpenH264VideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
@@ -299,7 +298,7 @@ void VideoDecoder::UpdateDecodeTarget_Locked(
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+SbDecodeTarget OpenH264VideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
@@ -320,7 +319,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-void VideoDecoder::ReportError(const std::string& error_message) {
+void OpenH264VideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(error_cb_);
 
   if (!BelongsToCurrentThread()) {
@@ -330,4 +329,4 @@ void VideoDecoder::ReportError(const std::string& error_message) {
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard

@@ -17,7 +17,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -91,4 +90,3 @@ TEST(PosixStringScanTest, RainyDayIp3) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

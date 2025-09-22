@@ -17,7 +17,6 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -25,7 +24,7 @@ TEST(PosixThreadIsEqualTest, Everything) {
   EXPECT_TRUE(pthread_equal(pthread_self(), pthread_self()));
 
   pthread_t thread;
-  EXPECT_EQ(pthread_create(&thread, NULL, posix::AddOneEntryPoint, NULL), 0);
+  EXPECT_EQ(pthread_create(&thread, nullptr, AddOneEntryPoint, nullptr), 0);
 
   EXPECT_TRUE(pthread_equal(thread, thread));
   EXPECT_FALSE(pthread_equal(pthread_self(), thread));
@@ -36,4 +35,3 @@ TEST(PosixThreadIsEqualTest, Everything) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

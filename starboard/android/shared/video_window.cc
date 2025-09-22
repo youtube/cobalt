@@ -29,7 +29,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -150,4 +150,4 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
   }
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
