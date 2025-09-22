@@ -76,6 +76,18 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   memcpy(data_, data, size_);
 
 }
+
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
+                             base::span<const uint8_t> data)
+    : size_(data.size()), is_key_frame_(false) {
+  if (data.empty()) {
+    return;
+  }
+
+  Initialize(type);
+
+  memcpy(data_, data.data(), data.size());
+}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
