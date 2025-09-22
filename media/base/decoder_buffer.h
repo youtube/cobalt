@@ -261,7 +261,19 @@ class MEDIA_EXPORT DecoderBuffer
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto begin() const { return data(); }
+  auto end() const { return data() + size(); }
+  auto first(size_t count) const {
+    DCHECK_LE(count, size());
+    return base::span<const uint8_t>(data(), count);
+  }
+  auto subspan(size_t offset, size_t count) const {
+    DCHECK_LE(offset, size());
+    DCHECK_LE(offset + count, size());
+    return base::span<const uint8_t>(data() + offset, count);
+  }
+#else
   // Read-only iteration as bytes. This allows this type to meet the
   // requirements of `std::ranges::contiguous_range`, and thus be implicitly
   // convertible to a span.
@@ -279,7 +291,7 @@ class MEDIA_EXPORT DecoderBuffer
     return external_memory_ ? external_memory_->Span().subspan(offset, count)
                             : data_.subspan(offset, count);
   }
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(crbug.com/365814210): Change the return type to std::optional.
   DiscardPadding discard_padding() const {
@@ -375,6 +387,8 @@ class MEDIA_EXPORT DecoderBuffer
   DecoderBuffer(DemuxerStream::Type type,
                 const uint8_t* data,
                 size_t size);
+  DecoderBuffer(DemuxerStream::Type type,
+                base::span<const uint8_t> data);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   explicit DecoderBuffer(base::HeapArray<uint8_t> data);
