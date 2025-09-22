@@ -449,6 +449,7 @@ template("single_gcc_toolchain") {
       pool = "//build/toolchain:link_pool($default_toolchain)"
 
       if (defined(invoker.strip)) {
+        print(target_name)
         unstripped_sofile = "{{root_out_dir}}/lib.unstripped/$soname"
       } else {
         unstripped_sofile = sofile

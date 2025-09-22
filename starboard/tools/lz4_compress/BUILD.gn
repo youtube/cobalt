@@ -13,8 +13,13 @@
 # limitations under the License.
 
 if (current_toolchain == host_toolchain) {
+  config("disable_warnings") {
+    cflags = [ "-Wno-sign-compare" ]
+  }
+
   executable("lz4_compress") {
     sources = [ "lz4_compress.cc" ]
+    configs += [ ":disable_warnings" ]
     deps = [ "//third_party/lz4_lib:lz4" ]
   }
 }
