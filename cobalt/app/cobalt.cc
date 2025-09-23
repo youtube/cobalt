@@ -38,6 +38,9 @@
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <init_musl.h>
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/browser/loader_app_metrics.h"
+#endif
 #endif
 
 using ui::PlatformEventSourceStarboard;
@@ -130,6 +133,11 @@ void SbEventHandle(const SbEvent* event) {
       g_platform_event_source = new PlatformEventSourceStarboard();
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
+
+#if BUILDFLAG(USE_EVERGREEN)
+      // Log Loader App Metrics.
+      cobalt::browser::RecordLoaderAppMetrics();
+#endif
       break;
     }
     case kSbEventTypeStop: {
