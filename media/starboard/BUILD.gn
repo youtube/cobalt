@@ -21,6 +21,10 @@ assert(use_starboard_media, "This file is only for use_starboard_media builds")
 import("//media/media_options.gni")
 import("//starboard/build/buildflags.gni")
 
+config("disable_unreachable_return") {
+  cflags = [ "-Wno-unreachable-code-return" ]
+}
+
 source_set("starboard") {
   visibility = [ "//media" ]
 
@@ -119,7 +123,10 @@ source_set("starboard") {
   # TODO(b/380940036): remove the circular dependency.
   allow_circular_includes_from = [ "//media/base" ]
 
-  configs += [ "//media:subcomponent_config" ]
+  configs += [
+    ":disable_unreachable_return",
+    "//media:subcomponent_config",
+  ]
 }
 
 source_set("unit_tests") {
