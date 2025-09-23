@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (is_cobalt) {
-  import("//cobalt/build/configs/initialize_variables.gni")
-}
-
 declare_args() {
   # Determines various flavors of build configuration, and which concrete
   # targets to use for dependencies. Valid values are "standalone", "chromium",
