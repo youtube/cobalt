@@ -38,9 +38,9 @@ void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
 
-ScriptPromise<void> H5vccMetrics::enable(ScriptState* script_state,
+ScriptPromise<IDLUndefined> H5vccMetrics::enable(ScriptState* script_state,
                                    ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<void>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -54,9 +54,9 @@ ScriptPromise<void> H5vccMetrics::enable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise<void> H5vccMetrics::disable(ScriptState* script_state,
+ScriptPromise<IDLUndefined> H5vccMetrics::disable(ScriptState* script_state,
                                     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<void>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -74,11 +74,11 @@ bool H5vccMetrics::isEnabled() {
   return is_reporting_enabled_;
 }
 
-ScriptPromise<void> H5vccMetrics::setMetricEventInterval(
+ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
     ScriptState* script_state,
     uint64_t interval_seconds,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<void>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -142,19 +142,19 @@ void H5vccMetrics::MaybeRegisterMojoListener() {
       receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
-void H5vccMetrics::OnEnable(ScriptPromiseResolver<void>* resolver) {
+void H5vccMetrics::OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   is_reporting_enabled_ = true;
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnDisable(ScriptPromiseResolver<void>* resolver) {
+void H5vccMetrics::OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   is_reporting_enabled_ = false;
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver<void>* resolver) {
+void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   resolver->Resolve();
 }

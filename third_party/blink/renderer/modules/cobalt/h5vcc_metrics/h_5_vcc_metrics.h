@@ -38,6 +38,8 @@ class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
 
+using IDLVoid = IDLUndefined;
+
 class MODULES_EXPORT H5vccMetrics final
     : public EventTarget,
       public ExecutionContextLifecycleObserver,
@@ -53,10 +55,10 @@ class MODULES_EXPORT H5vccMetrics final
 
   // Web-exposed interface:
   DEFINE_ATTRIBUTE_EVENT_LISTENER(metrics, kMetrics)
-  ScriptPromise<void> enable(ScriptState*, ExceptionState&);
-  ScriptPromise<void> disable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> enable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> disable(ScriptState*, ExceptionState&);
   bool isEnabled();
-  ScriptPromise<void> setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
@@ -81,9 +83,9 @@ class MODULES_EXPORT H5vccMetrics final
       const RegisteredEventListener& registered_listener) override;
 
  private:
-  void OnEnable(ScriptPromiseResolver<void>* resolver);
-  void OnDisable(ScriptPromiseResolver<void>* resolver);
-  void OnSetMetricEventInterval(ScriptPromiseResolver<void>* resolver);
+  void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
