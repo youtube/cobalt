@@ -15,12 +15,12 @@ class ScopedTimer {
               SourceLocation location = SourceLocation::current());
   ~ScopedTimer();
 
+  // Disallow copy and assign.
   ScopedTimer(const ScopedTimer&) = delete;
   ScopedTimer& operator=(const ScopedTimer&) = delete;
-  ScopedTimer(ScopedTimer&&) = delete;
-  ScopedTimer& operator=(ScopedTimer&&) = delete;
 
-  // Stops the timer, logs the elapsed time, and returns the duration.
+  // Stops the timer, logs the elapsed time, and returns the duration in
+  // microseconds.
   int64_t Stop();
 
  private:
