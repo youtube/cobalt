@@ -40,23 +40,6 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::InstallDebugSignalHandlers();
   starboard::InstallSuspendSignalHandlers();
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  auto command_line = starboard::CommandLine(argc, argv);
-  auto evergreen_content_path =
-      command_line.GetSwitchValue(elf_loader::kEvergreenContent);
-  std::string ca_certificates_path =
-      evergreen_content_path.empty()
-          ? starboard::GetCACertificatesPath()
-          : starboard::GetCACertificatesPath(evergreen_content_path);
-  if (ca_certificates_path.empty()) {
-    SB_LOG(ERROR) << "Failed to get CA certificates path";
-  }
-
-#if !SB_IS(MODULAR)
-  crashpad::InstallCrashpadHandler(ca_certificates_path);
-#endif  // !SB_IS(MODULAR)
-#endif
-
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)
   // Call backtrace() once to work around potential
   // crash bugs in glibc, in dlopen()

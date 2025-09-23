@@ -15,7 +15,11 @@
 import("../../build/crashpad_buildconfig.gni")
 
 declare_args() {
-  if (crashpad_is_fuchsia || crashpad_is_android) {
+  # Cobalt comment: we're still exploring, in b/446904324, whether we can use
+  # libcurl. For now will keep the c25 status quo and use raw sockets with
+  # BoringSSL as the backend.
+  if (crashpad_is_fuchsia || crashpad_is_android ||
+          (defined(is_native_target_build) && is_native_target_build)) {
     crashpad_http_transport_impl = "socket"
   } else if (crashpad_is_linux) {
     crashpad_http_transport_impl = "libcurl"

@@ -187,7 +187,7 @@ component("boringssl") {
                 rebase_path(version_script, root_build_dir) ]
   }
 
-  if (is_cobalt_hermetic_build) {
+  if (is_cobalt_hermetic_build && !is_native_target_build) {
     deps += [
       "//starboard:starboard_headers_only",
       "//starboard/common",

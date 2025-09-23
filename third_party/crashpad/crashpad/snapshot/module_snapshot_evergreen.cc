@@ -35,13 +35,13 @@ ModuleSnapshotEvergreen::ModuleSnapshotEvergreen(
     std::vector<uint8_t> build_id)
     : ModuleSnapshot(),
       name_(name),
-      crashpad_info_(),
-      type_(type),
-      initialized_(),
-      streams_(),
       address_(address),
       size_(size),
-      build_id_(std::move(build_id)) {
+      build_id_(std::move(build_id)),
+      type_(type),
+      initialized_(),
+      crashpad_info_(),
+      streams_() {
   INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
   INITIALIZATION_STATE_SET_VALID(initialized_);
 }

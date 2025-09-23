@@ -119,6 +119,14 @@ CrashReportExceptionHandler::CrashReportExceptionHandler(
 
 CrashReportExceptionHandler::~CrashReportExceptionHandler() = default;
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+bool CrashReportExceptionHandler::AddEvergreenInfo(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  evergreen_info_ = info.evergreen_information_address;
+  return true;
+}
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+
 bool CrashReportExceptionHandler::HandleException(
     pid_t client_process_id,
     uid_t client_uid,

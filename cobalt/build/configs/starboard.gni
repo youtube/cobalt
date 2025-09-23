@@ -18,9 +18,19 @@ declare_args() {
 }
 
 declare_args() {
+  # Used to guard any customizations to Chromium or third-party code for builds
+  # where the Starboard porting layer is not used.
+  is_native_target_build = false
+}
+
+assert(!(is_starboard && is_native_target_build),
+       "Targets should be built for Starboard or natively, but not both")
+
+declare_args() {
   # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
   use_custom_libc = false
 }
 
 # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
-is_cobalt_hermetic_build = is_starboard && use_custom_libc
+is_cobalt_hermetic_build = (is_starboard || is_native_target_build) &&
+  use_custom_libc

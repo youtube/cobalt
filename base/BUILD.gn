@@ -935,7 +935,7 @@ component("base") {
   ]
 
 
-  if (is_cobalt_hermetic_build) {
+  if (is_cobalt_hermetic_build && !is_native_target_build) {
     sources += [
       "base_paths_starboard.cc",
       "base_paths_starboard.h",
@@ -1742,7 +1742,7 @@ component("base") {
     ]
   }
 
-  if (is_cobalt_hermetic_build) {
+  if (is_cobalt_hermetic_build && !is_native_target_build) {
     sources -= [
       "debug/debugger_posix.cc",
       "process/process_posix.cc",
@@ -1755,7 +1755,7 @@ component("base") {
   }
 
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-  if (enable_cobalt_hermetic_hacks) {
+  if (enable_cobalt_hermetic_hacks && !is_native_target_build) {
     sources -= [
       #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
       # #include <linux/magic.h>
