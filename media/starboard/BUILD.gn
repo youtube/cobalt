@@ -21,8 +21,11 @@ assert(use_starboard_media, "This file is only for use_starboard_media builds")
 import("//media/media_options.gni")
 import("//starboard/build/buildflags.gni")
 
-config("disable_unreachable_return") {
-  cflags = [ "-Wno-unreachable-code-return" ]
+config("disable_unreachable_warnings") {
+  cflags = [
+    "-Wno-unreachable-code-return",
+    "-Wno-unreachable-code-break",
+  ]
 }
 
 source_set("starboard") {
@@ -124,7 +127,7 @@ source_set("starboard") {
   allow_circular_includes_from = [ "//media/base" ]
 
   configs += [
-    ":disable_unreachable_return",
+    ":disable_unreachable_warnings",
     "//media:subcomponent_config",
   ]
 }
