@@ -1530,7 +1530,7 @@ bool DeviceInfoImpl::GetFirmwareVersion(std::string& out) {
                     << ".firmwareversion', rc=" << rc
                     << " ( " << Core::ErrorToString(rc) << " ).";
       if (rc == Core::ERROR_ASYNC_FAILED || rc == Core::ERROR_TIMEDOUT) {
-          firmware_version.Clear();
+        firmware_version.Clear();
       } else {
         firmware_version = "";
       }
