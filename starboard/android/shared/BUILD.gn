@@ -49,7 +49,6 @@ static_library("starboard_platform") {
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/internal_only.h",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
     "//starboard/shared/linux/system_get_total_cpu_memory.cc",
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",

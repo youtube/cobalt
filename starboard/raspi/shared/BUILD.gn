@@ -69,7 +69,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/dev_input/dev_input.cc",
     "//starboard/shared/linux/get_home_directory.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
