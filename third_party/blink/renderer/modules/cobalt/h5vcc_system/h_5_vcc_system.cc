@@ -146,7 +146,7 @@ uint32_t H5vccSystem::userOnExitStrategy() {
     case h5vcc_system::mojom::blink::UserOnExitStrategy::kNoExit:
       return static_cast<uint32_t>(V8UserOnExitStrategy::Enum::kNoExit);
   }
-  NOTREACHED_NORETURN() << "Invalid userOnExitStrategy: " << strategy;
+  NOTREACHED() << "Invalid userOnExitStrategy: " << strategy;
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {
