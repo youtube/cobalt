@@ -24,7 +24,6 @@
 namespace starboard {
 
 namespace {
-using shared::starboard::media::GetAudioCodecFromString;
 
 const int64_t kDefaultAudioChannels = 2;
 
