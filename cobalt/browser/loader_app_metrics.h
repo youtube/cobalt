@@ -18,7 +18,6 @@
 namespace cobalt {
 namespace browser {
 
-// Records metrics from the StarboardExtensionLoaderAppMetricsApi.
 void RecordLoaderAppMetrics();
 
 }  // namespace browser

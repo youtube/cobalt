@@ -25,19 +25,31 @@
 namespace cobalt {
 namespace browser {
 
-void RecordLoaderAppMetrics() {
+namespace {
+
+const StarboardExtensionLoaderAppMetricsApi* GetLoaderAppMetricsExtension() {
   const auto* loader_app_metrics =
       static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
           SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
 
   if (!loader_app_metrics) {
     LOG(WARNING) << "LoaderAppMetrics: Extension not found.";
-    return;
+    return nullptr;
   }
 
   if (strcmp(loader_app_metrics->name,
              kStarboardExtensionLoaderAppMetricsName) != 0) {
     LOG(ERROR) << "LoaderAppMetrics: Extension name mismatch.";
+    return nullptr;
+  }
+  return loader_app_metrics;
+}
+
+}  // namespace
+
+void RecordLoaderAppMetrics() {
+  const auto* loader_app_metrics = GetLoaderAppMetricsExtension();
+  if (!loader_app_metrics) {
     return;
   }
 
