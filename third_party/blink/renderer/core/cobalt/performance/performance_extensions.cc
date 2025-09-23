@@ -53,15 +53,15 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
   return used_memory;
 }
 
-ScriptPromise PerformanceExtensions::getAppStartupTime(
+ScriptPromise<IDLLongLong> PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
     const Performance&,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLLongLong>>(
       script_state, exception_state.GetContext());
   int64_t startup_time = 0;
   BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
-  ScriptPromise promise = resolver->Promise();
+  ScriptPromise<IDLLongLong> promise = resolver->Promise();
   resolver->Resolve(startup_time);
   return promise;
 }
