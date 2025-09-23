@@ -62,7 +62,7 @@ struct SbAudioSinkPrivate {
   virtual bool IsType(Type* type) = 0;
 };
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 
 class SbAudioSinkImpl : public SbAudioSinkPrivate {
  public:
@@ -116,6 +116,13 @@ class SbAudioSinkImpl : public SbAudioSinkPrivate {
   static void PlatformTearDown();
 };
 
-}  // namespace starboard::shared::starboard::audio_sink
+// Alias to prevent breaking the RDK build on CI.
+// http://go/paste/4653377854242816
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
+namespace shared::starboard::audio_sink {
+using ::starboard::SbAudioSinkImpl;
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
