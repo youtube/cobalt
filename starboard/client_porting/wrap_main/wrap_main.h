@@ -29,7 +29,7 @@
 #endif
 
 namespace starboard {
-namespace client_porting_detail {
+namespace client_porting_internal {
 // A main-style function.
 typedef int (*MainFunction)(int argc, char** argv);
 
@@ -50,13 +50,13 @@ void SimpleEventHandler(const SbEvent* event) {
       break;
   }
 }
-}  // namespace client_porting_detail
+}  // namespace client_porting_internal
 }  // namespace starboard
 
-#define STARBOARD_WRAP_SIMPLE_MAIN(main_function)                          \
-  void SbEventHandle(const SbEvent* event) {                               \
-    ::starboard::client_porting_detail::SimpleEventHandler<main_function>( \
-        event);                                                            \
+#define STARBOARD_WRAP_SIMPLE_MAIN(main_function)                            \
+  void SbEventHandle(const SbEvent* event) {                                 \
+    ::starboard::client_porting_internal::SimpleEventHandler<main_function>( \
+        event);                                                              \
   }
 
 #endif  // STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
