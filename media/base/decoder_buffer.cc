@@ -58,9 +58,6 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(size_t size)
     : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
-
-DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
-    : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 #endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -90,15 +87,16 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
 
   memcpy(data_, data.data(), data.size());
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // !BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
+    : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : data_(std::move(data)) {}
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
@@ -168,9 +166,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromArray(
   return base::MakeRefCounted<DecoderBuffer>(base::PassKey<DecoderBuffer>(),
                                              std::move(data));
 }
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::FromSharedMemoryRegion(
     base::UnsafeSharedMemoryRegion region,
@@ -209,9 +205,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromSharedMemoryRegion(
           ExternalSharedMemoryAdapter<base::ReadOnlySharedMemoryMapping>>(
           std::move(mapping)));
 }
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
     std::unique_ptr<ExternalMemory> external_memory) {

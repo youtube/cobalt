@@ -30,12 +30,9 @@
 #include "media/base/demuxer_stream.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/timestamp_constants.h"
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/video_codecs.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/timestamp_constants.h"
 
 namespace media {
 
@@ -162,13 +159,13 @@ class MEDIA_EXPORT DecoderBuffer
       base::ReadOnlySharedMemoryRegion region,
       uint64_t offset,
       size_t size);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Creates a DecoderBuffer with ExternalMemory. The buffer accessed through
   // the created DecoderBuffer is |span| of |external_memory||.
   // |external_memory| is owned by DecoderBuffer until it is destroyed.
   static scoped_refptr<DecoderBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory);
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Create a DecoderBuffer indicating we've reached end of stream. If this is
   // an EOS buffer for a config change, the upcoming config may optionally be
@@ -384,24 +381,19 @@ class MEDIA_EXPORT DecoderBuffer
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
   virtual ~DecoderBuffer();
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
-  // default to false.
-  explicit DecoderBuffer(base::span<const uint8_t> data);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   DecoderBuffer(DemuxerStream::Type type,
                 const uint8_t* data,
                 size_t size);
   DecoderBuffer(DemuxerStream::Type type,
                 base::span<const uint8_t> data);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // !BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
+  // default to false.
+  explicit DecoderBuffer(base::span<const uint8_t> data);
   explicit DecoderBuffer(base::HeapArray<uint8_t> data);
   explicit DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   DecoderBuffer(DecoderBufferType decoder_buffer_type,
                 std::optional<ConfigVariant> next_config);
 
