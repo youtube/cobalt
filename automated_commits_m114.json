@@ -1,5 +1,109 @@
 [
   {
+    "hexsha": "5f72e00323a2ea15c51695ac8ffc3e51787dc45f",
+    "original_hexsha": "9d1d32d2512969b6234747b11cb9b5450e110cd1",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-22T13:49:24-07:00",
+    "summary": "starboard: Flatten loader_app namespace (#7251)",
+    "stats": {
+      "files": 33,
+      "insertions": 56,
+      "deletions": 134
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f314d3ad31048cd00d6d5a602c3137b8d3446d31",
+    "original_hexsha": "2611664f83f9e7176c67baa7ff192952b6bfbbb3",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-22T13:47:21-07:00",
+    "summary": "starboard: Flatten elf_loader and crashpad namespaces (#7249)",
+    "stats": {
+      "files": 49,
+      "insertions": 38,
+      "deletions": 118
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0da4c3502d6a38ed2b7af42bb753a5f7ce483bdd",
+    "original_hexsha": "9092dacba0d13deb349f2364298e1833c9610f28",
+    "author": "Raphael Kubo da Costa",
+    "datetime": "2025-09-22T21:44:33+02:00",
+    "summary": "[tvOS] Do not set RPATH in starboard GN config (#7230)",
+    "stats": {
+      "files": 1,
+      "insertions": 9,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "82b2121102192f10eeb88aa97381f5cc97f083c4",
+    "original_hexsha": "06850b83b945f59ef613605668a41c26037fcab0",
+    "author": "fayev-g",
+    "datetime": "2025-09-22T11:40:44-07:00",
+    "summary": "[macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223)",
+    "stats": {
+      "files": 5,
+      "insertions": 18,
+      "deletions": 253
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c37163ee09b298751327c45b9fd808b41cbbb6d4",
+    "original_hexsha": "ed7f6857aecac8e6959e664a7fc2be32a661bdaf",
+    "author": "Jason",
+    "datetime": "2025-09-22T10:43:57-07:00",
+    "summary": "android: duplicate AudioRendererPcm for tunnel mode (#7219)",
+    "stats": {
+      "files": 2,
+      "insertions": 985,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6cebb3fae4ed65fedefc31389259b2944264e723",
+    "original_hexsha": "e03a1ed6b1a2681ebf6ee068783d06a293910c40",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-22T09:21:39-07:00",
+    "summary": "starboard: Flatten libjpeg, decode_target, and widevine namespaces (#7225)",
+    "stats": {
+      "files": 15,
+      "insertions": 26,
+      "deletions": 28
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b616da175de75786ab007e21879c24ca04fa88c4",
+    "original_hexsha": "f85b57b38065f9cba553460138c24d7df026a082",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-22T09:16:40-07:00",
+    "summary": "starboard: Flatten X11 and dev_input namespaces (#7245)",
+    "stats": {
+      "files": 10,
+      "insertions": 17,
+      "deletions": 23
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bbe779d217b0199b0d6133fa333ec015a48670f0",
+    "original_hexsha": "029f3386ab4a15690c83993fa013492abd1c539b",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-22T10:39:18-04:00",
+    "summary": "Disable perfetto_unittests DEATH_TEST (#7205)",
+    "stats": {
+      "files": 5,
+      "insertions": 20,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "c1f61902c1e337b7ad1b8796b371e2a0b054cda6",
     "original_hexsha": "d9823dbab3a1b2d49d17b122503ac680de302d4b",
     "author": "Kyujung Youn",
