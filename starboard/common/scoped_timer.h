@@ -15,6 +15,11 @@ class ScopedTimer {
               SourceLocation location = SourceLocation::current());
   ~ScopedTimer();
 
+  ScopedTimer(const ScopedTimer&) = delete;
+  ScopedTimer& operator=(const ScopedTimer&) = delete;
+  ScopedTimer(ScopedTimer&&) = delete;
+  ScopedTimer& operator=(ScopedTimer&&) = delete;
+
   // Stops the timer, logs the elapsed time, and returns the duration.
   int64_t Stop();
 
