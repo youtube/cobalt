@@ -110,7 +110,6 @@ typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
   } while (false)
 
 namespace starboard {
-namespace testing {
 
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
@@ -375,5 +374,4 @@ void FakeGraphicsContextProvider::DecodeTargetGlesContextRunner(
                                             target_function_context);
 }
 
-}  // namespace testing
 }  // namespace starboard

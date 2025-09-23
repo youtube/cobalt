@@ -26,7 +26,7 @@ bool operator==(const SbMediaAudioConfiguration& left,
 namespace nplb {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
+using ::starboard::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
