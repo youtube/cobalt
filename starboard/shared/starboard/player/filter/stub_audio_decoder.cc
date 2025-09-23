@@ -17,14 +17,12 @@
 #include <algorithm>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
-
-using ::starboard::shared::starboard::media::AudioDurationToFrames;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
@@ -66,7 +64,7 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
     if (sample_size == 2) {
       *(reinterpret_cast<int16_t*>(decoded_audio->data()) + j) = j;
     } else {
-      SB_DCHECK(sample_size == 4);
+      SB_DCHECK_EQ(sample_size, 4);
       *(reinterpret_cast<float*>(decoded_audio->data()) + j) =
           ((j % 1024) - 512) / 512.0f;
     }
@@ -77,8 +75,7 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
 
 }  // namespace
 
-StubAudioDecoder::StubAudioDecoder(
-    const media::AudioStreamInfo& audio_stream_info)
+StubAudioDecoder::StubAudioDecoder(const AudioStreamInfo& audio_stream_info)
     : codec_(audio_stream_info.codec),
       number_of_channels_(audio_stream_info.number_of_channels),
       samples_per_second_(audio_stream_info.samples_per_second),
@@ -278,4 +275,4 @@ void StubAudioDecoder::DecodeEndOfStream() {
   Schedule(output_cb_);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

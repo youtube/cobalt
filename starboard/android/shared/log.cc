@@ -19,7 +19,6 @@
 #include <jni.h>
 #include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
@@ -27,9 +26,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/log_mutex.h"
 #include "starboard/thread.h"
-
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
 
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;
@@ -55,11 +51,11 @@ void SbLog(SbLogPriority priority, const char* message) {
   }
 
   {
-    std::lock_guard lock(*starboard::shared::starboard::GetLoggingMutex());
+    std::lock_guard lock(*starboard::GetLoggingMutex());
     __android_log_write(android_priority, "starboard", message);
   }
 
   // In unit tests the logging is too fast for the android log to be read out
   // and we end up losing crucial logs. The test runner specifies a sleep time.
-  usleep(::starboard::android::shared::GetLogSleepTime());
+  usleep(::starboard::GetLogSleepTime());
 }

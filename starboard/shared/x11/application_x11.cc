@@ -38,15 +38,11 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
 
+namespace starboard {
+
 namespace {
+
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
-}
-
-namespace starboard::shared::x11 {
-
-using ::starboard::shared::dev_input::DevInput;
-
-namespace {
 
 enum {
   kNoneDeviceId,
@@ -688,8 +684,6 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
-using shared::starboard::player::filter::CpuVideoFrame;
-
 ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
     : QueueApplication(sb_event_handle_callback),
       wake_up_atom_(None),
@@ -817,31 +811,6 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
   current_video_frames_.erase(player);
 }
 
-void ApplicationX11::SwapBuffersBegin() {
-  // Prevent compositing while the GL layer is changing.
-  frame_mutex_.lock();
-}
-
-void ApplicationX11::SwapBuffersEnd() {
-  // Determine the video bounds that should be used with the new GL layer.
-
-  // Sort the video bounds according to their z_index.
-  current_video_bounds_.clear();
-  for (auto& iter : next_video_bounds_) {
-    const FrameInfo& bounds = iter.second;
-    auto position = current_video_bounds_.begin();
-    while (position != current_video_bounds_.end()) {
-      if (bounds.z_index < position->z_index) {
-        break;
-      }
-      ++position;
-    }
-    current_video_bounds_.insert(position, bounds);
-  }
-
-  frame_mutex_.unlock();
-}
-
 void ApplicationX11::PlayerSetBounds(SbPlayer player,
                                      int z_index,
                                      int x,
@@ -849,9 +818,6 @@ void ApplicationX11::PlayerSetBounds(SbPlayer player,
                                      int width,
                                      int height) {
   std::lock_guard lock(frame_mutex_);
-
-  bool player_exists =
-      next_video_bounds_.find(player) != next_video_bounds_.end();
 
   FrameInfo& frame_info = next_video_bounds_[player];
   frame_info.player = player;
@@ -861,13 +827,16 @@ void ApplicationX11::PlayerSetBounds(SbPlayer player,
   frame_info.width = width;
   frame_info.height = height;
 
-  if (player_exists) {
-    return;
+  // The bounds should only take effect once the UI frame is submitted. But we
+  // also apply the bounds immediately so that there is no flicker.
+  for (auto it = current_video_bounds_.begin();
+       it != current_video_bounds_.end(); ++it) {
+    if (it->player == player) {
+      current_video_bounds_.erase(it);
+      break;
+    }
   }
 
-  // The bounds should only take effect once the UI frame is submitted.  But we
-  // apply the bounds immediately if it is the first time the bounds for this
-  // player are set.
   auto position = current_video_bounds_.begin();
   while (position != current_video_bounds_.end()) {
     if (frame_info.z_index < position->z_index) {
@@ -898,11 +867,11 @@ bool ApplicationX11::MayHaveSystemEvents() {
   return display_ && !windows_.empty();
 }
 
-shared::starboard::Application::Event*
-ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
+Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
+    int64_t time) {
   SB_DCHECK(display_);
 
-  shared::starboard::Application::Event* pending_event = GetPendingEvent();
+  Application::Event* pending_event = GetPendingEvent();
   if (pending_event) {
     return pending_event;
   }
@@ -913,7 +882,7 @@ ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
     return nullptr;
   }
 
-  shared::starboard::Application::Event* evdev_event =
+  Application::Event* evdev_event =
       dev_input_->WaitForSystemEventWithTimeout(time);
 
   if (!evdev_event && XPending(display_) != 0) {
@@ -989,7 +958,7 @@ void ApplicationX11::StopX() {
   wm_change_state_atom_ = None;
 }
 
-shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
+Application::Event* ApplicationX11::GetPendingEvent() {
   typedef struct {
     SbKey key;
     unsigned int modifiers;
@@ -1181,8 +1150,7 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
                    &DeleteDestructor<SbInputData>);
 }
 
-shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
-    XEvent* x_event) {
+Application::Event* ApplicationX11::XEventToEvent(XEvent* x_event) {
   switch (x_event->type) {
     case ClientMessage: {
       const XClientMessageEvent* client_message =
@@ -1384,4 +1352,4 @@ SbWindow ApplicationX11::FindWindow(Window window) {
   return kSbWindowInvalid;
 }
 
-}  // namespace starboard::shared::x11
+}  // namespace starboard

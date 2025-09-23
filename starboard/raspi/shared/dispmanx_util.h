@@ -20,6 +20,7 @@
 #include <functional>
 #include <memory>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
@@ -27,8 +28,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 class DispmanxRect : public VC_RECT_T {
  public:
@@ -43,11 +42,11 @@ class DispmanxDisplay {
   DispmanxDisplay() {
     bcm_host_init();
     handle_ = vc_dispmanx_display_open(0);
-    SB_DCHECK(handle_ != DISPMANX_NO_HANDLE);
+    SB_DCHECK_NE(handle_, DISPMANX_NO_HANDLE);
   }
   ~DispmanxDisplay() {
     int result = vc_dispmanx_display_close(handle_);
-    SB_DCHECK(result == 0);
+    SB_DCHECK_EQ(result, 0);
     bcm_host_deinit();
   }
 
@@ -146,8 +145,7 @@ class DispmanxElement {
   void operator=(const DispmanxElement&) = delete;
 };
 
-class DispmanxVideoFrame
-    : public starboard::shared::starboard::player::filter::VideoFrame {
+class DispmanxVideoFrame : public VideoFrame {
  public:
   DispmanxVideoFrame(int64_t time,
                      DispmanxYUV420Resource* resource,
@@ -167,8 +165,6 @@ class DispmanxVideoFrame
 
 class DispmanxVideoRenderer {
  public:
-  typedef starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
-
   DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer);
 
   void Update(const scoped_refptr<VideoFrame>& video_frame);
@@ -190,8 +186,6 @@ class DispmanxVideoRenderer {
   void operator=(const DispmanxVideoRenderer&) = delete;
 };
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_DISPMANX_UTIL_H_

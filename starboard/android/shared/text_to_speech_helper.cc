@@ -21,7 +21,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -63,10 +63,9 @@ void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent() const {
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
+void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
   CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
   CobaltTextToSpeechHelper::GetInstance()->SendTextToSpeechChangeEvent();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

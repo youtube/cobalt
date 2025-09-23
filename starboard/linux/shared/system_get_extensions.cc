@@ -31,7 +31,6 @@
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/platform_service.h"
-#include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
@@ -42,8 +41,8 @@
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  const starboard::elf_loader::EvergreenConfig* evergreen_config =
-      starboard::elf_loader::EvergreenConfig::GetInstance();
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
       evergreen_config->custom_get_extension_ != NULL) {
     const void* ext = evergreen_config->custom_get_extension_(name);
@@ -53,23 +52,23 @@ const void* SbSystemGetExtension(const char* name) {
   }
 #endif
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return starboard::shared::GetPlatformServiceApi();
+    return starboard::GetPlatformServiceApiLinux();
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiLinux();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::common::GetCrashHandlerApi();
+    return starboard::GetCrashHandlerApi();
   }
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
-    return starboard::shared::posix::GetMemoryMappedFileApi();
+    return starboard::GetMemoryMappedFileApi();
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
-    return starboard::shared::posix::GetFreeSpaceApi();
+    return starboard::GetFreeSpaceApi();
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
-    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+    return starboard::GetLoaderAppMetricsApi();
   }
 #endif
   return NULL;

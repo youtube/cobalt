@@ -37,7 +37,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/file_select_listener.h"
@@ -86,10 +86,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
     web_contents_->SetDelegate(this);
   }
 
-  if (!switches::IsRunWebTestsSwitchPresent()) {
-    UpdateFontRendererPreferencesFromSystemSettings(
-        web_contents_->GetMutableRendererPrefs());
-  }
+  UpdateFontRendererPreferencesFromSystemSettings(
+      web_contents_->GetMutableRendererPrefs());
 
   windows_.push_back(this);
 
@@ -116,21 +114,13 @@ Shell::~Shell() {
   }
 }
 
-Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
-                          const gfx::Size& initial_size,
-                          bool should_set_delegate) {
-  WebContents* raw_web_contents = web_contents.get();
-  Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
-  g_platform->CreatePlatformWindow(shell, initial_size);
+// static
+ShellPlatformDelegate* Shell::GetPlatform() {
+  return g_platform;
+}
 
-  // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
-  // here, because they will be forgotten after a cross-process navigation. Use
-  // RenderFrameCreated or RenderViewCreated instead.
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    raw_web_contents->GetMutableRendererPrefs()->use_custom_colors = false;
-    raw_web_contents->SyncRendererPrefs();
-  }
-
+void Shell::FinishShellInitialization(Shell* shell) {
+  WebContents* raw_web_contents = shell->web_contents();
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
     raw_web_contents->GetMutableRendererPrefs()->webrtc_ip_handling_policy =
@@ -138,23 +128,30 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
             switches::kForceWebRtcIPHandlingPolicy);
   }
 
-  g_platform->SetContents(shell);
-  g_platform->DidCreateOrAttachWebContents(shell, raw_web_contents);
+  GetPlatform()->SetContents(shell);
+  GetPlatform()->DidCreateOrAttachWebContents(shell, raw_web_contents);
   // If the RenderFrame was created during WebContents construction (as happens
   // for windows opened from the renderer) then the Shell won't hear about the
   // main frame being created as a WebContentsObservers. This gives the delegate
   // a chance to act on the main frame accordingly.
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive()) {
-    g_platform->MainFrameCreated(shell);
+    GetPlatform()->MainFrameCreated(shell);
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
   // TODO(b/390021478): Revisit this when decoupling from content_shell.
-  g_platform->SetOverlayMode(shell, true);
+  GetPlatform()->SetOverlayMode(shell, true);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
 
+Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
+                          const gfx::Size& initial_size,
+                          bool should_set_delegate) {
+  Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
+  GetPlatform()->CreatePlatformWindow(shell, initial_size);
+  FinishShellInitialization(shell);
   return shell;
 }
 
@@ -505,58 +502,6 @@ blink::mojom::DisplayMode Shell::GetDisplayMode(
              : blink::mojom::DisplayMode::kBrowser;
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-void Shell::RegisterProtocolHandler(RenderFrameHost* requesting_frame,
-                                    const std::string& protocol,
-                                    const GURL& url,
-                                    bool user_gesture) {
-  BrowserContext* context = requesting_frame->GetBrowserContext();
-  if (context->IsOffTheRecord()) {
-    return;
-  }
-
-  custom_handlers::ProtocolHandler handler =
-      custom_handlers::ProtocolHandler::CreateProtocolHandler(
-          protocol, url, GetProtocolHandlerSecurityLevel(requesting_frame));
-
-  // The parameters's normalization process defined in the spec has been already
-  // applied in the WebContentImpl class, so at this point it shouldn't be
-  // possible to create an invalid handler.
-  // https://html.spec.whatwg.org/multipage/system-state.html#normalize-protocol-handler-parameters
-  DCHECK(handler.IsValid());
-
-  custom_handlers::ProtocolHandlerRegistry* registry = custom_handlers::
-      SimpleProtocolHandlerRegistryFactory::GetForBrowserContext(context, true);
-  DCHECK(registry);
-  if (registry->SilentlyHandleRegisterHandlerRequest(handler)) {
-    return;
-  }
-
-  if (!user_gesture && !windows_.empty()) {
-    // TODO(jfernandez): This is not strictly needed, but we need a way to
-    // inform the observers in browser tests that the request has been
-    // cancelled, to avoid timeouts. Chrome just holds the handler as pending in
-    // the PageContentSettingsDelegate, but we don't have such thing in the
-    // Content Shell.
-    registry->OnDenyRegisterProtocolHandler(handler);
-    return;
-  }
-
-  // FencedFrames can not register to handle any protocols.
-  if (requesting_frame->IsNestedWithinFencedFrame()) {
-    registry->OnIgnoreRegisterProtocolHandler(handler);
-    return;
-  }
-
-  // TODO(jfernandez): Are we interested at all on using the
-  // PermissionRequestManager in the ContentShell ?
-  if (registry->registration_mode() ==
-      custom_handlers::RphRegistrationMode::kAutoAccept) {
-    registry->OnAcceptRegisterProtocolHandler(handler);
-  }
-}
-#endif
-
 void Shell::RequestToLockMouse(WebContents* web_contents,
                                bool user_gesture,
                                bool last_unlocked_by_target) {
@@ -612,7 +557,7 @@ bool Shell::DidAddMessageToConsole(WebContents* source,
                                    const std::u16string& message,
                                    int32_t line_no,
                                    const std::u16string& source_id) {
-  return switches::IsRunWebTestsSwitchPresent();
+  return false;
 }
 
 void Shell::PortalWebContentsCreated(WebContents* portal_web_contents) {
@@ -696,12 +641,7 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  // During tests, returning success to pretend the window was created and allow
-  // tests to run accordingly.
-  if (!switches::IsRunWebTestsSwitchPresent()) {
-    return PictureInPictureResult::kNotSupported;
-  }
-  return PictureInPictureResult::kSuccess;
+  return PictureInPictureResult::kNotSupported;
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
@@ -710,14 +650,6 @@ bool Shell::ShouldResumeRequestsForCreatedWindow() {
 
 void Shell::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
   DCHECK(source == web_contents());  // There's only one WebContents per Shell.
-
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    // Note that chrome drops these requests on normal windows.
-    // TODO(danakj): The position is dropped here but we use the size. Web tests
-    // can't move the window in headless mode anyways, but maybe we should be
-    // letting them pretend?
-    g_platform->ResizeWebContent(this, bounds.size());
-  }
 }
 
 gfx::Size Shell::GetShellDefaultSize() {

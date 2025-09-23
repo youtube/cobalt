@@ -170,10 +170,13 @@ class WebRtcGetUserMediaBrowserTest : public WebRtcContentBrowserTestBase {
 // none of the callbacks are called the tests will simply time out and fail.
 
 // Test fails under MSan, http://crbug.com/445745
+// TODO(b/437427316): Investigate failing test.
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_GetVideoStreamAndStop DISABLED_GetVideoStreamAndStop
-#else
+#elif defined(IS_ANDROIDTV)
 #define MAYBE_GetVideoStreamAndStop GetVideoStreamAndStop
+#else
+#define MAYBE_GetVideoStreamAndStop DISABLED_GetVideoStreamAndStop
 #endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        MAYBE_GetVideoStreamAndStop) {
@@ -194,6 +197,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 #define MAYBE_RenderSameTrackMediastreamAndStop \
   RenderSameTrackMediastreamAndStop
 #endif
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderSameTrackMediastreamAndStop \
+  RenderSameTrackMediastreamAndStop
+#else
+#define MAYBE_RenderSameTrackMediastreamAndStop \
+  DISABLED_RenderSameTrackMediastreamAndStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        MAYBE_RenderSameTrackMediastreamAndStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -206,8 +217,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                                          kRenderSameTrackMediastreamAndStop)));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderClonedMediastreamAndStop RenderClonedMediastreamAndStop
+#else
+#define MAYBE_RenderClonedMediastreamAndStop \
+  DISABLED_RenderClonedMediastreamAndStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       RenderClonedMediastreamAndStop) {
+                       MAYBE_RenderClonedMediastreamAndStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -218,8 +236,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                                          kRenderClonedMediastreamAndStop)));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_kRenderClonedTrackMediastreamAndStop \
+  kRenderClonedTrackMediastreamAndStop
+#else
+#define MAYBE_kRenderClonedTrackMediastreamAndStop \
+  DISABLED_kRenderClonedTrackMediastreamAndStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       kRenderClonedTrackMediastreamAndStop) {
+                       MAYBE_kRenderClonedTrackMediastreamAndStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -230,8 +256,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                                         kRenderClonedTrackMediastreamAndStop)));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_kRenderDuplicatedMediastreamAndStop \
+  kRenderDuplicatedMediastreamAndStop
+#else
+#define MAYBE_kRenderDuplicatedMediastreamAndStop \
+  DISABLED_kRenderDuplicatedMediastreamAndStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       kRenderDuplicatedMediastreamAndStop) {
+                       MAYBE_kRenderDuplicatedMediastreamAndStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -242,8 +276,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                                          kRenderDuplicatedMediastreamAndStop)));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetAudioAndVideoStreamAndStop GetAudioAndVideoStreamAndStop
+#else
+#define MAYBE_GetAudioAndVideoStreamAndStop \
+  DISABLED_GetAudioAndVideoStreamAndStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetAudioAndVideoStreamAndStop) {
+                       MAYBE_GetAudioAndVideoStreamAndStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -254,8 +295,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                                          kGetUserMediaAndStop)));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetAudioAndVideoStreamAndClone GetAudioAndVideoStreamAndClone
+#else
+#define MAYBE_GetAudioAndVideoStreamAndClone \
+  DISABLED_GetAudioAndVideoStreamAndClone
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetAudioAndVideoStreamAndClone) {
+                       MAYBE_GetAudioAndVideoStreamAndClone) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -265,8 +313,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // TODO(crbug.com/803516) : Flaky on all platforms.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_RenderVideoTrackInMultipleTagsAndPause \
+  RenderVideoTrackInMultipleTagsAndPause
+#else
+#define MAYBE_RenderVideoTrackInMultipleTagsAndPause \
+  DISABLED_RenderVideoTrackInMultipleTagsAndPause
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_RenderVideoTrackInMultipleTagsAndPause) {
+                       MAYBE_RenderVideoTrackInMultipleTagsAndPause) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -282,6 +337,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 #else
 #define MAYBE_GetUserMediaWithMandatorySourceID \
   GetUserMediaWithMandatorySourceID
+#endif
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaWithMandatorySourceID \
+  GetUserMediaWithMandatorySourceID
+#else
+#define MAYBE_GetUserMediaWithMandatorySourceID \
+  DISABLED_GetUserMediaWithMandatorySourceID
 #endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        MAYBE_GetUserMediaWithMandatorySourceID) {
@@ -307,8 +370,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 #undef MAYBE_GetUserMediaWithMandatorySourceID
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaWithInvalidMandatorySourceID \
+  GetUserMediaWithInvalidMandatorySourceID
+#else
+#define MAYBE_GetUserMediaWithInvalidMandatorySourceID \
+  DISABLED_GetUserMediaWithInvalidMandatorySourceID
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetUserMediaWithInvalidMandatorySourceID) {
+                       MAYBE_GetUserMediaWithInvalidMandatorySourceID) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   std::vector<std::string> audio_ids;
@@ -337,8 +408,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                           kGetUserMediaAndExpectFailure, "", video_ids[0])));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaWithInvalidOptionalSourceID \
+  GetUserMediaWithInvalidOptionalSourceID
+#else
+#define MAYBE_GetUserMediaWithInvalidOptionalSourceID \
+  DISABLED_GetUserMediaWithInvalidOptionalSourceID
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetUserMediaWithInvalidOptionalSourceID) {
+                       MAYBE_GetUserMediaWithInvalidOptionalSourceID) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   std::vector<std::string> audio_ids;
@@ -365,8 +444,13 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // Sheriff 2021-08-10, test is flaky.
 // See https://crbug.com/1238334.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoGetUserMediaAndStop TwoGetUserMediaAndStop
+#else
+#define MAYBE_TwoGetUserMediaAndStop DISABLED_TwoGetUserMediaAndStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_TwoGetUserMediaAndStop) {
+                       MAYBE_TwoGetUserMediaAndStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -377,8 +461,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // Flaky. See https://crbug.com/846741.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoGetUserMediaWithEqualConstraints \
+  TwoGetUserMediaWithEqualConstraints
+#else
+#define MAYBE_TwoGetUserMediaWithEqualConstraints \
+  DISABLED_TwoGetUserMediaWithEqualConstraints
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_TwoGetUserMediaWithEqualConstraints) {
+                       MAYBE_TwoGetUserMediaWithEqualConstraints) {
   std::string constraints1 = "{video: true, audio: true}";
   const std::string& constraints2 = constraints1;
   std::string expected_result = "w=640:h=480-w=640:h=480";
@@ -388,8 +479,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // Flaky. See https://crbug.com/843844.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoGetUserMediaWithSecondVideoCropped \
+  TwoGetUserMediaWithSecondVideoCropped
+#else
+#define MAYBE_TwoGetUserMediaWithSecondVideoCropped \
+  DISABLED_TwoGetUserMediaWithSecondVideoCropped
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_TwoGetUserMediaWithSecondVideoCropped) {
+                       MAYBE_TwoGetUserMediaWithSecondVideoCropped) {
   std::string constraints1 = "{video: true}";
   std::string constraints2 =
       "{video: {width: {exact: 640}, height: {exact: 360}}}";
@@ -400,8 +498,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // Test fails under MSan, http://crbug.com/445745.
 // Flaky. See https://crbug.com/846960.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoGetUserMediaWithFirstHdSecondVga \
+  TwoGetUserMediaWithFirstHdSecondVga
+#else
+#define MAYBE_TwoGetUserMediaWithFirstHdSecondVga \
+  DISABLED_TwoGetUserMediaWithFirstHdSecondVga
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_TwoGetUserMediaWithFirstHdSecondVga) {
+                       MAYBE_TwoGetUserMediaWithFirstHdSecondVga) {
   std::string constraints1 =
       "{video: {width : {exact: 1280}, height: {exact: 720}}}";
   std::string constraints2 =
@@ -413,6 +518,7 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // Timing out on Windows 7 bot: http://crbug.com/443294
 // Flaky: http://crbug.com/660656; possible the test is too perf sensitive.
+// TODO(b/437427316): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        DISABLED_TwoGetUserMediaWithFirst1080pSecondVga) {
   std::string constraints1 =
@@ -425,8 +531,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                                                   expected_result);
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaWithTooHighVideoConstraintsValues \
+  GetUserMediaWithTooHighVideoConstraintsValues
+#else
+#define MAYBE_GetUserMediaWithTooHighVideoConstraintsValues \
+  DISABLED_GetUserMediaWithTooHighVideoConstraintsValues
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetUserMediaWithTooHighVideoConstraintsValues) {
+                       MAYBE_GetUserMediaWithTooHighVideoConstraintsValues) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -440,8 +554,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
   EXPECT_EQ("OverconstrainedError", EvalJs(shell(), call));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaFailToAccessAudioDevice \
+  GetUserMediaFailToAccessAudioDevice
+#else
+#define MAYBE_GetUserMediaFailToAccessAudioDevice \
+  DISABLED_GetUserMediaFailToAccessAudioDevice
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetUserMediaFailToAccessAudioDevice) {
+                       MAYBE_GetUserMediaFailToAccessAudioDevice) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -460,8 +582,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 // that should trigger an error, and one with valid constraints. The test
 // verifies getUserMedia can succeed after being given impossible constraints.
 // Flaky. See https://crbug.com/846984.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TwoGetUserMediaAndCheckCallbackAfterFailure \
+  TwoGetUserMediaAndCheckCallbackAfterFailure
+#else
+#define MAYBE_TwoGetUserMediaAndCheckCallbackAfterFailure \
+  DISABLED_TwoGetUserMediaAndCheckCallbackAfterFailure
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_TwoGetUserMediaAndCheckCallbackAfterFailure) {
+                       MAYBE_TwoGetUserMediaAndCheckCallbackAfterFailure) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -488,6 +617,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 #else
 #define MAYBE_TestGetUserMediaAspectRatio4To3 TestGetUserMediaAspectRatio4To3
 #endif
+// TODO(b/437427316): Investigate failing test.
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestGetUserMediaAspectRatio4To3 TestGetUserMediaAspectRatio4To3
+#else
+#define MAYBE_TestGetUserMediaAspectRatio4To3 \
+  DISABLED_TestGetUserMediaAspectRatio4To3
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        MAYBE_TestGetUserMediaAspectRatio4To3) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -503,8 +640,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // This test calls getUserMedia and checks for aspect ratio behavior.
 // Flaky: crbug.com/846582.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestGetUserMediaAspectRatio16To9 TestGetUserMediaAspectRatio16To9
+#else
+#define MAYBE_TestGetUserMediaAspectRatio16To9 \
+  DISABLED_TestGetUserMediaAspectRatio16To9
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_TestGetUserMediaAspectRatio16To9) {
+                       MAYBE_TestGetUserMediaAspectRatio16To9) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -524,6 +667,13 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 #else
 #define MAYBE_TestGetUserMediaAspectRatio1To1 TestGetUserMediaAspectRatio1To1
 #endif
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_TestGetUserMediaAspectRatio1To1 TestGetUserMediaAspectRatio1To1
+#else
+#define MAYBE_TestGetUserMediaAspectRatio1To1 \
+  DISABLED_TestGetUserMediaAspectRatio1To1
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        MAYBE_TestGetUserMediaAspectRatio1To1) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -540,8 +690,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 // This test calls getUserMedia in an iframe and immediately close the iframe
 // in the scope of the success callback.
 // Flaky: crbug.com/727601.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_AudioInIFrameAndCloseInSuccessCb AudioInIFrameAndCloseInSuccessCb
+#else
+#define MAYBE_AudioInIFrameAndCloseInSuccessCb \
+  DISABLED_AudioInIFrameAndCloseInSuccessCb
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_AudioInIFrameAndCloseInSuccessCb) {
+                       MAYBE_AudioInIFrameAndCloseInSuccessCb) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -552,8 +708,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // Flaky: crbug.com/807638
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_VideoInIFrameAndCloseInSuccessCb VideoInIFrameAndCloseInSuccessCb
+#else
+#define MAYBE_VideoInIFrameAndCloseInSuccessCb \
+  DISABLED_VideoInIFrameAndCloseInSuccessCb
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_VideoInIFrameAndCloseInSuccessCb) {
+                       MAYBE_VideoInIFrameAndCloseInSuccessCb) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -565,8 +727,17 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // This test calls getUserMedia in an iframe and immediately close the iframe
 // in the scope of the failure callback.
-IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       VideoWithBadConstraintsInIFrameAndCloseInFailureCb) {
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_VideoWithBadConstraintsInIFrameAndCloseInFailureCb \
+  VideoWithBadConstraintsInIFrameAndCloseInFailureCb
+#else
+#define MAYBE_VideoWithBadConstraintsInIFrameAndCloseInFailureCb \
+  DISABLED_VideoWithBadConstraintsInIFrameAndCloseInFailureCb
+#endif
+IN_PROC_BROWSER_TEST_F(
+    WebRtcGetUserMediaBrowserTest,
+    MAYBE_VideoWithBadConstraintsInIFrameAndCloseInFailureCb) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -580,8 +751,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
   EXPECT_TRUE(ExecJs(shell(), call));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_InvalidSourceIdInIFrameAndCloseInFailureCb \
+  InvalidSourceIdInIFrameAndCloseInFailureCb
+#else
+#define MAYBE_InvalidSourceIdInIFrameAndCloseInFailureCb \
+  DISABLED_InvalidSourceIdInIFrameAndCloseInFailureCb
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       InvalidSourceIdInIFrameAndCloseInFailureCb) {
+                       MAYBE_InvalidSourceIdInIFrameAndCloseInFailureCb) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
@@ -627,30 +806,58 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 #endif
 
-IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest, GetAudioSettingsDefault) {
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetAudioSettingsDefault GetAudioSettingsDefault
+#else
+#define MAYBE_GetAudioSettingsDefault DISABLED_GetAudioSettingsDefault
+#endif
+IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
+                       MAYBE_GetAudioSettingsDefault) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   EXPECT_TRUE(ExecJs(shell(), "getAudioSettingsDefault()"));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetAudioSettingsNoEchoCancellation \
+  GetAudioSettingsNoEchoCancellation
+#else
+#define MAYBE_GetAudioSettingsNoEchoCancellation \
+  DISABLED_GetAudioSettingsNoEchoCancellation
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetAudioSettingsNoEchoCancellation) {
+                       MAYBE_GetAudioSettingsNoEchoCancellation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   EXPECT_TRUE(ExecJs(shell(), "getAudioSettingsNoEchoCancellation()"));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetAudioSettingsDeviceId GetAudioSettingsDeviceId
+#else
+#define MAYBE_GetAudioSettingsDeviceId DISABLED_GetAudioSettingsDeviceId
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetAudioSettingsDeviceId) {
+                       MAYBE_GetAudioSettingsDeviceId) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   EXPECT_TRUE(ExecJs(shell(), "getAudioSettingsDeviceId()"));
 }
 
-IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest, SrcObjectAddVideoTrack) {
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SrcObjectAddVideoTrack SrcObjectAddVideoTrack
+#else
+#define MAYBE_SrcObjectAddVideoTrack DISABLED_SrcObjectAddVideoTrack
+#endif
+IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
+                       MAYBE_SrcObjectAddVideoTrack) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -658,8 +865,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest, SrcObjectAddVideoTrack) {
 }
 
 // TODO(crbug.com/848330) Flaky on all platforms
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SrcObjectReplaceInactiveTracks SrcObjectReplaceInactiveTracks
+#else
+#define MAYBE_SrcObjectReplaceInactiveTracks \
+  DISABLED_SrcObjectReplaceInactiveTracks
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_SrcObjectReplaceInactiveTracks) {
+                       MAYBE_SrcObjectReplaceInactiveTracks) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -667,8 +880,13 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // Flaky on all platforms. https://crbug.com/835332
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SrcObjectRemoveVideoTrack SrcObjectRemoveVideoTrack
+#else
+#define MAYBE_SrcObjectRemoveVideoTrack DISABLED_SrcObjectRemoveVideoTrack
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_SrcObjectRemoveVideoTrack) {
+                       MAYBE_SrcObjectRemoveVideoTrack) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -676,6 +894,7 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // Flaky. https://crbug.com/843844
+// TODO(b/437427316): Investigate failing test.
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        DISABLED_SrcObjectRemoveFirstOfTwoVideoTracks) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -688,15 +907,28 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 // when a straightforward mechanism to detect the presence/absence of audio in a
 // media element with an assigned MediaStream becomes available.
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SrcObjectReassignSameObject SrcObjectReassignSameObject
+#else
+#define MAYBE_SrcObjectReassignSameObject DISABLED_SrcObjectReassignSameObject
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       SrcObjectReassignSameObject) {
+                       MAYBE_SrcObjectReassignSameObject) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   EXPECT_TRUE(ExecJs(shell(), "srcObjectReassignSameObject()"));
 }
 
-IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest, ApplyConstraintsVideo) {
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ApplyConstraintsVideo ApplyConstraintsVideo
+#else
+#define MAYBE_ApplyConstraintsVideo DISABLED_ApplyConstraintsVideo
+#endif
+IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
+                       MAYBE_ApplyConstraintsVideo) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -704,16 +936,30 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest, ApplyConstraintsVideo) {
 }
 
 // Flaky due to https://crbug.com/1113820
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ApplyConstraintsVideoTwoStreams ApplyConstraintsVideoTwoStreams
+#else
+#define MAYBE_ApplyConstraintsVideoTwoStreams \
+  DISABLED_ApplyConstraintsVideoTwoStreams
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_ApplyConstraintsVideoTwoStreams) {
+                       MAYBE_ApplyConstraintsVideoTwoStreams) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   EXPECT_TRUE(ExecJs(shell(), "applyConstraintsVideoTwoStreams()"));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ApplyConstraintsVideoOverconstrained \
+  ApplyConstraintsVideoOverconstrained
+#else
+#define MAYBE_ApplyConstraintsVideoOverconstrained \
+  DISABLED_ApplyConstraintsVideoOverconstrained
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       ApplyConstraintsVideoOverconstrained) {
+                       MAYBE_ApplyConstraintsVideoOverconstrained) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -726,6 +972,12 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 #else
 #define MAYBE_ApplyConstraintsNonDevice ApplyConstraintsNonDevice
 #endif
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ApplyConstraintsNonDevice ApplyConstraintsNonDevice
+#else
+#define MAYBE_ApplyConstraintsNonDevice DISABLED_ApplyConstraintsNonDevice
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
                        MAYBE_ApplyConstraintsNonDevice) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -734,8 +986,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
   EXPECT_TRUE(ExecJs(shell(), "applyConstraintsNonDevice()"));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_ConcurrentGetUserMediaStop ConcurrentGetUserMediaStop
+#else
+#define MAYBE_ConcurrentGetUserMediaStop DISABLED_ConcurrentGetUserMediaStop
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       ConcurrentGetUserMediaStop) {
+                       MAYBE_ConcurrentGetUserMediaStop) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -743,16 +1001,31 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // TODO(crbug.com/1087081) : Flaky on all platforms.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaAfterStopElementCapture \
+  GetUserMediaAfterStopElementCapture
+#else
+#define MAYBE_GetUserMediaAfterStopElementCapture \
+  DISABLED_GetUserMediaAfterStopElementCapture
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_GetUserMediaAfterStopElementCapture) {
+                       MAYBE_GetUserMediaAfterStopElementCapture) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
   EXPECT_TRUE(ExecJs(shell(), "getUserMediaAfterStopCanvasCapture()"));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaEchoCancellationOnAndOff \
+  GetUserMediaEchoCancellationOnAndOff
+#else
+#define MAYBE_GetUserMediaEchoCancellationOnAndOff \
+  DISABLED_GetUserMediaEchoCancellationOnAndOff
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       GetUserMediaEchoCancellationOnAndOff) {
+                       MAYBE_GetUserMediaEchoCancellationOnAndOff) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -760,8 +1033,15 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // TODO(crbug.com/1087081) : Flaky on all platforms.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_GetUserMediaEchoCancellationOnAndOffAndVideo \
+  GetUserMediaEchoCancellationOnAndOffAndVideo
+#else
+#define MAYBE_GetUserMediaEchoCancellationOnAndOffAndVideo \
+  DISABLED_GetUserMediaEchoCancellationOnAndOffAndVideo
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       DISABLED_GetUserMediaEchoCancellationOnAndOffAndVideo) {
+                       MAYBE_GetUserMediaEchoCancellationOnAndOffAndVideo) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -769,8 +1049,16 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
       ExecJs(shell(), "getUserMediaEchoCancellationOnAndOffAndVideo()"));
 }
 
+// TODO(b/437427316): Investigate failing test.
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_EnumerationAfterSameDocumentNavigation \
+  EnumerationAfterSameDocumentNavigation
+#else
+#define MAYBE_EnumerationAfterSameDocumentNavigation \
+  DISABLED_EnumerationAfterSameDocumentNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
-                       EnumerationAfterSameDocumentNavigation) {
+                       MAYBE_EnumerationAfterSameDocumentNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/media/getusermedia.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));

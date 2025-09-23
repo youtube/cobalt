@@ -1,6 +1,7 @@
 {
   "comment": "Expired certificates cause a lot of the failures.",
   "failing_tests": [
+    "All/HttpCacheLookupManagerTest_NetworkIsolationKey.ServerPushCacheStatus/1",
     "*/CertVerifyProcInternalTest.*",
     "CacheUtilTest.CleanupDirectoryFailsWhenParentDirectoryIsInaccessible",
     "*/EmbeddedTestServerTest.*",

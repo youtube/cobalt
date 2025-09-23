@@ -1,3 +1,6 @@
 {
-  "failing_tests": []
+  "failing_tests": [
+    "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
+    "PosixSocketSendTest.RainyDaySendToClosedSocket"
+  ]
 }

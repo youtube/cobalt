@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
@@ -32,7 +33,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
@@ -42,7 +43,6 @@ using std::vector;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 typedef VideoDmpReader::AudioAccessUnit AudioAccessUnit;
 typedef VideoDmpReader::VideoAccessUnit VideoAccessUnit;
@@ -285,7 +285,7 @@ class PlayerComponentsTest
   // allow to write buffers of timestamp greater than |timestamp|.
   void WriteDataUntil(int64_t timestamp,
                       int64_t timeout = kDefaultWriteTimeOut) {
-    SB_CHECK(playback_rate_ != 0);
+    SB_CHECK_NE(playback_rate_, 0);
 
     int64_t last_input_filled_time = CurrentMonotonicTime();
     while (
@@ -313,7 +313,7 @@ class PlayerComponentsTest
   // |eos_timestamp| are written into the player.
   void WriteDataAndEOS(int64_t eos_timestamp,
                        int64_t timeout = kDefaultWriteTimeOut) {
-    SB_CHECK(playback_rate_ != 0);
+    SB_CHECK_NE(playback_rate_, 0);
     bool audio_eos_written = !GetAudioRenderer();
     bool video_eos_written = !GetVideoRenderer();
 
@@ -356,7 +356,7 @@ class PlayerComponentsTest
   }
 
   void WaitUntilPlaybackEnded() {
-    SB_CHECK(playback_rate_ != 0);
+    SB_CHECK_NE(playback_rate_, 0);
 
     int64_t duration = std::max(GetCurrentAudioBufferTimestamp(),
                                 GetCurrentVideoBufferTimestamp());
@@ -756,4 +756,4 @@ INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
                         GetPlayerComponentsTestConfigName);
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

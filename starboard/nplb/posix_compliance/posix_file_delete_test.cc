@@ -21,19 +21,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
-
-bool FileExists(const char* path) {
-  struct stat info {};
-  return stat(path, &info) == 0;
-}
-
-bool DirectoryExists(const char* path) {
-  struct stat info {};
-  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
-}
 
 TEST(PosixFileDeleteTest, SunnyDayDeleteExistingFile) {
   ScopedRandomFile file;
@@ -81,4 +70,3 @@ TEST(PosixFileDeleteTest, RainyDayNonExistentDirErrors) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

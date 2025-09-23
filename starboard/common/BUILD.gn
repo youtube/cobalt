@@ -16,7 +16,11 @@
 # to all platforms.
 
 source_set("common_headers_only") {
-  sources = [ "log.h" ]
+  sources = [
+    "log.h",
+    "system_property.h",
+  ]
+
   deps = [ "//starboard:starboard_headers_only" ]
 }
 
@@ -39,8 +43,6 @@ static_library("common") {
     "command_line.cc",
     "command_line.h",
     "common.cc",
-    "condition_variable.cc",
-    "condition_variable.h",
     "configuration_defaults.cc",
     "configuration_defaults.h",
     "device_type.cc",
@@ -61,8 +63,6 @@ static_library("common") {
     "metrics/stats_tracker.h",
     "murmurhash2.cc",
     "murmurhash2.h",
-    "mutex.cc",
-    "mutex.h",
     "paths.cc",
     "paths.h",
     "player.cc",
@@ -79,12 +79,14 @@ static_library("common") {
     "semaphore.h",
     "size.cc",
     "size.h",
+    "source_location.cc",
+    "source_location.h",
     "spin_lock.cc",
     "spin_lock.h",
     "storage.cc",
     "storage.h",
+    "string.cc",
     "string.h",
-    "system_property.h",
     "thread.cc",
     "thread.h",
     "time.cc",
@@ -113,6 +115,8 @@ source_set("common_test") {
     "queue_test.cc",
     "semaphore_test.cc",
     "size_test.cc",
+    "starboard_common_time_test.cc",
+    "string_test.cc",
   ]
   deps = [
     ":common",

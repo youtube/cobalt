@@ -16,14 +16,14 @@
 
 #include <string>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
-
+namespace starboard {
 namespace {
 
 // A singleton class to hold a locale string
@@ -33,17 +33,19 @@ class LocaleInfo {
   std::string locale_id;
 
   LocaleInfo() {
-    JniEnvExt* env = JniEnvExt::Get();
+    JNIEnv* env = base::android::AttachCurrentThread();
 
-    ScopedLocalJavaRef<jstring> result(env->CallStarboardObjectMethodOrAbort(
-        "systemGetLocaleId", "()Ljava/lang/String;"));
-    locale_id = env->GetStringStandardUTFOrAbort(result.Get());
+    ScopedLocalJavaRef<jstring> result(JniCallObjectMethodOrAbort(
+        env, JNIState::GetStarboardBridge(), "systemGetLocaleId",
+        "()Ljava/lang/String;"));
+    locale_id = JniGetStringStandardUTFOrAbort(env, result.Get());
   }
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(LocaleInfo, GetLocale)
 }  // namespace
+}  // namespace starboard
 
 const char* SbSystemGetLocaleId() {
-  return GetLocale()->locale_id.c_str();
+  return starboard::GetLocale()->locale_id.c_str();
 }

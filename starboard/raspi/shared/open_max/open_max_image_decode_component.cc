@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/raspi/shared/open_max/decode_target_create.h"
@@ -25,9 +26,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -70,7 +68,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
     SbDecodeTargetFormat output_format,
     const void* data,
     int data_size) {
-  SB_DCHECK(target_ == NULL);
+  SB_DCHECK_EQ(target_, nullptr);
 
   graphics_context_provider_ = provider;
   SetInputFormat(mime_type, output_format);
@@ -88,7 +86,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
       write_size =
           WriteData(reinterpret_cast<const uint8_t*>(data) + data_size_written,
                     write_size, kDataEOS, CurrentMonotonicTime());
-      SB_DCHECK(write_size >= 0);
+      SB_DCHECK_GE(write_size, 0);
       data_size_written += write_size;
     }
     int output_size = ProcessOutput();
@@ -113,7 +111,7 @@ void OpenMaxImageDecodeComponent::SetInputFormat(const char* mime_type,
   GetInputPortParam(&port_format);
   input_format_ = GetCompressionFormat(mime_type);
   port_format.eCompressionFormat = input_format_;
-  SB_DCHECK(port_format.eCompressionFormat != OMX_IMAGE_CodingMax);
+  SB_DCHECK_NE(port_format.eCompressionFormat, OMX_IMAGE_CodingMax);
   SetPortParam(port_format);
 }
 
@@ -131,7 +129,7 @@ int OpenMaxImageDecodeComponent::ProcessOutput() {
   OMX_BUFFERHEADERTYPE* buffer = GetOutputBuffer();
   int output_size = 0;
   if (buffer) {
-    SB_DCHECK(state_ == kStateOutputReady);
+    SB_DCHECK_EQ(state_, kStateOutputReady);
     bool is_end_of_stream = (buffer->nFlags & OMX_BUFFERFLAG_EOS) != 0;
     output_size = 1;  // Signal to caller that some data was processed.
     DropOutputBuffer(buffer);
@@ -148,7 +146,7 @@ bool OpenMaxImageDecodeComponent::OnEnableOutputPort(
   if (port_definition->nPortIndex == output_port_) {
     // Our output port has been enabled. Tunnel to the egl render
     // component to decode into a texture.
-    SB_DCHECK(state_ == kStateInputReady);
+    SB_DCHECK_EQ(state_, kStateInputReady);
     render_component_.ForwardPortCallbacks(this);
     SetOutputComponent(&render_component_);
     state_ = kStateSetTunnelOutput;
@@ -159,7 +157,7 @@ bool OpenMaxImageDecodeComponent::OnEnableOutputPort(
     return false;
   } else {
     // Got final settings for the tunnelled component's output port.
-    SB_DCHECK(state_ == kStateOutputReady);
+    SB_DCHECK_EQ(state_, kStateOutputReady);
     SetOutputFormat(port_definition->format.video.eColorFormat,
                     port_definition->format.video.nFrameWidth,
                     port_definition->format.video.nFrameHeight);
@@ -167,7 +165,4 @@ bool OpenMaxImageDecodeComponent::OnEnableOutputPort(
   }
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

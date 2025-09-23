@@ -14,15 +14,40 @@
 
 #include "starboard/shared/widevine/widevine_timer.h"
 
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/common/log.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
+
+class WidevineTimer::WaitEvent {
+ public:
+  explicit WaitEvent(std::mutex& mutex) : mutex_(mutex) {}
+
+  void Wait(std::unique_lock<std::mutex>& lock) {
+    cv_.wait(lock, [this] { return is_signaled_; });
+  }
+
+  void Signal() {
+    {
+      std::lock_guard lock(mutex_);
+      is_signaled_ = true;
+    }
+    cv_.notify_one();
+  }
+
+ private:
+  std::mutex& mutex_;
+  std::condition_variable cv_;
+  bool is_signaled_ = false;  // Guarded by |mutex_|.
+};
 
 namespace {
 
 struct ThreadParam {
   WidevineTimer* timer;
-  ConditionVariable* condition_variable;
+  WidevineTimer::WaitEvent* wait_event;
 };
 
 }  // namespace
@@ -36,16 +61,16 @@ WidevineTimer::~WidevineTimer() {
 void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                IClient* client,
                                void* context) {
-  ScopedLock scoped_lock(mutex_);
+  std::unique_lock lock(mutex_);
   if (active_clients_.empty()) {
     SB_DCHECK(thread_ == 0);
     SB_DCHECK(!job_queue_);
 
-    ConditionVariable condition_variable(mutex_);
-    ThreadParam thread_param = {this, &condition_variable};
+    WaitEvent wait_event(mutex_);
+    ThreadParam thread_param = {this, &wait_event};
     pthread_create(&thread_, nullptr, &WidevineTimer::ThreadFunc,
                    &thread_param);
-    condition_variable.Wait();
+    wait_event.Wait(lock);
   }
 
   SB_DCHECK(thread_ != 0);
@@ -62,7 +87,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
 }
 
 void WidevineTimer::cancel(IClient* client) {
-  ScopedLock scoped_lock(mutex_);
+  std::unique_lock lock(mutex_);
   auto iter = active_clients_.find(client);
   if (iter == active_clients_.end()) {
     // cancel() can be called before any timer is scheduled.
@@ -71,10 +96,9 @@ void WidevineTimer::cancel(IClient* client) {
 
   SB_DCHECK(job_queue_);
 
-  ConditionVariable condition_variable(mutex_);
-  job_queue_->Schedule(
-      [&]() { CancelAllJobsOnClient(client, &condition_variable); });
-  condition_variable.Wait();
+  WaitEvent wait_event(mutex_);
+  job_queue_->Schedule([&]() { CancelAllJobsOnClient(client, &wait_event); });
+  wait_event.Wait(lock);
 
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
@@ -90,37 +114,38 @@ void* WidevineTimer::ThreadFunc(void* param) {
   SB_DCHECK(param);
   pthread_setname_np(pthread_self(), "wv_timer");
   ThreadParam* thread_param = static_cast<ThreadParam*>(param);
-  thread_param->timer->RunLoop(thread_param->condition_variable);
+  thread_param->timer->RunLoop(thread_param->wait_event);
   return NULL;
 }
 
-void WidevineTimer::RunLoop(ConditionVariable* condition_variable) {
+void WidevineTimer::RunLoop(WaitEvent* wait_event) {
   SB_DCHECK(!job_queue_);
-  SB_DCHECK(condition_variable);
+  SB_DCHECK(wait_event);
 
   JobQueue job_queue;
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard lock(mutex_);
     job_queue_ = &job_queue;
-    condition_variable->Signal();
   }
+  wait_event->Signal();
 
   job_queue.RunUntilStopped();
 }
 
-void WidevineTimer::CancelAllJobsOnClient(
-    IClient* client,
-    ConditionVariable* condition_variable) {
-  SB_DCHECK(condition_variable);
+void WidevineTimer::CancelAllJobsOnClient(IClient* client,
+                                          WaitEvent* wait_event) {
+  SB_DCHECK(wait_event);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  ScopedLock scoped_lock(mutex_);
-  auto iter = active_clients_.find(client);
-  iter->second->CancelPendingJobs();
-  delete iter->second;
-  active_clients_.erase(iter);
-  condition_variable->Signal();
+  {
+    std::lock_guard lock(mutex_);
+    auto iter = active_clients_.find(client);
+    iter->second->CancelPendingJobs();
+    delete iter->second;
+    active_clients_.erase(iter);
+  }
+  wait_event->Signal();
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard

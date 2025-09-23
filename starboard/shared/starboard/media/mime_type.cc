@@ -23,10 +23,11 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -181,13 +182,13 @@ int MimeType::GetParamCount() const {
 }
 
 MimeType::ParamType MimeType::GetParamType(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   return params_[index].type;
 }
 
 const std::string& MimeType::GetParamName(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   return params_[index].name;
 }
@@ -202,7 +203,7 @@ int MimeType::GetParamIndexByName(const char* name) const {
 }
 
 int MimeType::GetParamIntValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeInteger) {
     return params_[index].int_value;
@@ -211,7 +212,7 @@ int MimeType::GetParamIntValue(int index) const {
 }
 
 float MimeType::GetParamFloatValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeInteger) {
     return params_[index].int_value;
@@ -223,13 +224,13 @@ float MimeType::GetParamFloatValue(int index) const {
 }
 
 const std::string& MimeType::GetParamStringValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   return params_[index].string_value;
 }
 
 bool MimeType::GetParamBoolValue(int index) const {
-  SB_DCHECK(index < GetParamCount());
+  SB_DCHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeBoolean) {
     return params_[index].bool_value;
@@ -390,4 +391,4 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
   return os;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

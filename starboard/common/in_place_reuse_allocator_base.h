@@ -21,12 +21,12 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
 namespace starboard {
-namespace common {
 
 // TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
 //                             enabled.
@@ -77,23 +77,23 @@ class InPlaceReuseAllocatorBase : public Allocator {
         : fallback_allocation_index_(fallback_allocation_index),
           address_(address),
           size_(size) {}
-    ~MemoryBlock() { SB_DCHECK(fallback_allocation_index_ >= 0); }
+    ~MemoryBlock() { SB_DCHECK_GE(fallback_allocation_index_, 0); }
 
     intptr_t fallback_allocation_index() const {
       return fallback_allocation_index_;
     }
     void* address() const {
-      SB_DCHECK(fallback_allocation_index_ >= 0);
+      SB_DCHECK_GE(fallback_allocation_index_, 0);
       return address_;
     }
     size_t size() const {
-      SB_DCHECK(fallback_allocation_index_ >= 0);
+      SB_DCHECK_GE(fallback_allocation_index_, 0);
       return size_;
     }
 
     bool operator<(const MemoryBlock& other) const {
-      SB_DCHECK(fallback_allocation_index_ >= 0);
-      SB_DCHECK(other.fallback_allocation_index_ >= 0);
+      SB_DCHECK_GE(fallback_allocation_index_, 0);
+      SB_DCHECK_GE(other.fallback_allocation_index_, 0);
 
       if (fallback_allocation_index_ < other.fallback_allocation_index_) {
         return true;
@@ -197,7 +197,6 @@ class InPlaceReuseAllocatorBase : public Allocator {
   size_t total_allocated_blocks_ = 0;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_

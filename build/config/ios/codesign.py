@@ -95,6 +95,8 @@ class Bundle(object):
       if extension == '.framework':
         return 'mac_framework'
       return 'mac'
+    if platform in ('appletvos', 'appletvsimulator'):
+      return 'tvos'
     raise ValueError('unknown bundle type %s for %s' % (extension, platform))
 
   @property

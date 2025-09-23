@@ -18,13 +18,12 @@
 #include <pthread.h>
 
 #include <map>
+#include <mutex>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 // Manages the scheduled callbacks of Widevine.  All its public functions can
 // be called from any threads.
@@ -42,19 +41,18 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   void cancel(IClient* client) override;
 
  private:
-  typedef starboard::player::JobQueue JobQueue;
+  class WaitEvent;
 
   static void* ThreadFunc(void* param);
-  void RunLoop(ConditionVariable* condition_variable);
-  void CancelAllJobsOnClient(IClient* client,
-                             ConditionVariable* condition_variable);
+  void RunLoop(WaitEvent* wait_event);
+  void CancelAllJobsOnClient(IClient* client, WaitEvent* wait_event);
 
-  Mutex mutex_;
+  std::mutex mutex_;
   pthread_t thread_ = 0;
   JobQueue* job_queue_ = NULL;
   std::map<IClient*, JobQueue::JobOwner*> active_clients_;
 };
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_

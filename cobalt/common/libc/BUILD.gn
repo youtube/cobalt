@@ -20,6 +20,14 @@ static_library("libc") {
   if (is_cobalt_hermetic_build) {
     sources += [
       "stdlib/environment.cc",
+      "time/gmtime.cc",
+      "time/icu_time_support.cc",
+      "time/icu_time_support.h",
+      "time/localtime.cc",
+      "time/mktime.cc",
+      "time/time_zone_state.cc",
+      "time/time_zone_state.h",
+      "time/timegm.cc",
       "time/tzset.cc",
     ]
   }
@@ -39,7 +47,11 @@ source_set("libc_test") {
   testonly = true
 
   if (is_cobalt_hermetic_build) {
-    sources = [ "time/tzset_test.cc" ]
+    sources = [
+      "time/icu_time_support_test.cc",
+      "time/time_zone_state_test.cc",
+      "time/tzset_test.cc",
+    ]
   }
 
   deps = [

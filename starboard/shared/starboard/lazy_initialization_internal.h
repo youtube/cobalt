@@ -26,7 +26,7 @@
 #define INITIALIZED_STATE_INITIALIZING 1
 #define INITIALIZED_STATE_INITIALIZED 2
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // The utility functions defined here use atomics and spin-locks to allow for
 // easy lazy initialization in a thread-safe way.
@@ -74,6 +74,6 @@ static inline void SetInitialized(InitializedState* state) {
   state->store(INITIALIZED_STATE_INITIALIZED, std::memory_order_release);
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_INTERNAL_H_

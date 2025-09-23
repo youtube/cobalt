@@ -32,7 +32,6 @@ void LogLastError(const char* msg) {
 }
 }  // namespace
 
-namespace starboard {
 namespace elf_loader {
 
 FileImpl::FileImpl() : file_(-1) {}
@@ -82,4 +81,3 @@ const std::string& FileImpl::GetName() {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

@@ -90,6 +90,44 @@ std::string PersistedData::GetPingFreshness(const std::string& id) const {
   return !result.empty() ? base::StringPrintf("{%s}", result.c_str()) : result;
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+std::string PersistedData::GetLastInstalledSbVersion(const std::string& id) const {
+  return GetString(id, "sbversion");
+}
+
+std::string PersistedData::GetLastInstalledVersion(const std::string& id) const {
+  return GetString(id, "version");
+}
+std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
+  return GetString(id, "updaterchannel");
+}
+std::string PersistedData::GetLatestChannel() const {
+  const base::Value::Dict* dict =
+      &pref_service_->GetDict(kPersistedDataPreference);
+  if (!dict)
+    return std::string();
+  const std::string* result = dict->FindString("latestchannel");
+  return result != nullptr ? *result : std::string();
+}
+void PersistedData::SetLastInstalledEgAndSbVersion(const std::string& id,
+                                                   const std::string& eg_version,
+                                                   const std::string& sb_version) {
+  SetString(id, "version", eg_version);
+  SetString(id, "sbversion", sb_version);
+}
+void PersistedData::SetUpdaterChannel(const std::string& id,
+                                      const std::string& channel) {
+  SetString(id, "updaterchannel", channel);
+}
+void PersistedData::SetLatestChannel(const std::string& channel) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!pref_service_)
+    return;
+  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
+  update->Set("latestchannel", channel);
+}
+#endif
+
 int PersistedData::GetInstallDate(const std::string& id) const {
   return GetInt(id, "installdate", kDateUnknown);
 }

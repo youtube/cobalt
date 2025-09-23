@@ -17,7 +17,6 @@
 #include "starboard/nplb/microphone_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -86,4 +85,3 @@ TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

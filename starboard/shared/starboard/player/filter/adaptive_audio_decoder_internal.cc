@@ -16,12 +16,14 @@
 
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 template <typename T>
 T ResetAndReturn(T* t) {
@@ -31,7 +33,7 @@ T ResetAndReturn(T* t) {
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
@@ -40,11 +42,11 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
       output_number_of_channels_(audio_stream_info.number_of_channels) {
-  SB_DCHECK(audio_stream_info.codec != kSbMediaAudioCodecNone);
+  SB_DCHECK_NE(audio_stream_info.codec, kSbMediaAudioCodecNone);
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     bool enable_reset_audio_decoder,
@@ -89,7 +91,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(pending_input_buffers_.empty());
   SB_DCHECK(!pending_consumed_cb_);
   SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeAudio);
+  SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeAudio);
   SB_DCHECK(input_buffers.front()->audio_stream_info().codec !=
             kSbMediaAudioCodecNone);
 
@@ -103,7 +105,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
     }
     return;
   }
-  if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
+  if (IsAudioSampleInfoSubstantiallyDifferent(
           input_audio_stream_info_,
           input_buffers.front()->audio_stream_info())) {
     flushing_ = true;
@@ -112,9 +114,9 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
     audio_decoder_->WriteEndOfStream();
     return;
   }
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   for (size_t i = 1; i < input_buffers.size(); i++) {
-    if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
+    if (IsAudioSampleInfoSubstantiallyDifferent(
             input_audio_stream_info_, input_buffers[i]->audio_stream_info())) {
       error_cb_(kSbPlayerErrorDecode,
                 "Configuration switches should NOT happen within a batch.");
@@ -179,7 +181,7 @@ void AdaptiveAudioDecoder::Reset() {
 }
 
 void AdaptiveAudioDecoder::InitializeAudioDecoder(
-    const media::AudioStreamInfo& audio_stream_info) {
+    const AudioStreamInfo& audio_stream_info) {
   SB_DCHECK(!audio_decoder_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
@@ -303,7 +305,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   } else {
     // If |resampler_| is NULL, |output_samples_per_second_| should be the same
     // as |decoded_sample_rate|.
-    SB_DCHECK(output_samples_per_second_ == decoded_sample_rate);
+    SB_DCHECK_EQ(output_samples_per_second_, decoded_sample_rate);
   }
   if (decoded_audio && decoded_audio->size_in_bytes() > 0) {
     if (channel_mixer_) {
@@ -314,4 +316,4 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   }
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

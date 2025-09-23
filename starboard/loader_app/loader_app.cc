@@ -37,6 +37,7 @@
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 
@@ -55,20 +56,20 @@ const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
 const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
 
 // Portable ELF loader.
-starboard::elf_loader::ElfLoader g_elf_loader;
+elf_loader::ElfLoader g_elf_loader;
 
 // Pointer to the |SbEventHandle| function in the
 // Cobalt binary.
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
-class CobaltLibraryLoader : public starboard::loader_app::LibraryLoader {
+class CobaltLibraryLoader : public loader_app::LibraryLoader {
  public:
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
                     bool use_compression,
                     bool use_memory_mapped_file) {
     return g_elf_loader.Load(library_path, content_path, false,
-                             &starboard::loader_app::SbSystemGetExtensionShim,
+                             &loader_app::SbSystemGetExtensionShim,
                              use_compression, use_memory_mapped_file);
   }
   virtual void* Resolve(const std::string& symbol) {
@@ -144,8 +145,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
 
   EvergreenInfo evergreen_info;
   GetEvergreenInfo(&evergreen_info);
-  if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
-          evergreen_info)) {
+  if (!crashpad::AddEvergreenInfoToCrashpad(evergreen_info)) {
     SB_LOG(ERROR) << "Could not send Cobalt library information into Crashpad.";
   } else {
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
@@ -167,9 +167,8 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
     starboard::strlcpy(buffer.data(), get_user_agent_func(),
                        USER_AGENT_STRING_MAX_SIZE);
-    if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
-            third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
-            buffer.data())) {
+    if (crashpad::InsertCrashpadAnnotation(
+            crashpad::kCrashpadUserAgentStringKey, buffer.data())) {
       SB_DLOG(INFO) << "Added user agent string to Crashpad.";
     } else {
       SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
@@ -193,7 +192,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
 void SbEventHandle(const SbEvent* event) {
   static pthread_mutex_t mutex PTHREAD_MUTEX_INITIALIZER;
 
-  SB_CHECK(pthread_mutex_lock(&mutex) == 0);
+  SB_CHECK_EQ(pthread_mutex_lock(&mutex), 0);
 
   if (!g_sb_event_func && (event->type == kSbEventTypeStart ||
                            event->type == kSbEventTypePreload)) {
@@ -201,41 +200,40 @@ void SbEventHandle(const SbEvent* event) {
     const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
 
-    if (command_line.HasSwitch(starboard::loader_app::kResetEvergreenUpdate)) {
+    if (command_line.HasSwitch(loader_app::kResetEvergreenUpdate)) {
       SB_LOG(INFO) << "Resetting the Evergreen Update";
-      starboard::loader_app::ResetEvergreenUpdate();
+      loader_app::ResetEvergreenUpdate();
       SbSystemRequestStop(0);
-      SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
+      SB_CHECK_EQ(pthread_mutex_unlock(&mutex), 0);
       return;
     }
 
-    if (command_line.HasSwitch(starboard::loader_app::kLoaderAppVersion)) {
+    if (command_line.HasSwitch(loader_app::kLoaderAppVersion)) {
       std::string versiong_msg = "Loader app version: ";
       versiong_msg += COBALT_VERSION;
       versiong_msg += "\n";
       SbLogRaw(versiong_msg.c_str());
     }
 
-    bool is_evergreen_lite =
-        command_line.HasSwitch(starboard::loader_app::kEvergreenLite);
+    bool is_evergreen_lite = command_line.HasSwitch(loader_app::kEvergreenLite);
     SB_LOG(INFO) << "is_evergreen_lite=" << is_evergreen_lite;
 
-    if (command_line.HasSwitch(starboard::loader_app::kShowSABI)) {
+    if (command_line.HasSwitch(loader_app::kShowSABI)) {
       std::string sabi = "SABI=";
       sabi += SB_SABI_JSON_ID;
       SbLogRaw(sabi.c_str());
     }
 
     std::string alternative_content =
-        command_line.GetSwitchValue(starboard::loader_app::kContent);
+        command_line.GetSwitchValue(loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
     bool use_compressed_updates =
         !is_evergreen_lite &&
-        !command_line.HasSwitch(starboard::loader_app::kUseUncompressedUpdates);
+        !command_line.HasSwitch(loader_app::kUseUncompressedUpdates);
 
-    bool use_memory_mapped_file = command_line.HasSwitch(
-        starboard::loader_app::kLoaderUseMemoryMappedFile);
+    bool use_memory_mapped_file =
+        command_line.HasSwitch(loader_app::kLoaderUseMemoryMappedFile);
     SB_LOG(INFO) << "use_memory_mapped_file=" << use_memory_mapped_file;
 
     if (use_compressed_updates && use_memory_mapped_file) {
@@ -246,41 +244,39 @@ void SbEventHandle(const SbEvent* event) {
       return;
     }
 
-    if (command_line.HasSwitch(starboard::loader_app::kLoaderTrackMemory)) {
-      std::string period = command_line.GetSwitchValue(
-          starboard::loader_app::kLoaderTrackMemory);
+    if (command_line.HasSwitch(loader_app::kLoaderTrackMemory)) {
+      std::string period =
+          command_line.GetSwitchValue(loader_app::kLoaderTrackMemory);
       if (period.empty()) {
-        static starboard::loader_app::MemoryTrackerThread memory_tracker_thread;
+        static loader_app::MemoryTrackerThread memory_tracker_thread;
         memory_tracker_thread.Start();
       } else {
-        static starboard::loader_app::MemoryTrackerThread memory_tracker_thread(
+        static loader_app::MemoryTrackerThread memory_tracker_thread(
             atoi(period.c_str()));
         memory_tracker_thread.Start();
       }
     }
 
     if (is_evergreen_lite) {
-      starboard::loader_app::RecordSlotSelectionStatus(
-          SlotSelectionStatus::kEGLite);
+      loader_app::RecordSlotSelectionStatus(SlotSelectionStatus::kEGLite);
       LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
     } else {
-      std::string url =
-          command_line.GetSwitchValue(starboard::loader_app::kURL);
+      std::string url = command_line.GetSwitchValue(loader_app::kURL);
       if (url.empty()) {
         url = kCobaltDefaultUrl;
       }
-      std::string app_key = starboard::loader_app::GetAppKey(url);
+      std::string app_key = loader_app::GetAppKey(url);
       SB_CHECK(!app_key.empty());
 
       g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
-          starboard::loader_app::LoadSlotManagedLibrary(
-              app_key, alternative_content, &g_cobalt_library_loader,
-              use_memory_mapped_file));
+          loader_app::LoadSlotManagedLibrary(app_key, alternative_content,
+                                             &g_cobalt_library_loader,
+                                             use_memory_mapped_file));
 
       if (g_sb_event_func == NULL) {
         SB_LOG(ERROR) << "Failed to initialize Installation Manager. Loading "
                          "system image instead.";
-        starboard::loader_app::RecordSlotSelectionStatus(
+        loader_app::RecordSlotSelectionStatus(
             SlotSelectionStatus::kLoadSysImgFailedToInitInstallationManager);
         LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
       }
@@ -294,7 +290,7 @@ void SbEventHandle(const SbEvent* event) {
     g_sb_event_func(event);
   }
 
-  SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
+  SB_CHECK_EQ(pthread_mutex_unlock(&mutex), 0);
 }
 
 int main(int argc, char** argv) {

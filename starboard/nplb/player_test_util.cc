@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -27,14 +28,13 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
 
-using shared::starboard::media::AudioSampleInfo;
-using shared::starboard::media::VideoSampleInfo;
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::AudioSampleInfo;
+using ::starboard::VideoDmpReader;
+using ::starboard::VideoSampleInfo;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -157,7 +157,7 @@ std::string GetSbPlayerTestConfigName(
   const char* video_filename = config.video_filename;
   const SbPlayerOutputMode output_mode = config.output_mode;
   const char* key_system = config.key_system;
-  std::string name(FormatString(
+  std::string name(starboard::FormatString(
       "audio_%s_video_%s_output_%s_key_system_%s",
       audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
       video_filename && strlen(video_filename) > 0 ? video_filename : "null",
@@ -175,7 +175,7 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
   if (config.audio_filename && strlen(config.audio_filename) > 0) {
     VideoDmpReader dmp_reader(config.audio_filename,
                               VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+    SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(), static_cast<size_t>(0));
     if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
                                         config.key_system)) {
       GTEST_SKIP() << "Unsupported audio config.";
@@ -187,7 +187,7 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
   if (config.video_filename && strlen(config.video_filename) > 0) {
     VideoDmpReader dmp_reader(config.video_filename,
                               VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), static_cast<size_t>(0));
     if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
                                         config.key_system)) {
       GTEST_SKIP() << "Unsupported video config.";
@@ -226,7 +226,7 @@ SbPlayer CallSbPlayerCreate(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const shared::starboard::media::AudioStreamInfo* audio_stream_info,
+    const starboard::AudioStreamInfo* audio_stream_info,
     const char* max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
@@ -236,9 +236,9 @@ SbPlayer CallSbPlayerCreate(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* context_provider) {
   if (audio_stream_info) {
-    SB_CHECK(audio_stream_info->codec == audio_codec);
+    SB_CHECK_EQ(audio_stream_info->codec, audio_codec);
   } else {
-    SB_CHECK(audio_codec == kSbMediaAudioCodecNone);
+    SB_CHECK_EQ(audio_codec, kSbMediaAudioCodecNone);
   }
 
   // TODO: pass real audio/video info to SbPlayerGetPreferredOutputMode.
@@ -261,14 +261,14 @@ SbPlayer CallSbPlayerCreate(
 void CallSbPlayerWriteSamples(
     SbPlayer player,
     SbMediaType sample_type,
-    shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
+    starboard::VideoDmpReader* dmp_reader,
     int start_index,
     int number_of_samples_to_write,
     int64_t timestamp_offset,
     const std::vector<int64_t>& discarded_durations_from_front,
     const std::vector<int64_t>& discarded_durations_from_back) {
-  SB_DCHECK(start_index >= 0);
-  SB_DCHECK(number_of_samples_to_write > 0);
+  SB_DCHECK_GE(start_index, 0);
+  SB_DCHECK_GT(number_of_samples_to_write, 0);
 
   if (sample_type == kSbMediaTypeAudio) {
     SB_DCHECK(discarded_durations_from_front.empty() ||
@@ -277,7 +277,7 @@ void CallSbPlayerWriteSamples(
     SB_DCHECK(discarded_durations_from_front.size() ==
               discarded_durations_from_back.size());
   } else {
-    SB_DCHECK(sample_type == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type, kSbMediaTypeVideo);
     SB_DCHECK(discarded_durations_from_front.empty());
     SB_DCHECK(discarded_durations_from_back.empty());
   }
@@ -402,4 +402,3 @@ bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

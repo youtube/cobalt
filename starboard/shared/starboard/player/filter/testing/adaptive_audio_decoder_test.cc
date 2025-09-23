@@ -24,6 +24,7 @@
 #include <queue>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -38,7 +39,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using std::deque;
@@ -47,19 +48,8 @@ using std::vector;
 using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
-
-scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
-                                               size_t index) {
-  SB_DCHECK(dmp_reader);
-
-  auto player_sample_info =
-      dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-  return new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
-                         player_sample_info);
-}
 
 class AdaptiveAudioDecoderTest
     : public ::testing::TestWithParam<std::tuple<vector<const char*>, bool>> {
@@ -318,7 +308,7 @@ TEST_P(AdaptiveAudioDecoderTest, SingleInput) {
     int64_t input_timestamp = input_buffer->timestamp();
     buffer_index += kBuffersToWrite;
     // Use next buffer here, need to make sure dmp file has enough buffers.
-    SB_DCHECK(dmp_reader->number_of_audio_buffers() > buffer_index);
+    SB_DCHECK_GT(dmp_reader->number_of_audio_buffers(), buffer_index);
     auto next_input_buffer =
         GetAudioInputBuffer(dmp_reader.get(), buffer_index);
     int64_t next_timestamp = next_input_buffer->timestamp();
@@ -352,7 +342,7 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
     int64_t input_timestamp = input_buffer->timestamp();
     buffer_index += kBuffersToWrite;
     // Use next buffer here, need to make sure dmp file has enough buffers.
-    SB_DCHECK(dmp_reader->number_of_audio_buffers() > buffer_index);
+    SB_DCHECK_GT(dmp_reader->number_of_audio_buffers(), buffer_index);
     auto next_input_buffer =
         GetAudioInputBuffer(dmp_reader.get(), buffer_index);
     int64_t next_timestamp = next_input_buffer->timestamp();
@@ -413,4 +403,4 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

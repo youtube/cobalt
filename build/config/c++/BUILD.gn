@@ -74,7 +74,6 @@ config("runtime_library") {
       # before the general musl include directory to prefer Starboard-specific
       # posix headers over default posix headers.
       cflags_cc += [
-        "-isystem" + rebase_path("//cobalt/platform/includes", root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
                                  root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
@@ -90,14 +89,6 @@ config("runtime_library") {
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
         "-femulated-tls",
       ]
-      if (enable_cobalt_hermetic_hacks) {
-        cflags_cc += [ "-isystem" +
-                       rebase_path("//third_party/musl/src/starboard/hacks",
-                                   root_build_dir) ]
-        cflags_c +=
-            [ "-isystem" + rebase_path("//third_party/musl/src/starboard/hacks",
-                                       root_build_dir) ]
-      }
     }
 
     cflags_objcc = cflags_cc

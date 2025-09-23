@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// close is partially tested in posix_file_open_test.cc.
+/*
+  The following close() error conditions are not tested due to the difficulty of
+  reliably triggering them in a portable unit testing environment:
 
-#include <unistd.h>
+  - [EINTR]: Interruption by a signal, which is racy and hard to test.
+  - [EINPROGRESS]: Asynchronous close continuation after signal interruption.
+  - [EIO]: A low-level I/O error occurred on the filesystem.
+*/
 
+#include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -38,6 +43,32 @@ TEST(PosixFileCloseTest, CloseInvalidFails) {
                           << " (" << strerror(errno) << ").";
 }
 
+TEST(PosixFileCloseTest, SuccessOnValidFileDescriptor) {
+  ScopedRandomFile random_file;
+  int fd = open(random_file.filename().c_str(), O_RDONLY);
+  ASSERT_NE(fd, -1);
+
+  int result = close(fd);
+  EXPECT_EQ(result, 0) << "close() failed on a valid file descriptor: "
+                       << strerror(errno);
+}
+
+TEST(PosixFileCloseTest, DoubleCloseFails) {
+  ScopedRandomFile random_file;
+  int fd = open(random_file.filename().c_str(), O_RDONLY);
+  ASSERT_NE(fd, -1);
+
+  // First close should succeed.
+  int result = close(fd);
+  ASSERT_EQ(result, 0) << "close failed on a valid file descriptor : "
+                       << strerror(errno);
+
+  // Second close on the same fd should fail.
+  errno = 0;
+  result = close(fd);
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(errno, EBADF);
+}
+
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

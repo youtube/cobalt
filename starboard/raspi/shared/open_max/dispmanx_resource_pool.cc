@@ -14,12 +14,10 @@
 
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 DispmanxResourcePool::DispmanxResourcePool(size_t max_number_of_resources)
     : max_number_of_resources_(max_number_of_resources),
@@ -84,14 +82,11 @@ void DispmanxResourcePool::Free(DispmanxYUV420Resource* resource) {
 void DispmanxResourcePool::DisposeDispmanxYUV420Resource(
     void* context,
     void* dispmanx_resource) {
-  SB_DCHECK(context != NULL);
-  SB_DCHECK(dispmanx_resource != NULL);
+  SB_DCHECK(context);
+  SB_DCHECK(dispmanx_resource);
   DispmanxResourcePool* pool = reinterpret_cast<DispmanxResourcePool*>(context);
   pool->Free(reinterpret_cast<DispmanxYUV420Resource*>(dispmanx_resource));
   pool->Release();
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

@@ -16,6 +16,7 @@
 #include <tuple>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
@@ -25,11 +26,10 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -37,7 +37,8 @@ typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
-  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
+  starboard::testing::FakeGraphicsContextProvider
+      fake_graphics_context_provider_;
 };
 
 void CheckVerticalResolutionSupport(const char* mime) {
@@ -60,7 +61,8 @@ std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
   for (auto video_filename : kVideoFilenames) {
     VideoDmpReader video_dmp_reader(video_filename,
                                     VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(video_dmp_reader.number_of_video_buffers() > 0);
+    SB_DCHECK_GT(video_dmp_reader.number_of_video_buffers(),
+                 static_cast<size_t>(0));
     if (SbMediaCanPlayMimeAndKeySystem(
             video_dmp_reader.video_mime_type().c_str(), "")) {
       video_files.push_back(video_filename);
@@ -163,4 +165,3 @@ INSTANTIATE_TEST_SUITE_P(VerticalVideoTests,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -18,21 +18,21 @@
 #include <functional>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
-typedef std::function<void(SbPlayerError error,
-                           const std::string& error_message)>
-    ErrorCB;
-typedef std::function<void()> PrerolledCB;
-typedef std::function<void()> EndedCB;
+using ErrorCB =
+    std::function<void(SbPlayerError error, const std::string& error_message)>;
+using PrerolledCB = std::function<void()>;
+using EndedCB = std::function<void()>;
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define SB_PLAYER_FILTER_ENABLE_STATE_CHECK 1
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_COMMON_H_

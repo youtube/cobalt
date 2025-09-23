@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
 #include "starboard/extension/enhanced_audio.h"
@@ -27,7 +28,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
@@ -47,18 +48,18 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const std::vector<uint8_t>& side_data() const { return side_data_; }
 
   int64_t timestamp() const { return timestamp_; }
-  const media::AudioSampleInfo& audio_sample_info() const {
-    SB_DCHECK(sample_type_ == kSbMediaTypeAudio);
+  const AudioSampleInfo& audio_sample_info() const {
+    SB_DCHECK_EQ(sample_type_, kSbMediaTypeAudio);
     return audio_sample_info_;
   }
-  const media::VideoSampleInfo& video_sample_info() const {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+  const VideoSampleInfo& video_sample_info() const {
+    SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
     return video_sample_info_;
   }
-  const media::AudioStreamInfo& audio_stream_info() const {
+  const AudioStreamInfo& audio_stream_info() const {
     return audio_sample_info().stream_info;
   }
-  const media::VideoStreamInfo& video_stream_info() const {
+  const VideoStreamInfo& video_stream_info() const {
     return video_sample_info().stream_info;
   }
 
@@ -83,8 +84,8 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   std::vector<uint8_t> side_data_;
   int64_t timestamp_;  // microseconds
 
-  media::AudioSampleInfo audio_sample_info_;
-  media::VideoSampleInfo video_sample_info_;
+  AudioSampleInfo audio_sample_info_;
+  VideoSampleInfo video_sample_info_;
 
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
@@ -95,7 +96,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   void operator=(const InputBuffer&) = delete;
 };
 
-typedef std::vector<scoped_refptr<InputBuffer>> InputBuffers;
+using InputBuffers = std::vector<scoped_refptr<InputBuffer>>;
 
 template <typename SampleInfo>
 InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
@@ -114,14 +115,14 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
   if (sample_type_ == kSbMediaTypeAudio) {
     audio_sample_info_ = sample_info.audio_sample_info;
   } else {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
     video_sample_info_ = sample_info.video_sample_info;
   }
   TryToAssignDrmSampleInfo(sample_info.drm_info);
   if (sample_info.side_data_count > 0) {
-    SB_DCHECK(sample_info.side_data_count == 1);
+    SB_DCHECK_EQ(sample_info.side_data_count, 1);
     SB_DCHECK(sample_info.side_data);
-    SB_DCHECK(sample_info.side_data->type == kMatroskaBlockAdditional);
+    SB_DCHECK_EQ(sample_info.side_data->type, kMatroskaBlockAdditional);
     SB_DCHECK(sample_info.side_data->data);
     // Make a copy anyway as it is possible to release |data_| earlier in
     // SetDecryptedContent().
@@ -131,6 +132,6 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_

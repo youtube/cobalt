@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -26,11 +27,10 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -95,21 +95,23 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     return;
   }
 
-  pthread_create(&audio_out_thread_, nullptr,
-                 &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
+  pthread_t thread;
+  const int result = pthread_create(
+      &thread, nullptr, &ContinuousAudioTrackSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
+  audio_out_thread_ = thread;
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
-  if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+  if (audio_out_thread_) {
+    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
   }
 }
 
 void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(playback_rate >= 0.0);
+  SB_DCHECK_GE(playback_rate, 0.0);
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
                            "currently supported.";
@@ -134,8 +136,7 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
-  // TODO(b/418059619): consolidate JniEnvExt and JNIEnv
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
@@ -144,11 +145,10 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
-  JNIEnv* env_jni = AttachCurrentThread();
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env_jni)) {
+    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
       ReportError(true, "Audio device capability changed");
@@ -158,7 +158,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+      SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -184,7 +184,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {
-        SB_DCHECK(frames_consumed >= 0);
+        SB_DCHECK_GE(frames_consumed, 0);
         consume_frames_func_(frames_consumed, frames_consumed_at, context_);
         frames_in_audio_track -= frames_consumed;
       }
@@ -252,7 +252,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       usleep(10'000);
       continue;
     }
-    SB_DCHECK(expected_written_frames > 0);
+    SB_DCHECK_GT(expected_written_frames, 0);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
@@ -300,7 +300,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   bridge_.PauseAndFlush();
 }
 
-int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
+int ContinuousAudioTrackSink::WriteData(JNIEnv* env,
                                         const void* buffer,
                                         int expected_written_frames) {
   const int samples_to_write = expected_written_frames * channels_;
@@ -347,4 +347,4 @@ int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
   return bridge_.GetStartThresholdInFrames();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

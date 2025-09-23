@@ -15,13 +15,14 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <condition_variable>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <utility>
 
-#include "starboard/common/condition_variable.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
@@ -35,7 +36,7 @@
 // while.
 // #define ENABLE_JOB_QUEUE_PROFILING 1
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class implements a job queue where jobs can be posted to it on any
 // thread and will be processed on one thread that this job queue is linked to.
@@ -93,7 +94,7 @@ class JobQueue {
     enum DetachedState { kDetached };
 
     explicit JobOwner(DetachedState detached_state) : job_queue_(nullptr) {
-      SB_DCHECK(detached_state == kDetached);
+      SB_DCHECK_EQ(detached_state, kDetached);
     }
 
     // Allow |JobOwner| created on another thread to run on the current thread
@@ -101,7 +102,7 @@ class JobQueue {
     // Note that this operation is not thread safe.  It is the caller's
     // responsibility to ensure that concurrency hasn't happened yet.
     void AttachToCurrentThread() {
-      SB_DCHECK(job_queue_ == nullptr);
+      SB_DCHECK_EQ(job_queue_, nullptr);
       job_queue_ = JobQueue::current();
     }
 
@@ -110,7 +111,7 @@ class JobQueue {
     // accesses job_queue_. To avoid making calls on a destroyed object
     // job_queue_ must be detached before the subclass is destroyed.
     void DetachFromCurrentThread() {
-      SB_DCHECK(job_queue_ != nullptr);
+      SB_DCHECK(job_queue_);
       SB_DCHECK(BelongsToCurrentThread());
       CancelPendingJobs();
       job_queue_ = nullptr;
@@ -169,8 +170,8 @@ class JobQueue {
   bool TryToRunOneJob(bool wait_for_next_job);
 
   const SbThreadId thread_id_;
-  Mutex mutex_;
-  ConditionVariable condition_;
+  std::mutex mutex_;
+  std::condition_variable condition_;
   int64_t current_job_token_ = JobToken::kInvalidToken + 1;
   TimeToJobRecordMap time_to_job_record_map_;
   bool stopped_ = false;
@@ -184,6 +185,6 @@ class JobQueue {
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 };
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_

@@ -38,6 +38,9 @@ enum class ErrorCategory {
 // the Chrome net stack.
 enum class CrxDownloaderError {
   NONE = 0,
+#if BUILDFLAG(IS_STARBOARD)
+  SLOT_UNAVAILABLE = 9,
+#endif
   NO_URL = 10,
   NO_HASH = 11,
   BAD_HASH = 12,  // The downloaded file fails the hash verification.
@@ -106,6 +109,18 @@ enum class ServiceError {
   // update response indicating an update is available, and updates are enabled.
   CHECK_FOR_UPDATE_ONLY = 4,
 };
+
+// These errors are returned with the |kUpdateCheck| error category and indicate
+// an error during an update check.
+#if BUILDFLAG(IS_STARBOARD)
+enum class UpdateCheckError {
+  NONE = 0,
+  // Using 21 that doesn't conflict with the exsiting error codes and stays away
+  // from the other codes below 20.
+  QUICK_ROLL_FORWARD = 21,
+  OUT_OF_SPACE = 22,
+};
+#endif
 
 // These errors are related to serialization, deserialization, and parsing of
 // protocol requests.

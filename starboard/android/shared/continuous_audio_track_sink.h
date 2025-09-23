@@ -20,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include "starboard/android/shared/audio_track_bridge.h"
@@ -31,7 +32,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class ContinuousAudioTrackSink
     : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
@@ -64,7 +65,7 @@ class ContinuousAudioTrackSink
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
+  int WriteData(JNIEnv* env, const void* buffer, int size);
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
@@ -85,12 +86,12 @@ class ContinuousAudioTrackSink
   AudioTrackBridge bridge_;
 
   volatile bool quit_ = false;
-  pthread_t audio_out_thread_ = 0;
+  std::optional<pthread_t> audio_out_thread_;
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_

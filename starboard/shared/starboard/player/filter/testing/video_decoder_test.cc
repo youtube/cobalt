@@ -21,8 +21,6 @@
 #include <memory>
 #include <set>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -39,7 +37,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
@@ -509,4 +507,4 @@ INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

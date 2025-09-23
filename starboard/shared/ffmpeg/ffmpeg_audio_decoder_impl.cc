@@ -20,12 +20,13 @@
 #include <string>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 namespace {
 
@@ -36,8 +37,7 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
-AVCodecID GetFfmpegCodecIdByMediaCodec(
-    starboard::media::AudioStreamInfo stream_info) {
+AVCodecID GetFfmpegCodecIdByMediaCodec(const AudioStreamInfo& stream_info) {
   SbMediaAudioCodec audio_codec = stream_info.codec;
 
   switch (audio_codec) {
@@ -84,7 +84,7 @@ const bool g_registered =
 
 }  // namespace
 
-AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
+FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
     const AudioStreamInfo& audio_stream_info)
     : codec_context_(NULL),
       av_frame_(NULL),
@@ -101,18 +101,18 @@ AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
   }
 }
 
-AudioDecoderImpl<FFMPEG>::~AudioDecoderImpl() {
+FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
   TeardownCodec();
 }
 
 // static
-AudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
+FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
     const AudioStreamInfo& audio_stream_info) {
-  return new AudioDecoderImpl<FFMPEG>(audio_stream_info);
+  return new FfmpegAudioDecoderImpl<FFMPEG>(audio_stream_info);
 }
 
-void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
-                                          const ErrorCB& error_cb) {
+void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
+                                                const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
@@ -123,13 +123,13 @@ void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
-                                      const ConsumedCB& consumed_cb) {
+void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
+                                            const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
-  SB_CHECK(codec_context_ != NULL);
+  SB_CHECK(codec_context_);
 
   Schedule(consumed_cb);
 
@@ -171,7 +171,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
 
     if (frame_decoded != 1) {
       // TODO: Adjust timestamp accordingly when decoding result is shifted.
-      SB_DCHECK(frame_decoded == 0);
+      SB_DCHECK_EQ(frame_decoded, 0);
       SB_DLOG(WARNING) << "avcodec_decode_audio4()/avcodec_receive_frame() "
                           "returns with 0 frames decoded";
       return;
@@ -214,7 +214,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   }
 }
 
-void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
+void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     const InputBuffer& input_buffer,
     const AVFrame& av_frame) {
 #if LIBAVCODEC_VERSION_MAJOR >= 61
@@ -235,13 +235,12 @@ void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       channel_count, GetSampleType(), GetStorageType(),
       input_buffer.timestamp(),
-      channel_count * av_frame.nb_samples *
-          starboard::media::GetBytesPerSample(GetSampleType()));
+      channel_count * av_frame.nb_samples * GetBytesPerSample(GetSampleType()));
   if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
     memcpy(decoded_audio->data(), *av_frame.extended_data,
            decoded_audio->size_in_bytes());
   } else {
-    SB_DCHECK(GetStorageType() == kSbMediaAudioFrameStorageTypePlanar);
+    SB_DCHECK_EQ(GetStorageType(), kSbMediaAudioFrameStorageTypePlanar);
     const int per_channel_size_in_bytes =
         decoded_audio->size_in_bytes() / decoded_audio->channels();
     for (int i = 0; i < decoded_audio->channels(); ++i) {
@@ -259,7 +258,7 @@ void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   Schedule(output_cb_);
 }
 
-void AudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
+void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
@@ -272,8 +271,8 @@ void AudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-scoped_refptr<AudioDecoderImpl<FFMPEG>::DecodedAudio>
-AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
+scoped_refptr<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -287,7 +286,7 @@ AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
   return result;
 }
 
-void AudioDecoderImpl<FFMPEG>::Reset() {
+void FfmpegAudioDecoderImpl<FFMPEG>::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   TeardownCodec();
@@ -303,11 +302,11 @@ void AudioDecoderImpl<FFMPEG>::Reset() {
   CancelPendingJobs();
 }
 
-bool AudioDecoderImpl<FFMPEG>::is_valid() const {
+bool FfmpegAudioDecoderImpl<FFMPEG>::is_valid() const {
   return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
 }
 
-SbMediaAudioSampleType AudioDecoderImpl<FFMPEG>::GetSampleType() const {
+SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
@@ -323,7 +322,8 @@ SbMediaAudioSampleType AudioDecoderImpl<FFMPEG>::GetSampleType() const {
   return kSbMediaAudioSampleTypeFloat32;
 }
 
-SbMediaAudioFrameStorageType AudioDecoderImpl<FFMPEG>::GetStorageType() const {
+SbMediaAudioFrameStorageType FfmpegAudioDecoderImpl<FFMPEG>::GetStorageType()
+    const {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
@@ -339,7 +339,7 @@ SbMediaAudioFrameStorageType AudioDecoderImpl<FFMPEG>::GetStorageType() const {
   return kSbMediaAudioFrameStorageTypeInterleaved;
 }
 
-void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
+void FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_ = ffmpeg_->avcodec_alloc_context3(NULL);
 
   if (codec_context_ == NULL) {
@@ -413,7 +413,7 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   }
 }
 
-void AudioDecoderImpl<FFMPEG>::TeardownCodec() {
+void FfmpegAudioDecoderImpl<FFMPEG>::TeardownCodec() {
   if (codec_context_) {
     ffmpeg_->CloseCodec(codec_context_);
     ffmpeg_->FreeContext(&codec_context_);
@@ -421,4 +421,4 @@ void AudioDecoderImpl<FFMPEG>::TeardownCodec() {
   ffmpeg_->FreeFrame(&av_frame_);
 }
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard

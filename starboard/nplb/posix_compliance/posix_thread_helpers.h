@@ -23,9 +23,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
-namespace posix {
 
 class TestSemaphore {
  public:
@@ -183,7 +181,11 @@ class AbstractTestThread {
 
  private:
   static void* ThreadEntryPoint(void* ptr) {
+#if defined(__APPLE__)
+    pthread_setname_np("AbstractTestThread");
+#else
     pthread_setname_np(pthread_self(), "AbstractTestThread");
+#endif
     AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
     this_ptr->Run();
     return NULL;
@@ -195,8 +197,6 @@ class AbstractTestThread {
   void operator=(const AbstractTestThread&) = delete;
 };
 
-}  // namespace posix
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_THREAD_HELPERS_H_

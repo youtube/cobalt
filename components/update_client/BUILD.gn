@@ -176,6 +176,19 @@ static_library("update_client") {
     "//url",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "cobalt_slot_management.cc",
+      "cobalt_slot_management.h",
+    ]
+
+    deps += [
+      "//starboard:starboard_headers_only",
+      "//starboard/loader_app:app_key_files",
+      "//starboard/loader_app:drain_file",
+    ]
+  }
+
   if (is_win) {
     sources += [
       "background_downloader_win.cc",

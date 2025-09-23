@@ -1,0 +1,31 @@
+{
+  "failing_tests": [
+    "CrashpadConfigTest.VerifyUploadCert",
+    "MadviseTest.BadSizeValue",
+    "MaximumPlayerConfigurationExplorerTests*",
+    "MultiplePlayerTest.*",
+    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+    "SbAudioSinkTest.*",
+    "SbAudioSinkCreateTest.MultiSink",
+    "SbMediaSetAudioWriteDurationTests*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
+    "SbPlayerTest.*",
+    "SbPlayerGetAudioConfigurationTests*",
+    "SbPlayerGetMediaTimeTests*",
+    "SbPlayerWriteSampleTests*",
+    "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
+    "PosixUtimensatTest.SetToSpecificTime",
+    "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
+    "PosixUtimensatTest.OmitBothTimestamps",
+    "PosixUtimensatTest.SymlinkNoFollow",
+    "SbSystemGetLocaleIdTest.SunnyDay",
+    "SbSystemGetPropertyTest.ReturnsRequired",
+    "SbSystemGetStackTest.SunnyDayStackDirection",
+    "SbSystemGetStackTest.SunnyDay",
+    "SbSystemGetStackTest.SunnyDayShortStack",
+    "SbSystemSymbolizeTest.SunnyDay",
+    "SbTimeZoneGetNameTest.IsIANAFormat",
+    "SbWindowGetSizeTest.SunnyDay"
+  ]
+}

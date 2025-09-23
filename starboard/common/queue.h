@@ -28,7 +28,7 @@
 
 namespace starboard {
 
-// Synchronized, blocking queue, based on starboard::ConditionVariable. This
+// Synchronized, blocking queue, based on std::condition_variable. This
 // class is designed for T to be a pointer type, or something otherwise
 // inherently Nullable, as there is no way to distinguish T() from "no result".
 // Note: The class allows its user to block and wait for a new item.

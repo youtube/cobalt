@@ -27,7 +27,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -66,16 +65,6 @@ void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
       ASSERT_EQ('\xCD', ch) << "Context : id=" << id << ", line=" << line;
     }
   }
-}
-
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
-bool DirectoryExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
@@ -219,10 +208,9 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   result = stat(path.data(), &executable_file_info);
   ASSERT_EQ(0, result);
 
-  int64_t now_usec = CurrentPosixTime();
+  int64_t now_usec = starboard::CurrentPosixTime();
   EXPECT_GT(now_usec, ToMicroseconds(executable_file_info.st_ctim));
 }
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

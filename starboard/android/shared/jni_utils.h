@@ -17,11 +17,11 @@
 
 #include <jni.h>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "base/android/jni_android.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Wrapper class to manage the lifetime of a local reference to Java type
 // |JT|. This is necessary for local references to |JT|s that are obtained in
@@ -34,14 +34,18 @@ class ScopedLocalJavaRef {
       : jt_(static_cast<JT>(j_object)) {}
   ~ScopedLocalJavaRef() {
     if (jt_) {
-      JniEnvExt::Get()->DeleteLocalRef(jt_);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      SB_CHECK(env);
+      env->DeleteLocalRef(jt_);
       jt_ = NULL;
     }
   }
   JT Get() const { return jt_; }
   void Reset(jobject j_object) {
     if (jt_) {
-      JniEnvExt::Get()->DeleteLocalRef(jt_);
+      JNIEnv* env = base::android::AttachCurrentThread();
+      SB_CHECK(env);
+      env->DeleteLocalRef(jt_);
     }
     jt_ = static_cast<JT>(j_object);
   }
@@ -54,6 +58,6 @@ class ScopedLocalJavaRef {
   void operator=(const ScopedLocalJavaRef&) = delete;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_JNI_UTILS_H_

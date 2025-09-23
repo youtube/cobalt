@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -24,7 +25,7 @@
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -353,7 +354,7 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
+  SB_DCHECK_NE(video_codec, kSbMediaVideoCodecNone);
   // TODO: Consider to consolidate the two IsSDRVideo() implementations by
   //       calling IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id).
   return bit_depth == 8;
@@ -434,4 +435,4 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

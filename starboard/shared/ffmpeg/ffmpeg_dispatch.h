@@ -18,7 +18,6 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_
 
-#include "starboard/common/mutex.h"
 #include "starboard/types.h"
 
 struct AVCodec;
@@ -28,7 +27,7 @@ struct AVDictionary;
 struct AVFrame;
 struct AVPacket;
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 inline constexpr int AvVersionInt(int major, int minor, int micro) {
   return (major << 16) | (minor << 8) | micro;
@@ -147,6 +146,6 @@ class FFMPEGDispatch {
   void FreeContext(AVCodecContext** avctx);
 };
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_

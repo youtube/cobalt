@@ -27,10 +27,6 @@ angle_enable_swiftshader = false
 # From gpu/vulkan/features.gni
 enable_swiftshader_vulkan = false
 
-# Overriding flag from //media/media_options.gni.
-# Cobalt doesn't use //third_party/ffmpeg.
-media_use_ffmpeg = false
-
 # Overriding flag from components/nacl/features.gni
 # NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
 enable_nacl = false
@@ -68,9 +64,9 @@ use_kerberos = false
 # We know we can trust clients to use https.
 include_transport_security_state_preload_list = false
 
-# Force the chrome root store for linux/3P platforms.
+# Disable the chrome root store for linux/3P platforms.
 chrome_root_store_optional = false
-chrome_root_store_only = true
+chrome_root_store_only = false
 trial_comparison_cert_verifier_supported = false
 
 # Disable linux audio APIs
@@ -111,3 +107,6 @@ enable_ppapi = false
 
 # Disable D-Bus
 use_dbus = false
+
+# Embed ICU data in the cobalt binary
+icu_use_data_file = false

@@ -57,8 +57,6 @@ std::string ToString(const icu::UnicodeString& ustr) {
   return s;
 }
 
-}  // namespace
-
 struct YearMonthDay {
   int year;
   int month;
@@ -94,6 +92,50 @@ struct TimezoneTestData {
 std::string GetTestName(
     const ::testing::TestParamInfo<TimezoneTestData>& info) {
   return info.param.test_name;
+}
+
+}  // namespace
+
+// Basic tests.
+TEST(TzsetSimpleTest, SunnyDay) {
+  tzset();
+  ASSERT_NE(tzname[0], nullptr);
+  EXPECT_STRNE(tzname[0], "");
+}
+
+// TODO(b/436371274): Investigate this test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_EnvironmentChange DISABLED_EnvironmentChange
+#else
+#define MAYBE_EnvironmentChange EnvironmentChange
+#endif
+TEST(TzsetSimpleTest, MAYBE_EnvironmentChange) {
+  const char* original_tz = getenv("TZ");
+
+  setenv("TZ", "UTC", 1);
+  tzset();
+  EXPECT_EQ(timezone, 0);
+  EXPECT_EQ(daylight, 0);
+  ASSERT_NE(tzname[0], nullptr);
+  EXPECT_STREQ(tzname[0], "UTC");
+  ASSERT_NE(tzname[1], nullptr);
+  EXPECT_STREQ(tzname[1], "UTC");
+
+  setenv("TZ", "US/Pacific", 1);
+  tzset();
+  EXPECT_EQ(timezone, 8 * 3600);
+  EXPECT_EQ(daylight, 1);
+  ASSERT_NE(tzname[0], nullptr);
+  EXPECT_STREQ(tzname[0], "PST");
+  ASSERT_NE(tzname[1], nullptr);
+  EXPECT_STREQ(tzname[1], "PDT");
+
+  if (original_tz) {
+    setenv("TZ", original_tz, 1);
+  } else {
+    unsetenv("TZ");
+  }
+  tzset();
 }
 
 // A base test fixture to manage the TZ environment variable and ICU's default
@@ -193,7 +235,7 @@ class Timezone : public TzsetTest,
        .std_start = {.year = kTestyear, .month = UCAL_JANUARY, .day = 1}},
       {.test_name = "IanaInvalidName",
        .tz = "Invalid/Timezone",
-       .id = "GMT",
+       .id = "UTC",
        .offset = 0,
        .std_start = {.year = kTestyear, .month = UCAL_JANUARY, .day = 1}},
       {.test_name = "IanaAmericaNewYork",

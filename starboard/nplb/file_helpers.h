@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-namespace starboard {
 namespace nplb {
 
 constexpr mode_t kUserRwx = S_IRUSR | S_IWUSR | S_IXUSR;
@@ -42,8 +41,11 @@ std::vector<std::string> GetFileTestsDirectoryPaths();
 // Gets the expected content in a static data test file.
 std::string GetTestFileExpectedContent(const std::string& path);
 
-// Removes directory and all of its contents.
-void RemoveDirectoryRecursively(const std::string& path);
+bool RemoveFileOrDirectoryRecursively(const std::string& path);
+
+bool FileExists(const char* path);
+
+bool DirectoryExists(const char* path);
 
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.
@@ -115,6 +117,5 @@ class ScopedRandomFile {
 };
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_FILE_HELPERS_H_

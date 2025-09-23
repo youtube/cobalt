@@ -16,13 +16,11 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 OpenMaxEglRenderComponent::OpenMaxEglRenderComponent()
     : OpenMaxComponent("OMX.broadcom.egl_render"),
@@ -52,17 +50,14 @@ OMX_BUFFERHEADERTYPE* OpenMaxEglRenderComponent::AllocateBuffer(int port,
                                                                 OMX_U32 size) {
   if (port == output_port_) {
     OMX_BUFFERHEADERTYPE* buffer;
-    SB_DCHECK(output_image_ != EGL_NO_IMAGE_KHR);
+    SB_DCHECK_NE(output_image_, EGL_NO_IMAGE_KHR);
     OMX_ERRORTYPE error =
         OMX_UseEGLImage(handle_, &buffer, port, NULL, output_image_);
-    SB_DCHECK(error == OMX_ErrorNone);
+    SB_DCHECK_EQ(error, OMX_ErrorNone);
     return buffer;
   } else {
     return OpenMaxComponent::AllocateBuffer(port, index, size);
   }
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

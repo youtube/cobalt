@@ -15,15 +15,18 @@
 #include "starboard/nplb/audio_sink_helpers.h"
 
 #include <algorithm>
+#include <chrono>
+#include <mutex>
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
+
+constexpr int64_t kTimeToTry = 1'000'000;  // 1 second
 
 SbMediaAudioSampleType GetAnySupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(
@@ -95,7 +98,7 @@ void AudioSinkTestFrameBuffers::Init() {
 
 AudioSinkTestEnvironment::AudioSinkTestEnvironment(
     const AudioSinkTestFrameBuffers& frame_buffers)
-    : frame_buffers_(frame_buffers), condition_variable_(mutex_) {
+    : frame_buffers_(frame_buffers) {
   sink_ = SbAudioSinkCreate(
       frame_buffers_.channels(), sample_rate(), frame_buffers_.sample_type(),
       frame_buffers_.storage_type(), frame_buffers_.frame_buffers(),
@@ -108,61 +111,50 @@ AudioSinkTestEnvironment::~AudioSinkTestEnvironment() {
 }
 
 void AudioSinkTestEnvironment::SetIsPlaying(bool is_playing) {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   is_playing_ = is_playing;
 }
 
 void AudioSinkTestEnvironment::AppendFrame(int frames_to_append) {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   AppendFrame_Locked(frames_to_append);
 }
 
 int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames() const {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   return GetFrameBufferFreeSpaceInFrames_Locked();
 }
 
 bool AudioSinkTestEnvironment::WaitUntilUpdateStatusCalled() {
-  ScopedLock lock(mutex_);
+  std::unique_lock lock(mutex_);
   int update_source_status_call_count = update_source_status_call_count_;
-  int64_t start = CurrentMonotonicTime();
-  while (update_source_status_call_count == update_source_status_call_count_) {
-    int64_t time_elapsed = CurrentMonotonicTime() - start;
-    if (time_elapsed >= kTimeToTry) {
-      return false;
-    }
-    int64_t time_to_wait = kTimeToTry - time_elapsed;
-    condition_variable_.WaitTimed(time_to_wait);
-  }
-  return true;
+  return condition_variable_.wait_for(
+      lock, std::chrono::microseconds(kTimeToTry),
+      [this, update_source_status_call_count] {
+        return update_source_status_call_count_ !=
+               update_source_status_call_count;
+      });
 }
 
 bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
-  ScopedLock lock(mutex_);
+  std::unique_lock lock(mutex_);
   int frames_consumed = frames_consumed_;
-  int64_t start = CurrentMonotonicTime();
-  while (frames_consumed == frames_consumed_) {
-    int64_t time_elapsed = CurrentMonotonicTime() - start;
-    if (time_elapsed >= kTimeToTry) {
-      return false;
-    }
-    int64_t time_to_wait = kTimeToTry - time_elapsed;
-    condition_variable_.WaitTimed(time_to_wait);
-  }
-  return true;
+  return condition_variable_.wait_for(
+      lock, std::chrono::microseconds(kTimeToTry),
+      [this, frames_consumed] { return frames_consumed_ != frames_consumed; });
 }
 
 bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
   const int kMaximumFramesPerAppend = 1024;
 
-  ScopedLock lock(mutex_);
+  std::unique_lock lock(mutex_);
   is_eos_reached_ = true;
   int frames_appended_before_eos = frames_appended_;
-  int64_t start = CurrentMonotonicTime();
+  int64_t start = starboard::CurrentMonotonicTime();
   int silence_frames_appended = 0;
 
   while (frames_consumed_ < frames_appended_before_eos) {
-    int64_t time_elapsed = CurrentMonotonicTime() - start;
+    int64_t time_elapsed = starboard::CurrentMonotonicTime() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
     }
@@ -177,7 +169,7 @@ bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
     AppendFrame_Locked(silence_frames_to_append);
     silence_frames_appended += silence_frames_to_append;
 
-    condition_variable_.WaitTimed(time_to_wait);
+    condition_variable_.wait_for(lock, std::chrono::microseconds(time_to_wait));
   }
   return true;
 }
@@ -195,19 +187,19 @@ void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,
                                                     int* offset_in_frames,
                                                     bool* is_playing,
                                                     bool* is_eos_reached) {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   *frames_in_buffer = frames_appended_ - frames_consumed_;
   *offset_in_frames = frames_consumed_ % frame_buffers_.frames_per_channel();
   *is_playing = is_playing_;
   *is_eos_reached = is_eos_reached_;
   ++update_source_status_call_count_;
-  condition_variable_.Signal();
+  condition_variable_.notify_one();
 }
 
 void AudioSinkTestEnvironment::OnConsumeFrames(int frames_consumed) {
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   frames_consumed_ += frames_consumed;
-  condition_variable_.Signal();
+  condition_variable_.notify_one();
 }
 
 // static
@@ -231,4 +223,3 @@ void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
 }
 
 }  // namespace nplb
-}  // namespace starboard

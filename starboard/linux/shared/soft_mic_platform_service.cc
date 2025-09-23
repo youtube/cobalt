@@ -17,15 +17,14 @@
 #include <memory>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace shared {
 
 namespace {
 typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
@@ -99,9 +98,7 @@ void* Send(PlatformServiceImpl* service,
     auto mic_gesture_hold = false;
     auto mic_gesture_tap = false;
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-    using shared::starboard::Application;
-
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     // Check for explicit true or false switch value for kHasHardMicSupport,
     // kHasSoftMicSupport, kMicGestureHold, and kMicGestureTap optional target
     // params. Use default values if none are set.
@@ -126,7 +123,7 @@ void* Send(PlatformServiceImpl* service,
     auto mic_gesture_switch_value = command_line->GetSwitchValue(kMicGesture);
     mic_gesture_hold = mic_gesture_switch_value == "hold";
     mic_gesture_tap = mic_gesture_switch_value == "tap";
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     auto mic_gesture = "null";
     if (mic_gesture_hold) {
@@ -186,5 +183,4 @@ const void* GetSoftMicPlatformServiceApi() {
   return &kSoftMicPlatformServiceApi;
 }
 
-}  // namespace shared
 }  // namespace starboard

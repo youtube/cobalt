@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -26,14 +27,12 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
-using ::starboard::shared::starboard::media::MimeType;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
-using video_dmp::VideoDmpReader;
 
 }  // namespace
 
@@ -43,7 +42,7 @@ void StubDeallocateSampleFunc(SbPlayer player,
 
 std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
                                          const char* mime_attributes) {
-  SB_DCHECK(audio_codec != kSbMediaAudioCodecNone);
+  SB_DCHECK_NE(audio_codec, kSbMediaAudioCodecNone);
 
   std::string content_type;
   switch (audio_codec) {
@@ -114,7 +113,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     audio_file_info_cache.reserve(SB_ARRAY_SIZE_INT(kFilenames));
     for (auto filename : kFilenames) {
       VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
-      SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+      SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(), 0);
 
       audio_file_info_cache.push_back(
           {filename, dmp_reader.audio_codec(),
@@ -170,7 +169,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
   for (auto filename : kFilenames) {
     VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+    SB_DCHECK_GT(dmp_reader.number_of_video_buffers(), 0);
 
     for (auto output_mode : kOutputModes) {
       if (!PlayerComponents::Factory::OutputModeSupported(
@@ -218,7 +217,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
   SB_CHECK(audio_decoder);
@@ -258,8 +257,8 @@ AssertionResult AlmostEqualTime(int64_t time1, int64_t time2) {
          << "time " << time1 << " doesn't match with time " << time2;
 }
 
-media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
-  shared::starboard::media::VideoStreamInfo video_stream_info = {};
+VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
+  VideoStreamInfo video_stream_info = {};
 
   video_stream_info.codec = codec;
   video_stream_info.mime = "";
@@ -280,9 +279,8 @@ bool IsPartialAudioSupported() {
   return true;
 }
 
-scoped_refptr<InputBuffer> GetAudioInputBuffer(
-    video_dmp::VideoDmpReader* dmp_reader,
-    size_t index) {
+scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
+                                               size_t index) {
   SB_DCHECK(dmp_reader);
 
   auto player_sample_info =
@@ -292,7 +290,7 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
 }
 
 scoped_refptr<InputBuffer> GetAudioInputBuffer(
-    video_dmp::VideoDmpReader* dmp_reader,
+    VideoDmpReader* dmp_reader,
     size_t index,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
@@ -308,4 +306,4 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   return input_buffer;
 }
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

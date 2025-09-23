@@ -26,7 +26,8 @@
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
 #pragma GCC diagnostic pop
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -35,8 +36,6 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
-
-namespace {
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -324,18 +323,20 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jint offset,
                                         jint size,
                                         jlong presentation_time_microseconds,
-                                        jint flags) {
+                                        jint flags,
+                                        jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
-      presentation_time_microseconds, flags);
+      presentation_time_microseconds, flags, is_decode_only);
 }
 
 jint MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
-    jlong presentation_time_microseconds) {
+    jlong presentation_time_microseconds,
+    jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_iv =
@@ -371,7 +372,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -504,7 +505,7 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
-  SB_DCHECK(handler_);
+  SB_CHECK(handler_);
 }
 
 void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
@@ -527,4 +528,4 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

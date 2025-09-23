@@ -23,7 +23,6 @@ bool operator==(const SbMediaAudioConfiguration& left,
   return memcmp(&left, &right, sizeof(SbMediaAudioConfiguration)) == 0;
 }
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -273,4 +272,3 @@ INSTANTIATE_TEST_SUITE_P(SbPlayerGetAudioConfigurationTests,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

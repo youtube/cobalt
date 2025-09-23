@@ -29,19 +29,13 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
-
-void ExpectFileExists(const char* path) {
-  struct stat info;
-  EXPECT_TRUE(stat(path, &info) == 0) << "Filename is " << path;
-}
 
 TEST(PosixDirectoryOpenTest, SunnyDay) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  ExpectFileExists(path.c_str());
+  EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
 
   DIR* directory = opendir(path.c_str());
   EXPECT_TRUE(directory != NULL);
@@ -59,7 +53,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
 TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  ExpectFileExists(path.c_str());
+  EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
 
   DIR* directory = opendir(path.c_str());
   EXPECT_TRUE(directory != NULL);
@@ -69,7 +63,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
 TEST(PosixDirectoryOpenTest, ManySunnyDay) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  ExpectFileExists(path.c_str());
+  EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
 
   const int kMany = kSbFileMaxOpen;
   std::vector<DIR*> directories(kMany, 0);
@@ -87,7 +81,7 @@ TEST(PosixDirectoryOpenTest, ManySunnyDay) {
 TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  ExpectFileExists(path.c_str());
+  EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
 
   // Funny way to make sure the directory seems valid but doesn't exist.
   int len = static_cast<int>(path.length());
@@ -187,4 +181,3 @@ TEST(PosixDirectoryOpenTest, FailsNameTooLong) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

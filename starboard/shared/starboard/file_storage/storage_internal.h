@@ -30,12 +30,12 @@ struct SbStorageRecordPrivate {
   std::string name;
 };
 
-namespace starboard::shared::starboard {
+namespace starboard {
 // Gets the path to the storage file.
 static inline bool GetStorageFilePath(const char* name,
                                       char* out_path,
                                       int path_size) {
-  bool success = GetHomeDirectory(out_path, path_size);
+  bool success = shared::starboard::GetHomeDirectory(out_path, path_size);
   if (!success) {
     return false;
   }
@@ -50,6 +50,6 @@ static inline bool GetStorageFilePath(const char* name,
   return true;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_

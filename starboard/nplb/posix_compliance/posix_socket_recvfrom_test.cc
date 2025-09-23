@@ -18,7 +18,6 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -115,4 +114,3 @@ TEST(PosixSocketRecvfromTest, SunnyDay) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

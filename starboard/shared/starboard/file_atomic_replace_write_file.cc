@@ -24,7 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/file.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 bool SbFileAtomicReplaceWriteFile(const char* path,
                                   const char* data,
@@ -64,4 +64,4 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
   return true;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

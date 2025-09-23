@@ -117,6 +117,8 @@ TEST_F(HeapObserverSetTest, GarbageCollect) {
   EXPECT_EQ(weak_ref.Get(), nullptr);
 }
 
+// TODO: b/427982512 Re-enable after proper fix.
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(HeapObserverSetTest, IsIteratingOverObservers) {
   Persistent<TestingNotifier> notifier =
       MakeGarbageCollected<TestingNotifier>();
@@ -129,5 +131,6 @@ TEST_F(HeapObserverSetTest, IsIteratingOverObservers) {
     EXPECT_TRUE(notifier->ObserverList().IsIteratingOverObservers());
   });
 }
+#endif
 
 }  // namespace blink

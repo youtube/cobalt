@@ -32,6 +32,7 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
+import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
@@ -44,7 +45,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 class MediaCodecBridge {
   // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
   // for several frames. As a result, the player may find that the time does not increase
@@ -61,7 +62,10 @@ class MediaCodecBridge {
   private static final String KEY_CROP_TOP = "crop-top";
 
   private final Object mNativeBridgeLock = new Object();
+
+  @GuardedBy("mNativeBridgeLock")
   private long mNativeMediaCodecBridge;
+
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
@@ -288,9 +292,7 @@ class MediaCodecBridge {
   }
 
   public MediaCodecBridge(
-      long nativeMediaCodecBridge,
-      MediaCodec mediaCodec,
-      int tunnelModeAudioSessionId) {
+      long nativeMediaCodecBridge, MediaCodec mediaCodec, int tunnelModeAudioSessionId) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -398,6 +400,15 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
+  private boolean isDecodeOnlyFlagEnabled() {
+    // Right now, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
+    if (!mIsTunnelingPlayback) {
+      return false;
+    }
+    // BUFFER_FLAG_DECODE_ONLY is added in Android 14.
+    return Build.VERSION.SDK_INT >= 34;
+  }
+
   @CalledByNative
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
@@ -464,10 +475,7 @@ class MediaCodecBridge {
     }
 
     MediaCodecBridge bridge =
-        new MediaCodecBridge(
-            nativeMediaCodecBridge,
-            mediaCodec,
-            tunnelModeAudioSessionId);
+        new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
@@ -737,9 +745,14 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      if (isDecodeOnlyFlagEnabled()
+          && is_decode_only
+          && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
@@ -760,7 +773,8 @@ class MediaCodecBridge {
       int cipherMode,
       int blocksToEncrypt,
       int blocksToSkip,
-      long presentationTimeUs) {
+      long presentationTimeUs,
+      boolean is_decode_only) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
@@ -774,7 +788,14 @@ class MediaCodecBridge {
         return MediaCodecStatus.ERROR;
       }
 
-      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
+      int flags = 0;
+      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
+
+      mMediaCodec
+          .get()
+          .queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, flags);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
       if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
@@ -1041,7 +1062,10 @@ class MediaCodecBridge {
   @NativeMethods
   interface Natives {
     void onMediaCodecError(
-        long nativeMediaCodecBridge, boolean isRecoverable, boolean isTransient, String diagnosticInfo);
+        long nativeMediaCodecBridge,
+        boolean isRecoverable,
+        boolean isTransient,
+        String diagnosticInfo);
 
     void onMediaCodecInputBufferAvailable(long nativeMediaCodecBridge, int bufferIndex);
 

@@ -18,16 +18,17 @@
 #include <pthread.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class AudioTrackAudioSink;
 
@@ -101,7 +102,7 @@ class MinRequiredFramesTester {
   const int required_frames_increment_;
   const int min_stable_played_frames_;
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   std::vector<TestTask> test_tasks_;
   AudioTrackAudioSink* audio_sink_ = nullptr;
@@ -113,12 +114,13 @@ class MinRequiredFramesTester {
   int last_underrun_count_;
   int last_total_consumed_frames_;
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
-  pthread_t tester_thread_ = 0;
+  std::mutex mutex_;
+  std::condition_variable test_complete_cv_;
+  bool is_test_complete_ = false;  // Guarded by |mutex_|.
+  std::optional<pthread_t> tester_thread_;
   std::atomic_bool destroying_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_

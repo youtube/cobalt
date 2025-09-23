@@ -26,8 +26,9 @@
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
+#include "starboard/common/check_op.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -36,8 +37,6 @@ using ::base::android::AttachCurrentThread;
 using ::base::android::JavaParamRef;
 using ::base::android::ScopedJavaGlobalRef;
 using ::base::android::ScopedJavaLocalRef;
-
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 const jint kNoOffset = 0;
 
@@ -164,7 +163,7 @@ int AudioTrackBridge::WriteSample(const float* samples,
                                   JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
@@ -187,7 +186,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
@@ -219,7 +218,7 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
-  SB_DCHECK(num_of_samples <= max_samples_per_write_);
+  SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
@@ -326,4 +325,4 @@ int AudioTrackBridge::GetStartThresholdInFrames(
                                                          j_audio_track_bridge_);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

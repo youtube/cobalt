@@ -9,12 +9,12 @@ import org.junit.runners.BlockJUnit4ClassRunner;
 /** HolderTest. */
 @RunWith(BlockJUnit4ClassRunner.class)
 public class HolderTest {
-  Holder undertest = new Holder();
+  Holder mUndertest = new Holder();
 
   @Test
   public void test() {
     Object toHold = new Object();
-    undertest.set(toHold);
-    assertThat(undertest.get()).isEqualTo(toHold);
+    mUndertest.set(toHold);
+    assertThat(mUndertest.get()).isEqualTo(toHold);
   }
 }

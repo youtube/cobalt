@@ -18,10 +18,11 @@
 #include <sys/stat.h>
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 namespace {
 
@@ -76,7 +77,7 @@ int FileCacheReader::Read(void* out_buffer, int bytes_to_read) {
   while (bytes_to_read > 0 && file_cache_.size() != 0) {
     int bytes_read = ReadFromCache(
         static_cast<char*>(out_buffer) + total_bytes_read, bytes_to_read);
-    SB_CHECK(bytes_read >= 0);
+    SB_CHECK_GE(bytes_read, 0);
     bytes_to_read -= bytes_read;
     total_bytes_read += bytes_read;
     RefillCacheIfEmpty();
@@ -122,10 +123,10 @@ void FileCacheReader::RefillCacheIfEmpty() {
   }
   file_cache_offset_ = 0;
   int bytes_read = file_->ReadAll(file_cache_.data(), file_cache_.size());
-  SB_CHECK(bytes_read >= 0);
+  SB_CHECK_GE(bytes_read, 0);
   if (bytes_read < static_cast<int>(file_cache_.size())) {
     file_cache_.resize(bytes_read);
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

@@ -15,28 +15,30 @@
 #ifndef STARBOARD_ANDROID_SHARED_TRACE_UTIL_H_
 #define STARBOARD_ANDROID_SHARED_TRACE_UTIL_H_
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // A simple scoped wrapper of |android.os.Trace|.
 struct ScopedTrace {
   explicit ScopedTrace(const char* section_name) {
-    JniEnvExt* env = JniEnvExt::Get();
+    JNIEnv* env = base::android::AttachCurrentThread();
     ScopedLocalJavaRef<jstring> j_section_name(
-        env->NewStringStandardUTFOrAbort(section_name));
-    env->CallStaticVoidMethodOrAbort("android/os/Trace", "beginSection",
-                                     "(Ljava/lang/String;)V",
-                                     j_section_name.Get());
+        JniNewStringStandardUTFOrAbort(env, section_name));
+    JniCallStaticVoidMethodOrAbort(env, "android/os/Trace", "beginSection",
+                                   "(Ljava/lang/String;)V",
+                                   j_section_name.Get());
   }
 
   ~ScopedTrace() {
-    JniEnvExt* env = JniEnvExt::Get();
-    env->CallStaticVoidMethodOrAbort("android/os/Trace", "endSection", "()V");
+    JNIEnv* env = base::android::AttachCurrentThread();
+    JniCallStaticVoidMethodOrAbort(env, "android/os/Trace", "endSection",
+                                   "()V");
   }
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_TRACE_UTIL_H_

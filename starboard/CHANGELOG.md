@@ -10,6 +10,99 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### Added the following POSIX symbols:
+* `aligned_alloc`
+* `fdatasync`
+* `dup`
+* `dup2`
+* `epoll_create`
+* `epoll_create1`
+* `epoll_ctl`
+* `epoll_wait`
+* `getcwd`
+* `getpeername`
+* `getsockopt`
+* `isatty`
+* `kill`
+* `link`
+* `lstat`
+* `madvise`
+* `malloc_usable_size`
+* `mincore`
+* `mkdtemp`
+* `mkostemp`
+* `mkstemp`
+* `pause`
+* `pipe`
+* `pread`
+* `pwrite`
+* `raise`
+* `rand`
+* `rand_r`
+* `readlink`
+* `recvmsg`
+* `rename`
+* `sched_get_priority_max`
+* `sched_get_priority_min`
+* `select`
+* `signal`
+* `srand`
+* `symlink`
+* `recvmmsg`
+* `access`
+* `chmod`
+* `clock_nanosleep`
+* `eventfd`
+* `fchmod`
+* `fchown`
+* `gai_strerror`
+* `getauxval`
+* `geteuid`
+* `getpid`
+* `pathconf`
+* `pipe2`
+* `poll`
+* `pthread_attr_getschedpolicy`
+* `pthread_attr_getscope`
+* `pthread_attr_getstack`
+* `pthread_attr_setschedpolicy`
+* `pthread_attr_setscope`
+* `pthread_attr_setstack`
+* `pthread_getattr_np`
+* `pthread_getschedparam`
+* `pthread_kill`
+* `pthread_mutexattr_destroy`
+* `pthread_mutexattr_getpshared`
+* `pthread_mutexattr_gettype`
+* `pthread_mutexattr_init`
+* `pthread_mutexattr_setpshared`
+* `pthread_mutexattr_settype`
+* `pthread_rwlock_destroy`
+* `pthread_rwlock_init`
+* `pthread_rwlock_rdlock`
+* `pthread_rwlock_tryrdlock`
+* `pthread_rwlock_trywrlock`
+* `pthread_rwlock_unlock`
+* `pthread_rwlock_wrlock`
+* `pthread_setschedparam`
+* `pthread_sigmask`
+* `readdir`
+* `realpath`
+* `sem_destroy`
+* `sem_init`
+* `sem_post`
+* `sem_timedwait`
+* `sem_wait`
+* `sendmsg`
+* `shutdown`
+* `sigaction`
+* `socketpair`
+* `statvfs`
+* `sysconf`
+* `uname`
+* `utimensat`
+* `writev`
+
 ### From `starboard/time_zone.h`
  * Removed `SbTimeZoneGetCurrent`. The time offset is now derived
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
@@ -61,7 +154,6 @@ It was only used by win32 platforms
 * `kSbMediaVideoFrameAlignment`
 * `kSbMemoryLogPath`
 * `kSbPreferredRgbaByteOrder`
-### Added POSIX support for `getpeername`, `getsockopt` and `recvmsg`.
 ### Removed starboad/atomic.h support for C.
 The existing code was migrated to C11 atomics.
 

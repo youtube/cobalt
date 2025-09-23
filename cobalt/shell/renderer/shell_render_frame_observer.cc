@@ -16,7 +16,7 @@
 
 #include "base/command_line.h"
 #include "cobalt/shell/common/render_frame_test_helper.mojom.h"
-#include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/shell_test_switches.h"
 #include "cobalt/shell/renderer/render_frame_test_helper.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"

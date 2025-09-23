@@ -25,7 +25,6 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -33,11 +32,6 @@ namespace {
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 typedef std::set<std::string> StringSet;
-
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
 
 TEST(PosixDirectoryGetNextTest, SunnyDay) {
   const int kNumFiles = 65;
@@ -226,4 +220,3 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

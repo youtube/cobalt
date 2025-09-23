@@ -14,7 +14,6 @@
 
 #include "starboard/media.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/media.h"
@@ -25,9 +24,7 @@ bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
   using starboard::GetMediaAudioConnectorName;
-  using starboard::android::shared::JniEnvExt;
-  using starboard::android::shared::MediaCapabilitiesCache;
-  using starboard::android::shared::ScopedLocalJavaRef;
+  using starboard::MediaCapabilitiesCache;
 
   if (output_index < 0) {
     SB_LOG(WARNING) << "output_index is " << output_index

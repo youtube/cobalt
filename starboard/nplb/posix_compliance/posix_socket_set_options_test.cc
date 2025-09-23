@@ -16,7 +16,6 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -112,4 +111,3 @@ INSTANTIATE_TEST_SUITE_P(PosixSocketAddressTypes,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

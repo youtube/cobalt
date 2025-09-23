@@ -17,7 +17,6 @@
 
 #include "starboard/configuration.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // File path suffix for compressed binaries.
@@ -30,6 +29,5 @@ extern const char kEvergreenLibrary[];
 extern const char kEvergreenContent[];
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_ELF_LOADER_CONSTANTS_H_

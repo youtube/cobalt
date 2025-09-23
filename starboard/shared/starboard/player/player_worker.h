@@ -20,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -32,7 +33,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/window.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class creates a thread that executes events posted to an internally
 // created queue. This guarantees that all such events are processed on the same
@@ -67,8 +68,6 @@ class PlayerWorker {
     };
 
     typedef PlayerWorker::Bounds Bounds;
-    typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-    typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
     typedef std::function<
         void(int64_t media_time, int dropped_video_frames, bool is_progressing)>
@@ -212,7 +211,7 @@ class PlayerWorker {
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
-  pthread_t thread_;
+  std::optional<pthread_t> thread_;
   std::unique_ptr<JobQueue> job_queue_;
 
   SbMediaAudioCodec audio_codec_;
@@ -234,6 +233,6 @@ class PlayerWorker {
   JobQueue::JobToken write_pending_sample_job_token_;
 };
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_

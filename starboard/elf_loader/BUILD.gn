@@ -94,18 +94,11 @@ if (current_toolchain == starboard_toolchain) {
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     output_dir = root_build_dir
-    if (cobalt_font_package == "empty") {
-      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-    } else {
-      data_deps = [
-        "//starboard/content/fonts:copy_fonts",
-        "//starboard/content/fonts:fonts_xml",
-      ]
-    }
 
     sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
+    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     deps = [
       ":constants",
       ":elf_loader",

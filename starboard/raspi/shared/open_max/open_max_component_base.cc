@@ -17,13 +17,12 @@
 #include <pthread.h>
 
 #include <algorithm>
+#include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -50,10 +49,7 @@ void InitializeOpenMax() {
 }  // namespace
 
 OpenMaxComponentBase::OpenMaxComponentBase(const char* name)
-    : event_condition_variable_(mutex_),
-      handle_(NULL),
-      input_port_(kInvalidPort),
-      output_port_(kInvalidPort) {
+    : handle_(NULL), input_port_(kInvalidPort), output_port_(kInvalidPort) {
   InitializeOpenMax();
 
   OMX_CALLBACKTYPE callbacks;
@@ -63,7 +59,7 @@ OpenMaxComponentBase::OpenMaxComponentBase(const char* name)
 
   OMX_ERRORTYPE error =
       OMX_GetHandle(&handle_, const_cast<char*>(name), this, &callbacks);
-  SB_DCHECK(error == OMX_ErrorNone);
+  SB_DCHECK_EQ(error, OMX_ErrorNone);
 
   for (size_t i = 0; i < SB_ARRAY_SIZE(kPortTypes); ++i) {
     OMX_PORT_PARAM_TYPE port;
@@ -79,8 +75,8 @@ OpenMaxComponentBase::OpenMaxComponentBase(const char* name)
       break;
     }
   }
-  SB_CHECK(input_port_ != kInvalidPort);
-  SB_CHECK(output_port_ != kInvalidPort);
+  SB_CHECK_NE(input_port_, kInvalidPort);
+  SB_CHECK_NE(output_port_, kInvalidPort);
   SB_DLOG(INFO) << "Opened \"" << name << "\" with port " << input_port_
                 << " and " << output_port_;
 }
@@ -95,26 +91,23 @@ OpenMaxComponentBase::~OpenMaxComponentBase() {
 
 void OpenMaxComponentBase::SendCommand(OMX_COMMANDTYPE command, int param) {
   OMX_ERRORTYPE error = OMX_SendCommand(handle_, command, param, NULL);
-  SB_DCHECK(error == OMX_ErrorNone);
+  SB_DCHECK_EQ(error, OMX_ErrorNone);
 }
 
 void OpenMaxComponentBase::WaitForCommandCompletion() {
-  for (;;) {
-    ScopedLock scoped_lock(mutex_);
-    for (EventDescriptions::iterator iter = event_descriptions_.begin();
-         iter != event_descriptions_.end(); ++iter) {
-      if (iter->event == OMX_EventCmdComplete) {
-        event_descriptions_.erase(iter);
-        return;
-      }
-      // Special case for OMX_CommandStateSet.
-      if (iter->event == OMX_EventError && iter->data1 == OMX_ErrorSameState) {
-        event_descriptions_.erase(iter);
-        return;
-      }
-    }
-    event_condition_variable_.Wait();
-  }
+  std::unique_lock lock(mutex_);
+  EventDescriptions::iterator it;
+  event_condition_variable_.wait(lock, [this, &it] {
+    it = std::find_if(event_descriptions_.begin(), event_descriptions_.end(),
+                      [](const EventDescription& desc) {
+                        return desc.event == OMX_EventCmdComplete ||
+                               (desc.event == OMX_EventError &&
+                                desc.data1 == OMX_ErrorSameState);
+                      });
+    return it != event_descriptions_.end();
+  });
+
+  event_descriptions_.erase(it);
 }
 
 void OpenMaxComponentBase::SendCommandAndWaitForCompletion(
@@ -138,14 +131,16 @@ OMX_ERRORTYPE OpenMaxComponentBase::OnEvent(OMX_EVENTTYPE event,
     return OMX_ErrorNone;
   }
 
-  ScopedLock scoped_lock(mutex_);
   EventDescription event_desc;
   event_desc.event = event;
   event_desc.data1 = data1;
   event_desc.data2 = data2;
   event_desc.event_data = event_data;
-  event_descriptions_.push_back(event_desc);
-  event_condition_variable_.Signal();
+  {
+    std::lock_guard lock(mutex_);
+    event_descriptions_.push_back(event_desc);
+  }
+  event_condition_variable_.notify_one();
 
   return OMX_ErrorNone;
 }
@@ -157,10 +152,10 @@ OMX_ERRORTYPE OpenMaxComponentBase::EventHandler(OMX_HANDLETYPE handle,
                                                  OMX_U32 data1,
                                                  OMX_U32 data2,
                                                  OMX_PTR event_data) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
-  SB_DCHECK(handle == component->handle_);
+  SB_DCHECK_EQ(handle, component->handle_);
 
   return component->OnEvent(event, data1, data2, event_data);
 }
@@ -170,10 +165,10 @@ OMX_ERRORTYPE OpenMaxComponentBase::EmptyBufferDone(
     OMX_HANDLETYPE handle,
     OMX_PTR app_data,
     OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
-  SB_DCHECK(handle == component->handle_);
+  SB_DCHECK_EQ(handle, component->handle_);
 
   return component->OnEmptyBufferDone(buffer);
 }
@@ -183,17 +178,14 @@ OMX_ERRORTYPE OpenMaxComponentBase::FillBufferDone(
     OMX_HANDLETYPE handle,
     OMX_PTR app_data,
     OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
+  SB_DCHECK(app_data);
   OpenMaxComponentBase* component =
       reinterpret_cast<OpenMaxComponentBase*>(app_data);
-  SB_DCHECK(handle == component->handle_);
+  SB_DCHECK_EQ(handle, component->handle_);
 
   component->OnFillBufferDone(buffer);
 
   return OMX_ErrorNone;
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

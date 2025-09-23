@@ -16,11 +16,12 @@
 
 #include <deque>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -111,7 +112,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
     scoped_refptr<DecodedAudio> audio_input) {
-  SB_DCHECK(audio_input->channels() == interleaved_resampler_.channels());
+  SB_DCHECK_EQ(audio_input->channels(), interleaved_resampler_.channels());
 
   // It does nothing if source sample type is float and source storage type is
   // interleaved.
@@ -163,4 +164,4 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
   return resampled_audio;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

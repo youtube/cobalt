@@ -16,10 +16,11 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::opus {
+namespace starboard {
 
 namespace {
 
@@ -129,7 +130,7 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
       audio_stream_info_.number_of_channels * frames_per_au_ *
-          starboard::media::GetBytesPerSample(GetSampleType()));
+          GetBytesPerSample(GetSampleType()));
 
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
@@ -146,7 +147,7 @@ bool OpusAudioDecoder::DecodeInternal(
     // When the following check fails, it indicates that |frames_per_au_| is
     // greater than or equal to |kMaxOpusFramesPerAU|, which should never happen
     // for Opus.
-    SB_DCHECK(decoded_frames != OPUS_BUFFER_TOO_SMALL);
+    SB_DCHECK_NE(decoded_frames, OPUS_BUFFER_TOO_SMALL);
 
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << kDecodeFunctionName
@@ -159,8 +160,7 @@ bool OpusAudioDecoder::DecodeInternal(
 
   frames_per_au_ = decoded_frames;
   decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
-                          frames_per_au_ *
-                          starboard::media::GetBytesPerSample(GetSampleType()));
+                          frames_per_au_ * GetBytesPerSample(GetSampleType()));
   const auto& sample_info = input_buffer->audio_sample_info();
   decoded_audio->AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
@@ -207,7 +207,7 @@ void OpusAudioDecoder::InitializeCodec() {
     decoder_ = NULL;
     return;
   }
-  SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(decoder_);
 }
 
 void OpusAudioDecoder::TeardownCodec() {
@@ -217,8 +217,7 @@ void OpusAudioDecoder::TeardownCodec() {
   }
 }
 
-scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
-    int* samples_per_second) {
+scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -267,4 +266,4 @@ SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   return kSbMediaAudioSampleTypeFloat32;
 }
 
-}  // namespace starboard::shared::opus
+}  // namespace starboard

@@ -18,8 +18,10 @@
 #include <functional>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <queue>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
@@ -33,18 +35,11 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
-class VideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
-
-  explicit VideoDecoder(SbMediaVideoCodec video_codec);
-  ~VideoDecoder() override;
+  explicit OpenMaxVideoDecoder(SbMediaVideoCodec video_codec);
+  ~OpenMaxVideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -64,7 +59,7 @@ class VideoDecoder
   struct Event {
     enum Type { kWriteInputBuffer, kWriteEOS, kReset };
     explicit Event(const Type type) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
+      SB_DCHECK_NE(type, kWriteInputBuffer);
     }
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
@@ -88,7 +83,7 @@ class VideoDecoder
   bool eos_written_;
   bool first_input_written_ = false;
 
-  pthread_t thread_;
+  std::optional<pthread_t> thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 
@@ -100,9 +95,6 @@ class VideoDecoder
   std::function<void()> update_job_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_

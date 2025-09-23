@@ -30,7 +30,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
@@ -121,27 +120,53 @@ void ScopedRandomFile::ExpectPattern(int pattern_offset,
 }
 
 // Helper function to clean up a directory and its contents
-void RemoveDirectoryRecursively(const std::string& path) {
-  DIR* dir = opendir(path.c_str());
-  if (dir == nullptr) {
-    return;  // Directory might not exist or already cleaned up
+bool RemoveFileOrDirectoryRecursively(const std::string& path) {
+  struct stat st;
+
+  if (lstat(path.c_str(), &st) != 0) {
+    return errno == ENOENT;  // File doesn't exist, do nothing.
   }
 
+  if (!S_ISDIR(st.st_mode)) {
+    return unlink(path.c_str()) == 0;  // Remove file or symlink.
+  }
+
+  DIR* dir = opendir(path.c_str());
+  if (!dir) {
+    return false;
+  }
+
+  bool success = true;
   struct dirent* entry;
   while ((entry = readdir(dir)) != nullptr) {
-    if (std::string(entry->d_name) == "." ||
-        std::string(entry->d_name) == "..") {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
       continue;
     }
-    std::string entry_path = path + "/" + entry->d_name;
-    if (entry->d_type == DT_DIR) {
-      RemoveDirectoryRecursively(entry_path);
-    } else {
-      unlink(entry_path.c_str());
+
+    std::string entry_path = path + kSbFileSepString + entry->d_name;
+    if (!RemoveFileOrDirectoryRecursively(entry_path)) {
+      success = false;
+      break;  // Stop on the first error.
     }
   }
+
   closedir(dir);
-  rmdir(path.c_str());
+
+  if (success) {
+    return rmdir(path.c_str()) == 0;
+  }
+
+  return false;
+}
+
+bool FileExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0;
+}
+
+bool DirectoryExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 // static
@@ -185,4 +210,3 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

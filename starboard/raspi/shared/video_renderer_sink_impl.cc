@@ -14,13 +14,12 @@
 
 #include "starboard/raspi/shared/video_renderer_sink_impl.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -33,8 +32,8 @@ VideoRendererSinkImpl::VideoRendererSinkImpl(SbPlayer player)
 VideoRendererSinkImpl::~VideoRendererSinkImpl() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  ::starboard::shared::starboard::Application::Get()->HandleFrame(
-      player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
+  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
+                                  0, 0, 0);
 }
 
 void VideoRendererSinkImpl::SetRenderCB(RenderCB render_cb) {
@@ -70,14 +69,12 @@ void VideoRendererSinkImpl::Update() {
 VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
     const scoped_refptr<VideoFrame>& frame,
     int64_t release_time_in_nanoseconds) {
-  SB_DCHECK(release_time_in_nanoseconds == 0);
+  SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
-  ::starboard::shared::starboard::Application::Get()->HandleFrame(
-      player_, frame, z_index_, x_, y_, width_, height_);
+  Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
+                                  height_);
   return kNotReleased;
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

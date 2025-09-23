@@ -14,11 +14,11 @@
 
 #include "starboard/loader_app/app_key.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/app_key_internal.h"
 
-namespace starboard {
 namespace loader_app {
 namespace {
 
@@ -31,7 +31,7 @@ const size_t kAppKeyMax = kSbFileMaxName - 24;
 }  // namespace
 
 std::string GetAppKey(const std::string& url) {
-  SB_DCHECK(kAppKeyMax > 0);
+  SB_DCHECK_GT(kAppKeyMax, 0);
 
   const std::string app_key = EncodeAppKey(ExtractAppKey(url));
 
@@ -42,4 +42,3 @@ std::string GetAppKey(const std::string& url) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

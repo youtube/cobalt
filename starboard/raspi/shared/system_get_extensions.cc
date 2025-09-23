@@ -24,7 +24,6 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/extension/loader_app_metrics.h"
 #endif
-#include "starboard/linux/shared/time_zone.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
 #include "starboard/shared/starboard/crash_handler.h"
@@ -34,8 +33,8 @@
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  const starboard::elf_loader::EvergreenConfig* evergreen_config =
-      starboard::elf_loader::EvergreenConfig::GetInstance();
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
       evergreen_config->custom_get_extension_ != NULL) {
     const void* ext = evergreen_config->custom_get_extension_(name);
@@ -46,13 +45,13 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
 
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::raspi::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiRaspi();
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
-    return starboard::raspi::shared::GetGraphicsApi();
+    return starboard::GetGraphicsApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::common::GetCrashHandlerApi();
+    return starboard::GetCrashHandlerApi();
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {

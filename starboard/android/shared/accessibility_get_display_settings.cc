@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/memory.h"
+#include "starboard/common/log.h"
 
 #include "starboard/android/shared/accessibility_extension.h"
 
-namespace starboard::android::shared::accessibility {
-
-using starboard::android::shared::JniEnvExt;
+namespace starboard {
 
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   SB_NOTIMPLEMENTED();
   return false;
 }
 
-}  // namespace starboard::android::shared::accessibility
+}  // namespace starboard

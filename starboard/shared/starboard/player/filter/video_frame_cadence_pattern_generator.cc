@@ -14,13 +14,14 @@
 
 #include "starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 void VideoFrameCadencePatternGenerator::UpdateRefreshRateAndMaybeReset(
     double refresh_rate) {
-  SB_DCHECK(refresh_rate > 0);
+  SB_DCHECK_GT(refresh_rate, 0);
 
   if (refresh_rate == refresh_rate_) {
     return;
@@ -34,15 +35,15 @@ void VideoFrameCadencePatternGenerator::UpdateRefreshRateAndMaybeReset(
 }
 
 void VideoFrameCadencePatternGenerator::UpdateFrameRate(double frame_rate) {
-  SB_DCHECK(frame_rate > 0);
+  SB_DCHECK_GT(frame_rate, 0);
 
   frame_rate_ = frame_rate;
 }
 
 int VideoFrameCadencePatternGenerator::GetNumberOfTimesCurrentFrameDisplays()
     const {
-  SB_DCHECK(refresh_rate_ != kInvalidRefreshRate);
-  SB_DCHECK(frame_rate_ != kInvalidFrameRate);
+  SB_DCHECK_NE(refresh_rate_, kInvalidRefreshRate);
+  SB_DCHECK_NE(frame_rate_, kInvalidFrameRate);
 
   int current_frame_display_times = 0;
 
@@ -78,11 +79,11 @@ void VideoFrameCadencePatternGenerator::AdvanceToNextFrame() {
 }
 
 void VideoFrameCadencePatternGenerator::Reset(double refresh_rate) {
-  SB_DCHECK(refresh_rate > 0);
+  SB_DCHECK_GT(refresh_rate, 0);
 
   refresh_rate_ = refresh_rate;
   frame_rate_ = kInvalidFrameRate;
   frame_index_ = 0;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

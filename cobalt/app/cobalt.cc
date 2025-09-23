@@ -66,6 +66,10 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
   cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
   const auto& init_argv = init_cmd_line.argv();
 
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  logging::SetMinLogLevel(logging::LOGGING_FATAL);
+#endif
+
   std::stringstream ss;
   std::vector<const char*> args;
   for (const auto& arg : init_argv) {
@@ -147,24 +151,25 @@ void SbEventHandle(const SbEvent* event) {
     }
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleFocusEvent(event);
+      break;
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
       break;
     case kSbEventTypeInput:
-      if (g_platform_event_source) {
-        g_platform_event_source->HandleEvent(event);
-      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleEvent(event);
       break;
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
-      if (g_platform_event_source) {
-        g_platform_event_source->HandleWindowSizeChangedEvent(event);
-      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleWindowSizeChangedEvent(event);
       break;
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:

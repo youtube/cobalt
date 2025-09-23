@@ -78,7 +78,7 @@ component("printing_base") {
   ]
 }
 
-if (enable_oop_printing && (is_linux || is_chromeos)) {
+if (enable_oop_printing && (is_linux && !is_cobalt_hermetic_build || is_chromeos)) {
   source_set("printing_sandbox_hook") {
     sources = [
       "sandbox/print_backend_sandbox_hook_linux.cc",
@@ -298,7 +298,7 @@ component("printing") {
     }
   }
 
-  if (enable_oop_printing && (is_linux || is_chromeos)) {
+  if (enable_oop_printing && (is_linux && !is_cobalt_hermetic_build || is_chromeos)) {
     deps += [ ":printing_sandbox_hook" ]
   }
 }

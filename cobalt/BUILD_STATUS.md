@@ -4,6 +4,10 @@
 | --------- | ---- |
 | Android   | [![android](https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Apush+branch%3Amain) |
 | Linux     | [![linux](https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Apush+branch%3Amain) |
+| evergreen | [![evergreen](https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml?query=event%3Apush+branch%3Amain) |
+| evergreen-arm-hardfp-raspi | [![evergreen-arm-hardfp-raspi](https://github.com/youtube/cobalt/actions/workflows/evergreen-arm-hardfp-raspi.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/evergreen-arm-hardfp-raspi.yaml?query=event%3Apush+branch%3Amain) |
+| evergreen-arm-hardfp-rdk | [![evergreen-arm-hardfp-rdk](https://github.com/youtube/cobalt/actions/workflows/evergreen-arm-hardfp-rdk.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/evergreen-arm-hardfp-rdk.yaml?query=event%3Apush+branch%3Amain) |
+| raspi-2-modular | [![raspi-2-modular](https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml?query=event%3Apush+branch%3Amain) |
 
 # Nightly builds
 

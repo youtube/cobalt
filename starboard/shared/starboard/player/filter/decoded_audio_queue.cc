@@ -20,10 +20,11 @@
 
 #include <algorithm>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 DecodedAudioQueue::DecodedAudioQueue() {
   Clear();
@@ -49,13 +50,13 @@ void DecodedAudioQueue::Append(
 
   // Update the |frames_| counter since we have added frames.
   frames_ += decoded_audio->frames();
-  SB_CHECK(frames_ > 0);  // make sure it doesn't overflow.
+  SB_CHECK_GT(frames_, 0);  // make sure it doesn't overflow.
 }
 
 int DecodedAudioQueue::ReadFrames(int frames,
                                   int dest_frame_offset,
                                   DecodedAudio* dest) {
-  SB_DCHECK(dest->frames() >= frames + dest_frame_offset);
+  SB_DCHECK_GE(dest->frames(), frames + dest_frame_offset);
   return InternalRead(frames, true, 0, dest_frame_offset, dest);
 }
 
@@ -63,16 +64,16 @@ int DecodedAudioQueue::PeekFrames(int frames,
                                   int source_frame_offset,
                                   int dest_frame_offset,
                                   DecodedAudio* dest) {
-  SB_DCHECK(dest->frames() >= frames);
+  SB_DCHECK_GE(dest->frames(), frames);
   return InternalRead(frames, false, source_frame_offset, dest_frame_offset,
                       dest);
 }
 
 void DecodedAudioQueue::SeekFrames(int frames) {
   // Perform seek only if we have enough bytes in the queue.
-  SB_CHECK(frames <= frames_);
-  int taken = InternalRead(frames, true, 0, 0, NULL);
-  SB_DCHECK(taken == frames);
+  SB_CHECK_LE(frames, frames_);
+  [[maybe_unused]] int taken = InternalRead(frames, true, 0, 0, NULL);
+  SB_DCHECK_EQ(taken, frames);
 }
 
 int DecodedAudioQueue::InternalRead(int frames,
@@ -111,7 +112,7 @@ int DecodedAudioQueue::InternalRead(int frames,
 
       // if |dest| is NULL, there's no need to copy.
       if (dest) {
-        SB_DCHECK(buffer->channels() == dest->channels());
+        SB_DCHECK_EQ(buffer->channels(), dest->channels());
         if (dest->sample_type() == kSbMediaAudioSampleTypeFloat32) {
           const float* source = reinterpret_cast<const float*>(buffer->data()) +
                                 buffer->channels() * current_buffer_offset;
@@ -154,7 +155,7 @@ int DecodedAudioQueue::InternalRead(int frames,
   if (advance_position) {
     // Update the appropriate values since |taken| frames have been copied out.
     frames_ -= taken;
-    SB_DCHECK(frames_ >= 0);
+    SB_DCHECK_GE(frames_, 0);
     SB_DCHECK(current_buffer_ != buffers_.end() || frames_ == 0);
 
     // Remove any buffers before the current buffer as there is no going
@@ -167,4 +168,4 @@ int DecodedAudioQueue::InternalRead(int frames,
   return taken;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

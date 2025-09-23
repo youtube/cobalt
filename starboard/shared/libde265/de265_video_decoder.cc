@@ -14,33 +14,33 @@
 
 #include "starboard/shared/libde265/de265_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::de265 {
+namespace starboard {
 
-using starboard::player::JobThread;
-
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
-                           SbPlayerOutputMode output_mode,
-                           SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
+De265VideoDecoder::De265VideoDecoder(
+    SbMediaVideoCodec video_codec,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider)
     : output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecH265);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH265);
   SB_DCHECK(is_de265_supported());
 }
 
-VideoDecoder::~VideoDecoder() {
+De265VideoDecoder::~De265VideoDecoder() {
   SB_DCHECK(BelongsToCurrentThread());
   Reset();
 }
 
-void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                              const ErrorCB& error_cb) {
+void De265VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                                   const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
@@ -51,9 +51,9 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 }
 
-void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
 
@@ -69,10 +69,10 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   const auto& input_buffer = input_buffers[0];
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeOneBuffer, this, input_buffer));
+      std::bind(&De265VideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
-void VideoDecoder::WriteEndOfStream() {
+void De265VideoDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
@@ -88,16 +88,16 @@ void VideoDecoder::WriteEndOfStream() {
   }
 
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeEndOfStream, this));
+      std::bind(&De265VideoDecoder::DecodeEndOfStream, this));
 }
 
-void VideoDecoder::Reset() {
+void De265VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
     decoder_thread_->job_queue()->ScheduleAndWait(
-        std::bind(&VideoDecoder::TeardownCodec, this));
+        std::bind(&De265VideoDecoder::TeardownCodec, this));
 
     decoder_thread_.reset();
   }
@@ -111,7 +111,7 @@ void VideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void VideoDecoder::UpdateDecodeTarget_Locked(
+void De265VideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
@@ -124,14 +124,14 @@ void VideoDecoder::UpdateDecodeTarget_Locked(
   }
 }
 
-void VideoDecoder::ReportError(const std::string& error_message) {
+void De265VideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
-void VideoDecoder::InitializeCodec() {
+void De265VideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(!context_);
 
@@ -140,15 +140,15 @@ void VideoDecoder::InitializeCodec() {
 
   const int kNumberOfThreads = 8;
   de265_error error = de265_start_worker_threads(context_, kNumberOfThreads);
-  SB_DCHECK(error == DE265_OK);
+  SB_DCHECK_EQ(error, DE265_OK);
 }
 
-void VideoDecoder::TeardownCodec() {
+void De265VideoDecoder::TeardownCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   if (context_) {
     de265_error error = de265_free_decoder(context_);
-    SB_DCHECK(error == DE265_OK);
+    SB_DCHECK_EQ(error, DE265_OK);
     context_ = nullptr;
   }
 
@@ -167,7 +167,7 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::DecodeOneBuffer(
+void De265VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
@@ -190,16 +190,16 @@ void VideoDecoder::DecodeOneBuffer(
   ProcessDecodedImage(false);
 }
 
-void VideoDecoder::DecodeEndOfStream() {
+void De265VideoDecoder::DecodeEndOfStream() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   auto status = de265_flush_data(context_);
-  SB_DCHECK(status == DE265_OK);
+  SB_DCHECK_EQ(status, DE265_OK);
 
   ProcessDecodedImage(true);
 }
 
-void VideoDecoder::ProcessDecodedImage(bool flushing) {
+void De265VideoDecoder::ProcessDecodedImage(bool flushing) {
   int more;
   auto status = de265_decode(context_, &more);
   if (status == DE265_OK && more) {
@@ -222,7 +222,7 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   const de265_image* image = de265_get_next_picture(context_);
   if (!image) {
     if (flushing) {
-      Schedule(std::bind(&VideoDecoder::ProcessDecodedImage, this, true));
+      Schedule(std::bind(&De265VideoDecoder::ProcessDecodedImage, this, true));
     } else {
       Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, nullptr));
     }
@@ -248,7 +248,7 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   }
 
   for (int i = 0; i < kImagePlanes; ++i) {
-    SB_DCHECK(bit_depth == de265_get_bits_per_pixel(image, i));
+    SB_DCHECK_EQ(bit_depth, de265_get_bits_per_pixel(image, i));
 
     widths[i] = de265_get_image_width(image, i);
     heights[i] = de265_get_image_height(image, i);
@@ -256,9 +256,9 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
     SB_DCHECK(planes[i]);
   }
 
-  SB_DCHECK(widths[kYPlane] == widths[kUPlane] * 2);
-  SB_DCHECK(widths[kUPlane] == widths[kVPlane]);
-  SB_DCHECK(strides[kUPlane] == strides[kVPlane]);
+  SB_DCHECK_EQ(widths[kYPlane], widths[kUPlane] * 2);
+  SB_DCHECK_EQ(widths[kUPlane], widths[kVPlane]);
+  SB_DCHECK_EQ(strides[kUPlane], strides[kVPlane]);
 
   // Create a VideoFrame from decoded frame data. The data is in YV12 format.
   // Each component of a pixel takes one byte and they are in their own planes.
@@ -274,15 +274,15 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
 
   if (flushing) {
     Schedule(std::bind(decoder_status_cb_, kBufferFull, frame));
-    Schedule(std::bind(&VideoDecoder::ProcessDecodedImage, this, true));
+    Schedule(std::bind(&De265VideoDecoder::ProcessDecodedImage, this, true));
   } else {
     Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, frame));
   }
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+SbDecodeTarget De265VideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.
@@ -302,4 +302,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace starboard::shared::de265
+}  // namespace starboard

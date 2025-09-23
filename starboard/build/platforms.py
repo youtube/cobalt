@@ -35,11 +35,12 @@ PLATFORMS = {
     'android-x86': 'starboard/android/x86',
     'raspi-2': 'starboard/raspi/2',
     'raspi-2-skia': 'starboard/raspi/2/skia',
-    'rdk': 'starboard/rdk',
+    'rdk-arm': 'starboard/contrib/rdk/src/third_party/starboard/rdk/arm',
     'evergreen-x64': 'starboard/evergreen/x64',
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',
     'evergreen-arm-softfp': 'starboard/evergreen/arm/softfp',
     'evergreen-arm64': 'starboard/evergreen/arm64',
+    'tvos-arm64-simulator': 'starboard/tvos/arm64/simulator',
 }
 PLATFORMS.update(INTERNAL_PLATFORMS)
 

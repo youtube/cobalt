@@ -30,7 +30,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 constexpr char kTestFileContent[] = "Hello, stat!";
@@ -58,7 +58,7 @@ class PosixStatTest : public ::testing::Test {
 
   void TearDown() override {
     if (!test_dir_.empty()) {
-      RemoveDirectoryRecursively(test_dir_.c_str());
+      RemoveFileOrDirectoryRecursively(test_dir_.c_str());
     }
   }
 
@@ -226,4 +226,4 @@ TEST_F(PosixStatTest, SymlinkLoopFails) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

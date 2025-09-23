@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
@@ -71,9 +72,9 @@ StubAudioSink::StubAudioSink(
       context_(context),
       audio_out_thread_(0),
       destroying_(false) {
-  pthread_create(&audio_out_thread_, nullptr, &StubAudioSink::ThreadEntryPoint,
-                 this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  const int result = pthread_create(&audio_out_thread_, nullptr,
+                                    &StubAudioSink::ThreadEntryPoint, this);
+  SB_CHECK_EQ(result, 0);
 }
 
 StubAudioSink::~StubAudioSink() {
@@ -81,12 +82,16 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  pthread_join(audio_out_thread_, NULL);
+  SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
 }
 
 // static
 void* StubAudioSink::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("stub_audio_out");
+#else
   pthread_setname_np(pthread_self(), "stub_audio_out");
+#endif
   SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);

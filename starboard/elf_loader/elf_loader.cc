@@ -17,6 +17,7 @@
 #include <string.h>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/time.h"
@@ -28,8 +29,9 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/system.h"
 
-namespace starboard {
 namespace elf_loader {
+using ::starboard::CurrentMonotonicTime;
+using ::starboard::PrependContentPath;
 
 std::atomic<ElfLoader*> ElfLoader::g_instance{NULL};
 
@@ -47,7 +49,7 @@ ElfLoader::~ElfLoader() {
   g_instance.compare_exchange_weak(old_instance, NULL,
                                    std::memory_order_acquire);
   SB_DCHECK(old_instance);
-  SB_DCHECK(old_instance == this);
+  SB_DCHECK_EQ(old_instance, this);
 }
 
 ElfLoader* ElfLoader::Get() {
@@ -63,8 +65,8 @@ bool ElfLoader::Load(const std::string& library_path,
                      bool use_compression,
                      bool use_memory_mapped_file) {
   if (is_relative_path) {
-    library_path_ = common::PrependContentPath(library_path);
-    content_path_ = common::PrependContentPath(content_path);
+    library_path_ = PrependContentPath(library_path);
+    content_path_ = PrependContentPath(content_path);
   } else {
     library_path_ = library_path;
     content_path_ = content_path;
@@ -102,4 +104,3 @@ void* ElfLoader::LookupSymbol(const char* symbol) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

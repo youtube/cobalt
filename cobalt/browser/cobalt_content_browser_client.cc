@@ -37,8 +37,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/version.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -58,6 +58,10 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if defined(RUN_BROWSER_TESTS)
+#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
+#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace cobalt {
 
@@ -80,31 +84,19 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 }  // namespace
 
 std::string GetCobaltUserAgent() {
-// TODO: (cobalt b/375243230) enable UserAgentPlatformInfo on Linux.
-#if BUILDFLAG(IS_ANDROID)
   const UserAgentPlatformInfo platform_info;
   static const std::string user_agent_str = platform_info.ToString();
   return user_agent_str;
-#else
-  return std::string(
-      "Mozilla/5.0 (X11; Linux x86_64) Cobalt/26.lts.0-qa (unlike Gecko) "
-      "v8/unknown gles Starboard/17, "
-      "SystemIntegratorName_DESKTOP_ChipsetModelNumber_2025/FirmwareVersion "
-      "(BrandName, ModelName)");
-#endif
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   blink::UserAgentMetadata metadata;
-
-#define COBALT_BRAND_NAME "Cobalt"
-#define COBALT_MAJOR_VERSION "26"
-#define COBALT_VERSION "26.lts.0-qa"
-  metadata.brand_version_list.emplace_back(COBALT_BRAND_NAME,
+  const UserAgentPlatformInfo platform_info;
+  metadata.brand_version_list.emplace_back(platform_info.brand().value_or(""),
                                            COBALT_MAJOR_VERSION);
-  metadata.brand_full_version_list.emplace_back(COBALT_BRAND_NAME,
-                                                COBALT_VERSION);
-  metadata.full_version = COBALT_VERSION;
+  metadata.brand_full_version_list.emplace_back(
+      platform_info.brand().value_or(""), platform_info.cobalt_version());
+  metadata.full_version = platform_info.cobalt_version();
   metadata.platform = "Starboard";
   metadata.architecture = content::GetCpuArchitecture();
   metadata.model = content::BuildModelInfo();
@@ -411,8 +403,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
@@ -429,6 +419,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
 
+#if defined(RUN_BROWSER_TESTS)
   // Overrides for --run-web-tests.
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Disable artificial timeouts for PNA-only preflights in warning-only mode
@@ -440,6 +431,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             network::features::kPrivateNetworkAccessPreflightShortTimeout),
         base::FeatureList::OVERRIDE_DISABLE_FEATURE);
   }
+#endif  // defined(RUN_BROWSER_TESTS)
 
   feature_list->InitializeFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
@@ -455,10 +447,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
-  LOG(INFO) << "CobaltCommandLine "
-            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
-  LOG(INFO) << "CobaltCommandLine "
-            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+  LOG(INFO) << "CobaltCommandLine: enable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
+            << "], disable_features=["
+            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "]";
 
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();

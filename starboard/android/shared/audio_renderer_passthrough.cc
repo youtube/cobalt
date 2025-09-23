@@ -17,13 +17,15 @@
 #include <algorithm>
 #include <utility>
 
+#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::ScopedJavaLocalRef;
@@ -43,7 +45,7 @@ constexpr int kTunnelModeAudioSessionId = -1;
 // The ExoPlayer implementation is based on
 // https://www.etsi.org/deliver/etsi_ts/102300_102399/102366/01.04.01_60/ts_102366v010401p.pdf.
 int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
-  SB_DCHECK(buffer);
+  SB_CHECK(buffer);
 
   constexpr int kAudioSamplesPerAudioBlock = 256;
   // Each syncframe has 6 blocks that provide 256 new audio samples. See
@@ -81,8 +83,8 @@ AudioRendererPassthrough::AudioRendererPassthrough(
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    std::unique_ptr<AudioDecoder> audio_decoder(new AudioDecoder(
-        audio_stream_info, drm_system, enable_flush_during_seek));
+    auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
+        audio_stream_info, drm_system, enable_flush_during_seek);
     if (audio_decoder->is_valid()) {
       decoder_.reset(audio_decoder.release());
     }
@@ -325,7 +327,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = CurrentMonotonicTime();
-    SB_DCHECK(now >= stopped_at_);
+    SB_DCHECK_GE(now, stopped_at_);
     auto time_elapsed = now - stopped_at_;
     int64_t frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
@@ -606,7 +608,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   SB_DCHECK(decoded_audio);
 
   if (!decoded_audio->is_end_of_stream()) {
-    SB_DCHECK(decoded_audio->size_in_bytes() > 0);
+    SB_DCHECK_GT(decoded_audio->size_in_bytes(), 0);
     // We set |frames_per_input_buffer_| before adding first |decoded_audio|
     // into |decoded_audios_|. The usage of |frames_per_input_buffer_| in
     // UpdateStatusAndWriteData() from another thread only happens when there is
@@ -628,4 +630,4 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   decoded_audios_.push(decoded_audio);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

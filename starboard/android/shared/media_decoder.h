@@ -26,8 +26,6 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -37,25 +35,19 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaDecoder final
-    : private MediaCodecBridge::Handler,
-      protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class MediaCodecDecoder final : private MediaCodecBridge::Handler,
+                                protected JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t)> FrameRenderedCB;
-  typedef std::function<void(void)> FirstTunnelFrameReadyCB;
+  using FrameRenderedCB = std::function<void(int64_t)>;
+  using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
-  // This class should be implemented by the users of MediaDecoder to receive
-  // various notifications.  Note that all such functions are called on the
-  // decoder thread.
+  // This class should be implemented by the users of MediaCodecDecoder to
+  // receive various notifications.  Note that all such functions are called on
+  // the decoder thread.
   // TODO: Replace this with std::function<> based callbacks.
   class Host {
    public:
@@ -64,7 +56,7 @@ class MediaDecoder final
     virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the
-    // Host a chance to process when the MediaDecoder is decoding.
+    // Host a chance to process when the MediaCodecDecoder is decoding.
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
@@ -73,35 +65,38 @@ class MediaDecoder final
     // before the MediaCodecBridge is flushed.
     virtual void OnFlushing() = 0;
 
+    virtual bool IsBufferDecodeOnly(
+        const scoped_refptr<InputBuffer>& input_buffer) = 0;
+
    protected:
     ~Host() {}
   };
 
-  MediaDecoder(Host* host,
-               const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system);
-  MediaDecoder(Host* host,
-               SbMediaVideoCodec video_codec,
-               // `width_hint` and `height_hint` are used to create the Android
-               // video format, which don't have to be directly related to the
-               // resolution of the video.
-               int width_hint,
-               int height_hint,
-               std::optional<int> max_width,
-               std::optional<int> max_height,
-               int fps,
-               jobject j_output_surface,
-               SbDrmSystem drm_system,
-               const SbMediaColorMetadata* color_metadata,
-               bool require_software_codec,
-               const FrameRenderedCB& frame_rendered_cb,
-               const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-               int tunnel_mode_audio_session_id,
-               bool force_big_endian_hdr_metadata,
-               int max_video_input_size,
-               int64_t flush_delay_usec,
-               std::string* error_message);
-  ~MediaDecoder();
+  MediaCodecDecoder(Host* host,
+                    const AudioStreamInfo& audio_stream_info,
+                    SbDrmSystem drm_system);
+  MediaCodecDecoder(Host* host,
+                    SbMediaVideoCodec video_codec,
+                    // `width_hint` and `height_hint` are used to create the
+                    // Android video format, which don't have to be directly
+                    // related to the resolution of the video.
+                    int width_hint,
+                    int height_hint,
+                    std::optional<int> max_width,
+                    std::optional<int> max_height,
+                    int fps,
+                    jobject j_output_surface,
+                    SbDrmSystem drm_system,
+                    const SbMediaColorMetadata* color_metadata,
+                    bool require_software_codec,
+                    const FrameRenderedCB& frame_rendered_cb,
+                    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+                    int tunnel_mode_audio_session_id,
+                    bool force_big_endian_hdr_metadata,
+                    int max_video_input_size,
+                    int64_t flush_delay_usec,
+                    std::string* error_message);
+  ~MediaCodecDecoder();
 
   void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);
@@ -181,10 +176,10 @@ class MediaDecoder final
   void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
-  Host* host_;
+  Host* const host_;
   DrmSystem* const drm_system_;
   const FrameRenderedCB frame_rendered_cb_;
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
@@ -205,8 +200,8 @@ class MediaDecoder final
 
   std::atomic<int32_t> number_of_pending_inputs_{0};
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
@@ -215,10 +210,10 @@ class MediaDecoder final
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  pthread_t decoder_thread_ = 0;
+  std::optional<pthread_t> decoder_thread_;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_

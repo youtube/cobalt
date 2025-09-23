@@ -7,7 +7,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace logging {
+namespace {
 
 static const std::map<SbLogPriority, std::string> kSbLogPriorityToString = {
     {kSbLogPriorityUnknown, "unknown"},
@@ -69,5 +69,5 @@ INSTANTIATE_TEST_SUITE_P(
       return "from_" + info.param.text + "_to_" +
              kSbLogPriorityToString.at(info.param.sb_log_priority);
     });
-}  // namespace logging
+}  // namespace
 }  // namespace starboard
