@@ -23,10 +23,6 @@
 
 namespace starboard::shared::starboard::media {
 
-using ::starboard::MaxMediaCodecOutputBuffersLookupTable;
-using ::starboard::MediaCapabilitiesCache;
-using ::starboard::SupportedVideoCodecToMimeType;
-
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
                            int profile,
