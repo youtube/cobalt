@@ -16,8 +16,6 @@
 
 namespace media {
 
-namespace {
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
@@ -39,6 +37,8 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+namespace {
+
 template <class T>
 class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
  public:
@@ -55,11 +55,10 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 
 }  // namespace
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(size_t size)
     : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
-
-DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
-    : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
@@ -88,13 +87,16 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
 
   memcpy(data_, data.data(), data.size());
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // !BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
+    : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : data_(std::move(data)) {}
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
@@ -107,6 +109,7 @@ DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
   }
 }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
                              base::span<const uint8_t> data)
     : DecoderBuffer(std::move(data)) {}
@@ -118,6 +121,7 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
 DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
                              std::unique_ptr<ExternalMemory> external_memory)
     : DecoderBuffer(std::move(external_memory)) {}
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
                              DecoderBufferType decoder_buffer_type,
@@ -148,6 +152,7 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
     base::span<const uint8_t> data) {
@@ -211,6 +216,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
   return base::MakeRefCounted<DecoderBuffer>(base::PassKey<DecoderBuffer>(),
                                              std::move(external_memory));
 }
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer(
