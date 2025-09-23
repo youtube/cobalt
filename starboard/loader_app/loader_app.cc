@@ -197,7 +197,7 @@ void InstallCrashpadHandler(const std::string& evergreen_content_path) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
   }
 
-  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
 }
 
 }  // namespace
@@ -271,7 +271,7 @@ void SbEventHandle(const SbEvent* event) {
     }
 
     InstallCrashpadHandler(
-        command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent));
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
 
     if (is_evergreen_lite) {
       loader_app::RecordSlotSelectionStatus(SlotSelectionStatus::kEGLite);

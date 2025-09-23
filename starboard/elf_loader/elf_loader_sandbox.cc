@@ -109,7 +109,7 @@ void InstallCrashpadHandler(const std::string& evergreen_content_path) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
   }
 
-  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
 }
 
 void SbEventHandle(const SbEvent* event) {
@@ -122,7 +122,7 @@ void SbEventHandle(const SbEvent* event) {
     const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
     InstallCrashpadHandler(
-        command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent));
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
     LoadLibraryAndInitialize(
         command_line.GetSwitchValue(elf_loader::kEvergreenLibrary),
         command_line.GetSwitchValue(elf_loader::kEvergreenContent));
