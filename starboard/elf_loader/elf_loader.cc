@@ -80,7 +80,7 @@ bool ElfLoader::Load(const std::string& library_path,
   EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
-  starboard::ScopedTimer timer("Loading");
+  starboard::ScopedTimer timer;
   bool res = impl_->Load(library_path_.c_str(), use_compression,
                          use_memory_mapped_file);
   int64_t elf_load_duration_us = timer.Stop();

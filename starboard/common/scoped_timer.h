@@ -11,6 +11,7 @@ namespace starboard {
 // It can also be used to explicitly stop the timer and get the elapsed time.
 class ScopedTimer {
  public:
+  ScopedTimer(SourceLocation location = SourceLocation::current());
   ScopedTimer(std::string_view message,
               SourceLocation location = SourceLocation::current());
   ~ScopedTimer();
