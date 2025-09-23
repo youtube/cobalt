@@ -56,7 +56,7 @@ struct EvergreenConfig {
 // Alias not to break CI tests.
 // See https://paste.googleplex.com/5277981744431104
 // TODO: b/441955897 - Update CI test to use flattened namespace.
-namespace elf_loader {
+namespace starboard::elf_loader {
 using ::elf_loader::EvergreenConfig;
 }
 
