@@ -358,6 +358,8 @@ jobs:
       - name: Process size artifacts
         run: |
           # The artifacts are downloaded to out/${{ matrix.platform }}_${{ matrix.config }}/
+          echo "Print out folder structure"
+          ls -R
           echo "Running Check binary size for ${{ matrix.platform }}"
           out/${{ matrix.platform }}_${{ matrix.config }}/bin/run_cobalt_sizes
 
