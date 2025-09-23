@@ -33,10 +33,7 @@ class ScriptState;
 class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccAccessibility final
-    // TODO: EventTargetWithInlineData should be replaced with EventTarget
-    // after Chromium base version update, see
-    // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient {
   DEFINE_WRAPPERTYPEINFO();
