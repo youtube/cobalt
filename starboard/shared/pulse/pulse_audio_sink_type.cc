@@ -49,10 +49,8 @@
 #include "starboard/common/check_op.h"
 #endif  // HAS_LEAK_SANITIZER
 
-namespace starboard::shared::pulse {
+namespace starboard {
 namespace {
-
-using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
 
 const int64_t kAudioIdleSleepIntervalUsec = 15'000;    // 15ms
 const int64_t kAudioRunningSleepIntervalUsec = 5'000;  // 5ms
@@ -595,7 +593,7 @@ PulseAudioSinkType* pulse_audio_sink_type_ = NULL;
 }  // namespace
 
 // static
-void PlatformInitialize() {
+void PulseAudioPlatformInitialize() {
   SB_DCHECK(!pulse_audio_sink_type_);
   if (!pulse_load_library()) {
     return;
@@ -609,7 +607,7 @@ void PlatformInitialize() {
 }
 
 // static
-void PlatformTearDown() {
+void PulseAudioPlatformTearDown() {
   SB_DCHECK(pulse_audio_sink_type_);
   SB_DCHECK_EQ(pulse_audio_sink_type_, SbAudioSinkImpl::GetPrimaryType());
 
@@ -619,4 +617,4 @@ void PlatformTearDown() {
   pulse_unload_library();
 }
 
-}  // namespace starboard::shared::pulse
+}  // namespace starboard
