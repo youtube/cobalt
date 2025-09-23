@@ -37,7 +37,8 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
+
+using IDLVoid = IDLUndefined;
 
 class MODULES_EXPORT H5vccMetrics final
     : public EventTarget,
@@ -54,10 +55,10 @@ class MODULES_EXPORT H5vccMetrics final
 
   // Web-exposed interface:
   DEFINE_ATTRIBUTE_EVENT_LISTENER(metrics, kMetrics)
-  ScriptPromise enable(ScriptState*, ExceptionState&);
-  ScriptPromise disable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> enable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> disable(ScriptState*, ExceptionState&);
   bool isEnabled();
-  ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
@@ -82,9 +83,9 @@ class MODULES_EXPORT H5vccMetrics final
       const RegisteredEventListener& registered_listener) override;
 
  private:
-  void OnEnable(ScriptPromiseResolver* resolver);
-  void OnDisable(ScriptPromiseResolver* resolver);
-  void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
+  void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
@@ -92,7 +93,7 @@ class MODULES_EXPORT H5vccMetrics final
   void MaybeRegisterMojoListener();
   void MaybeUnregisterMojoListener();
 
-  void CleanupPromise(ScriptPromiseResolver* resolver);
+  void CleanupPromise(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   HeapMojoRemote<h5vcc_metrics::mojom::blink::H5vccMetrics>
       remote_h5vcc_metrics_;
@@ -100,7 +101,7 @@ class MODULES_EXPORT H5vccMetrics final
       receiver_;
 
   // If the Mojo connection closes/errors all promises are rejected.
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises_;
+  HeapHashSet<Member<ScriptPromiseResolver<IDLUndefined>>> h5vcc_metrics_promises_;
 
   bool is_reporting_enabled_ = false;
 };
