@@ -165,6 +165,10 @@ component("events_base") {
     }
   }
 
+  if (is_starboard) {
+    sources += [ "keycodes/keyboard_code_conversion_starboard.cc" ]
+  }
+
   if (is_win) {
     sources += [
       "keycodes/keyboard_code_conversion_win.cc",
@@ -766,6 +770,11 @@ if (use_blink) {
       }
     } else {
       data_deps = [ "//third_party/angle:includes" ]
+    }
+
+    if (is_starboard) {
+      sources += [ "keycodes/keyboard_code_conversion_starboard_unittest.cc" ]
+      deps += [ "//starboard:starboard_headers_only" ]
     }
 
     if (use_ozone) {
