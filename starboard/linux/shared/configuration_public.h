@@ -50,7 +50,6 @@
 
 // The path of video_dmp_writer.h. Defined here to avoid errors building on
 // platforms that do not include the video_dmp library.
-#define SB_PLAYER_DMP_WRITER_INCLUDE_PATH \
-  "starboard/shared/starboard/player/video_dmp_writer.h"
+#define SB_PLAYER_DMP_WRITER_INCLUDE_PATH "video_dmp_writer.h"
 
 #endif  // STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_

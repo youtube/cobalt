@@ -51,7 +51,7 @@ void H5vccAccessibility::AddedEventListener(
 
   EnsureReceiverIsBound();
 
-  EventTargetWithInlineData::AddedEventListener(event_type,
+  EventTarget::AddedEventListener(event_type,
                                                 registered_listener);
 
   DCHECK(HasEventListeners(event_type_names::kTexttospeechchange));
@@ -60,7 +60,7 @@ void H5vccAccessibility::AddedEventListener(
 void H5vccAccessibility::RemovedEventListener(
     const AtomicString& event_type,
     const RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::RemovedEventListener(event_type,
+  EventTarget::RemovedEventListener(event_type,
                                                   registered_listener);
 
   if (event_type == event_type_names::kTexttospeechchange &&
@@ -85,7 +85,7 @@ void H5vccAccessibility::Trace(Visitor* visitor) const {
   visitor->Trace(remote_);
   visitor->Trace(notification_receiver_);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void H5vccAccessibility::EnsureRemoteIsBound() {

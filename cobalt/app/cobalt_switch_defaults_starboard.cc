@@ -101,7 +101,7 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   return cobalt_param_switch_defaults;
 }
 
-constexpr base::CommandLine::StringPieceType kDefaultSwitchPrefix = "--";
+constexpr base::CommandLine::StringViewType kDefaultSwitchPrefix = "--";
 constexpr base::CommandLine::CharType kSwitchValueSeparator[] =
     FILE_PATH_LITERAL("=");
 
