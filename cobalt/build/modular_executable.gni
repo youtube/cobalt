@@ -136,6 +136,7 @@ template("evergreen_final_target") {
     args =
         rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
     deps = [ ":${original_target_name}" ]
+    data_deps = deps  # Needed for the .runtime_deps file.
   }
 
   shared_library(original_target_name) {
