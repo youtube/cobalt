@@ -1505,7 +1505,7 @@ bool DeviceInfoImpl::GetChipset(std::string& out) {
       if (rc == Core::ERROR_ASYNC_FAILED || rc == Core::ERROR_TIMEDOUT) {
         chipset.Clear();
       } else {
-      chipset = "";
+        chipset = "";
       }
     } else {
       chipset = info.Chipset.Value();
@@ -1530,9 +1530,9 @@ bool DeviceInfoImpl::GetFirmwareVersion(std::string& out) {
                     << ".firmwareversion', rc=" << rc
                     << " ( " << Core::ErrorToString(rc) << " ).";
       if (rc == Core::ERROR_ASYNC_FAILED || rc == Core::ERROR_TIMEDOUT) {
-        firmware_version.Clear();
+          firmware_version.Clear();
       } else {
-      firmware_version = "";
+        firmware_version = "";
       }
     } else {
       firmware_version = info.FirmwareVersion.Value();
