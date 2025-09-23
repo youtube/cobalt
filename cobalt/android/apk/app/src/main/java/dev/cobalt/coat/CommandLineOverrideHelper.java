@@ -119,7 +119,7 @@ public final class CommandLineOverrideHelper {
 
         // Enable precise memory info so we can make accurate client-side
         // measurements.
-        paramOverrides.add("PreciseMemoryInfo")
+        paramOverrides.add("PreciseMemoryInfo");
 
         return paramOverrides;
     }
