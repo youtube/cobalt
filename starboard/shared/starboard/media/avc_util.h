@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 // Parse avc nalus produced by the Cobalt demuxer.
 // It makes the following assumptions:
@@ -111,6 +111,6 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
                          size_t size,
                          uint8_t* avcc_destination);
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_AVC_UTIL_H_
