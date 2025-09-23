@@ -19,7 +19,7 @@ ScopedTimer::~ScopedTimer() {
 }
 
 int64_t ScopedTimer::Stop() {
-  SB_CHECK_EQ(stoppped_, false);
+  SB_CHECK_EQ(stopped_, false);
   stopped_ = true;
   const int64_t duration_us = CurrentMonotonicTime() - start_time_us_;
   if (!message_.empty()) {
