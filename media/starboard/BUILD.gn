@@ -22,8 +22,10 @@ import("//media/media_options.gni")
 import("//starboard/build/buildflags.gni")
 
 config("disable_unreachable_warnings") {
-  cflags = [ "-Wno-unreachable-code-return",
-             "-Wno-unreachable-code-break" ]
+  cflags = [
+    "-Wno-unreachable-code-return",
+    "-Wno-unreachable-code-break",
+  ]
 }
 
 source_set("starboard") {
