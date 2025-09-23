@@ -239,6 +239,9 @@ class MediaCodecBridge {
   base::android::ScopedJavaGlobalRef<jobject>
       j_reused_get_output_format_result_ = NULL;
 
+  int rendered_frame_count_ = 0;
+  std::optional<int64_t> last_rendered_ms_;
+
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
 };
