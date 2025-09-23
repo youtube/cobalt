@@ -21,6 +21,10 @@ declare_args() {
 
   build_type = "devel"
 
+  # Used to guard any customizations to Chromium or third-party code for builds
+  # where the Starboard porting layer is not used.
+  is_native_target_build = false
+
   is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
   using_old_compiler = false
@@ -33,6 +37,9 @@ declare_args() {
   # TODO(b/444119857) remove this flag once the Chromium rebase has landed.
   build_with_exoplayer = false
 }
+
+assert(!(is_starboard && is_native_target_build),
+       "Targets should be built for Starboard or natively, but not both")
 
 # Used to guard customizations to Chromium or third-party code. We historically
 # used is_starboard for this, but we developed the need to distinguish between

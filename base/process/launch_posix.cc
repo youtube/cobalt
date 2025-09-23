@@ -48,9 +48,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#if !BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 #include "base/starboard/linker_stub.h"
-#endif // !BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
@@ -148,14 +146,14 @@ struct kernel_sigaction {
 long sys_rt_sigaction(int sig,
                       const struct kernel_sigaction* act,
                       struct kernel_sigaction* oact) {
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) && !BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   COBALT_LINKER_STUB();
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return -1;
 #endif
-#else  // ENABLE_COBALT_HERMETIC_HACKS && !BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#else  // ENABLE_COBALT_HERMETIC_HACKS
   return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
-#endif  // ENABLE_COBALT_HERMETIC_HACKS && !BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // ENABLE_COBALT_HERMETIC_HACKS
 }
 
 // This function is intended to be used in between fork() and execve() and will
