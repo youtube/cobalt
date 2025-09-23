@@ -33,7 +33,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
@@ -41,6 +40,7 @@
 
 namespace starboard {
 
+namespace {
 // A wrapper to handle EINTR for syscalls.
 template <typename Func>
 int HANDLE_EINTR(Func func) {
@@ -50,6 +50,137 @@ int HANDLE_EINTR(Func func) {
   } while (result == -1 && errno == EINTR);
   return result;
 }
+
+bool SetNonBlocking(int fd) {
+  int flags = HANDLE_EINTR([&]() { return fcntl(fd, F_GETFL, 0); });
+  if (flags == -1) {
+    SB_LOG(ERROR) << "fcntl(F_GETFL) failed";
+    return false;
+  }
+  if (HANDLE_EINTR([&]() { return fcntl(fd, F_SETFL, flags | O_NONBLOCK); }) ==
+      -1) {
+    SB_LOG(ERROR) << "fcntl(F_SETFL, O_NONBLOCK) failed";
+    return false;
+  }
+  return true;
+}
+
+int CreateListeningSocket(int port, int address_family) {
+  int sock_fd = socket(address_family, SOCK_STREAM, IPPROTO_TCP);
+  if (sock_fd < 0) {
+    SB_LOG(ERROR) << "socket() failed";
+    return -1;
+  }
+
+  if (!SetNonBlocking(sock_fd)) {
+    close(sock_fd);
+    return -1;
+  }
+
+  int on = 1;
+  if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
+    SB_LOG(ERROR) << "setsockopt(SO_REUSEADDR) failed";
+    close(sock_fd);
+    return -1;
+  }
+
+#if defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on Darwin/BSD systems.
+  // On Linux, we can use MSG_NOSIGNAL flag with send/recv.
+  setsockopt(sock_fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
+#endif
+
+  // Bind to localhost.
+  if (address_family == AF_INET) {
+    struct sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
+      SB_LOG(ERROR) << "bind() failed for IPv4";
+      close(sock_fd);
+      return -1;
+    }
+  } else if (address_family == AF_INET6) {
+    struct sockaddr_in6 addr = {};
+    addr.sin6_family = AF_INET6;
+    addr.sin6_port = htons(port);
+    addr.sin6_addr = in6addr_loopback;
+    // Also accept IPv4 connections on this IPv6 socket.
+    int off = 0;
+    setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off));
+    if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
+      SB_LOG(ERROR) << "bind() failed for IPv6";
+      close(sock_fd);
+      return -1;
+    }
+  } else {
+    SB_LOG(ERROR) << "Unsupported address family";
+    close(sock_fd);
+    return -1;
+  }
+
+  const int kMaxConn = 128;
+  if (listen(sock_fd, kMaxConn) != 0) {
+    SB_LOG(ERROR) << "listen() failed";
+    close(sock_fd);
+    return -1;
+  }
+
+  return sock_fd;
+}
+
+bool GetBoundPort(int socket, int* out_port) {
+  SB_CHECK(out_port);
+  struct sockaddr_storage addr;
+  socklen_t len = sizeof(addr);
+  if (getsockname(socket, (struct sockaddr*)&addr, &len) < 0) {
+    SB_LOG(ERROR) << "getsockname() failed";
+    return false;
+  }
+
+  if (addr.ss_family == AF_INET) {
+    *out_port = ntohs(((struct sockaddr_in*)&addr)->sin_port);
+  } else if (addr.ss_family == AF_INET6) {
+    *out_port = ntohs(((struct sockaddr_in6*)&addr)->sin6_port);
+  } else {
+    return false;
+  }
+  return true;
+}
+
+std::string GetTemporaryDirectory() {
+  const int kMaxPathLength = kSbFileMaxPath;
+  std::unique_ptr<char[]> temp_path(new char[kMaxPathLength]);
+  bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
+                                  kMaxPathLength);
+  if (!has_temp) {
+    SB_LOG(ERROR) << __func__ << ": "
+                  << "No temporary directory.";
+    return "";
+  }
+
+  return std::string(temp_path.get());
+}
+
+void CreateTemporaryFile(const char* name, const char* contents, int size) {
+  std::string path = GetTemporaryDirectory();
+  if (path.empty()) {
+    return;
+  }
+  path += "/";
+  path += name;
+
+  FILE* file = fopen(path.c_str(), "w");
+  if (!file) {
+    SB_LOG(ERROR) << "Unable to create temporary file: " << path;
+    return;
+  }
+
+  fwrite(contents, 1, size, file);
+  fclose(file);
+}
+}  // namespace
 
 // --- LinkReceiverImpl Class ---
 class LinkReceiverImpl {
@@ -79,6 +210,8 @@ class LinkReceiverImpl {
   };
 
   void Run();
+  void HandleEvents(struct epoll_event* events, int num_events);
+  void PostRunCleanup();
   static void* RunThread(void* context);
 
   void OnAcceptReady();
@@ -86,19 +219,10 @@ class LinkReceiverImpl {
   void AddToEpoll(int fd, void* data_ptr);
   void RemoveFromEpoll(int fd);
 
-  // Helper functions
-  static bool SetNonBlocking(int fd);
-  static int CreateListeningSocket(int port, int address_family);
-  static bool GetBoundPort(int socket, int* out_port);
-  static void CreateTemporaryFile(const char* name,
-                                  const char* contents,
-                                  int size);
-  static std::string GetTemporaryDirectory();
-
   Application* application_;
   const int specified_port_;
   int actual_port_;
-  pthread_t thread_;
+  pthread_t thread_ = 0;
   std::atomic_bool quit_{false};
 
   int listen_socket_ = -1;
@@ -114,7 +238,7 @@ class LinkReceiverImpl {
 // --- LinkReceiverImpl Implementation ---
 
 LinkReceiverImpl::LinkReceiverImpl(Application* application, int port)
-    : application_(application), specified_port_(port), thread_(0) {
+    : application_(application), specified_port_(port) {
   sem_init(&server_started_sem_, 0, 0);
   pthread_create(&thread_, nullptr, &LinkReceiverImpl::RunThread, this);
   // Block until the server thread is initialized.
@@ -131,14 +255,14 @@ LinkReceiverImpl::~LinkReceiverImpl() {
     HANDLE_EINTR([&]() { return write(event_fd_, &val, sizeof(val)); });
   }
 
-  pthread_join(thread_, NULL);
+  pthread_join(thread_, nullptr);
   sem_destroy(&server_started_sem_);
 }
 
 void* LinkReceiverImpl::RunThread(void* context) {
   pthread_setname_np(pthread_self(), "LinkReceiver");
   reinterpret_cast<LinkReceiverImpl*>(context)->Run();
-  return NULL;
+  return nullptr;
 }
 
 void LinkReceiverImpl::Run() {
@@ -205,42 +329,42 @@ void LinkReceiverImpl::Run() {
       SB_LOG(ERROR) << "epoll_wait() failed";
       break;
     }
+    HandleEvents(events, num_events);
+  }
 
-    if (quit_.load()) {
-      break;
-    }
+  PostRunCleanup();
+}
 
-    for (int i = 0; i < num_events; ++i) {
-      void* event_ptr = events[i].data.ptr;
+void LinkReceiverImpl::HandleEvents(struct epoll_event* events,
+                                    int num_events) {
+  for (int i = 0; i < num_events; ++i) {
+    void* event_ptr = events[i].data.ptr;
 
-      if (event_ptr == &listen_socket_) {
-        // New connection
-        OnAcceptReady();
-      } else if (event_ptr == &event_fd_) {
-        // Wakeup signal
-        uint64_t val;
-        HANDLE_EINTR([&]() { return read(event_fd_, &val, sizeof(val)); });
-        // Break from the loop to check quit_ flag.
-        goto shutdown;
-      } else {
-        // Data on existing connection
-        Connection* connection = static_cast<Connection*>(event_ptr);
-        if (events[i].events & (EPOLLHUP | EPOLLERR)) {
-          RemoveFromEpoll(connection->socket);
-          connections_.erase(connection->socket);
-        } else if (events[i].events & EPOLLIN) {
-          OnReadReady(connection);
-          // OnReadReady might close the connection.
-          if (connections_.find(connection->socket) == connections_.end()) {
-            // The connection was removed inside OnReadReady.
-          }
+    if (event_ptr == &listen_socket_) {
+      // New connection
+      OnAcceptReady();
+    } else if (event_ptr == &event_fd_) {
+      // Wakeup signal
+      uint64_t val;
+      HANDLE_EINTR([&]() { return read(event_fd_, &val, sizeof(val)); });
+    } else {
+      // Data on existing connection
+      Connection* connection = static_cast<Connection*>(event_ptr);
+      if (events[i].events & (EPOLLHUP | EPOLLERR)) {
+        RemoveFromEpoll(connection->socket);
+        connections_.erase(connection->socket);
+      } else if (events[i].events & EPOLLIN) {
+        OnReadReady(connection);
+        // OnReadReady might close the connection.
+        if (connections_.find(connection->socket) == connections_.end()) {
+          // The connection was removed inside OnReadReady.
         }
       }
     }
   }
+}
 
-shutdown:
-  // Cleanup
+void LinkReceiverImpl::PostRunCleanup() {
   connections_.clear();  // Destructors will close sockets.
   if (listen_socket_ >= 0) {
     close(listen_socket_);
@@ -273,11 +397,9 @@ void LinkReceiverImpl::OnAcceptReady() {
     int accepted_socket =
         HANDLE_EINTR([&]() { return accept(listen_socket_, NULL, NULL); });
     if (accepted_socket < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        // No more pending connections.
-        break;
+      if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        SB_LOG(ERROR) << "accept() failed";
       }
-      SB_LOG(ERROR) << "accept() failed";
       break;
     }
 
@@ -343,140 +465,6 @@ void LinkReceiverImpl::OnReadReady(Connection* connection) {
   }
 }
 
-// --- Static Helper Functions ---
-
-bool LinkReceiverImpl::SetNonBlocking(int fd) {
-  int flags = HANDLE_EINTR([&]() { return fcntl(fd, F_GETFL, 0); });
-  if (flags == -1) {
-    SB_LOG(ERROR) << "fcntl(F_GETFL) failed";
-    return false;
-  }
-  if (HANDLE_EINTR([&]() { return fcntl(fd, F_SETFL, flags | O_NONBLOCK); }) ==
-      -1) {
-    SB_LOG(ERROR) << "fcntl(F_SETFL, O_NONBLOCK) failed";
-    return false;
-  }
-  return true;
-}
-
-int LinkReceiverImpl::CreateListeningSocket(int port, int address_family) {
-  int sock_fd = socket(address_family, SOCK_STREAM, IPPROTO_TCP);
-  if (sock_fd < 0) {
-    SB_LOG(ERROR) << "socket() failed";
-    return -1;
-  }
-
-  if (!SetNonBlocking(sock_fd)) {
-    close(sock_fd);
-    return -1;
-  }
-
-  int on = 1;
-  if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
-    SB_LOG(ERROR) << "setsockopt(SO_REUSEADDR) failed";
-    close(sock_fd);
-    return -1;
-  }
-
-#if defined(SO_NOSIGPIPE)
-  // Use SO_NOSIGPIPE to mute SIGPIPE on Darwin/BSD systems.
-  // On Linux, we can use MSG_NOSIGNAL flag with send/recv.
-  setsockopt(sock_fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
-#endif
-
-  // Bind to localhost.
-  if (address_family == AF_INET) {
-    struct sockaddr_in addr = {};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-      SB_LOG(ERROR) << "bind() failed for IPv4";
-      close(sock_fd);
-      return -1;
-    }
-  } else if (address_family == AF_INET6) {
-    struct sockaddr_in6 addr = {};
-    addr.sin6_family = AF_INET6;
-    addr.sin6_port = htons(port);
-    addr.sin6_addr = in6addr_loopback;
-    // Also accept IPv4 connections on this IPv6 socket.
-    int off = 0;
-    setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off));
-    if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-      SB_LOG(ERROR) << "bind() failed for IPv6";
-      close(sock_fd);
-      return -1;
-    }
-  } else {
-    SB_LOG(ERROR) << "Unsupported address family";
-    close(sock_fd);
-    return -1;
-  }
-
-  const int kMaxConn = 128;
-  if (listen(sock_fd, kMaxConn) != 0) {
-    SB_LOG(ERROR) << "listen() failed";
-    close(sock_fd);
-    return -1;
-  }
-
-  return sock_fd;
-}
-
-bool LinkReceiverImpl::GetBoundPort(int socket, int* out_port) {
-  SB_CHECK(out_port);
-  struct sockaddr_storage addr;
-  socklen_t len = sizeof(addr);
-  if (getsockname(socket, (struct sockaddr*)&addr, &len) < 0) {
-    SB_LOG(ERROR) << "getsockname() failed";
-    return false;
-  }
-
-  if (addr.ss_family == AF_INET) {
-    *out_port = ntohs(((struct sockaddr_in*)&addr)->sin_port);
-  } else if (addr.ss_family == AF_INET6) {
-    *out_port = ntohs(((struct sockaddr_in6*)&addr)->sin6_port);
-  } else {
-    return false;
-  }
-  return true;
-}
-
-std::string LinkReceiverImpl::GetTemporaryDirectory() {
-  const int kMaxPathLength = kSbFileMaxPath;
-  std::unique_ptr<char[]> temp_path(new char[kMaxPathLength]);
-  bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
-                                  kMaxPathLength);
-  if (!has_temp) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "No temporary directory.";
-    return "";
-  }
-
-  return std::string(temp_path.get());
-}
-
-void LinkReceiverImpl::CreateTemporaryFile(const char* name,
-                                           const char* contents,
-                                           int size) {
-  std::string path = GetTemporaryDirectory();
-  if (path.empty()) {
-    return;
-  }
-  path += "/";
-  path += name;
-
-  FILE* file = fopen(path.c_str(), "w");
-  if (!file) {
-    SB_LOG(ERROR) << "Unable to create temporary file: " << path;
-    return;
-  }
-
-  fwrite(contents, 1, size, file);
-  fclose(file);
-}
-
 // --- LinkReceiver Implementation ---
 
 LinkReceiver::LinkReceiver(Application* application)
@@ -488,24 +476,5 @@ LinkReceiver::LinkReceiver(Application* application, int port)
 LinkReceiver::~LinkReceiver() {
   delete impl_;
 }
-
-// --- Example Usage ---
-/*
-void MyLinkCallback(const char* link_data) {
-    printf("Received link: %s\n", link_data);
-}
-
-int main() {
-    printf("Starting link receiver...\n");
-    LinkReceiver receiver(MyLinkCallback, 45678);
-
-    printf("Link receiver running. Press Enter to exit.\n");
-    getchar();
-
-    printf("Shutting down link receiver...\n");
-    // Destructor of 'receiver' will be called here, shutting down the server.
-    return 0;
-}
-*/
 
 }  // namespace starboard
