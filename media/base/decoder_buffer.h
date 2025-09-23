@@ -113,16 +113,15 @@ class MEDIA_EXPORT DecoderBuffer
   // TODO(crbug.com/365814210): Remove this constructor. Clients should use the
   // FromArray constructor instead asking for a writable DecoderBuffer.
   explicit DecoderBuffer(size_t size);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
   // default to false.
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   DecoderBuffer(base::PassKey<DecoderBuffer>, base::span<const uint8_t> data);
   DecoderBuffer(base::PassKey<DecoderBuffer>, base::HeapArray<uint8_t> data);
   DecoderBuffer(base::PassKey<DecoderBuffer>,
                 std::unique_ptr<ExternalMemory> external_memory);
 #endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
+
   enum class DecoderBufferType { kNormal, kEndOfStream };
   using ConfigVariant = DecoderBufferSideData::ConfigVariant;
   DecoderBuffer(base::PassKey<DecoderBuffer>,
@@ -141,9 +140,7 @@ class MEDIA_EXPORT DecoderBuffer
   //
   // Ownership of |data| is transferred to the buffer.
   static scoped_refptr<DecoderBuffer> FromArray(base::HeapArray<uint8_t> data);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Create a DecoderBuffer where data() of |size| bytes resides within the
   // memory referred to by |region| at non-negative offset |offset|. The
   // buffer's |is_key_frame_| will default to false.
@@ -167,13 +164,11 @@ class MEDIA_EXPORT DecoderBuffer
       size_t size);
 #endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Creates a DecoderBuffer with ExternalMemory. The buffer accessed through
   // the created DecoderBuffer is |span| of |external_memory||.
   // |external_memory| is owned by DecoderBuffer until it is destroyed.
   static scoped_refptr<DecoderBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Create a DecoderBuffer indicating we've reached end of stream. If this is
   // an EOS buffer for a config change, the upcoming config may optionally be
