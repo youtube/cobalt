@@ -151,6 +151,7 @@ if (current_toolchain == starboard_toolchain) {
       ":sabi_string",
       "//starboard:starboard_group",
     ]
+
     # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
     # can build it and its deps.
     if (sb_is_evergreen_compatible && target_os == "linux" &&

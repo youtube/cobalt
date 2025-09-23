@@ -58,7 +58,6 @@ group("gn_all") {
       "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
     ]
   }
-
 }
 
 group("cobalt_browsertests") {

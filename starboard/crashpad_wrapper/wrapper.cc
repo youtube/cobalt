@@ -76,7 +76,7 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
   // TODO: b/406511608 - we probably want to be able to expect the binary to be
   // in the executable directory itself, without the native_target subdir.
   handler_path.append("native_target/crashpad_handler");
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   handler_path.append("crashpad_handler");
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #endif  // defined(OS_ANDROID)
@@ -211,7 +211,7 @@ void RecordStatus(CrashpadInstallationStatus status) {
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   LOG(WARNING) << "ca_certificates_path is unused:" << ca_certificates_path;
-#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -256,8 +256,7 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
                                    ca_certificates_path,
 #endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-                                   default_annotations,
-                                   default_arguments)) {
+                                   default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
@@ -283,7 +282,7 @@ bool InsertCrashpadAnnotation(const char* key, const char* value) {
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   SB_NOTIMPLEMENTED();
   return false;
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
   return client->InsertAnnotationForHandler(key, value);
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
