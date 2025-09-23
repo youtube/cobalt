@@ -39,7 +39,7 @@ class LocalDOMWindow;
 class ScriptState;
 
 class MODULES_EXPORT H5vccMetrics final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_metrics::mojom::blink::MetricsListener {
   DEFINE_WRAPPERTYPEINFO();
@@ -58,7 +58,7 @@ class MODULES_EXPORT H5vccMetrics final
   bool isEnabled();
   ScriptPromise<void> setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
 
-  // EventTargetWithInlineData impl.
+  // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
