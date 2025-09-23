@@ -7,8 +7,7 @@
 
 namespace starboard {
 
-ScopedTimer::ScopedTimer(SourceLocation location)
-    : ScopedTimer(/*message=*/nullptr, location) {}
+ScopedTimer::ScopedTimer(SourceLocation location) : ScopedTimer("", location) {}
 
 ScopedTimer::ScopedTimer(std::string_view message, SourceLocation location)
     : message_(message),
