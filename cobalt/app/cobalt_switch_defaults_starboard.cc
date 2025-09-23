@@ -80,6 +80,9 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // Enable remote Devtools access.
         {switches::kRemoteDebuggingPort, "9222"},
         {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+        // Enable precise memory info so we can make accurate client-side
+        // measurements.
+        {switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
   });
   return cobalt_param_switch_defaults;
 }

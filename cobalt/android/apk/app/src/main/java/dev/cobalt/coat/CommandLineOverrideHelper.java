@@ -111,6 +111,10 @@ public final class CommandLineOverrideHelper {
         // Align with MSE spec for MediaSource.duration.
         paramOverrides.add("MediaSourceNewAbortAndDuration");
 
+        // Enable precise memory info so we can make accurate client-side
+        // measurements.
+        paramOverrides.add("PreciseMemoryInfo");
+
         return paramOverrides;
     }
 
