@@ -38,9 +38,9 @@ void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
 
-ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
+ScriptPromise<void> H5vccMetrics::enable(ScriptState* script_state,
                                    ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<void>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -54,9 +54,9 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
+ScriptPromise<void> H5vccMetrics::disable(ScriptState* script_state,
                                     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<void>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -74,11 +74,11 @@ bool H5vccMetrics::isEnabled() {
   return is_reporting_enabled_;
 }
 
-ScriptPromise H5vccMetrics::setMetricEventInterval(
+ScriptPromise<void> H5vccMetrics::setMetricEventInterval(
     ScriptState* script_state,
     uint64_t interval_seconds,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<void>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -142,19 +142,19 @@ void H5vccMetrics::MaybeRegisterMojoListener() {
       receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
-void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnEnable(ScriptPromiseResolver<void>* resolver) {
   CleanupPromise(resolver);
   is_reporting_enabled_ = true;
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnDisable(ScriptPromiseResolver<void>* resolver) {
   CleanupPromise(resolver);
   is_reporting_enabled_ = false;
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver<void>* resolver) {
   CleanupPromise(resolver);
   resolver->Resolve();
 }
@@ -178,11 +178,11 @@ void H5vccMetrics::OnCloseConnection() {
   remote_h5vcc_metrics_.reset();
   receiver_.reset();
 
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises;
+  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_metrics_promises;
   // Script may execute during a call to Resolve(). Swap these sets to prevent
   // concurrent modification.
   h5vcc_metrics_promises_.swap(h5vcc_metrics_promises);
-  for (ScriptPromiseResolver* resolver : h5vcc_metrics_promises) {
+  for (ScriptPromiseResolverBase* resolver : h5vcc_metrics_promises) {
     resolver->RejectWithDOMException(
         DOMExceptionCode::kOperationError,
         "Mojo connection to Browser process was closed.");
@@ -198,7 +198,7 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
   EventTarget::Trace(visitor);
 }
 
-void H5vccMetrics::CleanupPromise(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::CleanupPromise(ScriptPromiseResolverBase* resolver) {
   DCHECK(h5vcc_metrics_promises_.Contains(resolver));
   h5vcc_metrics_promises_.erase(resolver);
 }
