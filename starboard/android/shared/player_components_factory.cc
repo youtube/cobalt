@@ -54,6 +54,7 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
+using features::FeatureList;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -189,8 +190,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    bool enable_flush_during_seek = features::FeatureList::IsEnabled(
-        features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -297,7 +298,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     const bool force_tunnel_mode =
-        features::FeatureList::IsEnabled(features::kForceTunnelMode);
+        FeatureList::IsEnabled(features::kForceTunnelMode);
 
     if (force_tunnel_mode && !enable_tunnel_mode) {
       SB_LOG(INFO)
@@ -333,13 +334,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-        features::FeatureList::IsEnabled(features::kForceResetAudioDecoder);
+        FeatureList::IsEnabled(features::kForceResetAudioDecoder);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
-    bool enable_flush_during_seek = features::FeatureList::IsEnabled(
-        features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -349,7 +350,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_renderer_sink);
 
       const bool enable_platform_opus_decoder =
-          features::FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
+          FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
@@ -463,8 +464,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek = features::FeatureList::IsEnabled(
-        features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
