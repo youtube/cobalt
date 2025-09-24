@@ -6,7 +6,6 @@
   "web_tests": true,
   "targets": [
     "blink_web_tests",
-    "content_shell",
     "dump_syms",
     "minidump_stackwalk"
   ],
