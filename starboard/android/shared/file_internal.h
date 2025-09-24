@@ -49,7 +49,6 @@ void SbFileAndroidInitialize(
     const std::string& files_dir,
     const std::string& cache_dir,
     const std::string& native_library_dir);
-void SbFileAndroidTeardown();
 
 bool IsAndroidAssetPath(const char* path);
 AAsset* OpenAndroidAsset(const char* path);
