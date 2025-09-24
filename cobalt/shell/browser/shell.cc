@@ -647,7 +647,7 @@ void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
   g_platform->RunFileChooser(render_frame_host, std::move(listener), params);
 }
 
-bool Shell::IsBackForwardCacheSupported() {
+bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
   return true;
 }
 

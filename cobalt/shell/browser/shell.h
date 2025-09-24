@@ -171,7 +171,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void RunFileChooser(RenderFrameHost* render_frame_host,
                       scoped_refptr<FileSelectListener> listener,
                       const blink::mojom::FileChooserParams& params) override;
-  bool IsBackForwardCacheSupported() override;
+  bool IsBackForwardCacheSupported(WebContents& web_contents) override;
   PreloadingEligibility IsPrerender2Supported(
       WebContents& web_contents) override;
   std::unique_ptr<WebContents> ActivatePortalWebContents(
