@@ -585,6 +585,10 @@ mojom("mojom_content_security_policy") {
     "//url/mojom:url_mojom_gurl",
     "//url/mojom:url_mojom_origin",
   ]
+  enabled_features = []
+  if (is_cobalt) {
+    enabled_features += [ "cobalt_custom_csp" ]
+  }
   if (!is_ios) {
     export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
     export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
@@ -687,10 +691,6 @@ mojom("url_loader_base") {
     # TODO(crbug.com/40263697): Remove this once is_linux in the mojom IDL does
     # not include lacros.
     enabled_features += [ "use_network_interface_change_listener" ]
-  }
-
-  if (is_cobalt) {
-    enabled_features += [ "cobalt_custom_csp" ]
   }
 
   if (!is_ios) {
