@@ -594,7 +594,10 @@ namespace starboard {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  SB_DCHECK(!audio_track_audio_sink_type_);
+  if (audio_track_audio_sink_type_) {
+    SB_LOG(INFO) << "SinkType is already created.";
+    return;
+  }
   audio_track_audio_sink_type_ = new AudioTrackAudioSinkType;
   SetPrimaryType(audio_track_audio_sink_type_);
   EnableFallbackToStub();
