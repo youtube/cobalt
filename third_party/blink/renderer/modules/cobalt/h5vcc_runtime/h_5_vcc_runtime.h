@@ -33,7 +33,6 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccRuntime final
     : public EventTarget,
