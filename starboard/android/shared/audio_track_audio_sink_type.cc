@@ -67,7 +67,7 @@ const int kMinStablePlayedFrames = 12 * 1024;
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
 
-AudioTrackAudioSinkType* audio_track_audio_sink_type_ = nullptr;
+std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
@@ -597,15 +597,16 @@ void SbAudioSinkImpl::PlatformInitialize() {
   static std::once_flag once_flag;
   std::call_once(once_flag, [] {
     SB_LOG(INFO) << "Creating AudioTrackAudioSinkType.";
-    audio_track_audio_sink_type_ = new AudioTrackAudioSinkType;
-    SetPrimaryType(audio_track_audio_sink_type_);
+    audio_track_audio_sink_type_ = std::make_unique<AudioTrackAudioSinkType>();
+    SetPrimaryType(audio_track_audio_sink_type_.get());
     EnableFallbackToStub();
+    audio_track_audio_sink_type_->TestMinRequiredFrames();
   });
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_LOG(FATAL) << "PlatformTearDown() is expected to be called on Android.";
+  SB_LOG(FATAL) << "Android application does not call PlatformTearDown().";
 }
 
 }  // namespace starboard
