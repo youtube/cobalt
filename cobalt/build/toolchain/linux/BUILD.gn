@@ -14,7 +14,7 @@
 
 import("//build/toolchain/gcc_toolchain.gni")
 
-if (is_official_build) {
+if (is_official_build && is_cobalt_hermetic_build) {
   if (target_cpu == "arm") {
     strip_executable = "arm-linux-gnueabi-strip"
   } else if (target_cpu == "arm64") {
