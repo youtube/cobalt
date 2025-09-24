@@ -37,9 +37,4 @@ ShellSpeechRecognitionManagerDelegate::GetEventListener() {
   return nullptr;
 }
 
-bool ShellSpeechRecognitionManagerDelegate::FilterProfanities(
-    int render_process_id) {
-  return false;
-}
-
 }  // namespace content
