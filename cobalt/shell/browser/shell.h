@@ -24,7 +24,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/session_storage_namespace.h"
