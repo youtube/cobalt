@@ -166,7 +166,7 @@ class ShellControllerImpl : public mojom::ShellController {
     if (command_line.HasSwitch(name)) {
       std::move(callback).Run(command_line.GetSwitchValueASCII(name));
     } else {
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
     }
   }
 
@@ -830,7 +830,7 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
       /*add_entropy_source_to_variations_ids=*/false);
 }
 
-absl::optional<blink::ParsedPermissionsPolicy>
+std::optional<blink::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
     content::BrowserContext* browser_context,
     const url::Origin& app_origin) {
@@ -838,7 +838,7 @@ ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
       blink::mojom::PermissionsPolicyFeature::kDirectSockets,
       {blink::OriginWithPossibleWildcards(app_origin,
                                           /*has_subdomain_wildcard=*/false)},
-      /*self_if_matches=*/absl::nullopt,
+      /*self_if_matches=*/std::nullopt,
       /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
   return {{decl}};
 }

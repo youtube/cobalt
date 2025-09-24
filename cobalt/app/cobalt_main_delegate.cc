@@ -35,7 +35,7 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
-absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -60,7 +60,7 @@ CobaltMainDelegate::CreateContentRendererClient() {
   return renderer_client_.get();
 }
 
-absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   content::RenderFrameHost::AllowInjectingJavaScript();
 
@@ -91,7 +91,7 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
                                    AllocationTraceRecorderInclusion::kIgnore)
       .Initialize(memory_system_);
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(

@@ -160,7 +160,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
-  absl::optional<blink::ParsedPermissionsPolicy>
+  std::optional<blink::ParsedPermissionsPolicy>
   GetPermissionsPolicyForIsolatedWebApp(
       content::BrowserContext* browser_context,
       const url::Origin& app_origin) override;

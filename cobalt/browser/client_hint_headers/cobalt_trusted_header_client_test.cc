@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 
+#include <optional>
 #include <tuple>
 
 #include "base/test/task_environment.h"
@@ -29,7 +30,6 @@
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -68,8 +68,7 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   net::HttpRequestHeaders initial_headers;
   initial_headers.SetHeader("Existing-Header", "Existing-Value");
 
-  base::test::TestFuture<int32_t,
-                         const absl::optional<net::HttpRequestHeaders>&>
+  base::test::TestFuture<int32_t, const std::optional<net::HttpRequestHeaders>&>
       future;
   remote->OnBeforeSendHeaders(initial_headers, future.GetCallback());
 
