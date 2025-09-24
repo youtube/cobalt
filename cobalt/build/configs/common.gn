@@ -45,3 +45,6 @@ v8_enable_concurrent_marking = false
 
 # This flag is also needed to disable concurrent marking.
 v8_enable_atomic_object_field_writes = false
+
+# Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
+enable_hls_demuxer=false
