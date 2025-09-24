@@ -401,8 +401,11 @@ gfx::NativeWindow Shell::window() {
 }
 #endif
 
-WebContents* Shell::OpenURLFromTab(WebContents* source,
-                                   const OpenURLParams& params) {
+WebContents* Shell::OpenURLFromTab(
+    WebContents* source,
+    const OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
   WebContents* target = nullptr;
   switch (params.disposition) {
     case WindowOpenDisposition::CURRENT_TAB:
@@ -445,8 +448,14 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
       return nullptr;
   }
 
-  target->GetController().LoadURLWithParams(
-      NavigationController::LoadURLParams(params));
+  base::WeakPtr<NavigationHandle> navigation_handle =
+      target->GetController().LoadURLWithParams(
+          NavigationController::LoadURLParams(params));
+
+  if (navigation_handle_callback && navigation_handle) {
+    std::move(navigation_handle_callback).Run(*navigation_handle);
+  }
+
   return target;
 }
 
