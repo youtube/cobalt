@@ -1003,9 +1003,6 @@ void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
                              uint32_t* video_frames_dropped,
                              TimeDelta* media_time) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
-  CHECK(video_frames_decoded);
-  CHECK(video_frames_dropped);
-  CHECK(media_time);
 
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
