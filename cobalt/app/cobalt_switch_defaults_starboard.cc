@@ -111,6 +111,9 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // Enable precise memory info so we can make accurate client-side
         // measurements.
         {switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
+        // Enable autoplay video/audio, as Cobalt may launch directly into media
+        // playback before user interaction.
+        {switches::kAutoplayPolicy, "no-user-gesture-required"},
   });
   return cobalt_param_switch_defaults;
 }
