@@ -1048,7 +1048,6 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
   if (iter == id_to_streams_map_.end() || iter->second.empty()) {
     // Handled just in case.
     NOTREACHED();
-    return base::TimeDelta();
   }
 
   return iter->second[0]->GetWriteHead();
