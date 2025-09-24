@@ -125,13 +125,13 @@ void ShellFederatedPermissionContext::GrantSharingPermission(
       identity_provider.Serialize(), account_id));
 }
 
-absl::optional<bool> ShellFederatedPermissionContext::GetIdpSigninStatus(
+std::optional<bool> ShellFederatedPermissionContext::GetIdpSigninStatus(
     const url::Origin& idp_origin) {
   auto idp_signin_status = idp_signin_status_.find(idp_origin.Serialize());
   if (idp_signin_status != idp_signin_status_.end()) {
     return idp_signin_status->second;
   } else {
-    return absl::nullopt;
+    return std::nullopt;
   }
 }
 

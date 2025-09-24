@@ -80,7 +80,7 @@ class ShellFederatedPermissionContext
                               const url::Origin& relying_party_embedder,
                               const url::Origin& identity_provider,
                               const std::string& account_id) override;
-  absl::optional<bool> GetIdpSigninStatus(
+  std::optional<bool> GetIdpSigninStatus(
       const url::Origin& idp_origin) override;
   void SetIdpSigninStatus(const url::Origin& idp_origin,
                           bool idp_signin_status) override;
@@ -102,7 +102,7 @@ class ShellFederatedPermissionContext
   // Tuples of <RP requester, IDP, Account>
   std::set<std::tuple<std::string, std::string, std::string>> active_sessions_;
   // Map of <IDP, IDPSigninStatus>
-  std::map<std::string, absl::optional<bool>> idp_signin_status_;
+  std::map<std::string, std::optional<bool>> idp_signin_status_;
 
   base::RepeatingClosure idp_signin_status_closure_;
 
