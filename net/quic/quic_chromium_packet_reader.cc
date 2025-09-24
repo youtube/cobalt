@@ -245,15 +245,12 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
     return visitor_->OnReadError(result, socket_.get());
   }
 
-  DscpAndEcn tos = socket_->GetLastTos();
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-variable"
-  quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
-#pragma clang diagnostic pop
 #if BUILDFLAG(IS_COBALT)
   quic::QuicReceivedPacket packet(read_buffer_->data(), result,
                                   clock_->ApproximateNow());
 #else
+  DscpAndEcn tos = socket_->GetLastTos();
+  quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
   quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now(),
                                   /*owns_buffer=*/false, /*ttl=*/0,
                                   /*ttl_valid=*/true,
