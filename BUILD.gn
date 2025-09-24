@@ -1109,7 +1109,7 @@ if (use_blink && !is_cronet_build) {
       if (is_android && !is_cast_android) {
         deps += [ "//chrome/test/chromedriver/test/webview_shell:chromedriver_webview_shell_apk" ]
       }
-    } else if (!exclude_chrome_build && !is_ios) {
+    } else if (!is_castos && !is_ios) {
       deps = [
         "//chrome/test/chromedriver:chromedriver_server",
         "//chrome/test/chromedriver:chromedriver_unittests",
