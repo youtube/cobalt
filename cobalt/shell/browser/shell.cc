@@ -326,13 +326,14 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
   web_contents_->GetController().LoadURLWithParams(params);
 }
 
-void Shell::AddNewContents(WebContents* source,
-                           std::unique_ptr<WebContents> new_contents,
-                           const GURL& target_url,
-                           WindowOpenDisposition disposition,
-                           const blink::mojom::WindowFeatures& window_features,
-                           bool user_gesture,
-                           bool* was_blocked) {
+WebContents* AddNewContents(
+      WebContents* source,
+      std::unique_ptr<WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   CreateShell(
       std::move(new_contents), AdjustWindowSize(window_features.bounds.size()),
       !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
