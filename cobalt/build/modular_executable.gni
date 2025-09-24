@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/compiled_action.gni")
 import("//third_party/icu/config.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 
@@ -125,12 +126,17 @@ template("evergreen_final_target") {
     ]
   }
 
-  copy("copy_${original_target_name}_lib") {
+  compiled_action("copy_${original_target_name}_lib") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
-    sources = [ "$root_out_dir/${lib_name}.so" ]
-    outputs = [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
+    tool = "//starboard/tools/lz4_compress"
+    inputs = [ "$root_out_dir/${lib_name}.so" ]
+    outputs =
+        [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
+    args =
+        rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
     deps = [ ":${original_target_name}" ]
+    data_deps = deps  # Needed for the .runtime_deps file.
   }
 
   shared_library(original_target_name) {
