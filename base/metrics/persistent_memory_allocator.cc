@@ -31,7 +31,7 @@
 #include <winbase.h>
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/mman.h>
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #include <sys/prctl.h>
 #endif
 #endif
@@ -992,7 +992,7 @@ LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size,
   address = ::mmap(nullptr, size, PROT_READ | PROT_WRITE,
                    MAP_ANON | MAP_SHARED, -1, 0);
   if (address != MAP_FAILED) {
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
     // Allow the anonymous memory region allocated by mmap(MAP_ANON) to be
     // identified in /proc/$PID/smaps.  This helps improve visibility into
     // Chrome's memory usage on Android.
