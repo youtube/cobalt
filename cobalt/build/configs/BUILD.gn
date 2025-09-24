@@ -22,9 +22,8 @@ config("cobalt_config") {
     ":buildflag_defines",
   ]
   if (current_toolchain == starboard_toolchain &&
-      starboard_toolchain != default_toolchain) {
-    configs += [ "//${starboard_path}/platform_configuration" ]
-  } else if (current_toolchain == native_target) {
+      starboard_toolchain != default_toolchain ||
+      current_toolchain == native_target) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {

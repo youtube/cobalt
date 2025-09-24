@@ -31,7 +31,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//third_party/crashpad/crashpad/client:common",
     ]
 
-    data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
+    data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)" ]
   }
 }
 

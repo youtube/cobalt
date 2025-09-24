@@ -65,7 +65,7 @@ crashpad_static_library("snapshot") {
     "unloaded_module_snapshot.h",
   ]
 
-  if (defined(is_native_target_build) && is_native_target_build) {
+  if (is_cobalt && is_native_target_build) {
     sources += [
       "module_snapshot_evergreen.cc",
       "module_snapshot_evergreen.h",

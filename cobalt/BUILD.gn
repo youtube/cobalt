@@ -54,8 +54,8 @@ group("gn_all") {
   # are resolved.
   if (target_os == "linux" && target_cpu == "x64") {
     deps += [
-      "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
-      "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
+      "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
+      "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
     ]
   }
 }
