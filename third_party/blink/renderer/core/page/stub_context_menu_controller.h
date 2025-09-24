@@ -28,7 +28,9 @@
 
 #include "third_party/blink/renderer/core/page/context_menu_controller.h"
 
-#if BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_COBALT)
+#error "StubContextMenuController should only be used for Cobalt builds."
+#endif
 namespace blink {
 
 // A stub context menu controller that by default does not show context menus
@@ -45,5 +47,4 @@ class StubContextMenuController final : public ContextMenuController {
 };
 
 }  // namespace blink
-#endif
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_STUB_CONTEXT_MENU_CONTROLLER_H_
