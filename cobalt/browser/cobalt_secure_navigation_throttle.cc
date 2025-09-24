@@ -84,7 +84,6 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceCSP(
 // presence or absence of CSP headers
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::EnforceCSPHeaders() {
-  std::string CSP_value;
   const net::HttpResponseHeaders* response_headers =
       navigation_handle()->GetResponseHeaders();
   DCHECK(response_headers);
@@ -95,8 +94,8 @@ CobaltSecureNavigationThrottle::EnforceCSPHeaders() {
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
   }
 
-  if (response_headers->GetNormalizedHeader("Content-Security-Policy",
-                                            &CSP_value)) {
+  if (std::optional<std::string> CSP_value = 
+        response_headers->GetNormalizedHeader("Content-Security-Policy")) {
     return content::NavigationThrottle::PROCEED;
   }
 
