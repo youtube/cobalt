@@ -21,13 +21,6 @@ namespace starboard {
 
 namespace {
 
-// Definitions of any functions included as components in the extension
-// are added here.
-
-void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size) {
-  starboard::SetMaxVideoInputSizeForCurrentThread(max_video_input_size);
-}
-
 const StarboardExtensionPlayerSetMaxVideoInputSizeApi
     kPlayerSetMaxVideoInputSizeApi = {
         kStarboardExtensionPlayerSetMaxVideoInputSizeName,

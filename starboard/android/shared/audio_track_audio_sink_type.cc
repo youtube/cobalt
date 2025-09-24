@@ -595,7 +595,7 @@ namespace starboard {
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
   SB_DCHECK(!audio_track_audio_sink_type_);
-  audio_track_audio_sink_type_ = new ::starboard::AudioTrackAudioSinkType;
+  audio_track_audio_sink_type_ = new AudioTrackAudioSinkType;
   SetPrimaryType(audio_track_audio_sink_type_);
   EnableFallbackToStub();
   audio_track_audio_sink_type_->TestMinRequiredFrames();
