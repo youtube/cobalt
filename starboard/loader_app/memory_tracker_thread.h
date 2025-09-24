@@ -18,7 +18,6 @@
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
 
-namespace starboard {
 namespace loader_app {
 
 // Periodically queries for and logs process memory usage when enabled.
@@ -35,6 +34,5 @@ class MemoryTrackerThread : public starboard::Thread {
 };
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_MEMORY_TRACKER_THREAD_H_

@@ -37,7 +37,6 @@ const CobaltExtensionInstallationManagerApi kInstallationManagerApi = {
     &ImReset,
 };
 }  // namespace
-namespace starboard {
 namespace loader_app {
 
 const void* SbSystemGetExtensionShim(const char* name) {
@@ -47,4 +46,3 @@ const void* SbSystemGetExtensionShim(const char* name) {
   return NULL;
 }
 }  // namespace loader_app
-}  // namespace starboard

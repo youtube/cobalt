@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 
-namespace starboard {
 namespace elf_loader {
 
 DynamicSection::DynamicSection(Addr base_memory_address,
@@ -193,4 +192,3 @@ const Sym* DynamicSection::LookupByName(const char* symbol_name) const {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

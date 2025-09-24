@@ -19,10 +19,8 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
-
-using ::starboard::shared::starboard::media::ConvertAnnexBToAvcc;
 
 const auto kAnnexB = AvcParameterSets::kAnnexB;
 const auto kHeadless = AvcParameterSets::kHeadless;
@@ -73,7 +71,7 @@ std::vector<uint8_t> Mutate(const std::vector<uint8_t>& nalu_in_annex_b) {
   return nalu_in_annex_b + std::vector<uint8_t>({123});
 }
 
-std::vector<uint8_t> ConvertAnnexBToAvcc(
+std::vector<uint8_t> ConvertAnnexBToAvccFromVector(
     const std::vector<uint8_t>& nalus_in_annex_b) {
   std::vector<uint8_t> nalus_in_avcc(nalus_in_annex_b.size());
   SB_CHECK(ConvertAnnexBToAvcc(nalus_in_annex_b.data(), nalus_in_annex_b.size(),
@@ -488,7 +486,7 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
       nalus_in_avcc =
           nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
 
-      ASSERT_EQ(ConvertAnnexBToAvcc(nalus_in_annex_b), nalus_in_avcc);
+      ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
     }
   }
   {
@@ -502,7 +500,7 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
       nalus_in_avcc =
           nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
 
-      ASSERT_EQ(ConvertAnnexBToAvcc(nalus_in_annex_b), nalus_in_avcc);
+      ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
     }
   }
 }
@@ -518,13 +516,15 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccEmptyNalus) {
     nalus_in_annex_b = nalus_in_annex_b + ToAnnexB(kEmpty);
     nalus_in_avcc = nalus_in_avcc + ToAvcc(kEmpty);
 
-    ASSERT_EQ(ConvertAnnexBToAvcc(nalus_in_annex_b), nalus_in_avcc);
+    ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
   }
 
-  ASSERT_EQ(ConvertAnnexBToAvcc(ToAnnexB(kEmpty) + ToAnnexB(kRawNalu)),
-            ToAvcc(kEmpty) + ToAvcc(kRawNalu));
-  ASSERT_EQ(ConvertAnnexBToAvcc(ToAnnexB(kRawNalu) + ToAnnexB(kEmpty)),
-            ToAvcc(kRawNalu) + ToAvcc(kEmpty));
+  ASSERT_EQ(
+      ConvertAnnexBToAvccFromVector(ToAnnexB(kEmpty) + ToAnnexB(kRawNalu)),
+      ToAvcc(kEmpty) + ToAvcc(kRawNalu));
+  ASSERT_EQ(
+      ConvertAnnexBToAvccFromVector(ToAnnexB(kRawNalu) + ToAnnexB(kEmpty)),
+      ToAvcc(kRawNalu) + ToAvcc(kEmpty));
 }
 
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
@@ -552,4 +552,4 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

@@ -18,7 +18,7 @@
 #include <type_traits>
 #include "starboard/common/check_op.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -234,4 +234,4 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   return true;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

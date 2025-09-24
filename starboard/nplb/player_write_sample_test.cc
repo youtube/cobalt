@@ -26,7 +26,7 @@
 namespace nplb {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
+using ::starboard::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
