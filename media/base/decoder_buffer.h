@@ -127,11 +127,19 @@ class MEDIA_EXPORT DecoderBuffer
   DecoderBuffer(const DecoderBuffer&) = delete;
   DecoderBuffer& operator=(const DecoderBuffer&) = delete;
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard version of CopyFrom. Allocates memory using the Starboard
+  // allocator and copies the provided data.
+  static scoped_refptr<DecoderBuffer> CopyFrom(
+      DemuxerStream::Type type,
+      base::span<const uint8_t> data);
+#else
   // Create a DecoderBuffer whose |data_| is copied from |data|. The buffer's
   // |is_key_frame_| will default to false.
   static scoped_refptr<DecoderBuffer> CopyFrom(base::span<const uint8_t> data);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Create a DecoderBuffer where data() of |size| bytes resides within the heap
   // as byte array. The buffer's |is_key_frame_| will default to false.
   //
@@ -387,13 +395,12 @@ class MEDIA_EXPORT DecoderBuffer
                 size_t size);
   DecoderBuffer(DemuxerStream::Type type,
                 base::span<const uint8_t> data);
-#else // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
   // default to false.
   explicit DecoderBuffer(base::span<const uint8_t> data);
   explicit DecoderBuffer(base::HeapArray<uint8_t> data);
   explicit DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   DecoderBuffer(DecoderBufferType decoder_buffer_type,
                 std::optional<ConfigVariant> next_config);
 

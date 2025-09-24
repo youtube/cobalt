@@ -87,7 +87,9 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
 
   memcpy(data_, data.data(), data.size());
 }
-#else // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 
@@ -96,7 +98,7 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
@@ -149,6 +151,17 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
                                                       allocated_size_,
                                                       alignment));
   memset(data_ + size_, 0, padding);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
+    DemuxerStream::Type type,
+    base::span<const uint8_t> data) {
+  // Directly use the protected constructor that takes a span.
+  // This constructor handles the allocation and copy using the Starboard allocator.
+  return base::WrapRefCounted(new DecoderBuffer(type, data));
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

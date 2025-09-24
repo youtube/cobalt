@@ -28,7 +28,13 @@ EncodedVideoChunk* EncodedVideoChunk::Create(ScriptState* script_state,
     return nullptr;
   }
 
+
   scoped_refptr<media::DecoderBuffer> buffer;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard version uses a single CopyFrom for all cases.
+  buffer = media::DecoderBuffer::CopyFrom(
+      media::DemuxerStream::Type::VIDEO, array_span);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (array_span.empty()) {
     buffer = base::MakeRefCounted<media::DecoderBuffer>(0);
   } else if (buffer_contents.IsValid()) {
@@ -38,7 +44,9 @@ EncodedVideoChunk* EncodedVideoChunk::Create(ScriptState* script_state,
   } else {
     buffer = media::DecoderBuffer::CopyFrom(array_span);
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   DCHECK(buffer);
+
 
   // Clamp within bounds of our internal TimeDelta-based duration. See
   // media/base/timestamp_constants.h
