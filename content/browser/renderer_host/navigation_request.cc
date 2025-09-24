@@ -7183,7 +7183,7 @@ net::Error NavigationRequest::CheckCSPDirectives(
             initiator_policies->content_security_policies, &initiator_context,
             network::mojom::CSPDirectiveName::CobaltLocationSrc,
             has_followed_redirect, url_upgraded_after_redirect,
-            is_response_check, /*is_opaque_fenced_frame=*/false,
+            /*is_opaque_fenced_frame=*/false,
             disposition)) {
       error = net::ERR_ABORTED;
       return error;
