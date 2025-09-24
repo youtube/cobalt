@@ -109,6 +109,59 @@ typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
                  static_cast<SbGlEnum>(SB_GL_NO_ERROR)); \
   } while (false)
 
+namespace {
+
+// Calls the appropriate EGL function to get an SbEglDisplay depending on
+// platform and available EGL version.
+SbEglDisplay GetEglDisplay() {
+#if defined(EGL_VERSION_1_5)
+  // eglGetDisplay() takes an array of EGLAttrib's.
+  using EglGetDisplayAttributeType = SbEglAttrib;
+#else
+  // eglGetPlatformDisplayEXT() takes an array of EGLint's.
+  using EglGetDisplayAttributeType = EGLint;
+#endif
+  static constexpr EglGetDisplayAttributeType kEglGetDisplayAttributes[] = {
+      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+      EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+      EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+      EGL_NONE  // Terminate the attribute list.
+  };
+
+  SbEglDisplay display = EGL_NO_DISPLAY;
+
+#if BUILDFLAG(IS_ANDROID)
+  display = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+#else
+#if defined(EGL_VERSION_1_5)
+  display = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
+      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+      kEglGetDisplayAttributes));
+#else
+  // Manually retrieve the eglGetPlatformDisplayEXT function pointer.
+  // This allows us to use the display platform extension without enforcing
+  // full EGL 1.5 compliance.
+  PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
+      reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
+          EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
+  if (eglGetPlatformDisplayEXT_func) {
+    display = eglGetPlatformDisplayEXT_func(
+        EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+        kEglGetDisplayAttributes);
+  } else {
+    display = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+  }
+#endif  // defined(EGL_VERSION_1_5)
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK_NE(EGL_NO_DISPLAY, display);
+
+  return display;
+}
+
+}  // namespace
+
 namespace starboard {
 
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
@@ -190,43 +243,7 @@ void FakeGraphicsContextProvider::RunLoop() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
-#if !defined(EGL_VERSION_1_5)
-  std::vector<EGLint> display_attribs = {
-#else
-  std::vector<SbEglAttrib> display_attribs = {
-#endif  // !defined(EGL_VERSION_1_5)
-    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
-    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE,
-    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
-    EGL_NONE  // Terminate the attribute list
-  };
-#if BUILDFLAG(IS_ANDROID)
-  display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-#else
-#if !defined(EGL_VERSION_1_5)
-  // Manually retrieve the eglGetPlatformDisplayEXT function pointer.
-  // This allows us to use the display platform extension without enforcing
-  // full EGL 1.5 compliance.
-  PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
-      reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
-          EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
-  if (eglGetPlatformDisplayEXT_func) {
-    display_ = eglGetPlatformDisplayEXT_func(
-        EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-        display_attribs.data());
-  } else {
-    display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-  }
-#else
-  display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
-      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-      display_attribs.data()));
-#endif  // !defined(EGL_VERSION_1_5)
-#endif  // BUILDFLAG(IS_ANDROID)
-
-  SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK_NE(EGL_NO_DISPLAY, display_);
+  display_ = GetEglDisplay();
 
 #if HAS_LEAK_SANITIZER
   __lsan_disable();
