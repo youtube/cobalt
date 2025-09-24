@@ -376,7 +376,7 @@ void SbPlayerBridge::WriteBuffers(
 }
 
 void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   set_bounds_z_index_ = z_index;
   set_bounds_rect_ = rect;
@@ -462,7 +462,7 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
 
 std::vector<SbMediaAudioConfiguration>
 SbPlayerBridge::GetAudioConfigurations() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!SbPlayerIsValid(player_)) {
     return std::vector<SbMediaAudioConfiguration>();
   }
@@ -1002,10 +1002,10 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
 void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
                              uint32_t* video_frames_dropped,
                              TimeDelta* media_time) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(video_frames_decoded);
-  DCHECK(video_frames_dropped);
-  DCHECK(media_time);
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  CHECK(video_frames_decoded);
+  CHECK(video_frames_dropped);
+  CHECK(media_time);
 
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -1037,7 +1037,7 @@ void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
 }
 
 void SbPlayerBridge::UpdateBounds() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(SbPlayerIsValid(player_));
 
   if (!set_bounds_z_index_ || !set_bounds_rect_) {
