@@ -14,7 +14,7 @@ config build = common.build {
     },
     {
       key = 'PLATFORM'
-      value = 'evergreen-arm-hardfp-sbversion-17'
+      value = 'evergreen-arm-hardfp-rdk-sbversion-17'
     },
     {
       key = 'SB_API_VERSION'
