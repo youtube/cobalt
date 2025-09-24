@@ -36,8 +36,7 @@ const int kMaxPathSize = kSbFileMaxPath;
 // Gets the path to the cache directory, using the home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
   std::vector<char> home_path(kMaxPathSize + 1);
-  if (!starboard::shared::starboard::GetHomeDirectory(home_path.data(),
-                                                      kMaxPathSize)) {
+  if (!starboard::GetHomeDirectory(home_path.data(), kMaxPathSize)) {
     return false;
   }
   int result = snprintf(out_path, path_size, "%s/.cache", home_path.data());
@@ -53,8 +52,7 @@ bool GetCacheDirectory(char* out_path, int path_size) {
 // Gets the path to the storage directory, using the home directory.
 bool GetStorageDirectory(char* out_path, int path_size) {
   std::vector<char> home_path(kMaxPathSize + 1);
-  if (!starboard::shared::starboard::GetHomeDirectory(home_path.data(),
-                                                      kMaxPathSize)) {
+  if (!starboard::GetHomeDirectory(home_path.data(), kMaxPathSize)) {
     return false;
   }
   int result =
