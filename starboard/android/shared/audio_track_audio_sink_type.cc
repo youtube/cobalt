@@ -24,6 +24,7 @@
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/scoped_timer.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -274,10 +275,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
+      ScopedTimer timer("Pause");
       bridge_.Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
+      ScopedTimer timer("Play");
       bridge_.Play();
     }
 
