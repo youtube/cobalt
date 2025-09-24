@@ -15,11 +15,8 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 #define MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 
-<<<<<<< HEAD
 #include <map>
-=======
 #include <optional>
->>>>>>> 06fc0d242ac (refactor: Remove lock from SbPlayerBridge (#6662))
 #include <string>
 #include <utility>
 #include <vector>
@@ -238,15 +235,7 @@ class SbPlayerBridge {
       const SbMediaAudioStreamInfo* audio_stream_info,
       const SbMediaVideoStreamInfo* video_stream_info);
 
-<<<<<<< HEAD
-  void GetInfo_Locked(uint32_t* video_frames_decoded,
-                      uint32_t* video_frames_dropped,
-                      base::TimeDelta* media_time)
-      EXCLUSIVE_LOCKS_REQUIRED(lock_);
-  void UpdateBounds_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
-=======
   void UpdateBounds();
->>>>>>> 06fc0d242ac (refactor: Remove lock from SbPlayerBridge (#6662))
 
   void ClearDecoderBufferCache();
 

@@ -460,18 +460,6 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
   sbplayer_interface_->SetPlaybackRate(player_, playback_rate);
 }
 
-<<<<<<< HEAD
-void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
-                             uint32_t* video_frames_dropped,
-                             TimeDelta* media_time) {
-  DCHECK(video_frames_decoded || video_frames_dropped || media_time);
-
-  base::AutoLock auto_lock(lock_);
-  GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
-}
-
-=======
->>>>>>> 06fc0d242ac (refactor: Remove lock from SbPlayerBridge (#6662))
 std::vector<SbMediaAudioConfiguration>
 SbPlayerBridge::GetAudioConfigurations() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -605,15 +593,8 @@ void SbPlayerBridge::Suspend() {
 
   set_bounds_helper_->SetPlayerBridge(NULL);
 
-<<<<<<< HEAD
-  base::AutoLock auto_lock(lock_);
-  GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                 &preroll_timestamp_);
-=======
-  PlayerInfo info{&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                  nullptr, nullptr, &preroll_timestamp_};
-  GetInfo(&info);
->>>>>>> 06fc0d242ac (refactor: Remove lock from SbPlayerBridge (#6662))
+  GetInfo(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
+          &preroll_timestamp_);
 
   state_ = kSuspended;
 
@@ -1018,19 +999,14 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
-<<<<<<< HEAD
-void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
-                                    uint32_t* video_frames_dropped,
-                                    TimeDelta* media_time) {
-  lock_.AssertAcquired();
-=======
-void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
+void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
+                             uint32_t* video_frames_dropped,
+                             TimeDelta* media_time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(out_info);
-  DCHECK(out_info->video_frames_decoded || out_info->video_frames_dropped ||
-         out_info->media_time);
+  DCHECK(video_frames_decoded);
+  DCHECK(video_frames_dropped);
+  DCHECK(media_time);
 
->>>>>>> 06fc0d242ac (refactor: Remove lock from SbPlayerBridge (#6662))
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
       *video_frames_decoded = cached_video_frames_decoded_;
@@ -1206,21 +1182,8 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
                << "sample_buffer " << sample_buffer;
     return;
   }
-<<<<<<< HEAD
   --iter->second.second;
   if (iter->second.second == 0) {
-=======
-
-  DecodingBuffer& decoding_buffer = iter->second;
-  if (decoding_buffer.type == kSbMediaTypeAudio) {
-    cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
-  } else {
-    cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
-  }
-  --decoding_buffer.usage_count;
-  DCHECK_GE(decoding_buffer.usage_count, 0);
-  if (decoding_buffer.usage_count == 0) {
->>>>>>> 06fc0d242ac (refactor: Remove lock from SbPlayerBridge (#6662))
     decoding_buffers_.erase(iter);
   }
 }
