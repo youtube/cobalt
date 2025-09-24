@@ -314,7 +314,7 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
     char* packet_data_start = results->buffer->data() + packets_array_size;
 
     for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
-      results->packets[i].buffer = packet_data_start + (i * packet_buffer_size);
+      results->packets.get()[i].buffer = packet_data_start + (i * packet_buffer_size);
     }
   }
 
@@ -900,7 +900,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
 
   // Initialize the message headers and I/O vectors.
   for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
-    iovs[i].iov_base = results->packets[i].buffer;
+    iovs[i].iov_base = results->packets.get()[i].buffer;
     iovs[i].iov_len = results->packet_buffer_size;
   
     msgs[i].msg_hdr.msg_iov = &iovs[i];
@@ -918,7 +918,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
   if (rv > 0) {
     results->result = rv;
     for (int i = 0; i < rv; ++i) {
-      auto& out_packet = results->packets[i];
+      auto& out_packet = results->packets.get()[i];
       struct mmsghdr* mmsg = &msgs[i];
       struct msghdr* msg_hdr = &mmsg->msg_hdr;
 
