@@ -31,9 +31,6 @@ namespace blink {
 class LocalDOMWindow;
 class ScriptState;
 
-// TODO: Remove usage of IDLVoid.
-using IDLVoid = IDLUndefined;
-
 class MODULES_EXPORT H5vccExperiments final
     : public ScriptWrappable,
       public ExecutionContextLifecycleObserver {
