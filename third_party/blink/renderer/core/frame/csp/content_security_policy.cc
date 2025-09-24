@@ -532,6 +532,9 @@ void ContentSecurityPolicy::ComputeInternalStateForParsedPolicy(
       case CSPDirectiveName::TrustedTypes:
       case CSPDirectiveName::UpgradeInsecureRequests:
       case CSPDirectiveName::WorkerSrc:
+#if BUILDFLAG(IS_COBALT)
+      case CSPDirectiveName::CobaltLocationSrc:
+#endif //BUILDFLAG(IS_COBALT)
         break;
 
       case CSPDirectiveName::Unknown:
