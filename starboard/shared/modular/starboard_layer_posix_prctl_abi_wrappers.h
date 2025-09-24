@@ -39,12 +39,18 @@
 #define MUSL_PR_TASK_PERF_EVENTS_ENABLE 32
 #define MUSL_PR_SET_PTRACER 0x59616d61
 #define MUSL_PR_SET_PTRACER_ANY (-1UL)
+#define MUSL_PR_SET_VMA 0x53564d41
+#define MUSL_PR_SET_VMA_ANON_NAME 0
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-SB_EXPORT int __abi_wrap_prctl(int op, ...);
+SB_EXPORT int __abi_wrap_prctl(int option,
+                               unsigned long arg2,
+                               unsigned long arg3,
+                               unsigned long arg4,
+                               unsigned long arg5);
 
 #ifdef __cplusplus
 }  // extern "C"

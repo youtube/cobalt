@@ -15,12 +15,40 @@
 #include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <linux/prctl.h>
 #include <signal.h>
-#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
+
+// From third_party/musl/include/sys/prctl.h
+#ifndef PR_SET_VMA
+#define PR_SET_VMA 0x53564d41
+#endif
+#ifndef PR_SET_VMA_ANON_NAME
+#define PR_SET_VMA_ANON_NAME 0
+#endif
+
+namespace {
+void VmaTagFileCleanup() {
+  char file_path[256];
+  snprintf(file_path, sizeof(file_path), "/tmp/cobalt_vma_tags_%d.txt",
+           getpid());
+  unlink(file_path);
+}
+
+void VmaTagSignalHandler(int signum) {
+  VmaTagFileCleanup();
+  // Re-raise signal to get default behavior (e.g. core dump).
+  signal(signum, SIG_DFL);
+  raise(signum);
+}
 
 int musl_op_to_platform_op(int musl_op) {
   switch (musl_op) {
@@ -61,6 +89,8 @@ int musl_op_to_platform_op(int musl_op) {
       return PR_TASK_PERF_EVENTS_ENABLE;
     case MUSL_PR_SET_PTRACER:
       return PR_SET_PTRACER;
+    case MUSL_PR_SET_VMA:
+      return PR_SET_VMA;
     default:
       SB_LOG(WARNING) << "Unknown musl prctl operation: " << musl_op;
       errno = EINVAL;
@@ -126,22 +156,24 @@ int platform_tsc_to_musl_tsc(int platform_tsc) {
       return -1;
   }
 }
+}  // namespace
 
-int __abi_wrap_prctl(int op, ...) {
-  int platform_op = musl_op_to_platform_op(op);
+SB_EXPORT int __abi_wrap_prctl(int option,
+                               unsigned long arg2,
+                               unsigned long arg3,
+                               unsigned long arg4,
+                               unsigned long arg5) {
+  int platform_op = musl_op_to_platform_op(option);
 
   if (platform_op == -1) {
     return -1;
   }
 
-  va_list args;
-  va_start(args, op);
-
   int ret = -1;
 
   switch (platform_op) {
     case PR_SET_PDEATHSIG: {
-      long sig = va_arg(args, long);
+      long sig = (long)arg2;
       if (sig >= 0 && sig < NSIG) {
         ret = prctl(platform_op, sig);
       } else {
@@ -150,7 +182,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_GET_PDEATHSIG: {
-      int* sig = va_arg(args, int*);
+      int* sig = (int*)arg2;
       if (sig) {
         ret = prctl(platform_op, sig);
       } else {
@@ -159,7 +191,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_DUMPABLE: {
-      long dumpable = va_arg(args, long);
+      long dumpable = (long)arg2;
       if (dumpable == 0L || dumpable == 1L) {
         ret = prctl(platform_op, dumpable);
       } else {
@@ -172,7 +204,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_KEEPCAPS: {
-      long keepcaps = va_arg(args, long);
+      long keepcaps = (long)arg2;
       if (keepcaps == 0L || keepcaps == 1L) {
         ret = prctl(platform_op, keepcaps);
       } else {
@@ -192,7 +224,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_TIMING: {
-      long flag = va_arg(args, long);
+      long flag = (long)arg2;
       long platform_flag = musl_timing_to_platform_timing(flag);
 
       // According to the man-pages, PR_TIMING_TIMESTAMP is not implemented and
@@ -206,7 +238,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_NAME: {
-      char* name = va_arg(args, char*);
+      char* name = (char*)arg2;
       if (name) {
         ret = prctl(platform_op, name);
       } else {
@@ -218,7 +250,7 @@ int __abi_wrap_prctl(int op, ...) {
     // be "const char name[16]", but this seems incorrect as we need to write
     // into the buffer. For PR_GET_NAME, we use just "char*" instead.
     case PR_GET_NAME: {
-      char* name = va_arg(args, char*);
+      char* name = (char*)arg2;
       if (name) {
         ret = prctl(platform_op, name);
       } else {
@@ -229,7 +261,7 @@ int __abi_wrap_prctl(int op, ...) {
 // The man-pages specify that these operations only exist on x86 platforms.
 #if defined(PR_SET_TSC) && defined(PR_GET_TSC)
     case PR_GET_TSC: {
-      int* tsc = va_arg(args, int*);
+      int* tsc = (int*)arg2;
       if (tsc) {
         int platform_tsc = 0;
         ret = prctl(platform_op, &platform_tsc);
@@ -247,7 +279,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_TSC: {
-      long tsc = va_arg(args, long);
+      long tsc = (long)arg2;
       long platform_tsc = musl_tsc_to_platform_tsc(tsc);
       if (platform_tsc != -1) {
         ret = prctl(platform_op, platform_tsc);
@@ -260,7 +292,7 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_TIMERSLACK: {
-      unsigned long new_slack = va_arg(args, unsigned long);
+      unsigned long new_slack = arg2;
       ret = prctl(platform_op, new_slack);
       break;
     }
@@ -273,9 +305,44 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_PTRACER: {
-      long pid = va_arg(args, long);
-      pid = (pid == MUSL_PR_SET_PTRACER_ANY) ? PR_SET_PTRACER_ANY : pid;
+      long pid = (long)arg2;
+      pid = (pid == (long)MUSL_PR_SET_PTRACER_ANY) ? PR_SET_PTRACER_ANY : pid;
       ret = prctl(platform_op, pid);
+      break;
+    }
+    case PR_SET_VMA: {
+      ret = prctl(platform_op, arg2, arg3, arg4, arg5);
+      if (ret == -1 && errno == EINVAL && arg2 == PR_SET_VMA_ANON_NAME) {
+        // Kernel does not support PR_SET_VMA_ANON_NAME. Fallback to writing to a
+        // file.
+        char file_path[256];
+        snprintf(file_path, sizeof(file_path), "/tmp/cobalt_vma_tags_%d.txt",
+                 getpid());
+
+        FILE* file = fopen(file_path, "a");
+        if (file) {
+          static bool cleanup_registered = false;
+          if (!cleanup_registered) {
+            atexit(VmaTagFileCleanup);
+            // Also register signal handlers for common crash signals.
+            // This is not a perfect solution as it can interfere with
+            // application signal handlers and does not handle SIGKILL.
+            signal(SIGSEGV, VmaTagSignalHandler);
+            signal(SIGABRT, VmaTagSignalHandler);
+            signal(SIGTERM, VmaTagSignalHandler);
+            signal(SIGQUIT, VmaTagSignalHandler);
+            signal(SIGINT, VmaTagSignalHandler);
+            cleanup_registered = true;
+          }
+          fprintf(file, "0x%lx 0x%lx %s\n", arg3, arg3 + arg4,
+                  (const char*)arg5);
+          fclose(file);
+          return 0;  // Success for our fallback.
+        } else {
+          SB_LOG(ERROR) << "Failed to open VMA tag file: " << file_path;
+          // Fall through to return original error.
+        }
+      }
       break;
     }
     // This default case shouldn't be reachable; if we weren't able to convert
@@ -289,6 +356,5 @@ int __abi_wrap_prctl(int op, ...) {
     }
   }
 
-  va_end(args);
   return ret;
 }
