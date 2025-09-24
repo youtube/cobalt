@@ -47,7 +47,7 @@ h5vcc_system::mojom::UserOnExitStrategy GetUserOnExitStrategyInternal() {
     case Configuration::UserOnExitStrategy::kNoExit:
       return h5vcc_system::mojom::UserOnExitStrategy::kNoExit;
   }
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
