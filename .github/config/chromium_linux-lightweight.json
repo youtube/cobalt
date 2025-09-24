@@ -5,6 +5,7 @@
   ],
   "gn_args": [
     {
+      "exclude_chrome_build": true,
       "enable_lightweight" : true
     }
   ],
