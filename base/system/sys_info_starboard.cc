@@ -106,7 +106,7 @@ std::string SbSysInfo::ChipsetModelNumber() {
   uname(&systemInfo);
   // Extracted from
   // https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L27-L44
-  std::map<std::string, std::string> kChipsets[] = {
+  const std::map<std::string_view, std::string_view> kChipsets{
       {"AppleTV1,1", "Intel Pentium M"},
       {"AppleTV2,1", "Apple A4"},
       {"AppleTV3,1", "Apple A5"},
@@ -116,11 +116,13 @@ std::string SbSysInfo::ChipsetModelNumber() {
       {"AppleTV11,1", "Apple A12 Bionic"},
       {"AppleTV14,1", "Apple A15 Bionic"},
   };
+  if (const auto it = kChipsets.find(systemInfo.machine);
+      it != kChipsets.end()) {
+    return std::string(it->second);
+  }
   // https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L49
-  constexpr std::string kUnknownChipset = "ChipsetUnknown";
-  return base::Contains(kChipsets, systemInfo.machine)
-             ? kChipsets[systemInfo.machine]
-             : kUnknownChipset;
+  static constexpr std::string_view kUnknownChipset = "ChipsetUnknown";
+  return std::string(kUnknownChipset);
 }
 
 std::string SbSysInfo::ModelYear() {
@@ -128,7 +130,7 @@ std::string SbSysInfo::ModelYear() {
   uname(&systemInfo);
   // Extracted from
   // https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L27-L44
-  std::map<std::string, std::string> kYears[] = {
+  const std::map<std::string_view, std::string_view> kYears{
       {"AppleTV1,1", "2007"},
       {"AppleTV2,1", "2010"},
       {"AppleTV3,1", "2012"},
@@ -138,11 +140,12 @@ std::string SbSysInfo::ModelYear() {
       {"AppleTV11,1", "2021"},
       {"AppleTV14,1", "2022"},
   };
+  if (const auto it = kYears.find(systemInfo.machine); it != kYears.end()) {
+    return std::string(it->second);
+  }
   // https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L48
-  constexpr std::string kUnknownYear = 2022;
-  return base::Contains(kYears, systemInfo.machine)
-             ? kYears[systemInfo.machine]
-             : kUnknownYear;
+  static constexpr std::string_view kUnknownYear = "2022";
+  return std::string(kUnknownYear);
 }
 
 std::string SbSysInfo::Brand() {
