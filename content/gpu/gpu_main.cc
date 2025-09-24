@@ -329,7 +329,7 @@ int GpuMain(MainFunctionParams parameters) {
   base::PlatformThread::SetName("CrGpuMain");
   mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics("GpuMain");
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
   // Thread type delegate of the process should be registered before
   // thread type change below for the main thread and for thread pool in
   // ChildProcess constructor.
