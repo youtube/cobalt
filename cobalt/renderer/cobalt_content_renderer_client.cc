@@ -65,7 +65,7 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_WIDEVINE)
 ::media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
   ::media::SupportedCodecs codecs =
       ::media::EME_CODEC_AAC | ::media::EME_CODEC_AVC1 |
@@ -110,7 +110,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_WIDEVINE)
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
@@ -140,7 +140,7 @@ void CobaltContentRendererClient::GetSupportedKeySystems(
     ::media::GetSupportedKeySystemsCB cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   ::media::KeySystemInfos key_systems;
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_WIDEVINE)
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
 #endif
