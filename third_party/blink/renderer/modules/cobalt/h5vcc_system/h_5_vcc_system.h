@@ -36,9 +36,6 @@ class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
 
-// TODO: Remove usage of IDLVoid here.
-using IDLVoid = IDLUndefined;
-
 class MODULES_EXPORT H5vccSystem final
     : public ScriptWrappable,
       public ExecutionContextLifecycleObserver {
