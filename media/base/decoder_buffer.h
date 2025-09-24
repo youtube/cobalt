@@ -137,9 +137,7 @@ class MEDIA_EXPORT DecoderBuffer
   // Create a DecoderBuffer whose |data_| is copied from |data|. The buffer's
   // |is_key_frame_| will default to false.
   static scoped_refptr<DecoderBuffer> CopyFrom(base::span<const uint8_t> data);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Create a DecoderBuffer where data() of |size| bytes resides within the heap
   // as byte array. The buffer's |is_key_frame_| will default to false.
   //
@@ -173,7 +171,7 @@ class MEDIA_EXPORT DecoderBuffer
   // |external_memory| is owned by DecoderBuffer until it is destroyed.
   static scoped_refptr<DecoderBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Create a DecoderBuffer indicating we've reached end of stream. If this is
   // an EOS buffer for a config change, the upcoming config may optionally be

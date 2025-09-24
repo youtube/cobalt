@@ -87,9 +87,8 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
 
   memcpy(data_, data.data(), data.size());
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 
@@ -98,7 +97,7 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
@@ -163,9 +162,8 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
   // This constructor handles the allocation and copy using the Starboard allocator.
   return base::WrapRefCounted(new DecoderBuffer(type, data));
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
     base::span<const uint8_t> data) {
@@ -229,7 +227,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
   return base::MakeRefCounted<DecoderBuffer>(base::PassKey<DecoderBuffer>(),
                                              std::move(external_memory));
 }
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer(
