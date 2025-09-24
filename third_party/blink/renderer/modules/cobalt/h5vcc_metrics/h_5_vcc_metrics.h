@@ -38,8 +38,6 @@ class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
 
-using IDLVoid = IDLUndefined;
-
 class MODULES_EXPORT H5vccMetrics final
     : public EventTarget,
       public ExecutionContextLifecycleObserver,
