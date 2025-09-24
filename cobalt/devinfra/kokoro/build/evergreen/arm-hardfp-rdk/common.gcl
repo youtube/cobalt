@@ -17,7 +17,7 @@ build = common.build {
     },
     {
       key = 'BOOTLOADER_EXTRA_GN_ARGUMENTS'
-      value = 'use_asan=false is_clang=false is_internal_build=true'
+      value = 'use_asan=false is_clang=false is_internal_build=false'
     },
     {
       key = 'EXTRA_GN_ARGUMENTS'
