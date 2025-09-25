@@ -423,6 +423,7 @@ FrameSize MediaCodecBridge::GetOutputSize() {
                                         j_reused_get_output_format_result_);
   if (Java_GetOutputFormatResult_status(
           env, j_reused_get_output_format_result_) == MEDIA_CODEC_ERROR) {
+    SB_LOG(WARNING) << "GetOutputSize() failed, returning empty size.";
     return {{0, 0}};
   }
 
