@@ -24,6 +24,7 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/public/browser/content_browser_client.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
 class PrefService;
@@ -160,7 +161,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
-  std::optional<blink::ParsedPermissionsPolicy>
+  std::optional<network::ParsedPermissionsPolicy>
   GetPermissionsPolicyForIsolatedWebApp(
       content::BrowserContext* browser_context,
       const url::Origin& app_origin) override;
