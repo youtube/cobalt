@@ -1046,8 +1046,11 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
 
   auto iter = id_to_streams_map_.find(id);
   if (iter == id_to_streams_map_.end() || iter->second.empty()) {
-    // Handled just in case.
-    NOTREACHED();
+    // This function may rarely execute before |id| has been inserted into
+    // |id_to_streams_map_|. Return a default TimeDelta in this case.
+    MEDIA_LOG(ERROR, media_log_)
+        << "Attempted to access the write head of SourceBuffer " << id
+        << " before it's been fully initialized.";
     return base::TimeDelta();
   }
 
