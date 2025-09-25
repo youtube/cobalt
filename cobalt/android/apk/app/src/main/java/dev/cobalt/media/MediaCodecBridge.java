@@ -713,7 +713,7 @@ class MediaCodecBridge {
     int status = MediaCodecStatus.OK;
     try {
       format = mMediaCodec.get().getOutputFormat();
-    } catch (IllegalStateException | MediaCodec.CodecException e) {
+    } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
       status = MediaCodecStatus.ERROR;
     }
