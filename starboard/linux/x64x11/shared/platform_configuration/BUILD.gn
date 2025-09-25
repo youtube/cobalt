@@ -23,6 +23,12 @@ config("platform_configuration") {
       "//base/third_party/symbolize:symbolize_config",
       ":linker_flags",
     ]
+  } else if (current_toolchain == native_target) {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/shared/platform_configuration:compiler_flags",
+      "//starboard/linux/shared/platform_configuration:no_pedantic_warnings",
+    ]
   }
 }
 
