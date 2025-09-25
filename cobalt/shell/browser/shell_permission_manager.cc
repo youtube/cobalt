@@ -192,17 +192,4 @@ ShellPermissionManager::GetPermissionStatusForEmbeddedRequester(
           render_frame_host->GetMainFrame()));
 }
 
-ShellPermissionManager::SubscriptionId
-ShellPermissionManager::SubscribePermissionStatusChange(
-    PermissionType permission,
-    RenderProcessHost* render_process_host,
-    RenderFrameHost* render_frame_host,
-    const GURL& requesting_origin,
-    base::RepeatingCallback<void(blink::mojom::PermissionStatus)> callback) {
-  return SubscriptionId();
-}
-
-void ShellPermissionManager::UnsubscribePermissionStatusChange(
-    SubscriptionId subscription_id) {}
-
 }  // namespace content
