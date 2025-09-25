@@ -67,6 +67,7 @@
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/login_delegate.h"
 #include "content/public/browser/navigation_throttle.h"
+#include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_process_host.h"
@@ -577,14 +578,11 @@ void ShellContentBrowserClient::OpenURL(
           ->web_contents());
 }
 
-std::vector<std::unique_ptr<NavigationThrottle>>
-ShellContentBrowserClient::CreateThrottlesForNavigation(
-    NavigationHandle* navigation_handle) {
-  std::vector<std::unique_ptr<NavigationThrottle>> empty_throttles;
+void ShellContentBrowserClient::CreateThrottlesForNavigation(
+    NavigationThrottleRegistry& registry) {
   if (create_throttles_for_navigation_callback_) {
-    return create_throttles_for_navigation_callback_.Run(navigation_handle);
+    create_throttles_for_navigation_callback_.Run(registry);
   }
-  return empty_throttles;
 }
 
 std::unique_ptr<LoginDelegate> ShellContentBrowserClient::CreateLoginDelegate(

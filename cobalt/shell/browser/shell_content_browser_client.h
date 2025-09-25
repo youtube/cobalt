@@ -36,6 +36,7 @@ class BluetoothDelegateImpl;
 #endif
 
 namespace content {
+class NavigationThrottleRegistry;
 class ShellBrowserContext;
 class ShellBrowserMainParts;
 
@@ -121,8 +122,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void OpenURL(SiteInstance* site_instance,
                const OpenURLParams& params,
                base::OnceCallback<void(WebContents*)> callback) override;
-  std::vector<std::unique_ptr<NavigationThrottle>> CreateThrottlesForNavigation(
-      NavigationHandle* navigation_handle) override;
+  void CreateThrottlesForNavigation(
+      content::NavigationThrottleRegistry& registry) override;
   std::unique_ptr<LoginDelegate> CreateLoginDelegate(
       const net::AuthChallengeInfo& auth_info,
       content::WebContents* web_contents,
@@ -207,8 +208,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
         std::move(url_loader_factory_params_callback);
   }
   void set_create_throttles_for_navigation_callback(
-      base::RepeatingCallback<std::vector<std::unique_ptr<NavigationThrottle>>(
-          NavigationHandle*)> create_throttles_for_navigation_callback) {
+      base::RepeatingCallback<void(NavigationThrottleRegistry&)>
+          create_throttles_for_navigation_callback) {
     create_throttles_for_navigation_callback_ =
         create_throttles_for_navigation_callback;
   }
@@ -252,8 +253,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
                                const url::Origin&,
                                bool is_for_isolated_world)>
       url_loader_factory_params_callback_;
-  base::RepeatingCallback<std::vector<std::unique_ptr<NavigationThrottle>>(
-      NavigationHandle*)>
+  base::RepeatingCallback<void(NavigationThrottleRegistry&)>
       create_throttles_for_navigation_callback_;
   base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
       override_web_preferences_callback_;
