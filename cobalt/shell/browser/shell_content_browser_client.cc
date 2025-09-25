@@ -76,7 +76,6 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
-#include "content/public/common/user_agent.h"
 #include "content/shell/common/shell_controller.test-mojom.h"
 #include "content/shell/common/shell_switches.h"
 #include "media/mojo/buildflags.h"
@@ -372,7 +371,8 @@ ShellContentBrowserClient::CreateURLLoaderThrottles(
     BrowserContext* browser_context,
     const base::RepeatingCallback<WebContents*()>& wc_getter,
     NavigationUIData* navigation_ui_data,
-    int frame_tree_node_id) {
+    FrameTreeNodeId frame_tree_node_id,
+    std::optional<int64_t> navigation_id) {
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>> result;
 
   auto* factory = custom_handlers::SimpleProtocolHandlerRegistryFactory::
@@ -580,6 +580,9 @@ ShellContentBrowserClient::CreateThrottlesForNavigation(
 
 std::unique_ptr<LoginDelegate> ShellContentBrowserClient::CreateLoginDelegate(
     const net::AuthChallengeInfo& auth_info,
+    WebContents* web_contents,
+    BrowserContext* browser_context,
+    const GlobalRequestID& request_id,
     content::WebContents* web_contents,
     const content::GlobalRequestID& request_id,
     bool is_request_for_primary_main_frame,
