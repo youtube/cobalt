@@ -74,10 +74,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     LOG_IF(INFO, !preserves_pitch)
         << "SetPreservesPitch() with preserves_pitch=false is not supported.";
   }
-  void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) override {
-    LOG_IF(INFO, was_played_with_user_activation)
-        << "SetWasPlayedWithUserActivation() with "
+  void SetWasPlayedWithUserActivationAndHighMediaEngagement(
+      bool was_played_with_user_activation_and_high_media_engagement) override {
+    LOG_IF(INFO, was_played_with_user_activation_and_high_media_engagement)
+        << "SetWasPlayedWithUserActivationAndHighMediaEngagement() with "
            "was_played_with_user_activation=true is not supported.";
   }
   void Flush(base::OnceClosure flush_cb) override;
@@ -85,18 +85,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
   TimeDelta GetMediaTime() override;
-  void OnSelectedVideoTracksChanged(
-      const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) override {
-    LOG(INFO) << "Track changes are not supported.";
-    std::move(change_completed_cb).Run();
-  }
-  void OnEnabledAudioTracksChanged(
-      const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) override {
-    LOG(INFO) << "Track changes are not supported.";
-    std::move(change_completed_cb).Run();
-  }
+  void OnTracksChanged(DemuxerStream::Type track_type,
+                       std::vector<DemuxerStream*> enabled_tracks,
+                       base::OnceClosure change_completed_cb) override;
   RendererType GetRendererType() override { return RendererType::kStarboard; }
 
   using PaintVideoHoleFrameCallback =

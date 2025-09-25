@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_renderer.h"
 
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/video_codecs.h"
@@ -424,6 +425,14 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   StoreMediaTime(media_time);
 
   return media_time;
+}
+
+void StarboardRenderer::OnTracksChanged(
+    DemuxerStream::Type track_type,
+    std::vector<DemuxerStream*> enabled_tracks,
+    base::OnceClosure change_completed_cb) {
+  LOG(INFO) << "OnTracksChanged not supported for type: " << track_type;
+  std::move(change_completed_cb).Run();
 }
 
 void StarboardRenderer::SetStarboardRendererCallbacks(
