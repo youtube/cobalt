@@ -421,6 +421,10 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
   Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
                                         j_reused_get_output_format_result_);
+  if (Java_GetOutputFormatResult_status(
+          env, j_reused_get_output_format_result_) == MEDIA_CODEC_ERROR) {
+    return {{0, 0}};
+  }
 
   jint textureWidth = Java_GetOutputFormatResult_textureWidth(
       env, j_reused_get_output_format_result_);
