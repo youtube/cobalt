@@ -172,7 +172,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                       const blink::mojom::FileChooserParams& params) override;
   bool IsBackForwardCacheSupported(WebContents& web_contents) override;
   PreloadingEligibility IsPrerender2Supported(
-      WebContents& web_contents) override;
+      WebContents& web_contents,
+      PreloadingTriggerType trigger_type) override;
   bool ShouldAllowRunningInsecureContent(WebContents* web_contents,
                                          bool allowed_per_prefs,
                                          const url::Origin& origin,
