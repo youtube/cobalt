@@ -6,20 +6,11 @@
 import 'common.gcl' as common
 
 config build = common.build {
+  build_file = 'src/cobalt/devinfra/kokoro/bin/dind_builder_runner.sh'
   env_vars = super.env_vars + [
     {
       key = 'CONFIG'
       value = 'qa'
-    },
-  ]
-  action = [
-    {
-      define_artifacts = {
-        regex = [
-          'build_id',
-          'build_info.json',
-        ]
-      }
     },
   ]
 }
