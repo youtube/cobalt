@@ -18,7 +18,6 @@
 #include <string>
 
 #include "build/build_config.h"
-#include "components/download/public/common/download_target_info.h"
 
 #include "base/check_op.h"
 #include "base/command_line.h"
@@ -28,6 +27,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
+#include "components/download/public/common/download_target_info.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
