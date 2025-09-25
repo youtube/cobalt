@@ -55,7 +55,8 @@ class IssueConsolidator:
 
     # 2. Consolidate gtest failures into proper clusters first.
     gtest_fail_events = [e for e in self.events if e.issue_type == 'gtest_fail']
-    other_events = [e for e in self.events if e.issue_type != 'gtest_fail']
+    gtest_failure_line_events = [e for e in self.events if e.issue_type == 'gtest_failure_line']
+    other_events = [e for e in self.events if e.issue_type not in ['gtest_fail', 'gtest_failure_line']]
 
     for fail_event in gtest_fail_events:
       test_name = fail_event.data['test_name']
@@ -64,6 +65,13 @@ class IssueConsolidator:
 
       # Find all issues within this test's boundaries
       inner_events = [fail_event]
+
+      # Explicitly find and consume gtest_failure_line events
+      for failure_event in gtest_failure_line_events:
+          if start_line <= failure_event.line_num < end_line:
+              inner_events.append(failure_event)
+              reported_lines.add(failure_event.line_num) # Mark as handled
+
       for other_event in other_events:
           if start_line <= other_event.line_num < end_line:
               inner_events.append(other_event)

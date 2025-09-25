@@ -211,12 +211,14 @@ async def process_command(session, args):
 
       try:
         while True:
-          # Check for completion marker in the log file
-          with open(log_path, 'r') as f:
-            if 'RETURN_CODE:' in f.read():
-              await asyncio.sleep(0.1) # Give tail a moment to flush
-              break
-          await asyncio.sleep(0.5) # Poll every half second
+          status_result = await session.call_tool('status', arguments={'task_id': task_id})
+          status_text = status_result.model_dump()['content'][0]['text']
+          status_data = json.loads(status_text)
+          if status_data.get('status') != 'in_progress':
+            # Give tail a moment to flush final output
+            await asyncio.sleep(0.5)
+            break
+          await asyncio.sleep(1)  # Poll every second
       finally:
         if tail_process.returncode is None:
           tail_process.terminate()

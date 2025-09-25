@@ -240,7 +240,7 @@ class TestLogAnalyzer(BaseAnalyzer):
     test_boundaries = gtest_parser.test_boundaries
     gtest_markers = gtest_parser.gtest_markers
 
-    issue_detector = IssueDetector(self.lines, test_boundaries, gtest_markers)
+    issue_detector = IssueDetector(self, test_boundaries, gtest_markers)
     issue_detector.detect()
     issues = issue_detector.issues
 

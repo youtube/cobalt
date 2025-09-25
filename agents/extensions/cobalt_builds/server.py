@@ -119,15 +119,14 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
 
 from analysis import analyze_log
-from . import config
+import config
 
 # Suppress informational logs from the MCP server
 logging.getLogger('mcp').setLevel(logging.WARNING)
 
 from build_helpers import (
     PLATFORM_ALIASES,
-    BuildStatus,
-    RunStatus,
+    TaskStatus,
     get_out_dir,
     get_platform
 )
@@ -315,6 +314,16 @@ async def build(platform: str,
   build_id = _generate_task_id('build', target)
   log_path = f'/tmp/{build_id}.log'
 
+  build_info_path = f'/tmp/{build_id}.json'
+  build_info = {
+      'platform': platform,
+      'variant': variant,
+      'target': target,
+      'extra_args': extra_args,
+  }
+  with open(build_info_path, 'w') as f:
+    json.dump(build_info, f)
+
   task_runner = TaskRunner(build_id, cmd, log_path)
   loop = asyncio.get_running_loop()
 
@@ -360,22 +369,23 @@ async def run(platform: str | None = None,
           'error':
               'Cannot specify both build_id_or_log_file and platform/variant/binary_name.'
       })
-    log_file = build_id_or_log_file
-    if not os.path.isfile(log_file):
-      if log_file.startswith('build_'):
-        log_file = f'/tmp/{log_file}.log'
-      if not os.path.isfile(log_file):
-        return json.dumps(
-            {'error': f'Log file not found: {build_id_or_log_file}'})
+    task_id = build_id_or_log_file
+    if '/' in task_id:
+      task_id = os.path.basename(task_id).replace('.log', '')
+
+    build_info_path = f'/tmp/{task_id}.json'
+    if not os.path.isfile(build_info_path):
+      return json.dumps(
+          {'error': f'Build info file not found: {build_info_path}'})
     try:
-      with open(log_file, 'r') as f:
-        first_line = f.readline()
-        build_info = json.loads(first_line)
+      with open(build_info_path, 'r') as f:
+        build_info = json.load(f)
         platform = build_info.get('platform')
         variant = build_info.get('variant')
         binary_name = build_info.get('target')
     except (IOError, json.JSONDecodeError) as e:
-      return json.dumps({'error': f'Error reading build info from {log_file}: {e}'})
+      return json.dumps(
+          {'error': f'Error reading build info from {build_info_path}: {e}'})
 
   if not all([platform, variant, binary_name]):
     return json.dumps({
@@ -443,14 +453,12 @@ def stop(task_id: str) -> bool:
 
 
 @mcp.tool()
-def status(task_id: str) -> BuildStatus | RunStatus:
+def status(task_id: str) -> TaskStatus:
   """Checks the status of a task."""
   log_path = f'/tmp/{task_id}.log'
-  is_build = task_id.startswith('build_')
-  StatusClass = BuildStatus if is_build else RunStatus
 
   if not os.path.exists(log_path):
-    return StatusClass(status='not_found', output_log='')
+    return TaskStatus(status='not_found', output_log='')
 
   # Use fuser as the source of truth for "in_progress"
   try:
@@ -458,7 +466,7 @@ def status(task_id: str) -> BuildStatus | RunStatus:
         ['fuser', log_path], capture_output=True, text=True)
     if result.stdout.strip():
       pid = int(result.stdout.strip().split()[0])
-      return StatusClass(status='in_progress', output_log=log_path, pid=pid)
+      return TaskStatus(status='in_progress', output_log=log_path, pid=pid)
   except (FileNotFoundError, ValueError):
     pass # Fall through to log check
 
@@ -466,12 +474,12 @@ def status(task_id: str) -> BuildStatus | RunStatus:
   try:
     with open(log_path, 'r') as f:
       if 'RETURN_CODE: 0' in f.read():
-        return StatusClass(status='success', output_log=log_path)
+        return TaskStatus(status='success', output_log=log_path)
   except IOError:
     pass # Fall through to failure
 
   # If the process is gone and there's no success marker, it's a failure.
-  return StatusClass(status='failure', output_log=log_path)
+  return TaskStatus(status='failure', output_log=log_path)
 
 
 @mcp.tool()

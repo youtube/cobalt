@@ -24,8 +24,9 @@ import patterns
 class IssueDetector:
   """Detects issues in log lines."""
 
-  def __init__(self, lines: List[str], test_boundaries: Dict[str, tuple[int, int]], gtest_markers: List[Dict]):
-    self.lines = lines
+  def __init__(self, analyzer, test_boundaries: Dict[str, tuple[int, int]], gtest_markers: List[Dict]):
+    self.analyzer = analyzer
+    self.lines = analyzer.lines
     self.test_boundaries = test_boundaries
     self.gtest_markers = gtest_markers
     self.issues: List[models.LogEvent] = []
@@ -57,7 +58,7 @@ class IssueDetector:
               original_line = line.strip()
               # Strip metadata like '[...]' and parenthesized error codes like '(-112)'
               key_base = re.sub(r'^\[.*?\]\s*', '', original_line)
-              grouping_key = self._get_line_signature(key_base)
+              grouping_key = self.analyzer._get_line_signature(key_base)
 
               data = {
                   'test_name': test_name or last_running_test,
@@ -74,7 +75,7 @@ class IssueDetector:
                   has_stack_trace = False
                   # Look ahead up to 10 lines
                   for j in range(i + 1, min(i + 11, len(self.lines))):
-                      if self._is_stack_trace_line(self.lines[j]):
+                      if self.analyzer._is_stack_trace_line(self.lines[j]):
                           has_stack_trace = True
                           break
                   if has_stack_trace:
@@ -119,22 +120,3 @@ class IssueDetector:
       if run_marker['name'] not in finished_tests:
          start, end = self.test_boundaries[run_marker['name']]
          self.issues.append(models.LogEvent(line_num=start, issue_type='incomplete_test', data={'test_name': run_marker['name'], 'context': (start, end)}))
-
-  def _get_line_signature(self, line: str) -> str:
-    """
-    Generates a 'signature' for a log line by replacing variable data
-    (numbers, hex addresses, etc.) with placeholders.
-    """
-    # Replace hex addresses (e.g., 0x7f123456)
-    line = re.sub(r'0x[0-9a-fA-F]+', '0x<HEX>', line)
-    # Replace timestamps like HH:MM:SS.ms
-    line = re.sub(r'\d{2}:\d{2}:\d{2}\.\d+', '<TIMESTAMP>', line)
-    # Replace general numbers, but try to avoid version numbers like 1.2.3
-    line = re.sub(r'(?<!\.)\b\d+\b(?!\.)', '<NUM>', line)
-    # Collapse multiple placeholders
-    line = re.sub(r'(<NUM>\s*)+', '<NUM> ', line).strip()
-    return line
-
-  def _is_stack_trace_line(self, line: str) -> bool:
-    """Checks if a line is likely part of a stack trace."""
-    return bool(patterns.STACK_TRACE_LINE_PATTERN.search(line))

@@ -36,7 +36,26 @@ class GtestParser:
 
   def _find_gtest_markers(self):
     """Finds all gtest markers in the log lines."""
+    summary_start_line = -1
+    summary_pattern = re.compile(r'\[  (?:FAILED|SKIPPED)  \].*tests?, listed below:')
     for i, line in enumerate(self.lines):
+        if summary_pattern.search(line):
+            summary_start_line = i
+            break
+
+    summary_lines_to_ignore = set()
+    if summary_start_line != -1:
+        for i in range(summary_start_line + 1, len(self.lines)):
+            line = self.lines[i].strip()
+            if line.startswith('[  FAILED  ]') or line.startswith('[  SKIPPED ]'):
+                summary_lines_to_ignore.add(i)
+            else:
+                # First line that is not a summary item ends the block
+                break
+
+    for i, line in enumerate(self.lines):
+      if i in summary_lines_to_ignore:
+          continue
       run_match = patterns.GTEST_RUN_PATTERN.search(line)
       ok_match = patterns.GTEST_OK_PATTERN.search(line)
       failed_match = patterns.GTEST_FAILED_PATTERN.search(line)
@@ -67,12 +86,12 @@ class GtestParser:
       start_line = run_marker['line']
       end_line = len(self.lines)
 
-      # Find the *next* corresponding 'ok', 'failed', or 'skipped' marker
+      # Find the *first* corresponding 'ok', 'failed', or 'skipped' marker
       for marker in self.gtest_markers:
-          if marker['line'] > start_line and marker['name'] == test_name and marker['type'] in ['ok', 'failed', 'skipped']:
-              end_line = marker['line'] + 1
-              self.finished_tests.add(test_name)
-              break
+        if marker['line'] > start_line and marker.get('name') == test_name and marker['type'] in ['ok', 'failed', 'skipped']:
+          end_line = marker['line'] + 1
+          self.finished_tests.add(test_name)
+          break
 
       # If no clean end, use the start of the next test as the boundary
       if test_name not in self.finished_tests and (i + 1) < len(run_markers):

@@ -29,7 +29,7 @@ TIMESTAMP_PATTERN = re.compile(r'\[\w+/\d+:\d+/\d+\.\d+\(UTC\):')
 
 # Gtest result patterns
 GTEST_OK_PATTERN = re.compile(r'(?:\x1B\[[0-9;]*m)?\s*\[       OK \]\s*(?:\x1B\[m)?\s*(.*)')
-GTEST_FAILED_PATTERN = re.compile(r'(?:\x1B\[[0-9;]*m)?\s*\[  FAILED  \]\s*(?:\x1B\[m)?\s*(.*)')
+GTEST_FAILED_PATTERN = re.compile(r'(?:\x1B\[[0-9;]*m)?\s*\[  FAILED  \]\s*(?:\x1B\[m)?\s*(.*\..*)')
 GTEST_LOG_PATTERN = re.compile(r'(?:\x1B\[[0-9;]*m)?\s*\[ INFO     \]\s*(?:\x1B\[m)?\s*(.*)')
 GTEST_SKIPPED_PATTERN = re.compile(r'(?:\x1B\[[0-9;]*m)?\s*\[  SKIPPED \]\s*(?:\x1B\[m)?\s*(.*)')
 

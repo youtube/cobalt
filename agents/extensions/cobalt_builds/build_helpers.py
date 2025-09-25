@@ -18,16 +18,7 @@ from dataclasses import dataclass, asdict
 # --- Data Models ---
 
 @dataclass
-class BuildStatus:
-  status: str
-  output_log: str
-  pid: int | None = None
-
-  def model_dump(self):
-    return asdict(self)
-
-@dataclass
-class RunStatus:
+class TaskStatus:
   status: str
   output_log: str
   pid: int | None = None
