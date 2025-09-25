@@ -121,9 +121,9 @@ component("media") {
     "//third_party/blink/renderer/platform:platform",
   ]
 
-  # if (is_cobalt) {
-  #   deps += [ "//starboard/build:starboard_buildflags" ]
-  # }
+  if (is_cobalt) {
+    deps += [ "//starboard/build:starboard_buildflags" ]
+  }
 
   if (enable_hls_demuxer) {
     sources += [

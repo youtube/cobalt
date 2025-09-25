@@ -21,14 +21,13 @@
  }
  
  component("media") {
-@@ -126,35 +125,9 @@
+@@ -126,35 +125,6 @@
      "//third_party/blink/renderer/platform:platform",
    ]
  
 -<<<<<<< HEAD
--  # if (is_cobalt) {
--  #   deps += [ "//starboard/build:starboard_buildflags" ]
--  # }
+-  if (is_cobalt) {
+-    deps += [ "//starboard/build:starboard_buildflags" ]
 -=======
 -  if (media_use_ffmpeg || !is_android) {
 -    sources += [
@@ -52,10 +51,9 @@
 -      "//media/learning/mojo/public/cpp",
 -      "//third_party/blink/public/strings:strings_grit",
 -    ]
-+  if (is_cobalt) {
-+    deps += [ "//starboard/build:starboard_buildflags" ]
-   }
 ->>>>>>> 07602b26205 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
- 
+-  }
+-
    if (enable_hls_demuxer) {
      sources += [
+       "multi_buffer_data_source_factory.cc",

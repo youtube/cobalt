@@ -125,10 +125,6 @@ component("media") {
     "//third_party/blink/renderer/platform:platform",
   ]
 
-  if (is_cobalt) {
-    deps += [ "//starboard/build:starboard_buildflags" ]
-  }
-
   if (enable_hls_demuxer) {
     sources += [
       "multi_buffer_data_source_factory.cc",

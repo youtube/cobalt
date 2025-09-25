@@ -127,9 +127,8 @@ component("media") {
   ]
 
 <<<<<<< HEAD
-  # if (is_cobalt) {
-  #   deps += [ "//starboard/build:starboard_buildflags" ]
-  # }
+  if (is_cobalt) {
+    deps += [ "//starboard/build:starboard_buildflags" ]
 =======
   if (media_use_ffmpeg || !is_android) {
     sources += [
@@ -153,8 +152,8 @@ component("media") {
       "//media/learning/mojo/public/cpp",
       "//third_party/blink/public/strings:strings_grit",
     ]
-  }
 >>>>>>> 07602b26205 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+  }
 
   if (enable_hls_demuxer) {
     sources += [

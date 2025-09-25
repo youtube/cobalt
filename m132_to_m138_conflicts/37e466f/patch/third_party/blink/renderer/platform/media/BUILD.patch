@@ -32,9 +32,9 @@
 -      deps += [ "//starboard/build:starboard_buildflags" ]
 -    }
 -  }
-+  # if (is_cobalt) {
-+  #   deps += [ "//starboard/build:starboard_buildflags" ]
-+  # }
++  if (is_cobalt) {
++    deps += [ "//starboard/build:starboard_buildflags" ]
++  }
  
 ->>>>>>> 9ecebf886de ([media] Implement SbPlayer based video playback (#4283))
    if (enable_hls_demuxer) {
