@@ -31,7 +31,7 @@
 namespace {
 using ::starboard::android::shared::AudioTrackAudioSinkType;
 
-std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;\
+std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
 }  // namespace
 
 namespace starboard::android::shared {
