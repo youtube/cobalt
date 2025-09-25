@@ -34,7 +34,10 @@ namespace egl {
 
 TexturedMeshRenderer::TexturedMeshRenderer(
     backend::GraphicsContextEGL* graphics_context)
-    : graphics_context_(graphics_context) {}
+    : graphics_context_(graphics_context),
+      renderer_extension_(
+          static_cast<const StarboardExtensionVideoRendererApi*>(
+              SbSystemGetExtension(kStarboardExtensionVideoRendererName))) {}
 
 TexturedMeshRenderer::~TexturedMeshRenderer() {
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
@@ -136,6 +139,57 @@ const float* GetColorMatrixForImageType(
 void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
                                      const Image& image,
                                      const glm::mat4& mvp_transform) {
+  // First, try to draw using renderer extension if available.
+  if (renderer_extension_) {
+    SbVideoRendererExtensionImage image_ext;
+    image_ext.type = SbVideoRendererExtensionImageType::kUnknown;
+    switch (image.type) {
+      case Image::YUV_2PLANE_BT709: {
+        image_ext.type = SbVideoRendererExtensionImageType::kNv12Bt709;
+      } break;
+      case Image::YUV_3PLANE_BT601_FULL_RANGE: {
+        image_ext.type =
+            SbVideoRendererExtensionImageType::kYuv3PlaneBt601Fullrange;
+      } break;
+      case Image::YUV_3PLANE_BT709: {
+        image_ext.type = SbVideoRendererExtensionImageType::kYuv3PlaneBt709;
+      } break;
+      case Image::YUV_3PLANE_10BIT_BT2020: {
+        image_ext.type =
+            SbVideoRendererExtensionImageType::kYuv3Plane10BitBt2020;
+      } break;
+      case Image::YUV_3PLANE_10BIT_COMPACT_BT2020: {
+        image_ext.type =
+            SbVideoRendererExtensionImageType::kYuv3Plane10BitCompactBt2020;
+      } break;
+      case Image::RGBA: {
+        image_ext.type = SbVideoRendererExtensionImageType::kRgba;
+      } break;
+      case Image::YUV_UYVY_422_BT709: {
+        image_ext.type = SbVideoRendererExtensionImageType::kYuv422Bt709;
+      } break;
+    }
+
+    for (int i = 0; i < image.num_textures(); ++i) {
+      auto texture = image.textures[i].texture;
+      image_ext.textures[i].handle = texture->gl_handle();
+      image_ext.textures[i].target = texture->GetTarget();
+      image_ext.textures[i].format = texture->GetFormat();
+      image_ext.textures[i].texture_width = texture->GetSize().width();
+      image_ext.textures[i].texture_height = texture->GetSize().height();
+      const math::RectF& content_region = image.textures[i].content_region;
+      image_ext.textures[i].content_x = content_region.x();
+      image_ext.textures[i].content_y = content_region.y();
+      image_ext.textures[i].content_width = content_region.width();
+      image_ext.textures[i].content_height = content_region.height();
+    }
+
+    if (renderer_extension_->Render(image_ext, vbo, num_vertices, mode,
+                                    glm::value_ptr(mvp_transform))) {
+      return;
+    }
+  }
+
   ProgramInfo blit_program = GetBlitProgram(image);
 
   GL_CALL(glUseProgram(blit_program.gl_program_id));
