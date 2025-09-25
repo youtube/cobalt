@@ -46,6 +46,7 @@ android_library("cobalt_main_java") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
+    "//components/cronet/android:cronet_impl_native_base_java",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
@@ -156,6 +157,7 @@ android_library("cobalt_apk_java") {
   deps = [
     ":cobalt_main_java",
     "//base:base_java",
+    "//components/cronet/android:cronet_impl_native_base_java",
   ]
 
   sources = [
@@ -190,11 +192,16 @@ shared_library("libchrobalt") {
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/crash/content/browser",
+    "//components/cronet/android:cronet_static",
     "//components/memory_system",
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
     "//third_party/blink/public/common",
+
+    # Add the Cronet source set as a dependency. This links Cronet's C++
+    # code directly into libchrobalt.so.
+    # "//components/cronet/android:cronet_static",
   ]
 
   # Explicit dependency required for JNI registration to be able to

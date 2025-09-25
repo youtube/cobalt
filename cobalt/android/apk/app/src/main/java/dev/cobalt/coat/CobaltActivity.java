@@ -59,6 +59,7 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.CronetEngine;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -95,6 +96,22 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private String diagnosticFinishReason = "Unknown";
+
+  private CronetEngine mCronetEngine;
+
+  private void initializeCronetEngine() {
+    // 1. Create and configure the builder FIRST.
+    CronetEngine.Builder builder = new CronetEngine.Builder(this);
+    builder.enableHttp2(true)
+           .enableQuic(true);
+           // Add any other configuration here (e.g., caching, user-agent)
+
+    mCronetEngine = builder.build();
+  }
+
+  public CronetEngine getCronetEngine() {
+      return mCronetEngine;
+  }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -184,6 +201,7 @@ public abstract class CobaltActivity extends Activity {
                   }
                 }
                 Log.i(TAG, "Browser process init succeeded");
+                initializeCronetEngine();
                 finishInitialization(savedInstanceState);
 
                 if (isFinishing() || isDestroyed()) {
