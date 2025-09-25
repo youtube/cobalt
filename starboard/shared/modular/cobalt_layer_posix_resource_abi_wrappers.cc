@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
-#define STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
+#include <sys/resource.h>
 
-namespace starboard {
+extern "C" {
 
-const void* GetEnhancedAudioApi();
+int __abi_wrap_getpriority(int which, id_t who);
 
-}  // namespace starboard
+int getpriority(int which, id_t who) {
+  return __abi_wrap_getpriority(which, who);
+}
 
-#endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
+int __abi_wrap_setpriority(int which, id_t who, int prio);
+
+int setpriority(int which, id_t who, int prio) {
+  return __abi_wrap_setpriority(which, who, prio);
+}
+}
