@@ -14,13 +14,14 @@
 
 #include "cobalt/shell/browser/shell_download_manager_delegate.h"
 
+#include <algorithm>
 #include <string>
 
 #include "build/build_config.h"
+#include "components/download/public/common/download_target_info.h"
 
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/cxx17_backports.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
@@ -62,7 +63,7 @@ void ShellDownloadManagerDelegate::Shutdown() {
 
 bool ShellDownloadManagerDelegate::DetermineDownloadTarget(
     download::DownloadItem* download,
-    DownloadTargetCallback* callback) {
+    download::DownloadTargetCallback* callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // This assignment needs to be here because even at the call to
   // SetDownloadManager, the system is not fully initialized.
@@ -73,13 +74,11 @@ bool ShellDownloadManagerDelegate::DetermineDownloadTarget(
   }
 
   if (!download->GetForcedFilePath().empty()) {
-    std::move(*callback).Run(
-        download->GetForcedFilePath(),
-        download::DownloadItem::TARGET_DISPOSITION_OVERWRITE,
-        download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-        download::DownloadItem::InsecureDownloadStatus::UNKNOWN,
-        download->GetForcedFilePath(), base::FilePath(),
-        std::string() /*mime_type*/, download::DOWNLOAD_INTERRUPT_REASON_NONE);
+    download::DownloadTargetInfo target_info;
+    target_info.target_path = download->GetForcedFilePath();
+    target_info.intermediate_path = download->GetForcedFilePath();
+
+    std::move(*callback).Run(std::move(target_info));
     return true;
   }
 
@@ -133,18 +132,17 @@ void ShellDownloadManagerDelegate::GenerateFilename(
 
 void ShellDownloadManagerDelegate::OnDownloadPathGenerated(
     uint32_t download_id,
-    DownloadTargetCallback callback,
+    download::DownloadTargetCallback callback,
     const base::FilePath& suggested_path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (suppress_prompting_) {
     // Testing exit.
-    std::move(callback).Run(
-        suggested_path, download::DownloadItem::TARGET_DISPOSITION_OVERWRITE,
-        download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-        download::DownloadItem::InsecureDownloadStatus::UNKNOWN,
-        suggested_path.AddExtension(FILE_PATH_LITERAL(".crdownload")),
-        base::FilePath(), std::string() /*mime_type*/,
-        download::DOWNLOAD_INTERRUPT_REASON_NONE);
+    download::DownloadTargetInfo target_info;
+    target_info.target_path = suggested_path;
+    target_info.intermediate_path =
+        suggested_path.AddExtension(FILE_PATH_LITERAL(".crdownload"));
+
+    std::move(callback).Run(std::move(target_info));
     return;
   }
 
@@ -153,7 +151,7 @@ void ShellDownloadManagerDelegate::OnDownloadPathGenerated(
 
 void ShellDownloadManagerDelegate::ChooseDownloadPath(
     uint32_t download_id,
-    DownloadTargetCallback callback,
+    download::DownloadTargetCallback callback,
     const base::FilePath& suggested_path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   download::DownloadItem* item = download_manager_->GetDownload(download_id);
@@ -164,12 +162,13 @@ void ShellDownloadManagerDelegate::ChooseDownloadPath(
   base::FilePath result;
   NOTIMPLEMENTED();
 
-  std::move(callback).Run(
-      result, download::DownloadItem::TARGET_DISPOSITION_PROMPT,
-      download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-      download::DownloadItem::InsecureDownloadStatus::UNKNOWN, result,
-      base::FilePath(), std::string() /*mime_type*/,
-      download::DOWNLOAD_INTERRUPT_REASON_NONE);
+  download::DownloadTargetInfo target_info;
+  target_info.target_path = result;
+  target_info.intermediate_path = result;
+  target_info.target_disposition =
+      download::DownloadItem::TARGET_DISPOSITION_PROMPT;
+
+  std::move(callback).Run(std::move(target_info));
 }
 
 void ShellDownloadManagerDelegate::SetDownloadBehaviorForTesting(
