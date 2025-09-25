@@ -43,6 +43,7 @@ class MouseEvent;
 class Page;
 struct ContextMenuData;
 
+// TODO() remove buildflags and upstream to Chromium
 #if BUILDFLAG(IS_COBALT)
 class CORE_EXPORT ContextMenuController
 #else
@@ -125,6 +126,7 @@ class CORE_EXPORT ContextMenuController final
 
  protected:
   // Returns whether a Context Menu was actually shown.
+  // TODO(): upstream virtual to Chromium
   virtual bool ShowContextMenu(LocalFrame*,
                                const PhysicalOffset&,
                                WebMenuSourceType,
