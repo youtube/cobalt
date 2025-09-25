@@ -431,6 +431,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
   SB_CHECK(audio_track_audio_sink_type_);
+
   return std::max(
       AudioTrackBridge::GetMinBufferSizeInFrames(sample_type, channels,
                                                  sampling_frequency_hz),
