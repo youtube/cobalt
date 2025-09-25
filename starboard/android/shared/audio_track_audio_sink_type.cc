@@ -28,14 +28,10 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 
-namespace {
-starboard::android::shared::AudioTrackAudioSinkType*
-    audio_track_audio_sink_type_;
-}
-
 namespace starboard::android::shared {
 namespace {
 
+using ::starboard::android::shared::AudioTrackAudioSinkType;
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // Whether to use continuous audio track sync, which keep feeding audio frames
