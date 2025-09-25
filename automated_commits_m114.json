@@ -1,5 +1,109 @@
 [
   {
+    "hexsha": "d9277e5f540d31baa816ecceddb51159e0a93513",
+    "original_hexsha": "ec073958486b452a7a74c921e30538ef15555a37",
+    "author": "Charley Kim",
+    "datetime": "2025-09-24T19:50:27-07:00",
+    "summary": "blink/renderer: Stub Context Menu Controller (#7243)",
+    "stats": {
+      "files": 5,
+      "insertions": 123,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4c253853bad8113662ddc872be2463298228ee44",
+    "original_hexsha": "ed2fb9a413dc57248418479bccf3231b6743fde3",
+    "author": "John Ocampo",
+    "datetime": "2025-09-24T23:23:27+00:00",
+    "summary": "POSIX: Add setpriority and getpriority to Starboard (#7096)",
+    "stats": {
+      "files": 12,
+      "insertions": 304,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3266b6d6e02d8091ac00190641f63797bf076aa1",
+    "original_hexsha": "da2d7278a46a4578ed97efe0b0fab8f2e12fd98d",
+    "author": "Miguel Casas",
+    "datetime": "2025-09-24T14:39:26-07:00",
+    "summary": "cobalt: Introduce tvOS user_agent and //base logic (#7146)",
+    "stats": {
+      "files": 4,
+      "insertions": 96,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b36d10eb57adafba306d14d65d037146ffd69fe9",
+    "original_hexsha": "87870c238b41601fd7130b2fd73fe4c8b615dd02",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-24T17:07:03-04:00",
+    "summary": "Add lz4 build targets for Evergreen build (#7269)",
+    "stats": {
+      "files": 17,
+      "insertions": 38,
+      "deletions": 377
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a88686f0568ce7717de5ab4e60474c473757fea8",
+    "original_hexsha": "4aca64535252b35830ed5397b8e5baf41c67becf",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-24T10:40:21-07:00",
+    "summary": "starboard: Remove unnecessary starboard:: prefixes (#7282)",
+    "stats": {
+      "files": 14,
+      "insertions": 41,
+      "deletions": 54
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fbad24187be5133b06dab8611c6b9274b049da91",
+    "original_hexsha": "34e26aa06bf9c75a0231874e9906a6d9babc8c30",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-09-24T10:40:11-07:00",
+    "summary": "evergreen: Fix autoplay video with startup url (#7289)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6d9bc8448813257f193cfdf5dff5b985e0a6cf47",
+    "original_hexsha": "9f0923317ed6ca850edbf28b7a91d4ae0eb23e68",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-24T09:18:35-07:00",
+    "summary": "starbord: Introduce ScopedTimer for performance measurement (#7274)",
+    "stats": {
+      "files": 5,
+      "insertions": 79,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5498e6093b674735c254728379eb5201e22cfe7d",
+    "original_hexsha": "eeb3d36c1ab1fcfc5a3501b866c1d7688187c4fb",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-24T09:17:42-07:00",
+    "summary": "starboard: Flatten remaining namespaces (#7283)",
+    "stats": {
+      "files": 8,
+      "insertions": 16,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "9747c07ac799d7733b54a1c7df54a3ecbc8b0103",
     "original_hexsha": "6858cd52d33fe67357830afe0ae9979ff03b25e7",
     "author": "Hao",
