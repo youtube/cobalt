@@ -66,7 +66,9 @@ class ShellContentRendererClient : public ContentRendererClient {
       blink::URLLoaderThrottleProviderType provider_type) override;
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)
-  void GetSupportedKeySystems(media::GetSupportedKeySystemsCB cb) override;
+  std::unique_ptr<media::KeySystemSupportRegistration> GetSupportedKeySystems(
+      content::RenderFrame* render_frame,
+      media::GetSupportedKeySystemsCB cb) override;
 #endif
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(

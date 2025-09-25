@@ -277,7 +277,9 @@ ShellContentRendererClient::CreateURLLoaderThrottleProvider(
 }
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)
-void ShellContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<media::KeySystemSupportRegistration>
+ShellContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
   media::KeySystemInfos key_systems;
   if (base::FeatureList::IsEnabled(media::kExternalClearKeyForTesting)) {
@@ -285,6 +287,7 @@ void ShellContentRendererClient::GetSupportedKeySystems(
         std::make_unique<cdm::ExternalClearKeyKeySystemInfo>());
   }
   std::move(cb).Run(std::move(key_systems));
+  return nullptr;
 }
 #endif
 
