@@ -49,9 +49,18 @@
 #include "util/posix/signals.h"
 #include "util/posix/spawn_subprocess.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/notreached.h"
+#include "starboard/elf_loader/evergreen_info.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 namespace crashpad {
 
 namespace {
+
+#if BUILDFLAG(IS_STARBOARD)
+constexpr char kEvergreenInfoKey[] = "evergreen-information";
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 std::string FormatArgumentInt(const std::string& name, int value) {
   return base::StringPrintf("--%s=%d", name.c_str(), value);
@@ -175,6 +184,13 @@ class SignalHandler {
     HandleCrashImpl();
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  bool SendEvergreenInfo(EvergreenInfo evergreen_info) {
+    evergreen_info_ = evergreen_info;
+    return SendEvergreenInfoImpl();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
  protected:
   SignalHandler() = default;
   ~SignalHandler() = default;
@@ -197,6 +213,11 @@ class SignalHandler {
   }
 
   virtual void HandleCrashImpl() = 0;
+
+#if BUILDFLAG(IS_STARBOARD)
+  virtual bool SendEvergreenInfoImpl() = 0;
+  const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
   static constexpr int32_t kDumpNotDone = 0;
@@ -274,6 +295,10 @@ class SignalHandler {
   std::atomic_flag disabled_;
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+  EvergreenInfo evergreen_info_;
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   static SignalHandler* handler_;
 };
 SignalHandler* SignalHandler::handler_ = nullptr;
@@ -328,6 +353,30 @@ class LaunchAtCrashHandler : public SignalHandler {
     int status;
     waitpid(pid, &status, 0);
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  bool SendEvergreenInfoImpl() override {
+    bool updated = false;
+    for (auto& s : argv_strings_) {
+      if (s.compare(2, strlen(kEvergreenInfoKey), kEvergreenInfoKey) == 0) {
+        s = FormatArgumentAddress(kEvergreenInfoKey, &GetEvergreenInfo());
+        LOG(INFO) << "Updated evergreen info: " << s;
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      std::string v =
+          FormatArgumentAddress(kEvergreenInfoKey, &GetEvergreenInfo());
+      argv_strings_.push_back(v);
+      LOG(INFO) << "Added evergreen info: " << v;
+    }
+
+    StringVectorToCStringVector(argv_strings_, &argv_);
+
+    return true;
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
   LaunchAtCrashHandler() = default;
@@ -418,6 +467,14 @@ class RequestCrashDumpHandler : public SignalHandler {
     crash_loop_before_time_ = crash_loop_before_time;
   }
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  bool SendEvergreenInfoImpl() override {
+    // Cobalt currently doesn't support RequestCrashDumpHandler.
+    NOTIMPLEMENTED();
+    return false;
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
   RequestCrashDumpHandler() = default;
@@ -769,5 +826,16 @@ void CrashpadClient::SetCrashLoopBefore(uint64_t crash_loop_before_time) {
   request_crash_dump_handler->SetCrashLoopBefore(crash_loop_before_time);
 }
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+// static
+bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
+  if (!SignalHandler::Get()) {
+    DLOG(ERROR) << "Crashpad isn't enabled";
+    return false;
+  }
+  return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace crashpad

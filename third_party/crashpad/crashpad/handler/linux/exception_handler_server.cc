@@ -431,12 +431,25 @@ bool ExceptionHandlerServer::ReceiveClientMessage(Event* event) {
           message.requesting_thread_stack_address,
           event->fd.get(),
           event->type == Event::Type::kSharedSocketMessage);
+
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+    case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo:
+      return HandleAddEvergreenInfoRequest(creds, message.client_info);
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
   }
 
   DCHECK(false);
   LOG(ERROR) << "Unknown message type";
   return false;
 }
+
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+bool ExceptionHandlerServer::HandleAddEvergreenInfoRequest(
+    const ucred& creds,
+    const ExceptionHandlerProtocol::ClientInformation& client_info) {
+  return delegate_->AddEvergreenInfo(client_info);
+}
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 
 bool ExceptionHandlerServer::HandleCrashDumpRequest(
     const ucred& creds,

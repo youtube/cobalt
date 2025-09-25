@@ -86,7 +86,12 @@ crashpad_static_library("client") {
     sources += [ "crashpad_client_fuchsia.cc" ]
   }
 
-  if (enable_cobalt_hermetic_hacks) {
+  # TODO: b/406511608 - Cobalt: these sources are needed because Cobalt shell
+  # still depends on the crashpad client through its dependency on
+  # //components/crash/core/app, although the functionality of this component
+  # is stubbed out. We might consider removing the dependency entirely, which
+  # would obviate the need for these client stubs.
+  if (current_toolchain == default_toolchain && enable_cobalt_hermetic_hacks) {
     sources += [
       "cobalt/crashpad_client_hermetic_stub.cc",
       "cobalt/simulate_crash_hermetic_stub.h",
@@ -102,6 +107,10 @@ crashpad_static_library("client") {
   ]
 
   deps = [ ":common" ]
+
+  if (is_starboard) {
+    deps += [ "//starboard/elf_loader:evergreen_info" ]
+  }
 
   if (crashpad_is_win) {
     libs = [ "rpcrt4.lib" ]
@@ -163,7 +172,7 @@ static_library("common") {
     ]
   }
 
-  if (enable_cobalt_hermetic_hacks) {
+   if (current_toolchain == default_toolchain && enable_cobalt_hermetic_hacks) {
     sources += [ "cobalt/crash_report_database_hermetic_stub.cc" ]
   }
 
