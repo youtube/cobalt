@@ -153,9 +153,11 @@ blink::mojom::PermissionStatus ShellPermissionManager::GetPermissionStatus(
 PermissionResult
 ShellPermissionManager::GetPermissionResultForOriginWithoutContext(
     const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
-    const url::Origin& origin) {
+    const url::Origin& requesting_origin,
+    const url::Origin& embedding_origin) {
   blink::mojom::PermissionStatus status =
-      GetPermissionStatus(permission_descriptor, origin.GetURL(), origin.GetURL());
+      GetPermissionStatus(permission_descriptor, requesting_origin.GetURL(),
+                          embedding_origin.GetURL());
 
   return PermissionResult(status, content::PermissionStatusSource::UNSPECIFIED);
 }

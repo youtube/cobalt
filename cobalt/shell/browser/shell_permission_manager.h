@@ -56,7 +56,8 @@ class ShellPermissionManager : public PermissionControllerDelegate {
       const GURL& embedding_origin) override;
   PermissionResult GetPermissionResultForOriginWithoutContext(
       const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
-      const url::Origin& origin) override;
+      const url::Origin& requesting_origin,
+      const url::Origin& embedding_origin) override;
   blink::mojom::PermissionStatus GetPermissionStatusForCurrentDocument(
       const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
       content::RenderFrameHost* render_frame_host) override;
