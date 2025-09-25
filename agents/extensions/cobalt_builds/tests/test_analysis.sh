@@ -64,8 +64,19 @@ for file in "${test_files[@]}"; do
 
   # Run the analyzer and capture the output
   echo "Running analyzer..."
-  ./"${DO_SCRIPT}" analyze "${full_path}" > "${temp_output_file}" 2> "${stderr_log_file}"
-  echo "Analyzer finished."
+  if ./"${DO_SCRIPT}" analyze "${full_path}" > "${temp_output_file}" 2> "${stderr_log_file}"; then
+    echo "Analyzer finished."
+  else
+    exit_code=$?
+    error "Analyzer script failed for ${file} with exit code ${exit_code}."
+    if [ -s "${stderr_log_file}" ]; then
+        echo "--- STDERR ---"
+        cat "${stderr_log_file}"
+        echo "--------------"
+    fi
+    all_passed=false
+    continue
+  fi
 
   # Compare the output with the expected result
   echo "Comparing output..."

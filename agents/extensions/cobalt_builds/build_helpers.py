@@ -23,7 +23,7 @@ class TaskStatus:
   output_log: str
   pid: int | None = None
 
-  def model_dump(self):
+  def model_dump(self) -> dict:
     return asdict(self)
 
 

@@ -17,6 +17,9 @@
 import re
 from typing import Dict, List
 
+from base_analyzer import BaseAnalyzer
+from lib.gtest_parser import GtestParser, GtestMarker
+
 import models
 import patterns
 
@@ -24,20 +27,20 @@ import patterns
 class IssueDetector:
   """Detects issues in log lines."""
 
-  def __init__(self, analyzer, test_boundaries: Dict[str, tuple[int, int]], gtest_markers: List[Dict]):
+  def __init__(self, analyzer: BaseAnalyzer, test_boundaries: Dict[str, tuple[int, int]], gtest_markers: List[GtestMarker]):
     self.analyzer = analyzer
     self.lines = analyzer.lines
     self.test_boundaries = test_boundaries
     self.gtest_markers = gtest_markers
     self.issues: List[models.LogEvent] = []
 
-  def detect(self):
+  def detect(self) -> None:
     """Detects issues in the log lines."""
     self._detect_issues()
     self._detect_gtest_failures()
     self._detect_incomplete_tests()
 
-  def _detect_issues(self):
+  def _detect_issues(self) -> None:
     """Detects issues in the log lines."""
     ignored_lines = set()
     last_running_test = None
@@ -100,7 +103,7 @@ class IssueDetector:
               ))
               break # Process first match only
 
-  def _detect_gtest_failures(self):
+  def _detect_gtest_failures(self) -> None:
     """Detects gtest failures."""
     for marker in self.gtest_markers:
         if marker['type'] == 'failed':
@@ -108,7 +111,7 @@ class IssueDetector:
             start_line = self.test_boundaries[test_name][0]
             self.issues.append(models.LogEvent(line_num=marker['line'], issue_type='gtest_fail', data={'test_name': test_name, 'start_line': start_line}))
 
-  def _detect_incomplete_tests(self):
+  def _detect_incomplete_tests(self) -> None:
     """Detects incomplete tests."""
     run_markers = [m for m in self.gtest_markers if m['type'] == 'run']
     finished_tests = set()

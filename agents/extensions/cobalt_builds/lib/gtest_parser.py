@@ -15,7 +15,12 @@
 """A parser for gtest markers."""
 
 import re
-from typing import Dict, List
+from typing import Dict, List, TypedDict
+
+class GtestMarker(TypedDict):
+  type: str
+  name: str | None
+  line: int
 
 import patterns
 
@@ -25,16 +30,16 @@ class GtestParser:
 
   def __init__(self, lines: List[str]):
     self.lines = lines
-    self.gtest_markers: List[Dict] = []
+    self.gtest_markers: List[GtestMarker] = []
     self.test_boundaries: Dict[str, tuple[int, int]] = {}
     self.finished_tests: set[str] = set()
 
-  def parse(self):
+  def parse(self) -> None:
     """Parses the log lines for gtest markers and boundaries."""
     self._find_gtest_markers()
     self._determine_test_boundaries()
 
-  def _find_gtest_markers(self):
+  def _find_gtest_markers(self) -> None:
     """Finds all gtest markers in the log lines."""
     summary_start_line = -1
     summary_pattern = re.compile(r'\[  (?:FAILED|SKIPPED)  \].*tests?, listed below:')
@@ -76,7 +81,7 @@ class GtestParser:
       elif log_match:
         self.gtest_markers.append({'type': 'log', 'line': i})
 
-  def _determine_test_boundaries(self):
+  def _determine_test_boundaries(self) -> None:
     """Determines the test boundaries from the gtest markers."""
     run_markers = [m for m in self.gtest_markers if m['type'] == 'run']
     self.finished_tests = set()

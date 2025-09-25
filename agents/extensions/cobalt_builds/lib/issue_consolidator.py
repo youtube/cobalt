@@ -28,11 +28,11 @@ class IssueConsolidator:
     self.events = events
     self.report_items: List[models.Issue] = []
 
-  def consolidate(self):
+  def consolidate(self) -> None:
     """Consolidates the issues."""
     self._consolidate_issues()
 
-  def _consolidate_issues(self):
+  def _consolidate_issues(self) -> None:
     """Consolidates the issues."""
     reported_lines = set()
     global_consolidated_reports = {}

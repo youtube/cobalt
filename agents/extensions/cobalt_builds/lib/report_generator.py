@@ -18,12 +18,13 @@ from typing import Dict, List
 
 import models
 import patterns
+from base_analyzer import BaseAnalyzer
 
 
 class ReportGenerator:
   """Generates reports."""
 
-  def __init__(self, analyzer, report_items: List[models.Issue],
+  def __init__(self, analyzer: BaseAnalyzer, report_items: List[models.Issue],
                test_boundaries: Dict[str, tuple[int, int]]):
     self.analyzer = analyzer
     self.lines = analyzer.lines
@@ -33,16 +34,16 @@ class ReportGenerator:
     self.errors: int = 0
     self.warnings: int = 0
 
-  def generate(self):
+  def generate(self) -> None:
     """Generates the report."""
     self._generate_report()
 
-  def _generate_report(self):
+  def _generate_report(self) -> None:
     """Generates the report."""
     results = []
     max_line_num_width = len(str(len(self.lines)))
 
-    def _format_occurrence_detail(total, exact, similar, is_main_header=False):
+    def _format_occurrence_detail(total: int, exact: int, similar: int, is_main_header: bool = False) -> str:
       if total <= 1:
         return ''
       # For the main header, exact=1 is the baseline (it's the reference line),

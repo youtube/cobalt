@@ -161,7 +161,7 @@ class TaskRunner:
     self.cmd = cmd
     self.log_path = log_path
 
-  def run_sync(self):
+  def run_sync(self) -> None:
     """Runs the task synchronously."""
     try:
       with open(self.log_path, 'w') as log_file:
@@ -179,7 +179,7 @@ class TaskRunner:
         log_file.write(f'\nTHREAD_EXCEPTION: {e}\n')
         log_file.write(f'\nRETURN_CODE: -1\n')
 
-  async def run_async(self):
+  async def run_async(self) -> None:
     """Runs the task asynchronously."""
     try:
       with open(self.log_path, 'w') as log_file:
@@ -494,7 +494,7 @@ def analyze(task_id_or_log_file: str, log_type: str | None = None) -> str:
 
 
 # --- Server Main ---
-def main():
+def main() -> None:
   """Main entry point for the server."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
