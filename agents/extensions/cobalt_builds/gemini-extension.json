@@ -1,0 +1,10 @@
+{
+  "name": "cobalt-builds",
+  "version": "1.0.0",
+  "mcpServers": {
+    "cobalt_builds": {
+      "command": "vpython3",
+      "args": ["agents/extensions/cobalt_builds/server.py", "--serve"]
+    }
+  }
+}
