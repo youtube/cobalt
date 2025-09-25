@@ -76,6 +76,23 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
   SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }
 
+void SbFileAndroidTeardown() {
+  if (g_java_asset_manager) {
+    g_java_asset_manager.Reset();
+    g_asset_manager = NULL;
+  }
+
+  if (g_app_files_dir) {
+    free(const_cast<char*>(g_app_files_dir));
+    g_app_files_dir = NULL;
+  }
+
+  if (g_app_cache_dir) {
+    free(const_cast<char*>(g_app_cache_dir));
+    g_app_cache_dir = NULL;
+  }
+}
+
 bool IsAndroidAssetPath(const char* path) {
   size_t prefix_len = strlen(g_app_assets_dir);
   return path != NULL && strncmp(g_app_assets_dir, path, prefix_len) == 0 &&
