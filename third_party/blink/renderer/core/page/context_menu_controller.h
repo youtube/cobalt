@@ -44,7 +44,12 @@ class Page;
 struct ContextMenuData;
 struct Impression;
 
+// TODO() remove buildflags and upstream to Chromium
+#if BUILDFLAG(IS_COBALT)
+class CORE_EXPORT ContextMenuController
+#else
 class CORE_EXPORT ContextMenuController final
+#endif
     : public GarbageCollected<ContextMenuController>,
       public mojom::blink::ContextMenuClient {
  public:
@@ -121,11 +126,21 @@ class CORE_EXPORT ContextMenuController final
  private:
   friend class ContextMenuControllerTest;
 
+#if !BUILDFLAG(IS_COBALT)
   // Returns whether a Context Menu was actually shown.
   bool ShowContextMenu(LocalFrame*,
                        const PhysicalOffset&,
                        WebMenuSourceType,
                        const MouseEvent* mouse_event = nullptr);
+#else
+ protected:
+  // Returns whether a Context Menu was actually shown.
+  // TODO(): upstream virtual to Chromium
+  virtual bool ShowContextMenu(LocalFrame*,
+                               const PhysicalOffset&,
+                               WebMenuSourceType,
+                               const MouseEvent* mouse_event = nullptr);
+#endif
 
   bool ShouldShowContextMenuFromTouch(const ContextMenuData&);
 

@@ -338,6 +338,13 @@ component("core") {
   sources += rebase_path(blink_core_sources_preferences, "", "preferences")
 
   if (is_cobalt) {
+    sources += [
+      "page/stub_context_menu_controller.cc",
+      "page/stub_context_menu_controller.h",
+    ]
+  }
+
+  if (is_cobalt) {
     sources += rebase_path(blink_core_sources_cobalt, "", "cobalt")
   }
 

@@ -108,6 +108,10 @@
 #include "ui/color/color_provider_utils.h"
 #include "ui/gfx/geometry/insets_conversions.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/page/stub_context_menu_controller.h"
+#endif
+
 namespace blink {
 
 namespace {
@@ -261,8 +265,13 @@ Page::Page(base::PassKey<Page>,
       drag_caret_(MakeGarbageCollected<DragCaret>()),
       drag_controller_(MakeGarbageCollected<DragController>(this)),
       focus_controller_(MakeGarbageCollected<FocusController>(this)),
+#if BUILDFLAG(IS_COBALT)
+      context_menu_controller_(
+          MakeGarbageCollected<StubContextMenuController>(this)),
+#else
       context_menu_controller_(
           MakeGarbageCollected<ContextMenuController>(this)),
+#endif
       page_scale_constraints_set_(
           MakeGarbageCollected<PageScaleConstraintsSet>(this)),
       pointer_lock_controller_(
