@@ -424,6 +424,12 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   if (Java_GetOutputFormatResult_status(
           env, j_reused_get_output_format_result_) == MEDIA_CODEC_ERROR) {
     SB_LOG(WARNING) << "GetOutputSize() failed, returning empty size.";
+    // TODO: b/445694177 - Return error (or null) here, so that callsite
+    // can handle error.
+    //
+    // This is how Chromium processes similar errors:
+    // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=724;drc=71cb6541bce0650ab10b5dbe9c9e8fd7c50d6800
+    // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/media_codec_bridge_impl.cc;l=531;drc=71cb6541bce0650ab10b5dbe9c9e8fd7c50d6800
     return {};
   }
 
