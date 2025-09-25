@@ -53,69 +53,67 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
   T mapping_;
 };
 
+
 }  // namespace
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-DecoderBuffer::DecoderBuffer(size_t size) : size_(size), is_key_frame_(false) {
+
+// --- Starboard-specific Constructor Implementations ---
+DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
   if (size_ > 0) {
     Initialize(DemuxerStream::UNKNOWN);
   }
 }
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-DecoderBuffer::DecoderBuffer(size_t size)
-    : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
                              size_t size)
-    : size_(size), is_key_frame_(false) {
+    : size_(size) {
   if (!data) {
     CHECK_EQ(size_, 0u);
     return;
   }
-
   Initialize(type);
-
   memcpy(data_, data, size_);
-
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              base::span<const uint8_t> data)
-    : size_(data.size()), is_key_frame_(false) {
+    : size_(data.size()) {
   if (data.empty()) {
     return;
   }
-
   Initialize(type);
-
   memcpy(data_, data.data(), data.size());
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(DemuxerStream::UNKNOWN, data) {}
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-    : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(DemuxerStream::UNKNOWN, base::span<const uint8_t>(data)) {}
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-    : data_(std::move(data)) {}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(DemuxerStream::UNKNOWN, external_memory->Span()) {}
+
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+// --- Non-Starboard Constructor Implementations ---
+DecoderBuffer::DecoderBuffer(size_t size)
+    : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
+
+DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
+    : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
+
+DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
+    : data_(std::move(data)) {}
+
+DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
+
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+// --- Common Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
     : is_end_of_stream_(decoder_buffer_type ==
