@@ -424,7 +424,7 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   if (Java_GetOutputFormatResult_status(
           env, j_reused_get_output_format_result_) == MEDIA_CODEC_ERROR) {
     SB_LOG(WARNING) << "GetOutputSize() failed, returning empty size.";
-    return {{0, 0}};
+    return {};
   }
 
   jint textureWidth = Java_GetOutputFormatResult_textureWidth(
