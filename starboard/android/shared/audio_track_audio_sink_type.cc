@@ -67,7 +67,7 @@ const int kMinStablePlayedFrames = 12 * 1024;
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
 
-AudioTrackAudioSinkType* audio_track_audio_sink_type_;
+std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
@@ -433,7 +433,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
-  SB_DCHECK(audio_track_audio_sink_type_);
+  SB_CHECK(audio_track_audio_sink_type_);
   JNIEnv* env = AttachCurrentThread();
   return std::max(
       AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
@@ -594,19 +594,19 @@ namespace starboard {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  SB_DCHECK(!audio_track_audio_sink_type_);
-  audio_track_audio_sink_type_ = new AudioTrackAudioSinkType;
-  SetPrimaryType(audio_track_audio_sink_type_);
-  EnableFallbackToStub();
-  audio_track_audio_sink_type_->TestMinRequiredFrames();
+  static std::once_flag once_flag;
+  std::call_once(once_flag, [] {
+    SB_LOG(INFO) << "Creating AudioTrackAudioSinkType.";
+    audio_track_audio_sink_type_ = std::make_unique<AudioTrackAudioSinkType>();
+    SetPrimaryType(audio_track_audio_sink_type_.get());
+    EnableFallbackToStub();
+    audio_track_audio_sink_type_->TestMinRequiredFrames();
+  });
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_DCHECK_EQ(audio_track_audio_sink_type_, GetPrimaryType());
-  SetPrimaryType(NULL);
-  delete audio_track_audio_sink_type_;
-  audio_track_audio_sink_type_ = NULL;
+  SB_LOG(FATAL) << "Android application does not call PlatformTearDown().";
 }
 
 }  // namespace starboard
