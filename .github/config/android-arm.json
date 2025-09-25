@@ -31,7 +31,6 @@
     "device_pool": "maneki"
   },
   "targets": [
-    "content_shell",
     "cobalt:gn_all"
   ],
   "includes": [
