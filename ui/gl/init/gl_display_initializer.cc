@@ -45,7 +45,13 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
   bool default_angle_metal =
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
   bool default_angle_vulkan = features::IsDefaultANGLEVulkan();
+
+#if BUILDFLAG(IS_STARBOARD)
+  const char* default_software_renderer = kANGLEImplementationOpenGLESEGLName
+#else
   const char* default_software_renderer = kANGLEImplementationSwiftShaderName;
+#endif
+
 #if BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(features::kAllowD3D11WarpFallback)) {
     default_software_renderer = kANGLEImplementationD3D11WarpName;
@@ -59,12 +65,8 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
 
   std::string requested_renderer =
       force_software_gl
-#if BUILDFLAG(IS_STARBOARD)
-          ? kANGLEImplementationOpenGLESEGLName
-#else
-          ? default_software_renderer
-#endif
-          : command_line->GetSwitchValueASCII(switches::kUseANGLE);
+      ? default_software_renderer
+      : command_line->GetSwitchValueASCII(switches::kUseANGLE);
 
   bool use_angle_default =
       !force_software_gl &&
