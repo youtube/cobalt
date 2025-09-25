@@ -115,17 +115,15 @@ namespace {
 // platform and available EGL version.
 SbEglDisplay GetEglDisplay() {
 #if defined(EGL_VERSION_1_5)
-  // eglGetDisplay() takes an array of EGLAttrib's.
-  using EglGetDisplayAttributeType = SbEglAttrib;
+  static constexpr SbEglAttrib kEglRequestedGetDisplayAttributes[] = {
 #else
-  // eglGetPlatformDisplayEXT() takes an array of EGLint's.
-  using EglGetDisplayAttributeType = EGLint;
-#endif
-  static constexpr EglGetDisplayAttributeType kEglGetDisplayAttributes[] = {
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
-      EGL_NONE  // Terminate the attribute list.
+  static constexpr EGLint kEglRequestedGetDisplayAttributes[] = {
+#endif  // defined(EGL_VERSION_1_5)
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+    EGL_NONE  // Terminate the attribute list.
   };
 
   SbEglDisplay display = EGL_NO_DISPLAY;
@@ -136,7 +134,7 @@ SbEglDisplay GetEglDisplay() {
 #if defined(EGL_VERSION_1_5)
   display = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-      kEglGetDisplayAttributes));
+      kEglRequestedGetDisplayAttributes));
 #else
   // Manually retrieve the eglGetPlatformDisplayEXT function pointer.
   // This allows us to use the display platform extension without enforcing
@@ -147,7 +145,7 @@ SbEglDisplay GetEglDisplay() {
   if (eglGetPlatformDisplayEXT_func) {
     display = eglGetPlatformDisplayEXT_func(
         EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-        kEglGetDisplayAttributes);
+        kEglRequestedGetDisplayAttributes);
   } else {
     display = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
   }
