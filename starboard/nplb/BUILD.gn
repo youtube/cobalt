@@ -378,7 +378,6 @@ test("nplb") {
     data_deps += [
       "//starboard/content/fonts:copy_font_data",
       "//starboard/content/ssl:copy_ssl_certificates_evergreen",
-      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
     ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
