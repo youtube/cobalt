@@ -36,9 +36,9 @@ _PLATFORM_TO_SERVICE_MAP = {
     'android-arm': 'linux',
     'android-arm64': 'linux',
     'linux-x64x11-internal': 'linux',
-    'evergreen-arm-hardfp-rdk': 'evergreen',
-    'evergreen-arm-hardfp-raspi': 'evergreen',
-    'evergreen-x64': 'evergreen'
+    'evergreen-arm-hardfp-rdk': 'rdk',
+    'evergreen-arm-hardfp-raspi': 'raspi',
+    'evergreen-x64': 'linux'
 }
 
 _REGISTRY_FAILURE_IMAGE = 'docker-build-failure'

@@ -9,7 +9,7 @@ build = common.build {
   env_vars = super.env_vars + [
     {
       key = 'PLATFORM'
-      value = 'evergreen-arm-hardfp-rdk'
+      value = 'evergreen-arm-hardfp-raspi-sbversion-17'
     },
     {
       key = 'TARGET'
@@ -25,11 +25,11 @@ build = common.build {
     },
     {
       key = 'TARGET_PLATFORM'
-      value = 'evergreen-arm-hardfp-rdk'
+      value = 'evergreen-arm-hardfp-raspi'
     },
     {
       key = 'REGISTRY_IMAGE_NAME'
-      value = 'cobalt-build-rdk'
+      value = 'cobalt-build-evergreen-arm-hardfp-raspi'
     },
   ]
 }
