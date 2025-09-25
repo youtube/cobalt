@@ -28,10 +28,16 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 
+namespace {
+using ::starboard::android::shared::AudioTrackAudioSinkType;
+
+std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
+
+}  // namespace
+
 namespace starboard::android::shared {
 namespace {
 
-using ::starboard::android::shared::AudioTrackAudioSinkType;
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // Whether to use continuous audio track sync, which keep feeding audio frames
@@ -64,8 +70,6 @@ const int kMinStablePlayedFrames = 12 * 1024;
 
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
-
-std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
