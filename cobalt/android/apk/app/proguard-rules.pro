@@ -70,4 +70,4 @@
 
 # add to keep cronet classes as reflection is used to load cronet library.
 # without this, CronetProvider will fail on Kimono
--keep class org.chromium.net.** { *; }
+-keep class org.chromium.net.impl.NativeCronetProvider { *; }

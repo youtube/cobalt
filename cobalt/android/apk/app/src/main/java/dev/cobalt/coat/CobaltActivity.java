@@ -43,6 +43,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.util.BlockingHolder;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
@@ -97,20 +98,11 @@ public abstract class CobaltActivity extends Activity {
   private Boolean isKeepScreenOnEnabled = false;
   private String diagnosticFinishReason = "Unknown";
 
-  private CronetEngine mCronetEngine;
+  private static BlockingHolder<CronetEngine.Builder> mCronetEngineHolder;
 
-  private void initializeCronetEngine() {
-    // 1. Create and configure the builder FIRST.
-    CronetEngine.Builder builder = new CronetEngine.Builder(this);
-    builder.enableHttp2(true)
-           .enableQuic(true);
-           // Add any other configuration here (e.g., caching, user-agent)
-
-    mCronetEngine = builder.build();
-  }
-
-  public CronetEngine getCronetEngine() {
-      return mCronetEngine;
+  // This is set by Kimono 's MainActivity very earlier. CoAT does not set it.
+  protected static void setCronetEngineHolder(BlockingHolder<CronetEngine.Builder> holder) {
+    mCronetEngineHolder = holder;
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -201,7 +193,11 @@ public abstract class CobaltActivity extends Activity {
                   }
                 }
                 Log.i(TAG, "Browser process init succeeded");
-                initializeCronetEngine();
+                if (mCronetEngineHolder != null) {
+                  mCronetEngineHolder.set(new CronetEngine.Builder(CobaltActivity.this));
+                } else {
+                  Log.w(TAG, "mCronetEngineHolder is null! Kimono Android messages could be broken.");
+                }
                 finishInitialization(savedInstanceState);
 
                 if (isFinishing() || isDestroyed()) {
@@ -224,6 +220,11 @@ public abstract class CobaltActivity extends Activity {
 
               @Override
               public void onFailure() {
+                if (mCronetEngineHolder != null) {
+                  // Do not break Kimono initialization.
+                  mCronetEngineHolder.set(null);
+                }
+
                 if (isFinishing() || isDestroyed()) {
                   if ("ON_BACK_PRESSED".equals(diagnosticFinishReason)) {
                     throw new RuntimeException("Finish reason: ON_BACK_PRESSED");
