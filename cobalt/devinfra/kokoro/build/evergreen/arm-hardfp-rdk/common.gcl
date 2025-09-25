@@ -8,32 +8,28 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
-      key = 'BOOTLOADER'
-      value = 'rdk'
-    },
-    {
-      key = 'BOOTLOADER_TARGET'
-      value = 'elf_loader_sandbox'
-    },
-    {
-      key = 'BOOTLOADER_EXTRA_GN_ARGUMENTS'
-      value = 'use_asan=false is_clang=false is_internal_build=false'
-    },
-    {
-      key = 'EXTRA_GN_ARGUMENTS'
-      value = 'use_asan=false is_internal_build=false'
+      key = 'PLATFORM'
+      value = 'evergreen-arm-hardfp-raspi'
     },
     {
       key = 'TARGET'
-      value = 'default'
+      value = 'cobalt:gn_all'
     },
     {
       key = 'TARGET_CPU'
       value = 'target_cpu=\"arm\"'
     },
     {
+      key = 'TARGET_OS'
+      value = 'target_os=\"linux\"'
+    },
+    {
       key = 'TARGET_PLATFORM'
-      value = 'evergreen-arm-hardfp-rdk'
+      value = 'evergreen-arm-hardfp-raspi'
+    },
+    {
+      key = 'REGISTRY_IMAGE_NAME'
+      value = 'cobalt-build-raspi'
     },
   ]
 }
