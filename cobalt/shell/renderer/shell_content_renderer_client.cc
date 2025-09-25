@@ -164,10 +164,10 @@ class ShellContentRendererUrlLoaderThrottleProvider
     return std::make_unique<ShellContentRendererUrlLoaderThrottleProvider>();
   }
 
-  blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
       int render_frame_id,
       const blink::WebURLRequest& request) override {
-    blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
+    std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
     // Workers can call us on a background thread. We don't care about such
     // requests because we purposefully only look at resources from frames
     // that the user can interact with.`
