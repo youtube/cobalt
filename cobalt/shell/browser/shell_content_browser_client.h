@@ -127,12 +127,15 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   std::unique_ptr<LoginDelegate> CreateLoginDelegate(
       const net::AuthChallengeInfo& auth_info,
       content::WebContents* web_contents,
+      content::BrowserContext* browser_context,
       const content::GlobalRequestID& request_id,
-      bool is_main_frame,
+      bool is_request_for_primary_main_frame_navigation,
+      bool is_request_for_navigation,
       const GURL& url,
       scoped_refptr<net::HttpResponseHeaders> response_headers,
       bool first_auth_attempt,
-      LoginAuthRequiredCallback auth_required_callback) override;
+      GuestPageHolder* guest,
+      LoginDelegate::LoginAuthRequiredCallback auth_required_callback) override;
   base::Value::Dict GetNetLogConstants() override;
   base::FilePath GetSandboxedStorageServiceDataDirectory() override;
   base::FilePath GetFirstPartySetsDirectory() override;
@@ -195,8 +198,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
         std::move(select_client_certificate_callback);
   }
   void set_login_request_callback(
-      base::OnceCallback<void(bool is_primary_main_frame)>
-          login_request_callback) {
+      base::OnceCallback<void(bool is_primary_main_frame_navigation,
+                              bool is_navigation)> login_request_callback) {
     login_request_callback_ = std::move(login_request_callback);
   }
   void set_url_loader_factory_params_callback(
@@ -248,7 +251,9 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   static bool allow_any_cors_exempt_header_for_browser_;
 
   SelectClientCertificateCallback select_client_certificate_callback_;
-  base::OnceCallback<void(bool is_main_frame)> login_request_callback_;
+  base::OnceCallback<void(bool is_primary_main_frame_navigation,
+                          bool is_navigation)>
+      login_request_callback_;
   base::RepeatingCallback<void(const network::mojom::URLLoaderFactoryParams*,
                                const url::Origin&,
                                bool is_for_isolated_world)>
