@@ -257,7 +257,7 @@ enum KeyboardCode {
   VKEY_ALL_APPLICATIONS = 0xEF,
 #if BUILDFLAG(IS_COBALT)
   // Toggle subtitles
-  KEY_SUBTITLES = 0x1CC,
+  VKEY_SUBTITLES = 0x1CC,
 #endif  // BUILDFLAG(IS_COBALT)
 };
 
