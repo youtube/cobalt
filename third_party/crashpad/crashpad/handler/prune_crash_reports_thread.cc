@@ -29,6 +29,12 @@ PruneCrashReportThread::PruneCrashReportThread(
 
 PruneCrashReportThread::~PruneCrashReportThread() {}
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+void PruneCrashReportThread::PruneNow() {
+  thread_.DoWorkNow();
+}
+#endif  // #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+
 void PruneCrashReportThread::Start() {
   thread_.Start(60 * 10);
 }
