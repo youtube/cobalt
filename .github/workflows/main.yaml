@@ -342,7 +342,7 @@ jobs:
     needs: [initialize, build]
     runs-on: ubuntu-latest
     name: Check Binary Sizes
-    if: startsWith(matrix.platform, 'evergreen-arm') && contains(fromJson(needs.initialize.outputs.build_configs), 'gold')
+    if: startsWith(inputs.platform, 'evergreen-arm') && contains(fromJson(needs.initialize.outputs.build_configs), 'gold')
     steps:
       - name: Restore CI Essentials
         uses: actions/download-artifact@v4
