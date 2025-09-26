@@ -106,7 +106,8 @@ public abstract class CobaltActivity extends Activity {
       String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
+              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), VersionInfo.isReleaseBuild(),
+              commandLineArgs));
     }
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();

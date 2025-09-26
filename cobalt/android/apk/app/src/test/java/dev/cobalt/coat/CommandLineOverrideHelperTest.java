@@ -108,7 +108,7 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {"--enable-features=TestFeature1;TestFeature2"};
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                false, true, false, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String actual = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -127,7 +127,7 @@ public class CommandLineOverrideHelperTest {
         };
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                false, true, false, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -154,7 +154,7 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {"--some-other-switch=value"};
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                false, true, false, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("some-other-switch"));
@@ -169,7 +169,7 @@ public class CommandLineOverrideHelperTest {
         };
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                false, true, false, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -190,7 +190,7 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {"--enable-features=TestFeature1=value1;TestFeature2=value2"};
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                false, true, false, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -198,5 +198,40 @@ public class CommandLineOverrideHelperTest {
             CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
                 + ",TestFeature1=value1,TestFeature2=value2";
         Assert.assertEquals(expectedEnable, enableFeatures);
+    }
+
+    @Test
+    public void testFlagOverrides_RemoteAllowOrigins_NotRelease() {
+        String[] commandLineArgs = {"--remote-allow-origins=some-value"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, false, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("remote-allow-origins"));
+        String actual = CommandLine.getInstance().getSwitchValue("remote-allow-origins");
+        Assert.assertEquals("some-value", actual);
+    }
+
+    @Test
+    public void testFlagOverrides_RemoteAllowOrigins_Release() {
+        String[] commandLineArgs = {"--remote-allow-origins=some-value"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        Assert.assertFalse(CommandLine.getInstance().hasSwitch("remote-allow-origins"));
+    }
+
+    @Test
+    public void testFlagOverrides_RemoteAllowOrigins_Release_NoValue() {
+        String[] commandLineArgs = {"--remote-allow-origins"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        Assert.assertFalse(CommandLine.getInstance().hasSwitch("remote-allow-origins"));
     }
 }

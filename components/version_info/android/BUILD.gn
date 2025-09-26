@@ -52,6 +52,12 @@ process_version("generate_version_constants") {
     "-e",
     "CHANNEL=str.upper('$android_channel')",
   ]
+
+  if (cobalt_is_release_build) {
+    extra_args += [ "-e", "COBALT_IS_RELEASE_BUILD=1" ]
+  } else {
+    extra_args += [ "-e", "COBALT_IS_RELEASE_BUILD=0" ]
+  }
 }
 
 generate_jni("version_constants_bridge_jni") {
