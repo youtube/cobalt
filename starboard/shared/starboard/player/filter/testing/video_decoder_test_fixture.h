@@ -70,12 +70,12 @@ class VideoDecoderTestFixture {
   // stop further processing.
   typedef std::function<void(const Event&, bool* continue_process)> EventCB;
 
-  VideoDecoderTestFixture(JobQueue* job_queue,
-                          ::starboard::testing::FakeGraphicsContextProvider*
-                              fake_graphics_context_provider,
-                          const char* test_filename,
-                          SbPlayerOutputMode output_mode,
-                          bool using_stub_decoder);
+  VideoDecoderTestFixture(
+      JobQueue* job_queue,
+      FakeGraphicsContextProvider* fake_graphics_context_provider,
+      const char* test_filename,
+      SbPlayerOutputMode output_mode,
+      bool using_stub_decoder);
 
   ~VideoDecoderTestFixture() {
     if (video_decoder_) {
@@ -147,8 +147,7 @@ class VideoDecoderTestFixture {
   // platform-specific VideoDecoderImpl.
   bool using_stub_decoder_;
 
-  ::starboard::testing::FakeGraphicsContextProvider*
-      fake_graphics_context_provider_;
+  FakeGraphicsContextProvider* fake_graphics_context_provider_;
   VideoDmpReader dmp_reader_;
   std::unique_ptr<VideoDecoder> video_decoder_;
 

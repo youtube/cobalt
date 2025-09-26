@@ -46,10 +46,10 @@ class PosixReaddirTests : public ::testing::Test {
         kSbSystemPathTempDirectory, temp_path.data(), kSbFileMaxPath);
     ASSERT_TRUE(system_path_success);
     struct stat info;
-    test_dir_ = temp_path.data();
+    test_dir_ = std::string(temp_path.data()) + "/posix_readdir_tests";
     EXPECT_TRUE(stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
-    EXPECT_TRUE(mkdir(temp_path.data(), 0700) == 0 ||
-                stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
+    EXPECT_TRUE(mkdir(test_dir_.c_str(), 0700) == 0 ||
+                stat(test_dir_.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
   }
 
   void TearDown() override { RemoveFileOrDirectoryRecursively(test_dir_); }

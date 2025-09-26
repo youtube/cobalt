@@ -36,7 +36,6 @@
 namespace starboard {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using std::string;
 using std::unique_ptr;
 using std::vector;

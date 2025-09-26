@@ -28,7 +28,6 @@
 #include "starboard/gles.h"
 
 namespace starboard {
-namespace testing {
 
 // This class provides a SbDecodeTargetGraphicsContextProvider implementation
 // used by SbPlayer related tests.  It creates a thread and forwards decode
@@ -76,7 +75,6 @@ class FakeGraphicsContextProvider {
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };
 
-}  // namespace testing
 }  // namespace starboard
 
 #endif  // STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_

@@ -23,7 +23,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -771,4 +771,4 @@ void AudioRendererPcm::CheckAudioSinkStatus() {
 }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

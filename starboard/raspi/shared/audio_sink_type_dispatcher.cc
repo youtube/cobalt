@@ -16,23 +16,16 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace audio_sink {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  ::starboard::shared::alsa::PlatformInitialize();
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
-      EnableFallbackToStub();
+  AlsaPlatformInitialize();
+  SbAudioSinkImpl::EnableFallbackToStub();
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  ::starboard::shared::alsa::PlatformTearDown();
+  AlsaPlatformTearDown();
 }
 
-}  // namespace audio_sink
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard

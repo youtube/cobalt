@@ -152,8 +152,7 @@ MaximumPlayerConfigurationExplorer::MaximumPlayerConfigurationExplorer(
     const std::vector<SbPlayerTestConfig>& player_configs,
     int max_instances_per_config,
     int max_total_instances,
-    starboard::testing::FakeGraphicsContextProvider*
-        fake_graphics_context_provider)
+    starboard::FakeGraphicsContextProvider* fake_graphics_context_provider)
     : player_configs_(player_configs),
       max_instances_per_config_(max_instances_per_config),
       max_total_instances_(max_total_instances),

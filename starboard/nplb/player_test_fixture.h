@@ -70,9 +70,9 @@ class SbPlayerTestFixture {
     std::vector<VideoSamplesDescriptor> video_samples_;
   };
 
-  SbPlayerTestFixture(const SbPlayerTestConfig& config,
-                      starboard::testing::FakeGraphicsContextProvider*
-                          fake_graphics_context_provider);
+  SbPlayerTestFixture(
+      const SbPlayerTestConfig& config,
+      starboard::FakeGraphicsContextProvider* fake_graphics_context_provider);
   ~SbPlayerTestFixture();
 
   void Seek(const int64_t time);
@@ -197,8 +197,7 @@ class SbPlayerTestFixture {
   std::string max_video_capabilities_;
   std::unique_ptr<starboard::VideoDmpReader> audio_dmp_reader_;
   std::unique_ptr<starboard::VideoDmpReader> video_dmp_reader_;
-  starboard::testing::FakeGraphicsContextProvider*
-      fake_graphics_context_provider_;
+  starboard::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;

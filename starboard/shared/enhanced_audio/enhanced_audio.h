@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
 #define STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
 
-namespace starboard::shared::enhanced_audio {
+namespace starboard {
 
 const void* GetEnhancedAudioApi();
 
-}  // namespace starboard::shared::enhanced_audio
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_

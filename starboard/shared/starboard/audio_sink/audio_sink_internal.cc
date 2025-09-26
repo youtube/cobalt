@@ -21,7 +21,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 namespace {
 
 using std::placeholders::_1;
@@ -205,4 +205,4 @@ SbAudioSink SbAudioSinkImpl::Create(
                 error_func, context);
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard

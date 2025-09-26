@@ -64,6 +64,7 @@ public class CommandLineOverrideHelperTest {
         String overrides =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         assertThat(overrides.contains("MediaSourceNewAbortAndDuration")).isTrue();
+        assertThat(overrides.contains("PreciseMemoryInfo")).isTrue();
     }
 
     @Test

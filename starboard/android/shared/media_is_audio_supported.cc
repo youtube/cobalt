@@ -24,9 +24,6 @@
 
 namespace starboard::shared::starboard::media {
 
-using ::starboard::MediaCapabilitiesCache;
-using ::starboard::SupportedAudioCodecToMimeType;
-
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,
                            int64_t bitrate) {

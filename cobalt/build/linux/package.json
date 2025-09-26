@@ -10,6 +10,9 @@
                 "gen/licenses_cobalt.txt",
                 "starboard/libstarboard.so.17"
             ],
+            "dirs": [
+                "ssl"
+            ],
             "rename_files": [
                 {
                     "from_file": "cobalt.stripped",

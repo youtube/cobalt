@@ -20,6 +20,7 @@
 #include "cobalt/version.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
@@ -187,6 +188,18 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                << reinterpret_cast<void*>(g_sb_event_func);
 }
 
+void InstallCrashpadHandler(const std::string& evergreen_content_path) {
+  std::string ca_certificates_path =
+      evergreen_content_path.empty()
+          ? starboard::GetCACertificatesPath()
+          : starboard::GetCACertificatesPath(evergreen_content_path);
+  if (ca_certificates_path.empty()) {
+    SB_LOG(ERROR) << "Failed to get CA certificates path";
+  }
+
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
+}
+
 }  // namespace
 
 void SbEventHandle(const SbEvent* event) {
@@ -256,6 +269,9 @@ void SbEventHandle(const SbEvent* event) {
         memory_tracker_thread.Start();
       }
     }
+
+    InstallCrashpadHandler(
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
 
     if (is_evergreen_lite) {
       loader_app::RecordSlotSelectionStatus(SlotSelectionStatus::kEGLite);

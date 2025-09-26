@@ -40,7 +40,6 @@
 namespace starboard {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using ::std::placeholders::_1;
 using ::std::placeholders::_2;
 using ::testing::Bool;

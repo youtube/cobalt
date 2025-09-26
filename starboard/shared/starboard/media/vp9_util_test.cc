@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
 
 std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
@@ -166,4 +166,4 @@ TEST(Vp9FrameParserTests, SuperFramesWithEmptySubframes) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

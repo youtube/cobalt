@@ -108,10 +108,13 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    } else {
+    # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
+    # can build it and its deps.
+    if (sb_is_evergreen_compatible && target_os == "linux" &&
+        target_cpu == "x64") {
       deps += [ "//starboard/crashpad_wrapper" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
@@ -148,10 +151,14 @@ if (current_toolchain == starboard_toolchain) {
       ":sabi_string",
       "//starboard:starboard_group",
     ]
-    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    } else {
+
+    # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
+    # can build it and its deps.
+    if (sb_is_evergreen_compatible && target_os == "linux" &&
+        target_cpu == "x64") {
       deps += [ "//starboard/crashpad_wrapper" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
   }
 }

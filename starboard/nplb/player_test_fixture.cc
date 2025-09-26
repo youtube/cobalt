@@ -25,8 +25,8 @@
 
 namespace nplb {
 
+using ::starboard::FakeGraphicsContextProvider;
 using ::starboard::VideoDmpReader;
-using ::starboard::testing::FakeGraphicsContextProvider;
 
 using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
 using AudioSamplesDescriptor = GroupedSamples::AudioSamplesDescriptor;

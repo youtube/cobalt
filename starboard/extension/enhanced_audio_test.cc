@@ -22,7 +22,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace extension {
 
 TEST(EnhancedAudioTest, VerifyBinaryLayouts) {
   // Sanity check that the layouts of the extension specific types are the same
@@ -108,5 +107,4 @@ TEST(EnhancedAudioTest, VerifyBinaryLayouts) {
             offsetof(SbPlayerSampleInfo, drm_info));
 }
 
-}  // namespace extension
 }  // namespace starboard
