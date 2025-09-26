@@ -12,10 +12,6 @@ config build = common.build {
       key = 'CONFIG'
       value = 'gold'
     },
-    {
-      key = 'SB_API_VERSION'
-      value = 'sb_api_version=17'
-    },
   ]
   action = [
     {
