@@ -23,12 +23,7 @@
 # in the configuration.gni for the current platform.
 
 group("egl_and_gles") {
-  _valid_gl_type_values = [
-    "angle",
-    "system_gles2",
-  ]
-  assert(filter_include([ gl_type ], _valid_gl_type_values) != [],
-         "gl_type '$gl_type' is invalid")
+  assert(gl_type == "angle" || gl_type == "system_gles2")
   public_deps = [ ":egl_and_gles_$gl_type" ]
 }
 
