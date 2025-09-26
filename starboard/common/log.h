@@ -74,9 +74,9 @@ std::ostream& operator<<(std::ostream& out, const std::wstring& wstr);
 
 // Helper function to print a std::optional of data.
 template <typename T>
-std::ostream& operator<<(std::ostream& out, const std::optional<T>& data) {
-  if (data.has_value()) {
-    return out << *data;
+std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
+  if (v) {
+    return out << *v;
   }
   return out << "(nullopt)";
 }
