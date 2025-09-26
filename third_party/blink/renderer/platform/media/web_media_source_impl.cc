@@ -77,7 +77,7 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
 std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
     const WebString& mime_type,
     AddStatus& out_status /* out */) {
-  std::string id = base::GenerateGUID();
+  std::string id = base::Uuid::GenerateRandomV4().AsLowercaseString();
 
   out_status = static_cast<WebMediaSource::AddStatus>(
       demuxer_->AddId(id, mime_type.Utf8()));
