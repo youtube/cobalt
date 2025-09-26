@@ -293,7 +293,7 @@ enum KeyboardCode : unsigned short {
 
 #if BUILDFLAG(IS_COBALT)
   // Toggle subtitles
-  KEY_SUBTITLES = 0x1CC,
+  VKEY_SUBTITLES = 0x1CC,
 #endif  // BUILDFLAG(IS_COBALT)
 };
 
