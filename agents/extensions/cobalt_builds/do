@@ -120,9 +120,6 @@ from datetime import datetime
 # Suppress informational logs from the MCP client
 logging.getLogger('mcp').setLevel(logging.WARNING)
 
-from mcp.client.session import ClientSession
-from mcp.client.stdio import StdioServerParameters, stdio_client
-
 from analysis import analyze_log
 
 
@@ -135,7 +132,14 @@ def format_output(data):
   # Handle simple list of strings
   if isinstance(content, list) and all(
       isinstance(item, dict) and 'text' in item for item in content):
-    return '\n'.join(item['text'] for item in content)
+    try:
+      # Try to parse the text as JSON, assuming it's a list of strings
+      parsed_content = json.loads(content[0]['text'])
+      if isinstance(parsed_content, list):
+        return '\n'.join(parsed_content)
+    except (json.JSONDecodeError, IndexError):
+      # Fallback to original behavior if parsing fails
+      return '\n'.join(item['text'] for item in content)
 
   # Handle single string response
   if isinstance(content, dict) and 'text' in content:
@@ -164,95 +168,71 @@ async def process_command(session, args):
 
   if 'binary_args' in params:
     params['args'] = [arg for arg in params.pop('binary_args') if arg != '--']
-
+  
   if 'debug' in params:
     params['debug'] = True
 
-  should_wait = tool_name in ['build', 'run']
-
   result = await session.call_tool(tool_name, arguments=params)
 
-  # The raw text content from the server
-  response_text = result.model_dump()['content'][0]['text']
-
-  if not should_wait:
-    print(response_text)
-    return
-
-  # If the command was run with --background, we just print the response and exit.
-  if hasattr(args, 'background') and args.background:
-      print(response_text)
+  # For long-running build/run commands, tail the log file.
+  if tool_name in ['build', 'run']:
+    response_json = result.model_dump()['content'][0]['text']
+    try:
+      response_data = json.loads(response_json)
+    except json.JSONDecodeError:
+      print(response_json)
       return
 
-  task_id = None
-  tail_process = None
-  try:
-    response_data = json.loads(response_text)
+    command = response_data.get('command')
+
+    if 'dry_run' in args and args.dry_run:
+      print(command)
+      return
+
     task_id = response_data.get('build_id') or response_data.get('run_id')
-    status = response_data.get('status')
 
-    if status == 'in_progress':
-      # Server started a background task, we need to tail the log.
-      log_path = response_data.get('output_log')
+    print(f'Executing command: {command}')
+    print(f'Started task with ID: {task_id}')
+    status_tool = 'check_status'
+    id_key = 'task_id'
+    stop_tool = 'stop'
 
-      if not log_path:
-        print("Error: Could not determine log path from server response.")
-        return
+    # Get the log path
+    status_result = await session.call_tool(
+        status_tool, arguments={id_key: task_id})
+    status_json = status_result.model_dump()['content'][0]['text']
+    status_data = json.loads(status_json)
+    log_path = status_data['output_log']
+    print(f'Tailing log file: {log_path}')
 
-      # Wait a moment for the log file to be created
-      await asyncio.sleep(0.2)
-      if not os.path.exists(log_path):
-          print(f"Error: Log file not found: {log_path}")
-          return
+    tail_process = await asyncio.create_subprocess_exec('tail', '-f', log_path)
 
-      print(f"\n--- Tailing log file: {log_path} (Ctrl+C to stop) ---", flush=True)
-      tail_process = await asyncio.create_subprocess_exec(
-          'tail', '-f', log_path, stdout=sys.stdout, stderr=sys.stderr)
+    try:
+      while True:
+        status_result = await session.call_tool(
+            status_tool, arguments={id_key: task_id})
+        status_json = status_result.model_dump()['content'][0]['text']
+        status_data = json.loads(status_json)
+        status = status_data.get('status')
 
-      try:
-        while True:
-          status_result = await session.call_tool('status', arguments={'task_id': task_id})
-          status_text = status_result.model_dump()['content'][0]['text']
-          status_data = json.loads(status_text)
-          if status_data.get('status') != 'in_progress':
-            # Give tail a moment to flush final output
-            await asyncio.sleep(0.5)
-            break
-          await asyncio.sleep(1)  # Poll every second
-      finally:
-        if tail_process.returncode is None:
-          tail_process.terminate()
-        await tail_process.wait()
-        print("\n--- Task finished. ---", flush=True)
-
-    else:
-      # Server ran synchronously and this is the final result.
-      if 'analysis' in response_data:
-          print(response_data.get('message', 'Task failed. Analysis:'))
-          print(response_data['analysis'])
-      elif 'log_snippet' in response_data:
-          print(response_data.get('message', 'Task succeeded.'))
-          print("--- Log Snippet ---")
-          print(response_data['log_snippet'])
-      else:
-          # Fallback for other JSON responses
-          print(json.dumps(response_data, indent=2))
-
-  except KeyboardInterrupt:
-    print(f"\n--- Interrupted by user. ---")
-    if task_id:
-        print(f"Stopping task {task_id}...")
-        if tail_process and tail_process.returncode is None:
-            tail_process.terminate()
-            await tail_process.wait()
-        await session.call_tool('stop', arguments={'task_id': task_id})
-        print("Task stopped.")
-  except json.JSONDecodeError:
-    print("Could not parse server response. Raw output:")
-    print(response_text)
-  except Exception as e:
-    print(f"\nAn error occurred: {e}")
-    traceback.print_exc()
+        if status in ['success', 'failure', 'cancelled']:
+          print(f'Task {task_id} finished with status: {status}')
+          break
+        await asyncio.sleep(2)
+    except KeyboardInterrupt:
+      print(f'\nStopping task {task_id}...')
+      await session.call_tool(stop_tool, arguments={id_key: task_id})
+      print('Task stopped.')
+    finally:
+      tail_process.terminate()
+      await tail_process.wait()
+  else:
+    # For all other commands, just print the result.
+    try:
+      print(format_output(result.model_dump()))
+    except KeyboardInterrupt:
+      print("\nOperation cancelled by user.")
+      sys.exit(1)
 
 
 class NonExitingArgumentParser(argparse.ArgumentParser):
@@ -436,47 +416,48 @@ async def interactive_launcher(parser):
             print(f'An error occurred: {e}')
 
 
-async def get_tool_schemas(server_params):
-  """Gets the tool schemas from the server."""
-  server_process = await asyncio.create_subprocess_exec(
-      server_params.command, *server_params.args)
-  try:
-    async with stdio_client(server_params) as (read, write):
-      async with ClientSession(read, write) as session:
-        await session.initialize()
-        return await session.list_tools()
-  finally:
+async def main_async():
+  """The async main entry point."""
+  from mcp.client.session import ClientSession
+  from mcp.client.stdio import StdioServerParameters, stdio_client
+
+  async def get_tool_schemas(server_params):
+    """Gets the tool schemas from the server."""
+    server_process = await asyncio.create_subprocess_exec(
+        server_params.command, *server_params.args)
     try:
-      server_process.terminate()
-    except ProcessLookupError:
-      pass
-
-
-async def run_worker(server_params, parser, is_background=False):
-  """Runs a worker process to handle a single command."""
-  worker_args = [arg for arg in sys.argv[1:] if arg != '--worker']
-  args = parser.parse_args(worker_args)
-
-  # Launch the server in a new process group to allow detachment.
-  server_process = await asyncio.create_subprocess_exec(
-      server_params.command, *server_params.args,
-      preexec_fn=os.setpgrp)
-  try:
-    async with stdio_client(server_params) as (read, write):
-      async with ClientSession(read, write) as session:
-        await session.initialize()
-        await process_command(session, args)
-  finally:
-    # If we are not in background mode, clean up the server process group.
-    if not is_background:
+      async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+          await session.initialize()
+          return await session.list_tools()
+    finally:
       try:
-        os.killpg(server_process.pid, signal.SIGTERM)
+        server_process.terminate()
       except ProcessLookupError:
         pass
 
+  async def run_worker(server_params, parser, is_background=False):
+    """Runs a worker process to handle a single command."""
+    worker_args = [arg for arg in sys.argv[1:] if arg != '--worker']
+    args = parser.parse_args(worker_args)
 
-async def main_async():
-  """The async main entry point."""
+    # Launch the server in a new process group to allow detachment.
+    server_process = await asyncio.create_subprocess_exec(
+        server_params.command, *server_params.args,
+        preexec_fn=os.setpgrp)
+    try:
+      async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+          await session.initialize()
+          await process_command(session, args)
+    finally:
+      # If we are not in background mode, clean up the server process group.
+      if not is_background:
+        try:
+          os.killpg(server_process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+          pass
+
   # Special case for local analysis to avoid server overhead
   if len(sys.argv) > 1 and sys.argv[1] == 'analyze':
     log_file = sys.argv[2] if len(sys.argv) > 2 else None
