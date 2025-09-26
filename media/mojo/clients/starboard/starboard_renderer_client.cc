@@ -14,8 +14,6 @@
 
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
-#include <optional>
-
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
