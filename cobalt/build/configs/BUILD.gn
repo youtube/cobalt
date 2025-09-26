@@ -21,8 +21,9 @@ config("cobalt_config") {
     ":default_includes",
     ":buildflag_defines",
   ]
-  if (current_toolchain == starboard_toolchain &&
-      starboard_toolchain != default_toolchain) {
+  if ((current_toolchain == starboard_toolchain &&
+       starboard_toolchain != default_toolchain) ||
+      current_toolchain == native_target) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
@@ -134,5 +135,16 @@ config("buildflag_defines") {
   # false).
   if (is_androidtv) {
     defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
+  }
+
+  # Use is_native_target_build and BUILDFLAG(IS_NATIVE_TARGET_BUILD) for code
+  # that should only be built using the platform's "native_target" toolchain.
+  # This is for binaries that should run natively on the system, without
+  # Starboard.
+  # TODO: b/406511608 - consider removing the is_native_target_build variable
+  # since it's true iff current_toolchain == native_target. We may want to
+  # rename the build variable if we do.
+  if (is_native_target_build) {
+    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
   }
 }

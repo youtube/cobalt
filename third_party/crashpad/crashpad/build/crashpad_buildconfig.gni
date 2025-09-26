@@ -60,7 +60,12 @@ if (crashpad_is_in_chromium) {
   crashpad_is_mac = is_mac
   crashpad_is_ios = is_ios
   crashpad_is_win = is_win
-  crashpad_is_linux = is_linux && !is_cobalt_hermetic_build || is_chromeos
+  crashpad_is_linux = is_linux &&
+    # We don't actually use crashpad components built with the cobalt toolchain
+    # in hermetic builds, and this variable causes sources to be included that
+    # introduce compiler errors for this build configuration.
+    !(is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) ||
+    is_chromeos
   crashpad_is_android = is_android
   crashpad_is_fuchsia = is_fuchsia
 
