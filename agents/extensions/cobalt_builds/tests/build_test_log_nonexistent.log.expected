@@ -1,0 +1,5 @@
+--- ERROR ---
+>> 3: ninja: fatal: chdir to 'out/non-existent_devel' - No such file or directory
+   5: RETURN_CODE: 1
+Full log saved to: agents/extensions/cobalt_builds/tests/build_test_log_nonexistent.log
+Log analysis summary: Errors: 1, Warnings: 0

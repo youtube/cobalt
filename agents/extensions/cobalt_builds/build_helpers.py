@@ -31,6 +31,7 @@ class TaskStatus:
 PLATFORM_ALIASES = {
     'non-hermetic': 'linux-x64x11',
     'modular': 'linux-x64x11-modular',
+    'linux-x64-modular': 'linux-x64x11-modular',
     'evergreen': 'evergreen-x64',
     'android': 'android-arm',
 }

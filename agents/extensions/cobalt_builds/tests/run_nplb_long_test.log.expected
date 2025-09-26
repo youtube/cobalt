@@ -191,5 +191,5 @@ Also occurred in combination with other failures in this test (9 times similar).
    14957: [0;32m[ RUN      ] [mSbSystemGetPathTest.FailsGracefullyBogusId
 >> 14958: [nplb_loader/1102689:0925/171304.490369(UTC):ERROR:system_get_path.cc(259)] Not implemented reached in bool SbSystemGetPath(SbSystemPathId, char *, int)
    14959: [0;32m[       OK ] [mSbSystemGetPathTest.FailsGracefullyBogusId (0 ms)
-Full log saved to: agents/extensions/cobalt_builds/tests/run_nplb_20250925_101240.log
+Full log saved to: agents/extensions/cobalt_builds/tests/run_nplb_long_test.log
 Log analysis summary: Errors: 181, Warnings: 53

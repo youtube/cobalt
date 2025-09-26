@@ -130,7 +130,7 @@ class BuildLogAnalyzer(BaseAnalyzer):
             if patterns.END_ERROR_PATTERN.search(self.lines[error_end]):
               error_end += 1
               break
-            if patterns.END_BUILD_PATTERN.search(self.lines[error_end]):
+            if patterns.NINJA_ERROR_PATTERN.search(self.lines[error_end]):
               error_end += 1
               break
             error_end += 1
@@ -153,6 +153,12 @@ class BuildLogAnalyzer(BaseAnalyzer):
           continue
 
       # --- Other important lines ---
+      elif patterns.NINJA_ERROR_PATTERN.search(line):
+        errors += 1
+        results.append('--- ERROR ---')
+        results.append(f'>> {str(i+1).ljust(max_line_num_width)}: {line.rstrip()}')
+        reported_lines.add(i)
+
       elif patterns.REGENERATING_NINJA_PATTERN.search(line):
         # This case handles "Regenerating..." ONLY when it's NOT followed by a warning.
         # The case where it is followed by a warning is handled by the gn_warning_pattern block.
@@ -161,7 +167,6 @@ class BuildLogAnalyzer(BaseAnalyzer):
           reported_lines.add(i)
 
       elif (
-          patterns.NINJA_STOPPED_PATTERN.search(line) or
           patterns.RETURN_CODE_PATTERN.search(line)):
         results.append(f'   {str(i+1).ljust(max_line_num_width)}: {line.rstrip()}')
         reported_lines.add(i)

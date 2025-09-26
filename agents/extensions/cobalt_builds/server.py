@@ -132,8 +132,11 @@ from build_helpers import (
 )
 
 RUNNABLE_PLATFORMS = [
-    'evergreen-x64', 'linux-x64x11', 'linux-x64x11-modular',
-    'linux-x64x11-no-starboard'
+    'evergreen-x64',
+    'linux-x64x11',
+    'linux-x64x11-modular',
+    'linux-x64x11-no-starboard',
+    'android-arm',
 ]
 
 # --- MCP Server Setup ---
@@ -305,7 +308,11 @@ async def build(platform: str,
   If the build fails, the log will be automatically analyzed.
   """
   out_dir = get_out_dir(platform, variant)
-  cmd = ['autoninja', '-C', out_dir, target]
+  target_to_build = target
+  if 'android' in get_platform(platform):
+    if not target.endswith('__apk'):
+      target_to_build = f'{target}__apk'
+  cmd = ['autoninja', '-C', out_dir, target_to_build]
   if extra_args:
     cmd.extend(extra_args)
   if dry_run:
@@ -393,41 +400,78 @@ async def run(platform: str | None = None,
             'Must provide either build_id_or_log_file or platform, variant, and binary_name.'
     })
 
-  if 'android' in platform:
-    return json.dumps({'error': 'Running on Android is not yet supported.'})
-
-  executable_name = binary_name
-  if 'modular' in platform or 'evergreen' in platform:
-    if not binary_name.endswith('_loader'):
-      executable_name = f'{binary_name}_loader'
-
   out_dir = get_out_dir(platform, variant)
-  cmd = [f'{out_dir}/{executable_name}']
-  if args:
-    cmd.extend(args)
-
-  if debug:
-    cmd = ['gdb', '-ex="set confirm off"', '-ex=r', '-ex=bt', '-ex=q', '--args'] + cmd
-
-  if dry_run:
-    return json.dumps({'command': ' '.join(cmd)})
+  cmd_list = []
+  platform_full = get_platform(platform)
 
   run_id = _generate_task_id('run', binary_name)
   log_path = f'/tmp/{run_id}.log'
 
-  task_runner = TaskRunner(run_id, cmd, log_path)
+  if 'android' in platform_full:
+    apk_name = binary_name.replace('_loader', '')
+    apk_path = f'{out_dir}/{apk_name}_apk/{apk_name}-debug.apk'
+
+    install_cmd_str = ' '.join(['adb', 'install', '-r', apk_path])
+    run_cmd_list = [
+        'build/android/test_runner.py', 'gtest', '-s', binary_name, '-v',
+        '--isolated-script-test-launcher-retry-limit=0',
+        '--output-directory', out_dir, '--', '--exitfirst'
+    ]
+    if args:
+        run_cmd_list.extend(args)
+    run_cmd_str = ' '.join(run_cmd_list)
+
+    if dry_run:
+        return json.dumps({'command': f'{install_cmd_str} && {run_cmd_str}'})
+
+    script_content = f"""#!/bin/bash
+set -e
+echo "Installing APK from {apk_path}..."
+{install_cmd_str}
+echo "Running tests..."
+{run_cmd_str}
+"""
+    script_path = f'/tmp/{run_id}_script.sh'
+    with open(script_path, 'w') as f:
+        f.write(script_content)
+    os.chmod(script_path, 0o755)
+    cmd_list = [script_path]
+  else:
+    executable_name = binary_name
+    if 'modular' in platform_full or 'evergreen' in platform_full:
+        if not binary_name.endswith('_loader'):
+            executable_name = f'{binary_name}_loader'
+    
+    executable_path = f'{out_dir}/{executable_name}'
+    py_executable_path = f'{executable_path}.py'
+
+    if 'evergreen' in platform_full and os.path.exists(py_executable_path):
+        cmd_list = [py_executable_path]
+    else:
+        cmd_list = [executable_path]
+
+    if args:
+        cmd_list.extend(args)
+    
+    if dry_run:
+        return json.dumps({'command': ' '.join(cmd_list)})
+
+  if debug:
+    cmd_list = ['gdb', '-ex="set confirm off"', '-ex=r', '-ex=bt', '-ex=q', '--args'] + cmd_list
+
+  task_runner = TaskRunner(run_id, cmd_list, log_path)
 
   if background:
     asyncio.create_task(task_runner.run_async())
     return json.dumps({
         'run_id': run_id,
-        'command': ' '.join(cmd),
+        'command': ' '.join(cmd_list),
         'output_log': log_path,
         'status': 'in_progress'
     })
   else:
     await task_runner.run_async()
-    return _get_final_task_result(run_id, cmd)
+    return _get_final_task_result(run_id, cmd_list)
 
 
 @mcp.tool()

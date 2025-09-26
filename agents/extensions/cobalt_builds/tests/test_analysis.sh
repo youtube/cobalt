@@ -44,7 +44,8 @@ declare -a test_files=(
   "run_nplb_example1.log"
   "run_nplb_example2.log"
   "build_test_log.log"
-  "run_nplb_20250925_101240.log"
+  "run_nplb_long_test.log"
+  "build_test_log_nonexistent.log"
 )
 
 all_passed=true
@@ -82,6 +83,7 @@ for file in "${test_files[@]}"; do
   echo "Comparing output..."
   if diff_output=$(diff "${temp_output_file}" "${expected_file}"); then
     info "SUCCESS: Output for ${file} matches expected."
+    rm "${temp_output_file}"
   else
     error "FAILURE: Output for ${file} does not match expected."
     echo "The difference between the current output and the expected output is:"
@@ -92,9 +94,9 @@ for file in "${test_files[@]}"; do
     all_passed=false
   fi
 
-  # Clean up the temporary files
-  # rm "${temp_output_file}"
-  # rm "${stderr_log_file}"
+  if [ ! -s "${stderr_log_file}" ]; then
+    rm "${stderr_log_file}"
+  fi
 done
 
 # --- Final Status ---

@@ -45,7 +45,8 @@
    53:     *(reinterpret_cast<int*>(time_in_s))++;
    54:      ~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    55: 1 error generated.
-   56: ninja: build stopped: subcommand failed.
+--- ERROR ---
+>> 56: ninja: build stopped: subcommand failed.
    59: RETURN_CODE: 1
 Full log saved to: agents/extensions/cobalt_builds/tests/build_test_log.log
-Log analysis summary: Errors: 2, Warnings: 1
+Log analysis summary: Errors: 3, Warnings: 1
