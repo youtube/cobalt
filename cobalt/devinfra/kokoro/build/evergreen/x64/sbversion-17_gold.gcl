@@ -13,10 +13,6 @@ config build = common.build {
       value = 'gold'
     },
     {
-      key = 'PLATFORM'
-      value = 'evergreen-x64-sbversion-17'
-    },
-    {
       key = 'SB_API_VERSION'
       value = 'sb_api_version=17'
     },
