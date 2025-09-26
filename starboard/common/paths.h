@@ -18,7 +18,6 @@
 #include <string>
 
 namespace starboard {
-namespace common {
 
 // Returns an empty string on error.
 std::string PrependContentPath(const std::string& path);
@@ -29,7 +28,6 @@ std::string PrependContentPath(const std::string& path);
 std::string GetCACertificatesPath();
 std::string GetCACertificatesPath(const std::string& content_subdir);
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_PATHS_H_

@@ -16,7 +16,6 @@
 
 #include <cstring>
 
-namespace starboard {
 namespace elf_loader {
 
 // Compute the ELF hash of a given symbol.
@@ -68,4 +67,3 @@ const Sym* ElfHashTable::LookupByName(const char* symbol_name,
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

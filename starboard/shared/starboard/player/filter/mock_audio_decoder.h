@@ -26,7 +26,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 
 class MockAudioDecoder : public AudioDecoder {
  public:
@@ -41,6 +41,6 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(Reset, void());
 };
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_DECODER_H_

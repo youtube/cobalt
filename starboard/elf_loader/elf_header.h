@@ -20,7 +20,6 @@
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/file.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // Class for loading, parsing and validating the ELF header section.
@@ -42,6 +41,5 @@ class ElfHeader {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_ELF_HEADER_H_

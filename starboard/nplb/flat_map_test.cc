@@ -24,9 +24,9 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
+using ::starboard::FlatMap;
 
 bool StringPairEquals(const std::pair<std::string, std::string>& a,
                       const std::pair<std::string, std::string>& b) {
@@ -520,21 +520,22 @@ TEST(FlatMap, UnsortedInsertWithDuplicates) {
 }
 
 TEST(FlatMap, FlatMapDetail_IsPod) {
-  EXPECT_TRUE(flat_map_detail::IsPod<bool>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<float>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<int8_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<uint8_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<int16_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<uint16_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<int32_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<uint32_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<int64_t>::value);
-  EXPECT_TRUE(flat_map_detail::IsPod<uint64_t>::value);
+  using ::starboard::flat_map_detail::IsPod;
+  EXPECT_TRUE(IsPod<bool>::value);
+  EXPECT_TRUE(IsPod<float>::value);
+  EXPECT_TRUE(IsPod<int8_t>::value);
+  EXPECT_TRUE(IsPod<uint8_t>::value);
+  EXPECT_TRUE(IsPod<int16_t>::value);
+  EXPECT_TRUE(IsPod<uint16_t>::value);
+  EXPECT_TRUE(IsPod<int32_t>::value);
+  EXPECT_TRUE(IsPod<uint32_t>::value);
+  EXPECT_TRUE(IsPod<int64_t>::value);
+  EXPECT_TRUE(IsPod<uint64_t>::value);
 
-  EXPECT_TRUE(flat_map_detail::IsPod<CustomKey*>::value);
+  EXPECT_TRUE(IsPod<CustomKey*>::value);
 
-  EXPECT_FALSE(flat_map_detail::IsPod<std::string>::value);
-  EXPECT_FALSE(flat_map_detail::IsPod<std::vector<int>>::value);
+  EXPECT_FALSE(IsPod<std::string>::value);
+  EXPECT_FALSE(IsPod<std::vector<int>>::value);
 }
 
 ////////////////////////////// PERFORMANCE TEST ///////////////////////////////
@@ -699,4 +700,3 @@ TEST(FlatMap, FuzzerTest) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

@@ -24,7 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 DecodedAudioQueue::DecodedAudioQueue() {
   Clear();
@@ -168,4 +168,4 @@ int DecodedAudioQueue::InternalRead(int frames,
   return taken;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

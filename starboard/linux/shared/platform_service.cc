@@ -28,9 +28,7 @@
 #include "starboard/elf_loader/evergreen_config.h"
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace shared {
 
 namespace {
 
@@ -137,9 +135,8 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 }  // namespace
 
-const void* GetPlatformServiceApi() {
+const void* GetPlatformServiceApiLinux() {
   return &kPlatformServiceApi;
 }
 
-}  // namespace shared
 }  // namespace starboard

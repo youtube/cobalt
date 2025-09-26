@@ -15,7 +15,6 @@
 #include "starboard/speech_synthesis.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -37,4 +36,3 @@ TEST(SbSpeechSynthesisBasicTest, RainyDayEmpty) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -26,10 +26,6 @@ namespace starboard::shared::starboard::media {
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
                       const char* key_system) {
-  using ::starboard::android::shared::IsWidevineL1;
-  using ::starboard::android::shared::IsWidevineL3;
-  using ::starboard::android::shared::MediaCapabilitiesCache;
-
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.

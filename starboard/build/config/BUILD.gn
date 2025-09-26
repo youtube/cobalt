@@ -167,9 +167,15 @@ config("starboard") {
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
 
-  sb_out_dir =
-      get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
-  ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
+  # b/432642933: The rpath option causes lld to fail when targeting tvOS
+  # because -rpath=/path/to/something is not a valid linker option (and
+  # everything works fine without it anyway).
+  # Check for |target_os| because this also affects the host (macOS) side.
+  if (target_os != "ios") {
+    sb_out_dir =
+        get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
+    ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
+  }
 }
 
 config("native_target_build") {

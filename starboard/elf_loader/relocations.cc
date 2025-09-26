@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 
-namespace starboard {
 namespace elf_loader {
 
 Relocations::Relocations(Addr base_memory_address,
@@ -480,4 +479,3 @@ bool Relocations::ResolveSymbol(Word rel_type,
   return false;
 }
 }  // namespace elf_loader
-}  // namespace starboard

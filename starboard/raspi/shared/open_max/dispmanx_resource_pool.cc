@@ -18,9 +18,6 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 DispmanxResourcePool::DispmanxResourcePool(size_t max_number_of_resources)
     : max_number_of_resources_(max_number_of_resources),
@@ -92,7 +89,4 @@ void DispmanxResourcePool::DisposeDispmanxYUV420Resource(
   pool->Release();
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

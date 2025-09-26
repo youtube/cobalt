@@ -42,9 +42,9 @@ const char kDrainFilePrefix[] = "d_";
 }  // extern "C"
 #endif
 
-namespace starboard {
 namespace loader_app {
 namespace {
+using ::starboard::CurrentPosixTime;
 
 std::string ExtractAppKey(const std::string& str) {
   const size_t begin = str.find_first_of('_') + 1;
@@ -153,10 +153,6 @@ void Rank(const char* dir, char* app_key, size_t len) {
   }
 }
 
-}  // namespace
-
-namespace drain_file {
-
 bool TryDrain(const char* dir, const char* app_key) {
   SB_DCHECK(dir);
   SB_DCHECK(app_key);
@@ -255,7 +251,7 @@ void PrepareDirectory(const char* dir, const char* app_key) {
     path.append(kSbFileSepString);
     path.append(entry);
 
-    SbFileDeleteRecursive(path.c_str(), false);
+    starboard::SbFileDeleteRecursive(path.c_str(), false);
   }
 }
 
@@ -295,40 +291,39 @@ bool IsAnotherAppDraining(const char* dir, const char* app_key) {
   return false;
 }
 
-}  // namespace drain_file
+}  // namespace
 }  // namespace loader_app
-}  // namespace starboard
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 bool DrainFileTryDrain(const char* dir, const char* app_key) {
-  return starboard::loader_app::drain_file::TryDrain(dir, app_key);
+  return loader_app::TryDrain(dir, app_key);
 }
 
 bool DrainFileRankAndCheck(const char* dir, const char* app_key) {
-  return starboard::loader_app::drain_file::RankAndCheck(dir, app_key);
+  return loader_app::RankAndCheck(dir, app_key);
 }
 
 void DrainFileClearExpired(const char* dir) {
-  starboard::loader_app::drain_file::ClearExpired(dir);
+  loader_app::ClearExpired(dir);
 }
 
 void DrainFileClearForApp(const char* dir, const char* app_key) {
-  starboard::loader_app::drain_file::ClearForApp(dir, app_key);
+  loader_app::ClearForApp(dir, app_key);
 }
 
 void DrainFilePrepareDirectory(const char* dir, const char* app_key) {
-  starboard::loader_app::drain_file::PrepareDirectory(dir, app_key);
+  loader_app::PrepareDirectory(dir, app_key);
 }
 
 bool DrainFileIsAppDraining(const char* dir, const char* app_key) {
-  return starboard::loader_app::drain_file::IsAppDraining(dir, app_key);
+  return loader_app::IsAppDraining(dir, app_key);
 }
 
 bool DrainFileIsAnotherAppDraining(const char* dir, const char* app_key) {
-  return starboard::loader_app::drain_file::IsAnotherAppDraining(dir, app_key);
+  return loader_app::IsAnotherAppDraining(dir, app_key);
 }
 
 #ifdef __cplusplus

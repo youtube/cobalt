@@ -16,7 +16,7 @@
 
 #include "starboard/extension/loader_app_metrics.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 namespace {
 
@@ -108,4 +108,4 @@ const void* GetLoaderAppMetricsApi() {
   return &kLoaderAppMetricsApi;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

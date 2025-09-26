@@ -19,7 +19,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -53,4 +52,3 @@ TEST(PosixSysMincoreTest, FailsForInvalidAddress) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

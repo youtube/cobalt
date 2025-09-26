@@ -33,7 +33,7 @@ jobject g_application_class_loader = NULL;
 jobject g_starboard_bridge = NULL;
 }  // namespace
 
-namespace starboard::android::shared {
+namespace starboard {
 
 void JNIState::SetVM(JavaVM* vm) {
   g_vm = vm;
@@ -59,4 +59,4 @@ jobject& JNIState::GetApplicationClassLoader() {
   return g_application_class_loader;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

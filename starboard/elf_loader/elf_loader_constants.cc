@@ -14,7 +14,6 @@
 
 #include "starboard/elf_loader/elf_loader_constants.h"
 
-namespace starboard {
 namespace elf_loader {
 
 const char kCompressionSuffix[] = ".lz4";
@@ -22,4 +21,3 @@ const char kEvergreenLibrary[] = "evergreen_library";
 const char kEvergreenContent[] = "evergreen_content";
 
 }  // namespace elf_loader
-}  // namespace starboard

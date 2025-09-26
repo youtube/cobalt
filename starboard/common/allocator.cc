@@ -15,9 +15,7 @@
 #include "starboard/common/allocator.h"
 
 namespace starboard {
-namespace common {
 
 const size_t Allocator::kMinAlignment = sizeof(void*);
 
-}  // namespace common
 }  // namespace starboard

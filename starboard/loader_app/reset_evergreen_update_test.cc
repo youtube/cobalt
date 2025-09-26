@@ -25,7 +25,6 @@
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 
-namespace starboard {
 namespace loader_app {
 namespace {
 
@@ -92,6 +91,5 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
 }
 }  // namespace
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  //  SB_IS(EVERGREEN_COMPATIBLE)

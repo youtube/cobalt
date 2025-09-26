@@ -23,7 +23,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class DecodeTarget final : public SbDecodeTargetPrivate {
  public:
@@ -60,6 +60,6 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   SbDecodeTargetInfo info_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_DECODE_TARGET_H_

@@ -18,7 +18,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard::shared::aom {
+namespace starboard {
 
 namespace {
 
@@ -95,4 +95,4 @@ bool is_aom_supported() {
   return GetHandle()->IsLoaded();
 }
 
-}  // namespace starboard::shared::aom
+}  // namespace starboard

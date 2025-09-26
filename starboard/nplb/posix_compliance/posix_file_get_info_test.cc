@@ -22,7 +22,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
@@ -41,10 +41,10 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
   // in extra sensitivity to make flakiness more apparent.
   constexpr int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    int64_t time_usec = CurrentPosixTime();
+    int64_t time_usec = starboard::CurrentPosixTime();
 
     constexpr int kFileSize = 12;
-    starboard::nplb::ScopedRandomFile random_file(kFileSize);
+    ScopedRandomFile random_file(kFileSize);
     const std::string& filename = random_file.filename();
 
     int file = open(filename.c_str(), O_RDONLY);
@@ -155,4 +155,4 @@ TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

@@ -27,7 +27,7 @@ namespace h5vcc_accessibility {
 #if BUILDFLAG(IS_ANDROIDTV)
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-using starboard::android::shared::CobaltTextToSpeechHelper;
+using ::starboard::CobaltTextToSpeechHelper;
 #endif
 
 H5vccAccessibilityImpl::H5vccAccessibilityImpl(

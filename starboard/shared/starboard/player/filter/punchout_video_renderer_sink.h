@@ -25,7 +25,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class PunchoutVideoRendererSink : public VideoRendererSink {
  public:
@@ -56,6 +56,6 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
   int height_;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_

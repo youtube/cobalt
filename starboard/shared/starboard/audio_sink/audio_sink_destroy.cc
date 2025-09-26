@@ -18,7 +18,7 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 void SbAudioSinkDestroy(SbAudioSink audio_sink) {
-  using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
+  using ::starboard::SbAudioSinkImpl;
 
   if (audio_sink == kSbAudioSinkInvalid) {
     return;

@@ -24,7 +24,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 typedef enum Supportability {
   kSupportabilityUnknown,
@@ -117,6 +117,13 @@ class MimeSupportabilityCache {
   std::atomic_bool is_enabled_{false};
 };
 
-}  // namespace starboard::shared::starboard::media
+// Alias to prevent breaking the RDK build on CI.
+// http://go/paste/5455950962098176
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
+namespace shared::starboard::media {
+using MimeSupportabilityCache = ::starboard::MimeSupportabilityCache;
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MIME_SUPPORTABILITY_CACHE_H_

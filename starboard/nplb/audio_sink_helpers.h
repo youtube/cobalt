@@ -23,7 +23,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/media.h"
 
-namespace starboard {
 namespace nplb {
 
 // Helper class to manage frame buffers for audio sink.  When created without
@@ -118,6 +117,5 @@ class AudioSinkTestEnvironment {
 };
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_AUDIO_SINK_HELPERS_H_

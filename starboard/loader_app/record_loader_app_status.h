@@ -19,13 +19,11 @@
 
 #include "starboard/extension/loader_app_metrics.h"
 
-namespace starboard {
 namespace loader_app {
 
 // Persist the slot selection status so that it can be read in the Cobalt layer
 void RecordSlotSelectionStatus(SlotSelectionStatus status);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_RECORD_LOADER_APP_STATUS_H_

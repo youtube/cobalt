@@ -21,7 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // A video frame produced by a video decoder.
 class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
@@ -49,6 +49,6 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
   void operator=(const VideoFrame&) = delete;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_FRAME_INTERNAL_H_

@@ -21,7 +21,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace common {
 
 // Helper method to cast the passed in void* pointer to a integer type.
 inline uintptr_t AsInteger(const void* memory_value) {
@@ -67,7 +66,6 @@ static bool IsAligned(T value, size_t alignment) {
   return AsInteger(value) % alignment == 0;
 }
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_POINTER_ARITHMETIC_H_

@@ -18,11 +18,6 @@
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-using starboard::shared::media_session::kPaused;
-using starboard::shared::media_session::kPlaying;
-using starboard::shared::media_session::
-    UpdateActiveSessionPlatformPlaybackState;
-
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -35,6 +30,7 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   }
   player->SetPlaybackRate(playback_rate);
   bool paused = (playback_rate == 0.0);
-  UpdateActiveSessionPlatformPlaybackState(paused ? kPaused : kPlaying);
+  starboard::UpdateActiveSessionPlatformPlaybackState(
+      paused ? starboard::kPaused : starboard::kPlaying);
   return true;
 }

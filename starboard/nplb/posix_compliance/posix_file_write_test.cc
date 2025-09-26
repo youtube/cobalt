@@ -25,13 +25,12 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
 // Sets up an empty test fixture, required for typed tests.
 template <class SbFileWriteType>
-class PosixFileWriteTest : public testing::Test {};
+class PosixFileWriteTest : public ::testing::Test {};
 
 class PosixFileWriter {
  public:
@@ -43,12 +42,12 @@ class PosixFileWriter {
 class PosixFileWriterAll {
  public:
   static ssize_t Write(int file, char* data, size_t size) {
-    return WriteAll(file, data, size);
+    return starboard::WriteAll(file, data, size);
   }
 };
 
-typedef testing::Types<PosixFileWriter, PosixFileWriterAll>
-    PosixFileWriteTestTypes;
+using PosixFileWriteTestTypes =
+    ::testing::Types<PosixFileWriter, PosixFileWriterAll>;
 
 TYPED_TEST_SUITE(PosixFileWriteTest, PosixFileWriteTestTypes);
 
@@ -112,7 +111,7 @@ TYPED_TEST(PosixFileWriteTest, BasicWriting) {
   total = 0;
   int previous_total = 0;
   while (true) {
-    int bytes_read = ReadAll(file, buffer, kBufferLength);
+    int bytes_read = starboard::ReadAll(file, buffer, kBufferLength);
     if (bytes_read == 0) {
       break;
     }
@@ -371,4 +370,3 @@ TYPED_TEST(PosixFileWriteTest, WritevEmpty) {
 }
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

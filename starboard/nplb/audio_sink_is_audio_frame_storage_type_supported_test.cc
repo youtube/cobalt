@@ -15,7 +15,6 @@
 #include "starboard/audio_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 TEST(SbAudioSinkIsAudioFrameStorageTypeSupportedTest, SunnyDay) {
@@ -28,4 +27,3 @@ TEST(SbAudioSinkIsAudioFrameStorageTypeSupportedTest, SunnyDay) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

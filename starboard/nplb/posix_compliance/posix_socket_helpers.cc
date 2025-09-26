@@ -23,7 +23,6 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 // Add helper functions for posix socket tests.
@@ -94,8 +93,8 @@ int PosixSocketCreateAndConnect(int server_domain,
     return -1;
   }
 
-  int64_t start = CurrentMonotonicTime();
-  while ((CurrentMonotonicTime() - start < timeout)) {
+  int64_t start = starboard::CurrentMonotonicTime();
+  while ((starboard::CurrentMonotonicTime() - start < timeout)) {
     *server_socket_fd = accept(*listen_socket_fd, NULL, NULL);
     if (*server_socket_fd > 0) {
       return 0;
@@ -254,4 +253,3 @@ int PosixGetPortNumberForTests() {
 }
 
 }  // namespace nplb
-}  // namespace starboard

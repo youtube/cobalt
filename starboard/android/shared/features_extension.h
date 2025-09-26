@@ -15,12 +15,12 @@
 #ifndef STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
 #define STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Starboard extension function to receive the Starboard
 // FeaturesAPI.
 const void* GetFeaturesApi();
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_

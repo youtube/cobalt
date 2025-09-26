@@ -23,12 +23,10 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class AudioChannelLayoutMixer {
  public:
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-
   virtual ~AudioChannelLayoutMixer() {}
 
   virtual scoped_refptr<DecodedAudio> Mix(
@@ -40,6 +38,6 @@ class AudioChannelLayoutMixer {
       int output_channels);
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_CHANNEL_LAYOUT_MIXER_H_

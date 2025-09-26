@@ -22,9 +22,9 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/log.h"
 
-using starboard::android::shared::AssetManager;
-using starboard::android::shared::IsAndroidAssetPath;
-using starboard::android::shared::OpenAndroidAsset;
+using starboard::AssetManager;
+using starboard::IsAndroidAssetPath;
+using starboard::OpenAndroidAsset;
 
 // ///////////////////////////////////////////////////////////////////////////////
 // // Implementations below exposed externally in pure C for emulation.

@@ -22,9 +22,6 @@
 #include "starboard/raspi/shared/open_max/open_max_component.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 // Facilitate using the GPU to decode images of various formats. This
 // encapsulates the "OMX.broadcom.egl_render" component.
@@ -49,9 +46,6 @@ class OpenMaxEglRenderComponent : public OpenMaxComponent {
   OpenMaxComponent* callback_component_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_EGL_RENDER_COMPONENT_H_

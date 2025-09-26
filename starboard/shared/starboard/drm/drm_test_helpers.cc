@@ -16,7 +16,7 @@
 
 #include "starboard/drm.h"
 
-namespace starboard::shared::starboard::drm {
+namespace starboard {
 
 void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
                                    void* context,
@@ -64,4 +64,4 @@ SbDrmSystem CreateDummyDrmSystem(const char* key_system) {
       DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
 }
 
-}  // namespace starboard::shared::starboard::drm
+}  // namespace starboard

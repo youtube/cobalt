@@ -17,17 +17,13 @@
 
 #include <string.h>
 
-using starboard::shared::SetArmFeaturesInvalid;
-using starboard::shared::SetGeneralFeaturesInvalid;
-using starboard::shared::SetX86FeaturesInvalid;
-
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));
   features->architecture = kSbCPUFeaturesArchitectureUnknown;
 
-  SetGeneralFeaturesInvalid(features);
-  SetArmFeaturesInvalid(features);
-  SetX86FeaturesInvalid(features);
+  starboard::SetGeneralFeaturesInvalid(features);
+  starboard::SetArmFeaturesInvalid(features);
+  starboard::SetX86FeaturesInvalid(features);
 
   return false;
 }

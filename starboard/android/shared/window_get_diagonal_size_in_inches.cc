@@ -30,8 +30,7 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window) {
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> display_dpi =
-      starboard::android::shared::StarboardBridge::GetInstance()->GetDisplayDpi(
-          env);
+      starboard::StarboardBridge::GetInstance()->GetDisplayDpi(env);
 
   jclass sizeFClass = env->FindClass("android/util/SizeF");
   jmethodID getWidthMethod = env->GetMethodID(sizeFClass, "getWidth", "()F");

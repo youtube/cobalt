@@ -20,16 +20,16 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 // For each version V that is supported, there will be an implementation of an
 // explicit specialization of the AudioDecoder class.
 template <int V>
-class AudioDecoderImpl : public AudioDecoder {
+class FfmpegAudioDecoderImpl : public FfmpegAudioDecoder {
  public:
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
 };
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_INTERFACE_H_

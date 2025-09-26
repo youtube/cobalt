@@ -15,7 +15,6 @@
 #include <gtest/gtest.h>
 #include <time.h>
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -66,4 +65,3 @@ TEST(PosixTzsetSimpleTest, MAYBE_EnvironmentChange) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

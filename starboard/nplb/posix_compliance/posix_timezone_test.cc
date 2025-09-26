@@ -26,7 +26,6 @@
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
-namespace starboard {
 namespace nplb {
 
 TEST(PosixTimezoneTests, HandlesUnsetTZEnvironmentVariable) {
@@ -92,4 +91,3 @@ TEST(PosixTimezoneTests, HandlesInvalidTZStringGracefully) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

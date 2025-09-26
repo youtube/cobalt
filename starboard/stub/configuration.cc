@@ -18,48 +18,45 @@
 #include "starboard/extension/configuration.h"
 
 namespace starboard {
-namespace stub {
-
 namespace {
 
-const char* CobaltRasterizerType() {
+const char* CobaltRasterizerTypeStub() {
   return "stub";
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     3,
-    &common::CobaltUserOnExitStrategyDefault,
-    &common::CobaltRenderDirtyRegionOnlyDefault,
-    &common::CobaltEglSwapIntervalDefault,
-    &common::CobaltFallbackSplashScreenUrlDefault,
-    &common::CobaltEnableQuicDefault,
-    &common::CobaltSkiaCacheSizeInBytesDefault,
-    &common::CobaltOffscreenTargetCacheSizeInBytesDefault,
-    &common::CobaltEncodedImageCacheSizeInBytesDefault,
-    &common::CobaltImageCacheSizeInBytesDefault,
-    &common::CobaltLocalTypefaceCacheSizeInBytesDefault,
-    &common::CobaltRemoteTypefaceCacheSizeInBytesDefault,
-    &common::CobaltMeshCacheSizeInBytesDefault,
-    &common::CobaltSoftwareSurfaceCacheSizeInBytesDefault,
-    &common::CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &common::CobaltSkiaGlyphAtlasWidthDefault,
-    &common::CobaltSkiaGlyphAtlasHeightDefault,
-    &common::CobaltJsGarbageCollectionThresholdInBytesDefault,
-    &common::CobaltReduceCpuMemoryByDefault,
-    &common::CobaltReduceGpuMemoryByDefault,
-    &common::CobaltGcZealDefault,
-    &CobaltRasterizerType,
-    &common::CobaltEnableJitDefault,
-    &common::CobaltFallbackSplashScreenTopicsDefault,
-    &common::CobaltCanStoreCompiledJavascriptDefault,
+    &CobaltUserOnExitStrategyDefault,
+    &CobaltRenderDirtyRegionOnlyDefault,
+    &CobaltEglSwapIntervalDefault,
+    &CobaltFallbackSplashScreenUrlDefault,
+    &CobaltEnableQuicDefault,
+    &CobaltSkiaCacheSizeInBytesDefault,
+    &CobaltOffscreenTargetCacheSizeInBytesDefault,
+    &CobaltEncodedImageCacheSizeInBytesDefault,
+    &CobaltImageCacheSizeInBytesDefault,
+    &CobaltLocalTypefaceCacheSizeInBytesDefault,
+    &CobaltRemoteTypefaceCacheSizeInBytesDefault,
+    &CobaltMeshCacheSizeInBytesDefault,
+    &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
+    &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
+    &CobaltSkiaGlyphAtlasWidthDefault,
+    &CobaltSkiaGlyphAtlasHeightDefault,
+    &CobaltJsGarbageCollectionThresholdInBytesDefault,
+    &CobaltReduceCpuMemoryByDefault,
+    &CobaltReduceGpuMemoryByDefault,
+    &CobaltGcZealDefault,
+    &CobaltRasterizerTypeStub,
+    &CobaltEnableJitDefault,
+    &CobaltFallbackSplashScreenTopicsDefault,
+    &CobaltCanStoreCompiledJavascriptDefault,
 };
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiStub() {
   return &kConfigurationApi;
 }
 
-}  // namespace stub
 }  // namespace starboard

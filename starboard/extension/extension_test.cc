@@ -39,7 +39,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace extension {
 
 TEST(ExtensionTest, PlatformService) {
   typedef CobaltExtensionPlatformServiceApi ExtensionApi;
@@ -594,5 +593,4 @@ TEST(ExtensionTest, StarboardFeaturesExtension) {
       << "Extension struct should be a singleton";
 }
 
-}  // namespace extension
 }  // namespace starboard

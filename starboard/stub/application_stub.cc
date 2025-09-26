@@ -33,12 +33,12 @@ bool ApplicationStub::MayHaveSystemEvents() {
   return false;
 }
 
-shared::starboard::Application::Event* ApplicationStub::PollNextSystemEvent() {
+Application::Event* ApplicationStub::PollNextSystemEvent() {
   return NULL;
 }
 
-shared::starboard::Application::Event*
-ApplicationStub::WaitForSystemEventWithTimeout(int64_t time) {
+Application::Event* ApplicationStub::WaitForSystemEventWithTimeout(
+    int64_t time) {
   return NULL;
 }
 

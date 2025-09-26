@@ -23,7 +23,6 @@
 #include "starboard/common/log.h"
 
 namespace starboard {
-namespace common {
 
 // The MemoryPool class can be used to wrap a range of memory with allocators
 // such that the memory can be allocated out of and free'd memory re-used as
@@ -68,7 +67,6 @@ class MemoryPool : public Allocator {
   ReuseAllocator reuse_allocator_;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_MEMORY_POOL_H_

@@ -27,7 +27,6 @@
  * flag that verify this requirement.
  */
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -136,4 +135,3 @@ TEST(PosixAlignedAllocTests, AllocatesSuccessfullyWithLargeAlignmentAndSize) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

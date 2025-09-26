@@ -35,16 +35,15 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard::shared::openh264 {
+namespace starboard {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class OpenH264VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
-  ~VideoDecoder() override;
+  OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
+                       SbPlayerOutputMode output_mode,
+                       SbDecodeTargetGraphicsContextProvider*
+                           decode_target_graphics_context_provider);
+  ~OpenH264VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -64,8 +63,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
  private:
   static const int kDefaultOpenH264BitsDepth = 8;
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
   // Operator to compare CpuVideoFrame by timestamp.
   struct VideoFrameTimeStampGreater {
     bool operator()(const scoped_refptr<CpuVideoFrame>& left,
@@ -121,7 +118,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::mutex decode_target_mutex_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
 
   // Openh264 decode handler.
   ISVCDecoder* decoder_ = nullptr;
@@ -130,9 +127,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   int frames_being_decoded_ = 0;
 
   // Store current avc level profile and resolution.
-  std::optional<shared::starboard::media::VideoConfig> video_config_;
+  std::optional<VideoConfig> video_config_;
 };
 
-}  // namespace starboard::shared::openh264
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_

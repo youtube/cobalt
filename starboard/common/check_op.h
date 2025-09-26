@@ -44,7 +44,7 @@
 // you use e.g. both CHECK_EQ and CHECK, including this header is enough. If you
 // only use CHECK however, please include the smaller check.h instead.
 
-namespace starboard::logging {
+namespace starboard {
 
 // Uses expression SFINAE to detect whether using operator<< would work.
 //
@@ -181,49 +181,47 @@ class CheckOpResult {
 // macro is used in an 'if' clause such as:
 // if (a == 1)
 //   CHECK_EQ(2, a);
-#define SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)                       \
-  switch (0)                                                                  \
-  case 0:                                                                     \
-  default:                                                                    \
-    if (::starboard::logging::CheckOpResult true_if_passed =                  \
-            ::starboard::logging::Check##name##Impl(                          \
-                __FILE__, __LINE__, (val1), (val2), #val1 " " #op " " #val2)) \
-      ;                                                                       \
-    else                                                                      \
-      ::starboard::logging::CheckError(true_if_passed.log_message())
+#define SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)                        \
+  switch (0)                                                                   \
+  case 0:                                                                      \
+  default:                                                                     \
+    if (::starboard::CheckOpResult true_if_passed =                            \
+            ::starboard::Check##name##Impl(__FILE__, __LINE__, (val1), (val2), \
+                                           #val1 " " #op " " #val2))           \
+      ;                                                                        \
+    else                                                                       \
+      ::starboard::CheckError(true_if_passed.log_message())
 
 #define SB_CHECK_OP(name, op, val1, val2) \
   SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)
 
 // The second overload avoids address-taking of static members for
 // fundamental types.
-#define DEFINE_SB_CHECK_OP_IMPL(name, op)                                     \
-  template <typename T, typename U,                                           \
-            std::enable_if_t<!std::is_fundamental<T>::value ||                \
-                                 !std::is_fundamental<U>::value,              \
-                             int> = 0>                                        \
-  constexpr ::starboard::logging::CheckOpResult Check##name##Impl(            \
-      const char* file, int line, const T& v1, const U& v2,                   \
-      const char* expr_str) {                                                 \
-    using ::starboard::logging::CheckOpResult;                                \
-    if (v1 op v2)                                                             \
-      return CheckOpResult();                                                 \
-    return CheckOpResult(                                                     \
-        ::starboard::logging::CheckOpResult::CreateLogMessage(                \
-            file, line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2))); \
-  }                                                                           \
-  template <typename T, typename U,                                           \
-            std::enable_if_t<std::is_fundamental<T>::value &&                 \
-                                 std::is_fundamental<U>::value,               \
-                             int> = 0>                                        \
-  constexpr ::starboard::logging::CheckOpResult Check##name##Impl(            \
-      const char* file, int line, T v1, U v2, const char* expr_str) {         \
-    using ::starboard::logging::CheckOpResult;                                \
-    if (v1 op v2)                                                             \
-      return CheckOpResult();                                                 \
-    return CheckOpResult(                                                     \
-        ::starboard::logging::CheckOpResult::CreateLogMessage(                \
-            file, line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2))); \
+#define DEFINE_SB_CHECK_OP_IMPL(name, op)                                 \
+  template <typename T, typename U,                                       \
+            std::enable_if_t<!std::is_fundamental<T>::value ||            \
+                                 !std::is_fundamental<U>::value,          \
+                             int> = 0>                                    \
+  constexpr ::starboard::CheckOpResult Check##name##Impl(                 \
+      const char* file, int line, const T& v1, const U& v2,               \
+      const char* expr_str) {                                             \
+    using ::starboard::CheckOpResult;                                     \
+    if (v1 op v2)                                                         \
+      return CheckOpResult();                                             \
+    return CheckOpResult(::starboard::CheckOpResult::CreateLogMessage(    \
+        file, line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2))); \
+  }                                                                       \
+  template <typename T, typename U,                                       \
+            std::enable_if_t<std::is_fundamental<T>::value &&             \
+                                 std::is_fundamental<U>::value,           \
+                             int> = 0>                                    \
+  constexpr ::starboard::CheckOpResult Check##name##Impl(                 \
+      const char* file, int line, T v1, U v2, const char* expr_str) {     \
+    using ::starboard::CheckOpResult;                                     \
+    if (v1 op v2)                                                         \
+      return CheckOpResult();                                             \
+    return CheckOpResult(::starboard::CheckOpResult::CreateLogMessage(    \
+        file, line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2))); \
   }
 
 // clang-format off
@@ -261,6 +259,6 @@ DEFINE_SB_CHECK_OP_IMPL(GT, > )
 #define SB_DCHECK_GT(val1, val2) SB_DCHECK_OP(GT, > , val1, val2)
 // clang-format on
 
-}  // namespace starboard::logging
+}  // namespace starboard
 
 #endif  // STARBOARD_COMMON_CHECK_OP_H_

@@ -40,7 +40,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 using base::android::ScopedJavaGlobalRef;
 
@@ -55,7 +55,7 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& files_dir,
     const std::string& cache_dir,
     const std::string& native_library_dir)
-    : QueueApplication(stubSbEventHandle) {
+    : Application(stubSbEventHandle) {
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
@@ -125,4 +125,44 @@ Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
   return JniNewStringStandardUTFOrAbort(env, ret);
 }
 
-}  // namespace starboard::android::shared
+Application::Event* ApplicationAndroid::GetNextEvent() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return nullptr;
+}
+
+void ApplicationAndroid::Inject(Application::Event* event) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+void ApplicationAndroid::InjectTimedEvent(
+    Application::TimedEvent* timed_event) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+void ApplicationAndroid::CancelTimedEvent(SbEventId event_id) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+Application::TimedEvent* ApplicationAndroid::GetNextDueTimedEvent() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return nullptr;
+}
+
+int64_t ApplicationAndroid::GetNextTimedEventTargetTime() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return std::numeric_limits<int64_t>::max();
+}
+
+}  // namespace starboard

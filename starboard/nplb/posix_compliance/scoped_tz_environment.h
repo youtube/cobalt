@@ -20,7 +20,6 @@
 #include <optional>
 #include <string>
 
-namespace starboard {
 namespace nplb {
 
 // Helper class to manage the TZ environment variable for test isolation.
@@ -59,6 +58,5 @@ class ScopedTzEnvironment {
 };
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_SCOPED_TZ_ENVIRONMENT_H_

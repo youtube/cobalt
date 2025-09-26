@@ -28,7 +28,7 @@ namespace {
 
 // TODO: b/372559388 - Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-using starboard::android::shared::StarboardBridge;
+using ::starboard::StarboardBridge;
 
 const char kFriendlyName[] = "Android";
 const char kUnknownValue[] = "unknown";

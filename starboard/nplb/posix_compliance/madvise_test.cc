@@ -18,13 +18,12 @@
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
 
-class MadviseTest : public testing::Test {
+class MadviseTest : public ::testing::Test {
  public:
   void SetUp() override {
     // Allocate memory for use during the tests.
@@ -72,4 +71,3 @@ TEST_F(MadviseTest, SunnyDayRandom) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

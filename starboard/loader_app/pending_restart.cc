@@ -16,7 +16,6 @@
 
 #include <atomic>
 
-namespace starboard {
 namespace loader_app {
 
 namespace {
@@ -32,4 +31,3 @@ void SetPendingRestart(bool value) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

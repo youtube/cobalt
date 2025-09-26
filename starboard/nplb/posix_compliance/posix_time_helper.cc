@@ -18,7 +18,6 @@
 
 #include <gtest/gtest.h>
 
-namespace starboard {
 namespace nplb {
 
 void ExpectTmEqual(const struct tm& actual,
@@ -45,4 +44,3 @@ void ExpectTmEqual(const struct tm& actual,
 }
 
 }  // namespace nplb
-}  // namespace starboard

@@ -19,7 +19,6 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
 namespace elf_loader {
 
 static std::mutex g_evergreen_config_mutex;
@@ -47,4 +46,3 @@ EvergreenConfig::EvergreenConfig(
       content_path_(content_path),
       custom_get_extension_(custom_get_extension) {}
 }  // namespace elf_loader
-}  // namespace starboard

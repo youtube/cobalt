@@ -65,6 +65,13 @@ crashpad_static_library("snapshot") {
     "unloaded_module_snapshot.h",
   ]
 
+  if (is_cobalt && is_native_target_build) {
+    sources += [
+      "module_snapshot_evergreen.cc",
+      "module_snapshot_evergreen.h",
+    ]
+  }
+
   if (crashpad_is_posix || crashpad_is_fuchsia) {
     sources += [
       "posix/timezone.cc",
@@ -252,6 +259,10 @@ crashpad_static_library("snapshot") {
     "../minidump:format",
     "../util",
   ]
+
+  if (is_starboard) {
+    deps += [ "//starboard/elf_loader:evergreen_info" ]
+  }
 
   if (crashpad_is_win) {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union

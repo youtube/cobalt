@@ -30,7 +30,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
@@ -211,4 +210,3 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

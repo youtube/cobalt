@@ -18,8 +18,8 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 
-using starboard::android::shared::JniCallVoidMethodOrAbort;
-using starboard::android::shared::JNIState;
+using ::starboard::JniCallVoidMethodOrAbort;
+using ::starboard::JNIState;
 
 void SbSystemRequestStop(int error_level) {
   JNIEnv* env = base::android::AttachCurrentThread();

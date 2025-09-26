@@ -17,5 +17,5 @@
 #include "starboard/shared/x11/application_x11.h"
 
 bool SbWindowDestroy(SbWindow window) {
-  return starboard::shared::x11::ApplicationX11::Get()->DestroyWindow(window);
+  return starboard::ApplicationX11::Get()->DestroyWindow(window);
 }

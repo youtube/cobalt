@@ -17,61 +17,60 @@
 #include "starboard/common/configuration_defaults.h"
 #include "starboard/extension/configuration.h"
 
-namespace starboard::android::shared {
-
+namespace starboard {
 namespace {
 
-const char* CobaltUserOnExitStrategy() {
+const char* CobaltUserOnExitStrategyAndroid() {
   // On Android, we almost never want to actually terminate the process, so
   // instead indicate that we would instead like to be suspended when users
   // initiate an "exit".
   return "suspend";
 }
 
-int CobaltEglSwapInterval() {
+int CobaltEglSwapIntervalAndroid() {
   // Switch Android's SurfaceFlinger queue to "async mode" so that we don't
   // queue up rendered frames which would interfere with frame timing and
   // more importantly lead to input latency.
   return 0;
 }
 
-bool CobaltEnableQuic() {
-  return 0;
+bool CobaltEnableQuicAndroid() {
+  return false;
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     3,
-    &CobaltUserOnExitStrategy,
-    &common::CobaltRenderDirtyRegionOnlyDefault,
-    &CobaltEglSwapInterval,
-    &common::CobaltFallbackSplashScreenUrlDefault,
-    &CobaltEnableQuic,
-    &common::CobaltSkiaCacheSizeInBytesDefault,
-    &common::CobaltOffscreenTargetCacheSizeInBytesDefault,
-    &common::CobaltEncodedImageCacheSizeInBytesDefault,
-    &common::CobaltImageCacheSizeInBytesDefault,
-    &common::CobaltLocalTypefaceCacheSizeInBytesDefault,
-    &common::CobaltRemoteTypefaceCacheSizeInBytesDefault,
-    &common::CobaltMeshCacheSizeInBytesDefault,
-    &common::CobaltSoftwareSurfaceCacheSizeInBytesDefault,
-    &common::CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &common::CobaltSkiaGlyphAtlasWidthDefault,
-    &common::CobaltSkiaGlyphAtlasHeightDefault,
-    &common::CobaltJsGarbageCollectionThresholdInBytesDefault,
-    &common::CobaltReduceCpuMemoryByDefault,
-    &common::CobaltReduceGpuMemoryByDefault,
-    &common::CobaltGcZealDefault,
-    &common::CobaltRasterizerTypeDefault,
-    &common::CobaltEnableJitDefault,
-    &common::CobaltFallbackSplashScreenTopicsDefault,
-    &common::CobaltCanStoreCompiledJavascriptDefault,
+    &CobaltUserOnExitStrategyAndroid,
+    &CobaltRenderDirtyRegionOnlyDefault,
+    &CobaltEglSwapIntervalAndroid,
+    &CobaltFallbackSplashScreenUrlDefault,
+    &CobaltEnableQuicAndroid,
+    &CobaltSkiaCacheSizeInBytesDefault,
+    &CobaltOffscreenTargetCacheSizeInBytesDefault,
+    &CobaltEncodedImageCacheSizeInBytesDefault,
+    &CobaltImageCacheSizeInBytesDefault,
+    &CobaltLocalTypefaceCacheSizeInBytesDefault,
+    &CobaltRemoteTypefaceCacheSizeInBytesDefault,
+    &CobaltMeshCacheSizeInBytesDefault,
+    &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
+    &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
+    &CobaltSkiaGlyphAtlasWidthDefault,
+    &CobaltSkiaGlyphAtlasHeightDefault,
+    &CobaltJsGarbageCollectionThresholdInBytesDefault,
+    &CobaltReduceCpuMemoryByDefault,
+    &CobaltReduceGpuMemoryByDefault,
+    &CobaltGcZealDefault,
+    &CobaltRasterizerTypeDefault,
+    &CobaltEnableJitDefault,
+    &CobaltFallbackSplashScreenTopicsDefault,
+    &CobaltCanStoreCompiledJavascriptDefault,
 };
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiAndroid() {
   return &kConfigurationApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

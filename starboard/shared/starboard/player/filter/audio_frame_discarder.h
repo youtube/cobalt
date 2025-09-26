@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // The class helps tracking the information contained in the InputBuffer objects
 // required to adjust discarded duration on the DecodedAudio object.  It should
@@ -53,6 +53,6 @@ class AudioFrameDiscarder {
   std::queue<InputBufferInfo> input_buffer_infos_;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_DISCARDER_H_

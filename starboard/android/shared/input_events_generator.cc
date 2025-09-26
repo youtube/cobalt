@@ -25,11 +25,10 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/key.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
-using ::starboard::shared::starboard::Application;
-typedef ::starboard::android::shared::InputEventsGenerator::Event Event;
-typedef ::starboard::android::shared::InputEventsGenerator::Events Events;
+typedef ::starboard::InputEventsGenerator::Event Event;
+typedef ::starboard::InputEventsGenerator::Events Events;
 
 namespace {
 
@@ -962,4 +961,4 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
                              &Application::DeleteDestructor<SbInputData>)));
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

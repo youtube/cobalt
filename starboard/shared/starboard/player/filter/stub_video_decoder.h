@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
@@ -50,15 +50,15 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   scoped_refptr<VideoFrame> CreateOutputFrame(int64_t timestamp) const;
 
   DecoderStatusCB decoder_status_cb_;
-  media::VideoStreamInfo video_stream_info_;
+  VideoStreamInfo video_stream_info_;
 
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
   // std::set<> keeps frame timestamps sorted in ascending order.
   std::set<int64_t> output_frame_timestamps_;
   // Used to determine when to send kBufferFull in DecodeOneBuffer().
   int total_input_count_ = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_VIDEO_DECODER_H_

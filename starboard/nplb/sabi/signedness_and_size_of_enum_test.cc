@@ -14,8 +14,7 @@
 
 #include "starboard/configuration.h"
 
-namespace starboard {
-namespace sabi {
+namespace nplb {
 namespace {
 
 typedef enum GenericEnumType {
@@ -29,5 +28,4 @@ SB_COMPILE_ASSERT(sizeof(GenericEnumType) == SB_SIZE_OF_ENUM,
                   SB_SIZE_OF_ENUM_is_inconsistent_with_sizeof_enum);
 
 }  // namespace
-}  // namespace sabi
-}  // namespace starboard
+}  // namespace nplb

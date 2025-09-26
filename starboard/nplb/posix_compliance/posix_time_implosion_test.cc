@@ -18,7 +18,6 @@
 #include "starboard/nplb/posix_compliance/posix_time_helper.h"
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -393,4 +392,3 @@ INSTANTIATE_TEST_SUITE_P(Mktime,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -22,7 +22,6 @@
 #include <vector>
 
 namespace starboard {
-namespace common {
 
 // The Allocator interface offers a standard and consistent way of allocating
 // and freeing memory.  The interface makes no assumption on how the memory
@@ -98,7 +97,6 @@ class Allocator {
                                 int max_allocations_to_print) const = 0;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_ALLOCATOR_H_

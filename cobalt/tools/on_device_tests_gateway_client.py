@@ -39,13 +39,13 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 _DIR_ON_DEV_MAP = {
     'android': '/sdcard/Download',
     'raspi': '/home/pi/test/results',
-    'rdk': '/home/rdk/test/results',
+    'rdk': '/data/test/results',
 }
 
 _DEPS_ARCH_MAP = {
     'android': '/sdcard/chromium_tests_root/deps.tar.gz',
     'raspi': '/home/pi/test/',
-    'rdk': '/home/rdk/test/',
+    'rdk': '/data/test/',
 }
 
 # This is needed because driver expects cobalt.apk, but we publish

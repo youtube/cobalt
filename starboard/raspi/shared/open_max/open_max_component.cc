@@ -23,9 +23,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 OpenMaxComponent::OpenMaxComponent(const char* name)
     : OpenMaxComponentBase(name),
@@ -375,7 +372,4 @@ void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
   filled_output_buffers_.push(buffer);
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

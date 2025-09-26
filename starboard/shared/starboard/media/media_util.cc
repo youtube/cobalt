@@ -25,7 +25,7 @@
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -435,4 +435,4 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

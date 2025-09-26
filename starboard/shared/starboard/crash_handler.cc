@@ -18,7 +18,7 @@
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/extension/crash_handler.h"
 
-namespace starboard::common {
+namespace starboard {
 
 namespace {
 
@@ -30,7 +30,7 @@ bool SetString(const char* key, const char* value) {
 #if SB_IS(MODULAR)
   return false;
 #else
-  return third_party::crashpad::wrapper::InsertCrashpadAnnotation(key, value);
+  return crashpad::InsertCrashpadAnnotation(key, value);
 #endif  // SB_IS(MODULAR)
 }
 
@@ -47,4 +47,4 @@ const void* GetCrashHandlerApi() {
   return &kCrashHandlerApi;
 }
 
-}  // namespace starboard::common
+}  // namespace starboard

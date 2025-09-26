@@ -29,7 +29,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -469,7 +469,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   }
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 int SbMicrophonePrivate::GetAvailableMicrophones(
     SbMicrophoneInfo* out_info_array,
@@ -477,12 +477,11 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
   // Note that there is no way of checking for a connected microphone/device
   // before API 23, so GetAvailableMicrophones() will assume a microphone is
   // connected and always return 1 on APIs < 23.
-  if (starboard::android::shared::SbMicrophoneImpl::
-          IsMicrophoneDisconnected()) {
+  if (starboard::SbMicrophoneImpl::IsMicrophoneDisconnected()) {
     SB_DLOG(WARNING) << "No microphone connected.";
     return 0;
   }
-  if (starboard::android::shared::SbMicrophoneImpl::IsMicrophoneMute()) {
+  if (starboard::SbMicrophoneImpl::IsMicrophoneMute()) {
     SB_DLOG(WARNING) << "Microphone is muted.";
     return 0;
   }
@@ -491,10 +490,8 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     // Only support one microphone.
     out_info_array[0].id = reinterpret_cast<SbMicrophoneId>(1);
     out_info_array[0].type = kSbMicrophoneUnknown;
-    out_info_array[0].max_sample_rate_hz =
-        starboard::android::shared::kSampleRateInHz;
-    out_info_array[0].min_read_size =
-        starboard::android::shared::kSamplesPerBuffer;
+    out_info_array[0].max_sample_rate_hz = starboard::kSampleRateInHz;
+    out_info_array[0].min_read_size = starboard::kSamplesPerBuffer;
   }
 
   return 1;
@@ -507,7 +504,7 @@ bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
     return false;
   }
 
-  return sample_rate_in_hz == starboard::android::shared::kSampleRateInHz;
+  return sample_rate_in_hz == starboard::kSampleRateInHz;
 }
 
 namespace {
@@ -530,7 +527,7 @@ SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
     return kSbMicrophoneInvalid;
   }
 
-  s_microphone = new starboard::android::shared::SbMicrophoneImpl();
+  s_microphone = new starboard::SbMicrophoneImpl();
   return s_microphone;
 }
 
@@ -552,8 +549,7 @@ Java_dev_cobalt_coat_AudioPermissionRequester_nativeHandlePermission(
     jobject unused_this,
     jlong nativeSbMicrophoneImpl,
     jboolean is_granted) {
-  starboard::android::shared::SbMicrophoneImpl* native =
-      reinterpret_cast<starboard::android::shared::SbMicrophoneImpl*>(
-          nativeSbMicrophoneImpl);
+  starboard::SbMicrophoneImpl* native =
+      reinterpret_cast<starboard::SbMicrophoneImpl*>(nativeSbMicrophoneImpl);
   native->SetPermission(is_granted);
 }

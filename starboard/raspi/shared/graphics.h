@@ -16,13 +16,9 @@
 #define STARBOARD_RASPI_SHARED_GRAPHICS_H_
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 const void* GetGraphicsApi();
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_GRAPHICS_H_

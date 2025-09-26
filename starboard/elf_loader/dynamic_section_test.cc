@@ -16,7 +16,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace elf_loader {
 
 namespace {
@@ -196,4 +195,3 @@ TEST_F(DynamicSectionTest, LookupNameById) {
 
 }  // namespace
 }  // namespace elf_loader
-}  // namespace starboard

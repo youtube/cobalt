@@ -22,7 +22,7 @@
 namespace base {
 namespace starboard {
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
 
 using SbSysInfoTest = PlatformTest;
 
@@ -46,7 +46,7 @@ TEST_F(SbSysInfoTest, Brand) {
   EXPECT_NE(brand_str, "");
 }
 
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif
 
 }  // namespace starboard
 }  // namespace base

@@ -112,7 +112,7 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
   CHECK(p);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
+  if (starboard::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
     pending_allocation_operations_ << " a " << p << " " << type << " " << size
                                    << " " << alignment;
@@ -137,7 +137,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   strategy_->Free(DemuxerStream::UNKNOWN, p);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
+  if (starboard::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
     pending_allocation_operations_ << " f " << p;
     TryFlushAllocationLog_Locked();
@@ -215,13 +215,13 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   if (base::FeatureList::IsEnabled(
           kCobaltDecoderBufferAllocatorWithInPlaceMetadata)) {
     strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy<
-                    starboard::common::InPlaceReuseAllocatorBase>(
-        initial_capacity_, allocation_unit_));
+                    starboard::InPlaceReuseAllocatorBase>(initial_capacity_,
+                                                          allocation_unit_));
     LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
   } else {
     strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy<
-                    starboard::common::ReuseAllocatorBase>(initial_capacity_,
-                                                           allocation_unit_));
+                    starboard::ReuseAllocatorBase>(initial_capacity_,
+                                                   allocation_unit_));
     LOG(INFO) << "DecoderBufferAllocator is using ReuseAllocatorBase.";
   }
 

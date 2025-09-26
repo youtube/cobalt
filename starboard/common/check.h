@@ -22,7 +22,7 @@
 // Copied from base/check.h with modificatios, including
 // - Keep minimal codes in CheckError, used by check_op.h.
 
-namespace starboard::logging {
+namespace starboard {
 
 // Class used for raising a check error upon destruction.
 class CheckError {
@@ -47,6 +47,6 @@ class CheckError {
   LogMessage* const log_message_;
 };
 
-}  // namespace starboard::logging
+}  // namespace starboard
 
 #endif  // STARBOARD_COMMON_CHECK_H_

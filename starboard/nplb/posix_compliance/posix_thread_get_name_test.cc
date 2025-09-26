@@ -18,12 +18,11 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
 void* GetThreadNameEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), posix::kThreadName);
+  pthread_setname_np(pthread_self(), kThreadName);
 
   char name[4096] = {0};
 #if __ANDROID_API__ < 26
@@ -44,9 +43,8 @@ TEST(PosixThreadGetNameTest, SunnyDay) {
 
   EXPECT_TRUE(thread != 0);
   EXPECT_EQ(pthread_join(thread, NULL), 0);
-  EXPECT_EQ(posix::kThreadName, result);
+  EXPECT_EQ(kThreadName, result);
 }
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -22,7 +22,6 @@
 #include "starboard/loader_app/drain_file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace loader_app {
 
 ScopedDrainFile::ScopedDrainFile(const std::string& dir,
@@ -67,4 +66,3 @@ void ScopedDrainFile::CreateFile() {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

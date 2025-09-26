@@ -33,7 +33,6 @@
 #endif
 
 namespace starboard {
-namespace logging {
 namespace {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 SbLogPriority g_min_log_level = kSbLogPriorityFatal;
@@ -208,5 +207,4 @@ LogMessageVoidify::LogMessageVoidify() {}
 
 void LogMessageVoidify::operator&(std::ostream&) {}
 
-}  // namespace logging
 }  // namespace starboard

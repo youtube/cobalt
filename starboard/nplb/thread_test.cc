@@ -20,11 +20,10 @@
 #include "starboard/common/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-class TestRunThread : public Thread {
+class TestRunThread : public starboard::Thread {
  public:
   TestRunThread() : Thread("TestThread") {}
 
@@ -57,4 +56,3 @@ TEST(Thread, TestRunThread) {
 
 }  // namespace.
 }  // namespace nplb.
-}  // namespace starboard.

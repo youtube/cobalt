@@ -19,9 +19,6 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -77,7 +74,4 @@ bool OpenMaxVideoDecodeComponent::OnEnableOutputPort(
   return true;
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

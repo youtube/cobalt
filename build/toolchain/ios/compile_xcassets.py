@@ -94,18 +94,19 @@ def FilterCompilerOutput(compiler_output, relative_paths):
   return ''.join(filtered_output)
 
 
-def CompileAssetCatalog(output, platform, target_environment, product_type,
+def CompileAssetCatalog(output, target_os, target_environment, product_type,
                         min_deployment_target, inputs, compress_pngs,
-                        partial_info_plist):
+                        target_platform, partial_info_plist):
   """Compile the .xcassets bundles to an asset catalog using actool.
 
   Args:
     output: absolute path to the containing bundle
-    platform: the targeted platform
+    target_os: the os of the build for target_environment
     product_type: the bundle type
     min_deployment_target: minimum deployment target
     inputs: list of absolute paths to .xcassets bundles
     compress_pngs: whether to enable compression of pngs
+    target_platform: the targeted platform
     partial_info_plist: path to partial Info.plist to generate
   """
   command = [
@@ -125,41 +126,65 @@ def CompileAssetCatalog(output, platform, target_environment, product_type,
   if product_type != '':
     command.extend(['--product-type', product_type])
 
-  if platform == 'mac':
+  if target_os == 'mac':
     command.extend([
         '--platform',
         'macosx',
         '--target-device',
         'mac',
     ])
-  elif platform == 'ios':
-    if target_environment == 'simulator':
-      command.extend([
-          '--platform',
-          'iphonesimulator',
-          '--target-device',
-          'iphone',
-          '--target-device',
-          'ipad',
-      ])
-    elif target_environment == 'device':
-      command.extend([
-          '--platform',
-          'iphoneos',
-          '--target-device',
-          'iphone',
-          '--target-device',
-          'ipad',
-      ])
-    elif target_environment == 'catalyst':
-      command.extend([
-          '--platform',
-          'macosx',
-          '--target-device',
-          'ipad',
-          '--ui-framework-family',
-          'uikit',
-      ])
+  elif target_os == 'ios':
+    if target_platform == 'tvos':
+      if target_environment == 'simulator':
+        command.extend([
+            '--platform',
+            'appletvsimulator',
+            '--target-device',
+            'tv',
+        ])
+      elif target_environment == 'device':
+        command.extend([
+            '--platform',
+            'appletvos',
+            '--target-device',
+            'tv',
+        ])
+      else:
+        sys.stderr.write(
+          'Unsupported tvos environment: %s' % target_environment)
+        sys.exit(1)
+    else:
+      if target_environment == 'simulator':
+        command.extend([
+            '--platform',
+            'iphonesimulator',
+            '--target-device',
+            'iphone',
+            '--target-device',
+            'ipad',
+        ])
+      elif target_environment == 'device':
+        command.extend([
+            '--platform',
+            'iphoneos',
+            '--target-device',
+            'iphone',
+            '--target-device',
+            'ipad',
+        ])
+      elif target_environment == 'catalyst':
+        command.extend([
+            '--platform',
+            'macosx',
+            '--target-device',
+            'ipad',
+            '--ui-framework-family',
+            'uikit',
+        ])
+      else:
+        sys.stderr.write(
+          'Unsupported iphoneos environment: %s' % target_environment)
+        sys.exit(1)
 
   # Scan the input directories for the presence of asset catalog types that
   # require special treatment, and if so, add them to the actool command-line.
@@ -238,10 +263,15 @@ def CompileAssetCatalog(output, platform, target_environment, product_type,
 def Main():
   parser = argparse.ArgumentParser(
       description='compile assets catalog for a bundle')
-  parser.add_argument('--platform',
-                      '-p',
+  parser.add_argument('--target_os',
+                      '-O',
                       required=True,
                       choices=('mac', 'ios'),
+                      help='target os for the compiled assets catalog')
+  parser.add_argument('--target-platform',
+                      '-p',
+                      default='',
+                      choices=('iphoneos', 'tvos'),
                       help='target platform for the compiled assets catalog')
   parser.add_argument('--target-environment',
                       '-e',
@@ -284,9 +314,10 @@ def Main():
     else:
       shutil.rmtree(args.output)
 
-  CompileAssetCatalog(args.output, args.platform, args.target_environment,
+  CompileAssetCatalog(args.output, args.target_os, args.target_environment,
                       args.product_type, args.minimum_deployment_target,
-                      args.inputs, args.compress_pngs, args.partial_info_plist)
+                      args.inputs, args.compress_pngs, args.target_platform,
+                      args.partial_info_plist)
 
 
 if __name__ == '__main__':

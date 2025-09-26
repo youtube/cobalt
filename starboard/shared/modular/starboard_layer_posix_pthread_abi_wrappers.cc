@@ -22,9 +22,9 @@
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
-using starboard::shared::starboard::EnsureInitialized;
-using starboard::shared::starboard::IsInitialized;
-using starboard::shared::starboard::SetInitialized;
+using starboard::EnsureInitialized;
+using starboard::IsInitialized;
+using starboard::SetInitialized;
 
 typedef struct PosixMutexPrivate {
   // The underlying platform variable handle. Should always be the

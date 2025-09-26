@@ -19,7 +19,6 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/exported_symbols.h"
 
-namespace starboard {
 namespace elf_loader {
 
 ElfLoaderImpl::ElfLoaderImpl() {}
@@ -57,4 +56,3 @@ ElfLoaderImpl::~ElfLoaderImpl() {
   }
 }
 }  // namespace elf_loader
-}  // namespace starboard

@@ -29,9 +29,10 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace loader_app {
 namespace {
+using ::starboard::CurrentPosixTime;
+using ::starboard::ScopedFile;
 
 const char kAppKeyOne[] = "b25lDQo=";
 const char kAppKeyTwo[] = "dHdvDQo=";
@@ -268,4 +269,3 @@ TEST_F(DrainFileTest, RainyDayDrainFileAlreadyExists) {
 
 }  // namespace
 }  // namespace loader_app
-}  // namespace starboard

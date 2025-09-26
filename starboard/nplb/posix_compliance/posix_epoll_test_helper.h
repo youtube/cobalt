@@ -17,7 +17,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 // A helper function to create a pipe.
@@ -35,6 +34,5 @@ class PosixEpollTest : public ::testing::Test {
 };
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_EPOLL_TEST_HELPER_H_

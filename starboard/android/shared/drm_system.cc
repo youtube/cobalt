@@ -35,9 +35,8 @@ static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   return memcmp(left.identifier, right.identifier, left.identifier_size) == 0;
 }
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
-using starboard::android::shared::DrmSystem;
 
 // TODO: b/79941850 - Use base::Feature instead for the experimentation.
 constexpr bool kEnableAppProvisioning = false;
@@ -232,4 +231,4 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   }
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

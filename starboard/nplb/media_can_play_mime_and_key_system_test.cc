@@ -25,7 +25,6 @@
 #include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -357,31 +356,32 @@ TEST(SbMediaCanPlayMimeAndKeySystem, KeySystemWithAttributes) {
 
     EXPECT_TRUE(SbMediaCanPlayMimeAndKeySystem(
         "video/mp4; codecs=\"avc1.4d4015\"",
-        FormatString("%s; %s=\"%s\"", key_system, "invalid_attribute",
-                     "some_value")
+        starboard::FormatString("%s; %s=\"%s\"", key_system,
+                                "invalid_attribute", "some_value")
             .c_str()));
 
     // "" is not a valid value for "encryptionscheme".
     EXPECT_FALSE(SbMediaCanPlayMimeAndKeySystem(
         "video/mp4; codecs=\"avc1.4d4015\"",
-        FormatString("%s; %s=\"%s\"", key_system, "encryptionscheme", "")
+        starboard::FormatString("%s; %s=\"%s\"", key_system, "encryptionscheme",
+                                "")
             .c_str()));
 
     bool has_supported_encryption_scheme = false;
     for (auto encryption_scheme : kEncryptionSchemes) {
       if (!SbMediaCanPlayMimeAndKeySystem(
               "video/mp4; codecs=\"avc1.4d4015\"",
-              FormatString("%s; %s=\"%s\"", key_system, "encryptionscheme",
-                           encryption_scheme)
+              starboard::FormatString("%s; %s=\"%s\"", key_system,
+                                      "encryptionscheme", encryption_scheme)
                   .c_str())) {
         continue;
       }
       has_supported_encryption_scheme = true;
       EXPECT_TRUE(SbMediaCanPlayMimeAndKeySystem(
           "video/mp4; codecs=\"avc1.4d4015\"",
-          FormatString("%s; %s=\"%s\"; %s=\"%s\"", key_system,
-                       "encryptionscheme", encryption_scheme,
-                       "invalid_attribute", "some_value")
+          starboard::FormatString("%s; %s=\"%s\"; %s=\"%s\"", key_system,
+                                  "encryptionscheme", encryption_scheme,
+                                  "invalid_attribute", "some_value")
               .c_str()));
     }
 
@@ -920,12 +920,12 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
       [](const SbMediaCanPlayMimeAndKeySystemParam* mime_params,
          int num_function_calls, int64_t max_time_delta_per_call,
          const char* query_type) {
-        const int64_t time_start = CurrentMonotonicTime();
+        const int64_t time_start = starboard::CurrentMonotonicTime();
         for (int i = 0; i < num_function_calls; ++i) {
           SbMediaCanPlayMimeAndKeySystem(mime_params[i].mime,
                                          mime_params[i].key_system);
         }
-        const int64_t time_last = CurrentMonotonicTime();
+        const int64_t time_last = starboard::CurrentMonotonicTime();
         const int64_t time_delta = time_last - time_start;
         const double time_per_call =
             static_cast<double>(time_delta) / num_function_calls;
@@ -965,4 +965,3 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

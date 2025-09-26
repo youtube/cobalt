@@ -16,11 +16,11 @@
 
 #include "starboard/android/shared/accessibility_extension.h"
 
-namespace starboard::android::shared::accessibility {
+namespace starboard {
 
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   SB_NOTIMPLEMENTED();
   return false;
 }
 
-}  // namespace starboard::android::shared::accessibility
+}  // namespace starboard

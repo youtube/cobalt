@@ -17,19 +17,12 @@
 
 #include "starboard/system.h"
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace x64x11 {
 
-bool CopyStringAndTestIfSuccess(char* out_value,
-                                int value_length,
-                                const char* from_value);
+bool GetSystemPropertyLinux(SbSystemPropertyId property_id,
+                            char* out_value,
+                            int value_length);
 
-bool GetSystemProperty(SbSystemPropertyId property_id,
-                       char* out_value,
-                       int value_length);
-
-}  // namespace x64x11
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_X64X11_SYSTEM_GET_PROPERTY_IMPL_H_

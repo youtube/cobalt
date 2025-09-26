@@ -25,14 +25,14 @@ namespace starboard {
 namespace stub {
 
 // Stub application engine using the generic queue and a stub implementation.
-class ApplicationStub : public shared::starboard::QueueApplication {
+class ApplicationStub : public QueueApplication {
  public:
   explicit ApplicationStub(SbEventHandleCallback sb_event_handle_callback);
 
   ~ApplicationStub() override;
 
   static ApplicationStub* Get() {
-    return static_cast<ApplicationStub*>(shared::starboard::Application::Get());
+    return static_cast<ApplicationStub*>(Application::Get());
   }
 
  protected:

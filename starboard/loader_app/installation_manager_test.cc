@@ -33,9 +33,7 @@
 
 #define NUMBER_INSTALLS_PARAMS ::testing::Values(2, 3, 4, 5, 6)
 
-namespace starboard {
 namespace loader_app {
-namespace installation_manager {
 
 namespace {
 
@@ -647,8 +645,6 @@ INSTANTIATE_TEST_CASE_P(NumberOfMaxInstallations,
                         InstallationManagerTest,
                         NUMBER_INSTALLS_PARAMS);
 
-}  // namespace installation_manager
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)

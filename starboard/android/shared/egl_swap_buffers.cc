@@ -20,9 +20,9 @@
 #include "starboard/android/shared/video_window.h"
 #include "starboard/shared/gles/gl_call.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 extern std::atomic_bool g_block_swapbuffers;
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 extern "C" {
 EGLBoolean __real_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);
@@ -30,7 +30,7 @@ EGLBoolean __real_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);
 // This needs to be exported to ensure shared_library targets include it.
 SB_EXPORT_PLATFORM EGLBoolean __wrap_eglSwapBuffers(EGLDisplay dpy,
                                                     EGLSurface surface) {
-  if (starboard::android::shared::g_block_swapbuffers.load()) {
+  if (starboard::g_block_swapbuffers.load()) {
     return EGL_FALSE;
   }
   // Kick off the GPU while waiting for new player bounds to take effect.
@@ -45,7 +45,7 @@ SB_EXPORT_PLATFORM EGLBoolean __wrap_eglSwapBuffers(EGLDisplay dpy,
 
   // Note, we're no longer calling WaitForVideoBoundsUpdate because it does
   // not work properly without calling SurfaceHolder setFixedSize.
-  // starboard::android::shared::WaitForVideoBoundsUpdate();
+  // starboard::WaitForVideoBoundsUpdate();
 
   return __real_eglSwapBuffers(dpy, surface);
 }

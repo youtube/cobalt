@@ -46,7 +46,7 @@ class H5vccAccessibilityImpl
        // With this alternative, H5vccAccessibilityImpl can have a single
        // responsibility and delegate client/listener management to another
        // class.
-      public starboard::android::shared::TextToSpeechObserver
+      public starboard::TextToSpeechObserver
 #endif
 {
  public:
@@ -68,7 +68,7 @@ class H5vccAccessibilityImpl
       mojo::PendingRemote<mojom::H5vccAccessibilityClient> client) override;
 
 #if BUILDFLAG(IS_ANDROIDTV)
-  // starboard::android::shared::TextToSpeechObserver APIs:
+  // starboard::TextToSpeechObserver APIs:
   void ObserveTextToSpeechChange() override;
 #endif
  private:

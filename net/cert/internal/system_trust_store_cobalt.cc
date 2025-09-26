@@ -4,12 +4,11 @@
 
 #include "net/cert/internal/system_trust_store.h"
 
-#include "base/memory/ptr_util.h"
-#include "build/build_config.h"
-
 #include <memory>
 
+#include "build/build_config.h"
 #include "net/cert/internal/trust_store_chrome.h"
+#include "net/net_buildflags.h"
 
 #if BUILDFLAG(IS_COBALT)
 

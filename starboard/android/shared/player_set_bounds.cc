@@ -33,7 +33,7 @@ void SbPlayerSetBounds(SbPlayer player,
   }
 
   JNIEnv* env = AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()
-      ->SetVideoSurfaceBounds(env, x, y, width, height);
+  starboard::StarboardBridge::GetInstance()->SetVideoSurfaceBounds(
+      env, x, y, width, height);
   player->SetBounds(z_index, x, y, width, height);
 }

@@ -42,7 +42,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -209,4 +208,3 @@ TEST(PosixPollTest, ZeroTimeoutReturnsImmediately) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

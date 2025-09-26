@@ -17,7 +17,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -85,4 +84,3 @@ TEST(PosixInitStateTest, SetStateRestoresState) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

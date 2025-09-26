@@ -17,6 +17,5 @@
 #include "starboard/raspi/shared/application_dispmanx.h"
 
 bool SbWindowDestroy(SbWindow window) {
-  return starboard::raspi::shared::ApplicationDispmanx::Get()->DestroyWindow(
-      window);
+  return starboard::ApplicationDispmanx::Get()->DestroyWindow(window);
 }

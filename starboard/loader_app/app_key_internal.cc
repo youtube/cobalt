@@ -20,7 +20,6 @@
 #include "starboard/types.h"
 #include "third_party/modp_b64/modp_b64.h"
 
-namespace starboard {
 namespace loader_app {
 namespace {
 
@@ -131,4 +130,3 @@ std::string EncodeAppKey(const std::string& app_key) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

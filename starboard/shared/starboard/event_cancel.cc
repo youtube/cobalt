@@ -17,5 +17,5 @@
 #include "starboard/shared/starboard/application.h"
 
 void SbEventCancel(SbEventId event_id) {
-  starboard::shared::starboard::Application::Get()->Cancel(event_id);
+  starboard::Application::Get()->Cancel(event_id);
 }

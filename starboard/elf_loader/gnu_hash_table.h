@@ -18,7 +18,6 @@
 #include <stddef.h>
 #include "starboard/elf_loader/elf.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // Models the hash table used to map symbol names to symbol entries using
@@ -62,6 +61,5 @@ class GnuHashTable {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_GNU_HASH_TABLE_H_

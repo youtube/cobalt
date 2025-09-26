@@ -34,16 +34,15 @@
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::de265 {
+namespace starboard {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class De265VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
-  ~VideoDecoder() override;
+  De265VideoDecoder(SbMediaVideoCodec video_codec,
+                    SbPlayerOutputMode output_mode,
+                    SbDecodeTargetGraphicsContextProvider*
+                        decode_target_graphics_context_provider);
+  ~De265VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -58,9 +57,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void Reset() override;
 
  private:
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
-
   void ReportError(const std::string& error_message);
 
   // The following four functions are only called on the decoder thread except
@@ -87,7 +83,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;
@@ -108,6 +104,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace starboard::shared::de265
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LIBDE265_DE265_VIDEO_DECODER_H_

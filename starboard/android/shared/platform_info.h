@@ -15,10 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_PLATFORM_INFO_H_
 #define STARBOARD_ANDROID_SHARED_PLATFORM_INFO_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 const void* GetPlatformInfoApi();
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_PLATFORM_INFO_H_

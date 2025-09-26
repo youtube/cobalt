@@ -45,7 +45,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 public class MediaDrmBridge {
   // Implementation Notes:
   // - A media crypto session (mMediaCryptoSession) is opened after MediaDrm

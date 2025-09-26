@@ -36,7 +36,7 @@
 // while.
 // #define ENABLE_JOB_QUEUE_PROFILING 1
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class implements a job queue where jobs can be posted to it on any
 // thread and will be processed on one thread that this job queue is linked to.
@@ -185,6 +185,6 @@ class JobQueue {
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 };
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_

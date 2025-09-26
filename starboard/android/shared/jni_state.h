@@ -17,7 +17,7 @@
 
 #include <jni.h>
 
-namespace starboard::android::shared {
+namespace starboard {
 
 #define STARBOARD_JNI_STATE_EXPORT __attribute__((visibility("default")))
 
@@ -32,6 +32,6 @@ class JNIState {
   static STARBOARD_JNI_STATE_EXPORT jobject& GetApplicationClassLoader();
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_JNI_STATE_H_

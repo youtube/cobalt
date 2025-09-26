@@ -25,7 +25,6 @@
 
 #include "starboard/types.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // 32 bit data types
@@ -687,5 +686,4 @@ typedef enum RelocationTypes {
 #define SHN_UNDEF 0
 
 }  // namespace elf_loader
-}  // namespace starboard
 #endif  // STARBOARD_ELF_LOADER_ELF_H_

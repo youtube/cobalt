@@ -20,7 +20,6 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -48,4 +47,3 @@ TEST(PosixProcessTest, SchedGetPriorityMin) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -177,8 +177,9 @@ void SbWindowPrivate::CompositeVideoFrame(
     int bounds_y,
     int bounds_width,
     int bounds_height,
-    const starboard::scoped_refptr<CpuVideoFrame>& frame) {
-  if (frame != NULL && frame->format() == CpuVideoFrame::kBGRA32 &&
+    const starboard::scoped_refptr<starboard::CpuVideoFrame>& frame) {
+  if (frame != nullptr &&
+      frame->format() == starboard::CpuVideoFrame::kBGRA32 &&
       frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
     if (frame->width() != video_pixmap_width ||
         frame->height() != video_pixmap_height) {

@@ -31,7 +31,7 @@
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 class PosixMunmapTest : public ::testing::Test {
@@ -91,4 +91,4 @@ TEST_F(PosixMunmapTest, MayFailWithUnalignedAddress) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

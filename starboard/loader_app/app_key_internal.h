@@ -17,7 +17,6 @@
 
 #include <string>
 
-namespace starboard {
 namespace loader_app {
 
 // Returns an application key extracted from |url|. This function is not meant
@@ -29,6 +28,5 @@ std::string ExtractAppKey(const std::string& url);
 std::string EncodeAppKey(const std::string& app_key);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_APP_KEY_INTERNAL_H_

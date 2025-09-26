@@ -26,12 +26,11 @@
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 
 class HashFunction {
  public:
@@ -153,7 +152,7 @@ MaximumPlayerConfigurationExplorer::MaximumPlayerConfigurationExplorer(
     const std::vector<SbPlayerTestConfig>& player_configs,
     int max_instances_per_config,
     int max_total_instances,
-    testing::FakeGraphicsContextProvider* fake_graphics_context_provider)
+    starboard::FakeGraphicsContextProvider* fake_graphics_context_provider)
     : player_configs_(player_configs),
       max_instances_per_config_(max_instances_per_config),
       max_total_instances_(max_total_instances),
@@ -289,4 +288,3 @@ void MaximumPlayerConfigurationExplorer::DestroyPlayerInstance(
 }
 
 }  // namespace nplb
-}  // namespace starboard

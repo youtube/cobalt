@@ -43,6 +43,13 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class Shell {
+    /**
+     * Interface for notifying observers of WebContents readiness.
+     */
+    public interface OnWebContentsReadyListener {
+        void onWebContentsReady();
+    }
+
     private static final String TAG = "cobalt";
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
@@ -64,6 +71,7 @@ public class Shell {
     private boolean mLoading;
     private boolean mIsFullscreen;
 
+    private OnWebContentsReadyListener mWebContentsReadyListener;
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
     private ViewGroup mRootView;
 
@@ -77,6 +85,10 @@ public class Shell {
 
     public void setRootViewForTesting(ViewGroup view) {
         mRootView = view;
+    }
+
+    public void setWebContentsReadyListener(OnWebContentsReadyListener listener) {
+        mWebContentsReadyListener = listener;
     }
 
     /**
@@ -204,6 +216,9 @@ public class Shell {
         mNavigationController = mWebContents.getNavigationController();
         mWebContents.onShow();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
+        if (mWebContentsReadyListener != null) {
+            mWebContentsReadyListener.onWebContentsReady();
+        }
     }
 
     /**

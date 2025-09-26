@@ -22,7 +22,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/buffer_internal.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // Decoded audio frames produced by an audio decoder.  It can contain multiple
 // frames with continuous timestamps.
@@ -115,6 +115,6 @@ bool operator!=(const DecodedAudio& left, const DecodedAudio& right);
 // For debugging or testing only.
 std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio);
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_

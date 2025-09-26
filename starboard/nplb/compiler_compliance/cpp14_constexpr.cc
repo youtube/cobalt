@@ -14,7 +14,6 @@
 
 #include <stddef.h>
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -33,4 +32,3 @@ static_assert(CompileTimeStringLength(kPangram) == sizeof(kPangram),
               "CompileTimeStringLength does not return correct length");
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -27,12 +27,12 @@
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  typedef std::function<std::unique_ptr<filter::AudioDecoder>(
-      const media::AudioStreamInfo& audio_stream_info,
+  typedef std::function<std::unique_ptr<AudioDecoder>(
+      const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system)>
       AudioDecoderCreator;
 
@@ -42,12 +42,12 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
                              int* output_number_of_channels)>
       OutputFormatAdjustmentCallback;
 
-  AdaptiveAudioDecoder(const media::AudioStreamInfo& audio_stream_info,
+  AdaptiveAudioDecoder(const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        const OutputFormatAdjustmentCallback&
                            output_adjustment_callback = nullptr);
-  AdaptiveAudioDecoder(const media::AudioStreamInfo& audio_stream_info,
+  AdaptiveAudioDecoder(const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        bool enable_reset_audio_decoder,
@@ -63,7 +63,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  void InitializeAudioDecoder(const media::AudioStreamInfo& audio_stream_info);
+  void InitializeAudioDecoder(const AudioStreamInfo& audio_stream_info);
   void TeardownAudioDecoder();
   void OnDecoderOutput();
   void ResetInternal();
@@ -76,14 +76,14 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   SbMediaAudioFrameStorageType output_storage_type_;
   int output_samples_per_second_;
   int output_number_of_channels_;
-  media::AudioStreamInfo input_audio_stream_info_;
+  AudioStreamInfo input_audio_stream_info_;
 
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
 
-  std::unique_ptr<filter::AudioDecoder> audio_decoder_;
-  std::unique_ptr<filter::AudioResampler> resampler_;
-  std::unique_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
+  std::unique_ptr<AudioDecoder> audio_decoder_;
+  std::unique_ptr<AudioResampler> resampler_;
+  std::unique_ptr<AudioChannelLayoutMixer> channel_mixer_;
   InputBuffers pending_input_buffers_;
   ConsumedCB pending_consumed_cb_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
@@ -95,6 +95,6 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool enable_reset_audio_decoder_ = false;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_ADAPTIVE_AUDIO_DECODER_INTERNAL_H_

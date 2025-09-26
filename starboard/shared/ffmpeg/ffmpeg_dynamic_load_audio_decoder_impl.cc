@@ -22,38 +22,39 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::ffmpeg {
+namespace starboard {
 
 // static
-AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
+FfmpegAudioDecoder* FfmpegAudioDecoder::Create(
+    const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
     return NULL;
   }
 
-  AudioDecoder* audio_decoder = NULL;
+  FfmpegAudioDecoder* audio_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      audio_decoder = AudioDecoderImpl<540>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<540>::Create(audio_stream_info);
       break;
     case 550:
     case 560:
-      audio_decoder = AudioDecoderImpl<560>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<560>::Create(audio_stream_info);
       break;
     case 571:
-      audio_decoder = AudioDecoderImpl<571>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<571>::Create(audio_stream_info);
       break;
     case 581:
-      audio_decoder = AudioDecoderImpl<581>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<581>::Create(audio_stream_info);
       break;
     case 591:
-      audio_decoder = AudioDecoderImpl<591>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<591>::Create(audio_stream_info);
       break;
     case 601:
-      audio_decoder = AudioDecoderImpl<601>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<601>::Create(audio_stream_info);
       break;
     case 611:
-      audio_decoder = AudioDecoderImpl<611>::Create(audio_stream_info);
+      audio_decoder = FfmpegAudioDecoderImpl<611>::Create(audio_stream_info);
       break;
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
@@ -63,4 +64,4 @@ AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
   return audio_decoder;
 }
 
-}  // namespace starboard::shared::ffmpeg
+}  // namespace starboard

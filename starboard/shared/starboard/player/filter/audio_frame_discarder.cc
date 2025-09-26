@@ -17,7 +17,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
   std::lock_guard lock(mutex_);
@@ -98,4 +98,4 @@ void AudioFrameDiscarder::Reset() {
   input_buffer_infos_ = std::queue<InputBufferInfo>();
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

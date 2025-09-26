@@ -17,6 +17,6 @@
 // #include "starboard/android/shared/application_android.h"
 
 SbWindow SbWindowCreate(const SbWindowOptions* options) {
-  // return starboard::android::shared::ApplicationAndroid::Get()->CreateWindow(
+  // return starboard::ApplicationAndroid::Get()->CreateWindow(
   //     options);
 }

@@ -20,7 +20,6 @@
 #include "starboard/shared/environment.h"
 
 namespace starboard {
-namespace shared {
 
 namespace {
 
@@ -62,5 +61,4 @@ const void* GetIfaApi() {
   return &kIfaApi;
 }
 
-}  // namespace shared
 }  // namespace starboard

@@ -19,7 +19,6 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 
-namespace starboard {
 namespace elf_loader {
 
 ElfHeader::ElfHeader() {
@@ -74,4 +73,3 @@ const Ehdr* ElfHeader::GetHeader() {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

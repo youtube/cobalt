@@ -20,11 +20,11 @@
 
 #include "starboard/common/command_line.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 void LogInit(const starboard::CommandLine& command_line);
 int64_t GetLogSleepTime();  // Returns microseconds
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_LOG_INTERNAL_H_

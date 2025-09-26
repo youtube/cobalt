@@ -17,7 +17,6 @@
 
 #include <string>
 
-namespace starboard {
 namespace loader_app {
 
 // Interface for loading a library.
@@ -54,6 +53,5 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                              bool use_memory_mapped_file);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_SLOT_MANAGEMENT_H_

@@ -24,7 +24,7 @@
 #include "starboard/common/size.h"
 #include "starboard/media.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class VideoOutputFormat {
  public:
@@ -66,6 +66,6 @@ class MaxMediaCodecOutputBuffersLookupTable {
   std::map<VideoOutputFormat, int> lookup_table_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_

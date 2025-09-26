@@ -28,7 +28,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
@@ -48,18 +48,18 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const std::vector<uint8_t>& side_data() const { return side_data_; }
 
   int64_t timestamp() const { return timestamp_; }
-  const media::AudioSampleInfo& audio_sample_info() const {
+  const AudioSampleInfo& audio_sample_info() const {
     SB_DCHECK_EQ(sample_type_, kSbMediaTypeAudio);
     return audio_sample_info_;
   }
-  const media::VideoSampleInfo& video_sample_info() const {
+  const VideoSampleInfo& video_sample_info() const {
     SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
     return video_sample_info_;
   }
-  const media::AudioStreamInfo& audio_stream_info() const {
+  const AudioStreamInfo& audio_stream_info() const {
     return audio_sample_info().stream_info;
   }
-  const media::VideoStreamInfo& video_stream_info() const {
+  const VideoStreamInfo& video_stream_info() const {
     return video_sample_info().stream_info;
   }
 
@@ -84,8 +84,8 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   std::vector<uint8_t> side_data_;
   int64_t timestamp_;  // microseconds
 
-  media::AudioSampleInfo audio_sample_info_;
-  media::VideoSampleInfo video_sample_info_;
+  AudioSampleInfo audio_sample_info_;
+  VideoSampleInfo video_sample_info_;
 
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
@@ -96,7 +96,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   void operator=(const InputBuffer&) = delete;
 };
 
-typedef std::vector<scoped_refptr<InputBuffer>> InputBuffers;
+using InputBuffers = std::vector<scoped_refptr<InputBuffer>>;
 
 template <typename SampleInfo>
 InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
@@ -132,6 +132,6 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_

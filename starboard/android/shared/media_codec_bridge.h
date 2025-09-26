@@ -25,7 +25,7 @@
 #include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
@@ -117,9 +117,6 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
-  typedef ::starboard::shared::starboard::media::AudioStreamInfo
-      AudioStreamInfo;
-
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.
   class Handler {
@@ -246,6 +243,6 @@ class MediaCodecBridge {
   void operator=(const MediaCodecBridge&) = delete;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_

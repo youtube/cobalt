@@ -17,7 +17,7 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/extension/system_info.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -42,4 +42,4 @@ const void* GetSystemInfoApi() {
   return &kSystemInfoApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

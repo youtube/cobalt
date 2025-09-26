@@ -20,7 +20,6 @@
 #include "starboard/elf_loader/file_impl.h"
 #include "third_party/lz4_lib/lz4frame.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // This class provides opening and reading a file compressed using LZ4 by
@@ -66,6 +65,5 @@ class LZ4FileImpl : public FileImpl {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_LZ4_FILE_IMPL_H_

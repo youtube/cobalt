@@ -15,7 +15,6 @@
 #include <syslog.h>
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -45,4 +44,3 @@ TEST(PosixSyslogTest, CanCallFunctions) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

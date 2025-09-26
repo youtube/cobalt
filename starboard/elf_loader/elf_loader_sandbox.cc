@@ -19,6 +19,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
@@ -28,7 +29,7 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 
-starboard::elf_loader::ElfLoader g_elf_loader;
+elf_loader::ElfLoader g_elf_loader;
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
@@ -36,13 +37,13 @@ void LoadLibraryAndInitialize(const std::string& library_path,
                               const std::string& content_path) {
   if (library_path.empty()) {
     SB_LOG(ERROR) << "Library must be specified with --"
-                  << starboard::elf_loader::kEvergreenLibrary
+                  << elf_loader::kEvergreenLibrary
                   << "=path/to/library/relative/to/loader/content.";
     return;
   }
   if (content_path.empty()) {
     SB_LOG(ERROR) << "Content must be specified with --"
-                  << starboard::elf_loader::kEvergreenContent
+                  << elf_loader::kEvergreenContent
                   << "=path/to/content/relative/to/loader/content.";
     return;
   }
@@ -57,8 +58,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
 
   EvergreenInfo evergreen_info;
   GetEvergreenInfo(&evergreen_info);
-  if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
-          evergreen_info)) {
+  if (!crashpad::AddEvergreenInfoToCrashpad(evergreen_info)) {
     SB_LOG(ERROR) << "Could not send Cobalt library information into Crashpad.";
   } else {
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
@@ -83,9 +83,8 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
     starboard::strlcpy(buffer.data(), get_user_agent_func(),
                        USER_AGENT_STRING_MAX_SIZE);
-    if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
-            third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
-            buffer.data())) {
+    if (crashpad::InsertCrashpadAnnotation(
+            crashpad::kCrashpadUserAgentStringKey, buffer.data())) {
       SB_DLOG(INFO) << "Added user agent string to Crashpad.";
     } else {
       SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
@@ -101,6 +100,18 @@ void LoadLibraryAndInitialize(const std::string& library_path,
                << reinterpret_cast<void*>(g_sb_event_func);
 }
 
+void InstallCrashpadHandler(const std::string& evergreen_content_path) {
+  std::string ca_certificates_path =
+      evergreen_content_path.empty()
+          ? starboard::GetCACertificatesPath()
+          : starboard::GetCACertificatesPath(evergreen_content_path);
+  if (ca_certificates_path.empty()) {
+    SB_LOG(ERROR) << "Failed to get CA certificates path";
+  }
+
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
+}
+
 void SbEventHandle(const SbEvent* event) {
   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -110,9 +121,11 @@ void SbEventHandle(const SbEvent* event) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
     const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
+    InstallCrashpadHandler(
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
     LoadLibraryAndInitialize(
-        command_line.GetSwitchValue(starboard::elf_loader::kEvergreenLibrary),
-        command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent));
+        command_line.GetSwitchValue(elf_loader::kEvergreenLibrary),
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
     SB_CHECK(g_sb_event_func);
   }
 

@@ -21,7 +21,6 @@
 #include "starboard/common/allocator.h"
 
 namespace starboard {
-namespace common {
 
 // FixedNoFreeAllocator is an allocator that allocates memory but cannot reuse
 // previously allocated memory.  Specifying that the allocator will not reuse
@@ -38,7 +37,7 @@ namespace common {
 // memory and we would like to wrap it in an allocator.
 class FixedNoFreeAllocator : public Allocator {
  public:
-  // Requires aligned memory to at least |starboard::common::kMinAlignment|.
+  // Requires aligned memory to at least |starboard::kMinAlignment|.
   FixedNoFreeAllocator(void* memory_start, size_t memory_size);
   void* Allocate(size_t size) { return Allocate(&size, 1, true); }
 
@@ -68,7 +67,6 @@ class FixedNoFreeAllocator : public Allocator {
   void* next_memory_;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_FIXED_NO_FREE_ALLOCATOR_H_

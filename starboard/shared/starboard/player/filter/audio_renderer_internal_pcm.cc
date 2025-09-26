@@ -23,7 +23,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -67,7 +67,7 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 AudioRendererPcm::AudioRendererPcm(
     std::unique_ptr<AudioDecoder> decoder,
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
     int min_frames_per_append)
     : max_cached_frames_(max_cached_frames),
@@ -76,7 +76,7 @@ AudioRendererPcm::AudioRendererPcm(
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
-      bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
+      bytes_per_frame_(GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       process_audio_data_job_(
           std::bind(&AudioRendererPcm::ProcessAudioData, this)),
@@ -771,4 +771,4 @@ void AudioRendererPcm::CheckAudioSinkStatus() {
 }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::signal {
+namespace starboard {
 
 inline const char* GetSignalName(int signal_id) {
   switch (signal_id) {
@@ -75,6 +75,6 @@ inline void DumpStackSignalSafe(int signal_id) {
 
 typedef void (*SignalHandlerFunction)(int);
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_SIGNAL_SIGNAL_INTERNAL_H_

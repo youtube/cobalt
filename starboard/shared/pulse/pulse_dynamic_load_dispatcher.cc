@@ -19,7 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 
-namespace starboard::shared::pulse {
+namespace starboard {
 
 namespace {
 const char kPulseLibraryName[] = "libpulse.so";
@@ -146,4 +146,4 @@ void pulse_unload_library() {
   pulse_lib_handle = NULL;
 }
 
-}  // namespace starboard::shared::pulse
+}  // namespace starboard

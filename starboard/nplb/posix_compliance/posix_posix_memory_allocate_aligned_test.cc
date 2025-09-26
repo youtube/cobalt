@@ -24,7 +24,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 // Choose a size that isn't naturally aligned to anything.
@@ -36,7 +36,7 @@ TEST(PosixMemalignTest, AllocatesAligned) {
     void* memory = NULL;
     std::ignore = posix_memalign(&memory, align, kSize);
     ASSERT_NE(static_cast<void*>(NULL), memory);
-    EXPECT_TRUE(starboard::common::MemoryIsAligned(memory, align));
+    EXPECT_TRUE(starboard::MemoryIsAligned(memory, align));
     free(memory);
   }
 }
@@ -134,4 +134,4 @@ TEST(PosixMemalignTest, AlignsForVariousDataTypes) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

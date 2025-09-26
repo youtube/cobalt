@@ -22,7 +22,6 @@
 
 #include "starboard/system.h"
 
-namespace starboard {
 namespace loader_app {
 
 // Adds the |kCobaltExtensionInstallationManagerName| to the list of extensions
@@ -34,6 +33,5 @@ namespace loader_app {
 const void* SbSystemGetExtensionShim(const char* name);
 
 }  // namespace loader_app
-}  // namespace starboard
 
 #endif  // STARBOARD_LOADER_APP_SYSTEM_GET_EXTENSION_SHIM_H_

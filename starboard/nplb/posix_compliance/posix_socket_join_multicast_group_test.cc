@@ -17,7 +17,6 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -113,12 +112,13 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
 
   struct sockaddr_in receive_address;
   socklen_t receive_address_len = sizeof(receive_address);
-  int64_t stop_time = CurrentMonotonicTime() + 1'000'000LL;
+  int64_t stop_time = starboard::CurrentMonotonicTime() + 1'000'000LL;
 
   while (true) {
     // Breaks the case where the test will hang in a loop when
     // recvfrom always returns pending status.
-    ASSERT_LE(CurrentMonotonicTime(), stop_time) << "Multicast timed out.";
+    ASSERT_LE(starboard::CurrentMonotonicTime(), stop_time)
+        << "Multicast timed out.";
     ssize_t received =
         recvfrom(receive_socket, buf, sizeof(buf), 0,
                  (struct sockaddr*)&receive_address, &receive_address_len);
@@ -167,4 +167,3 @@ TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidAddress) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

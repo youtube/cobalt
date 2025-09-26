@@ -21,7 +21,7 @@
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/system.h"
 
-namespace starboard::shared::signal {
+namespace starboard {
 
 namespace {
 
@@ -72,4 +72,4 @@ void UninstallCrashSignalHandlers() {
   ::signal(SIGQUIT, SIG_DFL);
 }
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard

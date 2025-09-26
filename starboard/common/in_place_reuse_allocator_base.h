@@ -27,7 +27,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace common {
 
 // TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
 //                             enabled.
@@ -198,7 +197,6 @@ class InPlaceReuseAllocatorBase : public Allocator {
   size_t total_allocated_blocks_ = 0;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_

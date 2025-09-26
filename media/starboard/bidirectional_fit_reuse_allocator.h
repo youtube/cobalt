@@ -45,11 +45,10 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   typedef typename ReuseAllocatorBase::FreeBlockSet::reverse_iterator
       FreeBlockReverseiterator;
 
-  BidirectionalFitReuseAllocator(
-      starboard::common::Allocator* fallback_allocator,
-      std::size_t initial_capacity,
-      std::size_t small_allocation_threshold,
-      std::size_t allocation_increment)
+  BidirectionalFitReuseAllocator(starboard::Allocator* fallback_allocator,
+                                 std::size_t initial_capacity,
+                                 std::size_t small_allocation_threshold,
+                                 std::size_t allocation_increment)
       : ReuseAllocatorBase(fallback_allocator,
                            initial_capacity,
                            allocation_increment),

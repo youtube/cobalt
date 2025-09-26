@@ -18,7 +18,6 @@
 
 #include "starboard/system.h"
 
-namespace starboard {
 namespace loader_app {
 
 void RecordSlotSelectionStatus(SlotSelectionStatus status) {
@@ -34,4 +33,3 @@ void RecordSlotSelectionStatus(SlotSelectionStatus status) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

@@ -51,7 +51,7 @@
 #include <algorithm>
 #include "starboard/common/check_op.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
                                                    int channel_count)
@@ -306,4 +306,4 @@ float InterleavedSincResampler::Convolve(const float* input_ptr,
          kernel_interpolation_factor * sum2;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

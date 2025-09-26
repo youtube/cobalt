@@ -30,7 +30,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -329,4 +329,4 @@ void MimeSupportabilityCache::UpdateBitrateSupportability_Locked(
   }
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

@@ -29,7 +29,6 @@
    MAYBE_MAP_FLAG((x), PF_R, PROT_READ) | \
    MAYBE_MAP_FLAG((x), PF_W, PROT_WRITE))
 
-namespace starboard {
 namespace elf_loader {
 
 ProgramTable::ProgramTable(
@@ -417,4 +416,3 @@ ProgramTable::~ProgramTable() {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

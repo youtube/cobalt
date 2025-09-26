@@ -24,7 +24,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
 namespace loader_app {
 
 namespace {
@@ -124,4 +123,3 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

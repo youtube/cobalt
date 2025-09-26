@@ -18,7 +18,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace loader_app {
 
 typedef struct URLWithExtractedAndEncoded {
@@ -686,4 +685,3 @@ TEST(AppKeyTest, SunnyDayExtractAppKeySanitizesResult) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

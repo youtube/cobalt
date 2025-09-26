@@ -35,18 +35,11 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
-class VideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
-
-  explicit VideoDecoder(SbMediaVideoCodec video_codec);
-  ~VideoDecoder() override;
+  explicit OpenMaxVideoDecoder(SbMediaVideoCodec video_codec);
+  ~OpenMaxVideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -102,9 +95,6 @@ class VideoDecoder
   std::function<void()> update_job_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_

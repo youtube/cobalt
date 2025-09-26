@@ -19,7 +19,7 @@
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
@@ -47,4 +47,4 @@ const void* GetCrashHandlerApi() {
   return &kCrashHandlerApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -18,20 +18,17 @@
 #include "starboard/extension/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace skia {
-
 namespace {
 
 // This atlas size works better than the auto-mem setting.
-int CobaltSkiaGlyphAtlasWidth() {
+int CobaltSkiaGlyphAtlasWidthRaspiSkia() {
   return 2048;
 }
-int CobaltSkiaGlyphAtlasHeight() {
+int CobaltSkiaGlyphAtlasHeightRaspiSkia() {
   return 2048;
 }
 
-const char* CobaltRasterizerType() {
+const char* CobaltRasterizerTypeRaspiSkia() {
   // Use the skia hardware rasterizer.
   return "hardware";
 }
@@ -39,38 +36,36 @@ const char* CobaltRasterizerType() {
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     3,
-    &common::CobaltUserOnExitStrategyDefault,
-    &common::CobaltRenderDirtyRegionOnlyDefault,
-    &common::CobaltEglSwapIntervalDefault,
-    &common::CobaltFallbackSplashScreenUrlDefault,
-    &common::CobaltEnableQuicDefault,
-    &common::CobaltSkiaCacheSizeInBytesDefault,
-    &common::CobaltOffscreenTargetCacheSizeInBytesDefault,
-    &common::CobaltEncodedImageCacheSizeInBytesDefault,
-    &common::CobaltImageCacheSizeInBytesDefault,
-    &common::CobaltLocalTypefaceCacheSizeInBytesDefault,
-    &common::CobaltRemoteTypefaceCacheSizeInBytesDefault,
-    &common::CobaltMeshCacheSizeInBytesDefault,
-    &common::CobaltSoftwareSurfaceCacheSizeInBytesDefault,
-    &common::CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &CobaltSkiaGlyphAtlasWidth,
-    &CobaltSkiaGlyphAtlasHeight,
-    &common::CobaltJsGarbageCollectionThresholdInBytesDefault,
-    &common::CobaltReduceCpuMemoryByDefault,
-    &common::CobaltReduceGpuMemoryByDefault,
-    &common::CobaltGcZealDefault,
-    &CobaltRasterizerType,
-    &common::CobaltEnableJitDefault,
-    &common::CobaltFallbackSplashScreenTopicsDefault,
-    &common::CobaltCanStoreCompiledJavascriptDefault,
+    &CobaltUserOnExitStrategyDefault,
+    &CobaltRenderDirtyRegionOnlyDefault,
+    &CobaltEglSwapIntervalDefault,
+    &CobaltFallbackSplashScreenUrlDefault,
+    &CobaltEnableQuicDefault,
+    &CobaltSkiaCacheSizeInBytesDefault,
+    &CobaltOffscreenTargetCacheSizeInBytesDefault,
+    &CobaltEncodedImageCacheSizeInBytesDefault,
+    &CobaltImageCacheSizeInBytesDefault,
+    &CobaltLocalTypefaceCacheSizeInBytesDefault,
+    &CobaltRemoteTypefaceCacheSizeInBytesDefault,
+    &CobaltMeshCacheSizeInBytesDefault,
+    &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
+    &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
+    &CobaltSkiaGlyphAtlasWidthRaspiSkia,
+    &CobaltSkiaGlyphAtlasHeightRaspiSkia,
+    &CobaltJsGarbageCollectionThresholdInBytesDefault,
+    &CobaltReduceCpuMemoryByDefault,
+    &CobaltReduceGpuMemoryByDefault,
+    &CobaltGcZealDefault,
+    &CobaltRasterizerTypeRaspiSkia,
+    &CobaltEnableJitDefault,
+    &CobaltFallbackSplashScreenTopicsDefault,
+    &CobaltCanStoreCompiledJavascriptDefault,
 };
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiRaspiSkia() {
   return &kConfigurationApi;
 }
 
-}  // namespace skia
-}  // namespace raspi
 }  // namespace starboard

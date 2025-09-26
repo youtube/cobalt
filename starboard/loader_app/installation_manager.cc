@@ -38,9 +38,7 @@
 #include "starboard/common/once.h"
 #include "starboard/loader_app/record_loader_app_status.h"
 
-namespace starboard {
 namespace loader_app {
-namespace installation_manager {
 
 class InstallationManager {
  public:
@@ -734,34 +732,29 @@ bool InstallationManager::CleanInstallationDirs() {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
-    if (!SbFileDeleteRecursive(path.data(), true)) {
+    if (!starboard::SbFileDeleteRecursive(path.data(), true)) {
       return false;
     }
   }
   return true;
 }
 
-}  // namespace installation_manager
 }  // namespace loader_app
-}  // namespace starboard
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-std::unique_ptr<
-    starboard::loader_app::installation_manager::InstallationManager>
-    g_installation_manager_;
+std::unique_ptr<loader_app::InstallationManager> g_installation_manager_;
 
 // Global Installation Manager Mutex.
 SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetImMutex)
 
 int ImInitialize(int max_num_installations, const char* app_key) {
   std::lock_guard lock(*GetImMutex());
-  if (g_installation_manager_.get() == NULL) {
-    g_installation_manager_.reset(
-        new starboard::loader_app::installation_manager::InstallationManager(
-            max_num_installations, app_key));
+  if (g_installation_manager_ == nullptr) {
+    g_installation_manager_ = std::make_unique<loader_app::InstallationManager>(
+        max_num_installations, app_key);
   }
   return g_installation_manager_->Initialize();
 }

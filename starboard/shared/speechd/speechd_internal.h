@@ -21,7 +21,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::speechd {
+namespace starboard {
 
 // |SpeechDispatcher| is a helper class that is used to implement the
 // SbSpeechSynthesis* APIs in terms of the Speech Dispatcher C API:
@@ -68,6 +68,6 @@ class SpeechDispatcher {
   static SpeechDispatcher* instance;
 };
 
-}  // namespace starboard::shared::speechd
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_SPEECHD_SPEECHD_INTERNAL_H_

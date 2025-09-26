@@ -33,17 +33,15 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using std::string;
 using std::unique_ptr;
 using std::vector;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 typedef VideoDmpReader::AudioAccessUnit AudioAccessUnit;
 typedef VideoDmpReader::VideoAccessUnit VideoAccessUnit;
@@ -757,4 +755,4 @@ INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
                         GetPlayerComponentsTestConfigName);
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

@@ -23,7 +23,6 @@
 #include "starboard/system.h"
 
 namespace starboard {
-namespace common {
 
 namespace {
 
@@ -102,5 +101,4 @@ std::string GetCACertificatesPath() {
   return ca_certificates_path;
 }
 
-}  // namespace common
 }  // namespace starboard

@@ -35,7 +35,7 @@ import org.chromium.base.annotations.NativeMethods;
  * <p>This class is intended to be a singleton in the system. It creates a single static Handler
  * thread in lieu of other synchronization options.
  */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 class CobaltTextToSpeechHelper
     implements TextToSpeech.OnInitListener,
         AccessibilityManager.AccessibilityStateChangeListener,

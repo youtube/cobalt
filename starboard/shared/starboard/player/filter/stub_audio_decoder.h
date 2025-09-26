@@ -27,11 +27,11 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit StubAudioDecoder(const media::AudioStreamInfo& audio_stream_info);
+  explicit StubAudioDecoder(const AudioStreamInfo& audio_stream_info);
   ~StubAudioDecoder() { Reset(); }
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -56,7 +56,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   OutputCB output_cb_;
   ErrorCB error_cb_;
 
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
   std::mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;
@@ -65,6 +65,6 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   int total_input_count_ = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_AUDIO_DECODER_H_

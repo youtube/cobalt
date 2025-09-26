@@ -27,8 +27,7 @@ void SbSpeechSynthesisCancel() {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jobject> j_tts_helper =
-      starboard::android::shared::StarboardBridge::GetInstance()
-          ->GetTextToSpeechHelper(env);
+      starboard::StarboardBridge::GetInstance()->GetTextToSpeechHelper(env);
 
   Java_CobaltTextToSpeechHelper_cancel(env, j_tts_helper);
 }

@@ -21,9 +21,7 @@
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
-namespace starboard {
 namespace nplb {
-namespace nplb_evergreen_compat_tests {
 
 namespace {
 
@@ -44,6 +42,4 @@ TEST(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
 }
 
 }  // namespace
-}  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
-}  // namespace starboard

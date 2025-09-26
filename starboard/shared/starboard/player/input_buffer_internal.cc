@@ -24,7 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
@@ -83,7 +83,7 @@ std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer) {
                     static_cast<int>(buffer.side_data_.size()))
        << '\n';
   }
-  os << media::GetMixedRepresentation(buffer.data(), buffer.size(), 16) << '\n';
+  os << GetMixedRepresentation(buffer.data(), buffer.size(), 16) << '\n';
   return os;
 }
 
@@ -111,4 +111,4 @@ void InputBuffer::DeallocateSampleBuffer(const void* buffer) {
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

@@ -23,7 +23,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -275,4 +275,4 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
   }
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

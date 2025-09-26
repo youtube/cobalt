@@ -12,7 +12,6 @@
     "device_pool": "maneki"
   },
   "targets": [
-    "content_shell",
     "cobalt:gn_all"
   ],
   "e2e_test_targets": [

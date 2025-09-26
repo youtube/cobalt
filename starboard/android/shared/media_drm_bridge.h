@@ -27,7 +27,7 @@
 #include "base/memory/raw_ref.h"
 #include "starboard/drm.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // A "status" for MediaDrmBridge operations.
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
@@ -122,6 +122,6 @@ std::ostream& operator<<(std::ostream& os, DrmOperationStatus);
 std::ostream& operator<<(std::ostream& os,
                          const MediaDrmBridge::OperationResult& result);
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_

@@ -20,7 +20,6 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 // Pointer to function that produces a random 64-bit number.
@@ -36,6 +35,5 @@ void TestProducesBothValuesOfAllBits(RandomFunction get_random);
 void TestIsFairlyUniform(RandomFunction get_random);
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_RANDOM_HELPERS_H_

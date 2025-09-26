@@ -26,7 +26,6 @@
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
 #include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -1160,4 +1159,3 @@ INSTANTIATE_TEST_SUITE_P(
     GetTestName);
 
 }  // namespace nplb
-}  // namespace starboard

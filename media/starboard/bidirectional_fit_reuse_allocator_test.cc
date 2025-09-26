@@ -44,13 +44,12 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
                       std::size_t small_allocation_threshold = 0,
                       std::size_t allocation_increment = 0) {
     void* tmp = nullptr;
-    std::ignore = posix_memalign(
-        &tmp, starboard::common::Allocator::kMinAlignment, kBufferSize);
+    std::ignore =
+        posix_memalign(&tmp, starboard::Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
-    std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator(
-        new starboard::common::FixedNoFreeAllocator(buffer_.get(),
-                                                    kBufferSize));
+    std::unique_ptr<starboard::FixedNoFreeAllocator> fallback_allocator(
+        new starboard::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
     allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
         allocation_increment));
@@ -59,24 +58,23 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   }
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
-  std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator_;
+  std::unique_ptr<starboard::FixedNoFreeAllocator> fallback_allocator_;
   std::unique_ptr<BidirectionalFitReuseAllocator<ReuseAllocatorBase>>
       allocator_;
 };
 
-typedef ::testing::Types<starboard::common::InPlaceReuseAllocatorBase,
-                         starboard::common::ReuseAllocatorBase>
+typedef ::testing::Types<starboard::InPlaceReuseAllocatorBase,
+                         starboard::ReuseAllocatorBase>
     Implementations;
 
 class ClassNameGenerator {
  public:
   template <typename T>
   static std::string GetName(int) {
-    if constexpr (std::is_same_v<
-                      T, starboard::common::InPlaceReuseAllocatorBase>) {
+    if constexpr (std::is_same_v<T, starboard::InPlaceReuseAllocatorBase>) {
       return "InPlaceReuseAllocatorBase";
     }
-    if constexpr (std::is_same_v<T, starboard::common::ReuseAllocatorBase>) {
+    if constexpr (std::is_same_v<T, starboard::ReuseAllocatorBase>) {
       return "ReuseAllocatorBase";
     }
   }
@@ -93,7 +91,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, SunnyDay) {
   for (size_t j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
     void* p = this->allocator_->Allocate(kBlockSizes[j], kAlignment);
     EXPECT_TRUE(p != NULL);
-    EXPECT_EQ(starboard::common::IsAligned(p, kAlignment), true);
+    EXPECT_EQ(starboard::IsAligned(p, kAlignment), true);
     this->allocator_->Free(p);
   }
 }

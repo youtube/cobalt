@@ -23,7 +23,7 @@
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 // A singleton class to hold a locale string
@@ -44,8 +44,8 @@ class LocaleInfo {
 
 SB_ONCE_INITIALIZE_FUNCTION(LocaleInfo, GetLocale)
 }  // namespace
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 const char* SbSystemGetLocaleId() {
-  return starboard::android::shared::GetLocale()->locale_id.c_str();
+  return starboard::GetLocale()->locale_id.c_str();
 }

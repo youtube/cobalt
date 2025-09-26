@@ -25,7 +25,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 // Encapsulates all information contained in `SbMediaAudioStreamInfo`.  It
 // doesn't maintain the same binary layout as `SbMediaAudioStreamInfo`, and is
@@ -165,6 +165,15 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 int AudioDurationToFrames(int64_t duration, int samples_per_second);
 int64_t AudioFramesToDuration(int frames, int samples_per_second);
 
-}  // namespace starboard::shared::starboard::media
+// Aliases to prevent breaking the RDK build on CI.
+// http://go/paste/5135494509887488
+// http://go/paste/5564566037725184
+// TODO: b/441955897 - Remove these aliases once RDK build on CI is updated
+namespace shared::starboard::media {
+using ::starboard::GetBytesPerSample;
+using ::starboard::IsSDRVideo;
+}  // namespace shared::starboard::media
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_

@@ -21,7 +21,6 @@
 #include "starboard/elf_loader/file.h"
 #include "starboard/extension/memory_mapped_file.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // Loads the ELF's binary program table and memory maps
@@ -99,6 +98,5 @@ class ProgramTable {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_PROGRAM_TABLE_H_

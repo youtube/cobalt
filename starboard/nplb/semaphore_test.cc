@@ -19,8 +19,9 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
+namespace {
+using ::starboard::Semaphore;
 
 TEST(Semaphore, PutAndTake) {
   Semaphore semaphore;
@@ -49,7 +50,7 @@ TEST(Semaphore, InitialValue_One) {
   EXPECT_FALSE(semaphore.TakeTry());
 }
 
-class ThreadTakesSemaphore : public posix::AbstractTestThread {
+class ThreadTakesSemaphore : public AbstractTestThread {
  public:
   explicit ThreadTakesSemaphore(Semaphore* s) : semaphore_(s) {}
   void Run() override { semaphore_->Take(); }
@@ -65,7 +66,7 @@ TEST(Semaphore, ThreadTakes) {
   thread.Join();
 }
 
-class ThreadTakesWaitSemaphore : public posix::AbstractTestThread {
+class ThreadTakesWaitSemaphore : public AbstractTestThread {
  public:
   explicit ThreadTakesWaitSemaphore(int64_t wait_us)
       : thread_started_(false),
@@ -74,9 +75,9 @@ class ThreadTakesWaitSemaphore : public posix::AbstractTestThread {
         result_wait_time_(0) {}
   void Run() override {
     thread_started_ = true;
-    int64_t start_time = CurrentMonotonicTime();
+    int64_t start_time = starboard::CurrentMonotonicTime();
     result_signaled_ = semaphore_.TakeWait(wait_us_);
-    result_wait_time_ = CurrentMonotonicTime() - start_time;
+    result_wait_time_ = starboard::CurrentMonotonicTime() - start_time;
   }
 
   // Use a volatile bool to signal when the thread has started executing
@@ -152,7 +153,7 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
   EXPECT_TRUE(false) << "Thread waited, but time exceeded expectations.";
 }
 
-class ThreadPutsSemaphore : public posix::AbstractTestThread {
+class ThreadPutsSemaphore : public AbstractTestThread {
  public:
   explicit ThreadPutsSemaphore(Semaphore* s) : semaphore_(s) {}
   void Run() override { semaphore_->Put(); }
@@ -167,6 +168,5 @@ TEST(Semaphore, ThreadPuts) {
   thread.Join();
   semaphore.Put();
 }
-
+}  // namespace
 }  // namespace nplb
-}  // namespace starboard

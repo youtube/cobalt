@@ -25,7 +25,7 @@
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
-using starboard::android::shared::StarboardBridge;
+using ::starboard::StarboardBridge;
 #endif
 
 namespace cobalt {

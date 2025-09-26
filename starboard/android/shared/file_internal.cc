@@ -21,7 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 const char* g_app_assets_dir = "/cobalt/assets";
 // Representing the absolute path to the application-specific directory
@@ -138,4 +138,4 @@ AAssetDir* OpenAndroidAssetDir(const char* path) {
   }
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

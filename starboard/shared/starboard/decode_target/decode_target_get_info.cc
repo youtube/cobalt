@@ -22,7 +22,7 @@ bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                            SbDecodeTargetInfo* out_info) {
   SB_DCHECK(SbDecodeTargetIsValid(decode_target));
 
-  if (!starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
+  if (!starboard::MemoryIsZero(out_info, sizeof(*out_info))) {
     SB_DCHECK(false) << "out_info must be zeroed out.";
     return false;
   }

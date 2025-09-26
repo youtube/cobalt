@@ -22,6 +22,7 @@
 #include "starboard/linux/x64x11/system_properties.h"
 #include "starboard/shared/environment.h"
 
+namespace starboard {
 namespace {
 
 const char kBrandName[] = "BrandName";
@@ -36,12 +37,6 @@ const char kSystemIntegratorName[] = "SystemIntegratorName";
 const char kModelYear[] = "2026";
 #endif  // SB_API_VERSION == 17
 
-}  // namespace
-
-// Omit namespace linux due to symbol name conflict.
-namespace starboard {
-namespace x64x11 {
-
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
@@ -51,10 +46,11 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
+}  // namespace
 
-bool GetSystemProperty(SbSystemPropertyId property_id,
-                       char* out_value,
-                       int value_length) {
+bool GetSystemPropertyLinux(SbSystemPropertyId property_id,
+                            char* out_value,
+                            int value_length) {
   if (!out_value || !value_length) {
     return false;
   }
@@ -131,5 +127,4 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
   return false;
 }
 
-}  // namespace x64x11
 }  // namespace starboard

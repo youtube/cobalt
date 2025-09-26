@@ -28,7 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class AudioTrackAudioSink;
 
@@ -102,7 +102,7 @@ class MinRequiredFramesTester {
   const int required_frames_increment_;
   const int min_stable_played_frames_;
 
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
 
   std::vector<TestTask> test_tasks_;
   AudioTrackAudioSink* audio_sink_ = nullptr;
@@ -121,6 +121,6 @@ class MinRequiredFramesTester {
   std::atomic_bool destroying_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_

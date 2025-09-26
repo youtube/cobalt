@@ -43,7 +43,7 @@
 // when GetCurrentMediaTime() is called.
 // #define SB_LOG_MEDIA_TIME_STATS 1
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 const int kFramesInBufferBeginUnderflow = 1024;
 
@@ -64,7 +64,7 @@ class AudioRendererPcm : public AudioRenderer,
   // tries to append to the sink buffer at once.
   AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
-                   const media::AudioStreamInfo& audio_stream_info,
+                   const AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,
                    int min_frames_per_append);
   ~AudioRendererPcm() override;
@@ -206,6 +206,6 @@ class AudioRendererPcm : public AudioRenderer,
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_

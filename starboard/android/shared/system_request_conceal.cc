@@ -18,6 +18,5 @@
 
 void SbSystemRequestConceal() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->RequestSuspend(
-      env);
+  starboard::StarboardBridge::GetInstance()->RequestSuspend(env);
 }

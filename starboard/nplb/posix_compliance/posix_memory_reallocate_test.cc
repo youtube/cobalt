@@ -29,7 +29,7 @@
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 TEST(PosixReallocTest, NullPtrIsLikeMalloc) {
@@ -129,4 +129,4 @@ TEST(PosixReallocTest, GrowsAcrossPageBoundary) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

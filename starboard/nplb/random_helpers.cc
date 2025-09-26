@@ -19,7 +19,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 void TestProducesBothValuesOfAllBits(RandomFunction get_random) {
@@ -73,4 +72,3 @@ void TestIsFairlyUniform(RandomFunction get_random) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

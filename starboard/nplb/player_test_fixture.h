@@ -30,7 +30,6 @@
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 
-namespace starboard {
 namespace nplb {
 
 class SbPlayerTestFixture {
@@ -73,7 +72,7 @@ class SbPlayerTestFixture {
 
   SbPlayerTestFixture(
       const SbPlayerTestConfig& config,
-      testing::FakeGraphicsContextProvider* fake_graphics_context_provider);
+      starboard::FakeGraphicsContextProvider* fake_graphics_context_provider);
   ~SbPlayerTestFixture();
 
   void Seek(const int64_t time);
@@ -101,8 +100,6 @@ class SbPlayerTestFixture {
  private:
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
   static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
-
-  typedef shared::starboard::player::video_dmp::VideoDmpReader VideoDmpReader;
 
   typedef enum CallbackEventType {
     kEmptyEvent,
@@ -194,19 +191,19 @@ class SbPlayerTestFixture {
     return player_state_set_.find(state) != player_state_set_.end();
   }
 
-  shared::starboard::ThreadChecker thread_checker_;
+  starboard::ThreadChecker thread_checker_;
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;
-  std::unique_ptr<VideoDmpReader> audio_dmp_reader_;
-  std::unique_ptr<VideoDmpReader> video_dmp_reader_;
-  testing::FakeGraphicsContextProvider* fake_graphics_context_provider_;
+  std::unique_ptr<starboard::VideoDmpReader> audio_dmp_reader_;
+  std::unique_ptr<starboard::VideoDmpReader> video_dmp_reader_;
+  starboard::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
 
   // Queue of events from the underlying player.
-  Queue<CallbackEvent> callback_event_queue_;
+  starboard::Queue<CallbackEvent> callback_event_queue_;
 
   // States of if decoder can accept more inputs.
   bool can_accept_more_audio_data_ = false;
@@ -230,6 +227,5 @@ class SbPlayerTestFixture {
 };
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_PLAYER_TEST_FIXTURE_H_
