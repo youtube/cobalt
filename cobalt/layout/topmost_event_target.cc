@@ -609,7 +609,7 @@ void TopmostEventTarget::HandleScrollState(
               : ui_navigation::scroll_engine::ScrollType::Vertical;
       auto element_to_scroll = FindFirstElementWithScrollType(
           possible_scroll_targets, scroll_type, x > 0, y > 0);
-      if (!element_to_scroll) {
+      if (!element_to_scroll || !element_to_scroll->GetUiNavItem()) {
         return;
       }
 
