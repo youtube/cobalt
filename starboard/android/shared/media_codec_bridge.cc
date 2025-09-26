@@ -18,6 +18,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/features.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -92,6 +93,10 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
       return COLOR_VALUE_UNKNOWN;
   }
 }
+
+// Boolean on whether the starboard experiment for using
+// |BUFFER_FLAG_DECODE_ONLY| for non-tunneled playbacks is enabled.
+jboolean non_tunneled_decode_only_enabled = false;
 
 }  // namespace
 
@@ -328,7 +333,8 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
-      presentation_time_microseconds, flags, is_decode_only);
+      presentation_time_microseconds, flags, is_decode_only,
+      non_tunneled_decode_only_enabled);
 }
 
 jint MediaCodecBridge::QueueSecureInputBuffer(
@@ -368,11 +374,11 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     blocks_to_encrypt = drm_sample_info.encryption_pattern.crypt_byte_block;
     blocks_to_skip = drm_sample_info.encryption_pattern.skip_byte_block;
   }
-
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds, is_decode_only);
+      blocks_to_skip, presentation_time_microseconds, is_decode_only,
+      non_tunneled_decode_only_enabled);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -520,6 +526,10 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   j_reused_get_output_format_result_.Reset(
       env, j_reused_get_output_format_result.obj());
+
+  non_tunneled_decode_only_enabled =
+      starboard::features::FeatureList::IsEnabled(
+          features::kNonTunneledDecodeOnly);
 }
 
 // static
