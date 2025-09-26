@@ -27,6 +27,11 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "components/cronet/android/cronet_integrated_mode_state.h"
+#include "content/public/browser/browser_main_runner.h"
+#include "content/public/browser/browser_thread.h"
+#endif
 
 namespace cobalt {
 
@@ -122,6 +127,16 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
       main_runner_->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
+
+#if BUILDFLAG(IS_ANDROID)
+  // In Cronet integrated mode, it relies on the host application to
+  // provide the network task runner. The main_runner_->Initialize() call
+  // above starts all the browser threads, so we can now get the IO thread
+  // task runner and pass it to Cronet. This must be done before control
+  // returns to Java, where the CronetEngine will be created.
+  cronet::SetIntegratedModeNetworkTaskRunner(
+      content::GetIOThreadTaskRunner({}).get());
+#endif
 
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks

@@ -161,6 +161,10 @@ source_set("common") {
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard:starboard" ]
   }
+
+  if (is_android) {
+    deps += [ "//components/cronet/android:cronet_static" ]
+  }
 }
 
 action("cobalt_build_info") {
