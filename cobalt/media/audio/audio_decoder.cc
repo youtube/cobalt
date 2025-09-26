@@ -28,8 +28,7 @@ namespace cobalt {
 
 // Only supports PCM16 wav files.
 bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
-                         const char* data,
-                         size_t data_size) {
+                         base::span<const char> audio_file_data) {
   DCHECK(destination_bus);
   if (!destination_bus) {
     return false;
