@@ -15,6 +15,8 @@
 #ifndef MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
@@ -90,7 +92,7 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnVideoConfigChange(const VideoDecoderConfig& config) override;
   void OnVideoNaturalSizeChange(const gfx::Size& size) override;
   void OnVideoOpacityChange(bool opaque) override;
-  void OnVideoFrameRateChange(absl::optional<int> fps) override;
+  void OnVideoFrameRateChange(std::optional<int> fps) override;
 
   // VideoRendererSink::RenderCallback implementation.
   scoped_refptr<VideoFrame> Render(
