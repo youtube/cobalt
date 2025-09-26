@@ -36,14 +36,17 @@ public final class CommandLineOverrideHelper {
         public CommandLineOverrideHelperParams(
             boolean shouldSetJNIPrefix,
             boolean isOfficialBuild,
+            boolean isReleaseBuild,
             String[] commandLineArgs) {
             mShouldSetJNIPrefix = shouldSetJNIPrefix;
             mIsOfficialBuild = isOfficialBuild;
+            mIsReleaseBuild = isReleaseBuild;
             mCommandLineArgs = commandLineArgs;
         }
 
         private boolean mShouldSetJNIPrefix;
         private boolean mIsOfficialBuild;
+        private boolean mIsReleaseBuild;
         private String[] mCommandLineArgs;
     }
 
@@ -152,6 +155,11 @@ public final class CommandLineOverrideHelper {
                 for (String param: params.mCommandLineArgs) {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
+                    }
+                    if (params.mIsReleaseBuild
+                            && (param.equals("--remote-allow-origins")
+                                    || param.startsWith("--remote-allow-origins="))) {
+                        continue;
                     }
                     String[] parts = param.split("=", 2);
                     if (parts.length == 2) {
