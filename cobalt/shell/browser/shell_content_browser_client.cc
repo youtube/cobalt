@@ -89,11 +89,10 @@
 #include "services/network/public/cpp/network_service_buildflags.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
 #include "url/gurl.h"
@@ -335,7 +334,7 @@ ShellContentBrowserClient::ShellContentBrowserClient() {
 }
 
 ShellContentBrowserClient::~ShellContentBrowserClient() {
-  base::Erase(GetShellContentBrowserClientInstancesImpl(), this);
+  std::erase(GetShellContentBrowserClientInstancesImpl(), this);
 }
 
 std::unique_ptr<BrowserMainParts>
