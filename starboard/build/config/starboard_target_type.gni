@@ -50,6 +50,7 @@ template("starboard_platform_target") {
     all_dependent_configs = [
       "//starboard/build/config/sabi",
       "//starboard/build/config:starboard",
+      "//starboard/egl_and_gles:defines",
     ]
     if (is_android) {
       # TODO(b/374300500): - Find a way to avoid wrapping these.
