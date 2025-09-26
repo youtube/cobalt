@@ -23,16 +23,25 @@
 # in the configuration.gni for the current platform.
 
 group("egl_and_gles") {
-  assert(gl_type != "none", "gl_type must be set to a valid value")
+  _valid_gl_type_values = [
+    "angle",
+    "system_gles2",
+  ]
+  assert(filter_include([ gl_type ], _valid_gl_type_values) != [],
+         "gl_type '$gl_type' is invalid")
   public_deps = [ ":egl_and_gles_$gl_type" ]
+}
+
+config("defines") {
+  if (gl_type == "angle") {
+    defines = [ "STARBOARD_GL_TYPE_ANGLE=1" ]
+  } else if (gl_type == "system_gles2") {
+    defines = [ "STARBOARD_GL_TYPE_SYSTEM_GLES2=1" ]
+  }
 }
 
 group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
-}
-
-config("egl_and_gles_glimp_public_config") {
-  defines = [ "GL_GLEXT_PROTOTYPES" ]
 }
 
 declare_args() {
@@ -43,12 +52,10 @@ config("egl_and_gles_angle_config") {
   include_dirs = [ "//third_party/angle/include" ]
 }
 
-if (gl_type == "angle") {
-  group("egl_and_gles_angle") {
-    public_deps = [
-      "//third_party/angle:libEGL_static",
-      "//third_party/angle:libGLESv2_static",
-    ]
-    public_configs = [ ":egl_and_gles_angle_config" ]
-  }
+group("egl_and_gles_angle") {
+  public_deps = [
+    "//third_party/angle:libEGL_static",
+    "//third_party/angle:libGLESv2_static",
+  ]
+  public_configs = [ ":egl_and_gles_angle_config" ]
 }
