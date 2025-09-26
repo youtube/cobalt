@@ -60,7 +60,7 @@ std::string HostedProcessTypesToString(
   return str;
 }
 
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
 const char* GetProcessPriorityString(const base::Process& process) {
   switch (process.GetPriority()) {
     case base::Process::Priority::kBestEffort:
