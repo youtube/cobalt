@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
