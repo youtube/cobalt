@@ -5,7 +5,6 @@
 package org.chromium.content.browser;
 
 import android.content.res.Configuration;
-
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UserData;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
@@ -51,7 +50,6 @@ public final class ViewEventSinkImpl implements ViewEventSink, ActivityStateObse
 
     @Override
     public void setAccessDelegate(ViewEventSink.InternalAccessDelegate accessDelegate) {
-        GestureListenerManagerImpl.fromWebContents(mWebContents).setScrollDelegate(accessDelegate);
         ContentUiEventHandler.fromWebContents(mWebContents).setEventDelegate(accessDelegate);
     }
 
@@ -80,7 +78,9 @@ public final class ViewEventSinkImpl implements ViewEventSink, ActivityStateObse
 
     @Override
     public void onViewFocusChanged(boolean gainFocus) {
-        if (mHasViewFocus != null && mHasViewFocus == gainFocus) return;
+        if (mHasViewFocus != null && mHasViewFocus == gainFocus) {
+            return;
+        }
         mHasViewFocus = gainFocus;
         onFocusChanged();
 
@@ -115,11 +115,15 @@ public final class ViewEventSinkImpl implements ViewEventSink, ActivityStateObse
 
     private void onFocusChanged() {
         // Wait for view focus to be set before propagating focus changes.
-        if (mHasViewFocus == null) return;
+        if (mHasViewFocus == null) {
+            return;
+        }
 
         // See the comments on mPaused for why we use it to compute input focus.
         boolean hasInputFocus = mHasViewFocus && !mPaused;
-        if (mHasInputFocus != null && mHasInputFocus == hasInputFocus) return;
+        if (mHasInputFocus != null && mHasInputFocus == hasInputFocus) {
+            return;
+        }
         mHasInputFocus = hasInputFocus;
 
         if (mWebContents == null) {
@@ -142,7 +146,9 @@ public final class ViewEventSinkImpl implements ViewEventSink, ActivityStateObse
         // focus to trigger blur/focus, and the equivalent to this on Android is Window focus.
         // However, we don't use Window focus because of the complexity around popups stealing
         // Window focus.
-        if (mPaused) return;
+        if (mPaused) {
+            return;
+        }
         mPaused = true;
         onFocusChanged();
     }
@@ -151,7 +157,9 @@ public final class ViewEventSinkImpl implements ViewEventSink, ActivityStateObse
     public void onActivityResumed() {
         // When the activity resumes, the View#onFocusChanged may not be called, so we should
         // restore the View focus state.
-        if (!mPaused) return;
+        if (!mPaused) {
+            return;
+        }
         mPaused = false;
         onFocusChanged();
     }
