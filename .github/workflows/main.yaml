@@ -61,6 +61,7 @@ jobs:
             cobalt/build
             cobalt/docker
             cobalt/testing/filters
+            cobalt/testing/tools
             cobalt/tools
             docker-compose.yaml
       - name: Remove runtest if exists
