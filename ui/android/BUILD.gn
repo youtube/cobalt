@@ -687,6 +687,8 @@ if (is_cobalt) {
       "java/src/org/chromium/ui/base/IntentRequestTracker.java",
       "java/src/org/chromium/ui/base/IntentRequestTrackerImpl.java",
       "java/src/org/chromium/ui/base/OverlayTransformApiHelper.java",
+      "java/src/org/chromium/ui/base/LocalizationUtils.java",
+      "java/src/org/chromium/ui/base/ResourceBundle.java",
       "java/src/org/chromium/ui/base/SPenSupport.java",
       "java/src/org/chromium/ui/base/TouchDevice.java",
       "java/src/org/chromium/ui/base/UiAndroidFeatureList.java",
