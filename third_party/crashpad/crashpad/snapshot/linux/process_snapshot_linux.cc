@@ -20,6 +20,10 @@
 #include "build/build_config.h"
 #include "util/linux/exception_information.h"
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#include "starboard/elf_loader/evergreen_info.h"
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+
 namespace crashpad {
 
 ProcessSnapshotLinux::ProcessSnapshotLinux() = default;
@@ -51,6 +55,33 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection) {
   INITIALIZATION_STATE_SET_VALID(initialized_);
   return true;
 }
+
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
+                                      VMAddress evergreen_information_address) {
+  INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
+
+  if (gettimeofday(&snapshot_time_, nullptr) != 0) {
+    PLOG(ERROR) << "gettimeofday";
+    return false;
+  }
+
+  if (!process_reader_.Initialize(connection) ||
+      !memory_range_.Initialize(process_reader_.Memory(),
+                                process_reader_.Is64Bit())) {
+    return false;
+  }
+
+  system_.Initialize(&process_reader_, &snapshot_time_);
+
+  InitializeThreads();
+  InitializeModules(evergreen_information_address);
+  InitializeAnnotations();
+
+  INITIALIZATION_STATE_SET_VALID(initialized_);
+  return true;
+}
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 
 pid_t ProcessSnapshotLinux::FindThreadWithStackAddress(
     VMAddress stack_address) {
@@ -235,6 +266,11 @@ std::vector<const ModuleSnapshot*> ProcessSnapshotLinux::Modules() const {
   for (const auto& module : modules_) {
     modules.push_back(module.get());
   }
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+  if (evergreen_module_) {
+    modules.push_back(evergreen_module_.get());
+  }
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
   return modules;
 }
 
@@ -305,6 +341,48 @@ void ProcessSnapshotLinux::InitializeModules() {
     }
   }
 }
+
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+// TODO: b/406511608 - Cobalt: this function definition is copied directly from
+// c25, but we should refactor it to share code with the zero parameter
+// definition of ProcessSnapshotLinux::InitializeModules().
+void ProcessSnapshotLinux::InitializeModules(
+    VMAddress evergreen_information_address) {
+  for (const ProcessReaderLinux::Module& reader_module :
+       process_reader_.Modules()) {
+    auto module =
+        std::make_unique<internal::ModuleSnapshotElf>(reader_module.name,
+                                                      reader_module.elf_reader,
+                                                      reader_module.type,
+                                                      &memory_range_,
+                                                      process_reader_.Memory());
+    if (module->Initialize()) {
+      modules_.push_back(std::move(module));
+    }
+  }
+
+  // Add evergreen module
+  EvergreenInfo evergreen_info;
+  if (!memory_range_.Read(evergreen_information_address,
+                          sizeof(evergreen_info),
+                          &evergreen_info)) {
+    LOG(ERROR) << "Could not read evergreen info";
+    return;
+  }
+
+  std::vector<uint8_t> build_id(evergreen_info.build_id_length);
+  for (unsigned int i = 0; i < build_id.size(); i++) {
+    build_id[i] = reinterpret_cast<uint8_t*>(evergreen_info.build_id)[i];
+  }
+
+  evergreen_module_ = std::make_unique<internal::ModuleSnapshotEvergreen>(
+      std::string(evergreen_info.file_path_buf),
+      ModuleSnapshot::ModuleType::kModuleTypeLoadableModule,
+      evergreen_info.base_address,
+      evergreen_info.load_size,
+      build_id);
+}
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 
 void ProcessSnapshotLinux::InitializeAnnotations() {
 #if BUILDFLAG(IS_ANDROID)

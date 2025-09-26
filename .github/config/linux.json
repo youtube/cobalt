@@ -9,7 +9,6 @@
   "targets": [
     "cobalt:gn_all",
     "chromedriver",
-    "crashpad_handler",
     "dump_syms",
     "minidump_stackwalk"
   ],

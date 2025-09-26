@@ -317,6 +317,12 @@
 #define BUILDFLAG_INTERNAL_IS_ANDROIDTV() (0)
 #endif
 
+#if defined(ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD)
+#define BUILDFLAG_INTERNAL_IS_NATIVE_TARGET_BUILD() (1)
+#else
+#define BUILDFLAG_INTERNAL_IS_NATIVE_TARGET_BUILD() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)
