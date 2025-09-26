@@ -110,13 +110,11 @@ const SbEglInterface g_sb_egl_interface = {
     nullptr,  // eglGetSyncAttrib
     nullptr,  // eglCreateImage
     nullptr,  // eglDestroyImage
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || !defined(EGL_VERSION_1_5)
     nullptr,  // eglGetPlatformDisplay
 #else
-#if defined(EGL_VERSION_1_5)
     &SbEglGetPlatformDisplay,
-#endif        // EGL_VERSION_1_5
-#endif        // BUILDFLAG(IS_ANDROID)
+#endif        // BUILDFLAG(IS_ANDROID) || !defined(EGL_VERSION_1_5)
     nullptr,  // eglCreatePlatformWindowSurface
     nullptr,  // eglCreatePlatformPixmapSurface
     nullptr,  // eglWaitSync
