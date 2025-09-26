@@ -151,14 +151,13 @@ bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
   return !(left == right);
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const AudioStreamInfo& audio_stream_info) {
-  return os << "{codec=" << GetMediaAudioCodecName(audio_stream_info.codec)
-            << ", mime=" << audio_stream_info.mime
-            << ", channels=" << audio_stream_info.number_of_channels
+std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info) {
+  return os << "{codec=" << GetMediaAudioCodecName(info.codec)
+            << ", mime=" << (info.mime.empty() ? "(empty)" : info.mime)
+            << ", channels=" << info.number_of_channels
             << ", samples_per_second="
-            << FormatWithDigitSeparators(audio_stream_info.samples_per_second)
-            << ", bits_per_sample=" << audio_stream_info.bits_per_sample << "}";
+            << FormatWithDigitSeparators(info.samples_per_second)
+            << ", bits_per_sample=" << info.bits_per_sample << "}";
 }
 
 AudioSampleInfo& AudioSampleInfo::operator=(

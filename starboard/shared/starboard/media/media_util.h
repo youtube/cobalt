@@ -59,8 +59,7 @@ struct AudioStreamInfo {
 bool operator==(const AudioStreamInfo& left, const AudioStreamInfo& right);
 bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right);
 
-std::ostream& operator<<(std::ostream& os,
-                         const AudioStreamInfo& audio_stream_info);
+std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info);
 
 // Encapsulates all information contained in `SbMediaAudioSampleInfo`.  It
 // doesn't maintain the same binary layout as `SbMediaAudioSampleInfo`, and is
