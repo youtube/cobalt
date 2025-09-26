@@ -29,6 +29,7 @@
 
 extern "C++" {
 
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -69,6 +70,15 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack);
 
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
 std::ostream& operator<<(std::ostream& out, const std::wstring& wstr);
+
+// Helper function to print a std::optional of data.
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const std::optional<T>& data) {
+  if (data.has_value()) {
+    return out << *data;
+  }
+  return out << "(nullopt)";
+}
 
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
