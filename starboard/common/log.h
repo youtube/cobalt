@@ -32,6 +32,7 @@ extern "C++" {
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 // Force SB_LOGGING_IS_OFFICIAL_BUILD to 0 for all build configurations.
 //
@@ -79,6 +80,8 @@ std::ostream& operator<<(std::ostream& out, const std::optional<T>& data) {
   }
   return out << "(nullopt)";
 }
+
+std::string_view to_string(bool val);
 
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
