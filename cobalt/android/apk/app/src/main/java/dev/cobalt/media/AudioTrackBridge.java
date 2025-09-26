@@ -410,6 +410,21 @@ public class AudioTrackBridge {
   }
 
   @CalledByNative
+  private AudioTimestamp getRawAudioTimestamp() {
+    if (mAudioTrack == null) {
+      Log.e(TAG, "Unable to getRawAudioTimestamp with NULL audio track.");
+      return null;
+    }
+    AudioTimestamp audioTimestamp = new AudioTimestamp();
+    if (!mAudioTrack.getTimestamp(audioTimestamp)) {
+      // AudioTrack is not ready to return timestamp.
+      return null;
+    }
+
+    return audioTimestamp;
+  }
+
+  @CalledByNative
   private int getUnderrunCount() {
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");

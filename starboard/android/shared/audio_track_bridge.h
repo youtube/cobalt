@@ -76,6 +76,13 @@ class AudioTrackBridge {
   // return.  It can be nullptr.
   int64_t GetAudioTimestamp(int64_t* updated_at,
                             JNIEnv* env = base::android::AttachCurrentThread());
+
+  struct AudioTimestamp {
+    int64_t frame_position;
+    int64_t rendered_at_us;
+  };
+  std::optional<AudioTimestamp> GetRawAudioTimestamp(JNIEnv* env);
+
   bool GetAndResetHasAudioDeviceChanged(
       JNIEnv* env = base::android::AttachCurrentThread());
   int GetUnderrunCount(JNIEnv* env = base::android::AttachCurrentThread());
@@ -91,6 +98,9 @@ class AudioTrackBridge {
   // avoids an array being allocated repeatedly.
   base::android::ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackBridge::AudioTimestamp& timestamp);
 
 }  // namespace starboard
 

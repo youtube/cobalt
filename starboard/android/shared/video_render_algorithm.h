@@ -52,6 +52,8 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
   double playback_rate_ = 1.0;
   VideoFrameReleaseTimeHelper video_frame_release_time_helper_;
   int dropped_frames_ = 0;
+
+  int index_ = 0;
 };
 
 }  // namespace starboard
