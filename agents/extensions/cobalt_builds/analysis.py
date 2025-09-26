@@ -116,41 +116,54 @@ class BuildLogAnalyzer(BaseAnalyzer):
         i = end_warning
         continue
 
-      # --- Build Error Detection ---
-      elif patterns.FAILED_PATTERN.search(line):
+      # --- Unified Build Error Detection ---
+      elif patterns.BUILD_ERROR_TRIGGER_PATTERN.search(line):
         errors += 1
-        command_start = self._find_build_action_start(i, patterns.BUILD_STEP_PATTERN)
+        # Find the start of the command, first by looking for a build step.
+        command_start = self._find_build_action_start(
+            i, patterns.BUILD_STEP_PATTERN)
 
-        if command_start != -1:
-          # Find the end of the error report
-          error_end = i + 1
-          while error_end < len(self.lines):
-            if patterns.BUILD_STEP_PATTERN.search(self.lines[error_end]):
+        # If no build step is found, fall back to the "Regenerating" line.
+        if command_start == -1:
+          for j in range(i, -1, -1):
+            if patterns.REGENERATING_NINJA_PATTERN.search(self.lines[j]):
+              command_start = j
               break
-            if patterns.END_ERROR_PATTERN.search(self.lines[error_end]):
-              error_end += 1
-              break
-            if patterns.NINJA_ERROR_PATTERN.search(self.lines[error_end]):
-              error_end += 1
-              break
+          else:
+            # If all else fails, start at the error line itself.
+            command_start = i
+
+        # Find the end of the error report
+        error_end = i + 1
+        while error_end < len(self.lines):
+          current_line = self.lines[error_end]
+          if patterns.BUILD_STEP_PATTERN.search(current_line):
+            break
+          if patterns.END_ERROR_PATTERN.search(current_line):
             error_end += 1
-          results.append('--- ERROR ---')
-          highlight_lines = {i, command_start}
-          for j in range(command_start, error_end):
-            if 'error:' in self.lines[j]:
-              highlight_lines.add(j)
+            break
+          if patterns.NINJA_ERROR_PATTERN.search(current_line):
+            error_end += 1
+            break
+          error_end += 1
 
-          self._add_log_lines_with_skipping(
-              results,
-              command_start,
-              error_end,
-              highlight_lines=highlight_lines,
-              max_line_num_width=max_line_num_width)
+        results.append('--- ERROR ---')
+        highlight_lines = set()
+        for j in range(command_start, error_end):
+          if patterns.BUILD_ERROR_TRIGGER_PATTERN.search(self.lines[j]):
+            highlight_lines.add(j)
 
-          for j in range(command_start, error_end):
-            reported_lines.add(j)
-          i = error_end
-          continue
+        self._add_log_lines_with_skipping(
+            results,
+            command_start,
+            error_end,
+            highlight_lines=highlight_lines,
+            max_line_num_width=max_line_num_width)
+
+        for j in range(command_start, error_end):
+          reported_lines.add(j)
+        i = error_end
+        continue
 
       # --- Other important lines ---
       elif patterns.NINJA_ERROR_PATTERN.search(line):

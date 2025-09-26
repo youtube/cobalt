@@ -46,12 +46,14 @@ ISSUE_PATTERNS = {
 # Build log patterns
 BUILD_STEP_PATTERN = re.compile(
     r'^(?:\[.*\]\s*)?(CC|CXX|ACTION|LINK|SOLINK|AR|STAMP)\s+(.*)')
-FAILED_PATTERN = re.compile(r'FAILED: ')
+FAILED_PATTERN = re.compile(r'^FAILED: ')
 NINJA_FATAL_PATTERN = re.compile(r'ninja: fatal:')
 GN_WARNING_PATTERN = re.compile(r'WARNING at ')
 END_ERROR_PATTERN = re.compile(r'\d+\s+errors? generated\.')
 REGENERATING_NINJA_PATTERN = re.compile(r'Regenerating ninja files')
 NINJA_ERROR_PATTERN = re.compile(r'ninja: (?:fatal|build stopped:.*)')
+BUILD_ERROR_TRIGGER_PATTERN = re.compile(
+    r'^(FAILED: |ERROR Unresolved dependencies\.|ninja: error:)|error:')
 RETURN_CODE_PATTERN = re.compile(r'RETURN_CODE:')
 
 # Gtest patterns for report generation

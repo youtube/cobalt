@@ -46,6 +46,7 @@ declare -a test_files=(
   "build_test_log.log"
   "run_nplb_long_test.log"
   "build_test_log_nonexistent.log"
+  "build_nplb_unresolved_dependencies.log"
 )
 
 all_passed=true
