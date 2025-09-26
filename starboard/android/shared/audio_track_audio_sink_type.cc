@@ -40,7 +40,7 @@ using ::base::android::AttachCurrentThread;
 // into AudioTrack. Instead of callnig pause/play, it switches between silence
 // data and actual data.
 // TODO: b/186660620: Replace this constant with feature flag.
-constexpr bool kUseContinuousAudioTrackSink = false;
+constexpr bool kUseContinuousAudioTrackSink = true;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -494,7 +494,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
           this, channels, sampling_frequency_hz, audio_sample_type,
           frame_buffers, frames_per_channel, preferred_buffer_size_in_bytes,
           update_source_status_func, consume_frames_func, error_func,
-          start_media_time, is_web_audio, context);
+          is_web_audio, context);
       if (!continuous_sink->IsAudioTrackValid()) {
         SB_LOG(ERROR) << "Failed to create ContinuousAudioTrackSink";
         Destroy(continuous_sink);
