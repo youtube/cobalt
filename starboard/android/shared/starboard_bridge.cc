@@ -76,14 +76,6 @@ jboolean JNI_StarboardBridge_InitJNI(
   return true;
 }
 
-<<<<<<< HEAD
-void JNI_StarboardBridge_OnStop(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
-  SbFileAndroidTeardown();
-}
-
-=======
->>>>>>> 8785aa7d76c (starboard: Remove not-used StarboardBridge::OnStop method  (#7309))
 jlong JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }
