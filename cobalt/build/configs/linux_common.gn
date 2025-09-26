@@ -110,15 +110,3 @@ use_dbus = false
 
 # Embed ICU data in the cobalt binary
 icu_use_data_file = false
-
-# Disables AV1 encoding/decoding using libaom.
-enable_libaom = false
-
-# Disable AV1 decoding using dav1d.
-enable_dav1d_decoder = false
-
-# Disables VP8/VP9 encoding/decoding using libvpx.
-media_use_libvpx = false
-
-# Disables H.264 encoding/decoding using OpenH264.
-media_use_openh264 = false
