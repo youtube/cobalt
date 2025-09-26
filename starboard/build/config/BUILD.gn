@@ -125,8 +125,10 @@ config("target") {
 # TODO(b/212641065): Scope global defines migrated from
 # cobalt_configuration.gypi to only the targets they're necessary in.
 config("starboard") {
+  defines = []
+
   if (is_starboardized_toolchain) {
-    defines = [
+    defines += [
       "STARBOARD",
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
     ]
@@ -165,6 +167,12 @@ config("starboard") {
     }
 
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
+  }
+
+  if (gl_type == "angle") {
+    defines += [ "STARBOARD_GL_TYPE_ANGLE=1" ]
+  } else if (gl_type == "system_gles2") {
+    defines += [ "STARBOARD_GL_TYPE_SYSTEM_GLES2=1" ]
   }
 
   # b/432642933: The rpath option causes lld to fail when targeting tvOS

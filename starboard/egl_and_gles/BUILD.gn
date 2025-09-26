@@ -27,14 +27,6 @@ group("egl_and_gles") {
   public_deps = [ ":egl_and_gles_$gl_type" ]
 }
 
-config("defines") {
-  if (gl_type == "angle") {
-    defines = [ "STARBOARD_GL_TYPE_ANGLE=1" ]
-  } else if (gl_type == "system_gles2") {
-    defines = [ "STARBOARD_GL_TYPE_SYSTEM_GLES2=1" ]
-  }
-}
-
 group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
 }
