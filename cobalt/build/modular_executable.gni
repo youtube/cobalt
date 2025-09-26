@@ -92,6 +92,7 @@ template("evergreen_final_target") {
       ":${original_target_name}_runfile_gen",
       ":copy_${original_target_name}_content",
       ":copy_${original_target_name}_lib",
+      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app($starboard_toolchain)",
     ]
