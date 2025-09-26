@@ -60,6 +60,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `geteuid`
 * `getpid`
 * `getpriority`
+* `getrlimit`
 * `pathconf`
 * `pipe2`
 * `poll`
