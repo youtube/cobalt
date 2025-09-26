@@ -187,6 +187,7 @@ test("nplb") {
       "posix_compliance/posix_readlink_test.cc",
       "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
+      "posix_compliance/posix_resource_limit_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
