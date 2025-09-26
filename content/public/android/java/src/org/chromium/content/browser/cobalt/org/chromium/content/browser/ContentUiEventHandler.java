@@ -8,7 +8,9 @@ import android.os.SystemClock;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+
 import androidx.annotation.VisibleForTesting;
+
 import org.chromium.base.UserData;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -62,12 +64,8 @@ public class ContentUiEventHandler implements UserData {
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     @CalledByNative
     protected boolean onGenericMotionEvent(MotionEvent event) {
-        if (Gamepad.from(mWebContents).onGenericMotionEvent(event)) {
-            return true;
-        }
-        if (JoystickHandler.fromWebContents(mWebContents).onGenericMotionEvent(event)) {
-            return true;
-        }
+        if (Gamepad.from(mWebContents).onGenericMotionEvent(event)) return true;
+        if (JoystickHandler.fromWebContents(mWebContents).onGenericMotionEvent(event)) return true;
         if ((event.getSource() & InputDevice.SOURCE_CLASS_POINTER) != 0) {
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_SCROLL:
@@ -118,9 +116,7 @@ public class ContentUiEventHandler implements UserData {
                 EventForwarder.getMouseEventActionButton(event), event.getButtonState(),
                 event.getMetaState(),
                 shouldConvertToMouseEvent ? MotionEvent.TOOL_TYPE_MOUSE : event.getToolType(0));
-        if (didOffsetEvent) {
-            event.recycle();
-        }
+        if (didOffsetEvent) event.recycle();
         return true;
     }
 
@@ -131,16 +127,12 @@ public class ContentUiEventHandler implements UserData {
 
     @CalledByNative
     private boolean dispatchKeyEvent(KeyEvent event) {
-        if (Gamepad.from(mWebContents).dispatchKeyEvent(event)) {
-            return true;
-        }
+        if (Gamepad.from(mWebContents).dispatchKeyEvent(event)) return true;
         if (!shouldPropagateKeyEvent(event)) {
             return mEventDelegate.super_dispatchKeyEvent(event);
         }
 
-        if (ImeAdapterImpl.fromWebContents(mWebContents).dispatchKeyEvent(event)) {
-            return true;
-        }
+        if (ImeAdapterImpl.fromWebContents(mWebContents).dispatchKeyEvent(event)) return true;
 
         return mEventDelegate.super_dispatchKeyEvent(event);
     }
@@ -181,9 +173,7 @@ public class ContentUiEventHandler implements UserData {
      */
     @CalledByNative
     private void scrollBy(float dxPix, float dyPix) {
-        if (dxPix == 0 && dyPix == 0) {
-            return;
-        }
+        if (dxPix == 0 && dyPix == 0) return;
         long time = SystemClock.uptimeMillis();
         ContentUiEventHandlerJni.get().sendScrollEvent(
                 mNativeContentUiEventHandler, ContentUiEventHandler.this, time, dxPix, dyPix);
