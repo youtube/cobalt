@@ -1,5 +1,83 @@
 [
   {
+    "hexsha": "d163dc4a524c0cf2b2fff28f6d3c2ce69ced98b1",
+    "original_hexsha": "56923f965b58ea8348c6e881dd751f6f5eabec6a",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-25T20:00:31-07:00",
+    "summary": "Rename KEY_SUBTITLES to VKEY_SUBTITLES (#7322)",
+    "stats": {
+      "files": 3,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0bb3df2ab22a59aeb7f7bb5d765b1903241414f9",
+    "original_hexsha": "47c9785f83032d9027ccec2b45c749eeff2888d1",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-25T18:54:15-07:00",
+    "summary": "Cleanup the keycode hacks (#7323)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "85fa867b3299491c808a2315accb6234354e5127",
+    "original_hexsha": "06adee003ac88b0eb69913e7af88257c8bfdcb2f",
+    "author": "Arjun Menon",
+    "datetime": "2025-09-25T14:38:01-07:00",
+    "summary": "Fix missing ssl/ subdirectory in linux packages (#7335)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "aef8350a15ccf483d584986ca4baaafec78bccd3",
+    "original_hexsha": "8dc9180422df62715e4d6e089a504d468f06298e",
+    "author": "Holden Warriner",
+    "datetime": "2025-09-25T20:37:28+00:00",
+    "summary": "Enable basic crash reporting for evergreen-x64 (#7280)",
+    "stats": {
+      "files": 35,
+      "insertions": 767,
+      "deletions": 40
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c0fcc90b0b0ac09dc66eace553061bd1643d4a22",
+    "original_hexsha": "8fd07959b8b81375fd664055b71ea5b0b02f68e2",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-25T11:36:33-07:00",
+    "summary": "starboard: Fix the crash in AudioRendererSinkImpl callbacks (#7313)",
+    "stats": {
+      "files": 1,
+      "insertions": 11,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "35684db848c1bbc62004a341a6eaae2fcab2de64",
+    "original_hexsha": "3deef18f402a9989bddfbf72b2fe91785eae282a",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-25T11:19:36-04:00",
+    "summary": "Add deep links for 3p (#7184)",
+    "stats": {
+      "files": 7,
+      "insertions": 552,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "d9277e5f540d31baa816ecceddb51159e0a93513",
     "original_hexsha": "ec073958486b452a7a74c921e30538ef15555a37",
     "author": "Charley Kim",
