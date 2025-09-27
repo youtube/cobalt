@@ -12,6 +12,7 @@
     "SbPlayerTest.*",
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
-    "SbPlayerWriteSampleTests*"
+    "SbPlayerWriteSampleTests*",
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

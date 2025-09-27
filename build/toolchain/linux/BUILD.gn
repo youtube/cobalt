@@ -8,6 +8,11 @@ import("//build/config/sysroot.gni")
 import("//build/config/ui.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
+if (is_cobalt_hermetic_build && is_official_build &&
+    current_toolchain == default_toolchain) {
+  import("//starboard/build/toolchain/linux/strip.gni")
+}
+
 clang_toolchain("clang_ppc64") {
   enable_linker_map = true
   toolchain_args = {
@@ -21,12 +26,20 @@ clang_toolchain("clang_arm") {
     current_cpu = "arm"
     current_os = "linux"
   }
+  if (is_cobalt_hermetic_build && is_official_build &&
+      current_toolchain == default_toolchain) {
+    strip = strip_executable
+  }
 }
 
 clang_toolchain("clang_arm64") {
   toolchain_args = {
     current_cpu = "arm64"
     current_os = "linux"
+  }
+  if (is_cobalt_hermetic_build && is_official_build &&
+      current_toolchain == default_toolchain) {
+    strip = strip_executable
   }
 }
 

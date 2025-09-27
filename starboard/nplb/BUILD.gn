@@ -310,15 +310,6 @@ test("nplb") {
       "window_get_size_test.cc",
     ]
     sources += starboard_platform_sources
-    if (enable_cobalt_hermetic_hacks) {
-      sources -= [
-        # TODO: b/400512503 - Fix build errors.
-        "posix_compliance/posix_condition_variable_wait_test.cc",
-        "posix_compliance/posix_condition_variable_wait_timed_test.cc",
-        "thread_test.cc",
-        "vertical_video_test.cc",
-      ]
-    }
   }
 
   configs += [
