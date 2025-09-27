@@ -36,7 +36,54 @@ extern "C" {
 #define LINUX_HIGHEST_PRIORITY -20
 #define LINUX_LOWEST_PRIORITY 19
 
+// MUSL defines rlim_t as an unsigned long long.
+typedef unsigned long long musl_rlim_t;
+
+struct musl_rlimit {
+  musl_rlim_t musl_rlim_cur;
+  musl_rlim_t musl_rlim_max;
+};
+
+// MUSL definitions for special rlim_t values
+#define MUSL_RLIM_INFINITY (~0ULL)
+#define MUSL_RLIM_SAVED_CUR MUSL_RLIM_INFINITY
+#define MUSL_RLIM_SAVED_MAX MUSL_RLIM_INFINITY
+
+// MUSL definitions for specific RLIMIT resource values
+#define MUSL_RLIMIT_CPU 0
+#define MUSL_RLIMIT_FSIZE 1
+#define MUSL_RLIMIT_DATA 2
+#define MUSL_RLIMIT_STACK 3
+#define MUSL_RLIMIT_CORE 4
+#ifndef MUSL_RLIMIT_RSS
+#define MUSL_RLIMIT_RSS 5
+#define MUSL_RLIMIT_NPROC 6
+#define MUSL_RLIMIT_NOFILE 7
+#define MUSL_RLIMIT_MEMLOCK 8
+#define MUSL_RLIMIT_AS 9
+#define MUSL_RLIMIT_LOCKS 10
+#endif
+#define MUSL_RLIMIT_SIGPENDING 11
+#define MUSL_RLIMIT_MSGQUEUE 12
+#define MUSL_RLIMIT_NICE 13
+#define MUSL_RLIMIT_RTPRIO 14
+#define MUSL_RLIMIT_RTTIME 15
+
+#define MUSL_RLIMIT_NLIMITS 16
+
+// 64-bit definitions for special rlim_t values
+#if defined(_LARGEFILE64_SOURCE)
+#define MUSL_RLIM64_INFINITY MUSL_RLIM_INFINITY
+#define MUSL_RLIM64_SAVED_CUR MUSL_RLIM_SAVED_CUR
+#define MUSL_RLIM64_SAVED_MAX MUSL_RLIM_SAVED_MAX
+#define getrlimit64 getrlimit
+#define musl_rlimit64 musl_rlimit
+#define musl_rlim64_t musl_rlim_t
+#endif
+
 SB_EXPORT int __abi_wrap_getpriority(int which, musl_id_t who);
+
+SB_EXPORT int __abi_wrap_getrlimit(int resource, struct musl_rlimit* musl_rlp);
 
 SB_EXPORT int __abi_wrap_setpriority(int which, musl_id_t who, int prio);
 
