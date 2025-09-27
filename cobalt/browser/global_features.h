@@ -56,9 +56,6 @@ class GlobalFeatures {
   PrefService* experiment_config();
   PrefService* metrics_local_state();
   PrefService* local_state();
-  const std::vector<uint32_t>& active_experiment_ids() {
-    return active_experiment_ids_;
-  }
   const std::string& active_config_data() { return active_config_data_; }
   const std::string& latest_config_hash() {
     return experiment_config_->GetString(kLatestConfigHash);
@@ -83,8 +80,10 @@ class GlobalFeatures {
   void CreateMetricsLocalState();
   // Initialize a PrefService instance for local state.
   void CreateLocalState();
-  // Record the active config data and experiments ids in the member variable.
-  void InitializeActiveConfigDataAndExperimentIds();
+  // Record the active config data in the member variable.
+  // Needed because the experiment config applied to Cobalt does not change
+  // during the app lifecycle, but new config can be written to storage.
+  void InitializeActiveConfigData();
 
   std::unique_ptr<base::FeatureList::Accessor> accessor_;
 
@@ -104,7 +103,6 @@ class GlobalFeatures {
 
   std::unique_ptr<ExperimentConfigManager> experiment_config_manager_;
 
-  std::vector<uint32_t> active_experiment_ids_;
   std::string active_config_data_;
 
   SEQUENCE_CHECKER(sequence_checker_);

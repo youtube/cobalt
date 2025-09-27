@@ -82,10 +82,15 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kExperimentConfigFeatureParams,
       std::move(experiment_config.Find(cobalt::kExperimentConfigFeatureParams)
                     ->GetDict()));
-  experiment_config_ptr->SetList(
-      cobalt::kExperimentConfigExpIds,
+  experiment_config_ptr->SetString(
+      cobalt::kExperimentConfigActiveConfigData,
       std::move(
-          experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
+          experiment_config.Find(cobalt::kExperimentConfigActiveConfigData)
+              ->GetString()));
+  experiment_config_ptr->SetString(
+      cobalt::kLatestConfigHash,
+      std::move(
+          experiment_config.Find(cobalt::kLatestConfigHash)->GetString()));
   experiment_config_ptr->CommitPendingWrite();
   std::move(callback).Run();
 }
@@ -103,12 +108,6 @@ void H5vccExperimentsImpl::GetActiveExperimentConfigData(
     GetActiveExperimentConfigDataCallback callback) {
   std::move(callback).Run(
       cobalt::GlobalFeatures::GetInstance()->active_config_data());
-}
-
-void H5vccExperimentsImpl::GetActiveExperimentIds(
-    GetActiveExperimentIdsCallback callback) {
-  std::move(callback).Run(
-      cobalt::GlobalFeatures::GetInstance()->active_experiment_ids());
 }
 
 void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
@@ -135,9 +134,16 @@ void H5vccExperimentsImpl::SetLatestExperimentConfigHashData(
     SetLatestExperimentConfigHashDataCallback callback) {
   cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetString(
       cobalt::kLatestConfigHash, hash_data);
-  cobalt::GlobalFeatures::GetInstance()
-      ->experiment_config()
-      ->CommitPendingWrite();
+  // CommitPendingWrite not called here to avoid excessive disk writes.
+  std::move(callback).Run();
+}
+
+void H5vccExperimentsImpl::SetFinchParameters(
+    base::Value::Dict settings,
+    SetFinchParametersCallback callback) {
+  cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetDict(
+      cobalt::kFinchParameters, std::move(settings));
+  // CommitPendingWrite not called here to avoid excessive disk writes.
   std::move(callback).Run();
 }
 

@@ -27,18 +27,15 @@ constexpr int kCrashStreakSafeConfigThreshold = 3;
 constexpr char kExperimentConfig[] = "experiment_config";
 constexpr char kExperimentConfigActiveConfigData[] =
     "experiment_config.active_config_data";
-constexpr char kExperimentConfigLatestConfigHash[] = "experiment_config";
 constexpr char kExperimentConfigFeatures[] = "experiment_config.features";
 constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
-constexpr char kExperimentConfigExpIds[] = "experiment_config.exp_ids";
 constexpr char kFinchParameters[] = "finch_parameters";
 constexpr char kLatestConfigHash[] = "latest_config_hash";
 constexpr char kSafeConfig[] = "safe_config";
 constexpr char kSafeConfigActiveConfigData[] = "safe_config.active_config_data";
 constexpr char kSafeConfigFeatures[] = "safe_config.features";
 constexpr char kSafeConfigFeatureParams[] = "safe_config.feature_params";
-constexpr char kSafeConfigExpIds[] = "safe_config.exp_ids";
 
 }  // namespace cobalt
 
