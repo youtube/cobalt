@@ -20,8 +20,7 @@ enum OverrideState {
 
 dictionary ExperimentConfiguration {
   record<DOMString, boolean> features;
-  record<DOMString, (DOMString or long or boolean)> featureParams;
-  sequence<unsigned long> experimentIds;
+  record<DOMString, (DOMString or long or double or boolean)> featureParams;
   DOMString activeExperimentConfigData;
   DOMString latestExperimentConfigHashData;
 };
@@ -38,10 +37,6 @@ interface H5vccExperiments {
   // Returns a promise that resolves/rejects in the event of success/failure.
   [CallWith=ScriptState, RaisesException]
   Promise<void> resetExperimentState();
-
-  // Returns a list of Cobalt's currently active client experiment IDs for use
-  // by the client to log.
-  readonly attribute FrozenArray<unsigned long> activeExperimentIds;
 
   // The following APIs fetch Cobalt's current value for the given feature name
   // or feature param.
@@ -62,4 +57,8 @@ interface H5vccExperiments {
   // processing.
   [CallWith=ScriptState, RaisesException]
   Promise<void> setLatestExperimentConfigHashData(DOMString hashData);
+
+  // Sets Finch parameters.
+  [CallWith=ScriptState, RaisesException]
+  Promise<void> setFinchParameters(record<DOMString, (DOMString or long or double or boolean)> settings);
 };

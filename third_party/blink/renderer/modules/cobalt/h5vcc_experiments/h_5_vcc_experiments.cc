@@ -19,7 +19,7 @@
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -76,12 +76,6 @@ ScriptPromise H5vccExperiments::resetExperimentState(
                     WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
-}
-
-WTF::Vector<uint32_t> H5vccExperiments::activeExperimentIds() {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetActiveExperimentIds(&active_experiment_ids_);
-  return active_experiment_ids_;
 }
 
 String H5vccExperiments::getFeature(const String& feature_name) {
@@ -145,7 +139,42 @@ ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
   return promise;
 }
 
+ScriptPromise H5vccExperiments::setFinchParameters(
+    ScriptState* script_state,
+    const HeapVector<
+        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        settings,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
+
+  EnsureReceiverIsBound();
+
+  std::optional<base::Value::Dict> settings_dict =
+      ParseSettingsToDictionary(settings);
+
+  if (!settings_dict.has_value()) {
+    resolver->RejectWithDOMException(DOMExceptionCode::kInvalidStateError,
+                                     "Unable to parse settings.");
+    return promise;
+  }
+
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->SetFinchParameters(
+      std::move(settings_dict.value()),
+      WTF::BindOnce(&H5vccExperiments::OnSetFinchParameters,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return promise;
+}
+
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
+}
+
+void H5vccExperiments::OnSetFinchParameters(ScriptPromiseResolver* resolver) {
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
