@@ -388,7 +388,7 @@ std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const siz
         
         // match[1] is the method (e.g., "onCreate")
         // match[2] is the file/line (e.g., "CobaltActivity.java:219")
-        all_matches.push_back(match[1].str() + "@" + match[2].str());
+        all_matches.push_back(match[1].str() + "~" + match[2].str());
         
         ++it; // Move to the next match
     }
