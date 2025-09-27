@@ -15,6 +15,7 @@
 import("//build/config/arm.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
+import("//third_party/widevine/cdm/widevine.gni")
 
 config("cobalt_config") {
   configs = [
@@ -97,6 +98,10 @@ config("buildflag_defines") {
   # functionality.
   if (use_starboard_media) {
     defines += [ "ENABLE_BUILDFLAG_USE_STARBOARD_MEDIA" ]
+  }
+
+  if (enable_widevine) {
+    defines += [ "ENABLE_BUILDFLAG_ENABLE_WIDEVINE" ]
   }
 
   # use_evergreen and BUILDFLAG(USE_EVERGREEN) should be used for
