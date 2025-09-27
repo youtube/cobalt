@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/device_authentication.h"
+#include "cobalt/shell/common/device_authentication.h"
 
 #include <algorithm>
 #include <map>
 
 #include "base/base64.h"
 #include "base/base64url.h"
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/escape.h"
 #include "base/time/time.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "crypto/hmac.h"
 #include "starboard/system.h"
 
-namespace cobalt {
-namespace browser {
+namespace content {
 
 namespace {
 
@@ -101,6 +102,32 @@ std::string GetStartTime() {
 }
 
 }  // namespace
+
+GURL GetDeviceAuthenticationSignedURL(const GURL& url) {
+  GURL initial_url = url;
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  if (!command_line->HasSwitch(
+          switches::kOmitDeviceAuthenticationQueryParameters)) {
+    // Append the device authentication query parameters based on the platform's
+    // certification secret to the initial URL.
+    std::string query = initial_url.query();
+    std::string device_authentication_query_string =
+        GetDeviceAuthenticationSignedURLQueryString();
+    if (!query.empty() && !device_authentication_query_string.empty()) {
+      query += "&";
+    }
+    query += device_authentication_query_string;
+
+    if (!query.empty()) {
+      GURL::Replacements replacements;
+      replacements.SetQueryStr(query);
+      initial_url = initial_url.ReplaceComponents(replacements);
+    }
+  }
+
+  return initial_url;
+}
 
 std::string GetDeviceAuthenticationSignedURLQueryString() {
   std::string cert_scope = GetCertScopeFromPlatform();
@@ -180,5 +207,4 @@ void ComputeHMACSHA256SignatureWithProvidedKey(const std::string& message,
   }
 }
 
-}  // namespace browser
-}  // namespace cobalt
+}  // namespace content
