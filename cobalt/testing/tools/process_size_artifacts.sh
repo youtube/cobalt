@@ -2,6 +2,11 @@
 
 set -x
 
+echo "home dir structure"
+ls -d */*/*/*/
+
+echo "artifact dir structure"
+ls -d "$artifact_dir"/*/*/*/
 for artifact_dir in size_artifacts/size_artifacts_*; do
   if [[ -d "$artifact_dir" ]]; then
     # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
