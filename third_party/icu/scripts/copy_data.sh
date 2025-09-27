@@ -125,4 +125,8 @@ case "$1" in
     copy_data Flutter_Desktop $1
     backup_outdir $1
     ;;
+  "cobalt")
+    copy_data Cobalt $1
+    backup_outdir $1
+    ;;
 esac
