@@ -1,5 +1,109 @@
 [
   {
+    "hexsha": "8331b560d793df4c6d071666716beb6ca8d01dc9",
+    "original_hexsha": "388ac447de7f29f2834660b224c18af855cb3655",
+    "author": "Sherry Zhou",
+    "datetime": "2025-09-26T18:01:10-07:00",
+    "summary": "BACKPORT: Don't set dirty bits for attribs that are out of range. (#7360)",
+    "stats": {
+      "files": 10,
+      "insertions": 51,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "71b7355e8e1e76f132d001cd4f1a8fd9311441f3",
+    "original_hexsha": "047a772d9bff63aecb55b434c90cf0d57d29bf03",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-26T15:29:31-07:00",
+    "summary": "Cleanup nplb hack (#7327)",
+    "stats": {
+      "files": 4,
+      "insertions": 6,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c1437c832c320bb58b7e0f876e892627c17f0fe1",
+    "original_hexsha": "6a2df0d123c68a3a29555dedf25fdbc5d161b3c9",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-26T14:49:38-04:00",
+    "summary": "Add strip tool to all Evergreen toolchains (#7348)",
+    "stats": {
+      "files": 3,
+      "insertions": 39,
+      "deletions": 12
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "64cf09a4f9484e92c8bb044a60f9f1ff8455bff7",
+    "original_hexsha": "840bf01909f0598486fd2f281864910fce719874",
+    "author": "Colin Liang",
+    "datetime": "2025-09-26T11:35:36-07:00",
+    "summary": "Fix security issue for gemini-commit-message (#7344)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c2930ff9fd880580ac83c7e72974666cba5523f8",
+    "original_hexsha": "c2c756272518a8b861eb746bda5622152d8bb347",
+    "author": "Raphael Kubo da Costa",
+    "datetime": "2025-09-26T18:39:29+02:00",
+    "summary": "h5vcc_metrics: Remove unused Starboard includes and GN dependency (#7293)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f2fff3c315409e89b53de40c3998c03709a715a2",
+    "original_hexsha": "8785aa7d76c117d290b510bfcf7c300196e85b08",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-26T09:23:52-07:00",
+    "summary": "starboard: Remove not-used StarboardBridge::OnStop method  (#7309)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c1348faa9766e651e50562e529223d97a20a9be0",
+    "original_hexsha": "3fdd7b961835996c0eccf208cb8e6d4bbb11aa3d",
+    "author": "Andrew Savage",
+    "datetime": "2025-09-26T11:09:48-04:00",
+    "summary": "Copy certs to Evergreen content directory (#7333)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "9a3d20c92f60ec2b3da2d0796379d10325934863",
+    "original_hexsha": "ce5a3a415f088eae70d73b02e7f4e9882465f340",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-26T07:42:44-07:00",
+    "summary": "starboard: Add missing license header to scoped_timer.h (#7336)",
+    "stats": {
+      "files": 1,
+      "insertions": 14,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "d163dc4a524c0cf2b2fff28f6d3c2ce69ced98b1",
     "original_hexsha": "56923f965b58ea8348c6e881dd751f6f5eabec6a",
     "author": "Yavor Goulishev",
