@@ -144,9 +144,9 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetDict(
       kSafeConfigFeatureParams,
       experiment_config_->GetDict(kExperimentConfigFeatureParams).Clone());
-  experiment_config_->SetList(
-      kSafeConfigExpIds,
-      experiment_config_->GetList(kExperimentConfigExpIds).Clone());
+  experiment_config_->SetString(
+      kSafeConfigActiveConfigData,
+      experiment_config_->GetString(kExperimentConfigActiveConfigData));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }

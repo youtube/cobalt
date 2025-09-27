@@ -14,13 +14,21 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 
 namespace blink {
 
 std::optional<base::Value::Dict> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
   base::Value::Dict experiment_config_dict;
+
+  // Reject experiment config if any of the requried field is missing.
+  if (!experiment_configuration->hasActiveExperimentConfigData() ||
+      !experiment_configuration->hasLatestExperimentConfigHashData() ||
+      !experiment_configuration->hasFeatures() ||
+      !experiment_configuration->hasFeatureParams()) {
+    return std::nullopt;
+  }
 
   if (experiment_configuration->hasActiveExperimentConfigData()) {
     experiment_config_dict.Set(
@@ -30,7 +38,7 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
 
   if (experiment_configuration->hasLatestExperimentConfigHashData()) {
     experiment_config_dict.Set(
-        cobalt::kExperimentConfigLatestConfigHash,
+        cobalt::kLatestConfigHash,
         experiment_configuration->latestExperimentConfigHashData().Utf8());
   }
 
@@ -40,9 +48,9 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
       features.Set(feature_name_and_value.first.Utf8(),
                    feature_name_and_value.second);
     }
+    experiment_config_dict.Set(cobalt::kExperimentConfigFeatures,
+                               std::move(features));
   }
-  experiment_config_dict.Set(cobalt::kExperimentConfigFeatures,
-                             std::move(features));
 
   // All FieldTrialParams are stored as strings, including booleans.
   base::Value::Dict feature_params;
@@ -54,6 +62,9 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
         param_value = param_name_and_value.second->GetAsString().Utf8();
       } else if (param_name_and_value.second->IsLong()) {
         param_value = std::to_string(param_name_and_value.second->GetAsLong());
+      } else if (param_name_and_value.second->IsDouble()) {
+        param_value =
+            std::to_string(param_name_and_value.second->GetAsDouble());
       } else if (param_name_and_value.second->GetAsBoolean()) {
         param_value = "true";
       } else if (!param_name_and_value.second->GetAsBoolean()) {
@@ -63,19 +74,39 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
       }
       feature_params.Set(param_name_and_value.first.Utf8(), param_value);
     }
+    experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
+                               std::move(feature_params));
   }
-  experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
-                             std::move(feature_params));
 
-  base::Value::List experiment_ids;
-  if (experiment_configuration->hasExperimentIds()) {
-    for (int exp_id : experiment_configuration->experimentIds()) {
-      experiment_ids.Append(exp_id);
+  return experiment_config_dict;
+}
+
+std::optional<base::Value::Dict> ParseSettingsToDictionary(
+    const HeapVector<
+        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        settings) {
+  base::Value::Dict settings_dict;
+
+  for (auto& setting_name_and_value : settings) {
+    std::string setting_name = setting_name_and_value.first.Utf8();
+    if (setting_name_and_value.second->IsString()) {
+      std::string param_value =
+          setting_name_and_value.second->GetAsString().Utf8();
+      settings_dict.Set(setting_name, param_value);
+    } else if (setting_name_and_value.second->IsLong()) {
+      int param_value = setting_name_and_value.second->GetAsLong();
+      settings_dict.Set(setting_name, param_value);
+    } else if (setting_name_and_value.second->IsDouble()) {
+      double param_value = setting_name_and_value.second->GetAsDouble();
+      settings_dict.Set(setting_name, param_value);
+    } else if (setting_name_and_value.second->IsBoolean()) {
+      bool param_value = setting_name_and_value.second->GetAsBoolean();
+      settings_dict.Set(setting_name, param_value);
+    } else {
+      return std::nullopt;
     }
   }
-  experiment_config_dict.Set(cobalt::kExperimentConfigExpIds,
-                             std::move(experiment_ids));
-  return experiment_config_dict;
+  return settings_dict;
 }
 
 }  // namespace blink
