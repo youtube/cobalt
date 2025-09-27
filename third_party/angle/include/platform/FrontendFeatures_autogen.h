@@ -116,6 +116,13 @@ struct FrontendFeatures : FeatureSetBase
     FeatureInfo disableProgramCaching = {"disableProgramCaching", FeatureCategory::FrontendFeatures,
                                          "Disables saving programs to the cache", &members,
                                          "http://anglebug.com/1423136"};
+
+    FeatureInfo forceMinimumMaxVertexAttributes = {
+        "forceMinimumMaxVertexAttributes",
+        FeatureCategory::FrontendFeatures,
+        "Force the minimum GL_MAX_VERTEX_ATTRIBS that the context's client version allows.",
+        &members, ""
+    };
 };
 
 inline FrontendFeatures::FrontendFeatures()  = default;
