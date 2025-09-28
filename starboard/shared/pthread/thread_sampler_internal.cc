@@ -96,7 +96,7 @@ sem_t SignalHandler::thaw_semaphore_;
 
 SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
   std::lock_guard lock(GetMutex());
-  SB_DCHECK(frozen_sampler_ != sampler) << "SbThreadSampler frozen twice.";
+  SB_DCHECK_NE(frozen_sampler_, sampler) << "SbThreadSampler frozen twice.";
   if (!signal_handler_installed_ || SbThreadSamplerIsValid(frozen_sampler_)) {
     return kSbThreadContextInvalid;
   }

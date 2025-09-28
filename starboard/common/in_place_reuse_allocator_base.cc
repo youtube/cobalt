@@ -181,7 +181,7 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
   }
 
   SB_DCHECK_EQ(
-      reinterpret_cast<intptr_t>(allocated_block.address()) % alignment, 0);
+      reinterpret_cast<intptr_t>(allocated_block.address()) % alignment, 0U);
   SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
   void* user_address =

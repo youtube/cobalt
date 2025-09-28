@@ -73,7 +73,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
     wait_event.Wait(lock);
   }
 
-  SB_DCHECK(thread_ != 0);
+  SB_DCHECK_NE(thread_, 0);
   SB_DCHECK(job_queue_);
 
   auto iter = active_clients_.find(client);

@@ -16,6 +16,7 @@
 
 #include <iomanip>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -117,7 +118,7 @@ Application::Application() {
   // First, query how many configs match the given attribute list.
   SbEglInt32 num_configs = 0;
   EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
-  SB_CHECK(0 != num_configs);
+  SB_CHECK_NE(num_configs, 0);
 
   // Allocate space to receive the matching configs and retrieve them.
   SbEglConfig* configs =
@@ -139,7 +140,7 @@ Application::Application() {
       break;
     }
   }
-  SB_DCHECK(surface_ != SB_EGL_NO_SURFACE);
+  SB_DCHECK_NE(surface_, SB_EGL_NO_SURFACE);
 
   free(configs);
 
