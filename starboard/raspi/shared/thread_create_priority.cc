@@ -47,7 +47,6 @@ void SetIdleScheduler() {
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_IDLE, &thread_sched_param);
   SB_CHECK_EQ(result, 0) << kSchedulerErrorMessage;
-  ;
 }
 
 void SetOtherScheduler() {
@@ -55,7 +54,6 @@ void SetOtherScheduler() {
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_OTHER, &thread_sched_param);
   SB_CHECK_EQ(result, 0) << kSchedulerErrorMessage;
-  ;
 }
 
 // Here |priority| is a number >= 0, where the higher the number, the
@@ -97,7 +95,6 @@ void SetRoundRobinScheduler(int priority) {
       min_priority + priority, static_cast<int>(rlimit_rtprio.rlim_cur));
   int result = sched_setscheduler(0, SCHED_RR, &thread_sched_param);
   SB_CHECK_EQ(result, 0) << kSchedulerErrorMessage;
-  ;
 }
 
 }  // namespace
