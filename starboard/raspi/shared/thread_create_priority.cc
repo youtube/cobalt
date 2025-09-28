@@ -17,6 +17,7 @@
 #include <sched.h>
 #include <sys/resource.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 

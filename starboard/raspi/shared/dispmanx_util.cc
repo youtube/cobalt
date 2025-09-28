@@ -66,9 +66,9 @@ DispmanxResource::DispmanxResource(VC_IMAGE_TYPE_T image_type,
 
   SB_DCHECK_GT(width_, 0);
   SB_DCHECK_LT(width_, kMaxDimension);
-  SB_DCHECK_GT(height_, 0)
+  SB_DCHECK_GT(height_, 0);
   SB_DCHECK_LT(height_, kMaxDimension);
-  SB_DCHECK_GT(visible_width_, 0)
+  SB_DCHECK_GT(visible_width_, 0);
   SB_DCHECK_LT(visible_width_, kMaxDimension);
   SB_DCHECK_GT(visible_height, 0);
   SB_DCHECK_LT(visible_height, kMaxDimension);
