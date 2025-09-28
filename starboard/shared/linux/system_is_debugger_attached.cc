@@ -19,8 +19,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-
 #include "starboard/shared/posix/file_internal.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
@@ -45,7 +45,7 @@ bool SbSystemIsDebuggerAttached() {
   char buf[1024];
 
   ssize_t num_read = HANDLE_EINTR(read(status_fd, buf, sizeof(buf) - 1));
-  SB_DCHECK(num_read < static_cast<ssize_t>(sizeof(buf)));
+  SB_DCHECK_LT(num_read, static_cast<ssize_t>(sizeof(buf)));
   if (HANDLE_EINTR(close(status_fd)) < 0) {
     return false;
   }

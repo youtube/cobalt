@@ -234,9 +234,9 @@ void AomVideoDecoder::DecodeOneBuffer(
     return;
   }
 
-  SB_DCHECK(aom_image->stride[AOM_PLANE_U] == aom_image->stride[AOM_PLANE_V]);
-  SB_DCHECK(aom_image->planes[AOM_PLANE_Y] < aom_image->planes[AOM_PLANE_U]);
-  SB_DCHECK(aom_image->planes[AOM_PLANE_U] < aom_image->planes[AOM_PLANE_V]);
+  SB_DCHECK_EQ(aom_image->stride[AOM_PLANE_U], aom_image->stride[AOM_PLANE_V]);
+  SB_DCHECK_LT(aom_image->planes[AOM_PLANE_Y], aom_image->planes[AOM_PLANE_U]);
+  SB_DCHECK_LT(aom_image->planes[AOM_PLANE_U], aom_image->planes[AOM_PLANE_V]);
 
   if (aom_image->stride[AOM_PLANE_U] != aom_image->stride[AOM_PLANE_V] ||
       aom_image->planes[AOM_PLANE_Y] >= aom_image->planes[AOM_PLANE_U] ||

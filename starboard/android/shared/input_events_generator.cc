@@ -109,7 +109,7 @@ float GetFlat(jobject input_device, int axis) {
   float flat =
       JniCallFloatMethodOrAbort(env, motion_range.Get(), "getFlat", "()F");
 
-  SB_DCHECK(flat < 1.0f);
+  SB_DCHECK_LT(flat, 1.0f);
   return flat;
 }
 
