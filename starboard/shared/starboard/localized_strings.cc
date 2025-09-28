@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
@@ -131,8 +132,8 @@ bool LocalizedStrings::LoadStrings(const std::string& language) {
     SB_DLOG(ERROR) << "Error reading i18n file.";
     return false;
   }
-  SB_DCHECK(file_contents.length() > 0);
-  SB_DCHECK(file_contents[file_contents.length() - 1] == '\n');
+  SB_DCHECK_GT(file_contents.length(), 0);
+  SB_DCHECK_EQ(file_contents[file_contents.length() - 1], '\n');
 
   // Each line of the file corresponds to one message (key/value).
   size_t pos = 0;

@@ -342,7 +342,7 @@ void FakeGraphicsContextProvider::MakeContextCurrent() {
   SB_CHECK_NE(EGL_NO_DISPLAY, display_);
   EGL_CALL_SIMPLE(eglMakeCurrent(display_, surface_, surface_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK_EQ(error, EGL_SUCCESS);
 }
 
 void FakeGraphicsContextProvider::MakeNoContextCurrent() {
@@ -359,7 +359,7 @@ void FakeGraphicsContextProvider::DestroyContext() {
   MakeNoContextCurrent();
   EGL_CALL_SIMPLE(eglDestroyContext(display_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK_EQ(error, EGL_SUCCESS);
 }
 
 // static

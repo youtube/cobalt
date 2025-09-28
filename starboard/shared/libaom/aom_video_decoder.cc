@@ -14,6 +14,7 @@
 
 #include "starboard/shared/libaom/aom_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
@@ -33,7 +34,7 @@ AomVideoDecoder::AomVideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecAv1);
   SB_DCHECK(is_aom_supported());
 }
 
@@ -56,7 +57,7 @@ void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
 void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
 
@@ -272,7 +273,7 @@ void AomVideoDecoder::DecodeEndOfStream() {
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget AomVideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.

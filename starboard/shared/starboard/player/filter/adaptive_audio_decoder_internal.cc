@@ -278,8 +278,8 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     return;
   }
 
-  SB_DCHECK(input_audio_stream_info_.number_of_channels ==
-            decoded_audio->channels());
+  SB_DCHECK_EQ(input_audio_stream_info_.number_of_channels,
+               decoded_audio->channels());
   if (!output_format_checked_) {
     SB_DCHECK(!resampler_);
     SB_DCHECK(!channel_mixer_);

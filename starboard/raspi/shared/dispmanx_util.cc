@@ -40,7 +40,7 @@ class DispmanxAutoUpdate {
   void Update() {
     SB_DCHECK_NE(handle_, DISPMANX_NO_HANDLE);
     int32_t result = vc_dispmanx_update_submit_sync(handle_);
-    SB_DCHECK(result == 0) << " result=" << result;
+    SB_DCHECK_EQ(result, 0);
     handle_ = DISPMANX_NO_HANDLE;
   }
 
@@ -131,7 +131,7 @@ DispmanxElement::DispmanxElement(const DispmanxDisplay& display,
 DispmanxElement::~DispmanxElement() {
   DispmanxAutoUpdate update;
   int32_t result = vc_dispmanx_element_remove(update.handle(), handle_);
-  SB_DCHECK(result == 0) << " result=" << result;
+  SB_DCHECK_EQ(result, 0);
 }
 
 void DispmanxElement::ChangeSource(const DispmanxResource& new_src) {

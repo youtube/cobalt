@@ -227,8 +227,8 @@ bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
       instances.push_back(instance);
     }
 
-    SB_DCHECK(instances.size() ==
-              static_cast<unsigned long>(configs_to_create[i]));
+    SB_DCHECK_EQ(instances.size(),
+                 static_cast<unsigned long>(configs_to_create[i]));
   }
   return true;
 }

@@ -20,6 +20,7 @@
 
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
 #include "starboard/thread.h"
@@ -108,7 +109,7 @@ SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
 
 bool SignalHandler::Thaw(SbThreadSampler sampler) {
   std::lock_guard lock(GetMutex());
-  SB_DCHECK(frozen_sampler_ == sampler) << "SbThreadSampler didn't freeze.";
+  SB_DCHECK_EQ(frozen_sampler_, sampler) << "SbThreadSampler didn't freeze.";
   if (frozen_sampler_ != sampler) {
     return false;
   }

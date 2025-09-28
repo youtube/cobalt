@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -191,7 +192,7 @@ void EnsureWidevineCdmIsInitialized(const std::string& company_name,
   wv3cdm::Status status =
       wv3cdm::initialize(wv3cdm::kNoSecureOutput, client_info, storage,
                          &s_clock, &s_timer, log_level);
-  SB_DCHECK(status == wv3cdm::kSuccess);
+  SB_DCHECK_EQ(status, wv3cdm::kSuccess);
   s_initialized = true;
 }
 
@@ -272,7 +273,7 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
   if (!mime_type.is_valid()) {
     return false;
   }
-  SB_DCHECK(mime_type.type() == "key_system");
+  SB_DCHECK_EQ(mime_type.type(), "key_system");
 
   for (auto wv_key_system : kWidevineKeySystems) {
     if (mime_type.subtype() == wv_key_system) {
@@ -420,7 +421,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   }
 
   // Adapt |buffer| and |drm_info| to a |cdm::InputBuffer|.
-  SB_DCHECK(drm_info->initialization_vector_size == kInitializationVectorSize);
+  SB_DCHECK_EQ(drm_info->initialization_vector_size, kInitializationVectorSize);
   std::vector<uint8_t> initialization_vector(
       drm_info->initialization_vector,
       drm_info->initialization_vector + drm_info->initialization_vector_size);
@@ -482,7 +483,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
       if (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
         input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCbc;
       } else {
-        SB_DCHECK(drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCtr);
+        SB_DCHECK_EQ(drm_info->encryption_scheme, kSbDrmEncryptionSchemeAesCtr);
       }
       input.data_length = subsample.encrypted_byte_count;
 
@@ -678,7 +679,7 @@ void DrmSystemWidevine::onDirectIndividualizationRequest(
 
 void DrmSystemWidevine::SetTicket(const std::string& sb_drm_session_id,
                                   int ticket) {
-  SB_DCHECK(SbThreadGetId() == ticket_thread_id_)
+  SB_DCHECK_EQ(SbThreadGetId(), ticket_thread_id_)
       << "Ticket should only be set from the constructor thread.";
   sb_drm_session_id_to_ticket_map_[sb_drm_session_id] = ticket;
 }

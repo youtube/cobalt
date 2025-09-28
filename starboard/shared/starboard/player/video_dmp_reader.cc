@@ -268,8 +268,8 @@ bool VideoDmpReader::ParseOneRecord() {
       if (dmp_info_.audio_codec != kSbMediaAudioCodecNone) {
         Read(read_cb_, reverse_byte_order_.value(),
              &dmp_info_.audio_sample_info);
-        SB_DCHECK(dmp_info_.audio_codec ==
-                  dmp_info_.audio_sample_info.stream_info.codec);
+        SB_DCHECK_EQ(dmp_info_.audio_codec,
+                     dmp_info_.audio_sample_info.stream_info.codec);
       }
       break;
     case kRecordTypeVideoConfig:
