@@ -72,10 +72,10 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
   for (size_t i = 0; i < number_of_params; i++) {
     SbFeatureParam param = params[i];
 
-    SB_CHECK_GT(strlen(param.feature_name), 0)
+    SB_CHECK_GT(strlen(param.feature_name), 0U)
         << "A parameter cannot belong to a feature whose name is an empty "
            "string.";
-    SB_CHECK_GT(strlen(param.param_name), 0)
+    SB_CHECK_GT(strlen(param.param_name), 0U)
         << "Parameters are not allowed to have empty strings as names.";
     ParamValue value;
     switch (param.type) {
