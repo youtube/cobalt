@@ -212,7 +212,7 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   const auto kAvccLengthInBytes = kAnnexBHeaderSizeInBytes;
 
   while (AdvanceToNextAnnexBHeader(&annex_b_source, &annex_b_source_size)) {
-    SB_DCHECK_GE(static_cast<size_t>(annex_b_source - last_source)
+    SB_DCHECK_GE(static_cast<size_t>(annex_b_source - last_source),
                      kAnnexBHeaderSizeInBytes);
     SB_DCHECK_LT(avcc_destination, avcc_destination_end);
 
