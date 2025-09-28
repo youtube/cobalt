@@ -213,7 +213,7 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
 
   while (AdvanceToNextAnnexBHeader(&annex_b_source, &annex_b_source_size)) {
     SB_DCHECK_GE(static_cast<size_t>(annex_b_source - last_source),
-                     kAnnexBHeaderSizeInBytes);
+                 kAnnexBHeaderSizeInBytes);
     SB_DCHECK_LT(avcc_destination, avcc_destination_end);
 
     size_t payload_size =
