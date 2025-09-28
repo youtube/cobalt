@@ -41,7 +41,7 @@ std::string GetFilenameForLanguage(const std::string& language) {
 }
 
 bool ReadFile(const std::string& filename, std::string* out_result) {
-  SB_DCHECK_GT(filename.length(), 0);
+  SB_DCHECK_GT(filename.length(), 0U);
   SB_DCHECK(out_result);
 
   ScopedFile file(filename.c_str(), O_RDONLY);
