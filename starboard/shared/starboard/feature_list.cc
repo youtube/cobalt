@@ -61,7 +61,7 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
     const SbFeature& feature = features[i];
     auto& feature_map = instance->features_;
 
-    SB_CHECK_GT(strlen(feature.name), 0)
+    SB_CHECK_GT(strlen(feature.name), 0U)
         << "Features are not allowed to have empty strings as names.";
     SB_CHECK((feature_map.find(feature.name)) == (feature_map.end()))
         << "Duplicate Features are not allowed.";
@@ -72,10 +72,10 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
   for (size_t i = 0; i < number_of_params; i++) {
     SbFeatureParam param = params[i];
 
-    SB_CHECK(strlen(param.feature_name) > 0)
+    SB_CHECK_GT(strlen(param.feature_name), 0)
         << "A parameter cannot belong to a feature whose name is an empty "
            "string.";
-    SB_CHECK(strlen(param.param_name) > 0)
+    SB_CHECK_GT(strlen(param.param_name), 0)
         << "Parameters are not allowed to have empty strings as names.";
     ParamValue value;
     switch (param.type) {

@@ -39,7 +39,7 @@ class AudioDecoderHelper {
         number_of_inputs_(std::min(dmp_reader_.number_of_audio_buffers(),
                                    kMaxNumberOfInputs)) {
     const bool kUseStubDecoder = false;
-    SB_CHECK(number_of_inputs_ > 0);
+    SB_CHECK_GT(number_of_inputs_, 0);
     SB_CHECK(CreateAudioComponents(kUseStubDecoder,
                                    dmp_reader_.audio_stream_info(),
                                    &audio_decoder_, &audio_renderer_sink_));

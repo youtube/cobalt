@@ -242,7 +242,8 @@ MaximumPlayerConfigurationExplorer::CreatePlayerInstance(
   const char* video_filename = config.video_filename;
   SbPlayerOutputMode output_mode = config.output_mode;
   const char* key_system = config.key_system;
-  SB_DCHECK(video_filename && strlen(video_filename) > 0);
+  SB_DCHECK(video_filename);
+  SB_DCHECK_GT(strlen(video_filename), 0);
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture ||
             output_mode == kSbPlayerOutputModePunchOut);
   SB_DCHECK(key_system);

@@ -148,8 +148,8 @@ Application::Application() {
       eglQuerySurface(display_, surface_, SB_EGL_WIDTH, &egl_surface_width_));
   EGL_CALL(
       eglQuerySurface(display_, surface_, SB_EGL_HEIGHT, &egl_surface_height_));
-  SB_DCHECK(egl_surface_width_ > 0);
-  SB_DCHECK(egl_surface_height_ > 0);
+  SB_DCHECK_GT(egl_surface_width_, 0);
+  SB_DCHECK_GT(egl_surface_height_, 0);
 
   // Create the GLES2 or GLEX3 Context.
   context_ = SB_EGL_NO_CONTEXT;
