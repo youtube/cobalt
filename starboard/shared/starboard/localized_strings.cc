@@ -132,7 +132,7 @@ bool LocalizedStrings::LoadStrings(const std::string& language) {
     SB_DLOG(ERROR) << "Error reading i18n file.";
     return false;
   }
-  SB_DCHECK_GT(file_contents.length(), 0);
+  SB_DCHECK_GT(file_contents.length(), 0U);
   SB_DCHECK_EQ(file_contents[file_contents.length() - 1], '\n');
 
   // Each line of the file corresponds to one message (key/value).
