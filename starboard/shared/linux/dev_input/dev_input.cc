@@ -859,8 +859,7 @@ bool PollInputEvent(InputDeviceInfo* device_info,
       return false;
     }
 
-    SB_DCHECK(bytes_read <= remaining)
-        << "bytes_read=" << bytes_read << ", remaining=" << remaining;
+    SB_DCHECK_LE(bytes_read, remaining);
     remaining -= bytes_read;
     buffer += bytes_read;
   }

@@ -332,7 +332,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
         start_time_ + GetFramesDurationUs(accumulated_written_frames);
-    SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
+    SB_DCHECK_LE(start_position + expected_written_frames, frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
         << ", frames_per_channel_: " << frames_per_channel_
