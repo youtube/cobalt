@@ -131,7 +131,6 @@ FrameSize::FrameSize(Size texture_size,
     SB_CHECK_GE(this->crop_top, 0);
     SB_CHECK_GE(this->crop_right, 0);
     SB_CHECK_GE(this->crop_bottom, 0);
-    SB_CHECK(has_crop_values());
     const Size size = display_size();
     SB_CHECK_GE(size.width, 0);
     SB_CHECK_GE(size.height, 0);
