@@ -170,17 +170,16 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
     return media::DecoderBuffer::CreateEOSBuffer();
   }
 
+  const auto& mojo_buffer = input->get_data();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Reuse the existing DecoderBuffer to avoid allocating
   // a new DecoderBuffer. Note that DecoderBuffer is released
   // here as its ref-count was increased manually to ensure
   // media thread won't release it before MojoRenderer has it.
-  const auto& mojo_data_buffer = input->get_data();
   scoped_refptr<media::DecoderBuffer> buffer(
-      reinterpret_cast<media::DecoderBuffer*>(mojo_data_buffer->address));
+      reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->address));
   buffer->Release();
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
-  const auto& mojo_buffer = input->get_data();
   auto buffer = base::MakeRefCounted<media::DecoderBuffer>(
       base::strict_cast<size_t>(mojo_buffer->data_size));
 
