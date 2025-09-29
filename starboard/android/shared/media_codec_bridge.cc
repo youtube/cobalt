@@ -435,28 +435,22 @@ void MediaCodecBridge::Stop() {
 
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_get_output_format_result(
+  ScopedJavaLocalRef<jobject> result(
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
-  if (!j_get_output_format_result) {
+  if (!result) {
     return std::nullopt;
   }
 
-  jint textureWidth =
-      Java_GetOutputFormatResult_textureWidth(env, j_get_output_format_result);
-  jint textureHeight =
-      Java_GetOutputFormatResult_textureHeight(env, j_get_output_format_result);
-  jint cropLeft =
-      Java_GetOutputFormatResult_cropLeft(env, j_get_output_format_result);
-  jint cropTop =
-      Java_GetOutputFormatResult_cropTop(env, j_get_output_format_result);
-  jint cropRight =
-      Java_GetOutputFormatResult_cropRight(env, j_get_output_format_result);
-  jint cropBottom =
-      Java_GetOutputFormatResult_cropBottom(env, j_get_output_format_result);
-
   FrameSize size = {
-      {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
-
+      {
+          Java_GetOutputFormatResult_textureWidth(env, result),
+          Java_GetOutputFormatResult_textureHeight(env, result),
+      },
+      Java_GetOutputFormatResult_cropLeft(env, result),
+      Java_GetOutputFormatResult_cropTop(env, result),
+      Java_GetOutputFormatResult_cropRight(env, result),
+      Java_GetOutputFormatResult_cropBottom(env, result),
+  };
   size.DCheckValid();
   return size;
 }
@@ -464,16 +458,16 @@ std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
 std::optional<AudioOutputFormatResult>
 MediaCodecBridge::GetAudioOutputFormat() {
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_get_output_format_result(
+  ScopedJavaLocalRef<jobject> result(
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
 
-  if (!j_get_output_format_result) {
+  if (!result) {
     return std::nullopt;
   };
 
   return AudioOutputFormatResult{
-      Java_GetOutputFormatResult_sampleRate(env, j_get_output_format_result),
-      Java_GetOutputFormatResult_channelCount(env, j_get_output_format_result),
+      Java_GetOutputFormatResult_sampleRate(env, result),
+      Java_GetOutputFormatResult_channelCount(env, result),
   };
 }
 
