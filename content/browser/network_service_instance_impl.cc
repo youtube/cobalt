@@ -335,6 +335,7 @@ void CreateInProcessNetworkService(
                                 std::move(receiver)));
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
 // Runs a self-owned SystemDnsResolverMojoImpl. This is meant to run on a
 // high-priority thread pool.
@@ -345,6 +346,7 @@ void RunSystemDnsResolverOnThreadPool(
       std::move(dns_receiver));
 }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif //!BUILDFLAG(IS_STARBOARD)
 
 network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   network::mojom::NetworkServiceParamsPtr network_service_params =
