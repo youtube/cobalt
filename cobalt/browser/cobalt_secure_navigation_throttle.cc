@@ -94,8 +94,7 @@ CobaltSecureNavigationThrottle::EnforceCSPHeaders() {
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
   }
 
-  if (std::optional<std::string> CSP_value = 
-        response_headers->GetNormalizedHeader("Content-Security-Policy")) {
+  if (response_headers->GetNormalizedHeader("Content-Security-Policy")) {
     return content::NavigationThrottle::PROCEED;
   }
 
