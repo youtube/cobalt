@@ -119,26 +119,29 @@ class MediaCapabilitiesCache {
  public:
   static MediaCapabilitiesCache* GetInstance();
 
-  bool IsWidevineSupported();
-  bool IsCbcsSchemeSupported();
+  static void SetInstanceForTesting(MediaCapabilitiesCache* instance);
 
-  bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
+  virtual bool IsWidevineSupported();
+  virtual bool IsCbcsSchemeSupported();
 
-  bool IsPassthroughSupported(SbMediaAudioCodec codec);
+  virtual bool IsHDRTransferCharacteristicsSupported(
+      SbMediaTransferId transfer_id);
 
-  bool GetAudioConfiguration(int index,
-                             SbMediaAudioConfiguration* configuration);
+  virtual bool IsPassthroughSupported(SbMediaAudioCodec codec);
 
-  bool HasAudioDecoderFor(const std::string& mime_type, int bitrate);
+  virtual bool GetAudioConfiguration(int index,
+                                     SbMediaAudioConfiguration* configuration);
 
-  bool HasVideoDecoderFor(const std::string& mime_type,
-                          bool must_support_secure,
-                          bool must_support_hdr,
-                          bool must_support_tunnel_mode,
-                          int frame_width,
-                          int frame_height,
-                          int bitrate,
-                          int fps);
+  virtual bool HasAudioDecoderFor(const std::string& mime_type, int bitrate);
+
+  virtual bool HasVideoDecoderFor(const std::string& mime_type,
+                                  bool must_support_secure,
+                                  bool must_support_hdr,
+                                  bool must_support_tunnel_mode,
+                                  int frame_width,
+                                  int frame_height,
+                                  int bitrate,
+                                  int fps);
 
   std::string FindAudioDecoder(const std::string& mime_type, int bitrate);
 
@@ -156,16 +159,19 @@ class MediaCapabilitiesCache {
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void ClearCache() { capabilities_is_dirty_ = true; }
 
- private:
+ protected:
   MediaCapabilitiesCache();
-  ~MediaCapabilitiesCache() {}
+  virtual ~MediaCapabilitiesCache() {}
 
+ private:
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
 
   void UpdateMediaCapabilities_Locked();
   void LoadAudioConfigurations_Locked();
   void LoadCodecInfos_Locked();
+
+  static void InitializeInstance();
 
   std::mutex mutex_;
 
