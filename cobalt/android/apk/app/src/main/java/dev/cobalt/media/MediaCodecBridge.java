@@ -128,7 +128,7 @@ class MediaCodecBridge {
   private FrameRateEstimator mFrameRateEstimator = null;
 
   /** A wrapper around a MediaFormat. */
-  private class GetOutputFormatResult {
+  private static class GetOutputFormatResult {
     @NonNull private final MediaFormat mFormat;
     private final Boolean mHasCropValues;
 
