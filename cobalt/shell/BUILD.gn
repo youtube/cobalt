@@ -323,6 +323,13 @@ static_library("cobalt_shell_lib") {
       "browser/shell_platform_data_aura.h",
     ]
   }
+
+  if (is_starboard) {
+    sources += [
+      "common/device_authentication.cc",
+      "common/device_authentication.h",
+    ]
+  }
 }
 
 # This component provides a ContentMainDelegate for Content Shell and derived
