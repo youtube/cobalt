@@ -70,10 +70,17 @@ struct FrameSize {
   Size texture_size;
 
   // Crop values can be set to -1 when they are not provided by the platform
-  jint crop_left = -1;
-  jint crop_top = -1;
-  jint crop_right = -1;
-  jint crop_bottom = -1;
+  int crop_left = -1;
+  int crop_top = -1;
+  int crop_right = -1;
+  int crop_bottom = -1;
+
+  FrameSize();
+  FrameSize(Size texture_size,
+            int crop_left,
+            int crop_top,
+            int crop_right,
+            int crop_bottom);
 
   bool has_crop_values() const {
     return crop_left >= 0 && crop_top >= 0 && crop_right >= 0 &&
@@ -86,24 +93,6 @@ struct FrameSize {
     }
 
     return texture_size;
-  }
-
-  void DCheckValid() const {
-    SB_DCHECK_GE(texture_size.width, 0);
-    SB_DCHECK_GE(texture_size.height, 0);
-
-    if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 ||
-        crop_bottom >= 0) {
-      // If there is at least one crop value set, all of them should be set.
-      SB_DCHECK_GE(crop_left, 0);
-      SB_DCHECK_GE(crop_top, 0);
-      SB_DCHECK_GE(crop_right, 0);
-      SB_DCHECK_GE(crop_bottom, 0);
-      SB_DCHECK(has_crop_values());
-      [[maybe_unused]] const Size size = display_size();
-      SB_DCHECK_GE(size.width, 0);
-      SB_DCHECK_GE(size.height, 0);
-    }
   }
 };
 
