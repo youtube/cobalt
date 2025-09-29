@@ -47,6 +47,7 @@
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+#include "components/embedder_support/switches.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
@@ -220,7 +221,7 @@ class ShellVariationsServiceClient
 std::string GetShellFullUserAgent() {
   std::string product = "Chrome/" CONTENT_SHELL_VERSION;
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kUseMobileUserAgent)) {
+  if (command_line->HasSwitch(embedder_support::kUseMobileUserAgent)) {
     product += " Mobile";
   }
   return embedder_support::BuildUserAgentFromProduct(product);
