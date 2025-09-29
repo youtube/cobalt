@@ -109,6 +109,35 @@ std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os;
 }
 
+FrameSize::FrameSize() : FrameSize({0, 0}, -1, -1, -1, -1) {}
+
+FrameSize::FrameSize(Size texture_size,
+                     int crop_left,
+                     int crop_top,
+                     int crop_right,
+                     int crop_bottom)
+    : texture_size(texture_size),
+      crop_left(crop_left),
+      crop_top(crop_top),
+      crop_right(crop_right),
+      crop_bottom(crop_bottom) {
+  SB_CHECK_GE(this->texture_size.width, 0);
+  SB_CHECK_GE(this->texture_size.height, 0);
+
+  if (this->crop_left >= 0 || this->crop_top >= 0 || this->crop_right >= 0 ||
+      this->crop_bottom >= 0) {
+    // If there is at least one crop value set, all of them should be set.
+    SB_CHECK_GE(this->crop_left, 0);
+    SB_CHECK_GE(this->crop_top, 0);
+    SB_CHECK_GE(this->crop_right, 0);
+    SB_CHECK_GE(this->crop_bottom, 0);
+    SB_CHECK(has_crop_values());
+    const Size size = display_size();
+    SB_CHECK_GE(size.width, 0);
+    SB_CHECK_GE(size.height, 0);
+  }
+}
+
 // static
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
@@ -441,7 +470,7 @@ std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
     return std::nullopt;
   }
 
-  FrameSize size = {
+  return FrameSize(
       {
           Java_GetOutputFormatResult_textureWidth(env, result),
           Java_GetOutputFormatResult_textureHeight(env, result),
@@ -449,10 +478,7 @@ std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
       Java_GetOutputFormatResult_cropLeft(env, result),
       Java_GetOutputFormatResult_cropTop(env, result),
       Java_GetOutputFormatResult_cropRight(env, result),
-      Java_GetOutputFormatResult_cropBottom(env, result),
-  };
-  size.DCheckValid();
-  return size;
+      Java_GetOutputFormatResult_cropBottom(env, result));
 }
 
 std::optional<AudioOutputFormatResult>
@@ -460,7 +486,6 @@ MediaCodecBridge::GetAudioOutputFormat() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result(
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
-
   if (!result) {
     return std::nullopt;
   };
