@@ -69,5 +69,27 @@ INSTANTIATE_TEST_SUITE_P(
       return "from_" + info.param.text + "_to_" +
              kSbLogPriorityToString.at(info.param.sb_log_priority);
     });
+
+TEST(LogTest, StreamOperator_OptionalValue) {
+  std::optional<int> present_value = 123;
+  std::stringstream ss_present;
+  ss_present << present_value;
+
+  EXPECT_EQ(ss_present.str(), "123");
+}
+
+TEST(LogTest, StreamOperator_OptionalEmpty) {
+  std::optional<int> absent_value;
+  std::stringstream ss_absent;
+  ss_absent << absent_value;
+
+  EXPECT_EQ(ss_absent.str(), "(nullopt)");
+}
+
+TEST(LogTest, ToString) {
+  EXPECT_EQ(to_string(true), "true");
+  EXPECT_EQ(to_string(false), "false");
+}
+
 }  // namespace
 }  // namespace starboard

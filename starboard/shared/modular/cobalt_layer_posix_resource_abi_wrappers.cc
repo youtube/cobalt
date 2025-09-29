@@ -22,6 +22,12 @@ int getpriority(int which, id_t who) {
   return __abi_wrap_getpriority(which, who);
 }
 
+int __abi_wrap_getrlimit(int resource, struct rlimit* rlp);
+
+int getrlimit(int resource, struct rlimit* rlp) {
+  return __abi_wrap_getrlimit(resource, rlp);
+}
+
 int __abi_wrap_setpriority(int which, id_t who, int prio);
 
 int setpriority(int which, id_t who, int prio) {

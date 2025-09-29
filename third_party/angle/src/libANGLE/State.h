@@ -768,7 +768,7 @@ class State : angle::NonCopyable
     {
         mDirtyBits.set();
         mExtendedDirtyBits.set();
-        mDirtyCurrentValues.set();
+        mDirtyCurrentValues = mAllAttribsMask;
     }
 
     using ExtendedDirtyBits = angle::BitSet32<EXTENDED_DIRTY_BIT_MAX>;
@@ -1119,6 +1119,9 @@ class State : angle::NonCopyable
     VertexAttribVector mVertexAttribCurrentValues;  // From glVertexAttrib
     VertexArray *mVertexArray;
     ComponentTypeMask mCurrentValuesTypeMask;
+
+    // Mask of all attributes that are available to this context: [0, maxVertexAttributes)
+    AttributesMask mAllAttribsMask;
 
     // Texture and sampler bindings
     GLint mActiveSampler;  // Active texture unit selector - GL_TEXTURE0

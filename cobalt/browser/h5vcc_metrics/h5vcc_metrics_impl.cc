@@ -20,12 +20,6 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "starboard/android/shared/starboard_bridge.h"
-
-using ::starboard::StarboardBridge;
-#endif
-
 namespace h5vcc_metrics {
 
 // TODO (b/395126160): refactor mojom implementation on Android

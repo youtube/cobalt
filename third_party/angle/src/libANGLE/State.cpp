@@ -494,6 +494,8 @@ void State::initialize(Context *context)
         SetComponentTypeMask(ComponentType::Float, i, &mCurrentValuesTypeMask);
     }
 
+    mAllAttribsMask = AttributesMask(angle::BitMask<uint32_t>(mCaps.maxVertexAttributes));
+
     mUniformBuffers.resize(mCaps.maxUniformBufferBindings);
 
     mSamplerTextures[TextureType::_2D].resize(mCaps.maxCombinedTextureImageUnits);

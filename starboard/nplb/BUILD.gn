@@ -187,6 +187,7 @@ test("nplb") {
       "posix_compliance/posix_readlink_test.cc",
       "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
+      "posix_compliance/posix_resource_limit_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -310,15 +311,6 @@ test("nplb") {
       "window_get_size_test.cc",
     ]
     sources += starboard_platform_sources
-    if (enable_cobalt_hermetic_hacks) {
-      sources -= [
-        # TODO: b/400512503 - Fix build errors.
-        "posix_compliance/posix_condition_variable_wait_test.cc",
-        "posix_compliance/posix_condition_variable_wait_timed_test.cc",
-        "thread_test.cc",
-        "vertical_video_test.cc",
-      ]
-    }
   }
 
   configs += [

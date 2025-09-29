@@ -8,7 +8,7 @@ function config_data {
   if [ $# -lt 1 ];
   then
     echo "config target missing." >&2
-    echo "Should be (android|cast|chromeos|common|flutter|flutter_desktop|ios)" >&2
+    echo "Should be (android|cast|chromeos|common|flutter|flutter_desktop|ios|cobalt)" >&2
     exit 1
   fi
 
@@ -67,6 +67,12 @@ ${ICUROOT}/scripts/clean_up_data_source.sh
 config_data flutter_desktop
 make -j 120
 $ICUROOT/scripts/copy_data.sh flutter_desktop
+
+echo "Build the filtered data for Cobalt"
+(cd data && make clean)
+config_data cobalt
+make -j 120
+$ICUROOT/scripts/copy_data.sh cobalt
 
 echo "Clean up the git"
 $ICUROOT/scripts/clean_up_data_source.sh

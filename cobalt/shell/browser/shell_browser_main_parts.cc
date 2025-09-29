@@ -76,6 +76,10 @@
 #include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/shell/common/device_authentication.h"
+#endif
+
 namespace content {
 
 namespace {
@@ -89,18 +93,25 @@ GURL GetStartupURL() {
   // Delay renderer creation on Android until surface is ready.
   return GURL();
 #else
+  GURL initial_url = GURL(switches::kDefaultURL);
   const base::CommandLine::StringVector& args = command_line->GetArgs();
-  if (args.empty()) {
-    return GURL("https://www.google.com/");
+  if (!args.empty()) {
+    std::string url_string = args[0];
+    GURL url = GURL(url_string);
+    if (url.is_valid() && url.has_scheme()) {
+      initial_url = url;
+    } else {
+      LOG(WARNING) << "URL \"" << url_string
+                   << "\" from parameter is not valid, open it as a file.";
+      return net::FilePathToFileURL(
+          base::MakeAbsoluteFilePath(base::FilePath(url_string)));
+    }
   }
 
-  GURL url(args[0]);
-  if (url.is_valid() && url.has_scheme()) {
-    return url;
-  }
-
-  return net::FilePathToFileURL(
-      base::MakeAbsoluteFilePath(base::FilePath(args[0])));
+#if BUILDFLAG(IS_STARBOARD)
+  initial_url = GetDeviceAuthenticationSignedURL(initial_url);
+#endif
+  return initial_url;
 #endif
 }
 

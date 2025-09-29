@@ -146,6 +146,7 @@ enum class Feature
     ForceGlErrorChecking,
     ForceInitShaderVariables,
     ForceMaxUniformBufferSize16KB,
+    ForceMinimumMaxVertexAttributes,
     ForceNearestFiltering,
     ForceNearestMipFiltering,
     ForceNonCSBaseMipmapGeneration,
