@@ -176,7 +176,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // Web Platform Tests.
   std::optional<network::ParsedPermissionsPolicy>
   GetPermissionsPolicyForIsolatedWebApp(
-      content::BrowserContext* browser_context,
+      content::WebContents* web_contents,
       const url::Origin& app_origin) override;
 
   void CreateFeatureListAndFieldTrials();

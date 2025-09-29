@@ -820,7 +820,7 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
 
 std::optional<blink::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
-    content::BrowserContext* browser_context,
+    content::WebContents* web_contents,
     const url::Origin& app_origin) {
   blink::ParsedPermissionsPolicyDeclaration decl(
       blink::mojom::PermissionsPolicyFeature::kDirectSockets,
