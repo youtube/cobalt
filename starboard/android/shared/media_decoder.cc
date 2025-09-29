@@ -684,9 +684,10 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
 
-  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
-  SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_size();
-
+  std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();
+  if (frame_size) {
+    SB_LOG(INFO) << __func__ << " > resolution=" << *frame_size;
+  }
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 

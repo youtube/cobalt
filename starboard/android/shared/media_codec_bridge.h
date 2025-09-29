@@ -200,7 +200,7 @@ class MediaCodecBridge {
   bool Restart();
   jint Flush();
   void Stop();
-  FrameSize GetOutputSize();
+  std::optional<FrameSize> GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
   void OnMediaCodecError(
@@ -230,14 +230,6 @@ class MediaCodecBridge {
 
   Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
-
-  // Profiling and allocation tracking has identified this area to be hot,
-  // and, capable of enough to cause GC times to raise high enough to impact
-  // playback.  We mitigate this by reusing these output objects between calls
-  // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
-  // |GetOutputDimensions|.
-  base::android::ScopedJavaGlobalRef<jobject>
-      j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
