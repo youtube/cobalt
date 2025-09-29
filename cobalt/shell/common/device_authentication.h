@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_DEVICE_AUTHENTICATION_H_
-#define COBALT_BROWSER_DEVICE_AUTHENTICATION_H_
+#ifndef COBALT_SHELL_COMMON_DEVICE_AUTHENTICATION_H_
+#define COBALT_SHELL_COMMON_DEVICE_AUTHENTICATION_H_
 
 #include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/types.h"
+#include "url/gurl.h"
 
-namespace cobalt {
-namespace browser {
+namespace content {
+
+// Takes a GURL and returns a new GURL with device authentication parameters
+// appended as query strings. These parameters typically include a signature,
+// certification scope, and timestamp to authenticate the device request.
+GURL GetDeviceAuthenticationSignedURL(const GURL& url);
 
 // Returns a base64 encoded SHA256 hash representing the device authentication
 // signature, the device certification scope, and the current time as query
@@ -56,7 +61,6 @@ void ComputeHMACSHA256SignatureWithProvidedKey(
     uint8_t* signature_hash,
     size_t signature_hash_size_in_bytes);
 
-}  // namespace browser
-}  // namespace cobalt
+}  // namespace content
 
-#endif  // COBALT_BROWSER_DEVICE_AUTHENTICATION_H_
+#endif  // COBALT_SHELL_COMMON_DEVICE_AUTHENTICATION_H_

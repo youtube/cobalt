@@ -41,7 +41,9 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:sabi_string",
     ]
 
-    if (enable_cobalt_hermetic_hacks) {
+    # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
+    # can build it and its deps.
+    if (target_os != "linux" || target_cpu != "x64") {
       public_deps -= [ "//starboard/crashpad_wrapper" ]
       public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
@@ -291,8 +293,10 @@ static_library("slot_management") {
     "//third_party/jsoncpp:jsoncpp",
   ]
 
-  if (sb_is_evergreen_compatible && !enable_cobalt_hermetic_hacks &&
-      current_toolchain == starboard_toolchain) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
+      # TODO: b/446904317 - use the real wrapper for other 3P platforms once
+      # they can build it and its deps.
+      target_os == "linux" && target_cpu == "x64") {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
