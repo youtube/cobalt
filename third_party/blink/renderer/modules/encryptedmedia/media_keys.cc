@@ -425,7 +425,7 @@ ScriptPromise<V8MediaKeyStatus> MediaKeys::getStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-ToString MediaKeys::getMetrics(ExceptionState& exception_state) {
+String MediaKeys::getMetrics(ExceptionState& exception_state) {
   std::string metrics;
   if (!cdm_ || !cdm_->GetMetrics(metrics)) {
     exception_state.ThrowDOMException(
