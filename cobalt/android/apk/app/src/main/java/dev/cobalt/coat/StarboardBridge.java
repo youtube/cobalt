@@ -155,8 +155,6 @@ public class StarboardBridge {
 
   @NativeMethods
   interface Natives {
-    void onStop();
-
     long currentMonotonicTime();
 
     long startNativeStarboard(
