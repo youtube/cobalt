@@ -29,8 +29,10 @@
 
 extern "C++" {
 
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 // Force SB_LOGGING_IS_OFFICIAL_BUILD to 0 for all build configurations.
 //
@@ -69,6 +71,17 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack);
 
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
 std::ostream& operator<<(std::ostream& out, const std::wstring& wstr);
+
+// Helper function to print a std::optional of data.
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
+  if (v) {
+    return out << *v;
+  }
+  return out << "(nullopt)";
+}
+
+std::string_view to_string(bool val);
 
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
