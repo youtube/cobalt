@@ -132,14 +132,19 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   // Not getting called for android.
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
 
+  if (splashed.load()) {
+    LOG(INFO) << "Splash shown, short circuit!";
+    return;
+  }
+
   if (!splash_ && !splashed.load()) {
     splashed = true;
     // GURL url = GURL("https://serve-dot-zipline.appspot.com/asset/"
     //          "bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/5gtay4qr9bs/");
     GURL url = GURL("https://www.example.com");
     LOG(INFO) << "Show splash!!!     2222222222";
-    splash_ = Splash::Show(web_contents()->GetBrowserContext(),
-                           web_contents()->GetNativeView(), url);
+    Splash::Show(web_contents()->GetBrowserContext(),
+                 web_contents()->GetNativeView(), url);
     LOG(INFO) << "Show splash!!!     2";
 
 #if BUILDFLAG(IS_ANDROID)

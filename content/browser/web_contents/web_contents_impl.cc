@@ -8433,6 +8433,7 @@ WebContentsAndroid* WebContentsImpl::GetWebContentsAndroid() {
 
 void WebContentsImpl::ClearWebContentsAndroid() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  LOG(INFO) << "Clear splash!!!     1000";
   web_contents_android_.reset();
 }
 

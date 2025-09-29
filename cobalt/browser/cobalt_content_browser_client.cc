@@ -287,10 +287,10 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   //   return;
   // }
 
-  // if (done_already.load()) {
-  //   LOG(INFO) << "Show OnWebContentsCreated Skipped!!!";
-  //   return;
-  // }
+  if (done_already.load()) {
+    LOG(INFO) << "Show OnWebContentsCreated Skipped!!!";
+    return;
+  }
   LOG(INFO) << "ShoW OnWebContentsCreated!!!!!!!";
   done_already = true;
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));

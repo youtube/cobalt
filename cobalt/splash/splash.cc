@@ -26,10 +26,12 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "content/public/browser/page_navigator.h"
+#include "content/public/common/referrer.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "ui/android/view_android.h"
 
-using starboard::android::shared::StarboardBridge;
+using ::starboard::StarboardBridge;
 #endif
 
 namespace cobalt {
@@ -39,6 +41,23 @@ std::unique_ptr<content::WebContents> Splash::Show(
     content::BrowserContext* browser_context,
     gfx::NativeView container,
     const GURL& url) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(WARNING) << "#############\n#############\n#############\n splash url: "
+               << url;
+  auto* source = content::Shell::windows()[0]->web_contents();
+  LOG(WARNING) << "#############\n#############\n#############\n splash url: "
+               << url;
+  content::OpenURLParams params(url, content::Referrer(),
+                                WindowOpenDisposition::NEW_WINDOW,
+                                ui::PAGE_TRANSITION_TYPED, false);
+  LOG(WARNING) << "#############\n#############\n#############\n splash url: "
+               << url;
+  auto* web_contents =
+      content::Shell::windows()[0]->OpenURLFromTab(source, params);
+  LOG(WARNING) << "#############\n#############\n#############\n splash url: "
+               << url;
+  return nullptr;
+#else
   LOG(WARNING) << "#############\n#############\n#############\n splash url: "
                << url;
 
@@ -49,33 +68,37 @@ std::unique_ptr<content::WebContents> Splash::Show(
   content::NavigationController::LoadURLParams load_url_params(url);
   web_contents->GetController().LoadURLWithParams(load_url_params);
   web_contents->Resize(container->bounds());
-#if BUILDFLAG(IS_ANDROID)
-  // Not visible for android.
-  LOG(WARNING) << "#############\n#############\n#############\n Android "
-                  "showing splash!!!";
-  // web_contents->WasShown();
-
-  // content::Shell::windows()[0]->AddNewContents(nullptr,
-  // std::move(web_contents),
-  //                     url,
-  //                     WindowOpenDisposition::NEW_FOREGROUND_TAB,
-  //                     blink::mojom::WindowFeatures(),
-  //                     false,
-  //                     nullptr);
-  JNIEnv* env = base::android::AttachCurrentThread();
-  LOG(INFO) << "Show splash!!!     4";
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  LOG(INFO) << "Show splash!!!     5";
-  auto* s = web_contents.release();
-  LOG(INFO) << "Show splash!!!     6";
-  starboard_bridge->SetSplashWebContents(env, s->GetJavaWebContents());
-  return nullptr;
-#elif defined(USE_AURA)
   web_contents->GetNativeView()->Show();
-#endif
-  LOG(WARNING) << "#############\n#############\n#############\n Android "
-                  "showing splash!!! 2";
   return web_contents;
+#endif
+
+  // #if BUILDFLAG(IS_ANDROID)
+  //   // Not visible for android.
+  //   LOG(WARNING) << "#############\n#############\n#############\n Android "
+  //                   "showing splash!!!";
+  //   // web_contents->WasShown();
+
+  //   // content::Shell::windows()[0]->AddNewContents(nullptr,
+  //   // std::move(web_contents),
+  //   //                     url,
+  //   //                     WindowOpenDisposition::NEW_FOREGROUND_TAB,
+  //   //                     blink::mojom::WindowFeatures(),
+  //   //                     false,
+  //   //                     nullptr);
+  //   JNIEnv* env = base::android::AttachCurrentThread();
+  //   LOG(INFO) << "Show splash!!!     4";
+  //   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  //   LOG(INFO) << "Show splash!!!     5";
+  //   auto* s = web_contents.release();
+  //   LOG(INFO) << "Show splash!!!     6";
+  //   starboard_bridge->SetSplashWebContents(env, s->GetJavaWebContents());
+  //   return nullptr;
+  // #elif defined(USE_AURA)
+  //   web_contents->GetNativeView()->Show();
+  // #endif
+  //   LOG(WARNING) << "#############\n#############\n#############\n Android "
+  //                   "showing splash!!! 2";
+  //   return web_contents;
 }
 
 }  // namespace cobalt
