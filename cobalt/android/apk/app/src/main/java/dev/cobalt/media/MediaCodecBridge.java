@@ -701,7 +701,12 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to get output format", e);
       return null;
     }
-    assert format != null;
+    // https://developer.android.com/reference/android/media/MediaCodec#getOutputFormat()
+    // getOutputFormat should return non-null MediaForamt.
+    assert(format != null);
+    if (format == null) {
+      return null;
+    }
     return new GetOutputFormatResult(format);
   }
 
