@@ -32,6 +32,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="VariationsConfigState">
+  <int value="0" label="Config is valid"/>
+  <int value="1" label="Config is expired"/>
+  <int value="2" label="Config is missing timestamp"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>
