@@ -140,8 +140,6 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   base::FilePath GetSandboxedStorageServiceDataDirectory() override;
   base::FilePath GetFirstPartySetsDirectory() override;
   std::string GetUserAgent() override;
-  std::string GetFullUserAgent() override;
-  std::string GetReducedUserAgent() override;
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   void OverrideURLLoaderFactoryParams(
       BrowserContext* browser_context,

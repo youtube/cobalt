@@ -286,18 +286,6 @@ std::unique_ptr<PrefService> CreateLocalState() {
 
 }  // namespace
 
-std::string GetShellUserAgent() {
-  if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent)) {
-    return GetShellFullUserAgent();
-  }
-
-  if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent)) {
-    return GetShellReducedUserAgent();
-  }
-
-  return GetShellFullUserAgent();
-}
-
 std::string GetShellLanguage() {
   return "en-us,en";
 }
@@ -622,10 +610,6 @@ std::string ShellContentBrowserClient::GetUserAgent() {
 
 std::string ShellContentBrowserClient::GetFullUserAgent() {
   return GetShellFullUserAgent();
-}
-
-std::string ShellContentBrowserClient::GetReducedUserAgent() {
-  return GetShellReducedUserAgent();
 }
 
 blink::UserAgentMetadata ShellContentBrowserClient::GetUserAgentMetadata() {
