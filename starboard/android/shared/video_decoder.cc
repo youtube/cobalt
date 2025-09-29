@@ -938,7 +938,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
     // We default to an empty FrameSize instead of propagating a failure to
     // ensure system robustness. The calling code historically does not expect
     // this call to fail and is not equipped to handle a null optional.
-    output_size = FrameSize{};
+    output_size = FrameSize();
   }
 
   // Record the latest dimensions of the decoded input.
