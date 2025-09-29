@@ -13,12 +13,7 @@ namespace {
 network::mojom::blink::CSPSourcePtr ConvertSource(const WebCSPSource& source) {
   return network::mojom::blink::CSPSource::New(
       source.scheme, source.host, source.port, source.path,
-#if BUILDFLAG(IS_COBALT)
-      source.is_host_wildcard, source.is_port_wildcard,
-      source_list.cobalt_insecure_local_network);
-#else
       source.is_host_wildcard, source.is_port_wildcard);
-#endif
 }
 
 network::mojom::blink::CSPHashSourcePtr ConvertHashSource(
