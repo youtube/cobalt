@@ -53,6 +53,7 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
+#include "components/performance_manager/embedder/binders.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -133,6 +134,9 @@
 namespace content {
 
 namespace {
+
+using PerformanceManagerRegistry =
+  performance_manager::PerformanceManagerRegistry;
 
 // Tests may install their own ShellContentBrowserClient, track the list here.
 // The list is ordered with oldest first and newer ones added after it.
@@ -429,8 +433,8 @@ std::string ShellContentBrowserClient::GetDefaultDownloadName() {
 std::unique_ptr<WebContentsViewDelegate>
 ShellContentBrowserClient::GetWebContentsViewDelegate(
     WebContents* web_contents) {
-  performance_manager::PerformanceManagerRegistry::GetInstance()
-      ->MaybeCreatePageNodeForWebContents(web_contents);
+  PerformanceManagerRegistry::GetInstance()->MaybeCreatePageNodeForWebContents(
+      web_contents);
   return CreateShellWebContentsViewDelegate(web_contents);
 }
 
@@ -524,9 +528,11 @@ void ShellContentBrowserClient::ExposeInterfacesToRenderer(
     service_manager::BinderRegistry* registry,
     blink::AssociatedInterfaceRegistry* associated_registry,
     RenderProcessHost* render_process_host) {
-  performance_manager::PerformanceManagerRegistry::GetInstance()
-      ->CreateProcessNodeAndExposeInterfacesToRendererProcess(
-          registry, render_process_host);
+  PerformanceManagerRegistry::GetInstance()->CreateProcessNode(
+      render_process_host);
+  PerformanceManagerRegistry::GetInstance()
+      ->GetBinders()
+      .ExposeInterfacesToRendererProcess(registry, render_process_host);
 }
 
 mojo::Remote<::media::mojom::MediaService>
@@ -544,8 +550,9 @@ ShellContentBrowserClient::RunSecondaryMediaService() {
 void ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<RenderFrameHost*>* map) {
-  performance_manager::PerformanceManagerRegistry::GetInstance()
-      ->ExposeInterfacesToRenderFrame(map);
+  PerformanceManagerRegistry::GetInstance()
+      ->GetBinders()
+      .ExposeInterfacesToRenderFrame(map);
   map->Add<network_hints::mojom::NetworkHintsHandler>(
       base::BindRepeating(&BindNetworkHintsHandler));
 }
