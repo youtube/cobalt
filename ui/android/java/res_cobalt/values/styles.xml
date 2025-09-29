@@ -7,9 +7,6 @@ found in the LICENSE file.
 -->
 
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="DropdownPopupWindow" parent="@android:style/Widget.ListPopupWindow">
-        <item name="android:popupBackground">@drawable/dialog_bg_baseline</item>
-    </style>
 
     <!-- Buttons -->
     <style name="FilledButtonThemeOverlay">
@@ -326,21 +323,4 @@ found in the LICENSE file.
         <item name="colorControlActivated">@color/default_control_color_active_baseline</item>
     </style>
 
-    <!-- AnchoredPopupAnimationStyle -->
-    <style name="AnchoredPopupAnimEndTop">
-        <item name="android:windowEnterAnimation">@anim/menu_enter</item>
-        <item name="android:windowExitAnimation">@anim/menu_exit</item>
-    </style>
-    <style name="AnchoredPopupAnimEndBottom">
-        <item name="android:windowEnterAnimation">@anim/menu_enter_from_bottom</item>
-        <item name="android:windowExitAnimation">@anim/menu_exit_from_bottom</item>
-    </style>
-    <style name="AnchoredPopupAnimStartTop">
-        <item name="android:windowEnterAnimation">@anim/menu_enter_from_top_left</item>
-        <item name="android:windowExitAnimation">@anim/menu_exit_from_top_left</item>
-    </style>
-    <style name="AnchoredPopupAnimStartBottom">
-        <item name="android:windowEnterAnimation">@anim/menu_enter_from_bottom_left</item>
-        <item name="android:windowExitAnimation">@anim/menu_exit_from_bottom_left</item>
-    </style>
 </resources>
