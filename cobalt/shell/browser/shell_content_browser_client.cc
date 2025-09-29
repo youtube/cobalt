@@ -217,16 +217,6 @@ class ShellVariationsServiceClient
       PrefService* local_state) override {}
 };
 
-// Returns the full user agent string for the content shell.
-std::string GetShellFullUserAgent() {
-  std::string product = "Chrome/" CONTENT_SHELL_VERSION;
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(embedder_support::kUseMobileUserAgent)) {
-    product += " Mobile";
-  }
-  return embedder_support::BuildUserAgentFromProduct(product);
-}
-
 void BindNetworkHintsHandler(
     content::RenderFrameHost* frame_host,
     mojo::PendingReceiver<network_hints::mojom::NetworkHintsHandler> receiver) {
