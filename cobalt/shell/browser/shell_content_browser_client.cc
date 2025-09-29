@@ -411,7 +411,8 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
 #endif  // BUILDFLAG(IS_LINUX)
 }
 
-device::GeolocationManager* ShellContentBrowserClient::GetGeolocationManager() {
+device::GeolocationSystemPermissionManager*
+ShellContentBrowserClient::GetGeolocationSystemPermissionManager() {
   return nullptr;
 }
 
