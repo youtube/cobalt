@@ -26,7 +26,7 @@
 /androidx/additional_readme_paths.json
 /androidx/libs/
 /androidx_javascriptengine/src/
-/angle
+# /angle Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /angle_dx11
 /aosp_dalvik/lib/*
 /apache-linux/LICENSE
