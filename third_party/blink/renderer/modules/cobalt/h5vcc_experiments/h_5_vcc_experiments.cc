@@ -64,6 +64,7 @@ ScriptPromise H5vccExperiments::setExperimentState(
 
 ScriptPromise H5vccExperiments::resetExperimentState(
     ScriptState* script_state,
+    bool restart,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
@@ -74,6 +75,10 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   remote_h5vcc_experiments_->ResetExperimentState(
       WTF::BindOnce(&H5vccExperiments::OnResetExperimentState,
                     WrapPersistent(this), WrapPersistent(resolver)));
+
+  if (restart) {
+    // Trigger crash here for a Cobalt cold start.
+  }
 
   return resolver->Promise();
 }
