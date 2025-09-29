@@ -132,7 +132,7 @@ class MediaCodecBridge {
     @NonNull private final MediaFormat mFormat;
     private final Boolean mHasCropValues;
 
-   GetOutputFormatResult(@NonNull MediaFormat format) {
+   private GetOutputFormatResult(@NonNull MediaFormat format) {
      mFormat = format;
      mHasCropValues = mFormat.containsKey(KEY_CROP_RIGHT)
                 && mFormat.containsKey(KEY_CROP_LEFT)
