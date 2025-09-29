@@ -47,6 +47,7 @@
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -215,7 +216,7 @@ std::string GetShellFullUserAgent() {
   if (command_line->HasSwitch(switches::kUseMobileUserAgent)) {
     product += " Mobile";
   }
-  return BuildUserAgentFromProduct(product);
+  return embedder_support::BuildUserAgentFromProduct(product);
 }
 
 void BindNetworkHintsHandler(
@@ -299,11 +300,11 @@ blink::UserAgentMetadata GetShellUserAgentMetadata() {
                                                 CONTENT_SHELL_VERSION);
   metadata.full_version = CONTENT_SHELL_VERSION;
   metadata.platform = "Unknown";
-  metadata.architecture = GetCpuArchitecture();
-  metadata.model = BuildModelInfo();
+  metadata.architecture = embedder_support::GetCpuArchitecture();
+  metadata.model = embedder_support::BuildModelInfo();
 
-  metadata.bitness = GetCpuBitness();
-  metadata.wow64 = content::IsWoW64();
+  metadata.bitness = embedder_support::GetCpuBitness();
+  metadata.wow64 = embedder_support::IsWoW64();
 
   return metadata;
 }
@@ -818,12 +819,12 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
       /*add_entropy_source_to_variations_ids=*/false);
 }
 
-std::optional<blink::ParsedPermissionsPolicy>
+std::optional<network::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
     content::WebContents* web_contents,
     const url::Origin& app_origin) {
-  blink::ParsedPermissionsPolicyDeclaration decl(
-      blink::mojom::PermissionsPolicyFeature::kDirectSockets,
+  network::ParsedPermissionsPolicyDeclaration decl(
+      network::mojom::PermissionsPolicyFeature::kDirectSockets,
       {blink::OriginWithPossibleWildcards(app_origin,
                                           /*has_subdomain_wildcard=*/false)},
       /*self_if_matches=*/std::nullopt,
