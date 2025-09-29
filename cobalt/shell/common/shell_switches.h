@@ -21,7 +21,7 @@
 
 namespace switches {
 
-constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+constexpr char kDefaultURL[] = "https://www.youtube.com/tv/splash";
 
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
