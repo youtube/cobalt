@@ -104,3 +104,6 @@ use_dbus = false
 
 # Embed ICU data in the cobalt binary
 icu_use_data_file = false
+
+# Disable the Pepper API (PPAPI) plugin support
+enable_ppapi = false
