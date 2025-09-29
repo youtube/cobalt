@@ -433,23 +433,26 @@ void MediaCodecBridge::Stop() {
   return Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
 }
 
-FrameSize MediaCodecBridge::GetOutputSize() {
+std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
+  ScopedJavaLocalRef<jobject> j_get_output_format_result(
+      Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
+  if (!j_get_output_format_result) {
+    return std::nullopt;
+  }
 
-  jint textureWidth = Java_GetOutputFormatResult_textureWidth(
-      env, j_reused_get_output_format_result_);
-  jint textureHeight = Java_GetOutputFormatResult_textureHeight(
-      env, j_reused_get_output_format_result_);
-  jint cropLeft = Java_GetOutputFormatResult_cropLeft(
-      env, j_reused_get_output_format_result_);
-  jint cropTop = Java_GetOutputFormatResult_cropTop(
-      env, j_reused_get_output_format_result_);
-  jint cropRight = Java_GetOutputFormatResult_cropRight(
-      env, j_reused_get_output_format_result_);
-  jint cropBottom = Java_GetOutputFormatResult_cropBottom(
-      env, j_reused_get_output_format_result_);
+  jint textureWidth =
+      Java_GetOutputFormatResult_textureWidth(env, j_get_output_format_result);
+  jint textureHeight =
+      Java_GetOutputFormatResult_textureHeight(env, j_get_output_format_result);
+  jint cropLeft =
+      Java_GetOutputFormatResult_cropLeft(env, j_get_output_format_result);
+  jint cropTop =
+      Java_GetOutputFormatResult_cropTop(env, j_get_output_format_result);
+  jint cropRight =
+      Java_GetOutputFormatResult_cropRight(env, j_get_output_format_result);
+  jint cropBottom =
+      Java_GetOutputFormatResult_cropBottom(env, j_get_output_format_result);
 
   FrameSize size = {
       {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
@@ -460,22 +463,19 @@ FrameSize MediaCodecBridge::GetOutputSize() {
 
 AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
+  ScopedJavaLocalRef<jobject> j_get_output_format_result(
+      Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
 
-  jint status = Java_GetOutputFormatResult_status(
-      env, j_reused_get_output_format_result_);
-
-  if (status == MEDIA_CODEC_ERROR) {
-    return {status, 0, 0};
+  if (!j_get_output_format_result) {
+    return {MEDIA_CODEC_ERROR, 0, 0};
   }
 
-  jint sample_rate = Java_GetOutputFormatResult_sampleRate(
-      env, j_reused_get_output_format_result_);
-  jint channel_count = Java_GetOutputFormatResult_channelCount(
-      env, j_reused_get_output_format_result_);
+  jint sample_rate =
+      Java_GetOutputFormatResult_sampleRate(env, j_get_output_format_result);
+  jint channel_count =
+      Java_GetOutputFormatResult_channelCount(env, j_get_output_format_result);
 
-  return {status, sample_rate, channel_count};
+  return {MEDIA_CODEC_OK, sample_rate, channel_count};
 }
 
 void MediaCodecBridge::OnMediaCodecError(
@@ -529,13 +529,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JNIEnv* env = AttachCurrentThread();
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
-
-  ScopedJavaLocalRef<jobject> j_reused_get_output_format_result =
-      Java_GetOutputFormatResult_Constructor(env);
-  SB_DCHECK(j_reused_get_output_format_result);
-
-  j_reused_get_output_format_result_.Reset(
-      env, j_reused_get_output_format_result.obj());
 }
 
 // static

@@ -931,8 +931,17 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
   std::lock_guard lock(decode_target_mutex_);
+  std::optional<FrameSize> output_size = media_codec_bridge->GetOutputSize();
+  if (!output_size) {
+    SB_LOG(WARNING) << "output_size is null, but we set it to {}";
+    // We default to an empty FrameSize instead of propagating a failure to
+    // ensure system robustness. The calling code historically does not expect
+    // this call to fail and is not equipped to handle a null optional.
+    output_size = FrameSize{};
+  }
+
   // Record the latest dimensions of the decoded input.
-  frame_sizes_.push_back(media_codec_bridge->GetOutputSize());
+  frame_sizes_.push_back(*output_size);
 
   if (tunnel_mode_audio_session_id_ != -1) {
     return;
