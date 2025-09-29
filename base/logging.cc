@@ -460,24 +460,23 @@ void CloseLogFileUnlocked() {
 #if BUILDFLAG(IS_STARBOARD)
 SbLogPriority LogLevelToStarboardLogPriority(int level) {
   switch (level) {
-    case LOG_INFO:
+    case LOGGING_INFO:
       return kSbLogPriorityInfo;
-    case LOG_WARNING:
+    case LOGGING_WARNING:
       return kSbLogPriorityWarning;
-    case LOG_ERROR:
+    case LOGGING_ERROR:
       return kSbLogPriorityError;
-    case LOG_FATAL:
+    case LOGGING_FATAL:
       return kSbLogPriorityFatal;
-    case LOG_VERBOSE:
+    case LOGGING_VERBOSE:
     default:
-      if (level <= LOG_VERBOSE) {
+      if (level <= LOGGING_VERBOSE) {
         // Verbose level can be any negative integer, sanity check its range to
         // filter out potential errors.
         DCHECK_GE(level, -256);
         return kSbLogPriorityInfo;
       }
       NOTREACHED() << "Unrecognized log level.";
-      return kSbLogPriorityInfo;
   }
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
