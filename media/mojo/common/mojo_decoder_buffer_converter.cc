@@ -130,7 +130,7 @@ void MojoDecoderBufferReader::ReadDecoderBuffer(
     // Release its ref-count that was increased manually during
     // DecoderBuffer and DecoderBufferPtr conversion.
     scoped_refptr<media::DecoderBuffer> buffer(
-        reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->address));
+        reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->get_data()->address));
     buffer->Release();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     return;
