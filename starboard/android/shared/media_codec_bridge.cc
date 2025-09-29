@@ -461,21 +461,20 @@ std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   return size;
 }
 
-AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
+std::optional<AudioOutputFormatResult>
+MediaCodecBridge::GetAudioOutputFormat() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_get_output_format_result(
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
 
   if (!j_get_output_format_result) {
-    return {MEDIA_CODEC_ERROR, 0, 0};
-  }
+    return std::nullopt;
+  };
 
-  jint sample_rate =
-      Java_GetOutputFormatResult_sampleRate(env, j_get_output_format_result);
-  jint channel_count =
-      Java_GetOutputFormatResult_channelCount(env, j_get_output_format_result);
-
-  return {MEDIA_CODEC_OK, sample_rate, channel_count};
+  return AudioOutputFormatResult{
+      Java_GetOutputFormatResult_sampleRate(env, j_get_output_format_result),
+      Java_GetOutputFormatResult_channelCount(env, j_get_output_format_result),
+  };
 }
 
 void MediaCodecBridge::OnMediaCodecError(

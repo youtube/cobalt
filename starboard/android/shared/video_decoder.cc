@@ -933,7 +933,8 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
   std::lock_guard lock(decode_target_mutex_);
   std::optional<FrameSize> output_size = media_codec_bridge->GetOutputSize();
   if (!output_size) {
-    SB_LOG(WARNING) << "output_size is null, but we set it to {}";
+    SB_LOG(WARNING)
+        << "GetOutputSize() returned null. Defaulting to an empty FrameSize.";
     // We default to an empty FrameSize instead of propagating a failure to
     // ensure system robustness. The calling code historically does not expect
     // this call to fail and is not equipped to handle a null optional.

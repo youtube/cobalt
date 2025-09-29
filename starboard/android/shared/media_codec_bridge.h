@@ -110,7 +110,6 @@ struct FrameSize {
 std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
 struct AudioOutputFormatResult {
-  jint status;
   jint sample_rate;
   jint channel_count;
 };
@@ -201,7 +200,7 @@ class MediaCodecBridge {
   jint Flush();
   void Stop();
   std::optional<FrameSize> GetOutputSize();
-  AudioOutputFormatResult GetAudioOutputFormat();
+  std::optional<AudioOutputFormatResult> GetAudioOutputFormat();
 
   void OnMediaCodecError(
       JNIEnv* env,
