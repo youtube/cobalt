@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "media/audio/wav_audio_handler.h"
 #include "media/base/audio_bus.h"
 #include "third_party/blink/public/platform/web_audio_bus.h"
@@ -35,8 +34,7 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
   }
 
   LOG(INFO) << "Cobalt WAV decoder initializing..";
-  auto handler =
-      media::WavAudioHandler::Create(base::StringPiece(data, data_size));
+  auto handler = media::WavAudioHandler::Create(base::as_bytes(audio_file_data));
 
   if (!handler) {
     LOG(ERROR) << "Failed to create WavAudioHandler.";
