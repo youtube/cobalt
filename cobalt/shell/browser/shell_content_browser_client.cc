@@ -61,10 +61,12 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/variations/platform_field_trials.h"
 #include "components/variations/pref_names.h"
+#include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/service/safe_seed_manager.h"
 #include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/service/variations_service_client.h"
+#include "components/variations/synthetic_trial_registry.h"
 #include "components/variations/variations_switches.h"
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/login_delegate.h"
@@ -618,10 +620,6 @@ std::string ShellContentBrowserClient::GetUserAgent() {
   return GetShellUserAgent();
 }
 
-std::string ShellContentBrowserClient::GetFullUserAgent() {
-  return GetShellFullUserAgent();
-}
-
 blink::UserAgentMetadata ShellContentBrowserClient::GetUserAgentMetadata() {
   return GetShellUserAgentMetadata();
 }
@@ -787,8 +785,18 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
       &variations_service_client,
       std::make_unique<variations::VariationsSeedStore>(
           GetSharedState().local_state.get(), std::move(initial_seed),
-          /*signature_verification_enabled=*/true),
-      variations::UIStringOverrider());
+          /*signature_verification_enabled=*/true,
+          std::make_unique<variations::VariationsSafeSeedStoreLocalState>(
+              GetSharedState().local_state.get(),
+              variations_service_client.GetVariationsSeedFileDir(),
+              variations_service_client.GetChannelForVariations(),
+              /*entropy_providers=*/nullptr),
+          variations_service_client.GetChannelForVariations(),
+          variations_service_client.GetVariationsSeedFileDir()),
+      variations::UIStringOverrider(),
+      // The limited entropy synthetic trial will not be registered for this
+      // purpose.
+      /*limited_entropy_synthetic_trial=*/nullptr);
 
   variations::SafeSeedManager safe_seed_manager(
       GetSharedState().local_state.get());
@@ -818,13 +826,16 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
   // null.
   // TODO(crbug/1248066): Consider passing a low entropy source.
   variations::PlatformFieldTrials platform_field_trials;
+    variations::SyntheticTrialRegistry synthetic_trial_registry;
   field_trial_creator.SetUpFieldTrials(
       variation_ids,
       command_line.GetSwitchValueASCII(
           variations::switches::kForceVariationIds),
       feature_overrides, std::move(feature_list), metrics_state_manager.get(),
-      &platform_field_trials, &safe_seed_manager,
-      /*add_entropy_source_to_variations_ids=*/false);
+      &synthetic_trial_registry, &platform_field_trials, &safe_seed_manager,
+      /*add_entropy_source_to_variations_ids=*/false,
+      *metrics_state_manager->CreateEntropyProviders(
+          /*enable_limited_entropy_mode=*/false));
 }
 
 std::optional<network::ParsedPermissionsPolicy>
