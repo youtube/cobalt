@@ -49,5 +49,10 @@ if (is_android) {
       "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_no_recycler_view_java",
     ]
+
+    if (is_cobalt) {
+      deps -= [ "//ui/android:ui_no_recycler_view_java" ]
+      deps += [ "//ui/android:cobalt_ui_full_java" ]
+    }
   }
 }
