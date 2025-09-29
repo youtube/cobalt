@@ -443,7 +443,9 @@ if (is_android && enable_java_templates) {
   }
 }
 
-if (is_android) {
+if (is_cobalt) {
+  data_dir = "cobalt"
+} else if (is_android) {
   data_dir = "android"
 } else if (is_ios && !use_blink) {
   data_dir = "ios"
