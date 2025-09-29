@@ -43,6 +43,25 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
+    expires_after="2025-01-01">
+  <owner>jammel@google.com</owner>
+  <summary>
+    Records the age of the Finch configuration in days each time it is
+    checked at startup. This data is used to determine an appropriate
+    expiration threshold.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
+    expires_after="2025-01-01">
+  <owner>jammel@google.com</owner>
+  <summary>
+    Records the state of the Finch configuration at startup. This is used
+    to monitor the frequency of expired or invalid configurations.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
