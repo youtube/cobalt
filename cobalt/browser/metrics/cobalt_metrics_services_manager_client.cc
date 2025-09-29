@@ -43,7 +43,8 @@ CobaltMetricsServicesManagerClient::CobaltMetricsServicesManagerClient(
 }
 
 std::unique_ptr<::metrics::MetricsServiceClient>
-CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
+CobaltMetricsServicesManagerClient::CreateMetricsServiceClient(
+    variations::SyntheticTrialRegistry* synthetic_trial_registry) {
   auto metrics_service_client = CobaltMetricsServiceClient::Create(
       GetMetricsStateManager(),
       std::make_unique<variations::SyntheticTrialRegistry>(),
@@ -53,23 +54,14 @@ CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
 }
 
 std::unique_ptr<variations::VariationsService>
-CobaltMetricsServicesManagerClient::CreateVariationsService() {
+CobaltMetricsServicesManagerClient::CreateVariationsService(
+    variations::SyntheticTrialRegistry* synthetic_trial_registry) {
   // VariationsService is not needed for Finch support in Cobalt. We don't
   // use things like the Finch seed or client-side Field Trials. Instead,
   // we have our own custom implementation that is driven by the server via
   // H5vccExperiments.
   NOTIMPLEMENTED();
   return nullptr;
-}
-
-// Returns whether metrics reporting is enabled.
-bool CobaltMetricsServicesManagerClient::IsMetricsReportingEnabled() {
-  return enabled_state_provider_->IsReportingEnabled();
-}
-
-// Returns whether metrics consent is given.
-bool CobaltMetricsServicesManagerClient::IsMetricsConsentGiven() {
-  return enabled_state_provider_->IsConsentGiven();
 }
 
 void StoreMetricsClientInfo(const ::metrics::ClientInfo& client_info) {
