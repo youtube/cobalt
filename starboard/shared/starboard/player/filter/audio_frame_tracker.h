@@ -39,6 +39,7 @@ class AudioFrameTracker {
   int64_t GetFutureFramesPlayedAdjustedToPlaybackRate(
       int number_of_frames,
       double* playback_rate) const;
+  int64_t GetOverflowedFrames() const { return overflowed_frames_; }
 
  private:
   struct FrameRecord {
@@ -50,6 +51,7 @@ class AudioFrameTracker {
   std::vector<FrameRecord> frame_records_;
   int64_t frames_played_adjusted_to_playback_rate_ = 0;
   double last_playback_rate_ = 1.0;
+  int64_t overflowed_frames_ = 0;
 };
 
 }  // namespace starboard

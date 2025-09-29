@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,10 +50,10 @@ const int kFramesInBufferBeginUnderflow = 1024;
 // A class that sits in between the audio decoder, the audio sink and the
 // pipeline to coordinate data transfer between these parties.  It also serves
 // as the authority of playback time.
-class AudioRendererPcm : public AudioRenderer,
-                         public MediaTimeProvider,
-                         private AudioRendererSink::RenderCallback,
-                         private JobQueue::JobOwner {
+class AudioRendererTunnel : public AudioRenderer,
+                            public MediaTimeProvider,
+                            private AudioRendererSink::RenderCallback,
+                            private JobQueue::JobOwner {
  public:
   // |max_cached_frames| is a soft limit for the max audio frames this class can
   // cache so it can:
@@ -62,12 +62,12 @@ class AudioRendererPcm : public AudioRenderer,
   //    longer accept more data.
   // |min_frames_per_append| is the min number of frames that the audio renderer
   // tries to append to the sink buffer at once.
-  AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
-                   std::unique_ptr<AudioRendererSink> audio_renderer_sink,
-                   const media::AudioStreamInfo& audio_stream_info,
-                   int max_cached_frames,
-                   int min_frames_per_append);
-  ~AudioRendererPcm() override;
+  AudioRendererTunnel(std::unique_ptr<AudioDecoder> decoder,
+                      std::unique_ptr<AudioRendererSink> audio_renderer_sink,
+                      const AudioStreamInfo& audio_stream_info,
+                      int max_cached_frames,
+                      int min_frames_per_append);
+  ~AudioRendererTunnel() override;
 
   void Initialize(const ErrorCB& error_cb,
                   const PrerolledCB& prerolled_cb,
