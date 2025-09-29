@@ -329,6 +329,7 @@ int GpuMain(MainFunctionParams parameters) {
   base::PlatformThread::SetName("CrGpuMain");
   mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics("GpuMain");
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Thread type delegate of the process should be registered before
   // thread type change below for the main thread and for thread pool in
@@ -338,6 +339,7 @@ int GpuMain(MainFunctionParams parameters) {
   // sandboxes the process and starts threads so this has to happen first.
   SandboxedProcessThreadTypeHandler::Create();
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif // !BUILDFLAG(IS_STARBOARD)
 
   base::PlatformThread::SetCurrentThreadType(
       base::ThreadType::kDisplayCritical);
