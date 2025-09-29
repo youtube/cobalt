@@ -952,14 +952,14 @@ void SbPlayerBridge::WriteBuffersInternal(
     PlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
     sample_info.buffer = buffer->data();
-    sample_info.buffer_size = buffer->data_size();
+    sample_info.buffer_size = buffer->size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
-    if (buffer->side_data_size() > 0) {
+    if (buffer->side_data()) {
       // We only support at most one side data currently.
       side_data->type = kMatroskaBlockAdditional;
-      side_data->data = buffer->side_data();
-      side_data->size = buffer->side_data_size();
+      side_data->data = buffer->side_data()->alpha_data.data();
+      side_data->size = buffer->side_data()->alpha_data.size();
       sample_info.side_data = side_data;
       sample_info.side_data_count = 1;
     }
@@ -1196,9 +1196,9 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   {
     base::AutoLock auto_lock(lock_);
     if (decoding_buffer.type == kSbMediaTypeAudio) {
-      cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
+      cached_audio_bytes_decoded_ += decoding_buffer.buffer->size();
     } else {
-      cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
+      cached_video_bytes_decoded_ += decoding_buffer.buffer->size();
     }
   }
   --decoding_buffer.usage_count;
