@@ -51,39 +51,34 @@ class ShellFederatedPermissionContext
   bool ShouldCompleteRequestImmediately() const override;
 
   // FederatedIdentityAutoReauthnPermissionContextDelegate
-  bool HasAutoReauthnContentSetting() override;
+  bool IsAutoReauthnSettingEnabled() override;
   bool IsAutoReauthnEmbargoed(
       const url::Origin& relying_party_embedder) override;
   base::Time GetAutoReauthnEmbargoStartTime(
       const url::Origin& relying_party_embedder) override;
-  void RecordDisplayAndEmbargo(
+  void RecordEmbargoForAutoReauthn(
+      const url::Origin& relying_party_embedder) override;
+  void RemoveEmbargoForAutoReauthn(
       const url::Origin& relying_party_embedder) override;
 
   // FederatedIdentityPermissionContextDelegate
   void AddIdpSigninStatusObserver(IdpSigninStatusObserver* observer) override;
   void RemoveIdpSigninStatusObserver(
       IdpSigninStatusObserver* observer) override;
-  bool HasActiveSession(const url::Origin& relying_party_requester,
-                        const url::Origin& identity_provider,
-                        const std::string& account_identifier) override;
-  void GrantActiveSession(const url::Origin& relying_party_requester,
-                          const url::Origin& identity_provider,
-                          const std::string& account_identifier) override;
-  void RevokeActiveSession(const url::Origin& relying_party_requester,
-                           const url::Origin& identity_provider,
-                           const std::string& account_identifier) override;
   bool HasSharingPermission(const url::Origin& relying_party_requester,
                             const url::Origin& relying_party_embedder,
-                            const url::Origin& identity_provider,
-                            const std::string& account_id) override;
+                            const url::Origin& identity_provider) override;
   void GrantSharingPermission(const url::Origin& relying_party_requester,
                               const url::Origin& relying_party_embedder,
                               const url::Origin& identity_provider,
                               const std::string& account_id) override;
   std::optional<bool> GetIdpSigninStatus(
       const url::Origin& idp_origin) override;
-  void SetIdpSigninStatus(const url::Origin& idp_origin,
-                          bool idp_signin_status) override;
+  void SetIdpSigninStatus(
+      const url::Origin& idp_origin,
+      bool idp_signin_status,
+      base::optional_ref<const blink::common::webid::LoginStatusOptions>)
+      override;
 
   void RegisterIdP(const ::GURL&) override;
   void UnregisterIdP(const ::GURL&) override;
@@ -99,8 +94,6 @@ class ShellFederatedPermissionContext
   // Tuples of <RP requester, RP embedder, IDP, Account>
   std::set<std::tuple<std::string, std::string, std::string, std::string>>
       sharing_permissions_;
-  // Tuples of <RP requester, IDP, Account>
-  std::set<std::tuple<std::string, std::string, std::string>> active_sessions_;
   // Map of <IDP, IDPSigninStatus>
   std::map<std::string, std::optional<bool>> idp_signin_status_;
 
