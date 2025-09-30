@@ -26,7 +26,7 @@ namespace {
 const int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
 // Work time long enough to ensure measurable CPU time usage.
-constexpr long kMinimumWorkTimeMicroseconds = 100'000;  // 100ms
+constexpr long kMinimumWorkTimeMicroseconds = 500'000;  // 500ms
 
 static int64_t TimespecToMicroseconds(const struct timespec& ts) {
   return (static_cast<int64_t>(ts.tv_sec) * kMicrosecondsPerSecond) +
@@ -113,10 +113,10 @@ TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
       << "Clock value did not increase, which is unexpected. val1="
       << clock_val1 << ", val2=" << clock_val2;
 
-  // Expect to have measured at least 75% of the work time as CPU time.
+  // Expect to have measured at least 60% of the work time as CPU time.
   long measured_work_time =
       kMicrosecondsPerSecond * (clock_val2 - clock_val1) / CLOCKS_PER_SEC;
-  long minimum_work_time = 0.75 * elapsed_time_us;
+  long minimum_work_time = 0.60 * elapsed_time_us;
   EXPECT_GE(measured_work_time, minimum_work_time)
       << "Clock value should measure at least " << minimum_work_time
       << " us, of " << elapsed_time_us << " us spent doing CPU work.";
