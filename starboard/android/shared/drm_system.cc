@@ -81,7 +81,7 @@ DrmSystem::DrmSystem(
         !job_queue_created_.wait_for(lock, std::chrono::seconds(1), [this] {
           return job_queue_ != nullptr;
         })) {
-      SB_LOG(WARNING) << "job_queue is not created in time";
+      SB_LOG(FATAL) << "job_queue is not created in time";
     }
   }
 }
