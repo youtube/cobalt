@@ -726,7 +726,7 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
     }
   }
   SB_DCHECK_LT(supported_parameters.size(), 50)
-      << "It may take too long time to run and result in timeout";
+      << "Running the tests may take too long and result in a timeout.";
 
   for (size_t i = 0; i < audio_files.size(); i++) {
     if (PlayerComponents::Factory::OutputModeSupported(
