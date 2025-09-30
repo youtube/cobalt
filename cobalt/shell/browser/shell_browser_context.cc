@@ -28,7 +28,6 @@
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/browser/shell_download_manager_delegate.h"
-#include "cobalt/shell/browser/shell_federated_permission_context.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_permission_manager.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -38,7 +37,6 @@
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/origin_trials/browser/leveldb_persistence_provider.h"
 #include "components/origin_trials/browser/origin_trials.h"
-#include "components/origin_trials/common/features.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/origin_trials_controller_delegate.h"
@@ -82,24 +80,6 @@ void ShellBrowserContext::InitWhileIOAllowed() {
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
   if (cmd_line->HasSwitch(switches::kIgnoreCertificateErrors)) {
     ignore_certificate_errors_ = true;
-  }
-  if (cmd_line->HasSwitch(switches::kContentShellDataPath)) {
-    path_ = cmd_line->GetSwitchValuePath(switches::kContentShellDataPath);
-    if (base::DirectoryExists(path_) || base::CreateDirectory(path_)) {
-      // BrowserContext needs an absolute path, which we would normally get via
-      // PathService. In this case, manually ensure the path is absolute.
-      if (!path_.IsAbsolute()) {
-        path_ = base::MakeAbsoluteFilePath(path_);
-      }
-      if (!path_.empty()) {
-        FinishInitWhileIOAllowed();
-        base::PathService::OverrideAndCreateIfNeeded(
-            SHELL_DIR_USER_DATA, path_, /*is_absolute=*/true, /*create=*/false);
-        return;
-      }
-    } else {
-      LOG(WARNING) << "Unable to create data-path directory: " << path_.value();
-    }
   }
 
   CHECK(base::PathService::Get(SHELL_DIR_USER_DATA, &path_));
@@ -198,33 +178,6 @@ ContentIndexProvider* ShellBrowserContext::GetContentIndexProvider() {
   return content_index_provider_.get();
 }
 
-FederatedIdentityApiPermissionContextDelegate*
-ShellBrowserContext::GetFederatedIdentityApiPermissionContext() {
-  if (!federated_permission_context_) {
-    federated_permission_context_ =
-        std::make_unique<ShellFederatedPermissionContext>();
-  }
-  return federated_permission_context_.get();
-}
-
-FederatedIdentityAutoReauthnPermissionContextDelegate*
-ShellBrowserContext::GetFederatedIdentityAutoReauthnPermissionContext() {
-  if (!federated_permission_context_) {
-    federated_permission_context_ =
-        std::make_unique<ShellFederatedPermissionContext>();
-  }
-  return federated_permission_context_.get();
-}
-
-FederatedIdentityPermissionContextDelegate*
-ShellBrowserContext::GetFederatedIdentityPermissionContext() {
-  if (!federated_permission_context_) {
-    federated_permission_context_ =
-        std::make_unique<ShellFederatedPermissionContext>();
-  }
-  return federated_permission_context_.get();
-}
-
 ReduceAcceptLanguageControllerDelegate*
 ShellBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
   if (!reduce_accept_lang_controller_delegate_) {
@@ -237,10 +190,6 @@ ShellBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
 
 OriginTrialsControllerDelegate*
 ShellBrowserContext::GetOriginTrialsControllerDelegate() {
-  if (!origin_trials::features::IsPersistentOriginTrialsEnabled()) {
-    return nullptr;
-  }
-
   if (!origin_trials_controller_delegate_) {
     origin_trials_controller_delegate_ =
         std::make_unique<origin_trials::OriginTrials>(
