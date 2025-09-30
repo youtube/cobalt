@@ -37,7 +37,7 @@ class ShellMainDelegate : public ContentMainDelegate {
   bool ShouldCreateFeatureList(InvokedIn invoked_in) override;
   bool ShouldInitializeMojo(InvokedIn invoked_in) override;
   void PreSandboxStartup() override;
-  absl::variant<int, MainFunctionParams> RunProcess(
+  std::variant<int, MainFunctionParams> RunProcess(
       const std::string& process_type,
       MainFunctionParams main_function_params) override;
 #if BUILDFLAG(IS_LINUX)

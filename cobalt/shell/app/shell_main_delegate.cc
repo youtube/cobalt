@@ -82,26 +82,50 @@
 
 namespace {
 
+enum class LoggingDest {
+  kFile,
+  kStderr,
+};
+
 #if !BUILDFLAG(IS_ANDROIDTV)
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
     g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
 #endif
 
 void InitLogging(const base::CommandLine& command_line) {
-  base::FilePath log_filename =
-      command_line.GetSwitchValuePath(switches::kLogFile);
-  if (log_filename.empty()) {
+  LoggingDest dest = LoggingDest::kFile;
+
+  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "stderr") {
+    dest = LoggingDest::kStderr;
+  }
+
+  base::FilePath log_filename;
+  if (dest == LoggingDest::kFile) {
+    log_filename = command_line.GetSwitchValuePath(switches::kLogFile);
+    if (log_filename.empty()) {
 #if BUILDFLAG(IS_IOS)
-    base::PathService::Get(base::DIR_TEMP, &log_filename);
+      base::PathService::Get(base::DIR_TEMP, &log_filename);
 #else
-    base::PathService::Get(base::DIR_EXE, &log_filename);
+      base::PathService::Get(base::DIR_EXE, &log_filename);
 #endif
-    log_filename = log_filename.AppendASCII("content_shell.log");
+      log_filename = log_filename.AppendASCII("content_shell.log");
+    }
   }
 
   logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_ALL;
-  settings.log_file_path = log_filename.value().c_str();
+
+  if (dest == LoggingDest::kFile) {
+    settings.log_file_path = log_filename.value();
+  }
+
+  if (dest == LoggingDest::kStderr) {
+    settings.logging_dest =
+        logging::LOG_TO_STDERR | logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  } else {
+    // Includes both handle or provided filename on Windows.
+    settings.logging_dest = logging::LOG_TO_ALL;
+  }
+
   settings.delete_old = logging::DELETE_OLD_LOG_FILE;
   logging::InitLogging(settings);
   logging::SetLogItems(true /* Process ID */, true /* Thread ID */,
@@ -193,7 +217,7 @@ void ShellMainDelegate::PreSandboxStartup() {
   InitializeResourceBundle();
 }
 
-absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
+std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
     const std::string& process_type,
     MainFunctionParams main_function_params) {
   // For non-browser process, return and have the caller run the main loop.
@@ -203,8 +227,6 @@ absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
-  base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
-      kTraceEventBrowserProcessSortIndex);
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
   // On Android and iOS, we defer to the system message loop when the stack
@@ -321,6 +343,10 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
     InitializeMojoCore();
   }
 
+    const std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
+
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
   // Consequently, we provide no parameters for these two. The memory_system
   // includes the PoissonAllocationSampler dynamically only if the Profiling
@@ -335,7 +361,8 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore)
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 
   return std::nullopt;
