@@ -320,7 +320,7 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
   web_contents_->GetController().LoadURLWithParams(params);
 }
 
-WebContents* AddNewContents(
+WebContents* Shell::AddNewContents(
       WebContents* source,
       std::unique_ptr<WebContents> new_contents,
       const GURL& target_url,
