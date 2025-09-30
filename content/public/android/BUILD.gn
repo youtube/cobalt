@@ -27,6 +27,12 @@ android_resources("content_java_resources") {
     ":content_strings_grd",
     "//ui/android:ui_java_resources",
   ]
+
+  if (is_cobalt) {
+    deps -= [ "//ui/android:ui_java_resources" ]
+    deps += [ "//ui/android:cobalt_ui_java_resources" ]
+  }
+
   sources = [
     "java/res/drawable-hdpi/ic_search.png",
     "java/res/drawable-mdpi/ic_search.png",
