@@ -65,7 +65,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
 ::media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
   ::media::SupportedCodecs codecs =
       ::media::EME_CODEC_AAC | ::media::EME_CODEC_AVC1 |
@@ -78,7 +77,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   // TODO(b/375232937) Add IAMF
   return codecs;
 }
-#endif
 
 void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
@@ -110,7 +108,6 @@ void CobaltContentRendererClient::RenderFrameCreated(
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
@@ -134,16 +131,13 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
 }
-#endif
 
 void CobaltContentRendererClient::GetSupportedKeySystems(
     ::media::GetSupportedKeySystemsCB cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   ::media::KeySystemInfos key_systems;
-#if BUILDFLAG(IS_ANDROID)
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
-#endif
 }
 
 bool CobaltContentRendererClient::IsSupportedAudioType(
