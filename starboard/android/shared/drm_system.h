@@ -153,7 +153,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // provisioned, we can't get a MediaDrm session ID (which can be generated
   // only after provisioning). In such scenarios, `DrmSystem` still needs a CDM
   // session ID to interact with the Cobalt CDM module.
-  const std::unique_ptr<DrmSessionIdMapper> session_id_mapper_;  //  Guarded by |mutex_|.
+  const std::unique_ptr<DrmSessionIdMapper>
+      session_id_mapper_;  //  Guarded by |mutex_|.
 
   std::unique_ptr<JobQueue> job_queue_;
   std::condition_variable job_queue_created_;
