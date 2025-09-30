@@ -20,6 +20,9 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/metrics/statistics_recorder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
@@ -289,9 +292,17 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
     int64_t now_us = CurrentMonotonicTime();
     if (last_logged && *last_logged + 5'000'000 < now_us) {
-      base::StatisticsRecorder::Histograms historgrams =
+      base::FilePath path("/sdcard/Download/histograms.txt");
+      SB_LOG(INFO) << "Writing histograms to " << path;
+      base::StatisticsRecorder::Histograms histograms =
           base::StatisticsRecorder::GetHistograms();
-      // Log histgrams.
+      std::string output;
+      base::StatisticsRecorder::WriteGraph("", &output);
+      if (base::WriteFile(path, output)) {
+        SB_LOG(INFO) << "Histograms written to " << path.value();
+      } else {
+        SB_LOG(ERROR) << "Failed to write histograms to " << path.value();
+      }
 
       // Reset last_logged. We want to log histograms only once.
       last_logged = std::nullopt;
