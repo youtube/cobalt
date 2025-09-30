@@ -12,22 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "syscall.h"
+#include <errno.h>
 
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
-
-#undef syscall
-
-long syscall(long n, ...) {
-  switch (n) {
-    case __NR_gettid: {
-      return SbThreadGetId();
-    }
-    default: {
-      SB_NOTIMPLEMENTED();
-      errno = ENOSYS;
-      return -1;
-    }
+// Map libc convention return and errno values to the kernel return value
+// convention.
+long __libc_to_syscall_ret(unsigned long r) {
+  if (r == -1) {
+    return -errno;
   }
+  return r;
 }
