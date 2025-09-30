@@ -164,6 +164,7 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
   registry->RegisterListPref(kExperimentConfigExpIds);
+  registry->RegisterListPref(kFinchParameters);
   registry->RegisterDictionaryPref(kSafeConfig);
   registry->RegisterDictionaryPref(kSafeConfigFeatures);
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
