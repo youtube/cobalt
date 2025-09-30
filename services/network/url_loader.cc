@@ -304,6 +304,11 @@ int32_t PopulateOptions(int32_t initial_options,
                mojom::kURLLoadOptionSendSSLInfoForCertificateError;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  options |= mojom::kURLLoadOptionUseHeaderClient;
+  options |= mojom::kURLLoadOptionAsCorsPreflight;
+#endif
+
   return options;
 }
 
@@ -452,11 +457,6 @@ URLLoader::URLLoader(
           base::MakeRefCounted<net::IOBufferWithSize>(kDiscardBufferSize);
     }
   }
-
-#if BUILDFLAG(IS_COBALT)
-  options_ |= mojom::kURLLoadOptionUseHeaderClient;
-  options_ |= mojom::kURLLoadOptionAsCorsPreflight;
-#endif
 
   mojom::TrustedURLLoaderHeaderClient* url_loader_header_client =
       context.GetUrlLoaderHeaderClient();
