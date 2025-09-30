@@ -14,7 +14,6 @@
 
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
-import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
 
 declare_args() {
