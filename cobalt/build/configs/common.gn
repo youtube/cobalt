@@ -47,3 +47,6 @@ v8_enable_atomic_object_field_writes = false
 
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
+
+# Enable widevine for encrypted media playback.
+enable_widevine = true
