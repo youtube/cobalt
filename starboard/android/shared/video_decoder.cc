@@ -51,17 +51,6 @@ namespace {
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& stream,
-                                const std::optional<T>& maybe_value) {
-  if (maybe_value) {
-    stream << *maybe_value;
-  } else {
-    stream << "nullopt";
-  }
-  return stream;
-}
-
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)

@@ -306,6 +306,36 @@ TEST(MediaUtilTest, AudioFramesToDuration) {
   EXPECT_EQ(AudioFramesToDuration(48000 * 2, 48000), 1'000'000LL * 2);
 }
 
+TEST(AudioStreamInfoTest, StreamOperator) {
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info.codec = kSbMediaAudioCodecOpus;
+  audio_stream_info.mime = "audio/webm";
+  audio_stream_info.number_of_channels = 2;
+  audio_stream_info.samples_per_second = 48000;
+  audio_stream_info.bits_per_sample = 16;
+
+  std::stringstream ss;
+  ss << audio_stream_info;
+
+  EXPECT_EQ(ss.str(),
+            "{codec=opus, mime=audio/webm, channels=2, "
+            "samples_per_second=48'000, bits_per_sample=16}");
+}
+
+TEST(AudioStreamInfoTest, StreamOperator_Empty) {
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info.codec = kSbMediaAudioCodecOpus;
+  audio_stream_info.number_of_channels = 2;
+  audio_stream_info.samples_per_second = 48000;
+  audio_stream_info.bits_per_sample = 16;
+
+  std::stringstream ss;
+  ss << audio_stream_info;
+
+  EXPECT_EQ(ss.str(),
+            "{codec=opus, mime=(empty), channels=2, "
+            "samples_per_second=48'000, bits_per_sample=16}");
+}
 }  // namespace
 
 }  // namespace starboard

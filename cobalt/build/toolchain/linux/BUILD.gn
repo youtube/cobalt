@@ -13,18 +13,7 @@
 # limitations under the License.
 
 import("//build/toolchain/gcc_toolchain.gni")
-
-if (is_official_build && is_cobalt_hermetic_build) {
-  if (target_cpu == "arm") {
-    strip_executable = "arm-linux-gnueabi-strip"
-  } else if (target_cpu == "arm64") {
-    strip_executable = "aarch64-linux-gnu-strip"
-  } else if (target_cpu == "x64") {
-    strip_executable = "strip"
-  } else {
-    assert(false, "Unsupported architecture.")
-  }
-}
+import("//starboard/build/toolchain/linux/strip.gni")
 
 clang_toolchain("clang_x64") {
   # Output linker map files for binary size analysis.
