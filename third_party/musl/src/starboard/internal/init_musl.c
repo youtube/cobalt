@@ -14,19 +14,14 @@
 
 #include "init_musl.h"
 #include "libc.h"
-#include "starboard/cpu_features.h"
+#include <sys/auxv.h>
 
 size_t __hwcap;
 
 void init_musl() {
 
-  // Set __hwcap bitmask by Starboard CPU features API.
-  SbCPUFeatures features;
-  if (SbCPUFeaturesGet(&features)) {
-    __hwcap = features.hwcap;
-  } else {
-    __hwcap = 0;
-  }
+  // Set __hwcap bitmask by getauxval.
+  __hwcap = getauxval(AT_HWCAP);
 
   // Init the __stack_chk_guard.
   init_stack_guard();

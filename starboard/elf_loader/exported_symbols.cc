@@ -42,7 +42,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
@@ -117,7 +116,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAudioSinkIsAudioFrameStorageTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsAudioSampleTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsValid);
-  REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDrmCloseSession);
@@ -337,6 +335,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
   REGISTER_WRAPPER(getpriority);
+  REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(lseek);
 
   // TODO: Cobalt - b/424001809.

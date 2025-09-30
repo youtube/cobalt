@@ -197,7 +197,10 @@ test("cobalt_unittests") {
   ]
 
   if (is_starboard) {
-    sources += [ "//cobalt/app/cobalt_switch_defaults_starboard_test.cc" ]
+    sources += [
+      "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
+      "//cobalt/shell/common/device_authentication_test.cc",
+    ]
   }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
