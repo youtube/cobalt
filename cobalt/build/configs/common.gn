@@ -51,3 +51,6 @@ v8_use_external_startup_data = false
 
 # Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
 enable_hls_demuxer=false
+
+# Enable widevine for encrypted media playback.
+enable_widevine = true
