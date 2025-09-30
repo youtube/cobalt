@@ -96,7 +96,6 @@ test("nplb") {
       "align_test.cc",
       "char_is_signed_test.cc",
       "configuration_test.cc",
-      "cpu_features_get_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
       "file_atomic_replace_test.cc",
