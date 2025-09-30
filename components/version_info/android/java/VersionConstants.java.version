@@ -14,7 +14,7 @@ public class VersionConstants {
     @SuppressWarnings({"ComplexBooleanConstant", "IdentityBinaryExpression"})
     public static final boolean IS_OFFICIAL_BUILD = @OFFICIAL_BUILD@ == 1;
     @SuppressWarnings({"ComplexBooleanConstant", "IdentityBinaryExpression"})
-    public static final boolean IS_RELEASE_BUILD = @IS_RELEASE@ == 1;
+    public static final boolean IS_RELEASE_BUILD = @RELEASE_BUILD@ == 1;
 
     public static final int PRODUCT_MAJOR_VERSION = @MAJOR@;
     public static final int PRODUCT_BUILD_VERSION = @BUILD@;
