@@ -18,6 +18,7 @@
 #include <mutex>
 
 #include "starboard/common/log.h"
+#include "starboard/egl_and_gles/buildflags.h"
 
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
@@ -60,7 +61,7 @@
 #define EGL_WIDTH SB_EGL_WIDTH
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
 
-#if defined(STARBOARD_GL_TYPE_ANGLE)
+#if BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 #define EGL_PLATFORM_ANGLE_ANGLE 0x3202
 #define EGL_PLATFORM_ANGLE_TYPE_ANGLE 0x3203
 
@@ -69,7 +70,7 @@
 
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
-#endif  // defined(STARBOARD_GL_TYPE_ANGLE)
+#endif  // BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 
 #define EGL_CALL(x)                                           \
   do {                                                        \
@@ -183,7 +184,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // Note that other platforms that do not use ANGLE but have EGL 1.5 could
   // also call eglGetPlatformDisplay(), but they need to pass the right
   // attributes and a valid platform value to the function.
-#if defined(STARBOARD_GL_TYPE_ANGLE)
+#if BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
   static constexpr SbEglAttrib kAngleAttributes[] = {
       EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
       EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
@@ -195,7 +196,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
       kAngleAttributes));
 #else
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-#endif  // defined(STARBOARD_GL_TYPE_ANGLE)
+#endif  // BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 
   SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK_NE(EGL_NO_DISPLAY, display_);
