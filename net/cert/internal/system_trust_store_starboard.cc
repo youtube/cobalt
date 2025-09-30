@@ -1,4 +1,3 @@
-
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -37,7 +36,6 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
     return trust_store_chrome_->version();
   }
 
-  // Stubs for methods not supported in Starboard.
   net::PlatformTrustStore* GetPlatformTrustStore() override { return nullptr; }
   bool IsLocallyTrustedRoot(
       const bssl::ParsedCertificate* trust_anchor) override {
