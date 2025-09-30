@@ -230,7 +230,15 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   std::map<std::string, std::string> default_annotations = {
       {kCrashpadVersionKey, kCrashpadVersion},
       {kCrashpadProductKey, product_name}};
-  const std::vector<std::string> default_arguments = {};
+
+  // Without this argument the handler's report upload thread, when the handler
+  // is started in response to a crash, will perform its first periodic scan for
+  // pending reports before that crash is handled. This scan is not needed -
+  // a scan is triggered via CrashReportUploadThread::ReportPending after the
+  // crash is handled - and we can simplify the concurrency model and avoid
+  // thread contention by skipping it, especially now that upload scans trigger
+  // report pruning upon completion.
+  const std::vector<std::string> default_arguments = {"--no-periodic-tasks"};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
