@@ -17,6 +17,7 @@
 #include "base/feature_list.h"
 #include "content/public/common/content_features.h"
 #include "content/shell/common/shell_switches.h"
+#include "mojo/public/cpp/bindings/message.h"
 
 namespace content {
 
@@ -54,7 +55,7 @@ bool ShellFederatedPermissionContext::ShouldCompleteRequestImmediately() const {
 }
 
 // FederatedIdentityAutoReauthnPermissionContextDelegate
-bool ShellFederatedPermissionContext::HasAutoReauthnContentSetting() {
+bool ShellFederatedPermissionContext::IsAutoReauthnSettingEnabled() {
   return auto_reauthn_permission_;
 }
 
@@ -68,7 +69,10 @@ base::Time ShellFederatedPermissionContext::GetAutoReauthnEmbargoStartTime(
   return base::Time();
 }
 
-void ShellFederatedPermissionContext::RecordDisplayAndEmbargo(
+void ShellFederatedPermissionContext::RecordEmbargoForAutoReauthn(
+    const url::Origin& relying_party_embedder) {}
+
+void ShellFederatedPermissionContext::RemoveEmbargoForAutoReauthn(
     const url::Origin& relying_party_embedder) {}
 
 void ShellFederatedPermissionContext::AddIdpSigninStatusObserver(
@@ -76,43 +80,19 @@ void ShellFederatedPermissionContext::AddIdpSigninStatusObserver(
 void ShellFederatedPermissionContext::RemoveIdpSigninStatusObserver(
     IdpSigninStatusObserver* observer) {}
 
-// FederatedIdentityActiveSessionPermissionContextDelegate
-bool ShellFederatedPermissionContext::HasActiveSession(
-    const url::Origin& relying_party_requester,
-    const url::Origin& identity_provider,
-    const std::string& account_identifier) {
-  return active_sessions_.find(std::tuple(
-             relying_party_requester.Serialize(), identity_provider.Serialize(),
-             account_identifier)) != active_sessions_.end();
-}
-
-void ShellFederatedPermissionContext::GrantActiveSession(
-    const url::Origin& relying_party_requester,
-    const url::Origin& identity_provider,
-    const std::string& account_identifier) {
-  active_sessions_.insert(std::tuple(relying_party_requester.Serialize(),
-                                     identity_provider.Serialize(),
-                                     account_identifier));
-}
-
-void ShellFederatedPermissionContext::RevokeActiveSession(
-    const url::Origin& relying_party_requester,
-    const url::Origin& identity_provider,
-    const std::string& account_identifier) {
-  active_sessions_.erase(std::tuple(relying_party_requester.Serialize(),
-                                    identity_provider.Serialize(),
-                                    account_identifier));
-}
-
 bool ShellFederatedPermissionContext::HasSharingPermission(
     const url::Origin& relying_party_requester,
     const url::Origin& relying_party_embedder,
-    const url::Origin& identity_provider,
-    const std::string& account_id) {
-  return sharing_permissions_.find(std::tuple(
-             relying_party_requester.Serialize(),
-             relying_party_embedder.Serialize(), identity_provider.Serialize(),
-             account_id)) != sharing_permissions_.end();
+    const url::Origin& identity_provider) {
+  return std::find_if(sharing_permissions_.begin(), sharing_permissions_.end(),
+                      [&](const auto& entry) {
+                        return relying_party_requester.Serialize() ==
+                                   std::get<0>(entry) &&
+                               relying_party_embedder.Serialize() ==
+                                   std::get<1>(entry) &&
+                               identity_provider.Serialize() ==
+                                   std::get<2>(entry);
+                      }) != sharing_permissions_.end();
 }
 
 void ShellFederatedPermissionContext::GrantSharingPermission(
@@ -125,22 +105,18 @@ void ShellFederatedPermissionContext::GrantSharingPermission(
       identity_provider.Serialize(), account_id));
 }
 
-std::optional<bool> ShellFederatedPermissionContext::GetIdpSigninStatus(
-    const url::Origin& idp_origin) {
-  auto idp_signin_status = idp_signin_status_.find(idp_origin.Serialize());
-  if (idp_signin_status != idp_signin_status_.end()) {
-    return idp_signin_status->second;
-  } else {
-    return std::nullopt;
-  }
-}
-
 void ShellFederatedPermissionContext::SetIdpSigninStatus(
     const url::Origin& idp_origin,
-    bool idp_signin_status) {
+    bool idp_signin_status,
+    base::optional_ref<const blink::common::webid::LoginStatusOptions>
+        options) {
+  if (idp_origin.opaque()) {
+    mojo::ReportBadMessage("Bad IdP Origin from renderer.");
+    return;
+  }
+
   idp_signin_status_[idp_origin.Serialize()] = idp_signin_status;
-  // TODO(crbug.com/1382989): Find a better way to do this than adding
-  // explicit helper code to signal completion.
+  // TODO(crbug.com/40245925): Replace this with AddIdpSigninStatusObserver.
   if (idp_signin_status_closure_) {
     idp_signin_status_closure_.Run();
   }
