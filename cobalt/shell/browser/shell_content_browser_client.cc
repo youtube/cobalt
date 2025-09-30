@@ -42,7 +42,7 @@
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
-#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"

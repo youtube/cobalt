@@ -24,7 +24,7 @@
 #include "base/test/task_environment.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
-#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
