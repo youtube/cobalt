@@ -85,6 +85,7 @@ The functionality is migrated to use `getauxval` instead.
 * `rand_r`
 * `readdir`
 * `readlink`
+* `readv`
 * `realpath`
 * `recvmmsg`
 * `recvmsg`
