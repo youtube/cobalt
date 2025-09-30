@@ -73,14 +73,12 @@ android_library("cobalt_shell_java") {
     "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
-    "//components/viz/service:service_java",
     "//content/public/android:content_java",
     "//media/base/android:media_java",
     "//media/capture/video/android:capture_java",
     "//mojo/public/java:system_java",
     "//net/android:net_java",
-    "//ui/android:ui_java",
-    "//ui/android:ui_no_recycler_view_java",
+    "//ui/android:cobalt_ui_full_java",
     "//ui/base/cursor/mojom:cursor_type_java",
     "//url:gurl_java",
   ]
@@ -123,7 +121,7 @@ android_library("cobalt_shell_test_apk_java") {
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-    "//ui/android:ui_java",
+    "//ui/android:cobalt_ui_full_java",
     "//url:gurl_java",
   ]
 
@@ -170,7 +168,7 @@ template("cobalt_shell_apk_tmpl") {
       "//net/android:net_java",
       "//services/shape_detection:shape_detection_java",
       "//third_party/mesa_headers",
-      "//ui/android:ui_java",
+      "//ui/android:cobalt_ui_full_java",
     ]
   }
 }
@@ -209,7 +207,7 @@ android_library("cobalt_shell_test_java") {
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_java",
     "//third_party/junit:junit",
-    "//ui/android:ui_java",
+    "//ui/android:cobalt_ui_full_java",
     "//url:gurl_java",
   ]
   sources = [
@@ -228,7 +226,7 @@ android_library("cobalt_shell_browsertests_java") {
     "//content/public/android:content_java",
     "//testing/android/native_test:native_test_java",
     "//third_party/androidx:androidx_core_core_java",
-    "//ui/android:ui_java",
+    "//ui/android:cobalt_ui_full_java",
   ]
   sources = [ "browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
 }

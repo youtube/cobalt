@@ -10,6 +10,9 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### Removed SbCPUFeaturesGet
+The functionality is migrated to use `getauxval` instead.
+
 ### Added the following POSIX symbols:
 * `aligned_alloc`
 * `fdatasync`
@@ -60,6 +63,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `geteuid`
 * `getpid`
 * `getpriority`
+* `getrlimit`
 * `pathconf`
 * `pipe2`
 * `poll`
