@@ -28,6 +28,7 @@ constexpr char kExperimentConfig[] = "experiment_config";
 constexpr char kExperimentConfigFeatures[] = "experiment_config.features";
 constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
+constexpr char kExperimentConfigExpIds[] = "experiment_config.exp_ids";
 constexpr char kFinchParameters[] = "finch_parameters";
 constexpr char kSafeConfig[] = "safe_config";
 constexpr char kSafeConfigFeatures[] = "safe_config.features";
