@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_BROWSER_SHELL_PATHS_H_
-#define COBALT_SHELL_BROWSER_SHELL_PATHS_H_
+#ifndef COBALT_SHELL_COMMON_SHELL_PATHS_H_
+#define COBALT_SHELL_COMMON_SHELL_PATHS_H_
 
 #include "build/build_config.h"
 
@@ -36,4 +36,4 @@ void RegisterShellPathProvider();
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_BROWSER_SHELL_PATHS_H_
+#endif  // COBALT_SHELL_COMMON_SHELL_PATHS_H_

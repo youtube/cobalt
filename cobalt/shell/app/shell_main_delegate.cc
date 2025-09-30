@@ -24,7 +24,7 @@
 #include "components/crash/core/common/crash_key.h"
 #endif
 #include "cobalt/shell/browser/shell_content_browser_client.h"
-#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
