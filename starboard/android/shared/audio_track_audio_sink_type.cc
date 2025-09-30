@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
+#include "base/metrics/statistics_recorder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -215,6 +216,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   int last_playback_head_position = 0;
 
+  std::optional<int64_t> last_logged;
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -282,6 +285,16 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       last_playback_head_event_at = -1;
       ScopedTimer timer("Play");
       bridge_.Play();
+      last_logged = CurrentMonotonicTime();
+    }
+    int64_t now_us = CurrentMonotonicTime();
+    if (last_logged && *last_logged + 5'000'000 < now_us) {
+      base::StatisticsRecorder::Histograms historgrams =
+          base::StatisticsRecorder::GetHistograms();
+      // Log histgrams.
+
+      // Reset last_logged. We want to log histograms only once.
+      last_logged = std::nullopt;
     }
 
     if (!is_playing || frames_in_buffer == 0) {
