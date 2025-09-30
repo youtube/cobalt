@@ -15,11 +15,14 @@
 #include "cobalt/shell/common/shell_paths.h"
 
 #include "base/base_paths.h"
+#include "base/command_line.h"
 #include "base/environment.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "content/shell/common/shell_switches.h"
 
 #if BUILDFLAG(IS_LINUX)
 #include "base/nix/xdg_util.h"
@@ -61,25 +64,21 @@ class ShellPathProvider {
 };
 
 bool ShellPathProvider(int key, base::FilePath* result) {
-  base::FilePath cur;
-
   switch (key) {
     case SHELL_DIR_USER_DATA: {
       base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
-        if (cmd_line->HasSwitch(switches::kContentShellDataPath)) {
-          path_ = cmd_line->GetSwitchValuePath(switches::kContentShellDataPath);
+        if (cmd_line->HasSwitch(switches::kContentShellUserDataDir)) {
+          base::FilePath path_ = cmd_line->GetSwitchValuePath(switches::kContentShellUserDataDir);
           if (base::DirectoryExists(path_) || base::CreateDirectory(path_))  {
-            // BrowserContext needs an absolute path, which we would normally get via
-            // PathService. In this case, manually ensure the path is absolute.
-            if (!path_.IsAbsolute())
+            if (!path_.IsAbsolute()) {
               path_ = base::MakeAbsoluteFilePath(path_);
+            }
             if (!path_.empty()) {
-              *result = path;
+              *result = path_;
               return true;
             }
           } else {
             LOG(WARNING) << "Unable to create data-path directory: " << path_.value();
-          }
         }
       }
       bool rv = GetDefaultUserDataDirectory(result);
