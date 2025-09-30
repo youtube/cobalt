@@ -23,6 +23,7 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "content/public/browser/content_browser_client.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"

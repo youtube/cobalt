@@ -569,9 +569,9 @@ void ShellContentBrowserClient::CreateThrottlesForNavigation(
 
 std::unique_ptr<LoginDelegate> ShellContentBrowserClient::CreateLoginDelegate(
     const net::AuthChallengeInfo& auth_info,
-    WebContents* web_contents,
-    BrowserContext* browser_context,
-    const GlobalRequestID& request_id,
+    content::WebContents* web_contents,
+    content::BrowserContext* browser_context,
+    const content::GlobalRequestID& request_id,
     bool is_request_for_primary_main_frame_navigation,
     bool is_request_for_navigation,
     const GURL& url,
@@ -833,17 +833,7 @@ std::optional<network::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
     content::WebContents* web_contents,
     const url::Origin& app_origin) {
-  network::ParsedPermissionsPolicyDeclaration coi_decl(
-      network::mojom::PermissionsPolicyFeature::kCrossOriginIsolated,
-      /*allowed_origins=*/{},
-      /*self_if_matches=*/std::nullopt,
-      /*matches_all_origins=*/true, /*matches_opaque_src=*/false);
-
-  network::ParsedPermissionsPolicyDeclaration socket_decl(
-      network::mojom::PermissionsPolicyFeature::kDirectSockets,
-      /*allowed_origins=*/{}, app_origin,
-      /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
-  return {{coi_decl, socket_decl}};
+  return network::ParsedPermissionsPolicy();
 }
 
 // Tests may install their own ShellContentBrowserClient, track the list here.

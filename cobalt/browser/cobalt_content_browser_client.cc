@@ -35,6 +35,7 @@
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -46,7 +47,6 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
-#include "content/public/common/user_agent.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -105,11 +105,11 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
                                                 COBALT_VERSION);
   metadata.full_version = COBALT_VERSION;
   metadata.platform = "Starboard";
-  metadata.architecture = content::GetCpuArchitecture();
-  metadata.model = content::BuildModelInfo();
+  metadata.architecture = embedder_support::GetCpuArchitecture();
+  metadata.model = embedder_support::BuildModelInfo();
 
-  metadata.bitness = content::GetCpuBitness();
-  metadata.wow64 = content::IsWoW64();
+  metadata.bitness = embedder_support::GetCpuBitness();
+  metadata.wow64 = embedder_support::IsWoW64();
 
   return metadata;
 }
@@ -134,14 +134,9 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   return browser_main_parts;
 }
 
-std::vector<std::unique_ptr<content::NavigationThrottle>>
-CobaltContentBrowserClient::CreateThrottlesForNavigation(
-    content::NavigationHandle* handle) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
-  throttles.push_back(
-      std::make_unique<content::CobaltSecureNavigationThrottle>(handle));
-  return throttles;
+void CobaltContentBrowserClient::CreateThrottlesForNavigation(
+    content::NavigationThrottleRegistry& registry) {
+  return content::ShellContentBrowserClient::CreateThrottlesForNavigation(registry);
 }
 
 content::GeneratedCodeCacheSettings
@@ -168,31 +163,21 @@ std::string CobaltContentBrowserClient::GetUserAgent() {
   return GetCobaltUserAgent();
 }
 
-std::string CobaltContentBrowserClient::GetFullUserAgent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return GetCobaltUserAgent();
-}
-
-std::string CobaltContentBrowserClient::GetReducedUserAgent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return GetCobaltUserAgent();
-}
-
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgentMetadata();
 }
 
-void CobaltContentBrowserClient::OverrideWebkitPrefs(
-    content::WebContents* web_contents,
-    blink::web_pref::WebPreferences* prefs) {
+void CobaltContentBrowserClient::OverrideWebPreferences(content::WebContents* web_contents,
+                            content::SiteInstance& main_frame_site,
+                            blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
-  content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
+  content::ShellContentBrowserClient::OverrideWebPreferences(web_contents, main_frame_site, prefs);
 }
 
 content::StoragePartitionConfig
@@ -218,7 +203,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
-  network_context_params->quic_user_agent_id = "";
   network_context_params->accept_language = GetApplicationLocale();
 
   // Always enable the HTTP cache.
@@ -232,11 +216,11 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // Configure on-disk storage for non-off-the-record profiles. Off-the-record
   // profiles just use default behavior (in memory storage, default sizes).
   if (!in_memory) {
-    network_context_params->http_cache_directory =
-        base_cache_path.Append(kCacheDirname);
-
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
+
+    network_context_params->file_paths->http_cache_directory =
+        base_cache_path.Append(kCacheDirname);
 
     network_context_params->file_paths->data_directory =
         path.Append(kNetworkDataDirname);
@@ -267,7 +251,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
   // All consumers of the main NetworkContext must provide NetworkIsolationKeys
   // / IsolationInfos, so storage can be isolated on a per-site basis.
-  network_context_params->require_network_isolation_key = true;
+  network_context_params->require_network_anonymization_key = true;
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
@@ -325,20 +309,22 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
   }
 }
 
-bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
+void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,
     int render_process_id,
     URLLoaderFactoryType type,
     const url::Origin& request_initiator,
+    const net::IsolationInfo& isolation_info,
     std::optional<int64_t> navigation_id,
     ukm::SourceIdObj ukm_source_id,
-    mojo::PendingReceiver<network::mojom::URLLoaderFactory>* factory_receiver,
+    network::URLLoaderFactoryBuilder& factory_builder,
     mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
         header_client,
     bool* bypass_redirect_checks,
     bool* disable_secure_dns,
-    network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
+    network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+    scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
   if (header_client) {
     auto receiver = header_client->InitWithNewPipeAndPassReceiver();
     auto cobalt_header_client =
@@ -346,8 +332,6 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
             std::move(receiver));
     cobalt_header_clients_.push_back(std::move(cobalt_header_client));
   }
-
-  return true;
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
@@ -377,7 +361,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       // TODO(b/407734134): Register UMA here for non boolean feature value.
       LOG(ERROR) << "Failed to apply override for feature "
                  << feature_name_and_value.first;
-      base::debug::DumpWithoutCrashing();
     }
   }
 
@@ -391,7 +374,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       LOG(ERROR) << "Failed to associate field trial param "
                  << param_name_and_value.first << " with string value "
                  << param_name_and_value.second;
-      base::debug::DumpWithoutCrashing();
     }
   }
   base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
@@ -429,7 +411,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
         base::FeatureList::OVERRIDE_DISABLE_FEATURE);
   }
 
-  feature_list->InitializeFromCommandLine(
+  feature_list->InitFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
       command_line.GetSwitchValueASCII(::switches::kDisableFeatures));
 
