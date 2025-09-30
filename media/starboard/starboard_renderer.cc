@@ -16,6 +16,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
@@ -129,6 +130,7 @@ StarboardRenderer::StarboardRenderer(
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
+      set_bounds_helper_(task_runner_.get()),
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),

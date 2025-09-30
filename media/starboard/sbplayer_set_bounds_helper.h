@@ -33,7 +33,7 @@ class SbPlayerBridge;
 
 class SbPlayerSetBoundsHelper {
  public:
-  SbPlayerSetBoundsHelper();
+  explicit SbPlayerSetBoundsHelper(base::SequencedTaskRunner* task_runner);
 
   void SetPlayerBridge(SbPlayerBridge* player_bridge);
   bool SetBounds(const gfx::Rect& rect);
