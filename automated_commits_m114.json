@@ -1,5 +1,161 @@
 [
   {
+    "hexsha": "113ed595a627f2d1250e0cea65c5c64bdf987ad8",
+    "original_hexsha": "7768abbc5e30797d7293c1bce6f0a55ff281efc3",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-29T17:59:11-07:00",
+    "summary": "Deprecate SbCPUFeaturesGet (#7324)",
+    "stats": {
+      "files": 15,
+      "insertions": 7,
+      "deletions": 1285
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a17c7bed4a6768b095d045d6618113c761ba1b26",
+    "original_hexsha": "15efbf12763e97c20be43450120734459691539d",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-09-29T17:53:57-07:00",
+    "summary": "evergreen: Launch app with a splash screen (#7383)",
+    "stats": {
+      "files": 2,
+      "insertions": 2,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d81436407ea1b4c1ddf2a5c2719e69bf78640da2",
+    "original_hexsha": "01812881e49b460e018bde2ee4d409485acf8f96",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-29T14:28:59-07:00",
+    "summary": "starboard: Add stream operator for std::optional and to_string(bool) (#7362)",
+    "stats": {
+      "files": 10,
+      "insertions": 98,
+      "deletions": 13
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "496ebf42f76bc03735a35b80aba58c99fbf72bed",
+    "original_hexsha": "cfe16975ad33ccfd952213097c088d3459a33882",
+    "author": "Hao",
+    "datetime": "2025-09-29T17:15:21-04:00",
+    "summary": "Add web_ui_mojo_test_resources.pak for non-official build (#7373)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6e8220fb91502f5e847de70c0e8384fa5758b8f4",
+    "original_hexsha": "8005e8bdc7d5ab9d66c8a29e6f4871ba58117ca0",
+    "author": "Hao",
+    "datetime": "2025-09-29T17:03:58-04:00",
+    "summary": "Add Cobalt configuration for ICU (#7349)",
+    "stats": {
+      "files": 5,
+      "insertions": 2102,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a5a015bd77ff44f17e31b04b5282d4d03f2c92dc",
+    "original_hexsha": "9baa29142e1421077fadeb8945358db2556b2140",
+    "author": "Hao",
+    "datetime": "2025-09-29T17:03:32-04:00",
+    "summary": "Create lean UI library for Cobalt ATV (#7241)",
+    "stats": {
+      "files": 11,
+      "insertions": 3189,
+      "deletions": 53
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "300bd70aa2e2fd9501e344307ff749cca184dc60",
+    "original_hexsha": "83eee3a64041458a1361b078b3df3dd3b0326604",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-29T13:56:15-07:00",
+    "summary": "Pin the RDK repository to the current latest 27.lts.youtube (#7379)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7d5d2640bf34098c1ddde69bcdd6638c8ef7303b",
+    "original_hexsha": "8af969514e17d0fdad4af8f29f19c2fc735d12d3",
+    "author": "John Ocampo",
+    "datetime": "2025-09-29T18:30:56+00:00",
+    "summary": "POSIX: Add getrlimit to Starboard (#7351)",
+    "stats": {
+      "files": 10,
+      "insertions": 262,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "df244d7077b9c943db8a8a95bd440bb771251ec1",
+    "original_hexsha": "f2e154b6bfe93166885e3c6a4b09eff00bb9e80a",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-09-29T10:56:53-07:00",
+    "summary": "evergreen: Implement lightweight device authentication (#7154)",
+    "stats": {
+      "files": 16,
+      "insertions": 472,
+      "deletions": 410
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2b0c8d09974f44e880f45ccd87aa55bc4d7650ce",
+    "original_hexsha": "2e102a56efd67c056333a6c5cb0c52576d55876a",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-29T09:38:49-07:00",
+    "summary": "android: Handle undocumented exceptions in getOutputFormat() (#7329)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "fe10718103a7af9c707624643ce03192d47dbfea",
+    "original_hexsha": "02e14755cfa23ff5d3b6a1dd5b3ed43fb3ed5af6",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-29T08:55:12-07:00",
+    "summary": "Turn off the plugin support (#7356)",
+    "stats": {
+      "files": 2,
+      "insertions": 3,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "eb869eec366ecde6890729a9303857ac79f80d9c",
+    "original_hexsha": "1f3d4c02d72edd0b895700015c206367657518b3",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-09-29T08:54:58-07:00",
+    "summary": "Cleanup fontconfig hack (#7363)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "8331b560d793df4c6d071666716beb6ca8d01dc9",
     "original_hexsha": "388ac447de7f29f2834660b224c18af855cb3655",
     "author": "Sherry Zhou",
