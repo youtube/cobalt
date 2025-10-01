@@ -79,7 +79,7 @@ AssetManager::AssetManager() {
   char path[kPathSize] = {0};
   SB_CHECK(SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize))
       << "Unable to get system temp path for AssetManager.";
-  SB_CHECK(starboard::strlcat(path, "/asset_tmp", kPathSize) < kPathSize)
+  SB_CHECK_LT(starboard::strlcat(path, "/asset_tmp", kPathSize), kPathSize)
       << "Unable to construct temp path for AssetManager.";
   tmp_root_ = path;
   ClearTempDir();

@@ -64,8 +64,8 @@ bool OpenMaxVideoDecodeComponent::OnEnableOutputPort(
   SB_DCHECK(port_definition);
 
   output_port_definition_ = *port_definition;
-  SB_DCHECK(port_definition->format.video.eColorFormat ==
-            OMX_COLOR_FormatYUV420PackedPlanar);
+  SB_DCHECK_EQ(port_definition->format.video.eColorFormat,
+               OMX_COLOR_FormatYUV420PackedPlanar);
   port_definition->format.video.eColorFormat =
       OMX_COLOR_FormatYUV420PackedPlanar;
   port_definition->nBufferCountActual = kOMXOutputBufferCount;

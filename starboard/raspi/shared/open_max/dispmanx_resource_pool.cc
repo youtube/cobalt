@@ -31,7 +31,7 @@ DispmanxResourcePool::~DispmanxResourcePool() {
     free_resources_.pop();
     --number_of_resources_;
   }
-  SB_DCHECK(number_of_resources_ == 0) << number_of_resources_;
+  SB_DCHECK_EQ(number_of_resources_, 0);
 }
 
 DispmanxYUV420Resource* DispmanxResourcePool::Alloc(int width,

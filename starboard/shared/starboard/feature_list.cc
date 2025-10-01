@@ -17,6 +17,7 @@
 #include <cstring>
 #include <mutex>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 
@@ -60,7 +61,7 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
     const SbFeature& feature = features[i];
     auto& feature_map = instance->features_;
 
-    SB_CHECK(strlen(feature.name) > 0)
+    SB_CHECK_GT(strlen(feature.name), 0U)
         << "Features are not allowed to have empty strings as names.";
     SB_CHECK((feature_map.find(feature.name)) == (feature_map.end()))
         << "Duplicate Features are not allowed.";
@@ -71,10 +72,10 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
   for (size_t i = 0; i < number_of_params; i++) {
     SbFeatureParam param = params[i];
 
-    SB_CHECK(strlen(param.feature_name) > 0)
+    SB_CHECK_GT(strlen(param.feature_name), 0U)
         << "A parameter cannot belong to a feature whose name is an empty "
            "string.";
-    SB_CHECK(strlen(param.param_name) > 0)
+    SB_CHECK_GT(strlen(param.param_name), 0U)
         << "Parameters are not allowed to have empty strings as names.";
     ParamValue value;
     switch (param.type) {
@@ -136,7 +137,7 @@ void FeatureList::ValidateParam(const std::string& feature_name,
          "initialized in starboard/extension/feature_config.h?";
 
   const auto& [param_entry_type, _] = param_it->second;
-  SB_CHECK(param_entry_type == param_type)
+  SB_CHECK_EQ(param_entry_type, param_type)
       << "The type of parameter " << param_name
       << " does not match its declared type in "
          "starboard/extension/feature_config.h."

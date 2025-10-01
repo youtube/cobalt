@@ -232,8 +232,8 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
              data, freespace);
       data += freespace;
       size_in_bytes -= freespace;
-      SB_DCHECK(decoding_input_buffers_.front()->timestamp() ==
-                partially_decoded_audio_->timestamp());
+      SB_DCHECK_EQ(decoding_input_buffers_.front()->timestamp(),
+                   partially_decoded_audio_->timestamp());
 
       const auto& sample_info =
           decoding_input_buffers_.front()->audio_sample_info();

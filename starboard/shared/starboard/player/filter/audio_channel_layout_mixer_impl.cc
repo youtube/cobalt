@@ -191,8 +191,8 @@ void StoreInterleavedSamplesOfFrame(const SampleType* samples,
       dest_buffer[frame_index * (*destination)->channels() + channel_index] =
           samples[channel_index];
     } else {
-      SB_DCHECK((*destination)->storage_type() ==
-                kSbMediaAudioFrameStorageTypePlanar);
+      SB_DCHECK_EQ((*destination)->storage_type(),
+                   kSbMediaAudioFrameStorageTypePlanar);
       dest_buffer[channel_index * (*destination)->frames() + frame_index] =
           samples[channel_index];
     }

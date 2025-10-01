@@ -174,8 +174,8 @@ bool HasEqualParameterSets(const std::vector<uint8_t>& nalus_in_annex_b_1,
   AvcParameterSets parameter_sets_2(kAnnexB, nalus_in_annex_b_2.data(),
                                     nalus_in_annex_b_2.size());
 
-  SB_CHECK((parameter_sets_1 == parameter_sets_2) !=
-           (parameter_sets_1 != parameter_sets_2));
+  SB_CHECK_NE(parameter_sets_1 == parameter_sets_2,
+              parameter_sets_1 != parameter_sets_2);
 
   return parameter_sets_1 == parameter_sets_2;
 }

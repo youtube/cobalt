@@ -253,7 +253,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       continue;
     }
     SB_DCHECK_GT(expected_written_frames, 0);
-    SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
+    SB_DCHECK_LE(start_position + expected_written_frames, frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
         << ", frames_per_channel_: " << frames_per_channel_
