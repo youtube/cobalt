@@ -17,7 +17,6 @@
 
 #import <UIKit/UIKit.h>
 
-#import "starboard/tvos/shared/keyboard_input_device.h"
 #include "starboard/window.h"
 
 @class SBDApplication;
@@ -34,12 +33,6 @@ NS_ASSUME_NONNULL_BEGIN
  *  @brief The name of the window.
  */
 @property(nonatomic, readonly, nullable) NSString* name;
-
-/**
- *  @brief Input device to send keyboard events. (This is separate from the
- *      on-screen keyboard used with the search container.)
- */
-@property(nonatomic, readonly) SBDKeyboardInputDevice* keyboardInputDevice;
 
 /**
  *  @brief The size of the window.

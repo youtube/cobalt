@@ -17,8 +17,6 @@
 
 #import <UIKit/UIKit.h>
 
-@class SBDKeyboardInputDevice;
-
 NS_ASSUME_NONNULL_BEGIN
 
 /**
