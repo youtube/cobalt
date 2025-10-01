@@ -37,15 +37,20 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
   }
 
   net::PlatformTrustStore* GetPlatformTrustStore() override { return nullptr; }
+
   bool IsLocallyTrustedRoot(
       const bssl::ParsedCertificate* trust_anchor) override {
     return false;
   }
+
   base::span<const ChromeRootCertConstraints> GetChromeRootConstraints(
       const bssl::ParsedCertificate* cert) const override {
-    return {};
+    return trust_store_chrome_->GetConstraintsForCert(cert);
   }
-  bssl::TrustStore* eutl_trust_store() override { return nullptr; }
+
+  bssl::TrustStore* eutl_trust_store() override {
+    return trust_store_chrome_->eutl_trust_store();
+  }
 
  private:
   std::unique_ptr<TrustStoreChrome> trust_store_chrome_;
