@@ -1,5 +1,83 @@
 [
   {
+    "hexsha": "48dbe34c7da0537cc510b9af78b1426efb3a6d02",
+    "original_hexsha": "83ea16ff38f536af5d210788ffdc488a49a0976f",
+    "author": "Kyujung Youn",
+    "datetime": "2025-09-30T18:03:25-07:00",
+    "summary": "starboard: Prefer specific comparison macros (e.g., SB_CHECK_EQ) to SB_CHECK (#7370)",
+    "stats": {
+      "files": 58,
+      "insertions": 183,
+      "deletions": 161
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0cc08c126f48eb045dca4222a67176e63644772c",
+    "original_hexsha": "b3e7cbb32c342b4f1115d3d4427aea5f0fccd5e0",
+    "author": "Kaido Kert",
+    "datetime": "2025-09-30T16:55:10-07:00",
+    "summary": "Build: Clean up ATV release artifacts (#7418)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8b8011690b5070536cd676d81180b2af3f2bd0b0",
+    "original_hexsha": "e935b5ca175a2e733a082a5352f8a40f551d9afd",
+    "author": "Santosh Mahto",
+    "datetime": "2025-10-01T02:05:43+05:30",
+    "summary": "Enable support for widevine  (#7248)",
+    "stats": {
+      "files": 3,
+      "insertions": 4,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "10356efa52ecccc26aebc7dbbcc55ebe1fcf90bf",
+    "original_hexsha": "bf1cd358860110e6eb7b3e3006487478d327d61a",
+    "author": "Jelle Foks",
+    "datetime": "2025-09-30T12:10:09-07:00",
+    "summary": "test: Increase duration and margin for flaky clock test (#7273)",
+    "stats": {
+      "files": 1,
+      "insertions": 3,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8b08120f95caaa4cc8ac775eb909c98286f3fe09",
+    "original_hexsha": "c0d5a974ba75f485d42c3bd3a0057be7ab443ca6",
+    "author": "Charley Kim",
+    "datetime": "2025-09-30T09:49:12-07:00",
+    "summary": "android: Change symbol for top 4 java stack frames on exception (#7366)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b3f7fee6e4fe90625f2021eb1d6029ae8215b08a",
+    "original_hexsha": "75ffd60c5a3f15540d9b1e719d874fd6268074ce",
+    "author": "Holden Warriner",
+    "datetime": "2025-09-30T13:26:32+00:00",
+    "summary": "Prune crash reports as required by cobalt (#7358)",
+    "stats": {
+      "files": 4,
+      "insertions": 55,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "113ed595a627f2d1250e0cea65c5c64bdf987ad8",
     "original_hexsha": "7768abbc5e30797d7293c1bce6f0a55ff281efc3",
     "author": "Yavor Goulishev",
