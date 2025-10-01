@@ -76,10 +76,6 @@ config("platform_configuration") {
 
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
-      "-Wno-sign-compare",
-      "-Wno-tautological-pointer-compare",
-      "-Wno-shorten-64-to-32",
-      "-Wno-missing-braces",
     ]
   }
 

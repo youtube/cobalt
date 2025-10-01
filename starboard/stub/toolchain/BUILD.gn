@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
-clang_toolchain("starboard") {
-  toolchain_args = {
-    current_cpu = "x64"
-    current_os = "linux"
-    is_starboard = true
-  }
+clang_toolchain("target") {
+  clang_base_path = clang_base_path
 }

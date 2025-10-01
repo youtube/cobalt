@@ -27,4 +27,3 @@ no_pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:no_pedantic_warnings"
 
 v8_enable_webassembly = true
-sb_is_evergreen_compatible = true
