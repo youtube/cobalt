@@ -7,6 +7,12 @@ import("//build/config/android/rules.gni")
 import("//build/util/process_version.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
+if (defined(is_cobalt)) {
+  if (is_cobalt) {
+    import("//cobalt/build/configs/cobalt.gni")
+  }
+}
+
 _version_constants_java_file =
     "$target_gen_dir/java/org/chromium/base/version_info/VersionConstants.java"
 
@@ -58,6 +64,20 @@ process_version("generate_version_constants") {
     "-e",
     "CHANNEL=str.upper('$android_channel')",
   ]
+  if (defined(is_cobalt)) {
+    if (is_cobalt && cobalt_is_release_build) {
+      extra_args += [
+        "-e",
+        "RELEASE_BUILD=1",
+      ]
+    }
+    else {
+      extra_args += [
+        "-e",
+        "RELEASE_BUILD=0",
+      ]
+    }
+  }
 
   # This dependency currently breaks webrtc which pulls in //base
   # (but not //chrome). crbug.com/webrtc/13662 tracks removing webrtc's
