@@ -13,6 +13,7 @@ public class VersionConstants {
     public static final String PRODUCT_VERSION = "@MAJOR@.@MINOR@.@BUILD@.@PATCH@";
     @SuppressWarnings({"ComplexBooleanConstant", "IdentityBinaryExpression"})
     public static final boolean IS_OFFICIAL_BUILD = @OFFICIAL_BUILD@ == 1;
+    public static final boolean IS_RELEASE_BUILD = @COBALT_IS_RELEASE_BUILD@ == 1;
 
     public static final int PRODUCT_MAJOR_VERSION = @MAJOR@;
     public static final int PRODUCT_BUILD_VERSION = @BUILD@;
