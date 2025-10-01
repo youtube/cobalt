@@ -246,7 +246,7 @@ LinkReceiverImpl::LinkReceiverImpl(Application* application, int port)
 }
 
 LinkReceiverImpl::~LinkReceiverImpl() {
-  SB_CHECK(thread_ != pthread_self());
+  SB_CHECK_NE(thread_, pthread_self());
   quit_.store(true);
 
   // Wake up the epoll_wait() call by writing to the eventfd.

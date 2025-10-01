@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
@@ -40,7 +41,7 @@ std::string GetFilenameForLanguage(const std::string& language) {
 }
 
 bool ReadFile(const std::string& filename, std::string* out_result) {
-  SB_DCHECK(filename.length() > 0);
+  SB_DCHECK_GT(filename.length(), 0U);
   SB_DCHECK(out_result);
 
   ScopedFile file(filename.c_str(), O_RDONLY);
@@ -55,7 +56,7 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
     SB_DLOG(ERROR) << "Cannot get information for i18n file.";
     return false;
   }
-  SB_DCHECK(file_info.st_size > 0);
+  SB_DCHECK_GT(file_info.st_size, 0);
 
   const int kMaxBufferSize = 16 * 1024;
   if (file_info.st_size > kMaxBufferSize) {
@@ -131,8 +132,8 @@ bool LocalizedStrings::LoadStrings(const std::string& language) {
     SB_DLOG(ERROR) << "Error reading i18n file.";
     return false;
   }
-  SB_DCHECK(file_contents.length() > 0);
-  SB_DCHECK(file_contents[file_contents.length() - 1] == '\n');
+  SB_DCHECK_GT(file_contents.length(), 0U);
+  SB_DCHECK_EQ(file_contents[file_contents.length() - 1], '\n');
 
   // Each line of the file corresponds to one message (key/value).
   size_t pos = 0;

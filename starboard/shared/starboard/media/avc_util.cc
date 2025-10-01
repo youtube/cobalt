@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <type_traits>
+
 #include "starboard/common/check_op.h"
 
 namespace starboard {
@@ -211,8 +212,8 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   const auto kAvccLengthInBytes = kAnnexBHeaderSizeInBytes;
 
   while (AdvanceToNextAnnexBHeader(&annex_b_source, &annex_b_source_size)) {
-    SB_DCHECK(static_cast<size_t>(annex_b_source - last_source) >=
-              kAnnexBHeaderSizeInBytes);
+    SB_DCHECK_GE(static_cast<size_t>(annex_b_source - last_source),
+                 kAnnexBHeaderSizeInBytes);
     SB_DCHECK_LT(avcc_destination, avcc_destination_end);
 
     size_t payload_size =

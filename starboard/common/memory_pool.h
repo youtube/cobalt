@@ -34,7 +34,7 @@ class MemoryPool : public Allocator {
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size) {
     SB_DCHECK(buffer);
-    SB_DCHECK(size > 0U);
+    SB_DCHECK_GT(size, 0U);
   }
 
   template <typename ParameterType>
@@ -42,7 +42,7 @@ class MemoryPool : public Allocator {
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size, parameter1) {
     SB_DCHECK(buffer);
-    SB_DCHECK(size > 0U);
+    SB_DCHECK_GT(size, 0U);
   }
 
   void* Allocate(size_t size) { return reuse_allocator_.Allocate(size); }

@@ -36,7 +36,7 @@ pthread_once_t s_open_max_initialization_once = PTHREAD_ONCE_INIT;
 
 void DoInitializeOpenMax() {
   OMX_ERRORTYPE error = OMX_Init();
-  SB_DCHECK(error == OMX_ErrorNone)
+  SB_DCHECK_EQ(error, OMX_ErrorNone)
       << "OMX_Init() failed with error code: 0x" << std::hex << error << ".";
 }
 

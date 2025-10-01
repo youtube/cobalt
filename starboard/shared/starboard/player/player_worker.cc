@@ -308,8 +308,8 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   if (static_cast<size_t>(samples_written) == input_buffers.size()) {
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
-    SB_DCHECK(samples_written >= 0 &&
-              static_cast<size_t>(samples_written) <= input_buffers.size());
+    SB_DCHECK_GE(samples_written, 0);
+    SB_DCHECK_LE(static_cast<size_t>(samples_written), input_buffers.size());
 
     [[maybe_unused]] size_t num_of_pending_buffers =
         input_buffers.size() - samples_written;
