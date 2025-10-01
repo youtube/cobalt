@@ -51,7 +51,7 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
-    "//ui/android:ui_java",
+    "//ui/android:cobalt_ui_full_java",
     "//url:gurl_java",
   ]
 
@@ -215,7 +215,6 @@ android_apk("cobalt_apk") {
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/mesa_headers",
-    "//ui/android:ui_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
   include_size_info = is_official_build
