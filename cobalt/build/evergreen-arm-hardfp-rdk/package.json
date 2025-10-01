@@ -11,13 +11,9 @@
                 "gen/licenses_cobalt.txt"
             ],
             "dirs": [
-                "ssl"
+                "app"
             ],
             "rename_files": [
-                {
-                    "from_file": "cobalt.stripped",
-                    "to_file": "cobalt"
-                },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
@@ -29,31 +25,17 @@
                 {
                     "from_file": "gen/licenses_cobalt.txt",
                     "to_file": "licenses_cobalt.txt"
-                },
-                {
-                    "from_file": "starboard/libstarboard.so.17",
-                    "to_file": "libstarboard.so.17"
                 }
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"
         },
         {
             "files": [
-                "cobalt",
-                "cobalt.debug",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt"
             ],
             "rename_files": [
-                {
-                    "from_file": "cobalt",
-                    "to_file": "symbol/cobalt"
-                },
-                {
-                    "from_file": "cobalt.debug",
-                    "to_file": "symbol/cobalt.debug"
-                },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
