@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("starboard_platform") {
-  sources = [ "main.cc" ]
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-}
+import("//build/toolchain/gcc_toolchain.gni")
 
-if (sb_is_modular && !sb_is_evergreen) {
-  static_library("starboard_platform_with_main") {
-    check_includes = false
-    public_deps = [ ":starboard_platform" ]
+clang_toolchain("starboard") {
+  toolchain_args = {
+    current_cpu = "x64"
+    current_os = "linux"
+    is_starboard = true
   }
 }

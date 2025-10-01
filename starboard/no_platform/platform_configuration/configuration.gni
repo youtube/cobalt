@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("starboard_platform") {
-  sources = [ "main.cc" ]
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-}
+import("//starboard/build/config/base_configuration.gni")
 
-if (sb_is_modular && !sb_is_evergreen) {
-  static_library("starboard_platform_with_main") {
-    check_includes = false
-    public_deps = [ ":starboard_platform" ]
-  }
-}
+sb_is_evergreen_compatible = true
+sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
