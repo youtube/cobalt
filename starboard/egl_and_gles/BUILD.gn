@@ -32,11 +32,11 @@ group("egl_and_gles") {
 buildflag_header("buildflags") {
   header = "buildflags.h"
 
-  _enable_angle = gl_type == "angle"
-  _enable_system_gles2 = gl_type == "system_gles2"
+  enable_angle = gl_type == "angle"
+  enable_system_gles2 = gl_type == "system_gles2"
   flags = [
-    "STARBOARD_GL_TYPE_ANGLE=$_enable_angle",
-    "STARBOARD_GL_TYPE_SYSTEM_GLES2=$_enable_system_gles2",
+    "STARBOARD_GL_TYPE_ANGLE=$enable_angle",
+    "STARBOARD_GL_TYPE_SYSTEM_GLES2=$enable_system_gles2",
   ]
 }
 
