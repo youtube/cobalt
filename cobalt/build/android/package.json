@@ -9,9 +9,7 @@
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
                 "libchrobalt.so",
-                "libnplb__library.so",
                 "libstarboard_jni_state.so",
-                "libtest_trace_processor.so",
                 "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"

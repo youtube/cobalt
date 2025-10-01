@@ -66,7 +66,7 @@ class DispmanxResource {
   virtual ~DispmanxResource() {
     if (handle_ != DISPMANX_NO_HANDLE) {
       int32_t result = vc_dispmanx_resource_delete(handle_);
-      SB_DCHECK(result == 0) << " result=" << result;
+      SB_DCHECK_EQ(result, 0);
     }
   }
 

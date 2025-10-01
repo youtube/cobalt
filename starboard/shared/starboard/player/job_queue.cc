@@ -177,7 +177,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
   SB_DCHECK(job);
-  SB_DCHECK(delay_usec >= 0) << delay_usec;
+  SB_DCHECK_GE(delay_usec, 0);
 
   std::lock_guard lock(mutex_);
   if (stopped_) {

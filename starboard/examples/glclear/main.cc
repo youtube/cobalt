@@ -16,6 +16,7 @@
 
 #include <iomanip>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -25,18 +26,18 @@
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 
-#define EGL_CALL(x)                                                    \
-  do {                                                                 \
-    SbGetEglInterface()->x;                                            \
-    SB_DCHECK((SbGetEglInterface()->eglGetError()) == SB_EGL_SUCCESS); \
+#define EGL_CALL(x)                                                     \
+  do {                                                                  \
+    SbGetEglInterface()->x;                                             \
+    SB_DCHECK_EQ((SbGetEglInterface()->eglGetError()), SB_EGL_SUCCESS); \
   } while (false)
 
 #define EGL_CALL_SIMPLE(x) (SbGetEglInterface()->x)
 
-#define GL_CALL(x)                                                     \
-  do {                                                                 \
-    SbGetGlesInterface()->x;                                           \
-    SB_DCHECK((SbGetGlesInterface()->glGetError()) == SB_GL_NO_ERROR); \
+#define GL_CALL(x)                                                      \
+  do {                                                                  \
+    SbGetGlesInterface()->x;                                            \
+    SB_DCHECK_EQ((SbGetGlesInterface()->glGetError()), SB_GL_NO_ERROR); \
   } while (false)
 
 #define GL_CALL_SIMPLE(x) (SbGetGlesInterface()->x)
@@ -104,8 +105,8 @@ Application::Application() {
   SB_CHECK(SbWindowIsValid(window_));
 
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(SB_EGL_DEFAULT_DISPLAY));
-  SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK(SB_EGL_NO_DISPLAY != display_);
+  SB_CHECK_EQ(SB_EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK_NE(SB_EGL_NO_DISPLAY, display_);
 
   EGL_CALL(eglInitialize(display_, NULL, NULL));
 
@@ -117,7 +118,7 @@ Application::Application() {
   // First, query how many configs match the given attribute list.
   SbEglInt32 num_configs = 0;
   EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
-  SB_CHECK(0 != num_configs);
+  SB_CHECK_NE(num_configs, 0);
 
   // Allocate space to receive the matching configs and retrieve them.
   SbEglConfig* configs =
@@ -139,7 +140,7 @@ Application::Application() {
       break;
     }
   }
-  SB_DCHECK(surface_ != SB_EGL_NO_SURFACE);
+  SB_DCHECK_NE(surface_, SB_EGL_NO_SURFACE);
 
   free(configs);
 
@@ -147,8 +148,8 @@ Application::Application() {
       eglQuerySurface(display_, surface_, SB_EGL_WIDTH, &egl_surface_width_));
   EGL_CALL(
       eglQuerySurface(display_, surface_, SB_EGL_HEIGHT, &egl_surface_height_));
-  SB_DCHECK(egl_surface_width_ > 0);
-  SB_DCHECK(egl_surface_height_ > 0);
+  SB_DCHECK_GT(egl_surface_width_, 0);
+  SB_DCHECK_GT(egl_surface_height_, 0);
 
   // Create the GLES2 or GLEX3 Context.
   context_ = SB_EGL_NO_CONTEXT;
@@ -164,8 +165,8 @@ Application::Application() {
     context_ = EGL_CALL_SIMPLE(eglCreateContext(
         display_, config, SB_EGL_NO_CONTEXT, context_attrib_list));
   }
-  SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
-  SB_CHECK(context_ != SB_EGL_NO_CONTEXT);
+  SB_CHECK_EQ(SB_EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK_NE(context_, SB_EGL_NO_CONTEXT);
 
   /* connect the context to the surface */
   EGL_CALL(eglMakeCurrent(display_, surface_, surface_, context_));

@@ -430,7 +430,7 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
     return;
   }
 
-  SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
+  SB_DCHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {

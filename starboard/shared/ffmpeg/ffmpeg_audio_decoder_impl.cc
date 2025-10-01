@@ -91,8 +91,8 @@ FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
       stream_ended_(false),
       audio_stream_info_(audio_stream_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
-  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_stream_info_) !=
-            AV_CODEC_ID_NONE)
+  SB_DCHECK_NE(GetFfmpegCodecIdByMediaCodec(audio_stream_info_),
+               AV_CODEC_ID_NONE)
       << "Unsupported audio codec " << audio_stream_info_.codec;
   ffmpeg_ = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg_);

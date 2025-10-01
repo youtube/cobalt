@@ -274,8 +274,8 @@ void CallSbPlayerWriteSamples(
     SB_DCHECK(discarded_durations_from_front.empty() ||
               discarded_durations_from_front.size() ==
                   static_cast<size_t>(number_of_samples_to_write));
-    SB_DCHECK(discarded_durations_from_front.size() ==
-              discarded_durations_from_back.size());
+    SB_DCHECK_EQ(discarded_durations_from_front.size(),
+                 discarded_durations_from_back.size());
   } else {
     SB_DCHECK_EQ(sample_type, kSbMediaTypeVideo);
     SB_DCHECK(discarded_durations_from_front.empty());
