@@ -43,7 +43,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   // Override the RunProcess method to store the  reference to
   // BrowserMainRunner instead of leaking it. The reference would
   // be used for proper shutdown and cleanup.
-  absl::variant<int, content::MainFunctionParams> RunProcess(
+  std::variant<int, content::MainFunctionParams> RunProcess(
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
 
