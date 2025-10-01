@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/toolchain/gcc_toolchain.gni")
+import("//starboard/build/config/base_configuration.gni")
 
-clang_toolchain("starboard") {
-  toolchain_args = {
-    current_cpu = "x64"
-    current_os = "linux"
-    is_starboard = true
-  }
-}
+sb_is_evergreen_compatible = true
+sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"

@@ -13,21 +13,8 @@
 # limitations under the License.
 
 static_library("starboard_platform") {
-  sources = [
-    "application_stub.cc",
-    "application_stub.h",
-    "configuration.cc",
-    "configuration.h",
-    "configuration_constants.cc",
-    "font.cc",
-    "font.h",
-    "javascript_cache.cc",
-    "javascript_cache.h",
-    "main.cc",
-    "system_get_extensions.cc",
-  ]
-
-  public_deps = [ ":stub_sources" ]
+  sources = [ "main.cc" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
 static_library("stub_sources") {
