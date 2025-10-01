@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/config/os_definitions.gni")
 
 _elf_loader_sources = [
   "dynamic_section.cc",
