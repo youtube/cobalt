@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#include "starboard/stub/application_stub.h"
+
 int main(int argc, char** argv) {
-  return 0;
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+
+int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  starboard::stub::ApplicationStub application(callback);
+  return application.Run(argc, argv);
 }
