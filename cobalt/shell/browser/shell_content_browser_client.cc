@@ -833,7 +833,17 @@ std::optional<network::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
     content::WebContents* web_contents,
     const url::Origin& app_origin) {
-  return network::ParsedPermissionsPolicy();
+  network::ParsedPermissionsPolicyDeclaration coi_decl(
+      network::mojom::PermissionsPolicyFeature::kCrossOriginIsolated,
+      /*allowed_origins=*/{},
+      /*self_if_matches=*/std::nullopt,
+      /*matches_all_origins=*/true, /*matches_opaque_src=*/false);
+
+  network::ParsedPermissionsPolicyDeclaration socket_decl(
+      network::mojom::PermissionsPolicyFeature::kDirectSockets,
+      /*allowed_origins=*/{}, app_origin,
+      /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
+  return {{coi_decl, socket_decl}};
 }
 
 // Tests may install their own ShellContentBrowserClient, track the list here.

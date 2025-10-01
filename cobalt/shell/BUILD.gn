@@ -46,6 +46,8 @@ group("content_shell_lib_deps") {
     "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/custom_handlers:test_support",
+    "//components/embedder_support:embedder_support",
+    "//components/embedder_support:user_agent",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",

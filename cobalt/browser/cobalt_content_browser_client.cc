@@ -18,6 +18,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -136,7 +137,11 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
-  return content::ShellContentBrowserClient::CreateThrottlesForNavigation(registry);
+  content::NavigationHandle& navigation_handle =
+      registry.GetNavigationHandle();
+  registry.AddThrottle(
+      std::make_unique<content::CobaltSecureNavigationThrottle>(
+          &navigation_handle));
 }
 
 content::GeneratedCodeCacheSettings
@@ -168,7 +173,8 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   return GetCobaltUserAgentMetadata();
 }
 
-void CobaltContentBrowserClient::OverrideWebPreferences(content::WebContents* web_contents,
+void CobaltContentBrowserClient::OverrideWebPreferences(
+                            content::WebContents* web_contents,
                             content::SiteInstance& main_frame_site,
                             blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -177,7 +183,8 @@ void CobaltContentBrowserClient::OverrideWebPreferences(content::WebContents* we
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
-  content::ShellContentBrowserClient::OverrideWebPreferences(web_contents, main_frame_site, prefs);
+  content::ShellContentBrowserClient::OverrideWebPreferences(
+                            web_contents, main_frame_site, prefs);
 }
 
 content::StoragePartitionConfig
@@ -249,7 +256,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
-  // All consumers of the main NetworkContext must provide NetworkIsolationKeys
+  // All consumers of the main NetworkContext must provide NetworkAnonymizationKey
   // / IsolationInfos, so storage can be isolated on a per-site basis.
   network_context_params->require_network_anonymization_key = true;
 }
@@ -361,6 +368,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       // TODO(b/407734134): Register UMA here for non boolean feature value.
       LOG(ERROR) << "Failed to apply override for feature "
                  << feature_name_and_value.first;
+      base::debug::DumpWithoutCrashing();
     }
   }
 
@@ -374,6 +382,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       LOG(ERROR) << "Failed to associate field trial param "
                  << param_name_and_value.first << " with string value "
                  << param_name_and_value.second;
+      base::debug::DumpWithoutCrashing();
     }
   }
   base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
