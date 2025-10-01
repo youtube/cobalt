@@ -18,50 +18,57 @@
 #include "starboard/common/memory.h"
 
 #include "third_party/starboard/rdk/shared/accessibility_extension.h"
-#include "third_party/starboard/rdk/shared/rdkservices.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
 
 namespace starboard {
 
+namespace accessibility {
+
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
-      !MemoryIsZero(out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
+      !::starboard::common::MemoryIsZero(
+        out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
     return false;
   }
   out_setting->has_text_to_speech_setting = true;
-  out_setting->is_text_to_speech_enabled = TextToSpeech::IsEnabled();
+  out_setting->is_text_to_speech_enabled =
+    platform::text_to_speech().is_enabled().value_or(false);
   return true;
 }
 
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
-      !MemoryIsZero(out_setting, sizeof(SbAccessibilityDisplaySettings))) {
+      !::starboard::common::MemoryIsZero(
+        out_setting, sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
 
-  return Accessibility::GetDisplaySettings(out_setting);
+  return platform::accessibility().display_settings(*out_setting).value_or(false);
 }
 
-bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
-  if (!caption_settings ||
-      !MemoryIsZero(caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
+bool GetCaptionSettings(SbAccessibilityCaptionSettings* out_setting) {
+  if (!out_setting ||
+      !::starboard::common::MemoryIsZero(
+          out_setting, sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }
 
-  return Accessibility::GetCaptionSettings(caption_settings);
+  return platform::accessibility().caption_settings(*out_setting).value_or(false);
 }
 
 bool SetCaptionsEnabled(bool enabled) {
   return false;
 }
 
+}  // namespace accessibility
 
 const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
   kStarboardExtensionAccessibilityName,
   1,
-  &GetTextToSpeechSettings,
-  &GetDisplaySettings,
-  &GetCaptionSettings,
-  &SetCaptionsEnabled
+  &accessibility::GetTextToSpeechSettings,
+  &accessibility::GetDisplaySettings,
+  &accessibility::GetCaptionSettings,
+  &accessibility::SetCaptionsEnabled
 };
 
 const void* GetAccessibilityApi() {

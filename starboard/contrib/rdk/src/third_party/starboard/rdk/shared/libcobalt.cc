@@ -23,8 +23,15 @@
 #include "starboard/common/semaphore.h"
 #include "starboard/common/once.h"
 
+#if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
 #include "third_party/starboard/rdk/shared/rdkservices.h"
+#endif
+
+#include "third_party/starboard/rdk/shared/system/system_properties_override.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
+
+using namespace third_party::starboard::rdk::shared;
+using namespace third_party::starboard::rdk::shared::system;
 
 namespace
 {
@@ -215,7 +222,8 @@ SB_ONCE_INITIALIZE_FUNCTION(APIContext, GetContext);
 
 }  // namespace
 
-namespace starboard {
+namespace third_party::starboard::rdk::shared::libcobalt_api {
+
 void Initialize()
 {
   GetContext()->OnInitialize();
@@ -224,6 +232,24 @@ void Initialize()
 void Teardown()
 {
   GetContext()->OnTeardown();
+}
+
+}  // namespace third_party::starboard::rdk::shared::libcobalt_api
+
+namespace starboard {
+namespace libcobalt_api {
+  using ::third_party::starboard::rdk::shared::libcobalt_api::Initialize;
+  using ::third_party::starboard::rdk::shared::libcobalt_api::Teardown;
+}
+
+void Initialize()
+{
+  libcobalt_api::Initialize();
+}
+
+void Teardown()
+{
+  libcobalt_api::Teardown();
 }
 
 }  // namespace starboard
@@ -258,10 +284,13 @@ void SbRdkSetSetting(const char* key, const char* json) {
   if (!key || key[0] == '\0' || !json)
     return;
 
+#if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
   if (strcmp(key, "accessibility") == 0) {
     Accessibility::SetSettings(json, GetContext()->IsAppRunning());
   }
-  else if (strcmp(key, "systemproperties") == 0) {
+  else
+#endif
+  if (strcmp(key, "systemproperties") == 0) {
     SystemProperties::SetSettings(json);
   }
   else if (strcmp(key, "advertisingid") == 0) {
@@ -276,10 +305,13 @@ int SbRdkGetSetting(const char* key, char** out_json) {
   bool result = false;
   std::string tmp;
 
+#if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
   if (strcmp(key, "accessibility") == 0) {
     result = Accessibility::GetSettings(tmp);
   }
-  else if (strcmp(key, "systemproperties") == 0) {
+  else
+#endif
+  if (strcmp(key, "systemproperties") == 0) {
     result = SystemProperties::GetSettings(tmp);
   }
   else if (strcmp(key, "advertisingid") == 0) {

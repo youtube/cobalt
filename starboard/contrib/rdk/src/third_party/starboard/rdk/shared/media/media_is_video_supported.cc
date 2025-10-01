@@ -36,7 +36,9 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
-#include "third_party/starboard/rdk/shared/rdkservices.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
+#include "third_party/starboard/rdk/shared/log_override.h"
+
 #include <cstring>
 
 namespace starboard {
@@ -63,8 +65,9 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  auto resolution_info = DisplayInfo::GetResolution();
-  if (frame_height > resolution_info.Height || frame_width > resolution_info.Width ) {
+  const auto video_resolution = platform::device().video_resolution().value_or(platform::Resolution{});
+
+  if (frame_height > video_resolution.height || frame_width > video_resolution.width) {
     return false;
   }
 
@@ -76,13 +79,11 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
-    uint32_t hdr_caps = DisplayInfo::GetHDRCaps();
-    if (transfer_id == kSbMediaTransferIdSmpteSt2084 &&
-        (hdr_caps & (DisplayInfo::kHdr10 | DisplayInfo::kHdr10Plus)) == 0) {
+    auto format = platform::device().hdr().value_or(platform::HDRFormat{});
+    if (transfer_id == kSbMediaTransferIdSmpteSt2084 && !format.hdr10 && !format.hdr10Plus) {
       return false;
     }
-    if (transfer_id == kSbMediaTransferIdAribStdB67 &&
-        (hdr_caps & DisplayInfo::kHdrHlg) == 0) {
+    if (transfer_id == kSbMediaTransferIdAribStdB67 && !format.hlg) {
       return false;
     }
     if (content_type) {
@@ -91,8 +92,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
           strncmp(codec.c_str(), "dvhe.", 5) == 0 ||
           strncmp(codec.c_str(), "dav1.", 5) == 0 ||
           strncmp(codec.c_str(), "dvh1.", 5) == 0;
-        if (isDolbyVisionCodec &&
-            (hdr_caps & DisplayInfo::kHdrDolbyVision) == 0) {
+        if (isDolbyVisionCodec && !format.dolbyVision) {
           return false;
         }
       }

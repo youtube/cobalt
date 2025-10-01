@@ -126,7 +126,7 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<Drm
   SbEventId event_id_;
   std::mutex mutex_;
 
-  std::vector<uint8_t> metrics_;
+  std::string metrics_;
 };
 
 }  // namespace starboard

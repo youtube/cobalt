@@ -39,7 +39,6 @@
 #include "starboard/shared/starboard/queue_application.h"
 
 #include "third_party/starboard/rdk/shared/ess_input.h"
-#include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 
 #include <memory>
