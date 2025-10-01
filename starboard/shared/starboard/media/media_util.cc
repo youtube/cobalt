@@ -431,7 +431,7 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 }
 
 int AudioDurationToFrames(int64_t duration, int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0)
+  SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   // The same as `frames = (duration / 1'000'000) * samples_per_second`,
   // switch order to avoid precision loss due to integer division.
@@ -439,7 +439,7 @@ int AudioDurationToFrames(int64_t duration, int samples_per_second) {
 }
 
 int64_t AudioFramesToDuration(int frames, int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0)
+  SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }

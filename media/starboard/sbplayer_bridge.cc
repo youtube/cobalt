@@ -367,7 +367,7 @@ void SbPlayerBridge::WriteBuffers(
     if (type == DemuxerStream::Type::AUDIO) {
       decoder_buffer_cache_.AddBuffers(buffers, audio_stream_info_);
     } else {
-      DCHECK(type == DemuxerStream::Type::VIDEO);
+      DCHECK_EQ(type, DemuxerStream::Type::VIDEO);
       decoder_buffer_cache_.AddBuffers(buffers, video_stream_info_);
     }
     if (state_ != kSuspended) {
@@ -969,7 +969,7 @@ void SbPlayerBridge::WriteBuffersInternal(
       SetDiscardPadding(buffer->discard_padding(),
                         &sample_info.audio_sample_info);
     } else {
-      DCHECK(sample_type == kSbMediaTypeVideo);
+      DCHECK_EQ(sample_type, kSbMediaTypeVideo);
       DCHECK(video_stream_info);
       SetStreamInfo(*video_stream_info, &sample_info.video_sample_info);
       sample_info.video_sample_info.is_key_frame = buffer->is_key_frame();

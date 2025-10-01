@@ -68,8 +68,8 @@ void MultiChannelDotProduct(const DecodedAudio* a,
                             int num_frames,
                             float* dot_product) {
   SB_DCHECK_EQ(a->channels(), b->channels());
-  SB_DCHECK(frame_offset_a >= 0) << frame_offset_a;
-  SB_DCHECK(frame_offset_b >= 0) << frame_offset_b;
+  SB_DCHECK_GE(frame_offset_a, 0);
+  SB_DCHECK_GE(frame_offset_b, 0);
   SB_DCHECK_LE(frame_offset_a + num_frames, a->frames());
   SB_DCHECK_LE(frame_offset_b + num_frames, b->frames());
 
