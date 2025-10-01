@@ -12,6 +12,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 #include "content/public/renderer/content_renderer_client.h"
+#include "media/base/key_systems_support_registration.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 
 namespace content {
@@ -42,7 +43,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
-  virtual std::unique_ptr<media::KeySystemSupportRegistration>
+  virtual std::unique_ptr<::media::KeySystemSupportRegistration>
   GetSupportedKeySystems(content::RenderFrame* render_frame,
                          ::media::GetSupportedKeySystemsCB cb) override;
   bool IsDecoderSupportedAudioType(const ::media::AudioType& type) override;
