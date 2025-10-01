@@ -30,9 +30,9 @@
 #include "media/base/demuxer_stream.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
-#include "media/base/video_codecs.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
+#include "media/base/video_codecs.h"
 
 namespace media {
 
