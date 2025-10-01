@@ -116,8 +116,6 @@ void InitLogging(const base::CommandLine& command_line) {
 
   if (dest == LoggingDest::kFile) {
     settings.log_file_path = log_filename.value();
-  } else {
-    settings.log_file_path = nullptr;
   }
 
   if (dest == LoggingDest::kStderr) {
