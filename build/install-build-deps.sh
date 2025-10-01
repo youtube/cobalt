@@ -271,7 +271,6 @@ common_lib_list="\
   libsqlite3-0
   libuuid1
   libwayland-egl1
-  libwayland-egl1-mesa
   libx11-6
   libx11-xcb1
   libxau6
@@ -522,8 +521,8 @@ fi
 if package_exists libtinfo5; then
   nacl_list="${nacl_list} libtinfo5"
 fi
-if package_exists libpng16-16; then
-  lib_list="${lib_list} libpng16-16"
+if package_exists libpng16-16t64; then
+  lib_list="${lib_list} libpng16-16t64"
 else
   lib_list="${lib_list} libpng12-0"
 fi
