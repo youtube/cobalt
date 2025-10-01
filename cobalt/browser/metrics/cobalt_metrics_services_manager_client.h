@@ -63,6 +63,11 @@ class CobaltMetricsServicesManagerClient
     return *enabled_state_provider_;
   }
 
+  // same as above, but mutable.
+  CobaltEnabledStateProvider* mutable_enabled_state_provider() {
+    return enabled_state_provider_.get();
+  }
+
   CobaltMetricsServiceClient* metrics_service_client() {
     return metrics_service_client_;
   }

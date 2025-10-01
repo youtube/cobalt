@@ -55,7 +55,7 @@ void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
   auto global_features = cobalt::GlobalFeatures::GetInstance();
   auto enabled_state_provider =
       global_features->metrics_services_manager_client()
-          ->GetEnabledStateProvider();
+          ->mutable_enabled_state_provider();
   enabled_state_provider->SetReportingEnabled(enable);
   global_features->metrics_services_manager()->UpdateUploadPermissions(true);
   std::move(callback).Run();
