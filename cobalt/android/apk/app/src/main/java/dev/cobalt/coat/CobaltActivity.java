@@ -104,7 +104,10 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
-      String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      String[] commandLineArgs = null;
+      if (!VersionInfo.isReleaseBuild()) {
+        commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      }
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
@@ -530,7 +533,10 @@ public abstract class CobaltActivity extends Activity {
    */
   protected String[] getArgs() {
     ArrayList<String> args = new ArrayList<>();
-    String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    String[] commandLineArgs = null;
+    if (!isReleaseBuild()) {
+      commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    }
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
