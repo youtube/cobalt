@@ -189,6 +189,12 @@ run_package_release_pipeline () {
     local package_platform="linux"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       package_platform="android"
+    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-rdk" ]]; then
+      package_platform="evergreen-arm-hardfp-rdk"
+    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-raspi" ]]; then
+      package_platform="evergreen-arm-hardfp-raspi"
+    elif [[ "${PLATFORM}" =~ "evergreen-x64" ]]; then
+      package_platform="evergreen-x64"
     fi
 
     # IMPORTANT: chromedriver must be built without starboardizations. We ensure
