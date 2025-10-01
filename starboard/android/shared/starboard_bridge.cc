@@ -73,11 +73,6 @@ jboolean JNI_StarboardBridge_InitJNI(
   return true;
 }
 
-void JNI_StarboardBridge_OnStop(JNIEnv* env) {
-  SbAudioSinkImpl::TearDown();
-  SbFileAndroidTeardown();
-}
-
 jlong JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }

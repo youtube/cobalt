@@ -2,13 +2,13 @@
     "archive_datas": [
         {
             "files": [
-                "chromedriver",
-                "cobalt.stripped",
+                "app/cobalt/lib/libcobalt.lz4",
+                "libcobalt.so",
                 "cobalt_shell.pak",
+                "loader_app",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
-                "gen/licenses_cobalt.txt",
-                "starboard/libstarboard.so.17"
+                "gen/licenses_cobalt.txt"
             ],
             "dirs": [
                 "ssl"

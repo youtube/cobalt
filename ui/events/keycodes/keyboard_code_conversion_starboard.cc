@@ -1334,7 +1334,7 @@ KeyboardCode SbKeyToKeyboardCode(SbKey sb_key) {
     case kSbKeyChannelDown:
       return VKEY_NEXT;
     case kSbKeySubtitle:
-      return KEY_SUBTITLES;
+      return VKEY_SUBTITLES;
     case kSbKeyMicrophone:
       return VKEY_MICROPHONE_MUTE_TOGGLE;
     case kSbKeyGamepadDPadUp:
