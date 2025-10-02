@@ -1,5 +1,5 @@
-#ifndef STARBOARD_COMMON_RESULT_H_
-#define STARBOARD_COMMON_RESULT_H_
+#ifndef STARBOARD_COMMON_EXPECTED_H_
+#define STARBOARD_COMMON_EXPECTED_H_
 
 #include <string>
 #include <utility>
