@@ -163,7 +163,7 @@ SbPlayerBridge::SbPlayerBridge(
     const std::string& url,
     SbWindow window,ﬁ%
     Host* host,
-    RegisterBoundsChangeObserverCB register_bounds_change_observer_,
+    RegisterBoundsChangeObserverCB register_bounds_change_observer,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&

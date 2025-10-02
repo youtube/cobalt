@@ -89,7 +89,7 @@ class SbPlayerBridge {
                  const std::string& url,
                  SbWindow window,
                  Host* host,
-                 RegisterBoundsChangeObserverCB register_bounds_change_observer_,
+                 RegisterBoundsChangeObserverCB register_bounds_change_observer,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
@@ -109,7 +109,7 @@ class SbPlayerBridge {
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
-                 RegisterBoundsChangeObserverCB register_bounds_change_observer_,
+                 RegisterBoundsChangeObserverCB register_bounds_change_observer,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
