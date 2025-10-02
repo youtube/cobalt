@@ -136,8 +136,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               GetMediaVideoCodecName(creation_parameters.video_codec());
           SB_LOG(ERROR) << "Failed to create video decoder for codec "
                         << codec_name;
-          return CreateSubComponentsResult::Error(FormatString(
-              "Failed to create video decoder for codec %s.", codec_name));
+          return CreateSubComponentsResult::Error(
+              "Failed to create video decoder for codec(" +
+              std::string(codec_name) + ")");
         }
       }
 
