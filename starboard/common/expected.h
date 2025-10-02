@@ -8,10 +8,10 @@
 #include "starboard/common/log.h"
 
 // A simple wrapper for error messages to disambiguate from success types.
-struct Error {
+struct Unexpected {
   std::string error_message;
 
-  Error(std::string_view error_message) : error_message(error_message) {}
+  Unexpected(std::string_view error_message) : error_message(error_message) {}
 };
 
 template <typename T>
@@ -20,7 +20,7 @@ class Expected {
   template <typename U,
             typename = std::enable_if_t<std::is_convertible<U, T>::value>>
   Expected(U&& value) : storage_(std::forward<U>(value)) {}
-  Expected(Error error) : storage_(std::move(error)) {}
+  Expected(Unexpected error) : storage_(std::move(error)) {}
 
   // Returns true if the Expected is a success.
   bool ok() const { return std::holds_alternative<T>(storage_); }
@@ -44,15 +44,15 @@ class Expected {
   // This should only be called when ok() is false.
   const std::string& error_message() const& {
     SB_CHECK(!ok());
-    return std::get<Error>(storage_).error_message;
+    return std::get<Unexpected>(storage_).error_message;
   }
   std::string&& error_message() && {
     SB_CHECK(!ok());
-    return std::move(std::get<Error>(storage_).error_message);
+    return std::move(std::get<Unexpected>(storage_).error_message);
   }
 
  private:
-  std::variant<T, Error> storage_;
+  std::variant<T, Unexpected> storage_;
 };
 
 #endif  // STARBOARD_COMMON_RESULT_H_

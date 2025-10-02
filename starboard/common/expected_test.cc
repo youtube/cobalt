@@ -17,7 +17,7 @@ TEST(ExpectedTest, SuccessWithValue) {
 }
 
 TEST(ExpectedTest, FailureWithError) {
-  Expected<int> expected(Error("Something went wrong"));
+  Expected<int> expected(Unexpected("Something went wrong"));
 
   EXPECT_FALSE(expected.ok());
   EXPECT_EQ(expected.error_message(), "Something went wrong");
@@ -31,7 +31,7 @@ TEST(ExpectedTest, SuccessWithString) {
 }
 
 TEST(ExpectedTest, FailureWithString) {
-  Expected<std::string> expected(Error("error"));
+  Expected<std::string> expected(Unexpected("error"));
   EXPECT_FALSE(expected.ok());
   EXPECT_EQ(expected.error_message(), "error");
 }
@@ -54,7 +54,7 @@ TEST(ExpectedTest, MoveSuccess) {
 }
 
 TEST(ExpectedTest, MoveFailure) {
-  Expected<int> expected(Error("move me error"));
+  Expected<int> expected(Unexpected("move me error"));
   EXPECT_FALSE(expected.ok());
 
   std::string error = std::move(expected).error_message();

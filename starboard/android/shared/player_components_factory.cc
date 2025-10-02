@@ -176,11 +176,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
-        return Error("Invalid audio mime type.");
+        return Unexpected("Invalid audio mime type.");
       } else if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
-        return Error("Passthrough disabled by mime attribute.");
+        return Unexpected("Passthrough disabled by mime attribute.");
       }
     }
 
@@ -196,7 +196,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek);
     if (!audio_renderer->is_valid()) {
-      return Error("Failed to create audio renderer.");
+      return Unexpected("Failed to create audio renderer.");
     }
 
     // Set max_video_input_size with a positive value to overwrite
@@ -226,7 +226,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
       } else {
-        return Error("Failed to create video decoder.");
+        return Unexpected("Failed to create video decoder.");
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
