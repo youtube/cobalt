@@ -63,6 +63,8 @@
 -keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.components.embedder_support.view.* { *; }
 # classes with package name starts with org.chromium.content
 -keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.content.** { *; }
+# classes with package name starts with org.chromium.components.viz
+-keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.components.viz.** { *; }
 
 # Keeps debugging information for stack traces for the ENTIRE app.
 # Without this dev.cobalt.coat.CobaltActivity.onStart() will be renamed to a.b.c.a()
