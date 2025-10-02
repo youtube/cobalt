@@ -1,5 +1,44 @@
 [
   {
+    "hexsha": "636031e52ed5e1bf10e912f5f8096becfc1413e4",
+    "original_hexsha": "f14d554f2c7f09ca4542793cf9f50d2925520cfd",
+    "author": "Andrew Savage",
+    "datetime": "2025-10-01T19:10:51-04:00",
+    "summary": "Remove os_definitions.gni (#7405)",
+    "stats": {
+      "files": 10,
+      "insertions": 18,
+      "deletions": 264
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "34b3f3b35538eeb8b5eee4201e79ab6c864f3c6c",
+    "original_hexsha": "bbcaf4342d6dd0ed8208ae5c57cc24fe26346548",
+    "author": "Charley Kim",
+    "datetime": "2025-10-01T15:41:19-07:00",
+    "summary": "android: Disabling esa commandLineArgs for gold builds (#7404)",
+    "stats": {
+      "files": 4,
+      "insertions": 37,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c4d8b16ccf9a349215f3038cc6c5d33ae53b86cc",
+    "original_hexsha": "857a6ab71a08d15ac75c16fe6e14cc80f8b9d467",
+    "author": "Raphael Kubo da Costa",
+    "datetime": "2025-10-01T19:26:59+02:00",
+    "summary": "system_egl: Set eglGetPlatformDisplay on all cases (#7346)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "48dbe34c7da0537cc510b9af78b1426efb3a6d02",
     "original_hexsha": "83ea16ff38f536af5d210788ffdc488a49a0976f",
     "author": "Kyujung Youn",
