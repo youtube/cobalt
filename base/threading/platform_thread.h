@@ -357,8 +357,10 @@ using IsViaIPC = base::StrongAlias<class IsViaIPCTag, bool>;
 
 class BASE_EXPORT PlatformThreadLinux : public PlatformThreadBase {
  public:
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   static constexpr struct sched_param kRealTimeAudioPrio = {8};
   static constexpr struct sched_param kRealTimeDisplayPrio = {6};
+#endif
 
   // Sets a delegate which handles thread type changes for this process. This
   // must be externally synchronized with any call to SetCurrentThreadType.
