@@ -31,20 +31,11 @@ namespace starboard {
 namespace {
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
-  bool CreateSubComponents(
-      const CreationParameters& creation_parameters,
-      std::unique_ptr<AudioDecoder>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::unique_ptr<VideoDecoder>* video_decoder,
-      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) override {
-    SB_DCHECK(error_message);
-
+  CreateSubComponentsResult CreateSubComponents(
+      const CreationParameters& creation_parameters) override {
+    std::unique_ptr<AudioDecoder> audio_decoder;
+    std::unique_ptr<AudioRendererSink> audio_renderer_sink;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      SB_DCHECK(audio_decoder);
-      SB_DCHECK(audio_renderer_sink);
-
       auto decoder_creator =
           [](const AudioStreamInfo& audio_stream_info,
              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
@@ -64,25 +55,27 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
-      *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
+      audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator);
-      *audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
+      audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
     }
 
+    std::unique_ptr<VideoDecoder> video_decoder;
+    std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
+    scoped_refptr<VideoRendererSink> video_renderer_sink;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      SB_DCHECK(video_decoder);
-      SB_DCHECK(video_render_algorithm);
-      SB_DCHECK(video_renderer_sink);
-
-      *video_decoder = std::make_unique<OpenMaxVideoDecoder>(
+      video_decoder = std::make_unique<OpenMaxVideoDecoder>(
           creation_parameters.video_codec());
-      *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
-      *video_renderer_sink =
-          new VideoRendererSinkImpl(creation_parameters.player());
+      video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
+      video_renderer_sink = make_scoped_refptr(
+          new VideoRendererSinkImpl(creation_parameters.player()));
     }
 
-    return true;
+    return CreateSubComponentsResult::Success(
+        {std::move(audio_decoder), std::move(audio_renderer_sink)},
+        {std::move(video_decoder), std::move(video_render_algorithm),
+         std::move(video_renderer_sink)});
   }
 };
 

@@ -83,7 +83,6 @@ class PlayerComponentsTest
 
     unique_ptr<PlayerComponents::Factory> factory =
         PlayerComponents::Factory::Create();
-    string error_message;
     if (audio_reader_ && video_reader_) {
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
@@ -92,14 +91,16 @@ class PlayerComponentsTest
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
-      player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+      auto result = factory->CreateComponents(creation_parameters);
+      ASSERT_TRUE(result.error_message.empty());
+      player_components_ = std::move(result.player_components);
     } else if (audio_reader_) {
       // Audio only
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info());
-      player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+      auto result = factory->CreateComponents(creation_parameters);
+      ASSERT_TRUE(result.error_message.empty());
+      player_components_ = std::move(result.player_components);
     } else {
       // Video only
       ASSERT_TRUE(video_reader_);
@@ -109,8 +110,9 @@ class PlayerComponentsTest
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
-      player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+      auto result = factory->CreateComponents(creation_parameters);
+      ASSERT_TRUE(result.error_message.empty());
+      player_components_ = std::move(result.player_components);
     }
     ASSERT_TRUE(player_components_);
 
