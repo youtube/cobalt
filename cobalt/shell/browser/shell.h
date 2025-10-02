@@ -246,7 +246,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
   bool is_fullscreen_ = false;
-  
   gfx::Size content_size_;
 
   bool delay_popup_contents_delegate_for_testing_ = false;

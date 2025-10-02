@@ -474,11 +474,13 @@ void Shell::LoadingStateChanged(WebContents* source,
   g_platform->SetIsLoading(this, source->IsLoading());
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
 void Shell::SetOverlayMode(bool use_overlay_mode) {
   g_platform->SetOverlayMode(this, use_overlay_mode);
 }
 #endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,
