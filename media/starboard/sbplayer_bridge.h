@@ -78,7 +78,7 @@ class SbPlayerBridge {
   typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
       GetDecodeTargetGraphicsContextProviderFunc;
 
-  using MiguelaoCB = base::RepeatingCallback<void(SbPlayerBridge*)>;
+  using RegisterBoundsChangeObserverCB = base::RepeatingCallback<void(SbPlayerBridge*)>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
@@ -89,7 +89,7 @@ class SbPlayerBridge {
                  const std::string& url,
                  SbWindow window,
                  Host* host,
-                 MiguelaoCB set_bounds_client_,
+                 RegisterBoundsChangeObserverCB register_bounds_change_observer_,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
@@ -109,7 +109,7 @@ class SbPlayerBridge {
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
-                 MiguelaoCB set_bounds_client_,
+                 RegisterBoundsChangeObserverCB register_bounds_change_observer_,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -304,7 +304,7 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
-  MiguelaoCB set_bounds_client_;
+  RegisterBoundsChangeObserverCB register_bounds_change_observer_;
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   const bool allow_resume_after_suspend_;
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME

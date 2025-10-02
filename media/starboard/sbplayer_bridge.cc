@@ -161,9 +161,9 @@ SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const std::string& url,
-    SbWindow window,
+    SbWindow window,ﬁ%
     Host* host,
-    MiguelaoCB set_bounds_client_,
+    RegisterBoundsChangeObserverCB register_bounds_change_observer_,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
@@ -177,7 +177,7 @@ SbPlayerBridge::SbPlayerBridge(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       window_(window),
       host_(host),
-      set_bounds_client_(set_bounds_client),
+      register_bounds_change_observer_(register_bounds_change_observer),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif
@@ -188,7 +188,7 @@ SbPlayerBridge::SbPlayerBridge(
       pipeline_identifier_(pipeline_identifier),
       is_url_based_(true) {
   DCHECK(host_);
-  DCHECK(set_bounds_client_);
+  DCHECK(register_bounds_change_observer_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
 
@@ -215,7 +215,7 @@ SbPlayerBridge::SbPlayerBridge(
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
-    MiguelaoCB set_bounds_client,
+    RegisterBoundsChangeObserverCB register_bounds_change_observer,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -236,7 +236,7 @@ SbPlayerBridge::SbPlayerBridge(
       window_(window),
       drm_system_(drm_system),
       host_(host),
-      set_bounds_client_(set_bounds_client),
+      register_bounds_change_observer_(register_bounds_change_observer),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -262,7 +262,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
-  DCHECK(set_bounds_client_);
+  DCHECK(register_bounds_change_observer_);
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -296,7 +296,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
-  set_bounds_client_.Run(nullptr);
+  register_bounds_change_observer_.Run(nullptr);
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -597,7 +597,7 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_client_.Run(nullptr);
+  register_bounds_change_observer_.Run(nullptr);
 
   PlayerInfo info{&cached_video_frames_decoded_, &cached_video_frames_dropped_,
                   nullptr, nullptr, &preroll_timestamp_};
@@ -728,7 +728,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
-  set_bounds_client_.Run(this);
+  register_bounds_change_observer_.Run(this);
 
   UpdateBounds();
 }
@@ -828,7 +828,7 @@ void SbPlayerBridge::CreatePlayer() {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  set_bounds_client_.Run(this);
+  register_bounds_change_observer_.Run(this);
 
   UpdateBounds();
 }
