@@ -21,7 +21,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioPermissionRequester_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
@@ -35,4 +35,4 @@ bool RequestRecordAudioPermission(JNIEnv* env) {
           env, j_audio_permission_requester);
   return j_permission == JNI_TRUE;
 }
-}  // namespace starboard::android::shared
+}  // namespace starboard

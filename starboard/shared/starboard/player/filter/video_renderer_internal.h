@@ -20,7 +20,7 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 class VideoRenderer {
  public:
@@ -48,6 +48,6 @@ class VideoRenderer {
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_

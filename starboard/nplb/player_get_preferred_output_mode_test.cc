@@ -18,7 +18,6 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -89,4 +88,3 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -26,7 +26,6 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -43,14 +42,14 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // Continue sending to the socket until it fails to send. It's expected that
   // SbSocketSendTo will fail when the server socket closes, but the application
   // should not terminate.
-  int64_t start = CurrentMonotonicTime();
+  int64_t start = starboard::CurrentMonotonicTime();
   int64_t now = start;
   int64_t kTimeout = 1'000'000;  // 1 second
   int result = 0;
   while (result >= 0 && (now - start < kTimeout)) {
     result = sendto(*(trio_ptr->server_socket_fd_ptr), send_buf, kBufSize,
                     kSendFlags, NULL, 0);
-    now = CurrentMonotonicTime();
+    now = starboard::CurrentMonotonicTime();
   }
 
   delete[] send_buf;
@@ -212,4 +211,3 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

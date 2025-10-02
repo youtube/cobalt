@@ -45,7 +45,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 class MediaCodecBridge {
   // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
   // for several frames. As a result, the player may find that the time does not increase
@@ -713,7 +713,9 @@ class MediaCodecBridge {
     int status = MediaCodecStatus.OK;
     try {
       format = mMediaCodec.get().getOutputFormat();
-    } catch (IllegalStateException e) {
+    // Catches `RuntimeException` to handle any undocumented exceptions.
+    // See http://b/445694177#comment4 for details.
+    } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
       status = MediaCodecStatus.ERROR;
     }

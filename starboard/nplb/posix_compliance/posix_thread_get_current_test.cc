@@ -17,7 +17,6 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -38,10 +37,9 @@ TEST(PosixThreadGetCurrentTest, SunnyDay) {
     void* result = NULL;
     EXPECT_EQ(pthread_join(threads[i], &result), 0);
     // NOLINTNEXTLINE(readability/casting)
-    EXPECT_EQ(posix::ToVoid((intptr_t)threads[i]), result);
+    EXPECT_EQ(ToVoid((intptr_t)threads[i]), result);
   }
 }
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

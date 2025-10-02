@@ -19,6 +19,5 @@
 SbEventId SbEventSchedule(SbEventCallback callback,
                           void* context,
                           int64_t delay) {
-  return starboard::shared::starboard::Application::Get()->Schedule(
-      callback, context, delay);
+  return starboard::Application::Get()->Schedule(callback, context, delay);
 }

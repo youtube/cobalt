@@ -20,6 +20,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
+#include "starboard/common/scoped_timer.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader_impl.h"
@@ -29,8 +30,9 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/system.h"
 
-namespace starboard {
 namespace elf_loader {
+using ::starboard::CurrentMonotonicTime;
+using ::starboard::PrependContentPath;
 
 std::atomic<ElfLoader*> ElfLoader::g_instance{NULL};
 
@@ -78,12 +80,10 @@ bool ElfLoader::Load(const std::string& library_path,
   EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
-  int64_t start_time_us = CurrentMonotonicTime();
+  starboard::ScopedTimer timer("Loading");
   bool res = impl_->Load(library_path_.c_str(), use_compression,
                          use_memory_mapped_file);
-  int64_t end_time_us = CurrentMonotonicTime();
-  int64_t elf_load_duration_us = end_time_us - start_time_us;
-  SB_LOG(INFO) << "Loading took: " << elf_load_duration_us / 1000 << " ms";
+  int64_t elf_load_duration_us = timer.Stop();
   auto metrics_extension =
       static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
           SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
@@ -103,4 +103,3 @@ void* ElfLoader::LookupSymbol(const char* symbol) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

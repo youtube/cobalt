@@ -23,7 +23,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 const int64_t kMaxAllowedSkew = 5'000;  // 5ms
@@ -182,4 +182,4 @@ void VideoFrameTracker::UpdateDroppedFrames() {
   rendered_frames_on_tracker_thread_.clear();
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -29,14 +29,26 @@
 
 extern "C++" {
 
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-#define SB_LOGGING_IS_OFFICIAL_BUILD 1
-#else
+// Force SB_LOGGING_IS_OFFICIAL_BUILD to 0 for all build configurations.
+//
+// In an "official" build (when this is 1), SB_CHECK(condition) expands to a
+// direct call to ::starboard::Break(), providing no diagnostic information in
+// the resulting crash stack reported to the prime. http://b/445154341#comment5
+//
+// By forcing the non-official path, a failing SB_CHECK will instead go through
+// the SB_LOG(FATAL) macro. This generates a rich log message containing the
+// failed condition and a stack trace, which is invaluable for debugging.
+//
+// While this introduces overhead, it is incurred only upon failure and,
+// critically, occurs *after* the condition is checked. This ensures that the
+// timing of the check is not altered, preventing this change from masking or
+// creating race conditions.
 #define SB_LOGGING_IS_OFFICIAL_BUILD 0
-#endif
 
 // This file provides a selected subset of the //base/logging/ macros and
 // assertions. See those files for more comments and details.
@@ -59,6 +71,17 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack);
 
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
 std::ostream& operator<<(std::ostream& out, const std::wstring& wstr);
+
+// Helper function to print a std::optional of data.
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
+  if (v) {
+    return out << *v;
+  }
+  return out << "(nullopt)";
+}
+
+std::string_view to_string(bool val);
 
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;

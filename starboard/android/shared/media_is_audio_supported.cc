@@ -25,9 +25,6 @@
 
 namespace starboard::shared::starboard::media {
 
-using ::starboard::android::shared::MediaCapabilitiesCache;
-using ::starboard::android::shared::SupportedAudioCodecToMimeType;
-
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,
                            int64_t bitrate) {

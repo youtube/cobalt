@@ -38,7 +38,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 TEST(PosixLinkTest, SuccessfulCreation) {
@@ -189,4 +189,4 @@ TEST(PosixLinkTest, FailsIfOldPathComponentNotDirectory) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

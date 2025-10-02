@@ -1,0 +1,48 @@
+# Manifest of Leaking Files
+
+# This file was auto-generated using api_leak_detector.py.
+
+OPENSSL_memory_alloc
+OPENSSL_memory_free
+OPENSSL_memory_get_size
+__nl_langinfo_l
+fclose
+fdopen
+feof
+fflush
+fgets
+fileno
+fopen
+fprintf
+fputc
+fputs
+fread
+freelocale
+fscanf
+fseek
+fseeko
+ftell
+ftello
+fwrite
+getc
+localeconv
+newlocale
+prctl
+printf
+puts
+rewind
+sched_getaffinity
+sdallocx
+setlocale
+setvbuf
+stderr
+stdin
+stdout
+tmpfile
+ungetc
+uselocale
+vfprintf
+vprintf
+TLS init function for partition_alloc::internal::g_thread_cache
+TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
+TLS init function for v8::internal::wasm::CodeSpaceWriteScope::scope_depth_

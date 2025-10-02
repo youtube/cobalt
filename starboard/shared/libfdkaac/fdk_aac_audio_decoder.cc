@@ -19,7 +19,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
 
-namespace starboard::shared::libfdkaac {
+namespace starboard {
 
 FdkAacAudioDecoder::FdkAacAudioDecoder() {
   static_assert(sizeof(INT_PCM) == sizeof(int16_t),
@@ -69,8 +69,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
   ReadFromFdkDecoder(kDecodeModeDoNotFlush);
 }
 
-scoped_refptr<FdkAacAudioDecoder::DecodedAudio> FdkAacAudioDecoder::Read(
-    int* samples_per_second) {
+scoped_refptr<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -233,8 +232,8 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
              data, freespace);
       data += freespace;
       size_in_bytes -= freespace;
-      SB_DCHECK(decoding_input_buffers_.front()->timestamp() ==
-                partially_decoded_audio_->timestamp());
+      SB_DCHECK_EQ(decoding_input_buffers_.front()->timestamp(),
+                   partially_decoded_audio_->timestamp());
 
       const auto& sample_info =
           decoding_input_buffers_.front()->audio_sample_info();
@@ -256,4 +255,4 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
   }
 }
 
-}  // namespace starboard::shared::libfdkaac
+}  // namespace starboard

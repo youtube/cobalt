@@ -27,7 +27,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -381,7 +381,7 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
           os << "(string)" << param.string_value;
           break;
         case MimeType::kParamTypeBoolean:
-          os << "(bool)" << (param.bool_value ? "true" : "false");
+          os << "(bool)" << to_string(param.bool_value);
           break;
       }
     }
@@ -391,4 +391,4 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
   return os;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

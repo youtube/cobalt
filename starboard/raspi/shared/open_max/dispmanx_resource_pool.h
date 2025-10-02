@@ -22,9 +22,6 @@
 #include "starboard/raspi/shared/dispmanx_util.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 class DispmanxResourcePool : public RefCountedThreadSafe<DispmanxResourcePool> {
  public:
@@ -52,9 +49,6 @@ class DispmanxResourcePool : public RefCountedThreadSafe<DispmanxResourcePool> {
   ResourceQueue free_resources_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_DISPMANX_RESOURCE_POOL_H_

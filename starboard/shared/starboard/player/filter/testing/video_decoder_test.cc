@@ -37,10 +37,9 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using ::std::placeholders::_1;
 using ::std::placeholders::_2;
 using ::testing::Bool;
@@ -507,4 +506,4 @@ INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

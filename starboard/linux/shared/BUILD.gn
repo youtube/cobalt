@@ -22,7 +22,6 @@ group("starboard_platform") {
     ":starboard_base_symbolize",
     ":starboard_platform_sources",
     "//starboard/common",
-    "//starboard/crashpad_wrapper:wrapper_stub",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
   ]
@@ -109,7 +108,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/libfdkaac/libfdkaac_library_loader.h",
     "//starboard/shared/libvpx/vpx_video_decoder.cc",
     "//starboard/shared/libvpx/vpx_video_decoder.h",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/dev_input/dev_input.cc",
     "//starboard/shared/linux/dev_input/dev_input.h",
     "//starboard/shared/linux/get_home_directory.cc",

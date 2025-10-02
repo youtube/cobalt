@@ -22,7 +22,6 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
@@ -151,11 +150,11 @@ bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
   std::unique_lock lock(mutex_);
   is_eos_reached_ = true;
   int frames_appended_before_eos = frames_appended_;
-  int64_t start = CurrentMonotonicTime();
+  int64_t start = starboard::CurrentMonotonicTime();
   int silence_frames_appended = 0;
 
   while (frames_consumed_ < frames_appended_before_eos) {
-    int64_t time_elapsed = CurrentMonotonicTime() - start;
+    int64_t time_elapsed = starboard::CurrentMonotonicTime() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
     }
@@ -224,4 +223,3 @@ void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
 }
 
 }  // namespace nplb
-}  // namespace starboard

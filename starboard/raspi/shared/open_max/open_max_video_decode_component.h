@@ -23,9 +23,6 @@
 #include "starboard/raspi/shared/open_max/open_max_component.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 // Encapsulate a "OMX.broadcom.video_decode" component.  Note that member
 // functions of this class is expected to be called from ANY threads as this
@@ -49,9 +46,6 @@ class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
   OMXParamPortDefinition output_port_definition_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_VIDEO_DECODE_COMPONENT_H_

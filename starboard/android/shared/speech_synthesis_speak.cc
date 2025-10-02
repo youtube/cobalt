@@ -30,8 +30,7 @@ void SbSpeechSynthesisSpeak(const char* text) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jobject> j_tts_helper =
-      starboard::android::shared::StarboardBridge::GetInstance()
-          ->GetTextToSpeechHelper(env);
+      starboard::StarboardBridge::GetInstance()->GetTextToSpeechHelper(env);
 
   jstring text_string = env->NewStringUTF(text);
   ScopedJavaLocalRef<jstring> j_text_string(env, text_string);

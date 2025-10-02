@@ -32,7 +32,7 @@
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
@@ -125,6 +125,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_

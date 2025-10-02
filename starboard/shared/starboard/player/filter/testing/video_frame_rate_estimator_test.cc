@@ -22,7 +22,7 @@
 #include "starboard/shared/starboard/player/filter/video_frame_rate_estimator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
 using Frames = VideoFrameRateEstimator::Frames;
@@ -230,4 +230,4 @@ TEST(VideoFrameRateEstimatorTest, EndOfStream) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

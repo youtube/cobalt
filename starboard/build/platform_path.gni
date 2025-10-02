@@ -12,6 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# When target_os is set to "ios" (and therefore this is a tvOS build), fetch
+# target_platform from //build/config/ios/config.gni instead of declaring the
+# argument here to avoid a naming clash.
+# Note: we do not check for is_ios here because //build/config/ios/config.gni
+# might be included by host build files too (e.g. v8/gni/v8.gni), which also
+# leads to a naming clash.
+if (target_os == "ios") {
+  import("//build/config/ios/config.gni")
+
+  # target_platform can have multiple values (e.g. "iphoneos", "tvos"). For
+  # Cobalt and Starboard, we are only interested in tvOS builds.
+  assert(target_platform == "tvos",
+         "tvOS builds require target_platform='tvos'")
+}
+
 declare_args() {
   starboard_path = ""
 }
@@ -40,6 +55,11 @@ if (starboard_path == "") {
       } else {
         assert(false, "Unsupported linux target cpu ${target_cpu}.")
       }
+    } else if (target_os == "ios") {
+      # In this case, target_platform is set by Chromium and its value
+      # is just "tvos", so define it to something proper.
+      starboard_target_platform =
+          "tvos-" + target_cpu + "-" + target_environment
     } else {
       # Default to linux-x64x11 for chromium toolchains.
       starboard_target_platform = "linux-x64x11"

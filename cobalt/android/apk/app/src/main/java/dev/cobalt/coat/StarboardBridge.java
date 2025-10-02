@@ -53,7 +53,7 @@ import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 // TODO(cobalt, b/383301493): we expect this class to be a singleton and should consider enforcing
 // this property.
 public class StarboardBridge {
@@ -160,8 +160,6 @@ public class StarboardBridge {
 
   @NativeMethods
   interface Natives {
-    void onStop();
-
     long currentMonotonicTime();
 
     long startNativeStarboard(

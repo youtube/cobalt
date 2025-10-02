@@ -21,7 +21,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // This class serves as a bridge between the native code and Android
 // StarboardBridge Java class.
@@ -100,6 +100,6 @@ class StarboardBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_STARBOARD_BRIDGE_H_

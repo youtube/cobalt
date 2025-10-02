@@ -20,7 +20,6 @@
 #include <gtest/gtest.h>
 #include <type_traits>
 
-namespace starboard {
 namespace nplb {
 
 // Helper templates to check for the existence of struct tm members
@@ -144,6 +143,5 @@ void ExpectTmEqual(const struct tm& actual,
                    const std::string& context);
 
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIME_HELPER_H_

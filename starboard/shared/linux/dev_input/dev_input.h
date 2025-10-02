@@ -19,13 +19,13 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/window.h"
 
-namespace starboard::shared::dev_input {
+namespace starboard {
 
 // A class that wraps /dev/input, providing enough functionality to be used in a
 // Starboard Application implementation.
 class DevInput {
  public:
-  typedef ::starboard::shared::starboard::Application::Event Event;
+  typedef Application::Event Event;
 
   virtual ~DevInput() {}
 
@@ -54,6 +54,6 @@ class DevInput {
   DevInput() {}
 };
 
-}  // namespace starboard::shared::dev_input
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_LINUX_DEV_INPUT_DEV_INPUT_H_

@@ -24,7 +24,7 @@
 
 namespace {
 using base::android::ScopedJavaGlobalRef;
-using starboard::android::shared::ApplicationAndroid;
+using starboard::ApplicationAndroid;
 
 typedef std::function<void(SbSystemPlatformErrorResponse error_response)>
     SendResponseCallback;
@@ -59,9 +59,8 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                      })
                : nullptr;
 
-  starboard::android::shared::StarboardBridge::GetInstance()
-      ->RaisePlatformError(env, jni_error_type,
-                           reinterpret_cast<jlong>(send_response_callback));
+  starboard::StarboardBridge::GetInstance()->RaisePlatformError(
+      env, jni_error_type, reinterpret_cast<jlong>(send_response_callback));
   return true;
 }
 

@@ -33,8 +33,8 @@
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  const starboard::elf_loader::EvergreenConfig* evergreen_config =
-      starboard::elf_loader::EvergreenConfig::GetInstance();
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
       evergreen_config->custom_get_extension_ != NULL) {
     const void* ext = evergreen_config->custom_get_extension_(name);
@@ -45,10 +45,10 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
 
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::raspi::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApiRaspi();
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
-    return starboard::raspi::shared::GetGraphicsApi();
+    return starboard::GetGraphicsApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();

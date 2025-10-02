@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/config/os_definitions.gni")
 import("//third_party/protobuf/proto_library.gni")
 
 _common_loader_app_sources = [
@@ -41,7 +40,9 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:sabi_string",
     ]
 
-    if (enable_cobalt_hermetic_hacks) {
+    # TODO: b/446904317 - use the real wrapper for other 3P platforms once they
+    # can build it and its deps.
+    if (target_os != "linux" || target_cpu != "x64") {
       public_deps -= [ "//starboard/crashpad_wrapper" ]
       public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
@@ -99,14 +100,6 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
     output_dir = root_build_dir
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-      if (cobalt_font_package == "empty") {
-        data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-      } else {
-        data_deps = [
-          "//starboard/content/fonts:copy_fonts",
-          "//starboard/content/fonts:fonts_xml",
-        ]
-      }
       sources = _common_loader_app_sources
       deps = [
         ":common_loader_app_dependencies",
@@ -114,6 +107,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
         "//starboard/content/fonts:copy_font_data",
         "//starboard/elf_loader",
       ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
       if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
         data_deps += [
           ":copy_crashpad_handler_named_as_so",
@@ -298,8 +292,10 @@ static_library("slot_management") {
     "//third_party/jsoncpp:jsoncpp",
   ]
 
-  if (sb_is_evergreen_compatible && !enable_cobalt_hermetic_hacks &&
-      current_toolchain == starboard_toolchain) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
+      # TODO: b/446904317 - use the real wrapper for other 3P platforms once
+      # they can build it and its deps.
+      target_os == "linux" && target_cpu == "x64") {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

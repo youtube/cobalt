@@ -20,7 +20,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace elf_loader {
 namespace {
 
@@ -94,4 +93,3 @@ TEST(LZ4FileImplTest, ValidFileDecompressionSucceeds) {
 
 }  // namespace
 }  // namespace elf_loader
-}  // namespace starboard

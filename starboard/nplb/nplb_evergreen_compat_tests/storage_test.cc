@@ -30,9 +30,7 @@
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
-namespace starboard {
 namespace nplb {
-namespace nplb_evergreen_compat_tests {
 
 namespace {
 
@@ -42,14 +40,14 @@ const size_t kBufSize = 64 * 1024 * 1024;  // 64 MB
 void WriteBuffer(const char* file_path,
                  const char* buffer,
                  size_t buffer_size) {
-  ScopedFile file(file_path, O_CREAT | O_WRONLY);
+  starboard::ScopedFile file(file_path, O_CREAT | O_WRONLY);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for writing";
   int bytes_written = file.WriteAll(buffer, buffer_size);
   ASSERT_EQ(kBufSize, static_cast<size_t>(bytes_written));
 }
 
 void ReadBuffer(const char* file_path, char* buffer, size_t buffer_size) {
-  ScopedFile file(file_path, 0);
+  starboard::ScopedFile file(file_path, 0);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for reading";
   int count = file.ReadAll(buffer, buffer_size);
   ASSERT_EQ(kBufSize, static_cast<size_t>(count));
@@ -84,6 +82,4 @@ TEST(StorageTest, VerifyStorageDirectory) {
 }
 
 }  // namespace
-}  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
-}  // namespace starboard

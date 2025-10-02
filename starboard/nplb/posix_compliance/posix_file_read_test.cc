@@ -22,13 +22,12 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
 // Sets up an empty test fixture, required for typed tests.
 template <class SbFileReadType>
-class PosixFileReadTest : public testing::Test {};
+class PosixFileReadTest : public ::testing::Test {};
 
 class PosixRead {
  public:
@@ -40,11 +39,11 @@ class PosixRead {
 class PosixReadAll {
  public:
   static ssize_t Read(int file, void* data, size_t size) {
-    return ReadAll(file, data, size);
+    return starboard::ReadAll(file, data, size);
   }
 };
 
-typedef testing::Types<PosixRead, PosixReadAll> PosixFileReadTestTypes;
+using PosixFileReadTestTypes = ::testing::Types<PosixRead, PosixReadAll>;
 
 template <typename T, size_t n>
 size_t array_size(const T (&)[n]) {
@@ -349,4 +348,3 @@ TYPED_TEST(PosixFileReadTest, PreadReadMore) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

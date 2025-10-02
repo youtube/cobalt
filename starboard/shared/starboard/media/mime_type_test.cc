@@ -16,7 +16,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
 
 TEST(MimeTypeTest, EmptyString) {
@@ -441,4 +441,4 @@ TEST(MimeTypeTest, ValidateParamWithInvalidMimeType) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

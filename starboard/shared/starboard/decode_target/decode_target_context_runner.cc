@@ -16,7 +16,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard::shared::starboard::decode_target {
+namespace starboard {
 
 namespace {
 
@@ -41,4 +41,4 @@ void DecodeTargetContextRunner::RunOnGlesContext(
   SbDecodeTargetRunInGlesContext(provider_, RunnerTargetHelper, &function);
 }
 
-}  // namespace starboard::shared::starboard::decode_target
+}  // namespace starboard
