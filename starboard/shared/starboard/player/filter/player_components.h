@@ -168,10 +168,6 @@ class PlayerComponents {
     virtual CreateComponentsResult CreateComponents(
         const CreationParameters& creation_parameters);
 
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-   private:
-#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-
     struct AudioComponents {
       std::unique_ptr<AudioDecoder> audio_decoder;
       std::unique_ptr<AudioRendererSink> audio_renderer_sink;
@@ -195,6 +191,10 @@ class PlayerComponents {
         return {{}, {}, std::string(error_message)};
       }
     };
+
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+   private:
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.
