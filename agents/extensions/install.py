@@ -20,9 +20,10 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional
 
 
-def get_mcp_servers(mcp_dir: Path) -> list[str]:
+def get_mcp_servers(mcp_dir: Path) -> List[str]:
     """Returns a list of all MCP servers in the given directory.
 
     Args:
@@ -34,7 +35,7 @@ def get_mcp_servers(mcp_dir: Path) -> list[str]:
     return [p.parent.name for p in mcp_dir.glob('*/gemini-extension.json')]
 
 
-def get_git_repo_root() -> Path | None:
+def get_git_repo_root() -> Optional[Path]:
     """Returns the root of the git repository."""
     try:
         return Path(
@@ -55,7 +56,7 @@ def get_extension_dir(use_global: bool = False) -> Path:
     return Path('.gemini/extensions')
 
 
-def get_installed_servers(extension_dir: Path) -> list[str]:
+def get_installed_servers(extension_dir: Path) -> List[str]:
     """Returns a list of all installed MCP servers.
 
     Args:
@@ -84,7 +85,7 @@ def get_server_version(server_path: Path) -> str:
             return '-'
 
 
-def get_dir_hash(directory: Path) -> bytes | None:
+def get_dir_hash(directory: Path) -> Optional[bytes]:
     """Calculates a hash for the contents of a directory."""
     hashes = []
     for path in sorted(Path(directory).rglob('*')):
