@@ -28,7 +28,7 @@
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/browser/shell_download_manager_delegate.h"
-#include "cobalt/shell/common/shell_paths.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_permission_manager.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/keyed_service/core/simple_dependency_manager.h"
