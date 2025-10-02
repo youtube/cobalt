@@ -69,10 +69,7 @@ bool shouldAddCobaltPrefix() {
 }
 
 std::string GetFirstLine(const std::string& stack_trace) {
-  std::stringstream ss(stack_trace);
-  std::string first_line;
-  std::getline(ss, first_line);
-  return first_line;
+  return stack_trace.substr(0, stack_trace.find('\n'));
 }
 
 std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
