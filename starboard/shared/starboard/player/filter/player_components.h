@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "build/build_config.h"
@@ -152,9 +153,20 @@ class PlayerComponents {
                                     SbMediaVideoCodec codec,
                                     SbDrmSystem drm_system);
 
-    virtual std::unique_ptr<PlayerComponents> CreateComponents(
-        const CreationParameters& creation_parameters,
-        std::string* error_message);
+    struct CreateComponentsResult {
+      std::unique_ptr<PlayerComponents> player_components;
+      std::string error_message;
+
+      static CreateComponentsResult Success(
+          std::unique_ptr<PlayerComponents> player_components) {
+        return {std::move(player_components), ""};
+      }
+      static CreateComponentsResult Error(std::string_view error_message) {
+        return {nullptr, std::string(error_message)};
+      }
+    };
+    virtual CreateComponentsResult CreateComponents(
+        const CreationParameters& creation_parameters);
 
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
    private:
@@ -173,6 +185,15 @@ class PlayerComponents {
       AudioComponents audio;
       VideoComponents video;
       std::string error_message;
+
+      static CreateSubComponentsResult Success(AudioComponents audio,
+                                               VideoComponents video) {
+        return {std::move(audio), std::move(video), ""};
+      }
+
+      static CreateSubComponentsResult Error(std::string_view error_message) {
+        return {{}, {}, std::string(error_message)};
+      }
     };
 
     // Note that the following function is exposed in non-Gold build to allow

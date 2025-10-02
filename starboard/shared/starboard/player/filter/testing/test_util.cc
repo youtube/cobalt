@@ -236,10 +236,10 @@ bool CreateAudioComponents(
     factory = PlayerComponents::Factory::Create();
   }
   std::string error_message;
-  if (factory->CreateSubComponents(creation_parameters, audio_decoder,
-                                   audio_renderer_sink, nullptr, nullptr,
-                                   nullptr, &error_message)) {
-    SB_CHECK(*audio_decoder);
+  auto result = factory->CreateSubComponents(creation_parameters);
+  if (result.error_message.empty()) {
+    *audio_decoder = std::move(result.audio.audio_decoder);
+    *audio_renderer_sink = std::move(result.audio.audio_renderer_sink);
     return true;
   }
   audio_renderer_sink->reset();
