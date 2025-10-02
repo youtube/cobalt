@@ -39,7 +39,6 @@ import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
-@SuppressWarnings("unused")
 @JNINamespace("starboard")
 public final class VideoFrameReleaseTimeHelper {
 
@@ -69,7 +68,6 @@ public final class VideoFrameReleaseTimeHelper {
    * Constructs an instance that smooths frame release timestamps but does not align them with the
    * default display's vsync signal.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   public VideoFrameReleaseTimeHelper() {
     this(DisplayUtil.getDefaultDisplayRefreshRate());
@@ -89,7 +87,6 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   /** Enables the helper. */
-  @SuppressWarnings("unused")
   @CalledByNative
   public void enable() {
     mHaveSync = false;
@@ -100,7 +97,6 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   /** Disables the helper. */
-  @SuppressWarnings("unused")
   @CalledByNative
   public void disable() {
     if (mUseDefaultDisplayVsync) {
@@ -117,7 +113,6 @@ public final class VideoFrameReleaseTimeHelper {
    * @return The adjusted frame release timestamp, in nanoseconds and in the same time base as
    *     {@link System#nanoTime()}.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   public long adjustReleaseTime(
       long framePresentationTimeUs, long unadjustedReleaseTimeNs, double playbackRate) {

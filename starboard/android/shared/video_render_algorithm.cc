@@ -139,10 +139,8 @@ VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   JNIEnv* env = base::android::AttachCurrentThread();
 
-  ScopedJavaLocalRef<jobject> j_video_frame_release_time_helper(
+  j_video_frame_release_time_helper_.Reset(
       Java_VideoFrameReleaseTimeHelper_Constructor(env));
-  SB_CHECK(j_video_frame_release_time_helper);
-  j_video_frame_release_time_helper_.Reset(j_video_frame_release_time_helper);
 
   Java_VideoFrameReleaseTimeHelper_enable(env,
                                           j_video_frame_release_time_helper_);
@@ -150,7 +148,7 @@ VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
 
 VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
-  SB_DCHECK(j_video_frame_release_time_helper_);
+  SB_CHECK(j_video_frame_release_time_helper_);
   Java_VideoFrameReleaseTimeHelper_disable(AttachCurrentThread(),
                                            j_video_frame_release_time_helper_);
 }
@@ -159,7 +157,7 @@ jlong VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     AdjustReleaseTime(jlong frame_presentation_time_us,
                       jlong unadjusted_release_time_ns,
                       double playback_rate) {
-  SB_DCHECK(j_video_frame_release_time_helper_);
+  SB_CHECK(j_video_frame_release_time_helper_);
   return Java_VideoFrameReleaseTimeHelper_adjustReleaseTime(
       AttachCurrentThread(), j_video_frame_release_time_helper_,
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
