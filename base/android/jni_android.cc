@@ -68,6 +68,13 @@ bool shouldAddCobaltPrefix() {
   return g_add_cobalt_prefix;
 }
 
+// Java exception stack trace example:
+//
+// java.lang.RuntimeException: Hello
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodC(VideoFrameReleaseTimeHelper.java:111)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodB(VideoFrameReleaseTimeHelper.java:115)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodA(VideoFrameReleaseTimeHelper.java:119)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.adjustReleaseTime(VideoFrameReleaseTimeHelper.java:135)
 std::string GetFirstLine(const std::string& stack_trace) {
   return stack_trace.substr(0, stack_trace.find('\n'));
 }
