@@ -222,7 +222,7 @@ void PlayerWorker::DoInit() {
 
   Handler::UpdatePlayerErrorCB update_player_error_cb;
   update_player_error_cb = std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
-                                     HandlerResult::Failure("fail"), _2);
+                                     HandlerResult::Failure(""), _2);
   HandlerResult result = handler_->Init(
       player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),

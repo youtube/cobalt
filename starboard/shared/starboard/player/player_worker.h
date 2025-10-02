@@ -61,21 +61,22 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
-    // Stores the success status of Handler operations. If |success| is false,
-    // |error_message| may be set with details of the error.
+    // Stores the success status of Handler operations.
     class HandlerResult {
      public:
-      static HandlerResult Success() { return HandlerResult(""); }
+      static HandlerResult Success() { return HandlerResult(true, ""); }
       static HandlerResult Failure(std::string_view error_message) {
-        return HandlerResult(error_message);
+        return HandlerResult(false, error_message);
       }
 
-      bool ok() const { return error_message_.empty(); }
+      bool ok() const { return success_; }
       std::string_view error_message() const { return error_message_; }
 
      private:
-      explicit HandlerResult(std::string_view error_message)
-          : error_message_(error_message) {}
+      HandlerResult(bool success, std::string_view error_message)
+          : success_(success), error_message_(error_message) {}
+
+      const bool success_;
       const std::string error_message_;
     };
 
