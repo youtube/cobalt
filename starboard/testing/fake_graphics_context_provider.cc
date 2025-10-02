@@ -177,8 +177,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // - Android only has eglGetDisplay()
   // - Raspberry Pi 2 has EGL 1.4 without platform extensions so only
   // eglGetDisplay() is available.
-  // - RDK has a custom SbEglGetDisplay() implementation that tries to use
-  // eglGetPlatformDisplayEXT() and falls back to eglGetDisplay() when
+  // - RDK has a custom SbEglInterface::eglGetDisplay implementation that tries
+  // to use eglGetPlatformDisplayEXT() and falls back to eglGetDisplay() when
   // necessary.
   //
   // Note that other platforms that do not use ANGLE but have EGL 1.5 could
