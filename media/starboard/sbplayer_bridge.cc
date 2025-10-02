@@ -161,7 +161,7 @@ SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const std::string& url,
-    SbWindow window,ﬁ%
+    SbWindow window,
     Host* host,
     RegisterBoundsChangeObserverCB register_bounds_change_observer,
     bool allow_resume_after_suspend,
