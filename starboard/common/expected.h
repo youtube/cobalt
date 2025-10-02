@@ -25,6 +25,8 @@ class Expected {
   // Returns true if the Expected is a success.
   bool ok() const { return std::holds_alternative<T>(storage_); }
 
+  explicit operator bool() const { return ok(); }
+
   // Returns the contained value.
   // This should only be called when ok() is true.
   T& value() & {
