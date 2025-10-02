@@ -1,0 +1,44 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_SCHED_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_SCHED_ABI_WRAPPERS_H_
+
+#include <sched.h>
+
+#include "starboard/export.h"
+#include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// MUSL definition for cpu_set_t
+typedef struct musl_cpu_set_t {
+  unsigned long __bits[128 / sizeof(long)];
+} musl_cpu_set_t;
+
+// Platforms that make all CPU cores reported by |sysconf(_SC_NPROCESSORS_CONF)|
+// available to the app (without a CPU affinity mask) can implement a stub that
+// returns -1 with errno=EPERM. This is possible as the only existing usage of
+// |sched_getaffinity| produces no operational changes if the CPU core behavior
+// with sysconf is satisfied.
+SB_EXPORT int __abi_wrap_sched_getaffinity(musl_pid_t pid,
+                                           size_t cpusetsize,
+                                           musl_cpu_set_t* mask);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_SCHED_ABI_WRAPPERS_H_
