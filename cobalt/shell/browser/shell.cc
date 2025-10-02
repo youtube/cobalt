@@ -149,6 +149,13 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
     g_platform->MainFrameCreated(shell);
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(IS_ANDROID)
+  // TODO(b/390021478): Revisit this when decoupling from content_shell.
+  g_platform->SetOverlayMode(shell, true);Expand commentComment on line L154Code has comments. Press enter to view.
+#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   return shell;
 }
 
