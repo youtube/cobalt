@@ -43,6 +43,7 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_media_capture_id.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/page_type.h"
 #include "content/public/test/test_utils.h"
@@ -2564,7 +2565,7 @@ bool EnableNativeWindowActivation();
 void HandleMissingKeyWindow();
 #endif  // BUILDFLAG(IS_MAC)
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 // Set the length of the window of opportunity for conditional focus.
 void SetConditionalFocusWindowForTesting(base::TimeDelta window);
 

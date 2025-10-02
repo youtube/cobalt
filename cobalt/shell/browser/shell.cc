@@ -232,11 +232,11 @@ void Shell::Shutdown() {
 #endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
-gfx::Size AdjustWindowSize(const gfx::Size& initial_size) {
+gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {
   if (!initial_size.IsEmpty()) {
     return initial_size;
   }
-  return Shell::GetShellDefaultSize();
+  return GetShellDefaultSize();
 }
 
 // static
@@ -328,13 +328,13 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
 }
 
 WebContents* Shell::AddNewContents(
-      WebContents* source,
-      std::unique_ptr<WebContents> new_contents,
-      const GURL& target_url,
-      WindowOpenDisposition disposition,
-      const blink::mojom::WindowFeatures& window_features,
-      bool user_gesture,
-      bool* was_blocked) {
+    WebContents* source,
+    std::unique_ptr<WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    bool user_gesture,
+    bool* was_blocked) {
 #if !BUILDFLAG(IS_ANDROID)
   // If the shell is opening a document picture-in-picture window, it needs to
   // inform the DocumentPictureInPictureWindowController.
@@ -707,8 +707,8 @@ bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
-  WebContents& web_contents,
-  PreloadingTriggerType trigger_type) {
+    WebContents& web_contents,
+    PreloadingTriggerType trigger_type) {
   return PreloadingEligibility::kEligible;
 }
 

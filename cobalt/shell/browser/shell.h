@@ -118,10 +118,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   // WebContentsDelegate
   WebContents* OpenURLFromTab(
-    WebContents* source,
-    const OpenURLParams& params,
-    base::OnceCallback<void(content::NavigationHandle&)>
-        navigation_handle_callback) override;
+      WebContents* source,
+      const OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
   WebContents* AddNewContents(
       WebContents* source,
       std::unique_ptr<WebContents> new_contents,

@@ -40,6 +40,7 @@
 #include "content/public/browser/media_request_state.h"
 #include "content/public/browser/media_stream_request.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/common/buildflags.h"
 #include "media/base/video_facing.h"
 #include "media/capture/mojom/video_capture.mojom.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
@@ -396,7 +397,7 @@ class CONTENT_EXPORT MediaStreamManager
                           blink::mojom::MediaStreamType stream_type,
                           MediaRequestState new_state);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   void SetConditionalFocusWindowForTesting(base::TimeDelta window);
 
   void SetCapturedSurfaceControllerFactoryForTesting(

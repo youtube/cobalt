@@ -508,7 +508,7 @@ bool ChangeSourceSupported(const MediaStreamDevices& devices) {
   return true;  // getDisplayMedia() and killswitches did not trigger.
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 MediaStreamManager::CapturedSurfaceControllerFactoryCallback
 MakeDefaultCapturedSurfaceControllerFactory() {
   return base::BindRepeating(
@@ -886,6 +886,7 @@ class MediaStreamManager::DeviceRequest {
     return captured_wc_id;
   }
 
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   CapturedSurfaceController* captured_surface_controller() const {
     DCHECK_CURRENTLY_ON(BrowserThread::IO);
     return captured_surface_controller_.get();
@@ -897,6 +898,11 @@ class MediaStreamManager::DeviceRequest {
     CHECK(!captured_surface_controller_);
     captured_surface_controller_ = std::move(controller);
   }
+#else
+  CapturedSurfaceController* captured_surface_controller() const {
+    return nullptr;
+  }
+#endif
 
   // If capturing a tab, zoom-level updates are received through this callback.
   virtual void OnZoomLevelChange(const std::string& label, int zoom_level) {}
@@ -1011,7 +1017,7 @@ class MediaStreamManager::DeviceRequest {
   std::optional<std::string> video_raw_id_;
   GlobalRenderFrameHostId target_render_frame_host_id_;
   std::string label_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   std::unique_ptr<CapturedSurfaceController> captured_surface_controller_;
 #endif
   bool captured_surface_control_active_ = false;
@@ -1532,7 +1538,7 @@ MediaStreamManager::MediaStreamManager(
     media::AudioSystem* audio_system,
     std::unique_ptr<VideoCaptureProvider> video_capture_provider)
     :
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
       captured_surface_controller_factory_(
           MakeDefaultCapturedSurfaceControllerFactory()),
 #endif
@@ -3046,7 +3052,7 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
     return;
   }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   CHECK(!request->captured_surface_controller());
   const WebContentsMediaCaptureId captured_tab_id = request->GetCapturedTabId();
   if (!captured_tab_id.is_null()) {
@@ -3056,7 +3062,7 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
             base::BindRepeating(&DeviceRequest::OnZoomLevelChange,
                                 request->GetWeakPtr(), label)));
   }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
   // TODO(crbug.com/40216442): Generalize to multiple streams.
   DCHECK_EQ(1u, request->stream_devices_set.stream_devices.size());
@@ -4057,7 +4063,7 @@ void MediaStreamManager::SetStateForTesting(
   requests_iterator->second->SetState(stream_type, new_state);
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::SetConditionalFocusWindowForTesting(
     base::TimeDelta window) {
   conditional_focus_window_ = window;
