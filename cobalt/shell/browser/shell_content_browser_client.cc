@@ -569,9 +569,9 @@ void ShellContentBrowserClient::CreateThrottlesForNavigation(
 
 std::unique_ptr<LoginDelegate> ShellContentBrowserClient::CreateLoginDelegate(
     const net::AuthChallengeInfo& auth_info,
-    WebContents* web_contents,
-    BrowserContext* browser_context,
-    const GlobalRequestID& request_id,
+    content::WebContents* web_contents,
+    content::BrowserContext* browser_context,
+    const content::GlobalRequestID& request_id,
     bool is_request_for_primary_main_frame_navigation,
     bool is_request_for_navigation,
     const GURL& url,
