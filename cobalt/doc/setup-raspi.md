@@ -105,14 +105,14 @@ gclient sync --no-history -r $(git rev-parse @)
 
 # Build, install, and run Cobalt for Raspberry Pi
 
-##  Congig and Build 
+##  Congig and Build
    Navigate to the `cobalt/src` directory and run the following commands  
-   
+
    Configure and Build Cobalt for raspi-2
    ```
    $ cobalt/build/gn.py --no-rbe -p evergreen-arm-hardfp-raspi --build_type devel
-   ``` 
-   Add "use_evergreen = false" to **out/evergreen-arm-hardfp-raspi_devel/args.gn** to turn on Modular 
+   ```
+   Add "use_evergreen = false" to **out/evergreen-arm-hardfp-raspi_devel/args.gn** to turn on Modular
    ```
    $ echo "use_evergreen = false" >> out/evergreen-arm-hardfp-raspi_devel/args.gn
    ```
@@ -120,7 +120,7 @@ gclient sync --no-history -r $(git rev-parse @)
    ```
    $ autoninja -C out/evergreen-arm-hardfp-raspi_devel/ cobalt_loader
    ```
-## Strip 
+## Strip
    The devel build is 1.2 GB and is too big to load in raspi-2 so just strip it.
    ```
    $ cp out/evergreen-arm-hardfp-raspi_devel/libcobalt.so out/evergreen-arm-hardfp-raspi_devel/libcobalt_unstripped.so
@@ -142,18 +142,18 @@ gclient sync --no-history -r $(git rev-parse @)
    ```
 ## Excute cobalt on raspi-2
    ```
-   $ export LD_LIBRARY_PATH=. 
+   $ export LD_LIBRARY_PATH=.
    $ ./cobalt_loader
    ```
 ## Get stack trace with gdb
    ```
-   $ export LD_LIBRARY_PATH=. 
+   $ export LD_LIBRARY_PATH=.
    $ gdb ./cobalt_loader
    $ (gdb) run
    $ Thread 10 "Chrome_InProcGp" received signal SIGSEGV, Segmentation fault.
    [Switching to Thread 0x6c4fe440 (LWP 1948)]
    0x00000000 in ?? ()
-   (gdb) bt  
+   (gdb) bt
    #0  0x00000000 in ?? ()
    #1  0x74192dca in ?? () from ./libcobalt.so
    #2  0x742150cc in ?? () from ./libcobalt.so
@@ -182,10 +182,10 @@ gclient sync --no-history -r $(git rev-parse @)
    76631000-76866000 r--p 06b2c000 b3:02 128655     /home/pi/cobalt_modular/libcobalt.so
    76866000-76876000 ---p 06d81000 b3:02 128655     /home/pi/cobalt_modular/libcobalt.so
    76876000-768b3000 rw-p 06d61000 b3:02 128655     /home/pi/cobalt_modular/libcobalt.so
-   pi@raspberrypi:~ $    
+   pi@raspberrypi:~ $
    ```
    Run the symbolize script on the cloudtop:
-   
+
    stack_trace.txt
    ```
    #0  0x00000000 in ?? ()
@@ -218,9 +218,9 @@ gclient sync --no-history -r $(git rev-parse @)
     #11 0x4f9d042 in b'content::InProcessGpuThread::Init()' b'./../../content/gpu/in_process_gpu_thread.cc:70:3'
    ```
 
-## Remote debugging with gdbserver 
-   It is a bit slow but is a fully functional gdb with symbols.  
-   
+## Remote debugging with gdbserver
+   It is a bit slow but is a fully functional gdb with symbols.
+
    Install on your host(cloudtop)
    ```
    $ sudo apt-get install gdb-multiarch
@@ -243,4 +243,3 @@ gclient sync --no-history -r $(git rev-parse @)
    $ gdb-multiarch
    (gdb)  target remote  100.107.44.141:9000
    ```
-
