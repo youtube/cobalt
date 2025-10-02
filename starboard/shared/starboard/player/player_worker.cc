@@ -173,7 +173,7 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      const std::string& error_message) {
   SB_DCHECK(!result.ok());
   std::string complete_error_message = error_message;
-  if (!result.ok()) {
+  if (!result.error_message().empty()) {
     complete_error_message += " Error: " + std::string(result.error_message());
   }
 
