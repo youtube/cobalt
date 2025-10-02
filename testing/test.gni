@@ -1030,7 +1030,7 @@ template("test") {
     modular_executable(target_name) {
       forward_variables_from(invoker,
                              "*",
-                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
+                             TESTONLY_AND_VISIBILITY + [ "use_xvfb", "fuzztests", "fuzztest_stack_limit_kb" ])
       testonly = true
     }
   } else if (!is_nacl) {

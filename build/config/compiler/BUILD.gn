@@ -2094,6 +2094,7 @@ config("default_warnings") {
 
     cflags_cc += [
       # Disables for C++ only
+      "-Wno-shift-count-overflow",
       "-Wno-invalid-offsetof",  # offsetof on non-standard-layout type
                                 # (crbug.com/40285259)
     ]

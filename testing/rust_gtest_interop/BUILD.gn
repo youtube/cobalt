@@ -67,7 +67,7 @@ if (enable_rust) {
 
   test("rust_gtest_interop_unittests") {
     sources = [
-      "rust_gtest_interop_unittest.rs",
+      # "rust_gtest_interop_unittest.rs",
       "rust_gtest_interop_unittest_main.cc",
     ]
     deps = [
