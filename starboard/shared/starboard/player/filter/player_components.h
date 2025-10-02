@@ -160,36 +160,42 @@ class PlayerComponents {
    private:
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+    struct AudioComponents {
+      std::unique_ptr<AudioDecoder> audio_decoder;
+      std::unique_ptr<AudioRendererSink> audio_renderer_sink;
+    };
+    struct VideoComponents {
+      std::unique_ptr<VideoDecoder> video_decoder;
+      std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
+      scoped_refptr<VideoRendererSink> video_renderer_sink;
+    };
+    struct CreateSubComponentsResult {
+      AudioComponents audio;
+      VideoComponents video;
+      std::string error_message;
+    };
+
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.
-    virtual bool CreateSubComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink,
-        std::string* error_message) = 0;
+    virtual CreateSubComponentsResult CreateSubComponents(
+        const CreationParameters& creation_parameters) = 0;
 
    protected:
-    Factory() {}
+    Factory() = default;
 
-    void CreateStubAudioComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
+    AudioComponents CreateStubAudioComponents(
+        const CreationParameters& creation_parameters);
 
-    void CreateStubVideoComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink);
+    VideoComponents CreateStubVideoComponents(
+        const CreationParameters& creation_parameters);
 
+    struct AudioRendererParams {
+      int max_cached_frames;
+      int min_frames_per_append;
+    };
     // Check AudioRenderer ctor for more details on the parameters.
-    virtual void GetAudioRendererParams(
-        const CreationParameters& creation_parameters,
-        int* max_cached_frames,
-        int* min_frames_per_append) const;
+    virtual AudioRendererParams GetAudioRendererParams(
+        const CreationParameters& creation_parameters);
 
    private:
     Factory(const Factory&) = delete;
@@ -197,7 +203,7 @@ class PlayerComponents {
   };
 
   PlayerComponents() = default;
-  virtual ~PlayerComponents() {}
+  virtual ~PlayerComponents() = default;
 
   virtual MediaTimeProvider* GetMediaTimeProvider() = 0;
   virtual AudioRenderer* GetAudioRenderer() = 0;
