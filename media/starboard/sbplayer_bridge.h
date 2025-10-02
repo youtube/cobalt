@@ -78,7 +78,8 @@ class SbPlayerBridge {
   typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
       GetDecodeTargetGraphicsContextProviderFunc;
 
-  using RegisterBoundsChangeObserverCB = base::RepeatingCallback<void(SbPlayerBridge*)>;
+  using RegisterBoundsChangeObserverCB =
+      base::RepeatingCallback<void(SbPlayerBridge*)>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
