@@ -140,7 +140,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->drm_system_ = that.drm_system_;
 }
 
-Result<std::unique_ptr<PlayerComponents>>
+Expected<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
@@ -182,7 +182,7 @@ PlayerComponents::Factory::CreateComponents(
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
                              &error_message)) {
-      return Result<std::unique_ptr<PlayerComponents>>::Failure(error_message);
+      return Error(error_message);
     }
     if (use_stub_audio_decoder) {
       SB_DCHECK(!audio_decoder);
@@ -234,10 +234,9 @@ PlayerComponents::Factory::CreateComponents(
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
-  return Result<std::unique_ptr<PlayerComponents>>::Success(
-      std::make_unique<PlayerComponentsImpl>(
-          std::move(media_time_provider_impl), std::move(audio_renderer),
-          std::move(video_renderer)));
+  return std::make_unique<PlayerComponentsImpl>(
+      std::move(media_time_provider_impl), std::move(audio_renderer),
+      std::move(video_renderer));
 }
 
 void PlayerComponents::Factory::CreateStubAudioComponents(

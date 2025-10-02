@@ -132,7 +132,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
-    Result<std::unique_ptr<PlayerComponents>> result =
+    Expected<std::unique_ptr<PlayerComponents>> result =
         factory->CreateComponents(creation_parameters);
     if (!result.ok()) {
       return HandlerResult{false,
