@@ -31,6 +31,7 @@
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
@@ -69,11 +70,6 @@
 namespace cobalt {
 
 namespace {
-
-// Feature flag for enabling variations config expiration.
-BASE_FEATURE(kVariationsConfigExpiration,
-             "VariationsConfigExpiration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr base::FilePath::CharType kCacheDirname[] = FILE_PATH_LITERAL("Cache");
 constexpr base::FilePath::CharType kCookieFilename[] =
@@ -137,6 +133,29 @@ bool HasConfigExpired() {
   UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
                             VariationsConfigState::kValid);
   return false;
+}
+
+// Manually checks the experiment config to see if the expiration feature is
+// enabled. This is required because this check runs *before* the global
+// FeatureList is initialized.
+bool IsVariationsConfigExpirationEnabled() {
+  auto* global_features = GlobalFeatures::GetInstance();
+  auto* experiment_config_manager =
+      global_features->experiment_config_manager();
+  auto config_type = experiment_config_manager->GetExperimentConfigType();
+
+  if (config_type == ExperimentConfigType::kEmptyConfig) {
+    return false;
+  }
+
+  auto* experiment_config = global_features->experiment_config();
+  const bool use_safe_config =
+      (config_type == ExperimentConfigType::kSafeConfig);
+
+  const base::Value::Dict& feature_map = experiment_config->GetDict(
+      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
+
+  return feature_map.FindBool("VariationsConfigExpiration").value_or(false);
 }
 
 }  // namespace
@@ -466,8 +485,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
       ->InstantiateFieldTrialList();
 
   const bool config_expired = HasConfigExpired();
-  if (base::FeatureList::IsEnabled(kVariationsConfigExpiration) &&
-      config_expired) {
+  if (IsVariationsConfigExpirationEnabled() && config_expired) {
     // Config is expired, so we proceed without applying it.
     // Set up an empty feature list and return early.
     auto feature_list = std::make_unique<base::FeatureList>();
