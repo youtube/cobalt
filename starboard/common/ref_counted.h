@@ -306,7 +306,7 @@ class scoped_refptr {
 // having to retype all the template arguments
 template <typename T, typename... Args>
 scoped_refptr<T> make_scoped_refptr(Args&&... args) {
-  return new T(std::forward<Args>(args)...);
+  return scoped_refptr<T>(new T(std::forward<Args>(args)...));
 }
 
 }  // namespace starboard
