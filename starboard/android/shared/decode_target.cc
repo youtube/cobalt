@@ -38,12 +38,13 @@ using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
 jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-  jobject local_surface_texture =
-      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id);
+  ScopedJavaLocalRef<jobject> local_surface_texture(
+      env,
+      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id));
   SB_CHECK(local_surface_texture);
 
-  jobject global_surface_texture = env->NewGlobalRef(local_surface_texture);
-  env->DeleteLocalRef(local_surface_texture);
+  jobject global_surface_texture =
+      env->NewGlobalRef(local_surface_texture.obj());
 
   return global_surface_texture;
 }

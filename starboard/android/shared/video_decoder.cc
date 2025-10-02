@@ -377,7 +377,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
-      number_of_preroll_frames_(kInitialPrerollFrameCount) {
+      number_of_preroll_frames_(kInitialPrerollFrameCount),
+      bridge_(new VideoSurfaceTextureBridge(this)) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -405,10 +406,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       SB_LOG(ERROR) << *error_message;
       TeardownCodec();
     }
-  }
-
-  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    bridge_.reset(new VideoSurfaceTextureBridge(this));
   }
 
   SB_LOG(INFO) << "Created VideoDecoder for codec "

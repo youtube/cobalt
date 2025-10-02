@@ -17,7 +17,6 @@ package dev.cobalt.media;
 import android.graphics.SurfaceTexture;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeClassQualifiedName;
 import org.chromium.base.annotations.NativeMethods;
 
 /**
@@ -49,7 +48,6 @@ public class VideoSurfaceTexture extends SurfaceTexture {
 
   @NativeMethods
   interface Natives {
-    @NativeClassQualifiedName("VideoSurfaceTextureBridge")
     void onFrameAvailable(long nativeVideoSurfaceTextureBridge);
   }
 }
