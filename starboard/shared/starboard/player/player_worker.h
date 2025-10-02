@@ -22,6 +22,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -62,9 +63,20 @@ class PlayerWorker {
    public:
     // Stores the success status of Handler operations. If |success| is false,
     // |error_message| may be set with details of the error.
-    struct HandlerResult {
-      bool success;
-      std::string error_message;
+    class HandlerResult {
+     public:
+      static HandlerResult Success() { return HandlerResult(""); }
+      static HandlerResult Failure(std::string_view error_message) {
+        return HandlerResult(error_message);
+      }
+
+      bool success() const { return error_message_.empty(); }
+      std::string_view error_message() { return error_message_; }
+
+     private:
+      explicit HandlerResult(std::string_view error_message)
+          : error_message_(error_message) {}
+      const std::string error_message_;
     };
 
     typedef PlayerWorker::Bounds Bounds;
