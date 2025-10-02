@@ -9,50 +9,55 @@
 namespace starboard {
 namespace {
 
-TEST(ResultTest, SuccessWithValue) {
-  Expected<int> result = Expected<int>::Success(42);
-  EXPECT_TRUE(result.ok());
-  EXPECT_EQ(result.value(), 42);
+TEST(ExpectedTest, SuccessWithValue) {
+  Expected<int> expected(42);
+
+  EXPECT_TRUE(expected.ok());
+  EXPECT_EQ(expected.value(), 42);
 }
 
-TEST(ResultTest, FailureWithError) {
-  Expected<int> result = Expected<int>::Failure("Something went wrong");
-  EXPECT_FALSE(result.ok());
-  EXPECT_EQ(result.error_message(), "Something went wrong");
+TEST(ExpectedTest, FailureWithError) {
+  Expected<int> expected(Error("Something went wrong"));
+
+  EXPECT_FALSE(expected.ok());
+  EXPECT_EQ(expected.error_message(), "Something went wrong");
 }
 
-TEST(ResultTest, SuccessWithString) {
-  Expected<std::string> result = Expected<std::string>::Success("hello");
-  EXPECT_TRUE(result.ok());
-  EXPECT_EQ(result.value(), "hello");
+TEST(ExpectedTest, SuccessWithString) {
+  Expected<std::string> expected("hello");
+
+  EXPECT_TRUE(expected.ok());
+  EXPECT_EQ(expected.value(), "hello");
 }
 
-TEST(ResultTest, FailureWithString) {
-  Expected<std::string> result = Expected<std::string>::Failure("error");
-  EXPECT_FALSE(result.ok());
-  EXPECT_EQ(result.error_message(), "error");
+TEST(ExpectedTest, FailureWithString) {
+  Expected<std::string> expected(Error("error"));
+  EXPECT_FALSE(expected.ok());
+  EXPECT_EQ(expected.error_message(), "error");
 }
 
-TEST(ResultTest, SuccessWithUniquePtr) {
+TEST(ExpectedTest, SuccessWithUniquePtr) {
   auto ptr = std::make_unique<int>(123);
-  Expected<std::unique_ptr<int>> result =
-      Expected<std::unique_ptr<int>>::Success(std::move(ptr));
-  EXPECT_TRUE(result.ok());
-  EXPECT_NE(result.value(), nullptr);
-  EXPECT_EQ(*result.value(), 123);
+  Expected<std::unique_ptr<int>> expected(std::move(ptr));
+
+  EXPECT_TRUE(expected.ok());
+  EXPECT_NE(expected.value(), nullptr);
+  EXPECT_EQ(*expected.value(), 123);
 }
 
-TEST(ResultTest, MoveSuccess) {
-  Expected<std::string> result = Expected<std::string>::Success("move me");
-  EXPECT_TRUE(result.ok());
-  std::string value = std::move(result).value();
+TEST(ExpectedTest, MoveSuccess) {
+  Expected<std::string> expected("move me");
+  EXPECT_TRUE(expected.ok());
+
+  std::string value = std::move(expected).value();
   EXPECT_EQ(value, "move me");
 }
 
-TEST(ResultTest, MoveFailure) {
-  Expected<int> result = Expected<int>::Failure("move me error");
-  EXPECT_FALSE(result.ok());
-  std::string error = std::move(result).error_message();
+TEST(ExpectedTest, MoveFailure) {
+  Expected<int> expected(Error("move me error"));
+  EXPECT_FALSE(expected.ok());
+
+  std::string error = std::move(expected).error_message();
   EXPECT_EQ(error, "move me error");
 }
 
