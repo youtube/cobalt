@@ -989,6 +989,7 @@ namespace {
 // Cache the SurfaceTexture methods so that we minimize JNI calls in
 // updateTexImage() and getTransformMatrix().
 struct SurfaceTextureJniCache {
+  base::android::ScopedJavaGlobalRef<jclass> surface_class;
   jmethodID update_tex_image_method;
   jmethodID get_transform_matrix_method;
 };
@@ -1001,13 +1002,14 @@ void EnsureCacheIsInitialized(JNIEnv* env) {
     jclass local_surface_texture_class =
         env->FindClass("android/graphics/SurfaceTexture");
     SB_CHECK(local_surface_texture_class);
+    cache.surface_class.Reset(env, local_surface_texture_class);
+    env->DeleteLocalRef(local_surface_texture_class);
     cache.update_tex_image_method =
         env->GetMethodID(local_surface_texture_class, "updateTexImage", "()V");
     SB_CHECK(cache.update_tex_image_method);
     cache.get_transform_matrix_method = env->GetMethodID(
         local_surface_texture_class, "getTransformMatrix", "([F)V");
     SB_CHECK(cache.get_transform_matrix_method);
-    env->DeleteLocalRef(local_surface_texture_class);
   });
 }
 
