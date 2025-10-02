@@ -15,8 +15,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_
 
-#include <jni.h>
-
 #include <list>
 
 #include "base/android/jni_android.h"
