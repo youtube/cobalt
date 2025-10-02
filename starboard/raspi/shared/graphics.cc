@@ -17,8 +17,6 @@
 #include "starboard/extension/graphics.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 namespace {
 
@@ -48,6 +46,4 @@ const void* GetGraphicsApi() {
   return &kGraphicsApi;
 }
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

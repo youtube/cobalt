@@ -21,7 +21,6 @@
 
 #include "starboard/configuration.h"
 
-namespace starboard {
 namespace elf_loader {
 
 class ElfLoaderImpl;
@@ -72,6 +71,5 @@ class ElfLoader {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 
 #endif  // STARBOARD_ELF_LOADER_ELF_LOADER_H_

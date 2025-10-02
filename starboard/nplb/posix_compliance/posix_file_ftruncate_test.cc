@@ -22,7 +22,6 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -99,7 +98,7 @@ TEST(PosixFileFtruncateTest, TruncateUpInSize) {
   }
 
   char buffer[kEndSize] = {0};
-  int bytes = static_cast<int>(ReadAll(file, buffer, kEndSize));
+  int bytes = static_cast<int>(starboard::ReadAll(file, buffer, kEndSize));
   EXPECT_EQ(kEndSize, bytes);
 
   ScopedRandomFile::ExpectPattern(0, buffer, kStartSize, __LINE__);
@@ -114,4 +113,3 @@ TEST(PosixFileFtruncateTest, TruncateUpInSize) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

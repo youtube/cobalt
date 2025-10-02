@@ -19,12 +19,14 @@
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
     "PosixUtimensatTest.OmitBothTimestamps",
     "PosixUtimensatTest.SymlinkNoFollow",
+    "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.SunnyDayStackDirection",
     "SbSystemGetStackTest.SunnyDay",
     "SbSystemGetStackTest.SunnyDayShortStack",
     "SbSystemSymbolizeTest.SunnyDay",
     "SbTimeZoneGetNameTest.IsIANAFormat",
-    "SbWindowGetSizeTest.SunnyDay"
+    "SbWindowGetSizeTest.SunnyDay",
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

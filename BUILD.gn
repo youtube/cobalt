@@ -838,7 +838,11 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
-  if (is_cobalt) {
+
+  # TODO(b/432823234): Temporarily disable dependency on cobalt targets while
+  # the tvOS code is not upstreamed so that no hacks are added just to get GN
+  # to stop complaining.
+  if (is_cobalt && !is_ios) {
     deps += [
       "//cobalt:gn_all",
       "//cobalt:cobalt_browsertests",

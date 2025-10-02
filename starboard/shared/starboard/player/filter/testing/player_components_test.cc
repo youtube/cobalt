@@ -33,17 +33,15 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using std::string;
 using std::unique_ptr;
 using std::vector;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using ::testing::ValuesIn;
-using video_dmp::VideoDmpReader;
 
 typedef VideoDmpReader::AudioAccessUnit AudioAccessUnit;
 typedef VideoDmpReader::VideoAccessUnit VideoAccessUnit;
@@ -727,9 +725,8 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
           CreateParam(audio_files[j], video_params[i], max_video_input_size));
     }
   }
-  SB_DCHECK(supported_parameters.size() < 50)
-      << "There're " << supported_parameters.size()
-      << " tests added. It may take too long time to run and result in timeout";
+  SB_DCHECK_LT(supported_parameters.size(), 50)
+      << "Running the tests may take too long and result in a timeout.";
 
   for (size_t i = 0; i < audio_files.size(); i++) {
     if (PlayerComponents::Factory::OutputModeSupported(
@@ -757,4 +754,4 @@ INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
                         GetPlayerComponentsTestConfigName);
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard

@@ -19,7 +19,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/app_key_internal.h"
 
-namespace starboard {
 namespace loader_app {
 namespace {
 
@@ -43,4 +42,3 @@ std::string GetAppKey(const std::string& url) {
 }
 
 }  // namespace loader_app
-}  // namespace starboard

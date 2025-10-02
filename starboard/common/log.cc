@@ -33,7 +33,6 @@
 #endif
 
 namespace starboard {
-namespace logging {
 namespace {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 SbLogPriority g_min_log_level = kSbLogPriorityFatal;
@@ -146,6 +145,10 @@ std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
 
+std::string_view to_string(bool val) {
+  return val ? "true" : "false";
+}
+
 LogMessage::LogMessage(const char* file, int line, SbLogPriority priority)
     : priority_(priority) {
   Init(file, line);
@@ -208,5 +211,4 @@ LogMessageVoidify::LogMessageVoidify() {}
 
 void LogMessageVoidify::operator&(std::ostream&) {}
 
-}  // namespace logging
 }  // namespace starboard

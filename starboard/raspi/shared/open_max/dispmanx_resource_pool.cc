@@ -18,9 +18,6 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 DispmanxResourcePool::DispmanxResourcePool(size_t max_number_of_resources)
     : max_number_of_resources_(max_number_of_resources),
@@ -34,7 +31,7 @@ DispmanxResourcePool::~DispmanxResourcePool() {
     free_resources_.pop();
     --number_of_resources_;
   }
-  SB_DCHECK(number_of_resources_ == 0) << number_of_resources_;
+  SB_DCHECK_EQ(number_of_resources_, 0);
 }
 
 DispmanxYUV420Resource* DispmanxResourcePool::Alloc(int width,
@@ -92,7 +89,4 @@ void DispmanxResourcePool::DisposeDispmanxYUV420Resource(
   pool->Release();
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

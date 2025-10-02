@@ -19,7 +19,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // A simple scoped wrapper of |android.os.Trace|.
 struct ScopedTrace {
@@ -39,6 +39,6 @@ struct ScopedTrace {
   }
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_TRACE_UTIL_H_

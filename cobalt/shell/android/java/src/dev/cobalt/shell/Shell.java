@@ -16,11 +16,7 @@ package dev.cobalt.shell;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Rect;
 import android.text.TextUtils;
-import android.view.ActionMode;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -28,10 +24,8 @@ import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
-import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
-import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
@@ -43,6 +37,13 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class Shell {
+    /**
+     * Interface for notifying observers of WebContents readiness.
+     */
+    public interface OnWebContentsReadyListener {
+        void onWebContentsReady();
+    }
+
     private static final String TAG = "cobalt";
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
@@ -64,6 +65,7 @@ public class Shell {
     private boolean mLoading;
     private boolean mIsFullscreen;
 
+    private OnWebContentsReadyListener mWebContentsReadyListener;
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
     private ViewGroup mRootView;
 
@@ -77,6 +79,10 @@ public class Shell {
 
     public void setRootViewForTesting(ViewGroup view) {
         mRootView = view;
+    }
+
+    public void setWebContentsReadyListener(OnWebContentsReadyListener listener) {
+        mWebContentsReadyListener = listener;
     }
 
     /**
@@ -204,45 +210,12 @@ public class Shell {
         mNavigationController = mWebContents.getNavigationController();
         mWebContents.onShow();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
+        if (mWebContentsReadyListener != null) {
+            mWebContentsReadyListener.onWebContentsReady();
+        }
     }
 
-    /**
-     * {link @ActionMode.Callback} that uses the default implementation in
-     * {@link SelectionPopupController}.
-     */
-    private ActionMode.Callback2 defaultActionCallback() {
-        final ActionModeCallbackHelper helper =
-                SelectionPopupController.fromWebContents(mWebContents)
-                        .getActionModeCallbackHelper();
 
-        return new ActionMode.Callback2() {
-            @Override
-            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                helper.onCreateActionMode(mode, menu);
-                return true;
-            }
-
-            @Override
-            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-                return helper.onPrepareActionMode(mode, menu);
-            }
-
-            @Override
-            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                return helper.onActionItemClicked(mode, item);
-            }
-
-            @Override
-            public void onDestroyActionMode(ActionMode mode) {
-                helper.onDestroyActionMode();
-            }
-
-            @Override
-            public void onGetContentRect(ActionMode mode, View view, Rect outRect) {
-                helper.onGetContentRect(mode, view, outRect);
-            }
-        };
-    }
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {

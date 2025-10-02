@@ -24,11 +24,10 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::VideoDmpReader;
 using ::testing::Combine;
 using ::testing::ValuesIn;
 
@@ -54,7 +53,7 @@ class MaximumPlayerConfigurationExplorerTest
  protected:
   MaximumPlayerConfigurationExplorerTest() {}
 
-  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
+  starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
 TEST_P(MaximumPlayerConfigurationExplorerTest, SunnyDay) {
@@ -97,7 +96,7 @@ std::string GetTestConfigName(
   SbPlayerOutputMode output_mode = std::get<0>(config);
   const char* key_system = std::get<1>(config);
 
-  std::string name = FormatString(
+  std::string name = starboard::FormatString(
       "output_%s_key_system_%s",
       output_mode == kSbPlayerOutputModeDecodeToTexture ? "decode_to_texture"
                                                         : "punch_out",
@@ -116,4 +115,3 @@ INSTANTIATE_TEST_SUITE_P(MaximumPlayerConfigurationExplorerTests,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

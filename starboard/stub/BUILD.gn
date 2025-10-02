@@ -44,7 +44,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/audio_sink_is_audio_frame_storage_type_supported.cc",
     "//starboard/shared/stub/audio_sink_is_audio_sample_type_supported.cc",
     "//starboard/shared/stub/audio_sink_is_valid.cc",
-    "//starboard/shared/stub/cpu_features_get.cc",
     "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/decode_target_release.cc",
     "//starboard/shared/stub/drm_close_session.cc",

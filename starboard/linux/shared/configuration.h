@@ -15,13 +15,10 @@
 #ifndef STARBOARD_LINUX_SHARED_CONFIGURATION_H_
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_H_
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace shared {
 
-const void* GetConfigurationApi();
+const void* GetConfigurationApiLinux();
 
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_CONFIGURATION_H_

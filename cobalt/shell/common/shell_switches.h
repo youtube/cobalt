@@ -21,6 +21,8 @@
 
 namespace switches {
 
+constexpr char kDefaultURL[] = "https://www.youtube.com/tv/splash";
+
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSystemFontCheck[];
@@ -30,6 +32,7 @@ extern const char kContentShellHideToolbar[];
 extern const char kContentShellDevToolsTabTarget[];
 #endif
 extern const char kIsolatedContextOrigins[];
+extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];
 
 }  // namespace switches

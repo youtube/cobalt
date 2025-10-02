@@ -32,16 +32,16 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard::shared::x11 {
+namespace starboard {
 
 // This application engine combines the generic queue with the X11 event queue.
-class ApplicationX11 : public shared::starboard::QueueApplication {
+class ApplicationX11 : public QueueApplication {
  public:
   explicit ApplicationX11(SbEventHandleCallback sb_event_handle_callback);
   ~ApplicationX11() override;
 
   static ApplicationX11* Get() {
-    return static_cast<ApplicationX11*>(shared::starboard::Application::Get());
+    return static_cast<ApplicationX11*>(Application::Get());
   }
 
   SbWindow CreateWindow(const SbWindowOptions* options);
@@ -143,12 +143,12 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   bool paste_buffer_key_release_pending_;
 
   // The /dev/input input handler. Only set when there is an open window.
-  std::unique_ptr<::starboard::shared::dev_input::DevInput> dev_input_;
+  std::unique_ptr<DevInput> dev_input_;
 
   // Indicates whether pointer input is from a touchscreen.
   bool touchscreen_pointer_;
 };
 
-}  // namespace starboard::shared::x11
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_X11_APPLICATION_X11_H_

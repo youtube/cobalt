@@ -21,7 +21,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 // This class can be used to parse a content type for media in the form of
 // "type/subtype; param1=value1; param2="value2".  For example, the content type
@@ -119,6 +119,13 @@ class MimeType {
   Params params_;
 };
 
-}  // namespace starboard::shared::starboard::media
+// Alias to prevent breaking the RDK build on CI.
+// http://go/paste/4631690114891776
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
+namespace shared::starboard::media {
+using MimeType = ::starboard::MimeType;
+}  // namespace shared::starboard::media
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MIME_TYPE_H_

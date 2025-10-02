@@ -24,7 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 DecodedAudioQueue::DecodedAudioQueue() {
   Clear();
@@ -40,9 +40,8 @@ void DecodedAudioQueue::Clear() {
 
 void DecodedAudioQueue::Append(
     const scoped_refptr<DecodedAudio>& decoded_audio) {
-  SB_DCHECK(decoded_audio->storage_type() ==
-            kSbMediaAudioFrameStorageTypeInterleaved)
-      << decoded_audio->storage_type();
+  SB_DCHECK_EQ(decoded_audio->storage_type(),
+               kSbMediaAudioFrameStorageTypeInterleaved);
   // Add the buffer to the queue. Inserting into deque invalidates all
   // iterators, so point to the first buffer.
   buffers_.push_back(decoded_audio);
@@ -168,4 +167,4 @@ int DecodedAudioQueue::InternalRead(int frames,
   return taken;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

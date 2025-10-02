@@ -17,13 +17,12 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
 TEST(PosixThreadDetachTest, SunnyDay) {
   pthread_t thread;
-  EXPECT_EQ(pthread_create(&thread, NULL, posix::AddOneEntryPoint, NULL), 0);
+  EXPECT_EQ(pthread_create(&thread, nullptr, AddOneEntryPoint, nullptr), 0);
 
   EXPECT_EQ(pthread_detach(thread), 0);
   void* result = NULL;
@@ -33,4 +32,3 @@ TEST(PosixThreadDetachTest, SunnyDay) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_INPUT_SIZE_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_INPUT_SIZE_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Get max_video_input_size setting via SetMaxVideoInputSizeForCurrentThread(),
 // it returns 0 if s_thread_local_key is invalid.
@@ -29,6 +29,6 @@ int GetMaxVideoInputSizeForCurrentThread();
 // 3. Set it to 0 disable the setting.
 void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size);
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_INPUT_SIZE_H_

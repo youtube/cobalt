@@ -19,7 +19,7 @@
 #include "starboard/shared/widevine/widevine_keybox_hash.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 // Reserved key name for referring to the Widevine Keybox checksum value.
 const char WidevineStorage::kCobaltWidevineKeyboxChecksumKey[] =
@@ -146,27 +146,27 @@ WidevineStorage::WidevineStorage(const std::string& path_name)
 }
 
 bool WidevineStorage::read(const std::string& name, std::string* data) {
-  SB_DCHECK(name != kCobaltWidevineKeyboxChecksumKey);
+  SB_DCHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
   return readInternal(name, data);
 }
 
 bool WidevineStorage::write(const std::string& name, const std::string& data) {
-  SB_DCHECK(name != kCobaltWidevineKeyboxChecksumKey);
+  SB_DCHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
   return writeInternal(name, data);
 }
 
 bool WidevineStorage::exists(const std::string& name) {
-  SB_DCHECK(name != kCobaltWidevineKeyboxChecksumKey);
+  SB_DCHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
   return existsInternal(name);
 }
 
 bool WidevineStorage::remove(const std::string& name) {
-  SB_DCHECK(name != kCobaltWidevineKeyboxChecksumKey);
+  SB_DCHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
   return removeInternal(name);
 }
 
 int32_t WidevineStorage::size(const std::string& name) {
-  SB_DCHECK(name != kCobaltWidevineKeyboxChecksumKey);
+  SB_DCHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
   std::lock_guard scoped_lock(lock_);
   auto iter = cache_.find(name);
   return iter == cache_.end() ? -1 : static_cast<int32_t>(iter->second.size());
@@ -225,4 +225,4 @@ bool WidevineStorage::removeInternal(const std::string& name) {
   return true;
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard

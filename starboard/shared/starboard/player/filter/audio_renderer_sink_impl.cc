@@ -21,7 +21,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 AudioRendererSinkImpl::AudioRendererSinkImpl()
     : create_audio_sink_func_(
@@ -36,7 +36,7 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
              SbAudioSinkPrivate::ErrorFunc error_func,
              void* context) {
-            return audio_sink::SbAudioSinkImpl::Create(
+            return SbAudioSinkImpl::Create(
                 channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers,
                 frame_buffers_size_in_frames, update_source_status_func,
@@ -85,7 +85,8 @@ void AudioRendererSinkImpl::Start(
     RenderCallback* render_callback) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
-  SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
+  SB_DCHECK_GT(channels, 0);
+  SB_DCHECK_LE(channels, SbAudioSinkGetMaxChannels());
   SB_DCHECK_GT(sampling_frequency_hz, 0);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
   SB_DCHECK(
@@ -188,4 +189,4 @@ void AudioRendererSinkImpl::ErrorFunc(bool capability_changed,
                                                  error_message);
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

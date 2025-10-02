@@ -24,9 +24,6 @@
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 class OpenMaxComponent : protected OpenMaxComponentBase {
  public:
@@ -108,9 +105,6 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   OpenMaxComponent* output_component_;
 };
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_H_

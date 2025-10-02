@@ -19,6 +19,23 @@ group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
 }
 
+config("pedantic_warnings") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wunreachable-code",
+
+    # Raspi toolchain is based off an old version of gcc, which
+    # falsely flags some code.  That same code does not warn with gcc 6.3.
+    # This decision should be revisited after raspi toolchain is upgraded.
+    "-Wno-maybe-uninitialized",
+
+    "-Werror",
+    "-Wno-expansion-to-defined",
+    "-Wno-implicit-fallthrough",
+  ]
+}
+
 static_library("starboard_platform_sources") {
   check_includes = false
 
@@ -69,7 +86,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/dev_input/dev_input.cc",
     "//starboard/shared/linux/get_home_directory.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
@@ -202,7 +218,7 @@ static_library("starboard_platform_sources") {
 
   configs += [
     "//starboard/build/config:starboard_implementation",
-    "//starboard/build/config:pedantic_warnings",
+    ":pedantic_warnings",
   ]
 
   public_deps = [

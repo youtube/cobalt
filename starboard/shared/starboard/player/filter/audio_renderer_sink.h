@@ -20,7 +20,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // The interface used by AudioRendererPcm to output audio samples.
 class AudioRendererSink {
@@ -68,6 +68,6 @@ class AudioRendererSink {
   virtual void SetPlaybackRate(double playback_rate) = 0;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_H_

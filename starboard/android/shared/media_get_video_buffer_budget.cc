@@ -43,9 +43,8 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_height,
                                 int bits_per_pixel) {
   auto get_overlaid_video_buffer_budget = []() {
-    int buffer_budget =
-        starboard::android::shared::RuntimeResourceOverlay::GetInstance()
-            ->max_video_buffer_budget();
+    int buffer_budget = starboard::RuntimeResourceOverlay::GetInstance()
+                            ->max_video_buffer_budget();
     if (buffer_budget == 0) {
       return kMaxVideoBufferBudget;
     }

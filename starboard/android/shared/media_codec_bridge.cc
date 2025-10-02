@@ -17,6 +17,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/media.h"
 #include "starboard/common/string.h"
 
 #pragma GCC diagnostic push
@@ -26,7 +27,8 @@
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
 #pragma GCC diagnostic pop
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -35,8 +37,6 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
-
-namespace {
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -162,6 +162,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
                   << audio_stream_info.codec << ".";
     return nullptr;
   }
+
+  SB_LOG(INFO) << __func__ << ": audio_stream_info=" << audio_stream_info;
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
@@ -298,6 +300,19 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     *error_message = ConvertJavaStringToUTF8(env, j_error_message);
     return nullptr;
   }
+
+  SB_LOG(INFO)
+      << __func__ << ": video_codec=" << GetMediaVideoCodecName(video_codec)
+      << ", width_hint=" << width_hint << ", height_hint=" << height_hint
+      << ", fps=" << fps << ", max_width=" << max_width
+      << ", max_height=" << max_height
+      << ", has_color_metadata=" << to_string(color_metadata)
+      << ", require_secured_decoder=" << to_string(require_secured_decoder)
+      << ", require_software_codec=" << to_string(require_software_codec)
+      << ", tunnel_mode_audio_session_id=" << tunnel_mode_audio_session_id
+      << ", force_big_endian_hdr_metadata="
+      << to_string(force_big_endian_hdr_metadata)
+      << ", max_video_input_size=" << max_video_input_size;
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
@@ -529,4 +544,4 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

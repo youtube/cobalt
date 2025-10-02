@@ -32,7 +32,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -73,11 +73,6 @@ jboolean JNI_StarboardBridge_InitJNI(
   return true;
 }
 
-void JNI_StarboardBridge_OnStop(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
-  SbFileAndroidTeardown();
-}
-
 jlong JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }
@@ -109,7 +104,7 @@ void JNI_StarboardBridge_CloseNativeStarboard(JNIEnv* env, jlong nativeApp) {
 }
 
 void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  SbAudioSinkImpl::Initialize();
 }
 
 void JNI_StarboardBridge_HandleDeepLink(JNIEnv* env,
@@ -339,4 +334,4 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

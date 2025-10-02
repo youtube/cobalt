@@ -41,7 +41,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -141,4 +140,3 @@ TEST(PosixSelectTest, InvalidTimeout) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

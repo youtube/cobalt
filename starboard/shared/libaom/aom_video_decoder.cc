@@ -14,19 +14,18 @@
 
 #include "starboard/shared/libaom/aom_video_decoder.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 
-namespace starboard::shared::aom {
+namespace starboard {
 
-using starboard::player::JobThread;
-
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
-                           SbPlayerOutputMode output_mode,
-                           SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
+AomVideoDecoder::AomVideoDecoder(SbMediaVideoCodec video_codec,
+                                 SbPlayerOutputMode output_mode,
+                                 SbDecodeTargetGraphicsContextProvider*
+                                     decode_target_graphics_context_provider)
     : current_frame_width_(0),
       current_frame_height_(0),
       stream_ended_(false),
@@ -35,17 +34,17 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
+  SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecAv1);
   SB_DCHECK(is_aom_supported());
 }
 
-VideoDecoder::~VideoDecoder() {
+AomVideoDecoder::~AomVideoDecoder() {
   SB_DCHECK(BelongsToCurrentThread());
   Reset();
 }
 
-void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                              const ErrorCB& error_cb) {
+void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                                 const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
@@ -56,9 +55,9 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 }
 
-void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
 
@@ -74,10 +73,10 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   auto input_buffer = input_buffers[0];
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeOneBuffer, this, input_buffer));
+      std::bind(&AomVideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
-void VideoDecoder::WriteEndOfStream() {
+void AomVideoDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
@@ -93,15 +92,15 @@ void VideoDecoder::WriteEndOfStream() {
   }
 
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&VideoDecoder::DecodeEndOfStream, this));
+      std::bind(&AomVideoDecoder::DecodeEndOfStream, this));
 }
 
-void VideoDecoder::Reset() {
+void AomVideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     decoder_thread_->job_queue()->ScheduleAndWait(
-        std::bind(&VideoDecoder::TeardownCodec, this));
+        std::bind(&AomVideoDecoder::TeardownCodec, this));
 
     // Join the thread to ensure that all callbacks in process are finished.
     decoder_thread_.reset();
@@ -116,7 +115,7 @@ void VideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void VideoDecoder::UpdateDecodeTarget_Locked(
+void AomVideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
@@ -129,14 +128,14 @@ void VideoDecoder::UpdateDecodeTarget_Locked(
   }
 }
 
-void VideoDecoder::ReportError(const std::string& error_message) {
+void AomVideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
-void VideoDecoder::InitializeCodec() {
+void AomVideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   aom_codec_dec_cfg_t aom_config = {0};
@@ -154,7 +153,7 @@ void VideoDecoder::InitializeCodec() {
   }
 }
 
-void VideoDecoder::TeardownCodec() {
+void AomVideoDecoder::TeardownCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   if (context_) {
@@ -177,7 +176,7 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::DecodeOneBuffer(
+void AomVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
@@ -236,9 +235,9 @@ void VideoDecoder::DecodeOneBuffer(
     return;
   }
 
-  SB_DCHECK(aom_image->stride[AOM_PLANE_U] == aom_image->stride[AOM_PLANE_V]);
-  SB_DCHECK(aom_image->planes[AOM_PLANE_Y] < aom_image->planes[AOM_PLANE_U]);
-  SB_DCHECK(aom_image->planes[AOM_PLANE_U] < aom_image->planes[AOM_PLANE_V]);
+  SB_DCHECK_EQ(aom_image->stride[AOM_PLANE_U], aom_image->stride[AOM_PLANE_V]);
+  SB_DCHECK_LT(aom_image->planes[AOM_PLANE_Y], aom_image->planes[AOM_PLANE_U]);
+  SB_DCHECK_LT(aom_image->planes[AOM_PLANE_U], aom_image->planes[AOM_PLANE_V]);
 
   if (aom_image->stride[AOM_PLANE_U] != aom_image->stride[AOM_PLANE_V] ||
       aom_image->planes[AOM_PLANE_Y] >= aom_image->planes[AOM_PLANE_U] ||
@@ -263,7 +262,7 @@ void VideoDecoder::DecodeOneBuffer(
   Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, frame));
 }
 
-void VideoDecoder::DecodeEndOfStream() {
+void AomVideoDecoder::DecodeEndOfStream() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   // TODO: Flush the frames inside the decoder, though this is not required
@@ -273,8 +272,8 @@ void VideoDecoder::DecodeEndOfStream() {
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+SbDecodeTarget AomVideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
 
   // We must take a lock here since this function can be called from a
   // separate thread.
@@ -294,4 +293,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace starboard::shared::aom
+}  // namespace starboard

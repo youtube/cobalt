@@ -21,7 +21,7 @@
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {
-  using starboard::shared::starboard::player::filter::PlayerComponents;
+  using ::starboard::PlayerComponents;
 
   if (!creation_param) {
     SB_LOG(ERROR) << "creation_param cannot be NULL";

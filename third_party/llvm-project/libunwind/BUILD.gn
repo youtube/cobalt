@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
-
 common_sources = [
   "src/AddressSpace.hpp",
   "src/CompactUnwinder.hpp",

@@ -38,7 +38,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 // This class holds necessary media stack components required by
 // by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
@@ -46,30 +46,22 @@ namespace starboard::shared::starboard::player::filter {
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-  typedef ::starboard::shared::starboard::player::filter::AudioRenderer
-      AudioRenderer;
-  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
-      MediaTimeProvider;
-  typedef ::starboard::shared::starboard::player::filter::VideoRenderer
-      VideoRenderer;
-
   // This class creates PlayerComponents.
   class Factory {
    public:
     class CreationParameters {
      public:
-      explicit CreationParameters(
-          const media::AudioStreamInfo& audio_stream_info,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const media::VideoStreamInfo& video_stream_info,
+      explicit CreationParameters(const AudioStreamInfo& audio_stream_info,
+                                  SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const media::AudioStreamInfo& audio_stream_info,
-                         const media::VideoStreamInfo& video_stream_info,
+      CreationParameters(const AudioStreamInfo& audio_stream_info,
+                         const VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
@@ -88,7 +80,7 @@ class PlayerComponents {
 
       SbMediaAudioCodec audio_codec() const { return audio_stream_info_.codec; }
 
-      const media::AudioStreamInfo& audio_stream_info() const {
+      const AudioStreamInfo& audio_stream_info() const {
         SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
         return audio_stream_info_;
       }
@@ -100,7 +92,7 @@ class PlayerComponents {
         return audio_stream_info_.mime;
       }
 
-      const media::VideoStreamInfo& video_stream_info() const {
+      const VideoStreamInfo& video_stream_info() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return video_stream_info_;
       }
@@ -129,13 +121,13 @@ class PlayerComponents {
      private:
       // |audio_stream_info_.codec| can be set to kSbMediaAudioCodecNone for
       // audioless video.
-      media::AudioStreamInfo audio_stream_info_;
+      AudioStreamInfo audio_stream_info_;
 
       // The following members are only used by the video stream, and only need
       // to be set when |video_stream_info_.codec| isn't kSbMediaVideoCodecNone.
       // |video_stream_info_.codec| can be set to kSbMediaVideoCodecNone for
       // audio only video.
-      media::VideoStreamInfo video_stream_info_;
+      VideoStreamInfo video_stream_info_;
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
@@ -216,6 +208,6 @@ class PlayerComponents {
   void operator=(const PlayerComponents&) = delete;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_

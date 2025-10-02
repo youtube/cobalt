@@ -22,7 +22,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace common {
 
 namespace {
 
@@ -181,8 +180,8 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
     AddFreeBlock(free_block);
   }
 
-  SB_DCHECK(reinterpret_cast<intptr_t>(allocated_block.address()) % alignment ==
-            0);
+  SB_DCHECK_EQ(
+      reinterpret_cast<intptr_t>(allocated_block.address()) % alignment, 0U);
   SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
   void* user_address =
@@ -614,5 +613,4 @@ void InPlaceReuseAllocatorBase::RemoveFreeBlock(FreeBlockSet::iterator it) {
   free_blocks_.erase(it);
 }
 
-}  // namespace common
 }  // namespace starboard

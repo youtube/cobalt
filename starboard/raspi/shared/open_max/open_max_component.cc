@@ -23,9 +23,6 @@
 #include "starboard/thread.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 OpenMaxComponent::OpenMaxComponent(const char* name)
     : OpenMaxComponentBase(name),
@@ -56,11 +53,11 @@ void OpenMaxComponent::CloseTunnel() {
     current->WaitForCommandCompletion();
 
     error = OMX_SetupTunnel(prev->handle_, prev->output_port_, NULL, 0);
-    SB_DCHECK(error == OMX_ErrorNone)
+    SB_DCHECK_EQ(error, OMX_ErrorNone)
         << "OMX_SetupTunnel " << prev->output_port_
         << " to 0 failed with error " << std::hex << error;
     error = OMX_SetupTunnel(current->handle_, current->input_port_, NULL, 0);
-    SB_DCHECK(error == OMX_ErrorNone)
+    SB_DCHECK_EQ(error, OMX_ErrorNone)
         << "OMX_SetupTunnel " << current->input_port_
         << " to 0 failed with error " << std::hex << error;
 
@@ -331,7 +328,7 @@ void OpenMaxComponent::EnableOutputTunnelling(
   OMX_ERRORTYPE error =
       OMX_SetupTunnel(handle_, output_port_, output_component_->handle_,
                       output_component_->input_port_);
-  SB_DCHECK(error == OMX_ErrorNone)
+  SB_DCHECK_EQ(error, OMX_ErrorNone)
       << "OMX_SetupTunnel " << output_port_ << " to "
       << output_component_->input_port_ << " failed with error " << std::hex
       << error;
@@ -375,7 +372,4 @@ void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
   filled_output_buffers_.push(buffer);
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

@@ -30,7 +30,7 @@
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
-namespace starboard::shared::signal {
+namespace starboard {
 
 namespace {
 
@@ -69,7 +69,7 @@ void Focus(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
   // TODO: Unfreeze or Focus based on state before frozen?
-  starboard::Application::Get()->Focus(NULL, NULL);
+  Application::Get()->Focus(NULL, NULL);
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
@@ -83,14 +83,14 @@ void Freeze(int signal_id) {
 void Stop(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
-  starboard::Application::Get()->Stop(0);
+  Application::Get()->Stop(0);
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
 void LowMemory(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
-  starboard::Application::Get()->InjectLowMemoryEvent();
+  Application::Get()->InjectLowMemoryEvent();
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
@@ -165,4 +165,4 @@ void UninstallSuspendSignalHandlers() {
   ConfigureSignalHandlerThread(false);
 }
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard

@@ -103,7 +103,10 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
-      String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      String[] commandLineArgs = null;
+      if (!VersionInfo.isReleaseBuild()) {
+        commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      }
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
@@ -236,15 +239,22 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents.
-    mShellManager.launchShell("");
-    // Inject JavaBridge objects to the WebContents.
-    initializeJavaBridge();
-    getStarboardBridge().setWebContents(getActiveWebContents());
+    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
+    // that the webContents are correctly created not null.
+    mShellManager.launchShell("",
+        new Shell.OnWebContentsReadyListener() {
+          @Override
+          public void onWebContentsReady() {
+            // Inject JavaBridge objects to the WebContents.
+            initializeJavaBridge();
+            getStarboardBridge().setWebContents(getActiveWebContents());
 
-    // Load the `url` with the same shell we created above.
-    Log.i(TAG, "shellManager load url:" + mStartupUrl);
-    mShellManager.getActiveShell().loadUrl(mStartupUrl);
+            // Load the `url` with the same shell we created above.
+            Log.i(TAG, "shellManager load url:" + mStartupUrl);
+            mShellManager.getActiveShell().loadUrl(mStartupUrl);
+          }
+        });
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -521,7 +531,10 @@ public abstract class CobaltActivity extends Activity {
    */
   protected String[] getArgs() {
     ArrayList<String> args = new ArrayList<>();
-    String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    String[] commandLineArgs = null;
+    if (!isReleaseBuild()) {
+      commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    }
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }

@@ -28,8 +28,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
 
 class DispmanxRect : public VC_RECT_T {
  public:
@@ -68,7 +66,7 @@ class DispmanxResource {
   virtual ~DispmanxResource() {
     if (handle_ != DISPMANX_NO_HANDLE) {
       int32_t result = vc_dispmanx_resource_delete(handle_);
-      SB_DCHECK(result == 0) << " result=" << result;
+      SB_DCHECK_EQ(result, 0);
     }
   }
 
@@ -147,8 +145,7 @@ class DispmanxElement {
   void operator=(const DispmanxElement&) = delete;
 };
 
-class DispmanxVideoFrame
-    : public starboard::shared::starboard::player::filter::VideoFrame {
+class DispmanxVideoFrame : public VideoFrame {
  public:
   DispmanxVideoFrame(int64_t time,
                      DispmanxYUV420Resource* resource,
@@ -168,8 +165,6 @@ class DispmanxVideoFrame
 
 class DispmanxVideoRenderer {
  public:
-  typedef starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
-
   DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer);
 
   void Update(const scoped_refptr<VideoFrame>& video_frame);
@@ -191,8 +186,6 @@ class DispmanxVideoRenderer {
   void operator=(const DispmanxVideoRenderer&) = delete;
 };
 
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_DISPMANX_UTIL_H_
