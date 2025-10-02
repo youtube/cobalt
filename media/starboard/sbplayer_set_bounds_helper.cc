@@ -28,7 +28,8 @@ namespace {
 base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
-SbPlayerSetBoundsHelper::SbPlayerSetBoundsHelper(base::SequencedTaskRunner* task_runner)
+SbPlayerSetBoundsHelper::SbPlayerSetBoundsHelper(
+    base::SequencedTaskRunner* task_runner)
     : task_runner_(task_runner) {}
 
 void SbPlayerSetBoundsHelper::SetPlayerBridge(SbPlayerBridge* player_bridge) {
