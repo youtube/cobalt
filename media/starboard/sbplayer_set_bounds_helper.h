@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "ui/gfx/geometry/rect.h"
@@ -39,6 +40,10 @@ class SbPlayerSetBoundsHelper {
   void SetPlayerBridge(SbPlayerBridge* player_bridge);
   bool SetBounds(const gfx::Rect& rect);
 
+  base::WeakPtr<SbPlayerSetBoundsHelper> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
  private:
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
@@ -47,6 +52,8 @@ class SbPlayerSetBoundsHelper {
 
   SbPlayerSetBoundsHelper(const SbPlayerSetBoundsHelper&) = delete;
   void operator=(const SbPlayerSetBoundsHelper&) = delete;
+
+  base::WeakPtrFactory<SbPlayerSetBoundsHelper> weak_factory_{this};
 };
 
 }  // namespace media

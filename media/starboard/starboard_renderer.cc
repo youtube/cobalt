@@ -580,7 +580,9 @@ void StarboardRenderer::CreatePlayerBridge() {
       audio_config, audio_mime_type, video_config, video_mime_type,
       // TODO(b/326497953): Support suspend/resume.
       // TODO(b/326508279): Support background mode.
-      kSbWindowInvalid, drm_system_, this, &set_bounds_helper_,
+      kSbWindowInvalid, drm_system_, this,
+      base::BindRepeating(&SbPlayerSetBoundsHelper::SetPlayerBridge,
+                          set_bounds_helper_.GetWeakPtr()),
       // TODO(b/326497953): Support suspend/resume.
       false,
       // TODO(b/326825450): Revisit 360 videos.
