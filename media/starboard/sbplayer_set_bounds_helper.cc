@@ -15,6 +15,7 @@
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 
 #include "base/atomic_sequence_num.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/starboard/sbplayer_bridge.h"
 
 namespace media {
@@ -27,17 +28,21 @@ namespace {
 base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
+SbPlayerSetBoundsHelper::SbPlayerSetBoundsHelper(
+    base::SequencedTaskRunner* task_runner)
+    : task_runner_(task_runner) {}
+
 void SbPlayerSetBoundsHelper::SetPlayerBridge(SbPlayerBridge* player_bridge) {
-  base::AutoLock auto_lock(lock_);
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
   player_bridge_ = player_bridge;
   if (player_bridge_ && rect_.has_value()) {
     player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
   }
 }
 
-bool SbPlayerSetBoundsHelper::SetBounds(int x, int y, int width, int height) {
-  base::AutoLock auto_lock(lock_);
-  rect_ = gfx::Rect(x, y, width, height);
+bool SbPlayerSetBoundsHelper::SetBounds(const gfx::Rect& rect) {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  rect_ = rect;
   if (player_bridge_) {
     player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
   }
