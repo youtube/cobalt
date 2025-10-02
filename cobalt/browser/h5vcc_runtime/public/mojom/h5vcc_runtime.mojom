@@ -28,4 +28,6 @@ interface H5vccRuntime {
 
   // Register the remote DeepLinkListener.
   AddListener(pending_remote<DeepLinkListener> listener);
+
+  RenderToImage(string url, uint32 width, uint32 height) => (array<uint8> data);
 };
