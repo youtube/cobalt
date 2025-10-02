@@ -22,6 +22,7 @@
 #include <GLES2/gl2ext.h>
 
 #include <functional>
+#include <mutex>
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
@@ -37,36 +38,38 @@ using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
 jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-  ScopedJavaLocalRef<jobject> local_surface_texture(
-      env, VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id));
+  jobject local_surface_texture =
+      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id);
   SB_CHECK(local_surface_texture);
 
-  ScopedJavaGlobalRef<jobject> global_surface_texture(
-      env, local_surface_texture.obj());
+  jobject global_surface_texture = env->NewGlobalRef(local_surface_texture);
+  env->DeleteLocalRef(local_surface_texture);
 
-  return global_surface_texture.obj();
+  return global_surface_texture;
 }
 
 jobject CreateSurfaceFromSurfaceTexture(JNIEnv* env, jobject surface_texture) {
   struct SurfaceCache {
-    jclass surface_class;
-    jmethodID create_surface_method;
+    ScopedJavaGlobalRef<jclass> surface_class;
+    jmethodID surface_constructor;
   };
 
   static SurfaceCache cache;
 
   static std::once_flag once_flag;
   std::call_once(once_flag, [env]() {
-    cache.surface_class = env->FindClass("android/view/Surface");
-    SB_CHECK(cache.surface_class);
-    cache.create_surface_method = env->GetMethodID(
-        cache.surface_class, "Surface",
-        "(Landroid/graphics/SurfaceTexture;)Landroid/view/Surface;");
-    SB_CHECK(cache.create_surface_method);
+    ScopedJavaLocalRef<jclass> local_surface_class(
+        env, env->FindClass("android/view/Surface"));
+    SB_CHECK(local_surface_class);
+    cache.surface_class.Reset(local_surface_class);
+    cache.surface_constructor =
+        env->GetMethodID(cache.surface_class.obj(), "<init>",
+                         "(Landroid/graphics/SurfaceTexture;)V");
+    SB_CHECK(cache.surface_constructor);
   });
 
   ScopedJavaLocalRef<jobject> local_surface(
-      env, env->NewObject(cache.surface_class, cache.create_surface_method,
+      env, env->NewObject(cache.surface_class.obj(), cache.surface_constructor,
                           surface_texture));
   SB_CHECK(local_surface);
 

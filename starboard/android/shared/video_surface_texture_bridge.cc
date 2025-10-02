@@ -18,25 +18,28 @@
 
 namespace starboard {
 namespace {
-  using base::android::ScopedJavaLocalRef;
+using base::android::ScopedJavaLocalRef;
 }  // namespace
 
-  void VideoSurfaceTextureBridge::SetOnFrameAvailableListener(
-      JNIEnv* env, ScopedJavaLocalRef<jobject> surface_texture) const {
-    Java_VideoSurfaceTexture_setOnFrameAvailableListener(
-        env, surface_texture, reinterpret_cast<jlong>(this));
-  }
+void VideoSurfaceTextureBridge::SetOnFrameAvailableListener(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject> surface_texture) const {
+  Java_VideoSurfaceTexture_setOnFrameAvailableListener(
+      env, surface_texture, reinterpret_cast<jlong>(this));
+}
 
-  void VideoSurfaceTextureBridge::RemoveOnFrameAvailableListener(
-      JNIEnv* env, ScopedJavaLocalRef<jobject> surface_texture) const {
-    Java_VideoSurfaceTexture_removeOnFrameAvailableListener(env,
-                                                            surface_texture);
-  }
+void VideoSurfaceTextureBridge::RemoveOnFrameAvailableListener(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject> surface_texture) const {
+  Java_VideoSurfaceTexture_removeOnFrameAvailableListener(env, surface_texture);
+}
 
-  // static
-  jobject VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-    SB_CHECK(env);
-    return Java_VideoSurfaceTexture_Constructor(env, gl_texture_id).obj();
-  }
+// static
+jobject VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(
+    JNIEnv* env,
+    int gl_texture_id) {
+  SB_CHECK(env);
+  return Java_VideoSurfaceTexture_Constructor(env, gl_texture_id).obj();
+}
 
 }  // namespace starboard

@@ -709,7 +709,8 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       j_output_surface = decode_target->surface();
 
       JNIEnv* env = AttachCurrentThread();
-      ScopedJavaLocalRef<jobject> surface_texture(env, decode_target->surface_texture());
+      ScopedJavaLocalRef<jobject> surface_texture(
+          env, decode_target->surface_texture());
       bridge_->SetOnFrameAvailableListener(env, surface_texture);
 
       std::lock_guard lock(decode_target_mutex_);
@@ -785,7 +786,8 @@ void MediaCodecVideoDecoder::TeardownCodec() {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JNIEnv* env = AttachCurrentThread();
-      ScopedJavaLocalRef<jobject> surface_texture(env, decode_target_->surface_texture());
+      ScopedJavaLocalRef<jobject> surface_texture(
+          env, decode_target_->surface_texture());
       bridge_->RemoveOnFrameAvailableListener(env, surface_texture);
 
       decode_target_to_release = decode_target_;
@@ -984,30 +986,35 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-// Cache the SurfaceTexture class and its methods so that we minimize JNI calls
-// in updateTexImage() and getTransformMatrix().
+// Cache the SurfaceTexture methods so that we minimize JNI calls in
+// updateTexImage() and getTransformMatrix().
 struct SurfaceTextureJniCache {
-  jclass surface_texture_class;
   jmethodID update_tex_image_method;
   jmethodID get_transform_matrix_method;
 };
 
 SurfaceTextureJniCache cache;
 
-void updateTexImage(jobject surface_texture) {
-  JNIEnv* env = AttachCurrentThread();
+void EnsureCacheIsInitialized(JNIEnv* env) {
   static std::once_flag once_flag;
   std::call_once(once_flag, [env]() {
-    if (!cache.surface_texture_class) {
-      cache.surface_texture_class =
-          env->FindClass("android/graphics/SurfaceTexture");
-      SB_CHECK(cache.surface_texture_class);
-    }
+    jclass local_surface_texture_class =
+        env->FindClass("android/graphics/SurfaceTexture");
+    SB_CHECK(local_surface_texture_class);
     cache.update_tex_image_method =
-        env->GetMethodID(cache.surface_texture_class, "updateTexImage", "()V");
+        env->GetMethodID(local_surface_texture_class, "updateTexImage", "()V");
     SB_CHECK(cache.update_tex_image_method);
+    cache.get_transform_matrix_method = env->GetMethodID(
+        local_surface_texture_class, "getTransformMatrix", "([F)V");
+    SB_CHECK(cache.get_transform_matrix_method);
+    env->DeleteLocalRef(local_surface_texture_class);
   });
+}
 
+void updateTexImage(jobject surface_texture) {
+  JNIEnv* env = AttachCurrentThread();
+
+  EnsureCacheIsInitialized(env);
   env->CallVoidMethod(surface_texture, cache.update_tex_image_method);
 }
 
@@ -1017,17 +1024,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
   jfloatArray java_array = env->NewFloatArray(16);
   SB_CHECK(java_array);
 
-  static std::once_flag once_flag;
-  std::call_once(once_flag, [env]() {
-    if (!cache.surface_texture_class) {
-      cache.surface_texture_class =
-          env->FindClass("android/graphics/SurfaceTexture");
-      SB_CHECK(cache.surface_texture_class);
-    }
-    cache.get_transform_matrix_method =
-        env->GetMethodID(cache.surface_texture_class, "getTransformMatrix", "([F)V");
-    SB_CHECK(cache.get_transform_matrix_method);
-  });
+  EnsureCacheIsInitialized(env);
 
   env->CallVoidMethod(surface_texture, cache.get_transform_matrix_method,
                       java_array);

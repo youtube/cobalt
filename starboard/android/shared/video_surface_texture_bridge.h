@@ -37,7 +37,8 @@ class VideoSurfaceTextureBridge {
   ~VideoSurfaceTextureBridge() = default;
 
   VideoSurfaceTextureBridge(const VideoSurfaceTextureBridge&) = delete;
-  VideoSurfaceTextureBridge& operator=(const VideoSurfaceTextureBridge&) = delete;
+  VideoSurfaceTextureBridge& operator=(const VideoSurfaceTextureBridge&) =
+      delete;
 
   void SetOnFrameAvailableListener(
       JNIEnv* env,
