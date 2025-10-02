@@ -16,15 +16,18 @@
 
 #include <algorithm>
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
+#include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
+
 namespace starboard {
 
 namespace {
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
 const int64_t kBufferReadyThreshold = 50'000;     // 50ms
@@ -135,30 +138,28 @@ int VideoRenderAlgorithmAndroid::GetDroppedFrames() {
 VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  j_video_frame_release_time_helper_ = JniNewObjectOrAbort(
-      env, "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
-  j_video_frame_release_time_helper_ =
-      JniConvertLocalRefToGlobalRef(env, j_video_frame_release_time_helper_);
-  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "enable", "()V");
+
+  j_video_frame_release_time_helper_.Reset(
+      Java_VideoFrameReleaseTimeHelper_Constructor(env));
+
+  Java_VideoFrameReleaseTimeHelper_enable(env,
+                                          j_video_frame_release_time_helper_);
 }
 
 VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     ~VideoFrameReleaseTimeHelper() {
-  SB_DCHECK(j_video_frame_release_time_helper_);
-  JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethod(env, j_video_frame_release_time_helper_, "disable", "()V");
-  env->DeleteGlobalRef(j_video_frame_release_time_helper_);
-  j_video_frame_release_time_helper_ = nullptr;
+  SB_CHECK(j_video_frame_release_time_helper_);
+  Java_VideoFrameReleaseTimeHelper_disable(AttachCurrentThread(),
+                                           j_video_frame_release_time_helper_);
 }
 
 jlong VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     AdjustReleaseTime(jlong frame_presentation_time_us,
                       jlong unadjusted_release_time_ns,
                       double playback_rate) {
-  SB_DCHECK(j_video_frame_release_time_helper_);
-  JNIEnv* env = base::android::AttachCurrentThread();
-  return JniCallLongMethodOrAbort(
-      env, j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
+  SB_CHECK(j_video_frame_release_time_helper_);
+  return Java_VideoFrameReleaseTimeHelper_adjustReleaseTime(
+      AttachCurrentThread(), j_video_frame_release_time_helper_,
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }
 
