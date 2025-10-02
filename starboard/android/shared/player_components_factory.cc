@@ -333,7 +333,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " audio decoder during Reset().";
 
     std::unique_ptr<AudioDecoder> audio_decoder;
-    std::unique_ptr<AudioRendererSink> audio_render_sink;
+    std::unique_ptr<AudioRendererSink> audio_renderer_sink;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       const bool enable_platform_opus_decoder =
           FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
@@ -373,14 +373,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           enable_reset_audio_decoder);
 
       if (tunnel_mode_audio_session_id != -1) {
-        audio_render_sink = TryToCreateTunnelModeAudioRendererSink(
+        audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters);
-        if (!audio_render_sink) {
+        if (!audio_renderer_sink) {
           tunnel_mode_audio_session_id = -1;
         }
       }
-      if (!audio_render_sink) {
-        audio_render_sink = std::make_unique<AudioRendererSinkAndroid>();
+      if (!audio_renderer_sink) {
+        audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>();
       }
     }
 
@@ -418,7 +418,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return CreateSubComponentsResult::Success(
-        {std::move(audio_decoder), std::move(audio_render_sink)},
+        {std::move(audio_decoder), std::move(audio_renderer_sink)},
         {std::move(video_decoder), std::move(video_render_algorithm),
          std::move(video_renderer_sink)});
   }

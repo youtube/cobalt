@@ -33,9 +33,9 @@ namespace {
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   CreateSubComponentsResult CreateSubComponents(
       const CreationParameters& creation_parameters) override {
-    std::unique_ptr<AudioDecoder> audio_decoder,
-        std::unique_ptr<AudioRendererSink> audio_renderer_sink,
-        if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+    std::unique_ptr<AudioDecoder> audio_decoder;
+    std::unique_ptr<AudioRendererSink> audio_renderer_sink;
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       auto decoder_creator =
           [](const AudioStreamInfo& audio_stream_info,
              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
@@ -73,7 +73,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return CreateSubComponentsResult::Success(
-        {std::move(audio_decoder), std::move(audio_render_sink)},
+        {std::move(audio_decoder), std::move(audio_renderer_sink)},
         {std::move(video_decoder), std::move(video_render_algorithm),
          std::move(video_renderer_sink)});
   }

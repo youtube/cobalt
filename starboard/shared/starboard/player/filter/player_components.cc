@@ -240,7 +240,6 @@ PlayerComponents::Factory::CreateComponents(
 
 AudioComponents PlayerComponents::Factory::CreateStubAudioComponents(
     const CreationParameters& creation_parameters) {
-  AudioComponents audio_components;
   auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
     return std::make_unique<StubAudioDecoder>(audio_stream_info);
@@ -256,8 +255,6 @@ AudioComponents PlayerComponents::Factory::CreateStubAudioComponents(
 VideoComponents PlayerComponents::Factory::CreateStubVideoComponents(
     const CreationParameters& creation_parameters) {
   const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
-
-  VideoComponents video_components;
   return {
       std::make_unique<StubVideoDecoder>(),
       std::make_unique<VideoRenderAlgorithmImpl>(),
