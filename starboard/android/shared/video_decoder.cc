@@ -378,7 +378,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       number_of_preroll_frames_(kInitialPrerollFrameCount),
-      bridge_(new VideoSurfaceTextureBridge(this)) {
+      bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
+                  ? std::make_unique<VideoSurfaceTextureBridge>(this)
+                  : nullptr) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
