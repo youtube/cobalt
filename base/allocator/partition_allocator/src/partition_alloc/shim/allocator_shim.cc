@@ -32,7 +32,7 @@
 // allocator_shim::internal::PartitionMallocUnchecked through the shim layer.
 #include "partition_alloc/shim/allocator_shim_override_cpp_symbols.h"
 
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Don't include anything, all includes are already set up in MUSL libc
 #else
 #include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
