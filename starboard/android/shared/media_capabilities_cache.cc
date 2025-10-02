@@ -171,6 +171,10 @@ bool GetIsPassthroughSupported(SbMediaAudioCodec codec) {
   return AudioOutputManager::GetInstance()->HasPassthroughSupportFor(env,
                                                                      encoding);
 }
+
+// The raw pointer that holds the singleton instance.
+MediaCapabilitiesCache* g_instance = nullptr;
+pthread_once_t g_once_flag = PTHREAD_ONCE_INIT;
 }  // namespace
 
 CodecCapability::CodecCapability(JNIEnv* env,
@@ -354,8 +358,16 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 }
 
 // static
-SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
-                            MediaCapabilitiesCache::GetInstance)
+MediaCapabilitiesCache* MediaCapabilitiesCache::GetInstance() {
+  pthread_once(&g_once_flag, &MediaCapabilitiesCache::InitializeInstance);
+  return g_instance;
+}
+
+// static
+void MediaCapabilitiesCache::SetInstanceForTesting(
+    MediaCapabilitiesCache* instance) {
+  g_instance = instance;
+}
 
 bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
@@ -618,6 +630,13 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
          AudioOutputManager::GetInstance()->GetAudioConfiguration(
              env, audio_configurations_.size(), &configuration)) {
     audio_configurations_.push_back(configuration);
+  }
+}
+
+void MediaCapabilitiesCache::InitializeInstance() {
+  // Only create a new instance if one hasn't already been injected for a test.
+  if (!g_instance) {
+    g_instance = new MediaCapabilitiesCache();
   }
 }
 
