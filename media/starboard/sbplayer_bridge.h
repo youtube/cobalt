@@ -302,6 +302,7 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
+  // TODO: b/448196546 - Convert this to a base::Callback.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   const bool allow_resume_after_suspend_;

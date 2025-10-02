@@ -22,17 +22,26 @@
 # This decision is predicated on the value of the |gl_type| GN variable defined
 # in the configuration.gni for the current platform.
 
+import("//build/buildflag_header.gni")
+
 group("egl_and_gles") {
-  assert(gl_type != "none", "gl_type must be set to a valid value")
+  assert(gl_type == "angle" || gl_type == "system_gles2")
   public_deps = [ ":egl_and_gles_$gl_type" ]
+}
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+
+  enable_angle = gl_type == "angle"
+  enable_system_gles2 = gl_type == "system_gles2"
+  flags = [
+    "STARBOARD_GL_TYPE_ANGLE=$enable_angle",
+    "STARBOARD_GL_TYPE_SYSTEM_GLES2=$enable_system_gles2",
+  ]
 }
 
 group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
-}
-
-config("egl_and_gles_glimp_public_config") {
-  defines = [ "GL_GLEXT_PROTOTYPES" ]
 }
 
 declare_args() {
@@ -43,12 +52,10 @@ config("egl_and_gles_angle_config") {
   include_dirs = [ "//third_party/angle/include" ]
 }
 
-if (gl_type == "angle") {
-  group("egl_and_gles_angle") {
-    public_deps = [
-      "//third_party/angle:libEGL_static",
-      "//third_party/angle:libGLESv2_static",
-    ]
-    public_configs = [ ":egl_and_gles_angle_config" ]
-  }
+group("egl_and_gles_angle") {
+  public_deps = [
+    "//third_party/angle:libEGL_static",
+    "//third_party/angle:libGLESv2_static",
+  ]
+  public_configs = [ ":egl_and_gles_angle_config" ]
 }

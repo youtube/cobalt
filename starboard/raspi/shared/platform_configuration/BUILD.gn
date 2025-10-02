@@ -174,23 +174,6 @@ config("size") {
   }
 }
 
-config("pedantic_warnings") {
-  cflags = [
-    "-Wall",
-    "-Wextra",
-    "-Wunreachable-code",
-
-    # Raspi toolchain is based off an old version of gcc, which
-    # falsely flags some code.  That same code does not warn with gcc 6.3.
-    # This decision should be revisited after raspi toolchain is upgraded.
-    "-Wno-maybe-uninitialized",
-
-    "-Werror",
-    "-Wno-expansion-to-defined",
-    "-Wno-implicit-fallthrough",
-  ]
-}
-
 config("no_pedantic_warnings") {
   cflags = [
     # Do not warn for implicit type conversions that may change a value.
