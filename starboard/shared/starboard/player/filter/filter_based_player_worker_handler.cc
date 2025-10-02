@@ -132,15 +132,14 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
-    std::string components_error_message;
-    player_components_ = factory->CreateComponents(creation_parameters,
-                                                   &components_error_message);
-    if (!player_components_) {
-      std::string error_message =
-          FormatString("Failed to create player components with error: %s.",
-                       components_error_message.c_str());
-      return HandlerResult{false, error_message};
+    Result<std::unique_ptr<PlayerComponents>> result =
+        factory->CreateComponents(creation_parameters);
+    if (!result.ok()) {
+      return HandlerResult{false,
+                           "Failed to create player components with error: " +
+                               result.error_message()};
     }
+    player_components_ = std::move(result.value());
     media_time_provider_ = player_components_->GetMediaTimeProvider();
     audio_renderer_ = player_components_->GetAudioRenderer();
     video_renderer_ = player_components_->GetVideoRenderer();
