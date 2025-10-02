@@ -31,7 +31,7 @@ namespace media {
 
 class SbPlayerBridge;
 
-// TODO(b/448196546): Fold this class into SbPlayerBridge.
+// TODO: b/448196546 - Fold this class into SbPlayerBridge.
 class SbPlayerSetBoundsHelper {
  public:
   explicit SbPlayerSetBoundsHelper(base::SequencedTaskRunner* task_runner);
