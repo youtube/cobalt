@@ -383,6 +383,30 @@ SPECIAL_CASES = {
         "License": "Apache 2.0",
         "License File": "/third_party/selenium-atoms/LICENSE.closure",
     },
+    os.path.join('starboard', 'contrib', 'rdk', 'src', 'third_party', 'starboard'): {
+        "Name": "RDK",
+        "URL": "https://github.com/rdkcentral/rdk",
+        "License": "Apache 2.0",
+        "License File": "starboard/contrib/rdk/LICENSE",
+    },
+    os.path.join('third_party', 'llvm-project'): {
+        "Name": "LLVM",
+        "URL": "http://llvm.org",
+        "License": "Apache 2.0 with LLVM exceptions",
+        "License File": "third_party/llvm-project/compiler-rt/LICENSE.TXT",
+    },
+    os.path.join('third_party', 'lz4_lib'): {
+        "Name": "lz4",
+        "URL": "https://github.com/lz4/lz4",
+        "License": "BSD",
+        "License File": "third_party/lz4_lib/LICENSE",
+    },
+    os.path.join('third_party', 'musl'): {
+        "Name": "musl",
+        "URL": "https://musl.libc.org/",
+        "License": "MIT",
+        "License File": "third_party/musl/COPYRIGHT",
+    },
 }
 
 # Special value for 'License File' field used to indicate that the license file
