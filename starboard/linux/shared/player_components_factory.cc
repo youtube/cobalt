@@ -162,7 +162,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           kSbPlayerOutputModeDecodeToTexture) {
         *video_renderer_sink = NULL;
       } else {
-        *video_renderer_sink = new PunchoutVideoRendererSink(
+        *video_renderer_sink = make_scoped_refptr<PunchoutVideoRendererSink>(
             creation_parameters.player(), kVideoSinkRenderIntervalUsec);
       }
     }
