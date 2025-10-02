@@ -51,7 +51,7 @@ static_assert(sizeof(void*) != 8, "");
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #define PA_CONFIG_HAS_LINUX_KERNEL() false
 #else
 #define PA_CONFIG_HAS_LINUX_KERNEL()                      \
