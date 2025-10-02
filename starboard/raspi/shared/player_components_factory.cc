@@ -78,8 +78,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       *video_decoder = std::make_unique<OpenMaxVideoDecoder>(
           creation_parameters.video_codec());
       *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
-      *video_renderer_sink =
-          new VideoRendererSinkImpl(creation_parameters.player());
+      *video_renderer_sink = make_scoped_refptr<VideoRendererSinkImpl>(
+          creation_parameters.player());
     }
 
     return true;

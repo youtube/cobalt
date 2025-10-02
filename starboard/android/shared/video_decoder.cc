@@ -426,8 +426,8 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
-  if (sink_ == NULL) {
-    sink_ = new Sink;
+  if (sink_ == nullptr) {
+    sink_ = make_scoped_refptr<Sink>();
   }
   return sink_;
 }
