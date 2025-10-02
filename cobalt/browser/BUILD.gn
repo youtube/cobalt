@@ -32,6 +32,8 @@ source_set("browser") {
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "features.cc",
+    "features.h",
   ]
 
   if (is_androidtv) {
