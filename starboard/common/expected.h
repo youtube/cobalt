@@ -55,4 +55,4 @@ class Expected {
   std::variant<T, Unexpected> storage_;
 };
 
-#endif  // STARBOARD_COMMON_RESULT_H_
+#endif  // STARBOARD_COMMON_EXPECTED_H_
