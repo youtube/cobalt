@@ -292,6 +292,8 @@ static_library("starboard_platform") {
     "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
+    "video_surface_texture_bridge.h",
+    "video_surface_texture_bridge.cc",
     "video_window.cc",
     "video_window.h",
 

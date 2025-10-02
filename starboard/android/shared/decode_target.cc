@@ -24,31 +24,55 @@
 #include <functional>
 
 #include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
 namespace {
 
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
+
 jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-  jobject local_surface_texture = JniNewObjectOrAbort(
-      env, "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
+  ScopedJavaLocalRef<jobject> local_surface_texture(
+      env, VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id));
+  SB_CHECK(local_surface_texture);
 
-  jobject global_surface_texture =
-      JniConvertLocalRefToGlobalRef(env, local_surface_texture);
+  ScopedJavaGlobalRef<jobject> global_surface_texture(
+      env, local_surface_texture.obj());
 
-  return global_surface_texture;
+  return global_surface_texture.obj();
 }
 
 jobject CreateSurfaceFromSurfaceTexture(JNIEnv* env, jobject surface_texture) {
-  jobject local_surface = JniNewObjectOrAbort(
-      env, "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
-      surface_texture);
+  struct SurfaceCache {
+    jclass surface_class;
+    jmethodID create_surface_method;
+  };
 
-  jobject global_surface = JniConvertLocalRefToGlobalRef(env, local_surface);
+  static SurfaceCache cache;
 
-  return global_surface;
+  static std::once_flag once_flag;
+  std::call_once(once_flag, [env]() {
+    cache.surface_class = env->FindClass("android/view/Surface");
+    SB_CHECK(cache.surface_class);
+    cache.create_surface_method = env->GetMethodID(
+        cache.surface_class, "Surface",
+        "(Landroid/graphics/SurfaceTexture;)Landroid/view/Surface;");
+    SB_CHECK(cache.create_surface_method);
+  });
+
+  ScopedJavaLocalRef<jobject> local_surface(
+      env, env->NewObject(cache.surface_class, cache.create_surface_method,
+                          surface_texture));
+  SB_CHECK(local_surface);
+
+  ScopedJavaGlobalRef<jobject> global_surface(env, local_surface.obj());
+
+  return global_surface.obj();
 }
 
 void RunOnContextRunner(void* context) {
@@ -74,7 +98,7 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 DecodeTarget::~DecodeTarget() {
   ANativeWindow_release(native_window_);
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   env->DeleteGlobalRef(surface_);
   env->DeleteGlobalRef(surface_texture_);
 
@@ -99,7 +123,7 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
   surface_texture_ = CreateSurfaceTexture(env, texture);
 
