@@ -619,7 +619,7 @@ target(libcxx_target_type, "libc++") {
 
   if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
     # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    sources -= [ "trunk/src/atomic.cpp" ]
+    sources -= [ "//third_party/libc++/src/src/atomic.cpp" ]
     deps += [
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/musl:c",

@@ -60,7 +60,7 @@ absl_source_set("raw_logging_internal") {
     "//third_party/abseil-cpp/absl/*",
   ]
   if (is_cobalt_hermetic_build) {
-    public_deps += [ "//starboard:starboard_headers_only" ]
+    deps += [ "//starboard:starboard_headers_only" ]
   }
 }
 
