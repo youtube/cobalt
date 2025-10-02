@@ -155,7 +155,9 @@ bool IsVariationsConfigExpirationEnabled() {
   const base::Value::Dict& feature_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
 
-  return feature_map.FindBool("VariationsConfigExpiration").value_or(false);
+  return feature_map
+      .FindBool(cobalt::features::kVariationsConfigExpiration.name)
+      .value_or(false);
 }
 
 }  // namespace
