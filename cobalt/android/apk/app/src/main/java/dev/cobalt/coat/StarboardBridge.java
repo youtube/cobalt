@@ -50,6 +50,7 @@ import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
+import dev.cobalt.shell.ContentViewRenderView;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard")
@@ -74,6 +75,7 @@ public class StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
+  private ContentViewRenderView mContentViewRenderView;
 
   private final Context appContext;
   private final Holder<Activity> activityHolder;
@@ -103,6 +105,8 @@ public class StarboardBridge {
 
   private final Map<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final Map<String, CobaltService> cobaltServices = new ConcurrentHashMap<>();
+  private WebContents mCurrentWebContents;
+  private WebContents mTempWebContents;
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -725,8 +729,43 @@ public class StarboardBridge {
   }
 
   public void setWebContents(WebContents webContents) {
+    mCurrentWebContents = webContents;
     cobaltMediaSession.setWebContents(webContents);
     volumeStateReceiver.setWebContents(webContents);
+  }
+
+  public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
+    mContentViewRenderView = contentViewRenderView;
+  }
+
+  @CalledByNative
+  public void setSplashWebContents(WebContents splashWebContents) {
+    if (splashWebContents == null) {
+      Log.w(TAG, "No splash to set");
+      return;
+    }
+    Log.w(TAG, "Setting splash in bridge!!!");
+    mTempWebContents = mCurrentWebContents;
+    Log.w(TAG, "Setting splash in bridge!!! 1");
+    setWebContents(splashWebContents);
+    Log.w(TAG, "Setting splash in bridge!!! 2");
+    if (mContentViewRenderView != null) {
+      Log.w(TAG, "Setting splash in bridge!!! 3");
+      mContentViewRenderView.setCurrentWebContents(splashWebContents);
+    }
+  }
+
+  @CalledByNative
+  public void clearSplashWebContents() {
+    if (mTempWebContents == null) {
+      Log.w(TAG, "No splash to clear");
+      return;
+    }
+    setWebContents(mTempWebContents);
+    mTempWebContents = null;
+    if (mContentViewRenderView != null) {
+      mContentViewRenderView.setCurrentWebContents(mCurrentWebContents);
+    }
   }
 
   @CalledByNative

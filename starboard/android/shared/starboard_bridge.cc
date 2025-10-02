@@ -214,6 +214,21 @@ void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                           data);
 }
 
+void StarboardBridge::SetSplashWebContents(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject> j_web_contents) {
+  LOG(INFO) << "SetSplashWebContents     1";
+  SB_DCHECK(env);
+  LOG(INFO) << "SetSplashWebContents     2";
+  Java_StarboardBridge_setSplashWebContents(env, j_starboard_bridge_,
+                                            j_web_contents);
+}
+
+void StarboardBridge::ClearSplashWebContents(JNIEnv* env) {
+  SB_DCHECK(env);
+  Java_StarboardBridge_clearSplashWebContents(env, j_starboard_bridge_);
+}
+
 void StarboardBridge::RequestSuspend(JNIEnv* env) {
   SB_DCHECK(env);
   Java_StarboardBridge_requestSuspend(env, j_starboard_bridge_);

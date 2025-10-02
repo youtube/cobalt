@@ -38,6 +38,7 @@
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/version.h"
+#include "cobalt/splash/splash.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -45,7 +46,9 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
@@ -80,6 +83,9 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+std::atomic<bool> done_already;
+std::atomic<bool> splashed;
 
 }  // namespace
 
@@ -185,6 +191,7 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
+  prefs->supports_multiple_windows = true;
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
 }
 
@@ -208,6 +215,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
   base::FilePath base_cache_path = context->GetPath();
+  LOG(WARNING) << "Cache path: base_cache_path " << base_cache_path;
   base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
@@ -266,6 +274,25 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "Show OnWebContentsCreated!!! ( url: "
+            << web_contents->GetVisibleURL() << " )";
+  LOG(INFO) << "Show OnWebContentsCreated!!! ( url: "
+            << web_contents->GetLastCommittedURL() << " )";
+  LOG(INFO) << "Show OnWebContentsCreated!!! ( url: "
+            << web_contents->GetController().GetActiveEntry()->GetURL() << " )";
+
+  // if (web_contents_observer_) {
+  //   LOG(INFO) << "Already created OnWebContentsCreated!!!!!!!";
+  //   // Already created.
+  //   return;
+  // }
+
+  if (done_already.load()) {
+    LOG(INFO) << "Show OnWebContentsCreated Skipped!!!";
+    return;
+  }
+  LOG(INFO) << "ShoW OnWebContentsCreated!!!!!!!";
+  done_already = true;
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
   web_contents_delegate_.reset(new CobaltWebContentsDelegate());
   content::Shell::SetShellCreatedCallback(base::BindOnce(
@@ -273,6 +300,23 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
         shell->web_contents()->SetDelegate(delegate);
       },
       web_contents_delegate_.get()));
+  if (!splashed.load()) {
+    splashed = true;
+    // LOG(INFO) << "Show splash!!!";
+    // splash_ = Splash::Show(web_contents->GetBrowserContext(),
+    //                        web_contents->GetNativeView(),
+    //                        GURL("https://www.example.com"));
+    // GURL("https://serve-dot-zipline.appspot.com/asset/"
+    //      "bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/5gtay4qr9bs/"));
+    // LOG(INFO) << "Can you see the splash screen???!!!";
+
+#if BUILDFLAG(IS_ANDROIDTV)
+    // Not visible for android.
+    // anchor_view_ = splash_->GetNativeView()->AcquireAnchorView();
+#endif
+  } else {
+    // LOG(INFO) << "splash already shown?";
+  }
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(

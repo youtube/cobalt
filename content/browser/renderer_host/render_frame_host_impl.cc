@@ -6382,9 +6382,15 @@ void RenderFrameHostImpl::DidContainInsecureFormAction() {
 
 void RenderFrameHostImpl::MainDocumentElementAvailable(
     bool uses_temporary_zoom_level) {
+
+  LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n MainDocumentElementAvailable";
   if (!is_main_frame()) {
     bad_message::ReceivedBadMessage(
         GetProcess(), bad_message::RFH_INVALID_CALL_FROM_NOT_MAIN_FRAME);
+    LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n invalid call not main frame????";
+    delegate_->PrimaryMainDocumentElementAvailable();
     return;
   }
 
@@ -6397,9 +6403,14 @@ void RenderFrameHostImpl::MainDocumentElementAvailable(
   // document in the primary main frame. Since the WebContents could be hosting
   // more than one main frame (e.g., fenced frame, prerender pages or pending
   // delete RFHs), return early for other cases.
-  if (!IsInPrimaryMainFrame())
+  if (!IsInPrimaryMainFrame()) {
+    LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n not main frame????";
+    delegate_->PrimaryMainDocumentElementAvailable();
     return;
-
+  }
+  LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n main frame calling delegate";
   delegate_->PrimaryMainDocumentElementAvailable();
 
   if (base::FeatureList::IsEnabled(blink::features::kFullscreenPopupWindows) &&

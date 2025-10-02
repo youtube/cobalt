@@ -6235,6 +6235,8 @@ void WebContentsImpl::PrimaryMainDocumentElementAvailable() {
                         "WebContentsImpl::PrimaryMainDocumentElementAvailable");
   SCOPED_UMA_HISTOGRAM_TIMER(
       "WebContentsObserver.PrimaryMainDocumentElementAvailable");
+  LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$$$\n$$$$$$$$$$$$$$$$$$$$$$$\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n calling observers";
   observers_.NotifyObservers(
       &WebContentsObserver::PrimaryMainDocumentElementAvailable);
 }
@@ -8408,7 +8410,9 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
 
 base::android::ScopedJavaLocalRef<jobject>
 WebContentsImpl::GetJavaWebContents() {
+  LOG(INFO) << "Show splash!!!     8";
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  LOG(INFO) << "Show splash!!!     9";
   return GetWebContentsAndroid()->GetJavaObject();
 }
 
@@ -8419,13 +8423,17 @@ WebContentsImpl::GetJavaCreatorLocation() {
 
 WebContentsAndroid* WebContentsImpl::GetWebContentsAndroid() {
   if (!web_contents_android_) {
+    LOG(INFO) << "Show splash!!!     10";
     web_contents_android_ = std::make_unique<WebContentsAndroid>(this);
+    LOG(INFO) << "Show splash!!!     11";
   }
+  LOG(INFO) << "Show splash!!!     12";
   return web_contents_android_.get();
 }
 
 void WebContentsImpl::ClearWebContentsAndroid() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  LOG(INFO) << "Clear splash!!!     1000";
   web_contents_android_.reset();
 }
 

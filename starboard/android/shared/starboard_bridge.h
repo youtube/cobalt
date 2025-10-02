@@ -84,6 +84,11 @@ class StarboardBridge {
 
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
+  void SetSplashWebContents(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject> j_web_contents);
+  void ClearSplashWebContents(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
