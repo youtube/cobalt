@@ -271,7 +271,7 @@ declare_args() {
   # https://bugs.chromium.org/p/angleproject/issues/detail?id=8398 for details.
   angle_enable_vulkan_validation_layers =
       angle_enable_vulkan && !is_ubsan && !is_tsan && !is_asan &&
-      angle_debug_layers_enabled &&
+      angle_debug_layers_enabled && !is_starboard &&
       (!is_android || (ndk_api_level_at_least_26 && !build_with_chromium))
   angle_enable_vulkan_api_dump_layer =
       angle_enable_vulkan && angle_debug_layers_enabled && angle_standalone &&
