@@ -71,7 +71,7 @@ class PlayerWorker {
       }
 
       bool ok() const { return error_message_.empty(); }
-      std::string_view error_message() { return error_message_; }
+      std::string_view error_message() const { return error_message_; }
 
      private:
       explicit HandlerResult(std::string_view error_message)
