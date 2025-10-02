@@ -323,6 +323,7 @@ test("nplb") {
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/common:file_wrapper",
+    "//starboard/egl_and_gles:buildflags",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",
