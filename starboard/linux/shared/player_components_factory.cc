@@ -50,8 +50,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
   CreateSubComponentsResult CreateSubComponents(
       const CreationParameters& creation_parameters) override {
-    CreateSubComponentsResult result;
-
     std::unique_ptr<AudioDecoder> audio_decoder;
     std::unique_ptr<AudioRendererSink> audio_renderer_sink;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
