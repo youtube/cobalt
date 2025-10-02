@@ -177,7 +177,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return Unexpected("Invalid audio mime type.");
-      } else if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
+      }
+      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
         return Unexpected("Passthrough disabled by mime attribute.");
