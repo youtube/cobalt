@@ -32,7 +32,7 @@ config("angle_gl_backend_config") {
       ]
     }
   }
-  if (angle_has_build && (is_linux || is_chromeos)) {
+  if (angle_has_build && (is_linux && !is_starboard || is_chromeos)) {
     defines += [ "ANGLE_HAS_LIBDRM" ]
   }
   include_dirs = [ "../../../third_party/khronos" ]
@@ -49,7 +49,7 @@ angle_source_set("angle_gl_backend") {
     "$angle_root:angle_image_util",
   ]
 
-  if (angle_has_build && (is_linux || is_chromeos)) {
+  if (angle_has_build && (is_linux && !is_starboard || is_chromeos)) {
     deps += [ "//build/config/linux/libdrm" ]
   }
 

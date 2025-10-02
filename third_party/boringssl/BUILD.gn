@@ -10,8 +10,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 import("src/gen/sources.gni")
 
-import("//cobalt/build/configs/hacks.gni")
-
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen_generator.gni")
@@ -19,14 +17,7 @@ if (enable_rust) {
 
 # Config for us and everybody else depending on BoringSSL.
 config("external_config") {
-  if (is_cobalt_hermetic_build) {
-    include_dirs = [
-      "//cobalt/third_party/boringssl/src/include",
-      "src/include",
-    ]
-  } else {
-    include_dirs = [ "src/include" ]
-  }
+  include_dirs = [ "src/include" ]
   if (is_component_build) {
     defines = [ "BORINGSSL_SHARED_LIBRARY" ]
   }
@@ -138,14 +129,7 @@ if (is_msan) {
   source_set("boringssl_asm") {
     visibility = [ ":*" ]
     sources = rebase_path(bcm_sources_asm + crypto_sources_asm, ".", "src")
-    if (is_cobalt && is_cobalt_hermetic_build) {
-      include_dirs = [
-        "//cobalt/third_party/boringssl/src/include",
-        "src/include",
-      ]
-    } else {
-      include_dirs = [ "src/include" ]
-    }
+    include_dirs = [ "src/include" ]
   }
   source_set("test_support_asm") {
     visibility = [ ":*" ]
@@ -192,9 +176,6 @@ component("boringssl") {
       "//starboard:starboard_headers_only",
       "//starboard/common",
     ]
-  }
-  if (enable_cobalt_hermetic_hacks) {
-    sources += [ "src/crypto/thread_starboard.c" ]
   }
 }
 

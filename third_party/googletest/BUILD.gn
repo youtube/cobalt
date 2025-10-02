@@ -174,11 +174,6 @@ source_set("gtest") {
       ]
       sources += [ "src/googletest/src/gtest-port.cc" ]
       configs += [ "//build/config/compiler:chromium_code" ]
-
-      # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
-      if (gtest_enable_absl_printers) {
-        deps -= [ "//third_party/abseil-cpp:absl" ]
-      }
     }
   }
 }
