@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
+#include "starboard/android/shared/audio_renderer_tunnel.h"
 
 #include <algorithm>
 #include <mutex>
@@ -28,8 +28,8 @@ namespace starboard {
 namespace {
 
 // This class works only when the input format and output format are the same.
-// It allows for a simplified AudioRendererPcm implementation by always using a
-// resampler.
+// It allows for a simplified AudioRendererTunnel implementation by always using
+// a resampler.
 class IdentityAudioResampler : public AudioResampler {
  public:
   IdentityAudioResampler() : eos_reached_(false) {}
@@ -49,7 +49,7 @@ class IdentityAudioResampler : public AudioResampler {
   bool eos_reached_;
 };
 
-// AudioRendererPcm uses AudioTimeStretcher internally to adjust to playback
+// AudioRendererTunnel uses AudioTimeStretcher internally to adjust to playback
 // rate. So we try to use kSbMediaAudioSampleTypeFloat32 and only use
 // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.  To use
 // kSbMediaAudioSampleTypeFloat32 will cause an extra conversion from float32 to
@@ -64,10 +64,10 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 
 }  // namespace
 
-AudioRendererPcm::AudioRendererPcm(
+AudioRendererTunnel::AudioRendererTunnel(
     std::unique_ptr<AudioDecoder> decoder,
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
-    const media::AudioStreamInfo& audio_stream_info,
+    const AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
     int min_frames_per_append)
     : max_cached_frames_(max_cached_frames),
@@ -76,12 +76,12 @@ AudioRendererPcm::AudioRendererPcm(
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
-      bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
+      bytes_per_frame_(GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       process_audio_data_job_(
-          std::bind(&AudioRendererPcm::ProcessAudioData, this)),
+          std::bind(&AudioRendererTunnel::ProcessAudioData, this)),
       audio_renderer_sink_(std::move(audio_renderer_sink)) {
-  SB_DLOG(INFO) << "Creating AudioRendererPcm with " << channels_
+  SB_DLOG(INFO) << "Creating AudioRendererTunnel with " << channels_
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
@@ -92,22 +92,22 @@ AudioRendererPcm::AudioRendererPcm(
   frame_buffers_[0] = &frame_buffer_[0];
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  Schedule(std::bind(&AudioRendererPcm::CheckAudioSinkStatus, this),
+  Schedule(std::bind(&AudioRendererTunnel::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-AudioRendererPcm::~AudioRendererPcm() {
-  SB_DLOG(INFO) << "Destroying AudioRendererPcm with " << channels_
+AudioRendererTunnel::~AudioRendererTunnel() {
+  SB_DLOG(INFO) << "Destroying AudioRendererTunnel with " << channels_
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
   SB_DCHECK(BelongsToCurrentThread());
 }
 
-void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
-                                  const PrerolledCB& prerolled_cb,
-                                  const EndedCB& ended_cb) {
+void AudioRendererTunnel::Initialize(const ErrorCB& error_cb,
+                                     const PrerolledCB& prerolled_cb,
+                                     const EndedCB& ended_cb) {
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
@@ -119,11 +119,11 @@ void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
   prerolled_cb_ = prerolled_cb;
   ended_cb_ = ended_cb;
 
-  decoder_->Initialize(std::bind(&AudioRendererPcm::OnDecoderOutput, this),
+  decoder_->Initialize(std::bind(&AudioRendererTunnel::OnDecoderOutput, this),
                        error_cb);
 }
 
-void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
+void AudioRendererTunnel::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_);
@@ -137,11 +137,11 @@ void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
 
   can_accept_more_data_ = false;
   decoder_->Decode(input_buffers,
-                   std::bind(&AudioRendererPcm::OnDecoderConsumed, this));
+                   std::bind(&AudioRendererTunnel::OnDecoderConsumed, this));
   first_input_written_ = true;
 }
 
-void AudioRendererPcm::WriteEndOfStream() {
+void AudioRendererTunnel::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   // TODO: Check |can_accept_more_data_| and make WriteEndOfStream() depend on
   // CanAcceptMoreData() or callback.
@@ -160,28 +160,28 @@ void AudioRendererPcm::WriteEndOfStream() {
   first_input_written_ = true;
 }
 
-void AudioRendererPcm::SetVolume(double volume) {
+void AudioRendererTunnel::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
   audio_renderer_sink_->SetVolume(volume);
 }
 
-bool AudioRendererPcm::IsEndOfStreamWritten() const {
+bool AudioRendererTunnel::IsEndOfStreamWritten() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_state_ >= kEOSWrittenToDecoder;
 }
 
-bool AudioRendererPcm::IsEndOfStreamPlayed() const {
+bool AudioRendererTunnel::IsEndOfStreamPlayed() const {
   std::lock_guard lock(mutex_);
   return IsEndOfStreamPlayed_Locked();
 }
 
-bool AudioRendererPcm::CanAcceptMoreData() const {
+bool AudioRendererTunnel::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_state_ == kEOSNotReceived && can_accept_more_data_ &&
          (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
 }
 
-void AudioRendererPcm::Play() {
+void AudioRendererTunnel::Play() {
   SB_DCHECK(BelongsToCurrentThread());
 
   std::lock_guard lock(mutex_);
@@ -189,14 +189,14 @@ void AudioRendererPcm::Play() {
   consume_frames_called_ = false;
 }
 
-void AudioRendererPcm::Pause() {
+void AudioRendererTunnel::Pause() {
   SB_DCHECK(BelongsToCurrentThread());
 
   std::lock_guard lock(mutex_);
   paused_ = true;
 }
 
-void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
+void AudioRendererTunnel::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
   std::lock_guard lock(mutex_);
@@ -221,7 +221,7 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
   }
 }
 
-void AudioRendererPcm::Seek(int64_t seek_to_time) {
+void AudioRendererTunnel::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
@@ -270,15 +270,15 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
   CancelPendingJobs();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  Schedule(std::bind(&AudioRendererPcm::CheckAudioSinkStatus, this),
+  Schedule(std::bind(&AudioRendererTunnel::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
-                                              bool* is_eos_played,
-                                              bool* is_underflow,
-                                              double* playback_rate) {
+int64_t AudioRendererTunnel::GetCurrentMediaTime(bool* is_playing,
+                                                 bool* is_eos_played,
+                                                 bool* is_underflow,
+                                                 double* playback_rate) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
@@ -325,6 +325,9 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
+    // TODO: support VSP.
+    frames_played += audio_frame_tracker_.GetOverflowedFrames();
+
     media_time =
         seeking_to_time_ + frames_played * 1'000'000LL / samples_per_second;
     if (media_time < last_media_time_) {
@@ -362,10 +365,10 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
   return media_time;
 }
 
-void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
-                                       int* offset_in_frames,
-                                       bool* is_playing,
-                                       bool* is_eos_reached) {
+void AudioRendererTunnel::GetSourceStatus(int* frames_in_buffer,
+                                          int* offset_in_frames,
+                                          bool* is_playing,
+                                          bool* is_eos_reached) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   ++sink_callbacks_since_last_check_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -415,8 +418,8 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
   }
 }
 
-void AudioRendererPcm::ConsumeFrames(int frames_consumed,
-                                     int64_t frames_consumed_at) {
+void AudioRendererTunnel::ConsumeFrames(int frames_consumed,
+                                        int64_t frames_consumed_at) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   ++sink_callbacks_since_last_check_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -443,8 +446,8 @@ void AudioRendererPcm::ConsumeFrames(int frames_consumed,
   }
 }
 
-void AudioRendererPcm::OnError(bool capability_changed,
-                               const std::string& error_message) {
+void AudioRendererTunnel::OnError(bool capability_changed,
+                                  const std::string& error_message) {
   SB_DCHECK(error_cb_);
   if (capability_changed) {
     error_cb_(kSbPlayerErrorCapabilityChanged, error_message);
@@ -456,7 +459,7 @@ void AudioRendererPcm::OnError(bool capability_changed,
   }
 }
 
-void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
+void AudioRendererTunnel::UpdateVariablesOnSinkThread_Locked(
     int64_t system_time_on_consume_frames) {
   if (frames_consumed_on_sink_thread_ > 0) {
     SB_DCHECK(total_frames_consumed_by_sink_ +
@@ -468,10 +471,8 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
                  frames_consumed_on_sink_thread_);
     total_frames_consumed_by_sink_ += non_silence_frames_consumed;
     frames_consumed_by_sink_since_last_get_current_time_ +=
-        non_silence_frames_consumed;
-    if (non_silence_frames_consumed != 0) {
-      frames_consumed_set_at_ = system_time_on_consume_frames;
-    }
+        frames_consumed_on_sink_thread_;
+    frames_consumed_set_at_ = system_time_on_consume_frames;
     consume_frames_called_ = true;
     frames_consumed_on_sink_thread_ = 0;
   }
@@ -495,7 +496,7 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
   }
 }
 
-void AudioRendererPcm::OnFirstOutput(
+void AudioRendererTunnel::OnFirstOutput(
     const SbMediaAudioSampleType decoded_sample_type,
     const SbMediaAudioFrameStorageType decoded_storage_type,
     const int decoded_sample_rate) {
@@ -535,12 +536,12 @@ void AudioRendererPcm::OnFirstOutput(
   }
 }
 
-bool AudioRendererPcm::IsEndOfStreamPlayed_Locked() const {
+bool AudioRendererTunnel::IsEndOfStreamPlayed_Locked() const {
   return eos_state_ >= kEOSSentToSink &&
          total_frames_sent_to_sink_ == total_frames_consumed_by_sink_;
 }
 
-void AudioRendererPcm::OnDecoderConsumed() {
+void AudioRendererTunnel::OnDecoderConsumed() {
   SB_DCHECK(BelongsToCurrentThread());
 
   // TODO: Unify EOS and non EOS request once WriteEndOfStream() depends on
@@ -552,7 +553,7 @@ void AudioRendererPcm::OnDecoderConsumed() {
   }
 }
 
-void AudioRendererPcm::OnDecoderOutput() {
+void AudioRendererTunnel::OnDecoderOutput() {
   SB_DCHECK(BelongsToCurrentThread());
 
   ++pending_decoder_outputs_;
@@ -565,7 +566,7 @@ void AudioRendererPcm::OnDecoderOutput() {
   ProcessAudioData();
 }
 
-void AudioRendererPcm::ProcessAudioData() {
+void AudioRendererTunnel::ProcessAudioData() {
   SB_DCHECK(BelongsToCurrentThread());
 
   process_audio_data_job_token_.ResetToInvalid();
@@ -667,7 +668,7 @@ void AudioRendererPcm::ProcessAudioData() {
   }
 }
 
-bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
+bool AudioRendererTunnel::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(is_frame_buffer_full);
 
@@ -737,7 +738,7 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 }
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-void AudioRendererPcm::CheckAudioSinkStatus() {
+void AudioRendererTunnel::CheckAudioSinkStatus() {
   SB_DCHECK(BelongsToCurrentThread());
 
   // Check if sink callbacks are called too frequently.
@@ -766,7 +767,7 @@ void AudioRendererPcm::CheckAudioSinkStatus() {
                      << sink_callbacks_since_last_check
                      << " callbacks since last check.";
   }
-  Schedule(std::bind(&AudioRendererPcm::CheckAudioSinkStatus, this),
+  Schedule(std::bind(&AudioRendererTunnel::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
 }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
