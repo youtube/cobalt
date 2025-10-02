@@ -70,7 +70,7 @@ class PlayerWorker {
         return HandlerResult(error_message);
       }
 
-      bool success() const { return error_message_.empty(); }
+      bool ok() const { return error_message_.empty(); }
       std::string_view error_message() { return error_message_; }
 
      private:
