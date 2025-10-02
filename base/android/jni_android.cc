@@ -71,7 +71,7 @@ bool shouldAddCobaltPrefix() {
 std::string GetFirstLine(const std::string& stack_trace) {
   std::stringstream ss(stack_trace);
   std::string first_line;
-  std::getline(ss, first_line); // std::getline reads until it hits a newline
+  std::getline(ss, first_line);
   return first_line;
 }
 
@@ -84,10 +84,10 @@ std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const siz
 
     while (it != end && all_matches.size() < max_matches) {
         std::smatch match = *it;
-        
+
         // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
         all_matches.push_back(match[0].str());
-        
+
         ++it; // Move to the next match
     }
 
@@ -101,7 +101,7 @@ std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const siz
 
     return oss.str();
 }
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 
 ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
 #if BUILDFLAG(IS_COBALT)
@@ -384,7 +384,9 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
       std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
       base::android::SetJavaException(exception_info.c_str());
-      exception_token = GetFirstLine(exception_info) + " @ " + FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
+      exception_token =
+          GetFirstLine(exception_info) + " @ " +
+          FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
 #else
       // RVO should avoid any extra copies of the exception string.
       base::android::SetJavaException(
