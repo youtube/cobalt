@@ -554,6 +554,11 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(EXIT_FAILURE);
   }
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  PrintToStderr(
+      "Calling _exit(EXIT_FAILURE). Core file will not be generated.\n");
+  _exit(EXIT_FAILURE);
+#else
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   // Set an alarm to trigger in case the default handler does not terminate
   // the process. See 'AlarmSignalHandler' for more details.
@@ -605,6 +610,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   if (raise(signal) != 0) {
     _exit(EXIT_FAILURE);
   }
+#endif
 }
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {

@@ -138,6 +138,7 @@ bool SetCurrentThreadTypeForPlatform(ThreadType thread_type,
 
 std::optional<ThreadPriorityForTest>
 GetCurrentThreadPriorityForPlatformForTest() {
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   int maybe_sched_rr = 0;
   struct sched_param maybe_realtime_prio = {0};
   if (pthread_getschedparam(pthread_self(), &maybe_sched_rr,
@@ -147,6 +148,7 @@ GetCurrentThreadPriorityForPlatformForTest() {
           PlatformThreadLinux::kRealTimeAudioPrio.sched_priority) {
     return std::make_optional(ThreadPriorityForTest::kRealtimeAudio);
   }
+#endif
   return std::nullopt;
 }
 
@@ -268,6 +270,7 @@ void SetThreadTypeLinux(ProcessId process_id,
     syscall_tid = kInvalidThreadId;
   }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   if (thread_type == ThreadType::kRealtimeAudio) {
     if (sched_setscheduler(syscall_tid.raw(), SCHED_RR,
                            &PlatformThreadLinux::kRealTimeAudioPrio) == 0) {
@@ -276,6 +279,7 @@ void SetThreadTypeLinux(ProcessId process_id,
     // If failed to set to RT, fallback to setpriority to set nice value.
     DPLOG(ERROR) << "Failed to set realtime priority for thread " << thread_id;
   }
+#endif
 
   const int nice_setting = ThreadTypeToNiceValue(thread_type);
   if (setpriority(PRIO_PROCESS, static_cast<id_t>(syscall_tid.raw()),

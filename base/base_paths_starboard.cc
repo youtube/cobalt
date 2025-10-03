@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/base_paths.h"
+#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "starboard/configuration_constants.h"

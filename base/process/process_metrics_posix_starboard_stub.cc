@@ -36,9 +36,4 @@ void IncreaseFdLimitTo(unsigned int max_descriptors) {
   NOTIMPLEMENTED();
 }
 
-bool Process::CanBackgroundProcesses() {
-  NOTIMPLEMENTED();
-  return false;
-}
-
 }  // namespace base
