@@ -49,6 +49,9 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
+    synthetic_trial_registry_ =
+        std::make_unique<variations::SyntheticTrialRegistry>();
+
     path_override_ = std::make_unique<base::ScopedPathOverride>(
         base::DIR_CACHE, temp_dir_.GetPath());
 
@@ -65,6 +68,7 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
         std::make_unique<CobaltMetricsServicesManagerClient>(&prefs_);
   }
 
+  std::unique_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
   base::test::TaskEnvironment task_environment_;
   TestingPrefServiceSimple prefs_;
   base::ScopedTempDir temp_dir_;
@@ -73,9 +77,7 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
 };
 
 TEST_F(CobaltMetricsServicesManagerClientTest, ConstructorInitializesState) {
-  EXPECT_THAT(manager_client_->GetEnabledStateProvider(), NotNull());
-  EXPECT_FALSE(manager_client_->IsMetricsReportingEnabled());
-  EXPECT_FALSE(manager_client_->IsMetricsConsentGiven());
+  EXPECT_THAT(manager_client_->mutable_enabled_state_provider(), NotNull());
   EXPECT_THAT(manager_client_->metrics_service_client(), IsNull());
 }
 
@@ -83,25 +85,19 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
        IsMetricsReportingEnabledReflectsPref) {
   // Case 1: Pref is false (default from SetUp).
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, false);
-  EXPECT_FALSE(manager_client_->IsMetricsReportingEnabled());
 
   CobaltEnabledStateProvider* provider_false_case =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider_false_case, NotNull());
   EXPECT_FALSE(provider_false_case->IsReportingEnabled());
-  EXPECT_EQ(provider_false_case->IsReportingEnabled(),
-            manager_client_->IsMetricsReportingEnabled());
 
   // Case 2: Pref is true.
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, true);
-  EXPECT_TRUE(manager_client_->IsMetricsReportingEnabled());
 
   CobaltEnabledStateProvider* provider_true_case =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider_true_case, NotNull());
   EXPECT_TRUE(provider_true_case->IsReportingEnabled());
-  EXPECT_EQ(provider_true_case->IsReportingEnabled(),
-            manager_client_->IsMetricsReportingEnabled());
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
@@ -109,25 +105,19 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   // IsMetricsConsentGiven now mirrors IsMetricsReportingEnabled.
   // Case 1: Pref is false.
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, false);
-  EXPECT_FALSE(manager_client_->IsMetricsConsentGiven());
 
   CobaltEnabledStateProvider* provider_false_case =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider_false_case, NotNull());
   EXPECT_FALSE(provider_false_case->IsConsentGiven());
-  EXPECT_EQ(provider_false_case->IsConsentGiven(),
-            manager_client_->IsMetricsConsentGiven());
 
   // Case 2: Pref is true.
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, true);
-  EXPECT_TRUE(manager_client_->IsMetricsConsentGiven());
 
   CobaltEnabledStateProvider* provider_true_case =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider_true_case, NotNull());
   EXPECT_TRUE(provider_true_case->IsConsentGiven());
-  EXPECT_EQ(provider_true_case->IsConsentGiven(),
-            manager_client_->IsMetricsConsentGiven());
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
@@ -139,13 +129,8 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
       metrics::switches::kForceEnableMetricsReporting);
 
-  EXPECT_TRUE(manager_client_->IsMetricsReportingEnabled())
-      << "Should be true due to command-line override.";
-  EXPECT_TRUE(manager_client_->IsMetricsConsentGiven())
-      << "Should be true due to command-line override.";
-
   CobaltEnabledStateProvider* provider =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider, NotNull());
   EXPECT_TRUE(provider->IsReportingEnabled());
   EXPECT_TRUE(provider->IsConsentGiven());
@@ -153,8 +138,6 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   // Clean up the switch for other tests.
   base::CommandLine::ForCurrentProcess()->RemoveSwitch(
       metrics::switches::kForceEnableMetricsReporting);
-  EXPECT_FALSE(manager_client_->IsMetricsReportingEnabled())
-      << "Should be false again after removing override.";
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
@@ -198,7 +181,7 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   ASSERT_THAT(manager_client_->GetMetricsStateManager(), NotNull());
 
   std::unique_ptr<::metrics::MetricsServiceClient> metrics_service_client =
-      manager_client_->CreateMetricsServiceClient();
+      manager_client_->CreateMetricsServiceClient(synthetic_trial_registry_.get());
 
   EXPECT_THAT(metrics_service_client, NotNull());
   EXPECT_THAT(
@@ -212,12 +195,12 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
 TEST_F(CobaltMetricsServicesManagerClientTest,
        CreateMetricsServiceClientCanBeCalledMultipleTimes) {
   std::unique_ptr<::metrics::MetricsServiceClient> client1 =
-      manager_client_->CreateMetricsServiceClient();
+      manager_client_->CreateMetricsServiceClient(synthetic_trial_registry_.get());
   ASSERT_THAT(client1, NotNull());
   EXPECT_EQ(client1.get(), manager_client_->metrics_service_client());
 
   std::unique_ptr<::metrics::MetricsServiceClient> client2 =
-      manager_client_->CreateMetricsServiceClient();
+      manager_client_->CreateMetricsServiceClient(synthetic_trial_registry_.get());
   ASSERT_THAT(client2, NotNull());
   EXPECT_NE(client1.get(), client2.get());
   EXPECT_EQ(client2.get(), manager_client_->metrics_service_client());
@@ -225,7 +208,7 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
        CreateVariationsServiceReturnsNullAndDoesNotCrash) {
-  EXPECT_THAT(manager_client_->CreateVariationsService(), IsNull());
+  EXPECT_THAT(manager_client_->CreateVariationsService(synthetic_trial_registry_.get()), IsNull());
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
@@ -233,7 +216,7 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   // Case 1: Pref is false.
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, false);
   CobaltEnabledStateProvider* provider_false_case =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider_false_case, NotNull());
   EXPECT_FALSE(provider_false_case->IsConsentGiven());
   EXPECT_FALSE(provider_false_case->IsReportingEnabled());
@@ -241,14 +224,14 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   // Case 2: Pref is true.
   prefs_.SetBoolean(metrics::prefs::kMetricsReportingEnabled, true);
   CobaltEnabledStateProvider* provider_true_case =
-      manager_client_->GetEnabledStateProvider();
+      manager_client_->mutable_enabled_state_provider();
   ASSERT_THAT(provider_true_case, NotNull());
   EXPECT_TRUE(provider_true_case->IsConsentGiven());
   EXPECT_TRUE(provider_true_case->IsReportingEnabled());
 
   // Check that multiple calls return the same provider instance for a given
   // manager_client.
-  EXPECT_EQ(provider_true_case, manager_client_->GetEnabledStateProvider());
+  EXPECT_EQ(provider_true_case, manager_client_->mutable_enabled_state_provider());
 }
 
 }  // namespace cobalt
