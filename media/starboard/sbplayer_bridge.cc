@@ -823,11 +823,8 @@ void SbPlayerBridge::CreatePlayer() {
   }
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
   decode_target_provider_->SetOutputMode(
-
       ToVideoFrameProviderOutputMode(output_mode_));
-
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   UpdateBounds();
