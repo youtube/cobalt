@@ -116,7 +116,7 @@ source_set("utility") {
       "//media/mojo/services",
       "//services/network:network_sandbox_hook",
     ]
-    if (use_linux_video_acceleration) {
+    if (use_linux_video_acceleration && !is_cobalt_hermetic_build) {
       deps += [
         "//gpu/config",
         "//third_party/angle:angle_gpu_info_util",
