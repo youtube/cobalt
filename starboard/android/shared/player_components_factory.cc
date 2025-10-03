@@ -227,7 +227,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
       } else {
-        return Unexpected("Failed to create video decoder.");
+        return Unexpected("Failed to create video decoder: " + error_message);
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
