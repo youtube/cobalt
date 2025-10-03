@@ -32,7 +32,6 @@
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
-#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -186,7 +185,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const std::unique_ptr<MediaLog> media_log_;
-  SbPlayerSetBoundsHelper set_bounds_helper_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
   const TimeDelta audio_write_duration_local_;

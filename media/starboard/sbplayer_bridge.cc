@@ -44,6 +44,8 @@
 
 namespace media {
 
+base::AtomicSequenceNumber s_z_index;
+
 namespace {
 
 using base::Time;
@@ -163,7 +165,6 @@ SbPlayerBridge::SbPlayerBridge(
     const std::string& url,
     SbWindow window,
     Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
@@ -177,7 +178,6 @@ SbPlayerBridge::SbPlayerBridge(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       window_(window),
       host_(host),
-      set_bounds_helper_(set_bounds_helper),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif
@@ -188,7 +188,6 @@ SbPlayerBridge::SbPlayerBridge(
       pipeline_identifier_(pipeline_identifier),
       is_url_based_(true) {
   DCHECK(host_);
-  DCHECK(set_bounds_helper_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
 
@@ -215,7 +214,6 @@ SbPlayerBridge::SbPlayerBridge(
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -236,7 +234,6 @@ SbPlayerBridge::SbPlayerBridge(
       window_(window),
       drm_system_(drm_system),
       host_(host),
-      set_bounds_helper_(set_bounds_helper),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -262,7 +259,6 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
-  DCHECK(set_bounds_helper_);
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -296,7 +292,6 @@ SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayerBridge(NULL);
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -381,10 +376,10 @@ void SbPlayerBridge::WriteBuffers(
                                            &video_stream_info_);
 }
 
-void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
+void SbPlayerBridge::SetBounds(const gfx::Rect& rect) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  set_bounds_z_index_ = z_index;
+  set_bounds_z_index_ = s_z_index.GetNext();
   set_bounds_rect_ = rect;
 
   if (state_ == kSuspended) {
@@ -597,8 +592,6 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayerBridge(NULL);
-
   PlayerInfo info{&cached_video_frames_decoded_, &cached_video_frames_dropped_,
                   nullptr, nullptr, &preroll_timestamp_};
   GetInfo(&info);
@@ -725,10 +718,10 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
     LOG(INFO) << "Playing in punch-out mode.";
   }
 
+#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-
-  set_bounds_helper_->SetPlayerBridge(this);
+#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   UpdateBounds();
 }
@@ -825,10 +818,12 @@ void SbPlayerBridge::CreatePlayer() {
   }
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+
   decode_target_provider_->SetOutputMode(
+
       ToVideoFrameProviderOutputMode(output_mode_));
+
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  set_bounds_helper_->SetPlayerBridge(this);
 
   UpdateBounds();
 }

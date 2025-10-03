@@ -130,7 +130,6 @@ StarboardRenderer::StarboardRenderer(
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
-      set_bounds_helper_(task_runner_.get()),
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
@@ -479,7 +478,9 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
-  set_bounds_helper_.SetBounds(output_rect);
+  if (player_bridge_) {
+    player_bridge_->SetBounds(output_rect);
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -580,7 +581,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       audio_config, audio_mime_type, video_config, video_mime_type,
       // TODO(b/326497953): Support suspend/resume.
       // TODO(b/326508279): Support background mode.
-      kSbWindowInvalid, drm_system_, this, &set_bounds_helper_,
+      kSbWindowInvalid, drm_system_, this,
       // TODO(b/326497953): Support suspend/resume.
       false,
       // TODO(b/326825450): Revisit 360 videos.
