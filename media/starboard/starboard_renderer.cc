@@ -478,8 +478,9 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
+  output_rect_ = output_rect;
   if (player_bridge_) {
-    player_bridge_->SetBounds(output_rect);
+    player_bridge_->SetBounds(*output_rect_);
   }
 }
 
@@ -631,6 +632,10 @@ void StarboardRenderer::CreatePlayerBridge() {
 
     player_bridge_->SetPlaybackRate(playback_rate_);
     player_bridge_->SetVolume(volume_);
+
+    if (output_rect_) {
+      player_bridge_->SetBounds(*output_rect_);
+    }
 
     state_ = STATE_FLUSHED;
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
