@@ -47,10 +47,6 @@
 // Linux/ChromeOS and the BUILD.gn dependencies correctly account for that.
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "base/starboard/linker_stub.h"
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
 #endif
