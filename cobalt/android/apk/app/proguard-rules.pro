@@ -69,3 +69,7 @@
 # Keeps debugging information for stack traces for the ENTIRE app.
 # Without this dev.cobalt.coat.CobaltActivity.onStart() will be renamed to a.b.c.a()
 -keepattributes SourceFile,LineNumberTable
+
+# add to keep cronet classes as reflection is used to load cronet library.
+# without this, CronetProvider will fail on Kimono
+-keep class org.chromium.net.impl.NativeCronetProvider { *; }

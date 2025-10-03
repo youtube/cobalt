@@ -22,15 +22,17 @@ import("//url/features.gni")
 _templates_dir = "$target_gen_dir/templates"
 _gn_path = "//buildtools/linux64/gn"
 
-assert(!is_component_build)
-assert(is_cronet_build)
-
 declare_args() {
   # In integrated mode, CronetEngine will use the shared network task runner by
   # other Chromium-based clients like webview without self-initialization.
   # Besides, the native library would be compiled and loaded together with the
   # native library of host. This mode is only for Android.
   integrated_mode = false
+}
+
+if (!integrated_mode) {
+  assert(!is_component_build)
+  assert(is_cronet_build)
 }
 
 buildflag_header("buildflags") {

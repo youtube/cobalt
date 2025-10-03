@@ -43,6 +43,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.util.BlockingHolder;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
@@ -59,6 +60,7 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.CronetEngine;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -90,12 +92,18 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  protected Boolean shouldSetJNIPrefix = true;
   // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
   protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private String diagnosticFinishReason = "Unknown";
+
+  private static BlockingHolder<CronetEngine.Builder> mCronetEngineHolder;
+
+  // This is set by Kimono 's MainActivity very earlier. CoAT does not set it.
+  protected static void setCronetEngineHolder(BlockingHolder<CronetEngine.Builder> holder) {
+    mCronetEngineHolder = holder;
+  }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -109,7 +117,7 @@ public abstract class CobaltActivity extends Activity {
       }
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(), commandLineArgs));
+              VersionInfo.isOfficialBuild(), commandLineArgs));
     }
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
@@ -188,6 +196,11 @@ public abstract class CobaltActivity extends Activity {
                   }
                 }
                 Log.i(TAG, "Browser process init succeeded");
+                if (mCronetEngineHolder != null) {
+                  mCronetEngineHolder.set(new CronetEngine.Builder(CobaltActivity.this));
+                } else {
+                  Log.w(TAG, "mCronetEngineHolder is null! Kimono Android messages could be broken.");
+                }
                 finishInitialization(savedInstanceState);
 
                 if (isFinishing() || isDestroyed()) {
@@ -210,6 +223,11 @@ public abstract class CobaltActivity extends Activity {
 
               @Override
               public void onFailure() {
+                if (mCronetEngineHolder != null) {
+                  // Do not break Kimono initialization.
+                  mCronetEngineHolder.set(null);
+                }
+
                 if (isFinishing() || isDestroyed()) {
                   if ("ON_BACK_PRESSED".equals(diagnosticFinishReason)) {
                     throw new RuntimeException("Finish reason: ON_BACK_PRESSED");
