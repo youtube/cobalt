@@ -62,20 +62,21 @@ namespace starboard {
 //     }
 //   }
 //
-// For improved readability, you can also use the static factory methods:
+// For improved readability, you can also use the helper functions:
 //
 //   Expected<int> GetPositive(int n) {
 //     if (n > 0) {
+//       // `return Success(n)` would also work.
 //       return n;
 //     }
-//     return Expected<int>::Failure("Number must be positive");
+//     return Failure("Number must be positive");
 //   }
 //
 //   Expected<void> CheckSystem() {
 //     if (/* system is ok */) {
 //       return Success();
 //     }
-//     return Expected<void>::Failure("System check failed");
+//     return Failure("System check failed");
 //   }
 
 // A simple wrapper for error messages to disambiguate from success types.
@@ -88,14 +89,6 @@ struct Unexpected {
 template <typename T>
 class Expected {
  public:
-  template <typename U>
-  static Expected<T> Success(U&& value) {
-    return Expected(std::forward<U>(value));
-  }
-  static Expected<T> Failure(std::string_view error_message) {
-    return Unexpected(error_message);
-  }
-
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
@@ -142,11 +135,6 @@ class Expected {
 template <>
 class Expected<void> {
  public:
-  static Expected<void> Success() { return Expected(); }
-  static Expected<void> Failure(std::string_view error_message) {
-    return Unexpected(error_message);
-  }
-
   Expected() : storage_() {}
   Expected(Unexpected error) : storage_(std::move(error)) {}
 
@@ -176,9 +164,18 @@ class Expected<void> {
   std::variant<std::monostate, Unexpected> storage_;
 };
 
-// Helper function for creating a success Expected<void> value.
+// Helper functions for creating success and failure Expected values.
+template <typename T>
+inline Expected<T> Success(T&& value) {
+  return {std::forward<T>(value)};
+}
+
 inline Expected<void> Success() {
   return {};
+}
+
+inline Unexpected Failure(std::string_view error_message) {
+  return Unexpected(error_message);
 }
 
 }  // namespace starboard

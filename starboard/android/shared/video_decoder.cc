@@ -759,8 +759,7 @@ Expected<void> MediaCodecVideoDecoder::InitializeCodec(
     return Success();
   }
   media_decoder_.reset();
-  return Unexpected("Media Decoder is not valid." +
-                    (error_message.empty() ? "" : " " + error_message));
+  return Unexpected("Media Decoder is not valid.");
 }
 
 void MediaCodecVideoDecoder::TeardownCodec() {

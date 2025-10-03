@@ -221,8 +221,8 @@ void PlayerWorker::DoInit() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   Handler::UpdatePlayerErrorCB update_player_error_cb;
-  update_player_error_cb = std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
-                                     HandlerResult::Failure(""), _2);
+  update_player_error_cb =
+      std::bind(&PlayerWorker::UpdatePlayerError, this, _1, Failure(""), _2);
   HandlerResult result = handler_->Init(
       player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),
