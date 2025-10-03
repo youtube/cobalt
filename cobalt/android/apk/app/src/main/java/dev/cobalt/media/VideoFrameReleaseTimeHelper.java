@@ -35,11 +35,11 @@ import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
 import dev.cobalt.util.DisplayUtil;
-import dev.cobalt.util.UsedByNative;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
-@SuppressWarnings("unused")
-@UsedByNative
+@JNINamespace("starboard")
 public final class VideoFrameReleaseTimeHelper {
 
   private static final long CHOREOGRAPHER_SAMPLE_DELAY_MILLIS = 500;
@@ -68,8 +68,7 @@ public final class VideoFrameReleaseTimeHelper {
    * Constructs an instance that smooths frame release timestamps but does not align them with the
    * default display's vsync signal.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public VideoFrameReleaseTimeHelper() {
     this(DisplayUtil.getDefaultDisplayRefreshRate());
   }
@@ -88,8 +87,7 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   /** Enables the helper. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void enable() {
     mHaveSync = false;
     mLastPlaybackRate = -1;
@@ -99,8 +97,7 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   /** Disables the helper. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void disable() {
     if (mUseDefaultDisplayVsync) {
       mVsyncSampler.removeObserver();
@@ -116,8 +113,7 @@ public final class VideoFrameReleaseTimeHelper {
    * @return The adjusted frame release timestamp, in nanoseconds and in the same time base as
    *     {@link System#nanoTime()}.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public long adjustReleaseTime(
       long framePresentationTimeUs, long unadjustedReleaseTimeNs, double playbackRate) {
     if (playbackRate == 0) {
