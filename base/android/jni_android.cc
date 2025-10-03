@@ -389,7 +389,7 @@ void CheckException(JNIEnv* env) {
       std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
       base::android::SetJavaException(exception_info.c_str());
       exception_token =
-          GetFirstLine(exception_info) + " @ " +
+          GetFirstLine(exception_info) + " at " +
           FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
 #else
       // RVO should avoid any extra copies of the exception string.
