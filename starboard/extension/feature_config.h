@@ -133,6 +133,14 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+
+// By default, the media time returned from AudioRendererPcm won't change after
+// audio EOS. Set the following variable to true to allow media time continue
+// advancing after audio EOS.
+STARBOARD_FEATURE(kContinueMediaTimeAfterAudioEOS,
+                  "ContinueMediaTimeAfterAudioEOS",
+                  true)
+
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
