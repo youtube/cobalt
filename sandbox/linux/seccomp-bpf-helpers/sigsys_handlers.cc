@@ -12,7 +12,9 @@
 #include "sandbox/linux/seccomp-bpf-helpers/sigsys_handlers.h"
 
 #include <fcntl.h>
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <linux/net.h>
+#endif
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
