@@ -9,7 +9,7 @@ build = common.build {
   env_vars = super.env_vars + [
     {
       key = 'PLATFORM'
-      value = 'evergreen-x64-sbversion-17'
+      value = 'evergreen-arm-hardfp-raspi-sbversion-17'
     },
     {
       key = 'TARGET'
@@ -17,11 +17,19 @@ build = common.build {
     },
     {
       key = 'TARGET_CPU'
-      value = 'target_cpu=\"x64\"'
+      value = 'target_cpu=\"arm\"'
+    },
+    {
+      key = 'TARGET_OS'
+      value = 'target_os=\"linux\"'
     },
     {
       key = 'TARGET_PLATFORM'
-      value = 'evergreen-x64'
+      value = 'evergreen-arm-hardfp-raspi'
+    },
+    {
+      key = 'REGISTRY_IMAGE_NAME'
+      value = 'cobalt-build-evergreen-arm-hardfp-raspi'
     },
   ]
 }
