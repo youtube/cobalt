@@ -18,7 +18,6 @@
 #include <string>
 #include <utility>
 
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
@@ -72,6 +71,7 @@ class MockCobaltMetricsLogUploader : public CobaltMetricsLogUploader {
   MOCK_METHOD(void,
               UploadLog,
               (const std::string& compressed_log_data,
+               const metrics::LogMetadata& log_metadata,
                const std::string& log_hash,
                const std::string& log_signature,
                const metrics::ReportingInfo& reporting_info),
@@ -356,7 +356,7 @@ TEST_F(CobaltMetricsServiceClientTest,
   const int kExpectedNetError = 0;
   const bool kExpectedHttps = true;
   const bool kExpectedForceDiscard = false;
-  constexpr base::StringPiece kExpectedGuid = "test-guid-123";
+  constexpr std::string_view kExpectedGuid = "test-guid-123";
 
   EXPECT_CALL(on_upload_complete_mock,
               Run(kExpectedStatusCode, kExpectedNetError, kExpectedHttps,
