@@ -22,6 +22,8 @@
 
 #include "starboard/common/log.h"
 
+namespace starboard {
+
 // This file provides a simple implementation of a value-or-error type, similar
 // to Chromium's `base::expected` or C++23's `std::expected`. It is designed to
 // be a lightweight way to handle return values from functions that can either
@@ -41,14 +43,14 @@
 //   // Function that returns void or an error.
 //   Expected<void> DoSomething() {
 //     if (/* condition */) {
-//       return {};  // Success
+//       return Success();
 //     }
 //     return Unexpected("Failed to do something");
 //   }
 //
 //   void Process() {
 //     Expected<int> result = ParseInt("123");
-//     if (result.ok()) {
+//     if (result) {
 //       SB_LOG(INFO) << "Parsed value: " << result.value();
 //     } else {
 //       SB_LOG(ERROR) << "Error: " << result.error_message();
@@ -64,14 +66,14 @@
 //
 //   Expected<int> GetPositive(int n) {
 //     if (n > 0) {
-//       return Expected<int>::Success(n);
+//       return n;
 //     }
 //     return Expected<int>::Failure("Number must be positive");
 //   }
 //
 //   Expected<void> CheckSystem() {
 //     if (/* system is ok */) {
-//       return Expected<void>::Success();
+//       return Success();
 //     }
 //     return Expected<void>::Failure("System check failed");
 //   }
@@ -173,5 +175,12 @@ class Expected<void> {
  private:
   std::variant<std::monostate, Unexpected> storage_;
 };
+
+// Helper function for creating a success Expected<void> value.
+inline Expected<void> Success() {
+  return {};
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_COMMON_EXPECTED_H_

@@ -400,9 +400,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (video_codec_ != kSbMediaVideoCodecAv1) {
-    if (!InitializeCodec(video_stream_info, error_message)) {
-      *error_message =
-          "Failed to initialize video decoder with error: " + *error_message;
+    auto result = InitializeCodec(video_stream_info);
+    if (!result) {
+      *error_message = "Failed to initialize video decoder with error: " +
+                       result.error_message();
       SB_LOG(ERROR) << *error_message;
       TeardownCodec();
     }
@@ -508,11 +509,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     // Re-initialize the codec now if it was torn down either in |Reset| or
     // because we need to change the color metadata.
     if (video_codec_ != kSbMediaVideoCodecAv1 && media_decoder_ == NULL) {
-      std::string error_message;
-      if (!InitializeCodec(input_buffers.front()->video_stream_info(),
-                           &error_message)) {
-        error_message =
-            "Failed to reinitialize codec with error: " + error_message;
+      auto result = InitializeCodec(input_buffers.front()->video_stream_info());
+      if (!result) {
+        std::string error_message =
+            "Failed to reinitialize codec with error: " +
+            result.error_message();
         SB_LOG(ERROR) << error_message;
         TeardownCodec();
         ReportError(kSbPlayerErrorDecode, error_message);
@@ -539,11 +540,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       decoder_status_cb_(kNeedMoreInput, NULL);
       return;
     }
-    std::string error_message;
-    if (!InitializeCodec(pending_input_buffers_.front()->video_stream_info(),
-                         &error_message)) {
-      error_message =
-          "Failed to reinitialize codec with error: " + error_message;
+    auto result =
+        InitializeCodec(pending_input_buffers_.front()->video_stream_info());
+    if (!result) {
+      std::string error_message =
+          "Failed to reinitialize codec with error: " + result.error_message();
       SB_LOG(ERROR) << error_message;
       TeardownCodec();
       ReportError(kSbPlayerErrorDecode, error_message);
@@ -578,11 +579,11 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     SB_DCHECK_EQ(pending_input_buffers_.size(),
                  static_cast<size_t>(input_buffer_written_));
 
-    std::string error_message;
-    if (!InitializeCodec(pending_input_buffers_.front()->video_stream_info(),
-                         &error_message)) {
-      error_message =
-          "Failed to reinitialize codec with error: " + error_message;
+    auto result =
+        InitializeCodec(pending_input_buffers_.front()->video_stream_info());
+    if (!result) {
+      std::string error_message =
+          "Failed to reinitialize codec with error: " + result.error_message();
       SB_LOG(ERROR) << error_message;
       TeardownCodec();
       ReportError(kSbPlayerErrorDecode, error_message);
@@ -640,11 +641,9 @@ void MediaCodecVideoDecoder::Reset() {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
-bool MediaCodecVideoDecoder::InitializeCodec(
-    const VideoStreamInfo& video_stream_info,
-    std::string* error_message) {
+Expected<void> MediaCodecVideoDecoder::InitializeCodec(
+    const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
@@ -694,14 +693,12 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
       if (!decode_target_graphics_context_provider_) {
-        *error_message = "Invalid decode target graphics context provider.";
-        return false;
+        return Unexpected("Invalid decode target graphics context provider.");
       }
       DecodeTarget* decode_target =
           new DecodeTarget(decode_target_graphics_context_provider_);
       if (!SbDecodeTargetIsValid(decode_target)) {
-        *error_message = "Could not acquire a decode target from provider.";
-        return false;
+        return Unexpected("Could not acquire a decode target from provider.");
       }
       j_output_surface = decode_target->surface();
 
@@ -717,8 +714,7 @@ bool MediaCodecVideoDecoder::InitializeCodec(
     } break;
   }
   if (!j_output_surface) {
-    *error_message = "Video surface does not exist.";
-    return false;
+    return Unexpected("Video surface does not exist.");
   }
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
@@ -734,6 +730,7 @@ bool MediaCodecVideoDecoder::InitializeCodec(
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
                      &max_width, &max_height);
 
+  std::string error_message;
   media_decoder_ = std::make_unique<MediaCodecDecoder>(
       this, video_stream_info.codec, video_stream_info.frame_size.width,
       video_stream_info.frame_size.height, max_width, max_height, video_fps_,
@@ -742,7 +739,7 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, error_message);
+      max_video_input_size_, flush_delay_usec_, &error_message);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(
@@ -759,11 +756,11 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       WriteInputBuffersInternal(pending_input_buffers_);
       pending_input_buffers_.clear();
     }
-    return true;
+    return Success();
   }
   media_decoder_.reset();
-  *error_message = "Media Decoder is not valid.";
-  return false;
+  return Unexpected("Media Decoder is not valid." +
+                    (error_message.empty() ? "" : " " + error_message));
 }
 
 void MediaCodecVideoDecoder::TeardownCodec() {
@@ -848,8 +845,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
-    // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
-    // to the renderer again.  Schedule a task to check back.
+    // possible that the VideoDecoder won't get a chance to send
+    // kNeedMoreInput to the renderer again.  Schedule a task to check back.
     Schedule(
         std::bind(&MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput,
                   this),
@@ -905,10 +902,10 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     ++decoded_output_frames_;
     if (output_format_) {
       ++buffered_output_frames_;
-      // We have to wait until we feed enough inputs to the decoder and receive
-      // enough outputs before update |max_buffered_output_frames_|. Otherwise,
-      // |max_buffered_output_frames_| may be updated to a very small number
-      // when we receive the first few outputs.
+      // We have to wait until we feed enough inputs to the decoder and
+      // receive enough outputs before update |max_buffered_output_frames_|.
+      // Otherwise, |max_buffered_output_frames_| may be updated to a very
+      // small number when we receive the first few outputs.
       if (decoded_output_frames_ > kInitialPrerollFrameCount &&
           buffered_output_frames_ > max_buffered_output_frames_) {
         max_buffered_output_frames_ = buffered_output_frames_;
@@ -938,10 +935,10 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
     return;
   }
   if (first_output_format_changed_) {
-    // After resolution changes, the output buffers may have frames of different
-    // resolutions. In that case, it's hard to determine the max supported
-    // output buffers. So, we reset |output_format_| to null here to skip max
-    // output buffers check.
+    // After resolution changes, the output buffers may have frames of
+    // different resolutions. In that case, it's hard to determine the max
+    // supported output buffers. So, we reset |output_format_| to null here to
+    // skip max output buffers check.
     output_format_ = std::nullopt;
     return;
   }
@@ -959,8 +956,8 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
 }
 
 bool MediaCodecVideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
-  // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
-  // here.
+  // Tunnel mode renders frames in MediaCodec automatically and shouldn't
+  // reach here.
   SB_DCHECK_EQ(tunnel_mode_audio_session_id_, -1);
   return sink_->Render();
 }
@@ -1009,8 +1006,8 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
     const Size& size,
     const float* matrix4x4) {
   // Ensure that this matrix contains no rotations or shears.  In other words,
-  // make sure that we can convert it to a decode target content region without
-  // losing any information.
+  // make sure that we can convert it to a decode target content region
+  // without losing any information.
   SB_DCHECK_EQ(matrix4x4[1], 0.0f);
   SB_DCHECK_EQ(matrix4x4[2], 0.0f);
   SB_DCHECK_EQ(matrix4x4[3], 0.0f);
@@ -1061,11 +1058,12 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
 
 }  // namespace
 
-// When in decode-to-texture mode, this returns the current decoded video frame.
+// When in decode-to-texture mode, this returns the current decoded video
+// frame.
 SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
-  // We must take a lock here since this function can be called from a separate
-  // thread.
+  // We must take a lock here since this function can be called from a
+  // separate thread.
   std::lock_guard lock(decode_target_mutex_);
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
@@ -1101,9 +1099,9 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           frame_size.texture_size, matrix4x4);
       decode_target_->set_content_region(content_region);
 
-      // Now we have two crop rectangles, one from the MediaFormat, one from the
-      // transform of the surface texture.  Their sizes should match.
-      // Note that we cannot compare individual corners directly, as the values
+      // Now we have two crop rectangles, one from the MediaFormat, one from
+      // the transform of the surface texture.  Their sizes should match. Note
+      // that we cannot compare individual corners directly, as the values
       // retrieving from the surface texture can be flipped.
       int content_region_width =
           std::abs(content_region.left - content_region.right) + 1;
@@ -1144,16 +1142,16 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 
   SB_DCHECK(!frame_sizes_.empty());
   if (frame_sizes_.empty()) {
-    // This should never happen.  Appending a default value so it aligns to the
-    // legacy behavior, where a single value (instead of an std::vector<>) is
-    // used.
+    // This should never happen.  Appending a default value so it aligns to
+    // the legacy behavior, where a single value (instead of an std::vector<>)
+    // is used.
     frame_sizes_.resize(1);
   }
 
-  // The legacy logic works when the crop rectangle has the same aspect ratio as
-  // the video texture, which is true for most of the playbacks.
-  // Leaving the legacy logic in place in case the new logic above doesn't work
-  // on some devices, so at least the majority of playbacks still work.
+  // The legacy logic works when the crop rectangle has the same aspect ratio
+  // as the video texture, which is true for most of the playbacks. Leaving
+  // the legacy logic in place in case the new logic above doesn't work on
+  // some devices, so at least the majority of playbacks still work.
   decode_target_->set_dimension(frame_sizes_.back().display_size());
 
   float matrix4x4[16];
@@ -1177,10 +1175,11 @@ void MediaCodecVideoDecoder::OnNewTextureAvailable() {
 void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
   if (tunnel_mode_prerolling_.exchange(false)) {
     SB_LOG(ERROR) << "Tunnel mode preroll finished.";
-    // TODO: Currently the decoder sends a dummy frame to the renderer to signal
-    //       preroll finish.  We should investigate a better way for prerolling
-    //       when the video is rendered directly by the decoder, maybe by always
-    //       sending placeholder frames.
+    // TODO: Currently the decoder sends a dummy frame to the renderer to
+    // signal
+    //       preroll finish.  We should investigate a better way for
+    //       prerolling when the video is rendered directly by the decoder,
+    //       maybe by always sending placeholder frames.
     decoder_status_cb_(kNeedMoreInput,
                        new VideoFrame(video_frame_tracker_->seek_to_time()));
   }
