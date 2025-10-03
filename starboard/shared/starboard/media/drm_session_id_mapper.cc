@@ -60,18 +60,14 @@ std::string DrmSessionIdMapper::GetBridgeCdmSessionId() {
   return bridge_session_id_map_->cdm_id;
 }
 
-void DrmSessionIdMapper::RegisterMediaDrmSessionIdIfNotSet(
-    std::string_view media_drm_session_id) {
-  if (!bridge_session_id_map_.has_value()) {
-    SB_LOG(WARNING) << "Cdm session id is not created. Cannot register media "
-                       "drm session id="
-                    << media_drm_session_id;
-    return;
-  }
-  if (!bridge_session_id_map_->media_drm_id.empty()) {
-    return;
-  }
+bool DrmSessionIdMapper::IsMediaDrmSessionIdForProvisioningRequired() const {
+  return bridge_session_id_map_.has_value() &&
+         bridge_session_id_map_->media_drm_id.empty();
+}
 
+void DrmSessionIdMapper::RegisterMediaDrmSessionIdForProvisioning(
+    std::string_view media_drm_session_id) {
+  SB_CHECK(IsMediaDrmSessionIdForProvisioningRequired());
   bridge_session_id_map_->media_drm_id = media_drm_session_id;
 }
 

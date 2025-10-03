@@ -40,7 +40,9 @@ TEST(DrmSessionIdMapperTest, GetCdmSessionId) {
   std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
 
   const std::string media_drm_session_id = "media_drm_session_id";
-  mapper.RegisterMediaDrmSessionIdIfNotSet(media_drm_session_id);
+  if (mapper.IsMediaDrmSessionIdForProvisioningRequired()) {
+    mapper.RegisterMediaDrmSessionIdForProvisioning(media_drm_session_id);
+  }
 
   EXPECT_EQ(mapper.GetCdmSessionId(media_drm_session_id), cdm_session_id);
 }
@@ -50,7 +52,9 @@ TEST(DrmSessionIdMapperTest, GetMediaDrmSessionId) {
   std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
 
   const std::string media_drm_session_id = "media_drm_session_id";
-  mapper.RegisterMediaDrmSessionIdIfNotSet(media_drm_session_id);
+  if (mapper.IsMediaDrmSessionIdForProvisioningRequired()) {
+    mapper.RegisterMediaDrmSessionIdForProvisioning(media_drm_session_id);
+  }
 
   EXPECT_EQ(mapper.GetMediaDrmSessionId(cdm_session_id), media_drm_session_id);
 }
@@ -62,20 +66,23 @@ TEST(DrmSessionIdMapperTest, GetBridgeCdmSessionIdIsConsistent) {
   EXPECT_EQ(cdm_session_id1, cdm_session_id2);
 }
 
-TEST(DrmSessionIdMapperTest, RegisterMediaDrmSessionIdIfNotSet) {
+TEST(DrmSessionIdMapperTest, IsMediaDrmSessionIdForProvisioningRequired) {
   DrmSessionIdMapper mapper;
+  EXPECT_FALSE(mapper.IsMediaDrmSessionIdForProvisioningRequired());
 
-  // Case 1: Calling before a CDM session is generated should do nothing.
-  mapper.RegisterMediaDrmSessionIdIfNotSet("media_id_1");
+  std::string cdm_id = mapper.GetBridgeCdmSessionId();
+  EXPECT_TRUE(mapper.IsMediaDrmSessionIdForProvisioningRequired());
+
+  mapper.RegisterMediaDrmSessionIdForProvisioning("media_id_1");
+  EXPECT_FALSE(mapper.IsMediaDrmSessionIdForProvisioningRequired());
+}
+
+TEST(DrmSessionIdMapperTest, RegisterMediaDrmSessionIdForProvisioning) {
+  DrmSessionIdMapper mapper;
   std::string cdm_id = mapper.GetBridgeCdmSessionId();
   EXPECT_TRUE(mapper.GetMediaDrmSessionId(cdm_id).empty());
 
-  // Case 2: Successful registration.
-  mapper.RegisterMediaDrmSessionIdIfNotSet("media_id_1");
-  EXPECT_EQ(mapper.GetMediaDrmSessionId(cdm_id), "media_id_1");
-
-  // Case 3: Should not overwrite the existing ID.
-  mapper.RegisterMediaDrmSessionIdIfNotSet("media_id_2");
+  mapper.RegisterMediaDrmSessionIdForProvisioning("media_id_1");
   EXPECT_EQ(mapper.GetMediaDrmSessionId(cdm_id), "media_id_1");
 }
 

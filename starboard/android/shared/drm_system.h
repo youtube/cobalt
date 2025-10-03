@@ -103,8 +103,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
-    void ResetTicket();
-    int ticket() const { return ticket_; }
+    std::optional<int> ConsumeTicket();
 
    private:
     int ticket_;

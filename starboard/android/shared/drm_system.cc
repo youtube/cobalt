@@ -42,6 +42,8 @@ constexpr bool kEnableAppProvisioning = false;
 
 constexpr char kNoUrl[] = "";
 
+constexpr std::chrono::seconds kThreadStartTimeout(10);
+
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
 }  // namespace
@@ -72,7 +74,7 @@ DrmSystem::DrmSystem(
   }
   SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system
                << ", enable_app_provisioning="
-               << (kEnableAppProvisioning ? "true" : "false");
+               << to_string(kEnableAppProvisioning);
 
   Start();
 
@@ -80,9 +82,11 @@ DrmSystem::DrmSystem(
     // Wait for the worker thread to initialize |job_queue_| to ensure it is
     // available before the constructor completes.
     if (std::unique_lock lock(mutex_);
-        !job_queue_created_.wait_for(lock, std::chrono::seconds(1), [this] {
+        !job_queue_created_.wait_for(lock, kThreadStartTimeout, [this] {
           return job_queue_ != nullptr;
         })) {
+      // Crash if the worker thread doesn't initialize in time, as this
+      // indicates a critical failure.
       SB_LOG(FATAL) << "job_queue is not created in time";
     }
   }
@@ -140,8 +144,13 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     std::string_view initialization_data)
     : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
 
-void DrmSystem::SessionUpdateRequest::ResetTicket() {
+std::optional<int> DrmSystem::SessionUpdateRequest::ConsumeTicket() {
+  if (ticket_ == kSbDrmTicketInvalid) {
+    return std::nullopt;
+  }
+  int ticket = ticket_;
   ticket_ = kSbDrmTicketInvalid;
+  return ticket;
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
@@ -157,7 +166,7 @@ DrmSystem::SessionUpdateRequest::GenerateWithAppProvisioning(
   SB_CHECK(kEnableAppProvisioning);
 
   SB_LOG(INFO) << __func__;
-  SB_DCHECK(media_drm_bridge);
+  SB_CHECK(media_drm_bridge);
   return media_drm_bridge->CreateSessionWithAppProvisioning(ticket_, init_data_,
                                                             mime_);
 }
@@ -345,7 +354,9 @@ void DrmSystem::OnSessionUpdate(int ticket,
   std::string_view cdm_session_id;
   if (kEnableAppProvisioning) {
     std::lock_guard lock(mutex_);
-    session_id_mapper_->RegisterMediaDrmSessionIdIfNotSet(session_id);
+    if (session_id_mapper_->IsMediaDrmSessionIdForProvisioningRequired()) {
+      session_id_mapper_->RegisterMediaDrmSessionIdForProvisioning(session_id);
+    }
     cdm_session_id_str = session_id_mapper_->GetCdmSessionId(session_id);
     cdm_session_id = cdm_session_id_str;
   } else {
@@ -367,19 +378,22 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
   {
     std::lock_guard lock(mutex_);
     cdm_session_id = session_id_mapper_->GetBridgeCdmSessionId();
-    SB_DCHECK(!cdm_session_id.empty());
+    SB_CHECK(!cdm_session_id.empty());
 
     // Grabs first valid ticket id from pending requests.
     for (auto& request : deferred_session_update_requests_) {
-      if (request->ticket() == kSbDrmTicketInvalid) {
-        continue;
-      }
-
-      ticket = request->ticket();
       // Provisioning request uses ticket of pending update request.
       // Then pending update request will use kSbDrmTicketInvalid as ticket,
       // which represents the non-app-triggered request.
-      request->ResetTicket();
+      std::optional<int> valid_ticket = request->ConsumeTicket();
+      if (!valid_ticket) {
+        SB_LOG(WARNING)
+            << "Multiple provisioning requests may be in-flight; found "
+            << "a pending session request without a valid ticket.";
+        continue;
+      }
+
+      ticket = *valid_ticket;
       break;
     }
   }
@@ -396,7 +410,7 @@ void DrmSystem::OnKeyStatusChange(
     std::string_view session_id,
     const std::vector<SbDrmKeyId>& drm_key_ids,
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
-  SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
+  SB_CHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
   {
     std::string session_id_str(session_id);
