@@ -95,7 +95,9 @@ class Expected {
   }
 
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible<U, T>::value>>
+            typename = std::enable_if_t<
+                std::is_convertible<U, T>::value &&
+                !std::is_same<std::decay_t<U>, Unexpected>::value>>
   Expected(U&& value) : storage_(std::forward<U>(value)) {}
   Expected(Unexpected error) : storage_(std::move(error)) {}
 
