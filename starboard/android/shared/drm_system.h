@@ -133,10 +133,11 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  std::vector<std::unique_ptr<SessionUpdateRequest>>
-      deferred_session_update_requests_;
-
   std::mutex mutex_;
+
+  std::vector<std::unique_ptr<SessionUpdateRequest>>
+      deferred_session_update_requests_;  // Guarded by |mutex_|.
+
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};

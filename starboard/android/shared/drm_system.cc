@@ -77,6 +77,8 @@ DrmSystem::DrmSystem(
   Start();
 
   if (kEnableAppProvisioning) {
+    // Wait for the worker thread to initialize |job_queue_| to ensure it is
+    // available before the constructor completes.
     if (std::unique_lock lock(mutex_);
         !job_queue_created_.wait_for(lock, std::chrono::seconds(1), [this] {
           return job_queue_ != nullptr;
@@ -129,7 +131,7 @@ DrmSystem::~DrmSystem() {
     job_queue_->StopSoon();
   }
   Join();
-  SB_DCHECK_EQ(job_queue_, nullptr);
+  SB_CHECK(!job_queue_);
 }
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
@@ -252,7 +254,7 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
   MediaDrmBridge::OperationResult result;
   if (media_drm_session_id.empty()) {
     SB_LOG(INFO) << __func__
-                 << " >  Handle the given key as provision response, since "
+                 << " >  Handles the given key as provision response, since "
                     "MediaDrm session is not created yet for "
                  << cdm_session_id;
     result = media_drm_bridge_->ProvideProvisionResponse(key_view);
@@ -278,6 +280,7 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
 
 void DrmSystem::HandlePendingRequests() {
   SB_LOG(INFO) << __func__;
+  SB_CHECK(job_queue_->BelongsToCurrentThread());
   std::unique_ptr<SessionUpdateRequest> request;
   {
     std::lock_guard scoped_lock(mutex_);
