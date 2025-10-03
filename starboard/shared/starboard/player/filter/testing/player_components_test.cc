@@ -92,13 +92,13 @@ class PlayerComponentsTest
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
-          std::move(factory->CreateComponents(creation_parameters).value());
+          factory->CreateComponents(creation_parameters).value();
     } else if (audio_reader_) {
       // Audio only
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info());
       player_components_ =
-          std::move(factory->CreateComponents(creation_parameters).value());
+          factory->CreateComponents(creation_parameters).value();
     } else {
       // Video only
       ASSERT_TRUE(video_reader_);
@@ -109,7 +109,7 @@ class PlayerComponentsTest
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
-          std::move(factory->CreateComponents(creation_parameters).value());
+          factory->CreateComponents(creation_parameters).value();
     }
     ASSERT_TRUE(player_components_);
 

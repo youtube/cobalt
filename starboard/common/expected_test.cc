@@ -61,5 +61,19 @@ TEST(ExpectedTest, MoveFailure) {
   EXPECT_EQ(error, "move me error");
 }
 
+TEST(ExpectedTest, VoidSuccess) {
+  auto expected = Expected<void>::Success();
+
+  EXPECT_TRUE(expected.ok());
+  expected.value();  // Should not crash.
+}
+
+TEST(ExpectedTest, VoidFailure) {
+  auto expected = Expected<void>::Failure("error");
+
+  EXPECT_FALSE(expected.ok());
+  EXPECT_EQ(expected.error_message(), "error");
+}
+
 }  // namespace
 }  // namespace starboard
