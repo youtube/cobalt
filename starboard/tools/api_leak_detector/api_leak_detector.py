@@ -230,6 +230,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'recvmsg',
     'rename',
     'rmdir',
+    'sched_getaffinity',
     'sched_get_priority_max',
     'sched_get_priority_min',
     'sched_yield',
