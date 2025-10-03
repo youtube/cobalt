@@ -442,6 +442,13 @@
 #endif
 #undef PA_IS_LINUX
 
+#if defined(PA_IS_STARBOARD)
+#define PA_BUILDFLAG_INTERNAL_IS_STARBOARD() (1)
+#else
+#define PA_BUILDFLAG_INTERNAL_IS_STARBOARD() (0)
+#endif
+#undef PA_IS_STARBOARD
+
 #if defined(PA_IS_MAC)
 #define PA_BUILDFLAG_INTERNAL_IS_MAC() (1)
 #else
