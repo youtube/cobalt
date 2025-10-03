@@ -377,8 +377,6 @@ void SbPlayerBridge::WriteBuffers(
 void SbPlayerBridge::SetBounds(const gfx::Rect& rect) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  // StaticAtomicSequenceNumber is safe to be initialized statically.
-  //
   // Cobalt renderer renders from back to front, using a monotonically
   // increasing sequence guarantees that all video layers are correctly ordered
   // on z axis.
