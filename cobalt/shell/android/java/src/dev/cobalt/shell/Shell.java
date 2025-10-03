@@ -209,7 +209,8 @@ public class Shell {
         mWebContents = webContents;
         mNavigationController = mWebContents.getNavigationController();
         mWebContents.onShow();
-        mContentViewRenderView.setCurrentWebContents(mWebContents);
+        if (mContentViewRenderView != null)
+            mContentViewRenderView.setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }
@@ -219,7 +220,8 @@ public class Shell {
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
-        mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
+        if (mContentViewRenderView != null)
+            mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
         if (mOverlayModeChangedCallbackForTesting != null) {
             mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
         }

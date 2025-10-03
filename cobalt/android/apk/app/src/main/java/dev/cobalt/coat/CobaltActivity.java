@@ -251,10 +251,18 @@ public abstract class CobaltActivity extends Activity {
             getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
-            Log.i(TAG, "shellManager load url:" + mStartupUrl);
-            mShellManager.getActiveShell().loadUrl(mStartupUrl);
+            Log.i(TAG, "Cobalt: shellManager load url:" + mStartupUrl);
+            mShellManager.getPendingShell().loadUrl(mStartupUrl);
           }
         });
+    mShellManager.getActiveShell().loadUrl("https://serve-dot-zipline.appspot.com/asset/bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/ky255pgvnjb/");
+    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        Log.e(TAG, "Cobalt: show " + mShellManager.getPendingShell());
+        mShellManager.showShell(mShellManager.getPendingShell());
+      }
+    }, 2500);
   }
 
   // Initially copied from ContentShellActiviy.java
