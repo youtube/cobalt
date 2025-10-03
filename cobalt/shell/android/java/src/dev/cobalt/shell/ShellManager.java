@@ -32,6 +32,7 @@ public class ShellManager {
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
+    private Shell mPendingShell;
 
     private String mStartupUrl = DEFAULT_SHELL_URL;
 
@@ -96,6 +97,13 @@ public class ShellManager {
     }
 
     /**
+     * @return The currently visible shell view or null if one is not showing.
+     */
+    public Shell getPendingShell() {
+        return mPendingShell;
+    }
+
+    /**
      * Creates a new shell pointing to the specified URL.
      * @param url The URL the shell should load upon creation.
      */
@@ -114,7 +122,7 @@ public class ShellManager {
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url);
-        if (previousShell != null) previousShell.close();
+        //if (previousShell != null) previousShell.close();
     }
 
     @CalledByNative
@@ -130,15 +138,20 @@ public class ShellManager {
         mNextWebContentsReadyListener = null;
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
-        if (mActiveShell != null) removeShell(mActiveShell);
+        // if (mActiveShell != null) removeShell(mActiveShell);
 
-        showShell(shellView);
+        if (mActiveShell == null) {
+            showShell(shellView);
+        } else {
+            mPendingShell = shellView;
+        }
         return shellView;
     }
 
-    private void showShell(Shell shellView) {
+    public void showShell(Shell shellView) {
         if (mActiveShell != null) {
             mActiveShell.setContentViewRenderView(null);
+            mActiveShell.close();
         }
         shellView.setContentViewRenderView(mContentViewRenderView);
         mActiveShell = shellView;
@@ -150,7 +163,7 @@ public class ShellManager {
     }
 
     @CalledByNative
-    private void removeShell(Shell shellView) {
+    public void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
         shellView.setContentViewRenderView(null);
     }

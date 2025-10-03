@@ -253,9 +253,27 @@ public abstract class CobaltActivity extends Activity {
 
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
-            mShellManager.getActiveShell().loadUrl(mStartupUrl);
+            mShellManager.getPendingShell().loadUrl(mStartupUrl);
+          }
+
+          @Override
+          public void onWebContentsLoaded() {}
+        });
+    mShellManager.getActiveShell().setWebContentsReadyListener(new Shell.OnWebContentsReadyListener() {
+          @Override
+          public void onWebContentsReady() {}
+
+          @Override
+          public void onWebContentsLoaded() {
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+              @Override
+              public void run() {
+                mShellManager.showShell(mShellManager.getPendingShell());
+              }
+            }, 1500);
           }
         });
+    mShellManager.getActiveShell().loadUrl("https://www.gstatic.com/ytlr/splash_screen/youtube_splash_screen_v6.html");
   }
 
   // Initially copied from ContentShellActiviy.java
