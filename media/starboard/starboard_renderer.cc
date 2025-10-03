@@ -479,9 +479,8 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
   output_rect_ = output_rect;
-  if (player_bridge_) {
-    player_bridge_->SetBounds(*output_rect_);
-  }
+
+  ApplyPendingBounds();
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -633,9 +632,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetPlaybackRate(playback_rate_);
     player_bridge_->SetVolume(volume_);
 
-    if (output_rect_) {
-      player_bridge_->SetBounds(*output_rect_);
-    }
+    ApplyPendingBounds();
 
     state_ = STATE_FLUSHED;
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
@@ -652,6 +649,14 @@ void StarboardRenderer::CreatePlayerBridge() {
       "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
       " SbPlayerBridge - \"" +
           error_message + "\""));
+}
+
+void StarboardRenderer::ApplyPendingBounds() {
+  if (!player_bridge_ || !output_rect_) {
+    return;
+  }
+
+  player_bridge_->SetBounds(*output_rect_);
 }
 
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {

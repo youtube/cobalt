@@ -145,6 +145,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   };
 
   void CreatePlayerBridge();
+  void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
@@ -214,7 +215,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // The current overlay info, which possibly specifies an overlay to render to.
   OverlayInfo overlay_info_;
 
-  absl::optional<gfx::Rect> output_rect_;
+  std::optional<gfx::Rect> output_rect_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
