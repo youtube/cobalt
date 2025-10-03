@@ -51,12 +51,6 @@
 
 namespace media {
 
-// StaticAtomicSequenceNumber is safe to be initialized statically.
-//
-// Cobalt renderer renders from back to front, using a monotonically increasing
-// sequence guarantees that all video layers are correctly ordered on z axis.
-extern base::AtomicSequenceNumber s_z_index;
-
 class SbPlayerBridge {
  public:
   class Host {
@@ -308,7 +302,7 @@ class SbPlayerBridge {
   Host* const host_;
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   const bool allow_resume_after_suspend_;
-#endif  // COBALT_MEDIA_ENABLE_SUSpend_RESUME
+#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
   // The following variables are only changed or accessed from the
   // |task_runner_|.

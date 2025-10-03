@@ -44,8 +44,6 @@
 
 namespace media {
 
-base::AtomicSequenceNumber s_z_index;
-
 namespace {
 
 using base::Time;
@@ -378,6 +376,13 @@ void SbPlayerBridge::WriteBuffers(
 
 void SbPlayerBridge::SetBounds(const gfx::Rect& rect) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  // StaticAtomicSequenceNumber is safe to be initialized statically.
+  //
+  // Cobalt renderer renders from back to front, using a monotonically
+  // increasing sequence guarantees that all video layers are correctly ordered
+  // on z axis.
+  static base::AtomicSequenceNumber s_z_index;
 
   set_bounds_z_index_ = s_z_index.GetNext();
   set_bounds_rect_ = rect;
