@@ -62,14 +62,14 @@ TEST(ExpectedTest, MoveFailure) {
 }
 
 TEST(ExpectedTest, VoidSuccess) {
-  auto expected = Expected<void>::Success();
+  Expected<void> expected = Success();
 
   EXPECT_TRUE(expected.ok());
   expected.value();  // Should not crash.
 }
 
 TEST(ExpectedTest, VoidFailure) {
-  auto expected = Expected<void>::Failure("error");
+  Expected<void> expected = Failure("error");
 
   EXPECT_FALSE(expected.ok());
   EXPECT_EQ(expected.error_message(), "error");
