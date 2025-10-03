@@ -49,6 +49,7 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
+    "expected.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
@@ -109,6 +110,7 @@ source_set("common_test") {
   testonly = true
   sources = [
     "drm_test.cc",
+    "expected_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",
