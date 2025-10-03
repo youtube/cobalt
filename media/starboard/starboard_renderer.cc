@@ -607,6 +607,8 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    ApplyPendingBounds();
+
     const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
     switch (output_mode) {
       case kSbPlayerOutputModeDecodeToTexture:
@@ -631,8 +633,6 @@ void StarboardRenderer::CreatePlayerBridge() {
 
     player_bridge_->SetPlaybackRate(playback_rate_);
     player_bridge_->SetVolume(volume_);
-
-    ApplyPendingBounds();
 
     state_ = STATE_FLUSHED;
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
