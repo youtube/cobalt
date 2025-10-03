@@ -1,5 +1,83 @@
 [
   {
+    "hexsha": "a5c475988d67374b73413490d66b822d8e929a4d",
+    "original_hexsha": "12bdb816a67351bf33f33fbbba4c811eba97aae8",
+    "author": "Colin Liang",
+    "datetime": "2025-10-02T16:58:19-07:00",
+    "summary": "android: Preserve Viz components in ProGuard (#7428)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b27a3522d0fcbfcd5ef87729659a9b71006d39ef",
+    "original_hexsha": "e8d30dc43d82f67da2f93e5312f5259a009f26f9",
+    "author": "Austin Osagie",
+    "datetime": "2025-10-02T13:53:30-07:00",
+    "summary": "[android] Update VideoFrameReleaseTimeHelper to JNI Generator (#7430)",
+    "stats": {
+      "files": 4,
+      "insertions": 28,
+      "deletions": 29
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "005962f2ec188d8339eb5cd7c217febdb9b81ee5",
+    "original_hexsha": "be0ba97248ede230eeb6f684c6efa146bbfeef5c",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-02T11:56:15-07:00",
+    "summary": "starboard: Prefer `make_scoped_refptr` to bare `new` for scoped_refptr creation (#7435)",
+    "stats": {
+      "files": 4,
+      "insertions": 10,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "78bedc8a70d00eeed991ac077947b4291f6191aa",
+    "original_hexsha": "d918436ea095425ed3c6d62c72d7be2abc130f65",
+    "author": "Andrew Savage",
+    "datetime": "2025-10-02T13:57:58-04:00",
+    "summary": "Add build and migration instructions for EAP (#7371)",
+    "stats": {
+      "files": 3,
+      "insertions": 102,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "df4a9798b0dc399c48ef2bfb6feea1b1e44316a4",
+    "original_hexsha": "403be732dfd908ce9ab202c3ba47c4eb3dd32cc9",
+    "author": "Miguel Casas",
+    "datetime": "2025-10-02T08:55:32-07:00",
+    "summary": "media/starboard: make SbPlayerSetBoundsHelper not ref-counted (#7092)",
+    "stats": {
+      "files": 5,
+      "insertions": 30,
+      "deletions": 19
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5f0c756a1ce20e1b5d92c88a4e804832fc231eac",
+    "original_hexsha": "5f0c756a1ce20e1b5d92c88a4e804832fc231eac",
+    "author": "Raphael Kubo da Costa",
+    "datetime": "2025-10-02T16:21:42+02:00",
+    "summary": "FakeGraphicsContextProvider: Clean up display initialization code in InitializeEGL() (#7347)",
+    "stats": {
+      "files": 5,
+      "insertions": 53,
+      "deletions": 73
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "636031e52ed5e1bf10e912f5f8096becfc1413e4",
     "original_hexsha": "f14d554f2c7f09ca4542793cf9f50d2925520cfd",
     "author": "Andrew Savage",
