@@ -200,6 +200,17 @@ if (!limit_android_deps) {
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  if (google_play_services_package == "//third_party/android_deps") {
+    android_aar_prebuilt("google_play_services_ads_identifier_java") {
+      aar_path = "cipd/libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-18.1.0.aar"
+      info_path = "libs/com_google_android_gms_play_services_ads_identifier/com_google_android_gms_play_services_ads_identifier.info"
+      enable_bytecode_checks = false
+      deps =
+          [ "$google_play_services_package:google_play_services_basement_java" ]
+    }
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("com_google_ar_impress_java") {
     aar_path = "cipd/libs/com_google_ar_impress/impress-0.0.2.aar"
     info_path = "libs/com_google_ar_impress/com_google_ar_impress.info"
