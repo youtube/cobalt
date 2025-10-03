@@ -8,7 +8,7 @@ Raspberry Pi device.
 Download the latest Cobalt customized Raspbian image from <a
 href="https://storage.googleapis.com/cobalt-static-storage-public/2020-02-13-raspbian-buster-lite_shrunk_20210427.img">GCS bucket</a>
 (this is built via <a
-href="https://github.com/youtube/cobalt/tree/main/cobalt/tools/raspi_image">this
+href="https://github.com/youtube/cobalt/tree/25.lts.1+/cobalt/tools/raspi_image">this
 customization tool</a>)
 
 On MacOS, use an image flashing tool like <a href="https://www.balena.io/etcher/">balenaEtcher</a> to write the image to a 32GB SD-card.
