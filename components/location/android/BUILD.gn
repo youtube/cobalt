@@ -18,11 +18,6 @@ android_library("location_java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//ui/android:ui_no_recycler_view_java",
   ]
-
-  if (is_cobalt) {
-    deps -= [ "//ui/android:ui_no_recycler_view_java" ]
-    deps += [ "//ui/android:cobalt_ui_full_java" ]
-  }
   sources = [ "java/src/org/chromium/components/location/LocationUtils.java" ]
   srcjar_deps = [ ":location_settings_dialog_enums_java" ]
 }
