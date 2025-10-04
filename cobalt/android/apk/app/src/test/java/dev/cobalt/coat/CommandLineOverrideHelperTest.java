@@ -80,6 +80,7 @@ public class CommandLineOverrideHelperTest {
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-back-forward-cache"));
 
         String expected = "no-user-gesture-required";
         String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
