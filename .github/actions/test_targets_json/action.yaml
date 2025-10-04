@@ -4,10 +4,14 @@ runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
-      uses: actions/download-artifact@v4
+      uses: Wandalen/action-retry@ve68c23e6309f2871ca8ae4763e7629b9c258e1ea # 3.8.0
       with:
-        name: ${{ matrix.platform }}_test_targets_json
-        path:
+        action: actions/download-artifact@v4
+        with: |
+          name: ${{ matrix.platform }}_test_targets_json
+          path: .
+        retry_attempts: 3
+        retry_delay: 10000 # 10 seconds
     - name: Test target count
       id: parse-json
       run: |

@@ -75,7 +75,7 @@ _COBALT_TVOS_PLATFORMS = [
 ]
 
 
-def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
+def write_build_args(build_args_path, platform_args_path, build_type, use_rbe, cc_wrapper=None):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
@@ -85,13 +85,15 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
     f.write(
         f'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
+    if cc_wrapper:
+      f.write(f'cc_wrapper = "{cc_wrapper}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
     f.write(f'import("//{platform_args_path}")\n')
 
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
-                            use_rbe: bool, gn_gen_args: List[str]):
+                            use_rbe: bool, gn_gen_args: List[str], cc_wrapper=None):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -106,7 +108,7 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
           'In general, if the file exists, you should run'
           ' `gn args <out_directory>` to edit it instead.')
 
-  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
+  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe, cc_wrapper)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
@@ -150,6 +152,10 @@ def parse_args():
       default=False,
       action='store_true',
       help='Pass this flag to disable Remote Build Execution.')
+  parser.add_argument(
+      '--cc_wrapper',
+      type=str,
+      help='Compiler wrapper to use (e.g., sccache).')
   script_args, gen_args = parser.parse_known_args()
 
   if script_args.platform == 'linux':
@@ -170,7 +176,7 @@ def main():
         _BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
   configure_out_directory(builds_out_directory, script_args.platform,
                           script_args.build_type, not script_args.no_rbe,
-                          gen_args)
+                          gen_args, script_args.cc_wrapper)
 
 
 if __name__ == '__main__':
