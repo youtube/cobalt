@@ -56,8 +56,8 @@ class MediaDrmBridge {
   };
 
   struct OperationResult {
-    const DrmOperationStatus status;
-    const std::string error_message;
+    DrmOperationStatus status = DRM_OPERATION_STATUS_SUCCESS;
+    std::string error_message;
 
     bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
   };

@@ -20,8 +20,11 @@
 #include <jni.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -30,6 +33,8 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/media/drm_session_id_mapper.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -84,7 +89,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   }
 
   // Return true when the drm system is ready for secure input buffers.
-  bool IsReady() { return created_media_crypto_session_.load(); }
+  bool IsReady();
 
  private:
   class SessionUpdateRequest {
@@ -95,17 +100,30 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     ~SessionUpdateRequest() = default;
 
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
+    MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
+        const MediaDrmBridge* media_drm_bridge) const;
+
+    std::optional<int> ConsumeTicket();
 
    private:
-    const int ticket_;
+    int ticket_;
     const std::string init_data_;
     const std::string mime_;
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+  void HandlePendingRequests();
+  void GenerateSessionUpdateRequestWithAppProvisioning(
+      std::unique_ptr<SessionUpdateRequest> request);
+  void UpdateSessionWithAppProvisioning(int ticket,
+                                        const void* key,
+                                        int key_size,
+                                        const void* session_id,
+                                        int session_id_size);
 
   // From Thread.
   void Run() override;
+  void RunWithAppProvisioning();
 
   const std::string key_system_;
   void* context_;
@@ -114,15 +132,32 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  std::vector<std::unique_ptr<SessionUpdateRequest>>
-      deferred_session_update_requests_;
-
   std::mutex mutex_;
+
+  std::vector<std::unique_ptr<SessionUpdateRequest>>
+      deferred_session_update_requests_;  // Guarded by |mutex_|.
+
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
 
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  std::atomic<bool> is_key_provided_ = false;
+
+  // Manages the mapping between the CDM session ID in the C++ layer and the
+  // MediaDrm session ID in the Java layer. Most of the time, we can use the
+  // MediaDrm session ID as the CDM session ID. However, there are some cases
+  // where we cannot, as the lifecycle of the CDM session ID can diverge from
+  // the MediaDrm session ID's lifecycle. For example, when a device isn't
+  // provisioned, we can't get a MediaDrm session ID (which can be generated
+  // only after provisioning). In such scenarios, `DrmSystem` still needs a CDM
+  // session ID to interact with the Cobalt CDM module.
+  const std::unique_ptr<DrmSessionIdMapper>
+      session_id_mapper_;  //  Guarded by |mutex_|.
+
+  std::unique_ptr<JobQueue> job_queue_;
+  std::condition_variable job_queue_created_;
 };
 
 }  // namespace starboard
