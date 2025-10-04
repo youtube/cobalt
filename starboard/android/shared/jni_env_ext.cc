@@ -21,16 +21,11 @@
 #include <algorithm>
 #include <string>
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_state.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
-<<<<<<< HEAD
 #include "jni_state.h"
 
-=======
->>>>>>> 9cd2db17c5a (starboard: JniEnvExt logs JNI exception on abort  (#7440))
 namespace {
 
 pthread_key_t g_tls_key = 0;
@@ -114,146 +109,4 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   return static_cast<jclass>(clazz_obj);
 }
 
-<<<<<<< HEAD
 }  // namespace starboard::android::shared
-=======
-jclass JniFindClassOrAbort(JNIEnv* env, const char* name) {
-  SB_CHECK(env);
-  jclass result = env->FindClass(name);
-  JniAbortOnException(env);
-  return result;
-}
-
-jobject JniNewObjectOrAbort(JNIEnv* env,
-                            const char* class_name,
-                            const char* sig,
-                            ...) {
-  SB_CHECK(env);
-  va_list argp;
-  va_start(argp, sig);
-  jclass clazz = JniFindClassExtOrAbort(env, class_name);
-  jmethodID methodID = env->GetMethodID(clazz, "<init>", sig);
-  JniAbortOnException(env);
-  jobject result = env->NewObjectV(clazz, methodID, argp);
-  JniAbortOnException(env);
-  env->DeleteLocalRef(clazz);
-  va_end(argp);
-  return result;
-}
-
-jstring JniNewStringStandardUTFOrAbort(JNIEnv* env, const char* bytes) {
-  SB_CHECK(env);
-  const jstring charset = env->NewStringUTF("UTF-8");
-  JniAbortOnException(env);
-  const jbyteArray byte_array = JniNewByteArrayFromRaw(
-      env, reinterpret_cast<const jbyte*>(bytes), (bytes ? strlen(bytes) : 0U));
-  JniAbortOnException(env);
-  jstring result = static_cast<jstring>(JniNewObjectOrAbort(
-      env, "java/lang/String", "([BLjava/lang/String;)V", byte_array, charset));
-  env->DeleteLocalRef(byte_array);
-  env->DeleteLocalRef(charset);
-  return result;
-}
-
-std::string JniGetStringStandardUTFOrAbort(JNIEnv* env, jstring str) {
-  SB_CHECK(env);
-  if (str == nullptr) {
-    return std::string();
-  }
-  const jstring charset = env->NewStringUTF("UTF-8");
-  JniAbortOnException(env);
-  const jbyteArray byte_array =
-      static_cast<jbyteArray>(JniCallObjectMethodOrAbort(
-          env, str, "getBytes", "(Ljava/lang/String;)[B", charset));
-  jsize array_length = env->GetArrayLength(byte_array);
-  JniAbortOnException(env);
-  void* bytes = env->GetPrimitiveArrayCritical(byte_array, nullptr);
-  JniAbortOnException(env);
-  std::string result(static_cast<const char*>(bytes), array_length);
-  env->ReleasePrimitiveArrayCritical(byte_array, bytes, JNI_ABORT);
-  JniAbortOnException(env);
-  env->DeleteLocalRef(byte_array);
-  env->DeleteLocalRef(charset);
-  return result;
-}
-
-void JniCallVoidMethod(JNIEnv* env,
-                       jobject obj,
-                       const char* name,
-                       const char* sig,
-                       ...) {
-  SB_CHECK(env);
-  va_list argp;
-  va_start(argp, sig);
-  env->CallVoidMethodV(obj, JniGetObjectMethodIDOrAbort(env, obj, name, sig),
-                       argp);
-  va_end(argp);
-}
-
-void JniCallVoidMethodOrAbort(JNIEnv* env,
-                              jobject obj,
-                              const char* name,
-                              const char* sig,
-                              ...) {
-  SB_CHECK(env);
-  va_list argp;
-  va_start(argp, sig);
-  JniCallVoidMethodVOrAbort(
-      env, obj, JniGetObjectMethodIDOrAbort(env, obj, name, sig), argp);
-  va_end(argp);
-}
-
-void JniCallVoidMethodVOrAbort(JNIEnv* env,
-                               jobject obj,
-                               jmethodID methodID,
-                               va_list args) {
-  SB_CHECK(env);
-  env->CallVoidMethodV(obj, methodID, args);
-  JniAbortOnException(env);
-}
-
-void JniCallStaticVoidMethod(JNIEnv* env,
-                             const char* class_name,
-                             const char* method_name,
-                             const char* sig,
-                             ...) {
-  SB_CHECK(env);
-  va_list argp;
-  va_start(argp, sig);
-  jclass clazz = JniFindClassExtOrAbort(env, class_name);
-  env->CallStaticVoidMethodV(
-      clazz, JniGetStaticMethodIDOrAbort(env, clazz, method_name, sig), argp);
-  env->DeleteLocalRef(clazz);
-  va_end(argp);
-}
-
-void JniCallStaticVoidMethodOrAbort(JNIEnv* env,
-                                    const char* class_name,
-                                    const char* method_name,
-                                    const char* sig,
-                                    ...) {
-  SB_CHECK(env);
-  va_list argp;
-  va_start(argp, sig);
-  jclass clazz = JniFindClassExtOrAbort(env, class_name);
-  env->CallStaticVoidMethodV(
-      clazz, JniGetStaticMethodIDOrAbort(env, clazz, method_name, sig), argp);
-  JniAbortOnException(env);
-  env->DeleteLocalRef(clazz);
-  va_end(argp);
-}
-
-jobject JniConvertLocalRefToGlobalRef(JNIEnv* env, jobject local) {
-  SB_CHECK(env);
-  jobject global = env->NewGlobalRef(local);
-  env->DeleteLocalRef(local);
-  return global;
-}
-
-void JniAbortOnException(JNIEnv* env) {
-  SB_CHECK(env);
-  base::android::CheckException(env);
-}
-
-}  // namespace starboard
->>>>>>> 9cd2db17c5a (starboard: JniEnvExt logs JNI exception on abort  (#7440))

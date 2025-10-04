@@ -22,6 +22,7 @@
 #include <cstring>
 #include <string>
 
+#include "base/android/jni_android.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
@@ -376,8 +377,7 @@ struct JniEnvExt : public JNIEnv {
     if (!ExceptionCheck()) {
       return;
     }
-    ExceptionDescribe();
-    SbSystemBreakIntoDebugger();
+    base::android::CheckException(this);
   }
 };
 
