@@ -272,6 +272,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(readlink);
+  REGISTER_SYMBOL(readv);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
@@ -287,16 +288,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
   REGISTER_SYMBOL(socket);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(symlink);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
-  REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(vswprintf);
   REGISTER_SYMBOL(write);
 
   // Linux APIs

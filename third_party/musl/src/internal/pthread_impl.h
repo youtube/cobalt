@@ -13,6 +13,66 @@
 
 #include "pthread_arch.h"
 
+#if defined(STARBOARD)
+// Implement a macro to allow '__pthread_self()->tid' to
+// be used unchanged from musl internal code.
+
+// Include the necessary Starboard header for SbThreadGetId().
+#include "starboard/thread.h"
+
+// Define a minimal stub structure that only has the 'tid' member.
+// The original code expects __pthread_self() to return a pointer
+// to a struct that has a 'tid' field.
+typedef struct {
+  SbThreadId tid;
+} StarboardPthreadStub;
+
+// Define the __pthread_self() macro.
+// This uses a C99 "compound literal" to create a temporary, anonymous
+// StarboardPthreadStub object on the stack and returns a pointer to it.
+// We initialize its 'tid' member by calling SbThreadGetId().
+#define __pthread_self() \
+  (&(StarboardPthreadStub){ .tid = SbThreadGetId() })
+
+typedef struct {
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  pthread_once_t once;
+} StarboardPthreadCondMutexPair;
+
+static inline void __cond_mutex_pair_init(StarboardPthreadCondMutexPair* pair) {
+	pthread_mutex_init(&pair->mutex, NULL);
+	pthread_cond_init(&pair->cond, NULL);
+}
+
+static inline void __cond_mutex_pair_destroy(StarboardPthreadCondMutexPair* pair) {
+	pthread_cond_destroy(&pair->cond);
+	pthread_mutex_destroy(&pair->mutex);
+}
+
+
+static inline void __wake(volatile void *addr, int cnt, int priv)
+{
+	StarboardPthreadCondMutexPair* lock = (StarboardPthreadCondMutexPair*)(*(uintptr_t*)addr);
+	if (lock) {
+		pthread_cond_broadcast(&lock->cond);
+	}
+}
+
+static inline void __futexwait(volatile void *addr, int val, int priv)
+{
+	StarboardPthreadCondMutexPair* lock = (StarboardPthreadCondMutexPair*)(*(uintptr_t*)addr);
+	if (lock) {
+		pthread_mutex_lock(&lock->mutex);
+		if (*(volatile int*)addr == val) {
+			pthread_cond_wait(&lock->cond, &lock->mutex);
+		}
+		pthread_mutex_unlock(&lock->mutex);
+	}
+}
+
+#else  // defined(STARBOARD)
+
 #define pthread __pthread
 
 struct pthread {
@@ -202,4 +262,5 @@ extern hidden unsigned __default_guardsize;
 
 #define __ATTRP_C11_THREAD ((void*)(uintptr_t)-1)
 
-#endif
+#endif  // defined(STARBOARD)
+#endif  // _PTHREAD_IMPL_H
