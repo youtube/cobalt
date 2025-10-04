@@ -1,5 +1,44 @@
 [
   {
+    "hexsha": "57ff4ea3abf039b59e478521dc0535b4182f69a5",
+    "original_hexsha": "9cd2db17c5ae068805d2c20025ecb792ea15b657",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-04T01:19:19-07:00",
+    "summary": "starboard: JniEnvExt logs JNI exception on abort  (#7440)",
+    "stats": {
+      "files": 3,
+      "insertions": 45,
+      "deletions": 43
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3bb21e0abd6421afc484409086aea48808c88061",
+    "original_hexsha": "29eeba802fc0283a61def06ab0eb7a30301864b8",
+    "author": "johnx",
+    "datetime": "2025-10-03T12:12:01-07:00",
+    "summary": "Revert \"Create lean UI library for Cobalt ATV\" (#7438)",
+    "stats": {
+      "files": 11,
+      "insertions": 53,
+      "deletions": 3189
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a75fa42156a2895c8c85ae5b292c70f99a82399a",
+    "original_hexsha": "8de744bd34eed499414c3d08c987bb10e7760785",
+    "author": "Raphael Kubo da Costa",
+    "datetime": "2025-10-03T19:19:05+02:00",
+    "summary": "[tvOS] Replace tvos-arm64 configuration with tvos-arm64-device (#7424)",
+    "stats": {
+      "files": 7,
+      "insertions": 58,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "a5c475988d67374b73413490d66b822d8e929a4d",
     "original_hexsha": "12bdb816a67351bf33f33fbbba4c811eba97aae8",
     "author": "Colin Liang",
