@@ -109,6 +109,34 @@ std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os;
 }
 
+FrameSize::FrameSize() : FrameSize({0, 0}, -1, -1, -1, -1) {}
+
+FrameSize::FrameSize(Size texture_size,
+                     int crop_left,
+                     int crop_top,
+                     int crop_right,
+                     int crop_bottom)
+    : texture_size(texture_size),
+      crop_left(crop_left),
+      crop_top(crop_top),
+      crop_right(crop_right),
+      crop_bottom(crop_bottom) {
+  SB_CHECK_GE(this->texture_size.width, 0);
+  SB_CHECK_GE(this->texture_size.height, 0);
+
+  if (this->crop_left >= 0 || this->crop_top >= 0 || this->crop_right >= 0 ||
+      this->crop_bottom >= 0) {
+    // If there is at least one crop value set, all of them should be set.
+    SB_CHECK_GE(this->crop_left, 0);
+    SB_CHECK_GE(this->crop_top, 0);
+    SB_CHECK_GE(this->crop_right, 0);
+    SB_CHECK_GE(this->crop_bottom, 0);
+    const Size size = display_size();
+    SB_CHECK_GE(size.width, 0);
+    SB_CHECK_GE(size.height, 0);
+  }
+}
+
 // static
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
@@ -433,49 +461,38 @@ void MediaCodecBridge::Stop() {
   return Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
 }
 
-FrameSize MediaCodecBridge::GetOutputSize() {
+std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
-
-  jint textureWidth = Java_GetOutputFormatResult_textureWidth(
-      env, j_reused_get_output_format_result_);
-  jint textureHeight = Java_GetOutputFormatResult_textureHeight(
-      env, j_reused_get_output_format_result_);
-  jint cropLeft = Java_GetOutputFormatResult_cropLeft(
-      env, j_reused_get_output_format_result_);
-  jint cropTop = Java_GetOutputFormatResult_cropTop(
-      env, j_reused_get_output_format_result_);
-  jint cropRight = Java_GetOutputFormatResult_cropRight(
-      env, j_reused_get_output_format_result_);
-  jint cropBottom = Java_GetOutputFormatResult_cropBottom(
-      env, j_reused_get_output_format_result_);
-
-  FrameSize size = {
-      {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
-
-  size.DCheckValid();
-  return size;
-}
-
-AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
-  JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_,
-                                        j_reused_get_output_format_result_);
-
-  jint status = Java_GetOutputFormatResult_status(
-      env, j_reused_get_output_format_result_);
-
-  if (status == MEDIA_CODEC_ERROR) {
-    return {status, 0, 0};
+  ScopedJavaLocalRef<jobject> result(
+      Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
+  if (!result) {
+    return std::nullopt;
   }
 
-  jint sample_rate = Java_GetOutputFormatResult_sampleRate(
-      env, j_reused_get_output_format_result_);
-  jint channel_count = Java_GetOutputFormatResult_channelCount(
-      env, j_reused_get_output_format_result_);
+  return FrameSize(
+      {
+          Java_GetOutputFormatResult_textureWidth(env, result),
+          Java_GetOutputFormatResult_textureHeight(env, result),
+      },
+      Java_GetOutputFormatResult_cropLeft(env, result),
+      Java_GetOutputFormatResult_cropTop(env, result),
+      Java_GetOutputFormatResult_cropRight(env, result),
+      Java_GetOutputFormatResult_cropBottom(env, result));
+}
 
-  return {status, sample_rate, channel_count};
+std::optional<AudioOutputFormatResult>
+MediaCodecBridge::GetAudioOutputFormat() {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> result(
+      Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
+  if (!result) {
+    return std::nullopt;
+  };
+
+  return AudioOutputFormatResult{
+      Java_GetOutputFormatResult_sampleRate(env, result),
+      Java_GetOutputFormatResult_channelCount(env, result),
+  };
 }
 
 void MediaCodecBridge::OnMediaCodecError(
@@ -529,13 +546,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JNIEnv* env = AttachCurrentThread();
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
-
-  ScopedJavaLocalRef<jobject> j_reused_get_output_format_result =
-      Java_GetOutputFormatResult_Constructor(env);
-  SB_DCHECK(j_reused_get_output_format_result);
-
-  j_reused_get_output_format_result_.Reset(
-      env, j_reused_get_output_format_result.obj());
 }
 
 // static
