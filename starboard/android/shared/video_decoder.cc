@@ -15,7 +15,6 @@
 #include "starboard/android/shared/video_decoder.h"
 
 #include <android/api-level.h>
-#include <jni.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -27,8 +26,6 @@
 
 #include "base/android/jni_android.h"
 #include "build/build_config.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
 #include "starboard/common/check_op.h"
@@ -48,6 +45,8 @@ namespace starboard {
 
 namespace {
 
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -378,7 +377,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
-      number_of_preroll_frames_(kInitialPrerollFrameCount) {
+      number_of_preroll_frames_(kInitialPrerollFrameCount),
+      bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
+                  ? std::make_unique<VideoSurfaceTextureBridge>(this)
+                  : nullptr) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -705,9 +707,10 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       }
       j_output_surface = decode_target->surface();
 
-      JNIEnv* env = base::android::AttachCurrentThread();
-      JniCallVoidMethodOrAbort(env, decode_target->surface_texture(),
-                               "setOnFrameAvailableListener", "(J)V", this);
+      JNIEnv* env = AttachCurrentThread();
+      ScopedJavaLocalRef<jobject> surface_texture(
+          env, decode_target->surface_texture());
+      bridge_->SetOnFrameAvailableListener(env, surface_texture);
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -781,9 +784,10 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
-      JNIEnv* env = base::android::AttachCurrentThread();
-      JniCallVoidMethodOrAbort(env, decode_target_->surface_texture(),
-                               "removeOnFrameAvailableListener", "()V");
+      JNIEnv* env = AttachCurrentThread();
+      ScopedJavaLocalRef<jobject> surface_texture(
+          env, decode_target_->surface_texture());
+      bridge_->RemoveOnFrameAvailableListener(env, surface_texture);
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -981,19 +985,50 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
+// Cache the SurfaceTexture methods so that we minimize JNI calls in
+// updateTexImage() and getTransformMatrix().
+struct SurfaceTextureJniCache {
+  base::android::ScopedJavaGlobalRef<jclass> surface_class;
+  jmethodID update_tex_image_method;
+  jmethodID get_transform_matrix_method;
+};
+
+SurfaceTextureJniCache cache;
+
+void EnsureCacheIsInitialized(JNIEnv* env) {
+  static std::once_flag once_flag;
+  std::call_once(once_flag, [env]() {
+    jclass local_surface_texture_class =
+        env->FindClass("android/graphics/SurfaceTexture");
+    SB_CHECK(local_surface_texture_class);
+    cache.surface_class.Reset(env, local_surface_texture_class);
+    env->DeleteLocalRef(local_surface_texture_class);
+    cache.update_tex_image_method =
+        env->GetMethodID(local_surface_texture_class, "updateTexImage", "()V");
+    SB_CHECK(cache.update_tex_image_method);
+    cache.get_transform_matrix_method = env->GetMethodID(
+        local_surface_texture_class, "getTransformMatrix", "([F)V");
+    SB_CHECK(cache.get_transform_matrix_method);
+  });
+}
+
 void updateTexImage(jobject surface_texture) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
+  JNIEnv* env = AttachCurrentThread();
+
+  EnsureCacheIsInitialized(env);
+  env->CallVoidMethod(surface_texture, cache.update_tex_image_method);
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
 
   jfloatArray java_array = env->NewFloatArray(16);
-  SB_DCHECK(java_array);
+  SB_CHECK(java_array);
 
-  JniCallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix", "([F)V",
-                           java_array);
+  EnsureCacheIsInitialized(env);
+
+  env->CallVoidMethod(surface_texture, cache.get_transform_matrix_method,
+                      java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
@@ -1170,7 +1205,7 @@ void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
   }
 }
 
-void MediaCodecVideoDecoder::OnNewTextureAvailable() {
+void MediaCodecVideoDecoder::OnFrameAvailable() {
   has_new_texture_available_.store(true);
 }
 
@@ -1276,16 +1311,3 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
 }
 
 }  // namespace starboard
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_VideoSurfaceTexture_nativeOnFrameAvailable(
-    JNIEnv* env,
-    jobject unused_this,
-    jlong native_video_decoder) {
-  using starboard::MediaCodecVideoDecoder;
-
-  MediaCodecVideoDecoder* video_decoder =
-      reinterpret_cast<MediaCodecVideoDecoder*>(native_video_decoder);
-  SB_DCHECK(video_decoder);
-  video_decoder->OnNewTextureAvailable();
-}
