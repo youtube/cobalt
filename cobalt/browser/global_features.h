@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 
@@ -55,8 +56,9 @@ class GlobalFeatures {
   PrefService* experiment_config();
   PrefService* metrics_local_state();
   PrefService* local_state();
-  const std::vector<uint32_t>& active_experiment_ids() {
-    return active_experiment_ids_;
+  const std::string& active_config_data() { return active_config_data_; }
+  const std::string& latest_config_hash() {
+    return experiment_config_->GetString(kLatestConfigHash);
   }
   ExperimentConfigManager* experiment_config_manager() {
     return experiment_config_manager_.get();
@@ -78,8 +80,10 @@ class GlobalFeatures {
   void CreateMetricsLocalState();
   // Initialize a PrefService instance for local state.
   void CreateLocalState();
-  // Record the active experiments ids in the member variable.
-  void InitializeActiveExperimentIds();
+  // Record the active config data in the member variable.
+  // Needed because the experiment config applied to Cobalt does not change
+  // during the app lifecycle, but new config can be written to storage.
+  void InitializeActiveConfigData();
 
   std::unique_ptr<base::FeatureList::Accessor> accessor_;
 
@@ -99,7 +103,7 @@ class GlobalFeatures {
 
   std::unique_ptr<ExperimentConfigManager> experiment_config_manager_;
 
-  std::vector<uint32_t> active_experiment_ids_;
+  std::string active_config_data_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
