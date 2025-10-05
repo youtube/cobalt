@@ -85,13 +85,12 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   // Native callbacks.
   void OnPlaybackStateChanged(JNIEnv* env, jint playbackState);
   void OnInitialized(JNIEnv* env);
+  void OnReady(JNIEnv* env);
   void OnError(JNIEnv* env, jstring error_message);
   void SetPlayingStatus(JNIEnv* env, jboolean isPlaying);
 
-  void OnPlayerInitialized();
   void OnPlayerPrerolled();
   void OnPlaybackEnded();
-  void SetPlayingStatusInternal(bool is_playing);
 
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
@@ -111,10 +110,11 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void InitExoplayer();
 
   void TearDownExoPlayer();
-  void UpdatePlayingStatus(bool is_playing);
 
   ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
+  ScopedJavaGlobalRef<jobject> j_audio_media_source_;
+  ScopedJavaGlobalRef<jobject> j_video_media_source_;
   ScopedJavaGlobalRef<jbyteArray> j_sample_data_;
   ScopedJavaGlobalRef<jobject> j_output_surface_;
 
@@ -132,13 +132,12 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   std::mutex mutex_;
   // Signaled once player initialization is complete.
-  std::condition_variable cv_;
+  std::condition_variable initialized_cv_;
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
   bool playback_ended_ = false;
   double playback_rate_ = 0.0;
   bool seeking_ = false;
-  bool initialized_ = false;
 };
 
 }  // namespace starboard::android::shared::exoplayer

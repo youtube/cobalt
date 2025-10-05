@@ -39,7 +39,7 @@ public class CobaltMediaCodecSelector implements MediaCodecSelector {
         } catch (MediaCodecUtil.DecoderQueryException e) {
             Log.i(TAG, String.format("MediaCodecUtil.getDecoderInfos() error %s", e.toString()));
             return defaultDecoderInfos;
-            }
+        }
             // Skip video decoder filtering for emulators.
                if (IsEmulator.isEmulator()) {
                    Log.i(TAG, "Allowing all available decoders for emulator");

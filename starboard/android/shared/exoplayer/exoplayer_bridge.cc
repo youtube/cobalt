@@ -29,6 +29,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/CobaltMediaSource_jni.h"
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
 
@@ -40,6 +41,8 @@ using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+
+constexpr int kADTSHeaderSize = 7;
 
 // TODO: For debug, remove this
 #if defined(COBALT_BUILD_TYPE_GOLD) || defined(COBALT_BUILD_TYPE_QA)
@@ -140,17 +143,37 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
 
   if (type == EXOPLAYER_RENDERER_TYPE_VIDEO) {
     is_key_frame = input_buffers.front()->video_sample_info().is_key_frame;
+    if (is_key_frame) {
+      SB_LOG(INFO) << "AUSTIN: VIDEO FRAME IS A KEY FRAME";
+    }
   }
 
   bool is_eos = false;
 
   JNIEnv* env = AttachCurrentThread();
-  j_sample_data_ = ScopedJavaLocalRef(ToJavaByteArray(
-      env, input_buffers.front()->data(), input_buffers.front()->size()));
+  size_t data_size = input_buffers.front()->size();
+  if (type == EXOPLAYER_RENDERER_TYPE_AUDIO &&
+      audio_stream_info_.codec == kSbMediaAudioCodecAac) {
+    SB_LOG(INFO) << "Truncating sample for aac, config size is "
+                 << audio_stream_info_.audio_specific_config.size();
+    ;
+    j_sample_data_ = ScopedJavaLocalRef(
+        ToJavaByteArray(env, input_buffers.front()->data() + kADTSHeaderSize,
+                        input_buffers.front()->size() - kADTSHeaderSize));
+    data_size -= kADTSHeaderSize;
+  } else {
+    j_sample_data_ = ScopedJavaLocalRef(ToJavaByteArray(
+        env, input_buffers.front()->data(), input_buffers.front()->size()));
+  }
 
-  Java_ExoPlayerBridge_writeSample(
-      env, j_exoplayer_bridge_, j_sample_data_, input_buffers.front()->size(),
-      input_buffers.front()->timestamp(), type, is_key_frame, is_eos);
+  auto media_source =
+      type == kSbMediaTypeAudio ? j_audio_media_source_ : j_video_media_source_;
+  SB_LOG(INFO) << "Writing " << (type == kSbMediaTypeAudio ? "audio" : "video")
+               << " sample with timestamp "
+               << input_buffers.front()->timestamp();
+  Java_CobaltMediaSource_writeSample(
+      env, media_source, j_sample_data_, data_size,
+      input_buffers.front()->timestamp(), is_key_frame, is_eos);
 }
 
 void ExoPlayerBridge::WriteEndOfStream(SbMediaType stream_type) {
@@ -163,9 +186,18 @@ void ExoPlayerBridge::WriteEndOfStream(SbMediaType stream_type) {
   bool is_key_frame = false;
   bool is_eos = true;
   j_sample_data_ = ToJavaByteArray(env, &byte, buffer_size);
-  Java_ExoPlayerBridge_writeSample(env, j_exoplayer_bridge_, j_sample_data_,
-                                   buffer_size, timestamp, type, is_key_frame,
-                                   is_eos);
+  auto media_source =
+      type == kSbMediaTypeAudio ? j_audio_media_source_ : j_video_media_source_;
+  Java_CobaltMediaSource_writeEndOfStream(AttachCurrentThread(), media_source);
+  // Java_ExoPlayerBridge_writeSample(env, j_exoplayer_bridge_, j_sample_data_,
+  //                                  buffer_size, timestamp, type,
+  //                                  is_key_frame, is_eos);
+
+  if (stream_type == kSbMediaTypeAudio) {
+    audio_eos_written_ = true;
+  } else {
+    video_eos_written_ = true;
+  }
 }
 
 bool ExoPlayerBridge::Play() {
@@ -248,7 +280,6 @@ void ExoPlayerBridge::OnPlaybackStateChanged(JNIEnv* env, jint playback_state) {
     SB_LOG(INFO) << "Player is BUFFERING";
   } else if (playback_state == PLAYER_STATE_READY) {
     SB_LOG(INFO) << "Player is READY";
-    OnPlayerPrerolled();
   } else if (playback_state == PLAYER_STATE_ENDED) {
     SB_LOG(INFO) << "Player has ENDED";
     OnPlaybackEnded();
@@ -257,7 +288,11 @@ void ExoPlayerBridge::OnPlaybackStateChanged(JNIEnv* env, jint playback_state) {
 
 void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
   std::unique_lock<std::mutex> lock(mutex_);
-  cv_.notify_one();
+  initialized_cv_.notify_one();
+}
+
+void ExoPlayerBridge::OnReady(JNIEnv* env) {
+  prerolled_cb_();
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring error_message) {
@@ -266,16 +301,12 @@ void ExoPlayerBridge::OnError(JNIEnv* env, jstring error_message) {
 }
 
 void ExoPlayerBridge::SetPlayingStatus(JNIEnv* env, jboolean is_playing) {
-  SetPlayingStatusInternal(is_playing);
-}
-
-void ExoPlayerBridge::OnPlayerInitialized() {
-  std::unique_lock<std::mutex> lock(mutex_);
-  initialized_ = true;
-}
-
-void ExoPlayerBridge::OnPlayerPrerolled() {
-  prerolled_cb_();
+  if (error_occurred_) {
+    SB_LOG(WARNING) << "Playing status is updated after an error.";
+    return;
+  }
+  SB_LOG(INFO) << "Changing is_playing_ to " << is_playing;
+  is_playing_ = is_playing;
 }
 
 void ExoPlayerBridge::OnPlaybackEnded() {
@@ -283,17 +314,13 @@ void ExoPlayerBridge::OnPlaybackEnded() {
   ended_cb_();
 }
 
-void ExoPlayerBridge::SetPlayingStatusInternal(bool is_playing) {
-  UpdatePlayingStatus(is_playing);
-}
-
 bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
   bool wait_timeout;
   {
     std::unique_lock<std::mutex> lock(mutex_);
     wait_timeout =
-        cv_.wait_for(lock,
-                     std::chrono::microseconds(kWaitForInitializedTimeout)) ==
+        initialized_cv_.wait_for(
+            lock, std::chrono::microseconds(kWaitForInitializedTimeout)) ==
         std::cv_status::timeout;
   }
 
@@ -329,13 +356,14 @@ void ExoPlayerBridge::InitExoplayer() {
   j_exoplayer_bridge_.Reset(j_exoplayer_bridge);
 
   if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
-    int audio_samplerate = audio_stream_info_.samples_per_second;
-    int audio_channels = audio_stream_info_.number_of_channels;
+    int samplerate = audio_stream_info_.samples_per_second;
+    int channels = audio_stream_info_.number_of_channels;
+    int bits_per_sample = audio_stream_info_.bits_per_sample;
 
     ScopedJavaLocalRef<jbyteArray> configuration_data;
-    if (audio_stream_info_.codec == kSbMediaAudioCodecOpus &&
-        !audio_stream_info_.audio_specific_config.empty()) {
-      SB_LOG(INFO) << "Setting Opus config data";
+    if (!audio_stream_info_.audio_specific_config.empty()) {
+      SB_LOG(INFO) << "Setting config data for codec "
+                   << audio_stream_info_.codec;
       configuration_data =
           ToJavaByteArray(env, audio_stream_info_.audio_specific_config.data(),
                           audio_stream_info_.audio_specific_config.size());
@@ -349,13 +377,16 @@ void ExoPlayerBridge::InitExoplayer() {
     ScopedJavaLocalRef<jstring> j_audio_mime =
         ConvertUTF8ToJavaString(env, j_audio_mime_str.c_str());
 
-    if (!Java_ExoPlayerBridge_createAudioRenderer(
+    ScopedJavaLocalRef<jobject> j_audio_media_source(
+        Java_ExoPlayerBridge_createAudioMediaSource(
             env, j_exoplayer_bridge_, j_audio_mime, configuration_data,
-            audio_samplerate, audio_channels)) {
-      SB_LOG(ERROR) << "Could not create ExoPlayer audio renderer.";
+            samplerate, channels, bits_per_sample));
+    if (j_audio_media_source.is_null()) {
+      SB_LOG(ERROR) << "Could not create ExoPlayer audio media source.";
       error_occurred_ = true;
       return;
     }
+    j_audio_media_source_.Reset(j_audio_media_source);
   }
 
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
@@ -388,13 +419,16 @@ void ExoPlayerBridge::InitExoplayer() {
       bitrate = mime_type.GetParamIntValue("bitrate", 0);
     }
 
-    if (!Java_ExoPlayerBridge_createVideoRenderer(
+    ScopedJavaLocalRef<jobject> j_video_media_source(
+        Java_ExoPlayerBridge_createVideoMediaSource(
             env, j_exoplayer_bridge_, j_mime, j_output_surface_, width, height,
-            framerate, bitrate)) {
-      SB_LOG(ERROR) << "Could not create ExoPlayer audio renderer.";
+            framerate, bitrate));
+    if (j_video_media_source.is_null()) {
+      SB_LOG(ERROR) << "Could not create ExoPlayer video MediaSource.";
       error_occurred_ = true;
       return;
     }
+    j_video_media_source_.Reset(j_video_media_source);
   }
 
   j_sample_data_.Reset(ToJavaByteArray(
@@ -414,15 +448,6 @@ void ExoPlayerBridge::TearDownExoPlayer() {
   ended_ = true;
   ClearVideoWindow(true);
   ReleaseVideoSurface();
-}
-
-void ExoPlayerBridge::UpdatePlayingStatus(bool is_playing) {
-  if (error_occurred_) {
-    SB_LOG(WARNING) << "Playing status is updated after an error.";
-    return;
-  }
-  SB_LOG(INFO) << "Changing is_playing_ to " << is_playing;
-  is_playing_ = is_playing;
 }
 
 }  // namespace starboard::android::shared::exoplayer

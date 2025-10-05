@@ -83,6 +83,8 @@ HandlerResult ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
   bridge_->Pause();
   bridge_->Seek(seek_to_time);
 
+  // Seek is executed asynchronously on the ExoPlayer. We return true here and
+  // later report an error if seek fails.
   return HandlerResult{true};
 }
 
@@ -180,6 +182,7 @@ void ExoPlayerWorkerHandler::Update() {
 
     ExoPlayerBridge::MediaInfo info;
     auto media_time = bridge_->GetCurrentMediaTime(info);
+    SB_LOG(INFO) << "media time is: " << media_time;
     update_media_info_cb_(media_time, dropped_frames, !info.is_underflow);
   }
 

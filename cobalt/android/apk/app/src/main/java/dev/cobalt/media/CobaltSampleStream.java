@@ -16,8 +16,10 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
+import androidx.media3.common.MimeTypes;
 import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
@@ -26,64 +28,45 @@ import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
 
-import org.chromium.base.annotations.JNINamespace;
-
 import java.io.IOException;
 
 import dev.cobalt.util.Log;
 
-@JNINamespace("starboard::android::shared::exoplayer")
 @UnstableApi
 public class CobaltSampleStream implements SampleStream {
     private SampleQueue sampleQueue;
-    public boolean prerolled = false;
-    public boolean firstData = true;
     private boolean endOfStream = false;
-    private Allocator allocator;
-    private long samplesQueued = 0;
-    private long playbackStartTimeUs = 0;
-    private long prerollFrames = 0;
-    private int totalSamplesWritten = 0;
+    private boolean wroteFirstSample = false;
+    private long lastWrittenTimeUs = Long.MIN_VALUE;
+
+    @Nullable
+    private IOException fatalError;
 
     CobaltSampleStream(Allocator allocator, Format format) {
-        this.allocator = allocator;
         sampleQueue = SampleQueue.createWithoutDrm(allocator);
         sampleQueue.format(format);
-        if (format.sampleRate != Format.NO_VALUE) {
-            // int prerollLengthMs = 200;
-            // prerollFrames = prerollLengthMs * (format.sampleRate / 1000);
-            // Log.i(TAG, String.format("Audio preroll frames is %d for sample rate %d",
-            // prerollFrames, format.sampleRate));
-            prerollFrames = 20;
-        } else {
-            prerollFrames = 8;
-            Log.i(TAG, String.format("Video preroll frames is %d", prerollFrames));
-        }
     }
 
     void discardBuffer(long positionUs, boolean toKeyframe) {
-        sampleQueue.discardTo(positionUs, toKeyframe, true);
+        Log.i(TAG, String.format("Called DISCARDBUFFER to %d, tokeyframe: %b", positionUs, toKeyframe));
+        sampleQueue.discardTo(positionUs, toKeyframe, false);
     }
 
-    void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
+    synchronized void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
             boolean isEndOfStream) {
-        Log.i(TAG, String.format("In writeSample, start time is %d", playbackStartTimeUs));
-        int sampleFlags = isKeyFrame ? C.BUFFER_FLAG_KEY_FRAME : 0;
-        if (firstData) {
-            sampleFlags = sampleFlags | C.BUFFER_FLAG_FIRST_SAMPLE;
-            firstData = false;
-            // Log.i(TAG, String.format("Setting sampleQueue start time to %d", timestampUs));
-            // sampleQueue.setStartTimeUs(timestampUs);
+        int sampleFlags = 0;
+        if (isKeyFrame) {
+            sampleFlags |= C.BUFFER_FLAG_KEY_FRAME;
         }
         if (isEndOfStream) {
-            sampleFlags = sampleFlags | C.BUFFER_FLAG_END_OF_STREAM;
+            sampleFlags |= C.BUFFER_FLAG_END_OF_STREAM;
+            Log.i(TAG, "WRITING END OF STREAM");
             endOfStream = true;
-            prerolled = true;
-            Log.i(TAG, "Reached end of stream in SampleQueue, setting EOS buffer and returning");
-            return;
         }
 
-        ParsableByteArray array = new ParsableByteArray(data);
+        byte[] dataToWrite = data;
+
+        ParsableByteArray array = isEndOfStream ? null : new ParsableByteArray(dataToWrite);
 
         try {
             sampleQueue.sampleData(array, sizeInBytes);
@@ -94,37 +77,33 @@ public class CobaltSampleStream implements SampleStream {
         }
         try {
             sampleQueue.sampleMetadata(timestampUs, sampleFlags, sizeInBytes, 0, null);
+            Log.i(TAG,
+                    String.format("Wrote %s sample with timestamp: %d, keyframe: %b",
+                            sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio"
+                                                                                          : "video",
+                            timestampUs, isKeyFrame));
         } catch (Exception e) {
             Log.i(TAG,
                     String.format(
                             "Caught exception from sampleQueue.sampleMetadata() %s", e.toString()));
         }
-        boolean isAudio = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE;
-        Log.i(TAG,
-                String.format("Wrote %s Sample timestamp is %d", isAudio ? "audio" : "video",
-                        timestampUs));
-        samplesQueued = samplesQueued + 1;
-        totalSamplesWritten = totalSamplesWritten + 1;
-        if (!prerolled) {
-            if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
-                // Audio stream
-                prerolled = (prerolled || totalSamplesWritten >= prerollFrames) || endOfStream;
-                if (prerolled) {
-                    Log.i(TAG, "Prerolled audio stream");
-                }
-            } else {
-                // Video stream
-                prerolled = (prerolled || totalSamplesWritten >= prerollFrames) || endOfStream;
-                if (prerolled) {
-                    Log.i(TAG, "Prerolled video stream");
-                }
+
+        if (lastWrittenTimeUs != Long.MIN_VALUE) {
+            if (timestampUs <= lastWrittenTimeUs && !isEndOfStream) {
+                Log.i(TAG, String.format("ERROR: Latest written timestamp %d is less than or equal to last written timestamp %d, with a delta of %d", timestampUs, lastWrittenTimeUs, lastWrittenTimeUs - timestampUs));
             }
         }
+        timestampUs = lastWrittenTimeUs;
+        wroteFirstSample = true;
+        wroteFirstSample = true;
     }
 
     @Override
     public boolean isReady() {
-        return sampleQueue.isReady(endOfStream) || endOfStream;
+        boolean queueIsEmpty = sampleQueue.getFirstTimestampUs() == Long.MIN_VALUE;
+        String type = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video";
+        Log.i(TAG, String.format("Checking if %s queue is ready: %b, first timestamp: %d, largest timestamp: %d", type, sampleQueue.isReady(endOfStream), sampleQueue.getFirstTimestampUs(), sampleQueue.getLargestQueuedTimestampUs()));
+        return sampleQueue.isReady(endOfStream);
     }
 
     @Override
@@ -135,10 +114,6 @@ public class CobaltSampleStream implements SampleStream {
         if (!sampleQueue.isReady(endOfStream)) {
             return C.RESULT_NOTHING_READ;
         }
-        if (endOfStream && samplesQueued == 0) {
-            buffer.setFlags(C.BUFFER_FLAG_END_OF_STREAM);
-            return C.RESULT_BUFFER_READ;
-        }
 
         int read = -1;
         try {
@@ -146,15 +121,18 @@ public class CobaltSampleStream implements SampleStream {
         } catch (Exception e) {
             Log.i(TAG, String.format("Caught exception from read() %s", e.toString()));
         }
-        if (read == C.RESULT_BUFFER_READ) {
-            boolean isAudio = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE;
-            samplesQueued = samplesQueued - 1;
-        }
+
+        Log.i(TAG,
+                String.format("Read %s sample with timestamp: %d",
+                        sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio"
+                                                                                      : "video",
+                        buffer.timeUs));
         return read;
     }
 
     @Override
     public int skipData(long positionUs) {
+        Log.i(TAG, String.format("Called SKIPDATA to %d", positionUs));
         int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
         sampleQueue.skip(skipCount);
         return skipCount;
@@ -164,14 +142,17 @@ public class CobaltSampleStream implements SampleStream {
         return sampleQueue.getLargestQueuedTimestampUs();
     }
 
-    public void seek(long timestampUs) {
-        sampleQueue.reset();
-        firstData = true;
-        prerolled = false;
-        endOfStream = false;
-        samplesQueued = 0;
-        totalSamplesWritten = 0;
-        playbackStartTimeUs = timestampUs;
-        sampleQueue.setStartTimeUs(timestampUs);
+    synchronized public void seek(long timestampUs, boolean seekToKeyFrame) {
+        String type = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video";
+        Log.i(TAG, String.format("Before discarding to %d, first timestamp is %d with key frame: %b on type: %s", timestampUs, sampleQueue.getFirstTimestampUs(), seekToKeyFrame, type));
+            sampleQueue.discardTo(timestampUs, true, true);
+            endOfStream = false;
+            // The SbPlayer may call seek multiple times before playback begins. After the first
+            // sample is written, we avoid resetting the sample queue start time.
+            if (!wroteFirstSample && timestampUs != 0) {
+                sampleQueue.setStartTimeUs(timestampUs);
+            }
+            lastWrittenTimeUs = sampleQueue.getFirstTimestampUs();
+            Log.i(TAG, String.format("Set queue start time to %d, first timestamp is now %d with seek to key frame: %b on type: %s", timestampUs, sampleQueue.getFirstTimestampUs(), seekToKeyFrame, type));
+        }
     }
-}
