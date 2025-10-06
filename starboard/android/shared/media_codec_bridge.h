@@ -67,33 +67,11 @@ struct DequeueOutputResult {
 };
 
 struct FrameSize {
-  Size texture_size;
-
-  // Crop values can be set to -1 when they are not provided by the platform
-  int crop_left = -1;
-  int crop_top = -1;
-  int crop_right = -1;
-  int crop_bottom = -1;
+  Size display_size;
+  bool has_crop_values = false;
 
   FrameSize();
-  FrameSize(Size texture_size,
-            int crop_left,
-            int crop_top,
-            int crop_right,
-            int crop_bottom);
-
-  bool has_crop_values() const {
-    return crop_left >= 0 && crop_top >= 0 && crop_right >= 0 &&
-           crop_bottom >= 0;
-  }
-
-  Size display_size() const {
-    if (has_crop_values()) {
-      return {crop_right - crop_left + 1, crop_bottom - crop_top + 1};
-    }
-
-    return texture_size;
-  }
+  FrameSize(int width, int height, bool has_crop_values);
 };
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size);

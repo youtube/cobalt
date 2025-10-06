@@ -956,7 +956,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
     return;
   }
   output_format_ =
-      VideoOutputFormat(video_codec_, frame_sizes_.back().display_size(),
+      VideoOutputFormat(video_codec_, frame_sizes_.back().display_size,
                         color_metadata_.has_value());
   first_output_format_changed_ = true;
   auto max_output_buffers =
@@ -1101,14 +1101,14 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
-    if (frame_size.has_crop_values()) {
-      decode_target_->set_dimension(frame_size.texture_size);
+    if (frame_size.has_crop_values) {
+      decode_target_->set_dimension(frame_size.display_size);
 
       float matrix4x4[16];
       getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
       auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          frame_size.texture_size, matrix4x4);
+          frame_size.display_size, matrix4x4);
       decode_target_->set_content_region(content_region);
 
       // Now we have two crop rectangles, one from the MediaFormat, one from the
@@ -1121,7 +1121,7 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           std::abs(content_region.bottom - content_region.top) + 1;
       // Using 2 as epsilon, as the texture may get clipped by one pixel from
       // each side.
-      const auto display_size = frame_size.display_size();
+      const auto display_size = frame_size.display_size;
       bool are_crop_values_matching =
           std::abs(content_region_width - display_size.width) <= 2 &&
           std::abs(content_region_height - display_size.height) <= 2;
@@ -1164,13 +1164,13 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  decode_target_->set_dimension(frame_sizes_.back().display_size());
+  decode_target_->set_dimension(frame_sizes_.back().display_size);
 
   float matrix4x4[16];
   getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
   decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
-      frame_sizes_.back().display_size(), matrix4x4));
+      frame_sizes_.back().display_size, matrix4x4));
 }
 
 void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {

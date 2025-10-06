@@ -127,59 +127,48 @@ class MediaCodecBridge {
 
   private FrameRateEstimator mFrameRateEstimator = null;
 
-  /** A wrapper around a MediaFormat. */
-  private static class GetOutputFormatResult {
+   /** A wrapper around a MediaFormat. */
+   // Copied from Chromium's MediaCodecBridge.java
+   // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
+   // Here are changes made.
+   // - Exposes formatHasCropValues() to the native layer, which needs to call it.
+   // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
+   // - Add @Nonnul annotation to mFormat. since it is not null.
+   private static class MediaFormatWrapper {
     @NonNull private final MediaFormat mFormat;
-    private final Boolean mHasCropValues;
 
-   private GetOutputFormatResult(@NonNull MediaFormat format) {
-     mFormat = format;
-     mHasCropValues = mFormat.containsKey(KEY_CROP_RIGHT)
-                && mFormat.containsKey(KEY_CROP_LEFT)
-                && mFormat.containsKey(KEY_CROP_BOTTOM)
-                && mFormat.containsKey(KEY_CROP_TOP);
-   }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int textureWidth() {
-      return mFormat.containsKey(MediaFormat.KEY_WIDTH)
-          ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
-          : 0;
+    private MediaFormatWrapper(MediaFormat format) {
+        mFormat = format;
     }
 
-    @CalledByNative("GetOutputFormatResult")
-    private int textureHeight() {
-      return mFormat.containsKey(MediaFormat.KEY_HEIGHT)
-          ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
-          : 0;
+    @CalledByNative("MediaFormatWrapper")
+    private boolean formatHasCropValues() {
+      return mFormat.containsKey(KEY_CROP_RIGHT)
+            && mFormat.containsKey(KEY_CROP_LEFT)
+            && mFormat.containsKey(KEY_CROP_BOTTOM)
+            && mFormat.containsKey(KEY_CROP_TOP);
     }
 
-    @CalledByNative("GetOutputFormatResult")
-    private int cropLeft() {
-      return mHasCropValues ? mFormat.getInteger(KEY_CROP_LEFT) : -1;
+    @CalledByNative("MediaFormatWrapper")
+    private int width() {
+      return formatHasCropValues()
+          ? mFormat.getInteger(KEY_CROP_RIGHT) - mFormat.getInteger(KEY_CROP_LEFT) + 1
+          : mFormat.getInteger(MediaFormat.KEY_WIDTH);
     }
 
-    @CalledByNative("GetOutputFormatResult")
-    private int cropTop() {
-      return mHasCropValues ? mFormat.getInteger(KEY_CROP_TOP) : -1;
+    @CalledByNative("MediaFormatWrapper")
+    private int height() {
+      return formatHasCropValues()
+          ? mFormat.getInteger(KEY_CROP_BOTTOM) - mFormat.getInteger(KEY_CROP_TOP) + 1
+          : mFormat.getInteger(MediaFormat.KEY_HEIGHT);
     }
 
-    @CalledByNative("GetOutputFormatResult")
-    private int cropRight() {
-      return mHasCropValues ? mFormat.getInteger(KEY_CROP_RIGHT) : -1;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
-    private int cropBottom() {
-      return mHasCropValues ? mFormat.getInteger(KEY_CROP_BOTTOM) : -1;
-    }
-
-    @CalledByNative("GetOutputFormatResult")
+    @CalledByNative("MediaFormatWrapper")
     private int sampleRate() {
       return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
     }
 
-    @CalledByNative("GetOutputFormatResult")
+    @CalledByNative("MediaFormatWrapper")
     private int channelCount() {
       return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
     }
@@ -691,23 +680,20 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private GetOutputFormatResult getOutputFormat() {
+  private MediaFormatWrapper getOutputFormat() {
     MediaFormat format = null;
     try {
+      // https://developer.android.com/reference/android/media/MediaCodec#getOutputFormat()
+      // getOutputFormat should return non-null MediaForamt.
       format = mMediaCodec.get().getOutputFormat();
+      assert(format != null);
     // Catches `RuntimeException` to handle any undocumented exceptions.
     // See http://b/445694177#comment4 for details.
     } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
       return null;
     }
-    // https://developer.android.com/reference/android/media/MediaCodec#getOutputFormat()
-    // getOutputFormat should return non-null MediaForamt.
-    assert(format != null);
-    if (format == null) {
-      return null;
-    }
-    return new GetOutputFormatResult(format);
+    return new MediaFormatWrapper(format);
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */
@@ -734,11 +720,11 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       if (isDecodeOnlyFlagEnabled()
-          && isDecodeOnly
+          && is_decode_only
           && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
@@ -763,7 +749,7 @@ class MediaCodecBridge {
       int blocksToEncrypt,
       int blocksToSkip,
       long presentationTimeUs,
-      boolean isDecodeOnly) {
+      boolean is_decode_only) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
@@ -778,7 +764,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && isDecodeOnly) {
+      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
 
