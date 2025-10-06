@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
-#include "base/android/jni_int_wrapper.h"
 #include "base/memory/raw_ref.h"
 #include "starboard/drm.h"
 
@@ -63,7 +62,7 @@ class MediaDrmBridge {
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
   void CreateSession(int ticket,
-                     const std::vector<const uint8_t>& init_data,
+                     const std::vector<uint8_t>& init_data,
                      const std::string& mime) const;
   // Updates the session. Returns true on success.
   bool UpdateSession(int ticket,

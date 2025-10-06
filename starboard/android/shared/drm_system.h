@@ -99,7 +99,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
    private:
     const int ticket_;
-    const std::vector<const uint8_t> init_data_;
+    const std::vector<uint8_t> init_data_;
     const std::string mime_;
   };
 

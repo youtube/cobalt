@@ -25,9 +25,9 @@ import android.view.accessibility.AccessibilityManager;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.List;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * Helper class to implement the SbSpeechSynthesis* Starboard API for Audio accessibility.
