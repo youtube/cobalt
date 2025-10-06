@@ -15,13 +15,96 @@
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/features.h"
+#include "cobalt/browser/global_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
 namespace cobalt {
 
+namespace {
+
+// An enum for the UMA histogram to track the state of the variations config.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class VariationsConfigState {
+  kValid = 0,
+  kExpired = 1,
+  kMissingTimestamp = 2,
+  kMaxValue = kMissingTimestamp,
+};
+
+// Checks if the experiment config has expired by reading the last fetch time.
+bool HasConfigExpired() {
+  PrefService* experiment_prefs =
+      GlobalFeatures::GetInstance()->experiment_config();
+
+  // If the pref is missing, we cannot determine its age. For backward
+  // compatibility and safety on first run, we treat it as valid
+  if (!experiment_prefs->HasPrefPath(
+          variations::prefs::kVariationsLastFetchTime)) {
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
+                              VariationsConfigState::kMissingTimestamp);
+    return false;
+  }
+
+  base::Time fetch_time =
+      experiment_prefs->GetTime(variations::prefs::kVariationsLastFetchTime);
+  base::TimeDelta config_age = base::Time::Now() - fetch_time;
+
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.ConfigAgeInDays",
+                              config_age.InDays(), 1, 90, 50);
+
+  // Get the expiration threshold from the server config. Default to 30 days.
+  const int expiration_threshold_in_days =
+      experiment_prefs->GetDict(kFinchParameters)
+          .FindInt("variations_expiration_threshold_days")
+          .value_or(30);
+
+  if (config_age.InDays() > expiration_threshold_in_days) {
+    LOG(WARNING) << "Variations config from " << fetch_time
+                 << " has expired. Ignoring.";
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
+                              VariationsConfigState::kExpired);
+    return true;
+  }
+
+  UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
+                            VariationsConfigState::kValid);
+  return false;
+}
+
+// Manually checks the experiment config to see if the expiration feature is
+// enabled. This is required because this check runs *before* the global
+// FeatureList is initialized.
+bool IsVariationsConfigExpirationEnabled(
+    ExperimentConfigManager* config_manager) {
+  auto* global_features = GlobalFeatures::GetInstance();
+  auto config_type = config_manager->GetExperimentConfigType();
+
+  if (config_type == ExperimentConfigType::kEmptyConfig) {
+    return false;
+  }
+
+  auto* experiment_config = global_features->experiment_config();
+  const bool use_safe_config =
+      (config_type == ExperimentConfigType::kSafeConfig);
+
+  const base::Value::Dict& feature_map = experiment_config->GetDict(
+      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
+
+  return feature_map.FindBool(features::kVariationsConfigExpiration.name)
+      .value_or(false);
+}
+
+}  // namespace
+
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
+  if (IsVariationsConfigExpirationEnabled(this) && HasConfigExpired()) {
+    return ExperimentConfigType::kEmptyConfig;
+  }
   DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
   int num_crashes =

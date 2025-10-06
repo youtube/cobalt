@@ -85,81 +85,6 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
-// An enum for the UMA histogram to track the state of the variations config.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class VariationsConfigState {
-  kValid = 0,
-  kExpired = 1,
-  kMissingTimestamp = 2,
-  kMaxValue = kMissingTimestamp,
-};
-
-// Checks if the experiment config has expired by reading the last fetch time.
-bool HasConfigExpired() {
-  PrefService* experiment_prefs =
-      GlobalFeatures::GetInstance()->experiment_config();
-
-  // If the pref is missing, we cannot determine its age. For backward
-  // compatibility and safety on first run, we treat it as valid
-  if (!experiment_prefs->HasPrefPath(
-          variations::prefs::kVariationsLastFetchTime)) {
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                              VariationsConfigState::kMissingTimestamp);
-    return false;
-  }
-
-  base::Time fetch_time =
-      experiment_prefs->GetTime(variations::prefs::kVariationsLastFetchTime);
-  base::TimeDelta config_age = base::Time::Now() - fetch_time;
-
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.ConfigAgeInDays",
-                              config_age.InDays(), 1, 90, 50);
-
-  // Get the expiration threshold from the server config. Default to 30 days.
-  const int expiration_threshold_in_days =
-      experiment_prefs->GetDict(kFinchParameters)
-          .FindInt("variations_expiration_threshold_days")
-          .value_or(30);
-
-  if (config_age.InDays() > expiration_threshold_in_days) {
-    LOG(WARNING) << "Variations config from " << fetch_time
-                 << " has expired. Ignoring.";
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                              VariationsConfigState::kExpired);
-    return true;
-  }
-
-  UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                            VariationsConfigState::kValid);
-  return false;
-}
-
-// Manually checks the experiment config to see if the expiration feature is
-// enabled. This is required because this check runs *before* the global
-// FeatureList is initialized.
-bool IsVariationsConfigExpirationEnabled() {
-  auto* global_features = GlobalFeatures::GetInstance();
-  auto* experiment_config_manager =
-      global_features->experiment_config_manager();
-  auto config_type = experiment_config_manager->GetExperimentConfigType();
-
-  if (config_type == ExperimentConfigType::kEmptyConfig) {
-    return false;
-  }
-
-  auto* experiment_config = global_features->experiment_config();
-  const bool use_safe_config =
-      (config_type == ExperimentConfigType::kSafeConfig);
-
-  const base::Value::Dict& feature_map = experiment_config->GetDict(
-      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
-
-  return feature_map
-      .FindBool(cobalt::features::kVariationsConfigExpiration.name)
-      .value_or(false);
-}
-
 }  // namespace
 
 std::string GetCobaltUserAgent() {
@@ -434,6 +359,8 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   auto* experiment_config_manager =
       global_features->experiment_config_manager();
   auto config_type = experiment_config_manager->GetExperimentConfigType();
+
+  // First, check for conditions that would lead to an empty config.
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
@@ -441,9 +368,20 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
-
   const base::Value::Dict& feature_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
+
+  // Manually check if the expiration feature is enabled before using it.
+  const bool expiration_enabled =
+      feature_map.FindBool(features::kVariationsConfigExpiration.name)
+          .value_or(false);
+  const bool config_expired = HasConfigExpired();
+
+  if (expiration_enabled && config_expired) {
+    // Config is expired, so we proceed without applying it.
+    return;
+  }
+
   const base::Value::Dict& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
@@ -485,16 +423,6 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
-
-  const bool config_expired = HasConfigExpired();
-  if (IsVariationsConfigExpirationEnabled() && config_expired) {
-    // Config is expired, so we proceed without applying it.
-    // Set up an empty feature list and return early.
-    auto feature_list = std::make_unique<base::FeatureList>();
-    base::FeatureList::SetInstance(std::move(feature_list));
-    features::InitializeStarboardFeatures();
-    return;
-  }
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
