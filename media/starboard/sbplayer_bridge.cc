@@ -377,9 +377,10 @@ void SbPlayerBridge::WriteBuffers(
 void SbPlayerBridge::SetBounds(const gfx::Rect& rect) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  // Cobalt renderer renders from back to front, using a monotonically
-  // increasing sequence guarantees that all video layers are correctly ordered
-  // on z axis.
+  // On certain platforms (e.g., Linux), the Cobalt renderer draws layers from
+  // back to front. A monotonically increasing sequence is used to generate a
+  // unique z-index for each player, ensuring video layers are stacked
+  // correctly.
   static base::AtomicSequenceNumber s_z_index;
 
   set_bounds_z_index_ = s_z_index.GetNext();
