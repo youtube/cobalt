@@ -486,16 +486,6 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
 
-  const bool config_expired = HasConfigExpired();
-  if (IsVariationsConfigExpirationEnabled() && config_expired) {
-    // Config is expired, so we proceed without applying it.
-    // Set up an empty feature list and return early.
-    auto feature_list = std::make_unique<base::FeatureList>();
-    base::FeatureList::SetInstance(std::move(feature_list));
-    features::InitializeStarboardFeatures();
-    return;
-  }
-
   auto feature_list = std::make_unique<base::FeatureList>();
 
   auto accessor = feature_list->ConstructAccessor();
