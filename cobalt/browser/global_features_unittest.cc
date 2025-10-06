@@ -134,7 +134,7 @@ TEST_F(GlobalFeaturesTest, ActiveConfigDataUnchangedAfterInitialization) {
       config_file,
       R"({"experiment_config":{"features":{"feature_a":true},"feature_params":{"param1":"value1"},"active_config_data":"ab"},"latest_config_hash":"cd")");
 
-  // Active conig data in memory should remain the same.
+  // Active config data in memory should remain the same.
   active_config_data = instance_->active_config_data();
   EXPECT_TRUE(active_config_data.empty());
 }
