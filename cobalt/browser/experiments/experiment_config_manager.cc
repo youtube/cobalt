@@ -37,10 +37,7 @@ enum class VariationsConfigState {
 };
 
 // Checks if the experiment config has expired by reading the last fetch time.
-bool HasConfigExpired() {
-  PrefService* experiment_prefs =
-      GlobalFeatures::GetInstance()->experiment_config();
-
+bool HasConfigExpired(PrefService* experiment_prefs) {
   // If the pref is missing, we cannot determine its age. For backward
   // compatibility and safety on first run, we treat it as valid
   if (!experiment_prefs->HasPrefPath(
@@ -76,35 +73,10 @@ bool HasConfigExpired() {
   return false;
 }
 
-// Manually checks the experiment config to see if the expiration feature is
-// enabled. This is required because this check runs *before* the global
-// FeatureList is initialized.
-bool IsVariationsConfigExpirationEnabled(
-    ExperimentConfigManager* config_manager) {
-  auto* global_features = GlobalFeatures::GetInstance();
-  auto config_type = config_manager->GetExperimentConfigType();
-
-  if (config_type == ExperimentConfigType::kEmptyConfig) {
-    return false;
-  }
-
-  auto* experiment_config = global_features->experiment_config();
-  const bool use_safe_config =
-      (config_type == ExperimentConfigType::kSafeConfig);
-
-  const base::Value::Dict& feature_map = experiment_config->GetDict(
-      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
-
-  return feature_map.FindBool(features::kVariationsConfigExpiration.name)
-      .value_or(false);
-}
-
 }  // namespace
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
-  if (IsVariationsConfigExpirationEnabled(this) && HasConfigExpired()) {
-    return ExperimentConfigType::kEmptyConfig;
-  }
+  // First, determine the config type based on the crash streak.
   DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
   int num_crashes =
@@ -113,13 +85,37 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
       kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
+
+  ExperimentConfigType config_type;
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
+    config_type = ExperimentConfigType::kEmptyConfig;
+  } else if (num_crashes >= kCrashStreakSafeConfigThreshold) {
+    config_type = ExperimentConfigType::kSafeConfig;
+  } else {
+    config_type = ExperimentConfigType::kRegularConfig;
+  }
+
+  // If the config is already empty, no need to check for expiration.
+  if (config_type == ExperimentConfigType::kEmptyConfig) {
+    return config_type;
+  }
+
+  // Now, check if the expiration feature is enabled in the determined config.
+  const bool use_safe_config =
+      (config_type == ExperimentConfigType::kSafeConfig);
+  const base::Value::Dict& feature_map = experiment_config_->GetDict(
+      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
+  const bool expiration_enabled =
+      feature_map.FindBool(features::kVariationsConfigExpiration.name)
+          .value_or(false);
+
+  // If the feature is enabled and the config is expired, override the result to
+  // treat it as an empty config.
+  if (expiration_enabled && HasConfigExpired(experiment_config_)) {
     return ExperimentConfigType::kEmptyConfig;
   }
-  if (num_crashes >= kCrashStreakSafeConfigThreshold) {
-    return ExperimentConfigType::kSafeConfig;
-  }
-  return ExperimentConfigType::kRegularConfig;
+
+  return config_type;
 }
 
 void ExperimentConfigManager::StoreSafeConfig() {
