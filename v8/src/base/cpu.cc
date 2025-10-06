@@ -9,8 +9,7 @@
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
-// TODO: (cobalt b/409756628) Turn off V8_OS_LINUX.
-#if V8_OS_LINUX && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if V8_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
 #include <linux/auxvec.h>  // AT_HWCAP
 #endif
 #if V8_GLIBC_PREREQ(2, 16)
