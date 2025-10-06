@@ -60,10 +60,6 @@
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "base/starboard/linker_stub.h"
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
 #endif
