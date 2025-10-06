@@ -454,7 +454,7 @@ MediaCodecBridge::GetAudioOutputFormat() {
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
   if (!result) {
     return std::nullopt;
-  };
+  }
 
   return AudioOutputFormatResult{
       Java_MediaFormatWrapper_sampleRate(env, result),

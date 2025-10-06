@@ -683,14 +683,21 @@ class MediaCodecBridge {
   private MediaFormatWrapper getOutputFormat() {
     MediaFormat format = null;
     try {
-      // https://developer.android.com/reference/android/media/MediaCodec#getOutputFormat()
-      // getOutputFormat should return non-null MediaForamt.
       format = mMediaCodec.get().getOutputFormat();
       assert(format != null);
     // Catches `RuntimeException` to handle any undocumented exceptions.
     // See http://b/445694177#comment4 for details.
     } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
+      return null;
+    }
+    // https://developer.android.com/reference/android/media/MediaCodec#getOutputFormat()
+    // getOutputFormat should return non-null MediaForamt.
+    // If the format is null, we crash the app for dev builds to enforce the API contract.
+    // On release builds, we log the error and return null.
+    if (format == null) {
+      assert(false);
+      Log.e(TAG, "MediaCodec.getOutputFormat() returned null");
       return null;
     }
     return new MediaFormatWrapper(format);
