@@ -21,7 +21,7 @@ namespace cobalt {
 namespace features {
 
 // Enables the variations config expiration check.
-extern const base::Feature kVariationsConfigExpiration;
+extern const base::Feature kExperimentConfigExpiration;
 
 }  // namespace features
 }  // namespace cobalt

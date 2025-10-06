@@ -26,6 +26,9 @@ namespace cobalt {
 
 namespace {
 
+// Default threshold for variations config expiration in days.
+constexpr int kDefaultExpirationThresholdInDays = 30;
+
 // An enum for the UMA histogram to track the state of the variations config.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -54,11 +57,11 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
   UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.ConfigAgeInDays",
                               config_age.InDays(), 1, 90, 50);
 
-  // Get the expiration threshold from the server config. Default to 30 days.
+  // Get the expiration threshold from the server config.
   const int expiration_threshold_in_days =
       experiment_prefs->GetDict(kFinchParameters)
           .FindInt("variations_expiration_threshold_days")
-          .value_or(30);
+          .value_or(kDefaultExpirationThresholdInDays);
 
   if (config_age.InDays() > expiration_threshold_in_days) {
     LOG(WARNING) << "Variations config from " << fetch_time
@@ -106,7 +109,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   const base::Value::Dict& feature_map = experiment_config_->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
   const bool expiration_enabled =
-      feature_map.FindBool(features::kVariationsConfigExpiration.name)
+      feature_map.FindBool(features::kExperimentConfigExpiration.name)
           .value_or(false);
 
   // If the feature is enabled and the config is expired, override the result to

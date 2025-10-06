@@ -18,8 +18,8 @@ namespace cobalt {
 namespace features {
 
 // Enables the variations config expiration check.
-BASE_FEATURE(kVariationsConfigExpiration,
-             "VariationsConfigExpiration",
+BASE_FEATURE(kExperimentConfigExpiration,
+             "ExperimentConfigExpiration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
