@@ -87,8 +87,6 @@ source_set("starboard") {
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
       "sbplayer_interface.h",
-      "sbplayer_set_bounds_helper.cc",
-      "sbplayer_set_bounds_helper.h",
       "starboard_cdm.cc",
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",
