@@ -19,20 +19,28 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include "base/android/jni_android.h"
 #include "starboard/common/size.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
 namespace starboard {
 
+using base::android::ScopedJavaGlobalRef;
+
 class DecodeTarget final : public SbDecodeTargetPrivate {
  public:
+  struct SurfaceJniCache {
+    ScopedJavaGlobalRef<jclass> surface_class;
+    jmethodID surface_constructor;
+  };
+
   explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
 
   bool GetInfo(SbDecodeTargetInfo* out_info) final;
 
-  jobject surface_texture() const { return surface_texture_; }
-  jobject surface() const { return surface_; }
+  jobject surface_texture() const { return surface_texture_.obj(); }
+  jobject surface() const { return surface_.obj(); }
 
   void set_dimension(const Size& size) {
     info_.planes[0].width = size.width;
@@ -53,11 +61,13 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
 
   // Java objects which wrap the texture.  We hold on to global references
   // to these objects.
-  jobject surface_texture_;
-  jobject surface_;
+  ScopedJavaGlobalRef<jobject> surface_texture_;
+  ScopedJavaGlobalRef<jobject> surface_;
   ANativeWindow* native_window_;
 
   SbDecodeTargetInfo info_;
+
+  SurfaceJniCache cache_;
 };
 
 }  // namespace starboard

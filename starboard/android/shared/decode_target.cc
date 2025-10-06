@@ -24,7 +24,6 @@
 #include <functional>
 #include <mutex>
 
-#include "base/android/jni_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -34,49 +33,37 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 
-jobject CreateSurfaceTexture(JNIEnv* env, int gl_texture_id) {
-  ScopedJavaLocalRef<jobject> local_surface_texture(
-      env,
+ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,
+                                                  int gl_texture_id) {
+  ScopedJavaGlobalRef<jobject> surface_texture(
       VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id));
-  SB_CHECK(local_surface_texture);
+  SB_CHECK(surface_texture);
 
-  jobject global_surface_texture =
-      env->NewGlobalRef(local_surface_texture.obj());
-
-  return global_surface_texture;
+  return surface_texture;
 }
 
-jobject CreateSurfaceFromSurfaceTexture(JNIEnv* env, jobject surface_texture) {
-  struct SurfaceCache {
-    ScopedJavaGlobalRef<jclass> surface_class;
-    jmethodID surface_constructor;
-  };
-
-  static SurfaceCache cache;
-
+ScopedJavaGlobalRef<jobject> CreateSurfaceFromSurfaceTexture(
+    JNIEnv* env,
+    jobject surface_texture,
+    DecodeTarget::SurfaceJniCache* cache) {
   static std::once_flag once_flag;
-  std::call_once(once_flag, [env]() {
-    ScopedJavaLocalRef<jclass> local_surface_class(
+  std::call_once(once_flag, [env, cache]() {
+    cache->surface_class = ScopedJavaGlobalRef<jclass>(
         env, env->FindClass("android/view/Surface"));
-    SB_CHECK(local_surface_class);
-    cache.surface_class.Reset(local_surface_class);
-    cache.surface_constructor =
-        env->GetMethodID(cache.surface_class.obj(), "<init>",
+    SB_CHECK(cache->surface_class);
+    cache->surface_constructor =
+        env->GetMethodID(cache->surface_class.obj(), "<init>",
                          "(Landroid/graphics/SurfaceTexture;)V");
-    SB_CHECK(cache.surface_constructor);
+    SB_CHECK(cache->surface_constructor);
   });
 
-  ScopedJavaLocalRef<jobject> local_surface(
-      env, env->NewObject(cache.surface_class.obj(), cache.surface_constructor,
-                          surface_texture));
-  SB_CHECK(local_surface);
+  ScopedJavaGlobalRef<jobject> surface(
+      env, env->NewObject(cache->surface_class.obj(),
+                          cache->surface_constructor, surface_texture));
+  SB_CHECK(surface);
 
-  ScopedJavaGlobalRef<jobject> global_surface(env, local_surface.obj());
-
-  return global_surface.obj();
+  return surface;
 }
 
 void RunOnContextRunner(void* context) {
@@ -101,10 +88,6 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 
 DecodeTarget::~DecodeTarget() {
   ANativeWindow_release(native_window_);
-
-  JNIEnv* env = AttachCurrentThread();
-  env->DeleteGlobalRef(surface_);
-  env->DeleteGlobalRef(surface_texture_);
 
   glDeleteTextures(1, &info_.planes[0].texture);
   SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
@@ -133,9 +116,10 @@ void DecodeTarget::CreateOnContextRunner() {
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  surface_ = CreateSurfaceFromSurfaceTexture(env, surface_texture_);
+  surface_ =
+      CreateSurfaceFromSurfaceTexture(env, surface_texture_.obj(), &cache_);
 
-  native_window_ = ANativeWindow_fromSurface(env, surface_);
+  native_window_ = ANativeWindow_fromSurface(env, surface_.obj());
 
   // Setup our publicly accessible decode target information.
   info_.format = kSbDecodeTargetFormat1PlaneRGBA;

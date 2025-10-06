@@ -23,6 +23,8 @@
 
 namespace starboard {
 
+using base::android::ScopedJavaLocalRef;
+
 class VideoSurfaceTextureBridge {
  public:
   class Host {
@@ -47,7 +49,9 @@ class VideoSurfaceTextureBridge {
       JNIEnv* env,
       base::android::ScopedJavaLocalRef<jobject> surface_texture) const;
 
-  static jobject CreateVideoSurfaceTexture(JNIEnv* env, int gl_texture_id);
+  static ScopedJavaLocalRef<jobject> CreateVideoSurfaceTexture(
+      JNIEnv* env,
+      int gl_texture_id);
 
   void OnFrameAvailable(JNIEnv* env) { host_->OnFrameAvailable(); }
 

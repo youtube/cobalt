@@ -35,11 +35,11 @@ void VideoSurfaceTextureBridge::RemoveOnFrameAvailableListener(
 }
 
 // static
-jobject VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(
-    JNIEnv* env,
-    int gl_texture_id) {
+ScopedJavaLocalRef<jobject>
+VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(JNIEnv* env,
+                                                     int gl_texture_id) {
   SB_CHECK(env);
-  return Java_VideoSurfaceTexture_Constructor(env, gl_texture_id).obj();
+  return Java_VideoSurfaceTexture_Constructor(env, gl_texture_id);
 }
 
 }  // namespace starboard
