@@ -37,6 +37,6 @@
 //.
 
 #define COBALT_MAJOR_VERSION "26"
-#define COBALT_VERSION "26.master.0"
+#define COBALT_VERSION "26.eap.1"
 
 #endif  // COBALT_VERSION_H_
