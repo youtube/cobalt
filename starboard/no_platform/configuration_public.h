@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,9 @@
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
 // --- System Header Configuration -------------------------------------------
+// This platform should not have further defines, as it should not be built.
 
-// Any system headers listed here that are not provided by the platform will be
-// emulated in starboard/types.h.
-
-// Whether the current platform provides the standard header sys/types.h.
-#define SB_HAS_SYS_TYPES_H 0
-
+// Define that satisfies //starboard/configuration.h
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
@@ -37,12 +33,6 @@
 #elif defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fff || __WCHAR_MAX__ == 0xffff)
 #define SB_IS_WCHAR_T_UTF16 1
-#endif
-
-// Chrome only defines this for ARMEL.
-#if defined(__ARMEL__)
-// Chrome has an exclusion for iOS here, we should too when we support iOS.
-#define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
 #endif  // STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
