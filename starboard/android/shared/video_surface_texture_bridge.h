@@ -53,7 +53,7 @@ class VideoSurfaceTextureBridge {
       JNIEnv* env,
       int gl_texture_id);
 
-  void OnFrameAvailable(JNIEnv* env) { host_->OnFrameAvailable(); }
+  void OnFrameAvailable(JNIEnv*) { host_->OnFrameAvailable(); }
 
  private:
   const raw_ptr<Host> host_;
