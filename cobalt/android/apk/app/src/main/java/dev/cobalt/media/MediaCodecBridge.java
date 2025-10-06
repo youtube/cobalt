@@ -138,7 +138,7 @@ class MediaCodecBridge {
     @NonNull private final MediaFormat mFormat;
 
     private MediaFormatWrapper(MediaFormat format) {
-        mFormat = format;
+      mFormat = format;
     }
 
     @CalledByNative("MediaFormatWrapper")
