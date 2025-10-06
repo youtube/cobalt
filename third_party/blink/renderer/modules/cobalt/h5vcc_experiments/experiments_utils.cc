@@ -22,7 +22,7 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
   base::Value::Dict experiment_config_dict;
 
-  // Reject experiment config if any of the requried field is missing.
+  // Reject experiment config if any of the required field is missing.
   if (!experiment_configuration->hasActiveExperimentConfigData() ||
       !experiment_configuration->hasLatestExperimentConfigHashData() ||
       !experiment_configuration->hasFeatures() ||
@@ -30,53 +30,43 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
     return std::nullopt;
   }
 
-  if (experiment_configuration->hasActiveExperimentConfigData()) {
-    experiment_config_dict.Set(
-        cobalt::kExperimentConfigActiveConfigData,
-        experiment_configuration->activeExperimentConfigData().Utf8());
-  }
+  experiment_config_dict.Set(
+      cobalt::kExperimentConfigActiveConfigData,
+      experiment_configuration->activeExperimentConfigData().Utf8());
 
-  if (experiment_configuration->hasLatestExperimentConfigHashData()) {
-    experiment_config_dict.Set(
-        cobalt::kLatestConfigHash,
-        experiment_configuration->latestExperimentConfigHashData().Utf8());
-  }
+  experiment_config_dict.Set(
+      cobalt::kLatestConfigHash,
+      experiment_configuration->latestExperimentConfigHashData().Utf8());
 
   base::Value::Dict features;
-  if (experiment_configuration->hasFeatures()) {
-    for (auto& feature_name_and_value : experiment_configuration->features()) {
-      features.Set(feature_name_and_value.first.Utf8(),
-                   feature_name_and_value.second);
-    }
-    experiment_config_dict.Set(cobalt::kExperimentConfigFeatures,
-                               std::move(features));
+  for (auto& feature_name_and_value : experiment_configuration->features()) {
+    features.Set(feature_name_and_value.first.Utf8(),
+                 feature_name_and_value.second);
   }
+  experiment_config_dict.Set(cobalt::kExperimentConfigFeatures,
+                             std::move(features));
 
   // All FieldTrialParams are stored as strings, including booleans.
   base::Value::Dict feature_params;
   std::string param_value;
-  if (experiment_configuration->hasFeatureParams()) {
-    for (auto& param_name_and_value :
-         experiment_configuration->featureParams()) {
-      if (param_name_and_value.second->IsString()) {
-        param_value = param_name_and_value.second->GetAsString().Utf8();
-      } else if (param_name_and_value.second->IsLong()) {
-        param_value = std::to_string(param_name_and_value.second->GetAsLong());
-      } else if (param_name_and_value.second->IsDouble()) {
-        param_value =
-            std::to_string(param_name_and_value.second->GetAsDouble());
-      } else if (param_name_and_value.second->GetAsBoolean()) {
-        param_value = "true";
-      } else if (!param_name_and_value.second->GetAsBoolean()) {
-        param_value = "false";
-      } else {
-        return std::nullopt;
-      }
-      feature_params.Set(param_name_and_value.first.Utf8(), param_value);
+  for (auto& param_name_and_value : experiment_configuration->featureParams()) {
+    if (param_name_and_value.second->IsString()) {
+      param_value = param_name_and_value.second->GetAsString().Utf8();
+    } else if (param_name_and_value.second->IsLong()) {
+      param_value = std::to_string(param_name_and_value.second->GetAsLong());
+    } else if (param_name_and_value.second->IsDouble()) {
+      param_value = std::to_string(param_name_and_value.second->GetAsDouble());
+    } else if (param_name_and_value.second->GetAsBoolean()) {
+      param_value = "true";
+    } else if (!param_name_and_value.second->GetAsBoolean()) {
+      param_value = "false";
+    } else {
+      return std::nullopt;
     }
-    experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
-                               std::move(feature_params));
+    feature_params.Set(param_name_and_value.first.Utf8(), param_value);
   }
+  experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
+                             std::move(feature_params));
 
   return experiment_config_dict;
 }
