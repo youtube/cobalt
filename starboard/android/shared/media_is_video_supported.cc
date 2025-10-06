@@ -23,10 +23,6 @@
 
 namespace starboard::shared::starboard::media {
 
-using ::starboard::android::shared::MaxMediaCodecOutputBuffersLookupTable;
-using ::starboard::android::shared::MediaCapabilitiesCache;
-using ::starboard::android::shared::SupportedVideoCodecToMimeType;
-
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
                            int profile,

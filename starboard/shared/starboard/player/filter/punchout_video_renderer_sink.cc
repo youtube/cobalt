@@ -21,7 +21,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -42,7 +42,7 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
   if (thread_ != 0) {
     stop_requested_.store(true);
-    pthread_join(thread_, NULL);
+    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
   }
 }
 
@@ -76,8 +76,8 @@ void PunchoutVideoRendererSink::RunLoop() {
     usleep(render_interval_);
   }
   std::lock_guard lock(mutex_);
-  shared::starboard::Application::Get()->HandleFrame(
-      player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
+  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
+                                  0, 0, 0);
 }
 
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
@@ -86,18 +86,22 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
-  shared::starboard::Application::Get()->HandleFrame(player_, frame, z_index_,
-                                                     x_, y_, width_, height_);
+  Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
+                                  height_);
   return kNotReleased;
 }
 
 // static
 void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("punchoutvidsink");
+#else
   pthread_setname_np(pthread_self(), "punchoutvidsink");
+#endif
   PunchoutVideoRendererSink* this_ptr =
       static_cast<PunchoutVideoRendererSink*>(context);
   this_ptr->RunLoop();
   return NULL;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

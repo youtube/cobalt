@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/buildflags.gni")
-
 source_set("h5vcc_system") {
   sources = [
     "h5vcc_system_impl.cc",
@@ -30,10 +28,6 @@ source_set("h5vcc_system") {
   ]
 
   if (is_starboard) {
-    sources += [
-      "configuration.cc",
-      "configuration.h",
-    ]
-    deps += [ "//starboard:starboard_headers_only" ]
+    deps += [ "//cobalt/configuration" ]
   }
 }

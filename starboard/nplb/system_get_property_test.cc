@@ -19,9 +19,22 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
+using ::starboard::kSystemDeviceTypeAndroidTV;
+using ::starboard::kSystemDeviceTypeAuto;
+using ::starboard::kSystemDeviceTypeBlueRayDiskPlayer;
+using ::starboard::kSystemDeviceTypeDesktopPC;
+using ::starboard::kSystemDeviceTypeGameConsole;
+using ::starboard::kSystemDeviceTypeHospitality;
+using ::starboard::kSystemDeviceTypeMonitor;
+using ::starboard::kSystemDeviceTypeMultimediaDevices;
+using ::starboard::kSystemDeviceTypeOverTheTopBox;
+using ::starboard::kSystemDeviceTypeSetTopBox;
+using ::starboard::kSystemDeviceTypeSoundBar;
+using ::starboard::kSystemDeviceTypeTV;
+using ::starboard::kSystemDeviceTypeUnknown;
+using ::starboard::kSystemDeviceTypeVideoProjector;
 
 // Size of appropriate value buffer.
 const size_t kValueSize = 1024;
@@ -160,7 +173,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
 
 TEST(SbSystemGetPropertyTest, DeviceTypeAllowed) {
   std::string device_type =
-      GetSystemPropertyString(kSbSystemPropertyDeviceType);
+      starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType);
 
   std::string device_type_values[] = {
       kSystemDeviceTypeBlueRayDiskPlayer,
@@ -191,4 +204,3 @@ TEST(SbSystemGetPropertyTest, DeviceTypeAllowed) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

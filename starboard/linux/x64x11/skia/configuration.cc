@@ -17,21 +17,17 @@
 #include "starboard/common/configuration_defaults.h"
 #include "starboard/extension/configuration.h"
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace x64x11 {
-namespace skia {
-
 namespace {
 
-int CobaltEglSwapInterval() {
+int CobaltEglSwapIntervalLinuxSkia() {
   // This platform uses a compositor to present the rendering output, so
   // set the swap interval to update the buffer immediately. That buffer
   // will then be presented by the compositor on its own time.
   return 0;
 }
 
-const char* CobaltRasterizerType() {
+const char* CobaltRasterizerTypeLinuxSkia() {
   // Use the skia hardware rasterizer.
   return "hardware";
 }
@@ -39,38 +35,36 @@ const char* CobaltRasterizerType() {
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     3,
-    &common::CobaltUserOnExitStrategyDefault,
-    &common::CobaltRenderDirtyRegionOnlyDefault,
-    &CobaltEglSwapInterval,
-    &common::CobaltFallbackSplashScreenUrlDefault,
-    &common::CobaltEnableQuicDefault,
-    &common::CobaltSkiaCacheSizeInBytesDefault,
-    &common::CobaltOffscreenTargetCacheSizeInBytesDefault,
-    &common::CobaltEncodedImageCacheSizeInBytesDefault,
-    &common::CobaltImageCacheSizeInBytesDefault,
-    &common::CobaltLocalTypefaceCacheSizeInBytesDefault,
-    &common::CobaltRemoteTypefaceCacheSizeInBytesDefault,
-    &common::CobaltMeshCacheSizeInBytesDefault,
-    &common::CobaltSoftwareSurfaceCacheSizeInBytesDefault,
-    &common::CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &common::CobaltSkiaGlyphAtlasWidthDefault,
-    &common::CobaltSkiaGlyphAtlasHeightDefault,
-    &common::CobaltJsGarbageCollectionThresholdInBytesDefault,
-    &common::CobaltReduceCpuMemoryByDefault,
-    &common::CobaltReduceGpuMemoryByDefault,
-    &common::CobaltGcZealDefault,
-    &CobaltRasterizerType,
-    &common::CobaltEnableJitDefault,
-    &common::CobaltFallbackSplashScreenTopicsDefault,
-    &common::CobaltCanStoreCompiledJavascriptDefault,
+    &CobaltUserOnExitStrategyDefault,
+    &CobaltRenderDirtyRegionOnlyDefault,
+    &CobaltEglSwapIntervalLinuxSkia,
+    &CobaltFallbackSplashScreenUrlDefault,
+    &CobaltEnableQuicDefault,
+    &CobaltSkiaCacheSizeInBytesDefault,
+    &CobaltOffscreenTargetCacheSizeInBytesDefault,
+    &CobaltEncodedImageCacheSizeInBytesDefault,
+    &CobaltImageCacheSizeInBytesDefault,
+    &CobaltLocalTypefaceCacheSizeInBytesDefault,
+    &CobaltRemoteTypefaceCacheSizeInBytesDefault,
+    &CobaltMeshCacheSizeInBytesDefault,
+    &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
+    &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
+    &CobaltSkiaGlyphAtlasWidthDefault,
+    &CobaltSkiaGlyphAtlasHeightDefault,
+    &CobaltJsGarbageCollectionThresholdInBytesDefault,
+    &CobaltReduceCpuMemoryByDefault,
+    &CobaltReduceGpuMemoryByDefault,
+    &CobaltGcZealDefault,
+    &CobaltRasterizerTypeLinuxSkia,
+    &CobaltEnableJitDefault,
+    &CobaltFallbackSplashScreenTopicsDefault,
+    &CobaltCanStoreCompiledJavascriptDefault,
 };
 
 }  // namespace
 
-const void* GetConfigurationApi() {
+const void* GetConfigurationApiLinuxSkia() {
   return &kConfigurationApi;
 }
 
-}  // namespace skia
-}  // namespace x64x11
 }  // namespace starboard

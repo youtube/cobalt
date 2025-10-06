@@ -40,6 +40,8 @@ PLATFORMS = {
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',
     'evergreen-arm-softfp': 'starboard/evergreen/arm/softfp',
     'evergreen-arm64': 'starboard/evergreen/arm64',
+    'tvos-arm64-device': 'starboard/tvos/arm64/device',
+    'tvos-arm64-simulator': 'starboard/tvos/arm64/simulator',
 }
 PLATFORMS.update(INTERNAL_PLATFORMS)
 

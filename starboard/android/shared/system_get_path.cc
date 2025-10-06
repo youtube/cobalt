@@ -25,10 +25,10 @@
 #include "starboard/common/string.h"
 
 using ::base::android::ScopedJavaGlobalRef;
-using ::starboard::android::shared::g_app_assets_dir;
-using ::starboard::android::shared::g_app_cache_dir;
-using ::starboard::android::shared::g_app_files_dir;
-using ::starboard::android::shared::g_app_lib_dir;
+using ::starboard::g_app_assets_dir;
+using ::starboard::g_app_cache_dir;
+using ::starboard::g_app_files_dir;
+using ::starboard::g_app_lib_dir;
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   if (!out_path || !path_size) {

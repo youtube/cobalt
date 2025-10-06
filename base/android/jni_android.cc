@@ -67,7 +67,45 @@ bool shouldAddCobaltPrefix() {
   }
   return g_add_cobalt_prefix;
 }
-#endif
+
+// Java exception stack trace example:
+//
+// java.lang.RuntimeException: Hello
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodC(VideoFrameReleaseTimeHelper.java:111)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodB(VideoFrameReleaseTimeHelper.java:115)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodA(VideoFrameReleaseTimeHelper.java:119)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.adjustReleaseTime(VideoFrameReleaseTimeHelper.java:135)
+std::string GetFirstLine(const std::string& stack_trace) {
+  return stack_trace.substr(0, stack_trace.find('\n'));
+}
+
+std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
+    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
+
+    std::vector<std::string> all_matches;
+    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
+    std::sregex_iterator end;
+
+    while (it != end && all_matches.size() < max_matches) {
+        std::smatch match = *it;
+
+        // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
+        all_matches.push_back(match[0].str());
+
+        ++it; // Move to the next match
+    }
+
+    std::ostringstream oss;
+    for (size_t i = 0; i < all_matches.size(); ++i) {
+        oss << all_matches[i];
+        if (i < all_matches.size() - 1) {
+            oss << "&";
+        }
+    }
+
+    return oss.str();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
 #if BUILDFLAG(IS_COBALT)
@@ -350,7 +388,9 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
       std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
       base::android::SetJavaException(exception_info.c_str());
-      exception_token = FindFirstJavaFileAndLine(exception_info);
+      exception_token =
+          GetFirstLine(exception_info) + " at " +
+          FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
 #else
       // RVO should avoid any extra copies of the exception string.
       base::android::SetJavaException(
@@ -374,35 +414,6 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
 
   return ConvertJavaStringToUTF8(sanitized_exception_string);
 }
-
-#if BUILDFLAG(IS_COBALT)
-std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
-    // This regular expression looks for a pattern inside parentheses.
-    // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
-    // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
-    // (        - Starts a capturing group. This is the part of the match we want to extract.
-    // [^)]+    - Matches one or more characters that are NOT a closing parenthesis ')'. This captures the file name.
-    // \\.java: - Matches the literal text ".java:".
-    // \\d+     - Matches one or more digits (the line number).
-    // )        - Ends the capturing group.
-    // \\)      - Matches the literal closing parenthesis ')'.
-    std::regex pattern("\\(([^)]+\\.java:\\d+)\\)");
-
-    // smatch object will store the results of the search.
-    std::smatch match;
-
-    // Search the input string for the first occurrence of the pattern.
-    if (std::regex_search(stack_trace, match, pattern)) {
-        // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
-        // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
-        // We return the content of the first captured group.
-        return match[1].str();
-    }
-
-    // Return an empty string if no match was found.
-    return "";
-}
-#endif
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 

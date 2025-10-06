@@ -39,13 +39,12 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
 TEST(PosixLstatTest, LstatOnExistingFile) {
   const int kFileSize = 12;
-  starboard::nplb::ScopedRandomFile random_file(kFileSize);
+  ScopedRandomFile random_file(kFileSize);
 
   struct stat sb;
   EXPECT_EQ(lstat(random_file.filename().c_str(), &sb), 0);
@@ -87,7 +86,7 @@ TEST(PosixLstatTest, DirectoryWithSubdirectory) {
 }
 
 TEST(PosixLstatTest, LstatOnSymbolicLinkToFile) {
-  starboard::nplb::ScopedRandomFile target_file;
+  ScopedRandomFile target_file;
 
   const char* link_path = "link_to_file.tmp";
   std::string target_filename = target_file.filename();
@@ -139,7 +138,7 @@ TEST(PosixLstatTest, LstatOnDanglingSymbolicLink) {
 }
 
 TEST(LstatTest, PathComponentNotADirectory) {
-  starboard::nplb::ScopedRandomFile file_as_dir;
+  ScopedRandomFile file_as_dir;
   std::string path = file_as_dir.filename() + "/some_file";
 
   struct stat sb;
@@ -182,4 +181,3 @@ TEST(PosixLstatTest, LstatOnNullPath) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

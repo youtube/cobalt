@@ -20,7 +20,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 // KeySystemSupportabilityCache caches the supportabilities of the combinations
 // of codec and key system.
@@ -66,6 +66,13 @@ class KeySystemSupportabilityCache {
   std::atomic_bool is_enabled_{false};
 };
 
-}  // namespace starboard::shared::starboard::media
+// Alias to prevent breaking the RDK build on CI.
+// http://go/paste/5940331015176192
+// TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
+namespace shared::starboard::media {
+using ::starboard::KeySystemSupportabilityCache;
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_KEY_SYSTEM_SUPPORTABILITY_CACHE_H_

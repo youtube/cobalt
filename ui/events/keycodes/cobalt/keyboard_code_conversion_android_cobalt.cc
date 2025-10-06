@@ -17,9 +17,11 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
   switch (keycode) {
     // Cobalt keycode mappings
     case AKEYCODE_CAPTIONS:
-      return KEY_SUBTITLES;
+      return VKEY_SUBTITLES;
     case AKEYCODE_SEARCH:
       return VKEY_BROWSER_SEARCH;
+    case AKEYCODE_BACK:
+      return VKEY_ESCAPE;
     // End of Cobalt keycode mappings
     default:
       return KeyboardCodeFromAndroidKeyCode_ChromiumImpl(keycode);

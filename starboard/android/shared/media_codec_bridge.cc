@@ -17,6 +17,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/media.h"
 #include "starboard/common/string.h"
 
 #pragma GCC diagnostic push
@@ -26,7 +27,8 @@
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
 #pragma GCC diagnostic pop
 
-namespace starboard::android::shared {
+namespace starboard {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -35,8 +37,6 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
-
-namespace {
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -162,6 +162,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
                   << audio_stream_info.codec << ".";
     return nullptr;
   }
+
+  SB_LOG(INFO) << __func__ << ": audio_stream_info=" << audio_stream_info;
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
@@ -299,6 +301,19 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return nullptr;
   }
 
+  SB_LOG(INFO)
+      << __func__ << ": video_codec=" << GetMediaVideoCodecName(video_codec)
+      << ", width_hint=" << width_hint << ", height_hint=" << height_hint
+      << ", fps=" << fps << ", max_width=" << max_width
+      << ", max_height=" << max_height
+      << ", has_color_metadata=" << to_string(color_metadata)
+      << ", require_secured_decoder=" << to_string(require_secured_decoder)
+      << ", require_software_codec=" << to_string(require_software_codec)
+      << ", tunnel_mode_audio_session_id=" << tunnel_mode_audio_session_id
+      << ", force_big_endian_hdr_metadata="
+      << to_string(force_big_endian_hdr_metadata)
+      << ", max_video_input_size=" << max_video_input_size;
+
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
 }
@@ -324,18 +339,20 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jint offset,
                                         jint size,
                                         jlong presentation_time_microseconds,
-                                        jint flags) {
+                                        jint flags,
+                                        jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
-      presentation_time_microseconds, flags);
+      presentation_time_microseconds, flags, is_decode_only);
 }
 
 jint MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
-    jlong presentation_time_microseconds) {
+    jlong presentation_time_microseconds,
+    jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_iv =
@@ -371,7 +388,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -504,7 +521,7 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
-  SB_DCHECK(handler_);
+  SB_CHECK(handler_);
 }
 
 void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
@@ -527,4 +544,4 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -28,11 +28,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-
 namespace {
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
@@ -50,49 +45,41 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
-        typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-        typedef ::starboard::shared::opus::OpusAudioDecoder
-            OpusAudioDecoderImpl;
-
+      auto decoder_creator =
+          [](const AudioStreamInfo& audio_stream_info,
+             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          std::unique_ptr<OpusAudioDecoderImpl> opus_audio_decoder_impl(
-              new OpusAudioDecoderImpl(audio_stream_info));
-          if (opus_audio_decoder_impl && opus_audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoder>(
-                std::move(opus_audio_decoder_impl));
+          auto opus_audio_decoder =
+              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+          if (opus_audio_decoder && opus_audio_decoder->is_valid()) {
+            return opus_audio_decoder;
           }
         } else {
-          std::unique_ptr<AudioDecoderImpl> audio_decoder_impl(
-              AudioDecoderImpl::Create(audio_stream_info));
-          if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          auto ffmpeg_audio_decoder = std::unique_ptr<FfmpegAudioDecoder>(
+              FfmpegAudioDecoder::Create(audio_stream_info));
+          if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
+            return ffmpeg_audio_decoder;
           }
         }
-        return std::unique_ptr<AudioDecoder>();
+        return nullptr;
       };
 
-      audio_decoder->reset(new AdaptiveAudioDecoder(
+      *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
-          creation_parameters.drm_system(), decoder_creator));
-      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+          creation_parameters.drm_system(), decoder_creator);
+      *audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      using VideoDecoderImpl =
-          ::starboard::raspi::shared::open_max::VideoDecoder;
-      using ::starboard::raspi::shared::VideoRendererSinkImpl;
-
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
 
-      video_decoder->reset(
-          new VideoDecoderImpl(creation_parameters.video_codec()));
-      video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-      *video_renderer_sink =
-          new VideoRendererSinkImpl(creation_parameters.player());
+      *video_decoder = std::make_unique<OpenMaxVideoDecoder>(
+          creation_parameters.video_codec());
+      *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
+      *video_renderer_sink = make_scoped_refptr<VideoRendererSinkImpl>(
+          creation_parameters.player());
     }
 
     return true;
@@ -103,8 +90,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return std::unique_ptr<PlayerComponents::Factory>(
-      new PlayerComponentsFactory);
+  return std::make_unique<PlayerComponentsFactory>();
 }
 
 // static
@@ -115,8 +101,4 @@ bool PlayerComponents::Factory::OutputModeSupported(
   return output_mode == kSbPlayerOutputModePunchOut;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard

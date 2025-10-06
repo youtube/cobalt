@@ -24,22 +24,17 @@
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/scoped_timer.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
 
-namespace {
-starboard::android::shared::AudioTrackAudioSinkType*
-    audio_track_audio_sink_type_;
-}
-
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // Whether to use continuous audio track sync, which keep feeding audio frames
 // into AudioTrack. Instead of callnig pause/play, it switches between silence
@@ -71,6 +66,8 @@ const int kMinStablePlayedFrames = 12 * 1024;
 
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
+
+std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
@@ -178,7 +175,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    pthread_join(*audio_out_thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
   }
 }
 
@@ -278,10 +275,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
+      ScopedTimer timer("Pause");
       bridge_.Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
+      ScopedTimer timer("Play");
       bridge_.Play();
     }
 
@@ -333,7 +332,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
         start_time_ + GetFramesDurationUs(accumulated_written_frames);
-    SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
+    SB_DCHECK_LE(start_position + expected_written_frames, frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
         << ", frames_per_channel_: " << frames_per_channel_
@@ -434,7 +433,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
-  SB_DCHECK(audio_track_audio_sink_type_);
+  SB_CHECK(audio_track_audio_sink_type_);
   JNIEnv* env = AttachCurrentThread();
   return std::max(
       AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
@@ -527,9 +526,10 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
       [&](int number_of_channels, SbMediaAudioSampleType sample_type,
           int sample_rate, int min_required_frames) {
         bool has_remote_audio_output = HasRemoteAudioOutput();
-        SB_LOG(INFO) << "Received min required frames " << min_required_frames
+        SB_LOG(INFO) << "Received min required frames "
+                     << FormatWithDigitSeparators(min_required_frames)
                      << " for " << number_of_channels << " channels, "
-                     << sample_rate << "hz, with "
+                     << FormatWithDigitSeparators(sample_rate) << "hz, with "
                      << (has_remote_audio_output ? "remote" : "local")
                      << " audio output device.";
         std::lock_guard lock(min_required_frames_map_mutex_);
@@ -588,26 +588,25 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
                                  : kMaxRequiredFramesLocal;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  SB_DCHECK(!audio_track_audio_sink_type_);
-  audio_track_audio_sink_type_ =
-      new ::starboard::android::shared::AudioTrackAudioSinkType;
-  SetPrimaryType(audio_track_audio_sink_type_);
-  EnableFallbackToStub();
-  audio_track_audio_sink_type_->TestMinRequiredFrames();
+  static std::once_flag once_flag;
+  std::call_once(once_flag, [] {
+    SB_LOG(INFO) << "Creating AudioTrackAudioSinkType.";
+    audio_track_audio_sink_type_ = std::make_unique<AudioTrackAudioSinkType>();
+    SetPrimaryType(audio_track_audio_sink_type_.get());
+    EnableFallbackToStub();
+    audio_track_audio_sink_type_->TestMinRequiredFrames();
+  });
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_DCHECK_EQ(audio_track_audio_sink_type_, GetPrimaryType());
-  SetPrimaryType(NULL);
-  delete audio_track_audio_sink_type_;
-  audio_track_audio_sink_type_ = NULL;
+  SB_LOG(FATAL) << "Android application does not call PlatformTearDown().";
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard

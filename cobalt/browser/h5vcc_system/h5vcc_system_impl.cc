@@ -22,11 +22,11 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
-using starboard::android::shared::StarboardBridge;
+using ::starboard::StarboardBridge;
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "cobalt/browser/h5vcc_system/configuration.h"
+#include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
 #endif

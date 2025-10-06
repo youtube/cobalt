@@ -23,7 +23,6 @@
 #include "starboard/common/log.h"
 
 namespace starboard {
-namespace common {
 
 // The MemoryPool class can be used to wrap a range of memory with allocators
 // such that the memory can be allocated out of and free'd memory re-used as
@@ -35,7 +34,7 @@ class MemoryPool : public Allocator {
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size) {
     SB_DCHECK(buffer);
-    SB_DCHECK(size > 0U);
+    SB_DCHECK_GT(size, 0U);
   }
 
   template <typename ParameterType>
@@ -43,7 +42,7 @@ class MemoryPool : public Allocator {
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size, parameter1) {
     SB_DCHECK(buffer);
-    SB_DCHECK(size > 0U);
+    SB_DCHECK_GT(size, 0U);
   }
 
   void* Allocate(size_t size) { return reuse_allocator_.Allocate(size); }
@@ -68,7 +67,6 @@ class MemoryPool : public Allocator {
   ReuseAllocator reuse_allocator_;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_MEMORY_POOL_H_

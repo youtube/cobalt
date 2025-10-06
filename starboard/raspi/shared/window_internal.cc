@@ -21,10 +21,10 @@ namespace {
 const int32_t kLayer = 0;
 }  // namespace
 
-using starboard::raspi::shared::DispmanxDisplay;
-using starboard::raspi::shared::DispmanxElement;
-using starboard::raspi::shared::DispmanxRect;
-using starboard::raspi::shared::DispmanxResource;
+using starboard::DispmanxDisplay;
+using starboard::DispmanxElement;
+using starboard::DispmanxRect;
+using starboard::DispmanxResource;
 
 SbWindowPrivate::SbWindowPrivate(const DispmanxDisplay& display,
                                  const SbWindowOptions* options) {

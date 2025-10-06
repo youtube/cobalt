@@ -43,10 +43,8 @@
 #include "starboard/key.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
-namespace starboard::shared::dev_input {
+namespace starboard {
 namespace {
-
-using ::starboard::shared::starboard::Application;
 
 typedef int FileDescriptor;
 const FileDescriptor kInvalidFd = -ENODEV;
@@ -861,8 +859,7 @@ bool PollInputEvent(InputDeviceInfo* device_info,
       return false;
     }
 
-    SB_DCHECK(bytes_read <= remaining)
-        << "bytes_read=" << bytes_read << ", remaining=" << remaining;
+    SB_DCHECK_LE(bytes_read, remaining);
     remaining -= bytes_read;
     buffer += bytes_read;
   }
@@ -933,17 +930,17 @@ void DevInputImpl::InitDevInputImpl(SbWindow window) {
   // Initialize wakeup pipe.
   FileDescriptor fds[2] = {kInvalidFd, kInvalidFd};
   int result = pipe(fds);
-  SB_DCHECK(result == 0) << "result=" << result;
+  SB_DCHECK_EQ(result, 0);
 
   wakeup_read_fd_ = fds[0];
   SB_DCHECK_NE(wakeup_read_fd_, kInvalidFd);
   result = SetNonBlocking(wakeup_read_fd_);
-  SB_DCHECK(result == 0) << "result=" << result;
+  SB_DCHECK_EQ(result, 0);
 
   wakeup_write_fd_ = fds[1];
   SB_DCHECK_NE(wakeup_write_fd_, kInvalidFd);
   result = SetNonBlocking(wakeup_write_fd_);
-  SB_DCHECK(result == 0) << "result=" << result;
+  SB_DCHECK_EQ(result, 0);
 }
 
 DevInputImpl::~DevInputImpl() {
@@ -1008,7 +1005,7 @@ void DevInputImpl::WakeSystemEventWait() {
   while (true) {
     int bytes_written = HANDLE_EINTR(write(wakeup_write_fd_, &buf, 1));
     if (bytes_written > 0) {
-      SB_DCHECK(bytes_written == 1) << "bytes_written=" << bytes_written;
+      SB_DCHECK_EQ(bytes_written, 1);
       return;
     }
 
@@ -1313,4 +1310,4 @@ DevInput* DevInput::Create(SbWindow window, int wake_up_fd) {
   return new DevInputImpl(window, wake_up_fd);
 }
 
-}  // namespace starboard::shared::dev_input
+}  // namespace starboard

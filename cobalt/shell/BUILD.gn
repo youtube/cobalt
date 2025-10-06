@@ -43,11 +43,7 @@ source_set("android_shell_descriptors") {
 }
 
 group("cobalt_shell_lib_deps") {
-  testonly = true
-  visibility = [
-    "//cobalt/shell:*",
-    "//cobalt/testing:*",
-  ]
+  visibility = [ "//cobalt/shell:*" ]
 
   public_deps = [
     ":android_shell_descriptors",
@@ -131,7 +127,6 @@ group("cobalt_shell_lib_deps") {
   if (use_aura) {
     public_deps += [
       "//ui/aura",
-      "//ui/aura:test_support",
       "//ui/events",
       "//ui/wm",
     ]
@@ -141,9 +136,7 @@ group("cobalt_shell_lib_deps") {
         "//ui/color:color_headers",
         "//ui/native_theme",
         "//ui/resources",
-        "//ui/views:test_support",
         "//ui/views/controls/webview",
-        "//ui/wm:test_support",
       ]
     }
   }
@@ -201,6 +194,17 @@ source_set("browsertests_sources") {
     "//services/test/echo:lib",
     "//services/test/echo/public/mojom",
   ]
+
+  if (use_aura) {
+    public_deps += [ "//ui/aura:test_support" ]
+
+    if (shell_use_toolkit_views) {
+      public_deps += [
+        "//ui/views:test_support",
+        "//ui/wm:test_support",
+      ]
+    }
+  }
 }
 
 static_library("cobalt_shell_lib") {
@@ -302,6 +306,8 @@ static_library("cobalt_shell_lib") {
   if (use_aura) {
     if (shell_use_toolkit_views) {
       sources += [
+        "browser/cobalt_views_delegate.cc",
+        "browser/cobalt_views_delegate.h",
         "browser/shell_platform_delegate_views.cc",
         "browser/shell_web_contents_view_delegate_views.cc",
       ]
@@ -315,6 +321,13 @@ static_library("cobalt_shell_lib") {
     sources -= [
       "browser/shell_platform_data_aura.cc",
       "browser/shell_platform_data_aura.h",
+    ]
+  }
+
+  if (is_starboard) {
+    sources += [
+      "common/device_authentication.cc",
+      "common/device_authentication.h",
     ]
   }
 }
@@ -387,7 +400,6 @@ repack("pak") {
     "$root_gen_dir/content/dev_ui_content_resources.pak",
     "$root_gen_dir/content/gpu_resources.pak",
     "$root_gen_dir/content/histograms_resources.pak",
-    "$root_gen_dir/content/test/web_ui_mojo_test_resources.pak",
     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
@@ -400,6 +412,10 @@ repack("pak") {
     "$root_gen_dir/ui/strings/ax_strings_en-US.pak",
     "$root_gen_dir/ui/strings/ui_strings_en-US.pak",
   ]
+
+  if (!is_official_build) {
+    sources += [ "$root_gen_dir/content/test/web_ui_mojo_test_resources.pak" ]
+  }
 
   deps = [
     ":resources",

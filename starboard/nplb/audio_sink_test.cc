@@ -22,7 +22,6 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 TEST(SbAudioSinkTest, UpdateStatusCalled) {
@@ -127,4 +126,3 @@ TEST(SbAudioSinkTest, ContinuousAppend) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

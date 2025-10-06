@@ -26,7 +26,7 @@
 #include "starboard/system.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 namespace {
 
@@ -177,7 +177,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
   SB_DCHECK(job);
-  SB_DCHECK(delay_usec >= 0) << delay_usec;
+  SB_DCHECK_GE(delay_usec, 0);
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
@@ -315,4 +315,4 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   return true;
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

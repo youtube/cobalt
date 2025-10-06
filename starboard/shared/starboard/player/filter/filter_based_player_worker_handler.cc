@@ -31,16 +31,12 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard::shared::starboard::player::filter {
-
+namespace starboard {
 namespace {
-
-using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
-    HandlerResult;
+using HandlerResult = PlayerWorker::Handler::HandlerResult;
 
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
@@ -96,9 +92,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   // All parameters have to be valid.
   SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(update_media_info_cb);
-  SB_DCHECK(get_player_state_cb);
-  SB_DCHECK(update_player_state_cb);
+  SB_CHECK(update_media_info_cb);
+  SB_CHECK(get_player_state_cb);
+  SB_CHECK(update_player_state_cb);
 
   AttachToCurrentThread();
 
@@ -218,7 +214,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(samples_written);
+  SB_CHECK(samples_written);
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
   }
@@ -434,7 +430,7 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
     return;
   }
 
-  SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
+  SB_DCHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
@@ -550,4 +546,4 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

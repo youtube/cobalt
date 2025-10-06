@@ -26,7 +26,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 namespace {
 
 class StubAudioSink : public SbAudioSinkPrivate {
@@ -82,12 +82,16 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  pthread_join(audio_out_thread_, NULL);
+  SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
 }
 
 // static
 void* StubAudioSink::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("stub_audio_out");
+#else
   pthread_setname_np(pthread_self(), "stub_audio_out");
+#endif
   SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);
@@ -142,4 +146,4 @@ SbAudioSink StubAudioSinkType::Create(
                            context);
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard

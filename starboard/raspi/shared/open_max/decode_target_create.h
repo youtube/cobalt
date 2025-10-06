@@ -18,9 +18,6 @@
 #include "starboard/decode_target.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 SbDecodeTarget DecodeTargetCreate(
     SbDecodeTargetGraphicsContextProvider* provider,
@@ -28,9 +25,6 @@ SbDecodeTarget DecodeTargetCreate(
     int width,
     int height);
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_CREATE_H_

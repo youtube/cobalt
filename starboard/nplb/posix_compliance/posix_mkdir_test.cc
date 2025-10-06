@@ -35,7 +35,7 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::nplb {
+namespace nplb {
 namespace {
 
 class PosixMkdirTest : public ::testing::Test {
@@ -182,4 +182,4 @@ TEST_F(PosixMkdirTest, FailsOnPathTooLong) {
 }
 
 }  // namespace
-}  // namespace starboard::nplb
+}  // namespace nplb

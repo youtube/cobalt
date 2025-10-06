@@ -23,11 +23,10 @@
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
-using shared::starboard::player::video_dmp::VideoDmpReader;
-using testing::FakeGraphicsContextProvider;
+using ::starboard::FakeGraphicsContextProvider;
+using ::starboard::VideoDmpReader;
 
 using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
 using AudioSamplesDescriptor = GroupedSamples::AudioSamplesDescriptor;
@@ -275,8 +274,8 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
 
   const int64_t kDefaultWriteTimeout = 5'000'000LL;  // 5 seconds
 
-  int64_t start = CurrentMonotonicTime();
-  while (CurrentMonotonicTime() - start < kDefaultWriteTimeout) {
+  int64_t start = starboard::CurrentMonotonicTime();
+  while (starboard::CurrentMonotonicTime() - start < kDefaultWriteTimeout) {
     if (CanWriteMoreAudioData() && iterator.HasMoreAudio()) {
       auto descriptor = iterator.GetCurrentAudioSamplesToWrite();
       if (descriptor.is_end_of_stream) {
@@ -429,8 +428,9 @@ void SbPlayerTestFixture::OnPlayerState(SbPlayer player,
 void SbPlayerTestFixture::OnError(SbPlayer player,
                                   SbPlayerError error,
                                   const char* message) {
-  SB_LOG(ERROR) << FormatString("Got SbPlayerError %d with message '%s'", error,
-                                message != NULL ? message : "");
+  SB_LOG(ERROR) << starboard::FormatString(
+      "Got SbPlayerError %d with message '%s'", error,
+      message != NULL ? message : "");
   error_occurred_ = true;
 }
 
@@ -449,7 +449,7 @@ void SbPlayerTestFixture::Initialize() {
   // Initialize player.
   auto audio_codec = kSbMediaAudioCodecNone;
   auto video_codec = kSbMediaVideoCodecNone;
-  const shared::starboard::media::AudioStreamInfo* audio_stream_info = NULL;
+  const starboard::AudioStreamInfo* audio_stream_info = nullptr;
 
   if (audio_dmp_reader_) {
     audio_codec = audio_dmp_reader_->audio_codec();
@@ -526,10 +526,10 @@ void SbPlayerTestFixture::WriteAudioSamples(
   SB_DCHECK(audio_dmp_reader_);
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
-  SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                                    player_, kSbMediaTypeAudio));
-  SB_DCHECK(static_cast<size_t>(start_index + samples_to_write + 1) <
-            audio_dmp_reader_->number_of_audio_buffers());
+  SB_DCHECK_LE(samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                                     player_, kSbMediaTypeAudio));
+  SB_DCHECK_LT(static_cast<size_t>(start_index + samples_to_write + 1),
+               audio_dmp_reader_->number_of_audio_buffers());
   SB_DCHECK(discarded_duration_from_front == 0 || samples_to_write == 1);
   SB_DCHECK(discarded_duration_from_back == 0 || samples_to_write == 1);
 
@@ -554,11 +554,11 @@ void SbPlayerTestFixture::WriteVideoSamples(int start_index,
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
   SB_DCHECK(SbPlayerIsValid(player_));
-  SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                                    player_, kSbMediaTypeVideo));
+  SB_DCHECK_LE(samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                                     player_, kSbMediaTypeVideo));
   SB_DCHECK(video_dmp_reader_);
-  SB_DCHECK(static_cast<size_t>(start_index + samples_to_write) <
-            video_dmp_reader_->number_of_video_buffers());
+  SB_DCHECK_LT(static_cast<size_t>(start_index + samples_to_write),
+               video_dmp_reader_->number_of_video_buffers());
 
   CallSbPlayerWriteSamples(player_, kSbMediaTypeVideo, video_dmp_reader_.get(),
                            start_index, samples_to_write);
@@ -634,7 +634,7 @@ void SbPlayerTestFixture::WaitForDecoderStateNeedsData(const int64_t timeout) {
   bool old_can_accept_more_audio_data = can_accept_more_audio_data_;
   bool old_can_accept_more_video_data = can_accept_more_video_data_;
 
-  int64_t start = CurrentMonotonicTime();
+  int64_t start = starboard::CurrentMonotonicTime();
   do {
     ASSERT_FALSE(error_occurred_);
     GetDecodeTargetWhenSupported();
@@ -643,7 +643,7 @@ void SbPlayerTestFixture::WaitForDecoderStateNeedsData(const int64_t timeout) {
         old_can_accept_more_video_data != can_accept_more_video_data_) {
       return;
     }
-  } while (CurrentMonotonicTime() - start < timeout);
+  } while (starboard::CurrentMonotonicTime() - start < timeout);
 }
 
 void SbPlayerTestFixture::WaitForPlayerState(const SbPlayerState desired_state,
@@ -653,7 +653,7 @@ void SbPlayerTestFixture::WaitForPlayerState(const SbPlayerState desired_state,
   if (HasReceivedPlayerState(desired_state)) {
     return;
   }
-  int64_t start = CurrentMonotonicTime();
+  int64_t start = starboard::CurrentMonotonicTime();
   do {
     ASSERT_FALSE(error_occurred_);
     ASSERT_NO_FATAL_FAILURE(GetDecodeTargetWhenSupported());
@@ -661,7 +661,7 @@ void SbPlayerTestFixture::WaitForPlayerState(const SbPlayerState desired_state,
     if (HasReceivedPlayerState(desired_state)) {
       return;
     }
-  } while (CurrentMonotonicTime() - start < timeout);
+  } while (starboard::CurrentMonotonicTime() - start < timeout);
 
   FAIL() << "WaitForPlayerState() did not receive expected state.";
 }
@@ -725,4 +725,3 @@ void SbPlayerTestFixture::AssertPlayerStateIsValid(SbPlayerState state) const {
 }
 
 }  // namespace nplb
-}  // namespace starboard

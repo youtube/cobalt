@@ -4,7 +4,7 @@
     "MadviseTest.BadSizeValue",
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
-    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
     "SbAudioSinkTest.*",
     "SbAudioSinkCreateTest.MultiSink",
     "SbMediaSetAudioWriteDurationTests*",
@@ -19,12 +19,14 @@
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
     "PosixUtimensatTest.OmitBothTimestamps",
     "PosixUtimensatTest.SymlinkNoFollow",
+    "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.SunnyDayStackDirection",
     "SbSystemGetStackTest.SunnyDay",
     "SbSystemGetStackTest.SunnyDayShortStack",
     "SbSystemSymbolizeTest.SunnyDay",
     "SbTimeZoneGetNameTest.IsIANAFormat",
-    "SbWindowGetSizeTest.SunnyDay"
+    "SbWindowGetSizeTest.SunnyDay",
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

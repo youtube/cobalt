@@ -19,6 +19,6 @@
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
                          char* out_value,
                          int value_length) {
-  return starboard::x64x11::GetSystemProperty(property_id, out_value,
-                                              value_length);
+  return starboard::GetSystemPropertyLinux(property_id, out_value,
+                                           value_length);
 }

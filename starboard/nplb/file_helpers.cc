@@ -24,13 +24,13 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 
 namespace {
@@ -57,7 +57,8 @@ std::string GetFileTestsDataDir() {
                                "starboard" + kSbFileSepChar + "nplb" +
                                kSbFileSepChar + "file_tests";
   struct stat info;
-  SB_CHECK(stat(directory_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
+  SB_CHECK_EQ(stat(directory_path.c_str(), &info), 0);
+  SB_CHECK(S_ISDIR(info.st_mode));
   return directory_path;
 }
 
@@ -211,4 +212,3 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
 }
 
 }  // namespace nplb
-}  // namespace starboard

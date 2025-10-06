@@ -32,10 +32,9 @@ import java.util.Map;
 import java.util.Set;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /** Utility functions for dealing with MediaCodec related things. */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 public class MediaCodecUtil {
   // A low priority deny list of video codec names that should never be used.
   private static final Set<String> videoCodecDenyList = new HashSet<>();
@@ -551,8 +550,7 @@ public class MediaCodecUtil {
   }
 
   /**
-   * The same as hasVideoDecoderFor, returns the name of the video decoder if it is found, or ""
-   * otherwise.
+   * Returns the name of the video decoder if it is found, or "" otherwise.
    *
    * <p>NOTE: This code path is called repeatedly by the player to determine the decoding
    * capabilities of the device. To ensure speedy playback the code below should be kept performant.
@@ -736,10 +734,7 @@ public class MediaCodecUtil {
     return "";
   }
 
-  /**
-   * The same as hasAudioDecoderFor, only return the name of the audio decoder if it is found, and
-   * "" otherwise.
-   */
+  /** Return the name of the audio decoder if it is found, and "" otherwise. */
   @CalledByNative
   public static String findAudioDecoder(String mimeType, int bitrate) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
@@ -752,8 +747,10 @@ public class MediaCodecUtil {
           continue;
         }
         String name = info.getName();
-        MediaCodecInfo.CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
-        MediaCodecInfo.AudioCapabilities audioCapabilities = codecCapabilities.getAudioCapabilities();
+        MediaCodecInfo.CodecCapabilities codecCapabilities =
+            info.getCapabilitiesForType(supportedType);
+        MediaCodecInfo.AudioCapabilities audioCapabilities =
+            codecCapabilities.getAudioCapabilities();
         Range<Integer> bitrateRange =
             Range.create(0, audioCapabilities.getBitrateRange().getUpper());
         if (!bitrateRange.contains(bitrate)) {

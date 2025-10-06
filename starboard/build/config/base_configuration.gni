@@ -72,9 +72,7 @@ declare_args() {
   #   "system_gles2" - Use the system implementation of EGL + GLES2. The
   #                    headers and libraries must be on the system include and
   #                    link paths.
-  #   "glimp"  - Cobalt's own EGL + GLES2 implementation. This requires a
-  #              valid Glimp implementation for the platform.
-  #   "angle"  - A DirectX-to-OpenGL adaptation layer. This requires a valid
+  #   "angle"  - Use ANGLE's EGL + GLES2 implementation. This requires a valid
   #              ANGLE implementation for the platform.
   gl_type = "system_gles2"
 

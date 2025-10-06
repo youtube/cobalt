@@ -30,6 +30,5 @@ source_set("h5vcc_metrics") {
     "//components/metrics_services_manager",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
-    "//starboard:starboard_group",
   ]
 }

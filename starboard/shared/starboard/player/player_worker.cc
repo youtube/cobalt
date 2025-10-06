@@ -28,17 +28,15 @@
 #include "starboard/common/player.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 namespace {
 
-using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
-typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
-    HandlerResult;
+using HandlerResult = PlayerWorker::Handler::HandlerResult;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kPlayerStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
@@ -92,7 +90,7 @@ PlayerWorker::~PlayerWorker() {
 
   if (thread_) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
-    pthread_join(*thread_, nullptr);
+    SB_CHECK_EQ(pthread_join(*thread_, nullptr), 0);
     thread_ = std::nullopt;
 
     // Now the whole pipeline has been torn down and no callback will be called.
@@ -193,7 +191,11 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
+#if defined(__APPLE__)
+  pthread_setname_np("player_worker");
+#else
   pthread_setname_np(pthread_self(), "player_worker");
+#endif
   SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param);
@@ -306,8 +308,8 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   if (static_cast<size_t>(samples_written) == input_buffers.size()) {
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
-    SB_DCHECK(samples_written >= 0 &&
-              static_cast<size_t>(samples_written) <= input_buffers.size());
+    SB_DCHECK_GE(samples_written, 0);
+    SB_DCHECK_LE(static_cast<size_t>(samples_written), input_buffers.size());
 
     [[maybe_unused]] size_t num_of_pending_buffers =
         input_buffers.size() - samples_written;
@@ -430,4 +432,4 @@ void PlayerWorker::UpdateDecoderState(SbMediaType type,
   decoder_status_func_(player_, context_, type, state, ticket_);
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

@@ -39,9 +39,9 @@
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 
-namespace starboard {
 namespace loader_app {
 namespace {
+using ::starboard::SbFileDeleteRecursive;
 
 const char kTestAppKey[] = "1234";
 const char kTestApp2Key[] = "ABCD";
@@ -125,10 +125,9 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(index, installation_path.data(),
                                                 kSbFileMaxPath));
     std::string bad_app_key_file_path =
-        starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
-                                                    app_key);
+        loader_app::GetBadAppKeyFilePath(installation_path.data(), app_key);
     ASSERT_TRUE(!bad_app_key_file_path.empty());
-    ASSERT_TRUE(starboard::loader_app::CreateAppKeyFile(bad_app_key_file_path));
+    ASSERT_TRUE(loader_app::CreateAppKeyFile(bad_app_key_file_path));
   }
 
   void CreateGoodFile(int index, const std::string& app_key) {
@@ -136,19 +135,16 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(index, installation_path.data(),
                                                 kSbFileMaxPath));
     std::string good_app_key_file_path =
-        starboard::loader_app::GetGoodAppKeyFilePath(installation_path.data(),
-                                                     app_key);
+        loader_app::GetGoodAppKeyFilePath(installation_path.data(), app_key);
     ASSERT_TRUE(!good_app_key_file_path.empty());
-    ASSERT_TRUE(
-        starboard::loader_app::CreateAppKeyFile(good_app_key_file_path));
+    ASSERT_TRUE(loader_app::CreateAppKeyFile(good_app_key_file_path));
   }
 
   void VerifyGoodFile(int index, const std::string& app_key, bool exists) {
     std::vector<char> installation_path(kSbFileMaxPath);
     ImGetInstallationPath(index, installation_path.data(), kSbFileMaxPath);
     std::string good_app_key_file_path =
-        starboard::loader_app::GetGoodAppKeyFilePath(installation_path.data(),
-                                                     app_key);
+        loader_app::GetGoodAppKeyFilePath(installation_path.data(), app_key);
     ASSERT_TRUE(!good_app_key_file_path.empty());
     ASSERT_EQ(exists, FileExists(good_app_key_file_path.c_str()));
   }
@@ -157,8 +153,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     std::vector<char> installation_path(kSbFileMaxPath);
     ImGetInstallationPath(index, installation_path.data(), kSbFileMaxPath);
     std::string bad_app_key_file_path =
-        starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
-                                                    app_key);
+        loader_app::GetBadAppKeyFilePath(installation_path.data(), app_key);
     ASSERT_TRUE(!bad_app_key_file_path.empty());
     SB_LOG(INFO) << "bad_app_key_file_path=" << bad_app_key_file_path;
     ASSERT_EQ(exists, FileExists(bad_app_key_file_path.c_str()));
@@ -569,5 +564,4 @@ INSTANTIATE_TEST_CASE_P(SlotManagementTests,
 
 }  // namespace
 }  // namespace loader_app
-}  // namespace starboard
 #endif  // #if SB_IS(EVERGREEN_COMPATIBLE)

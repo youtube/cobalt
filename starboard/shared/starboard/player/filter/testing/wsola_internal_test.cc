@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/types.h"
 
-namespace starboard::shared::starboard::player::filter::internal {
+namespace starboard {
 namespace {
 
 constexpr int kSampleRate = 48'000;
@@ -201,4 +201,4 @@ TEST(WsolaInternalTest, GetPeriodicHanningWindow_AllValuesAreValid) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::player::filter::internal
+}  // namespace starboard

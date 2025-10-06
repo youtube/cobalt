@@ -17,17 +17,16 @@
 
 #include <list>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
-class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
-                                 filter::VideoRenderAlgorithm {
+class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
  public:
-  VideoRenderAlgorithm(VideoDecoder* video_decoder,
-                       VideoFrameTracker* frame_tracker);
+  VideoRenderAlgorithmAndroid(MediaCodecVideoDecoder* video_decoder,
+                              VideoFrameTracker* frame_tracker);
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
@@ -45,16 +44,17 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
                             double playback_rate);
 
    private:
-    jobject j_video_frame_release_time_helper_ = nullptr;
+    base::android::ScopedJavaGlobalRef<jobject>
+        j_video_frame_release_time_helper_;
   };
 
-  VideoDecoder* video_decoder_ = nullptr;
+  MediaCodecVideoDecoder* video_decoder_ = nullptr;
   VideoFrameTracker* frame_tracker_;
   double playback_rate_ = 1.0;
   VideoFrameReleaseTimeHelper video_frame_release_time_helper_;
   int dropped_frames_ = 0;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_

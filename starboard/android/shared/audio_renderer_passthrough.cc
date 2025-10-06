@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -24,7 +25,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::ScopedJavaLocalRef;
@@ -44,7 +45,7 @@ constexpr int kTunnelModeAudioSessionId = -1;
 // The ExoPlayer implementation is based on
 // https://www.etsi.org/deliver/etsi_ts/102300_102399/102366/01.04.01_60/ts_102366v010401p.pdf.
 int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
-  SB_DCHECK(buffer);
+  SB_CHECK(buffer);
 
   constexpr int kAudioSamplesPerAudioBlock = 256;
   // Each syncframe has 6 blocks that provide 256 new audio samples. See
@@ -82,8 +83,8 @@ AudioRendererPassthrough::AudioRendererPassthrough(
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    std::unique_ptr<AudioDecoder> audio_decoder(new AudioDecoder(
-        audio_stream_info, drm_system, enable_flush_during_seek));
+    auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
+        audio_stream_info, drm_system, enable_flush_during_seek);
     if (audio_decoder->is_valid()) {
       decoder_.reset(audio_decoder.release());
     }
@@ -629,4 +630,4 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   decoded_audios_.push(decoded_audio);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -21,7 +21,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 namespace {
 
@@ -76,7 +76,11 @@ void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param);
 
+#if defined(__APPLE__)
+  pthread_setname_np(param->thread_name.c_str());
+#else
   pthread_setname_np(pthread_self(), param->thread_name.c_str());
+#endif
   SbThreadSetPriority(param->thread_priority);
 
   JobThread* job_thread = param->job_thread;
@@ -98,4 +102,4 @@ void JobThread::RunLoop() {
   job_queue_.reset();
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard
