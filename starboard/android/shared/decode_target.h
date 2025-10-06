@@ -30,11 +30,6 @@ using base::android::ScopedJavaGlobalRef;
 
 class DecodeTarget final : public SbDecodeTargetPrivate {
  public:
-  struct SurfaceJniCache {
-    ScopedJavaGlobalRef<jclass> surface_class;
-    jmethodID surface_constructor;
-  };
-
   explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
 
   bool GetInfo(SbDecodeTargetInfo* out_info) final;
@@ -66,8 +61,6 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   ANativeWindow* native_window_;
 
   SbDecodeTargetInfo info_;
-
-  SurfaceJniCache cache_;
 };
 
 }  // namespace starboard

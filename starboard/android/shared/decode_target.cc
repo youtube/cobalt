@@ -45,22 +45,27 @@ ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,
 
 ScopedJavaGlobalRef<jobject> CreateSurfaceFromSurfaceTexture(
     JNIEnv* env,
-    jobject surface_texture,
-    DecodeTarget::SurfaceJniCache* cache) {
+    jobject surface_texture) {
+  struct SurfaceJniCache {
+    ScopedJavaGlobalRef<jclass> surface_class;
+    jmethodID surface_constructor;
+  };
+
+  static SurfaceJniCache cache;
   static std::once_flag once_flag;
-  std::call_once(once_flag, [env, cache]() {
-    cache->surface_class = ScopedJavaGlobalRef<jclass>(
+  std::call_once(once_flag, [env]() {
+    cache.surface_class = ScopedJavaGlobalRef<jclass>(
         env, env->FindClass("android/view/Surface"));
-    SB_CHECK(cache->surface_class);
-    cache->surface_constructor =
-        env->GetMethodID(cache->surface_class.obj(), "<init>",
+    SB_CHECK(cache.surface_class);
+    cache.surface_constructor =
+        env->GetMethodID(cache.surface_class.obj(), "<init>",
                          "(Landroid/graphics/SurfaceTexture;)V");
-    SB_CHECK(cache->surface_constructor);
+    SB_CHECK(cache.surface_constructor);
   });
 
   ScopedJavaGlobalRef<jobject> surface(
-      env, env->NewObject(cache->surface_class.obj(),
-                          cache->surface_constructor, surface_texture));
+      env, env->NewObject(cache.surface_class.obj(), cache.surface_constructor,
+                          surface_texture));
   SB_CHECK(surface);
 
   return surface;
@@ -116,8 +121,7 @@ void DecodeTarget::CreateOnContextRunner() {
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  surface_ =
-      CreateSurfaceFromSurfaceTexture(env, surface_texture_.obj(), &cache_);
+  surface_ = CreateSurfaceFromSurfaceTexture(env, surface_texture_.obj());
 
   native_window_ = ANativeWindow_fromSurface(env, surface_.obj());
 
