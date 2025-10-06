@@ -13,9 +13,6 @@
 // limitations under the License.
 
 #include "media/capture/video/linux/video_capture_device_factory_linux.h"
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "base/starboard/linker_stub.h"
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 namespace media {
 

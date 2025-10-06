@@ -13,10 +13,7 @@
 // limitations under the License.
 
 #include "base/process/process.h"
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include "base/notreached.h"
-#include "base/starboard/linker_stub.h"
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 namespace base {
 
