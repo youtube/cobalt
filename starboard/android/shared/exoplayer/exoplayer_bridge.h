@@ -32,17 +32,17 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard::android::shared::exoplayer {
+namespace starboard {
 
 using base::android::ScopedJavaGlobalRef;
-using starboard::android::shared::VideoSurfaceHolder;
-using starboard::shared::starboard::player::filter::EndedCB;
-using starboard::shared::starboard::player::filter::ErrorCB;
-using PrerolledCB = ::starboard::shared::starboard::player::filter::PrerolledCB;
-using InputBuffer = ::starboard::shared::starboard::player::InputBuffer;
-using InputBuffers = ::starboard::shared::starboard::player::InputBuffers;
-using AudioStreamInfo = ::starboard::shared::starboard::media::AudioStreamInfo;
-using VideoStreamInfo = ::starboard::shared::starboard::media::VideoStreamInfo;
+using starboard::EndedCB;
+using starboard::ErrorCB;
+using starboard::VideoSurfaceHolder;
+using PrerolledCB = ::starboard::PrerolledCB;
+using InputBuffer = ::starboard::InputBuffer;
+using InputBuffers = ::starboard::InputBuffers;
+using AudioStreamInfo = ::starboard::AudioStreamInfo;
+using VideoStreamInfo = ::starboard::VideoStreamInfo;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
@@ -51,6 +51,22 @@ enum ExoPlayerRendererType {
   EXOPLAYER_RENDERER_TYPE_VIDEO,
 
   EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
+};
+
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_AUDIO_CODEC_
+enum ExoPlayerAudioCodec {
+  EXOPLAYER_AUDIO_CODEC_AAC,
+  EXOPLAYER_AUDIO_CODEC_AC3,
+  EXOPLAYER_AUDIO_CODEC_EAC3,
+  EXOPLAYER_AUDIO_CODEC_OPUS,
+  EXOPLAYER_AUDIO_CODEC_VORBIS,
+  EXOPLAYER_AUDIO_CODEC_MP3,
+  EXOPLAYER_AUDIO_CODEC_FLAC,
+  EXOPLAYER_AUDIO_CODEC_PCM,
+  EXOPLAYER_AUDIO_CODEC_IAMF,
+
+  EXOPLAYER_AUDIO_CODEC_MAX = EXOPLAYER_AUDIO_CODEC_IAMF,
 };
 
 class ExoPlayerBridge final : private VideoSurfaceHolder {
@@ -83,14 +99,13 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   int64_t GetCurrentMediaTime(MediaInfo& info);
 
   // Native callbacks.
-  void OnPlaybackStateChanged(JNIEnv* env, jint playbackState);
   void OnInitialized(JNIEnv* env);
   void OnReady(JNIEnv* env);
   void OnError(JNIEnv* env, jstring error_message);
   void SetPlayingStatus(JNIEnv* env, jboolean isPlaying);
 
   void OnPlayerPrerolled();
-  void OnPlaybackEnded();
+  void OnPlaybackEnded(JNIEnv*);
 
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
@@ -119,8 +134,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   ScopedJavaGlobalRef<jobject> j_output_surface_;
 
   bool error_occurred_ = false;
-  starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
-  starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;
+  starboard::AudioStreamInfo audio_stream_info_;
+  starboard::VideoStreamInfo video_stream_info_;
 
   int64_t seek_time_ = 0;
   bool is_playing_ = false;
@@ -140,6 +155,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool seeking_ = false;
 };
 
-}  // namespace starboard::android::shared::exoplayer
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_

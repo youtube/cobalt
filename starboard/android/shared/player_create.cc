@@ -32,11 +32,10 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-using starboard::android::shared::exoplayer::ExoPlayerWorkerHandler;
-using starboard::shared::starboard::player::PlayerWorker;
-using starboard::shared::starboard::player::SbPlayerPrivateImpl;
-using starboard::shared::starboard::player::filter::
-    FilterBasedPlayerWorkerHandler;
+using starboard::ExoPlayerWorkerHandler;
+using starboard::FilterBasedPlayerWorkerHandler;
+using starboard::PlayerWorker;
+using starboard::SbPlayerPrivateImpl;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,

@@ -16,7 +16,7 @@
 
 #include "starboard/common/player.h"
 
-namespace starboard::android::shared::exoplayer {
+namespace starboard {
 namespace {
 
 using ::starboard::GetPlayerStateName;
@@ -182,7 +182,6 @@ void ExoPlayerWorkerHandler::Update() {
 
     ExoPlayerBridge::MediaInfo info;
     auto media_time = bridge_->GetCurrentMediaTime(info);
-    SB_LOG(INFO) << "media time is: " << media_time;
     update_media_info_cb_(media_time, dropped_frames, !info.is_underflow);
   }
 
@@ -213,8 +212,6 @@ void ExoPlayerWorkerHandler::OnPrerolled() {
 
   SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
-
-  SB_LOG(INFO) << "Media prerolled.";
 
   update_player_state_cb_(kSbPlayerStatePresenting);
   // The call is required to improve the calculation of media time in
@@ -247,4 +244,4 @@ void ExoPlayerWorkerHandler::Stop() {
   bridge_->Stop();
 }
 
-}  // namespace starboard::android::shared::exoplayer
+}  // namespace starboard

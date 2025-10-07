@@ -19,7 +19,6 @@ import static dev.cobalt.media.Log.TAG;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
-import androidx.media3.common.MimeTypes;
 import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
@@ -32,8 +31,9 @@ import java.io.IOException;
 
 import dev.cobalt.util.Log;
 
+/** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
-public class CobaltSampleStream implements SampleStream {
+public class ExoPlayerSampleStream implements SampleStream {
     private SampleQueue sampleQueue;
     private boolean endOfStream = false;
     private boolean wroteFirstSample = false;
@@ -42,25 +42,23 @@ public class CobaltSampleStream implements SampleStream {
     @Nullable
     private IOException fatalError;
 
-    CobaltSampleStream(Allocator allocator, Format format) {
+    ExoPlayerSampleStream(Allocator allocator, Format format) {
         sampleQueue = SampleQueue.createWithoutDrm(allocator);
         sampleQueue.format(format);
     }
 
     void discardBuffer(long positionUs, boolean toKeyframe) {
-        Log.i(TAG, String.format("Called DISCARDBUFFER to %d, tokeyframe: %b", positionUs, toKeyframe));
         sampleQueue.discardTo(positionUs, toKeyframe, false);
     }
 
-    synchronized void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
-            boolean isEndOfStream) {
+    synchronized void writeSample(byte[] data, int sizeInBytes, long timestampUs,
+            boolean isKeyFrame, boolean isEndOfStream) {
         int sampleFlags = 0;
         if (isKeyFrame) {
             sampleFlags |= C.BUFFER_FLAG_KEY_FRAME;
         }
         if (isEndOfStream) {
             sampleFlags |= C.BUFFER_FLAG_END_OF_STREAM;
-            Log.i(TAG, "WRITING END OF STREAM");
             endOfStream = true;
         }
 
@@ -77,32 +75,29 @@ public class CobaltSampleStream implements SampleStream {
         }
         try {
             sampleQueue.sampleMetadata(timestampUs, sampleFlags, sizeInBytes, 0, null);
-            Log.i(TAG,
-                    String.format("Wrote %s sample with timestamp: %d, keyframe: %b",
-                            sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio"
-                                                                                          : "video",
-                            timestampUs, isKeyFrame));
         } catch (Exception e) {
             Log.i(TAG,
                     String.format(
-                            "Caught exception from sampleQueue.sampleMetadata() %s", e.toString()));
+                            "Caught exception from sampleQueue.sampleMetaData() %s", e.toString()));
         }
 
         if (lastWrittenTimeUs != Long.MIN_VALUE) {
             if (timestampUs <= lastWrittenTimeUs && !isEndOfStream) {
-                Log.i(TAG, String.format("ERROR: Latest written timestamp %d is less than or equal to last written timestamp %d, with a delta of %d", timestampUs, lastWrittenTimeUs, lastWrittenTimeUs - timestampUs));
+                Log.i(TAG,
+                        String.format(
+                                "Latest written timestamp %d is less than or equal to last written timestamp %d, with a delta of %d",
+                                timestampUs, lastWrittenTimeUs, lastWrittenTimeUs - timestampUs));
             }
         }
         timestampUs = lastWrittenTimeUs;
-        wroteFirstSample = true;
         wroteFirstSample = true;
     }
 
     @Override
     public boolean isReady() {
         boolean queueIsEmpty = sampleQueue.getFirstTimestampUs() == Long.MIN_VALUE;
-        String type = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video";
-        Log.i(TAG, String.format("Checking if %s queue is ready: %b, first timestamp: %d, largest timestamp: %d", type, sampleQueue.isReady(endOfStream), sampleQueue.getFirstTimestampUs(), sampleQueue.getLargestQueuedTimestampUs()));
+        String type =
+                sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video";
         return sampleQueue.isReady(endOfStream);
     }
 
@@ -121,18 +116,11 @@ public class CobaltSampleStream implements SampleStream {
         } catch (Exception e) {
             Log.i(TAG, String.format("Caught exception from read() %s", e.toString()));
         }
-
-        Log.i(TAG,
-                String.format("Read %s sample with timestamp: %d",
-                        sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio"
-                                                                                      : "video",
-                        buffer.timeUs));
         return read;
     }
 
     @Override
     public int skipData(long positionUs) {
-        Log.i(TAG, String.format("Called SKIPDATA to %d", positionUs));
         int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
         sampleQueue.skip(skipCount);
         return skipCount;
@@ -142,17 +130,15 @@ public class CobaltSampleStream implements SampleStream {
         return sampleQueue.getLargestQueuedTimestampUs();
     }
 
-    synchronized public void seek(long timestampUs, boolean seekToKeyFrame) {
-        String type = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video";
-        Log.i(TAG, String.format("Before discarding to %d, first timestamp is %d with key frame: %b on type: %s", timestampUs, sampleQueue.getFirstTimestampUs(), seekToKeyFrame, type));
-            sampleQueue.discardTo(timestampUs, true, true);
-            endOfStream = false;
-            // The SbPlayer may call seek multiple times before playback begins. After the first
-            // sample is written, we avoid resetting the sample queue start time.
-            if (!wroteFirstSample && timestampUs != 0) {
-                sampleQueue.setStartTimeUs(timestampUs);
-            }
-            lastWrittenTimeUs = sampleQueue.getFirstTimestampUs();
-            Log.i(TAG, String.format("Set queue start time to %d, first timestamp is now %d with seek to key frame: %b on type: %s", timestampUs, sampleQueue.getFirstTimestampUs(), seekToKeyFrame, type));
-        }
+    public synchronized void seek(long timestampUs, boolean seekToKeyFrame) {
+        sampleQueue.discardTo(timestampUs, true, true);
+        endOfStream = false;
+
+        lastWrittenTimeUs = Long.MIN_VALUE;
     }
+
+    public void destroy() {
+        sampleQueue.reset();
+        sampleQueue.release();
+    }
+}

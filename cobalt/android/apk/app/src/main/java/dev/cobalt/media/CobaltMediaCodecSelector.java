@@ -51,12 +51,9 @@ public class CobaltMediaCodecSelector implements MediaCodecSelector {
             if (mimeType.startsWith("video/")) {
                 for (MediaCodecInfo decoderInfo : defaultDecoderInfos) {
                     if (!isSoftwareDecoder(decoderInfo)) {
-                        Log.i(TAG, String.format("Adding decoder %s", decoderInfo.name));
                         filteredDecoderInfos.add(decoderInfo);
                         continue;
                     }
-
-                    Log.i(TAG, String.format("Filtering software decoder %s", decoderInfo.name));
                 }
                 return filteredDecoderInfos.isEmpty() ? defaultDecoderInfos : filteredDecoderInfos; // Fallback to default if no hardware decoders found
             } else {

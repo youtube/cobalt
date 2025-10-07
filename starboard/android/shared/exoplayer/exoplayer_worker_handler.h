@@ -28,15 +28,14 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-namespace starboard::android::shared::exoplayer {
+namespace starboard {
 
-using starboard::shared::starboard::player::JobQueue;
-using ::starboard::shared::starboard::player::filter::EndedCB;
-using ::starboard::shared::starboard::player::filter::ErrorCB;
-using ::starboard::shared::starboard::player::filter::PrerolledCB;
-using Handler = starboard::shared::starboard::player::PlayerWorker::Handler;
-using HandlerResult =
-    starboard::shared::starboard::player::PlayerWorker::Handler::HandlerResult;
+using ::starboard::EndedCB;
+using ::starboard::ErrorCB;
+using starboard::JobQueue;
+using ::starboard::PrerolledCB;
+using Handler = starboard::PlayerWorker::Handler;
+using HandlerResult = starboard::PlayerWorker::Handler::HandlerResult;
 
 class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
  public:
@@ -83,10 +82,10 @@ class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
 
-  const starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
-  const starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;
+  const starboard::AudioStreamInfo audio_stream_info_;
+  const starboard::VideoStreamInfo video_stream_info_;
 };
 
-}  // namespace starboard::android::shared::exoplayer
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_WORKER_HANDLER_H_

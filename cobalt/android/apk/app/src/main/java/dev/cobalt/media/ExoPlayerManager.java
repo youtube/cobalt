@@ -24,7 +24,7 @@ import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 
 /** Creates and destroys ExoPlayer instances */
-@JNINamespace("starboard::android::shared")
+@JNINamespace("starboard")
 public class ExoPlayerManager {
 
   private List<ExoPlayerBridge> exoPlayerBridgeList;

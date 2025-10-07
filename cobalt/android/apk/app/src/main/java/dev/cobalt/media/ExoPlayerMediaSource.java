@@ -14,8 +14,6 @@
 
 package dev.cobalt.media;
 
-import static dev.cobalt.media.Log.TAG;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
@@ -34,22 +32,20 @@ import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
+import java.io.IOException;
 import org.chromium.base.annotations.CalledByNative;
 
-import java.io.IOException;
-
-import dev.cobalt.util.Log;
-
+/** Writes encoded media from the native app to the SampleStream */
 @UnstableApi
-public final class CobaltMediaSource extends BaseMediaSource {
+public final class ExoPlayerMediaSource extends BaseMediaSource {
     private final Format format;
-    private ExoMediaPeriod mediaPeriod;
+    private ExoPlayerMediaPeriod mediaPeriod;
     // Reference to the host ExoPlayerBridge
     private final ExoPlayerBridge playerBridge;
     private final MediaItem mediaItem;
     private final int rendererType;
 
-    CobaltMediaSource(ExoPlayerBridge playerBridge, Format format, int rendererType) {
+    ExoPlayerMediaSource(ExoPlayerBridge playerBridge, Format format, int rendererType) {
         this.playerBridge = playerBridge;
         this.format = format;
         this.rendererType = rendererType;
@@ -80,13 +76,18 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
     @Override
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
-        mediaPeriod = new ExoMediaPeriod(format, allocator, playerBridge, this, rendererType);
+        mediaPeriod = new ExoPlayerMediaPeriod(format, allocator, playerBridge, this, rendererType);
         return mediaPeriod;
     }
 
     @Override
-    public void releasePeriod(MediaPeriod mediaPeriod) {}
+    public void releasePeriod(MediaPeriod mediaPeriod) {
+        // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As there's
+        // only a single MediaPeriod, this will match the passed MediaPeriod.
+        this.mediaPeriod.destroySampleStream();
+    }
 
+    @CalledByNative
     public boolean writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
             boolean isEndOfStream) {
         return mediaPeriod.writeSample(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
@@ -102,13 +103,6 @@ public final class CobaltMediaSource extends BaseMediaSource {
     }
 
     public void onMediaPeriodSeek(long positionUs) {
-        // refreshSourceInfo(new SinglePeriodTimeline(
-        //     /* durationUs= */ C.TIME_UNSET,
-        //     /* isSeekable= */ true,
-        //     /* isDynamic= */ false,
-        //     /* useLiveConfiguration= */ false,
-        //     /* manifest= */ null, getMediaItem()));
-        Log.i(TAG, String.format("Refreshing media period timeline for position %d", positionUs));
         refreshSourceInfo(new SinglePeriodTimeline(
             C.TIME_UNSET,
             C.TIME_UNSET,
@@ -121,14 +115,14 @@ public final class CobaltMediaSource extends BaseMediaSource {
         );
     }
 
-    private static final class ExoMediaPeriod implements MediaPeriod {
+    private static final class ExoPlayerMediaPeriod implements MediaPeriod {
         private final Format format;
         private final Allocator allocator;
-        private CobaltSampleStream stream;
+        private ExoPlayerSampleStream stream;
         // Notify the player when initialized to avoid writing samples before the stream exists.
         public boolean initialized = false;
         private final ExoPlayerBridge playerBridge;
-        private final CobaltMediaSource host;
+        private final ExoPlayerMediaSource host;
 
         private boolean reachedEos = false;
 
@@ -138,7 +132,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
         private boolean timelineFinalized = false;
 
-        ExoMediaPeriod(Format format, Allocator allocator, ExoPlayerBridge playerBridge, CobaltMediaSource host,
+        ExoPlayerMediaPeriod(Format format, Allocator allocator, ExoPlayerBridge playerBridge, ExoPlayerMediaSource host,
                 int rendererType) {
             this.format = format;
             this.allocator = allocator;
@@ -165,7 +159,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
                 SampleStream[] streams, boolean[] streamResetFlags, long positionUs) {
             for (int i = 0; i < selections.length; ++i) {
                 if (selections[i] != null) {
-                    stream = new CobaltSampleStream(allocator, selections[i].getSelectedFormat());
+                    stream = new ExoPlayerSampleStream(allocator, selections[i].getSelectedFormat());
                     streams[i] = stream;
                     streamResetFlags[i] = true;
                 }
@@ -186,9 +180,6 @@ public final class CobaltMediaSource extends BaseMediaSource {
                 long positionToReport = discontinuityPositionUs;
                 pendingDiscontinuity = false;
                 discontinuityPositionUs = C.TIME_UNSET;
-                Log.i(TAG,
-                        String.format("readDiscontinuity() reporting discontinuity at: %d",
-                                positionToReport));
                 return positionToReport;
             }
             return C.TIME_UNSET;
@@ -196,15 +187,12 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
         @Override
         public long seekToUs(long positionUs) {
-            Log.i(TAG, String.format("ExoPlayer seeking to timestamp %d", positionUs));
             boolean seekToKeyFrame = rendererType == ExoPlayerRendererType.VIDEO;
             stream.seek(positionUs, seekToKeyFrame);
             // If the playback begins in the middle of the stream, update the timeline.
             if (positionUs != 0L && !timelineFinalized) {
                 host.onMediaPeriodSeek(positionUs);
                 timelineFinalized = true;
-            } else {
-                Log.i(TAG, String.format("Not refreshing timeline, seek pos %s finalized %b", positionUs, timelineFinalized));
             }
             reachedEos = false;
             pendingDiscontinuity = true;
@@ -251,7 +239,10 @@ public final class CobaltMediaSource extends BaseMediaSource {
         @Override
         public void reevaluateBuffer(long positionUs) {}
 
-        @CalledByNative
+        public void destroySampleStream() {
+            stream.destroy();
+        }
+
         public boolean writeSample(byte[] data, int sizeInBytes, long timestampUs,
                 boolean isKeyFrame, boolean isEndOfStream) {
             try {
