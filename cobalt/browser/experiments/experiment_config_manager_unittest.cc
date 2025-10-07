@@ -63,7 +63,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 30);
+  finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -82,7 +82,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 30);
+  finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -101,7 +101,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 30);
+  finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -122,7 +122,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 30);
+  finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -141,7 +141,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 0);
+  finch_params.Set("experiment_expiration_threshold_days", 0);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -186,7 +186,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", "thirty");
+  finch_params.Set("experiment_expiration_threshold_days", "thirty");
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   // Set age to be less than the default of 30.
@@ -205,7 +205,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", -5);
+  finch_params.Set("experiment_expiration_threshold_days", -5);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -255,7 +255,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kSafeConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 30);
+  finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -322,7 +322,7 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
   base::Value::Dict finch_params;
-  finch_params.Set("variations_expiration_threshold_days", 30);
+  finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,

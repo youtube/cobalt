@@ -61,7 +61,7 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
   // Get the expiration threshold from the server config.
   const int expiration_threshold_in_days =
       experiment_prefs->GetDict(kFinchParameters)
-          .FindInt("variations_expiration_threshold_days")
+          .FindInt("experiment_expiration_threshold_days")
           .value_or(kDefaultExpirationThresholdInDays);
 
   if (expiration_threshold_in_days >= 0 &&
