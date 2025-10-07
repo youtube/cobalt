@@ -43,13 +43,13 @@ HandlerResult ExoPlayerWorkerHandler::Init(
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
-  SB_DCHECK(update_media_info_cb_ == NULL);
+  SB_CHECK(update_media_info_cb_ == NULL);
 
   // All parameters have to be valid.
-  SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(update_media_info_cb);
-  SB_DCHECK(get_player_state_cb);
-  SB_DCHECK(update_player_state_cb);
+  SB_CHECK(SbPlayerIsValid(player));
+  SB_CHECK(update_media_info_cb);
+  SB_CHECK(get_player_state_cb);
+  SB_CHECK(update_player_state_cb);
 
   AttachToCurrentThread();
 
@@ -73,7 +73,7 @@ HandlerResult ExoPlayerWorkerHandler::Init(
 }
 
 HandlerResult ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
-  SB_DCHECK(bridge_);
+  SB_CHECK(bridge_);
 
   if (seek_to_time < 0) {
     SB_DLOG(ERROR) << "Tried to seek to negative timestamp " << seek_to_time;
@@ -91,12 +91,12 @@ HandlerResult ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
 HandlerResult ExoPlayerWorkerHandler::WriteSamples(
     const InputBuffers& input_buffers,
     int* samples_written) {
-  SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(samples_written != NULL);
-  SB_DCHECK(bridge_);
+  SB_CHECK(!input_buffers.empty());
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(samples_written != NULL);
+  SB_CHECK(bridge_);
   for (const auto& input_buffer : input_buffers) {
-    SB_DCHECK(input_buffer);
+    SB_CHECK(input_buffer);
   }
 
   *samples_written = 0;
@@ -105,7 +105,7 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
       SB_LOG(WARNING) << "Tried to write audio sample after EOS is reached";
     }
   } else {
-    SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
+    SB_CHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeVideo)) {
       SB_LOG(WARNING) << "Tried to write video sample after EOS is reached";
     }
@@ -118,7 +118,7 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
 
 HandlerResult ExoPlayerWorkerHandler::WriteEndOfStream(
     SbMediaType sample_type) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   if (sample_type == kSbMediaTypeAudio) {
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeAudio)) {
       SB_LOG(WARNING) << "Tried to write audio EOS after EOS is enqueued";
@@ -139,7 +139,7 @@ HandlerResult ExoPlayerWorkerHandler::WriteEndOfStream(
 }
 
 HandlerResult ExoPlayerWorkerHandler::SetPause(bool pause) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   paused_ = pause;
 
@@ -154,7 +154,7 @@ HandlerResult ExoPlayerWorkerHandler::SetPause(bool pause) {
 }
 
 HandlerResult ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   playback_rate_ = playback_rate;
 
@@ -165,14 +165,14 @@ HandlerResult ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
 }
 
 void ExoPlayerWorkerHandler::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   volume_ = volume;
   bridge_->SetVolume(volume_);
 }
 
 void ExoPlayerWorkerHandler::Update() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
     int dropped_frames = 0;
@@ -210,7 +210,7 @@ void ExoPlayerWorkerHandler::OnPrerolled() {
     return;
   }
 
-  SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
+  SB_CHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   update_player_state_cb_(kSbPlayerStatePresenting);
@@ -235,7 +235,7 @@ void ExoPlayerWorkerHandler::OnEnded() {
 }
 
 void ExoPlayerWorkerHandler::Stop() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "ExoPlayerWorkerHandler stopped.";
 

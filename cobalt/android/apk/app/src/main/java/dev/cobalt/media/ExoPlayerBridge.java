@@ -117,6 +117,7 @@ public class ExoPlayerBridge {
 
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
+        preferTunnelMode = true;
         if (preferTunnelMode) {
             Log.i(TAG, "Tunnel mode is preferred for this playback.");
         }

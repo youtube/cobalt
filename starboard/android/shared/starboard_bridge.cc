@@ -278,7 +278,7 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetExoPlayerManager(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_StarboardBridge_getExoPlayerManager(env, j_starboard_bridge_);
 }
 
