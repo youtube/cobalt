@@ -274,6 +274,7 @@ shared_library_with_jni("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    ":content_shell_jni_headers",
     "//cobalt/browser",
     "//cobalt/gpu",
     "//cobalt/renderer",

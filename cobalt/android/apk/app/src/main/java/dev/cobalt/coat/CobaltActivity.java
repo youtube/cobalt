@@ -106,20 +106,15 @@ public abstract class CobaltActivity extends Activity {
       CommandLine.init(null);
 
       String[] commandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_ARGS_KEY);
+          getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       String[] jsFlagOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_JS_FLAGS_KEY);
+          getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_JS_FLAGS_KEY);
       String[] enableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
+          getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
       String[] disableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY);
+          getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY);
       String[] blinkEnableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
+          getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               shouldSetJNIPrefix,
@@ -128,8 +123,7 @@ public abstract class CobaltActivity extends Activity {
               jsFlagOverrides,
               enableFeaturesCommandLineOverrides,
               disableFeaturesCommandLineOverrides,
-              blinkEnableFeaturesCommandLineOverrides
-        ));
+              blinkEnableFeaturesCommandLineOverrides));
     }
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
@@ -158,8 +152,13 @@ public abstract class CobaltActivity extends Activity {
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker,
-            /* insetObserver= */ null, /* trackOcclusion= */ false);
+    mWindowAndroid =
+        new ActivityWindowAndroid(
+            this,
+            listenToActivityState,
+            mIntentRequestTracker,
+            /* insetObserver= */ null,
+            /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
     setContentView(mShellManager.getContentViewRenderView());
@@ -227,11 +226,11 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private static boolean isDpadKey(int keyCode) {
-      return keyCode == KeyEvent.KEYCODE_DPAD_UP
-              || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-              || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-              || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-              || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
+    return keyCode == KeyEvent.KEYCODE_DPAD_UP
+        || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+        || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+        || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+        || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
   }
 
   // Remap KeyEvent for imeAdapter.dispatchKeyEvent call.
@@ -350,7 +349,8 @@ public abstract class CobaltActivity extends Activity {
     // error with it being unresolvable.
     videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    addContentView(
+        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
     Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
     View rootView = getWindow().getDecorView().getRootView();
@@ -390,7 +390,7 @@ public abstract class CobaltActivity extends Activity {
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class,
-          /* allowedMethods= */ null);
+          /* originAllowlist= */ new ArrayList<String>());
     }
   }
 

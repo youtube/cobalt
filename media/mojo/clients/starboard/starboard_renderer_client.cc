@@ -266,6 +266,7 @@ void StarboardRendererClient::OnSubscribeToVideoGeometryChange(
     MediaResource* media_resource,
     RendererClient* client) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "Subscribed to video geometry change.";
 }
 
 void StarboardRendererClient::InitAndBindMojoRenderer(
