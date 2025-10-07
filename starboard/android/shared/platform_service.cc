@@ -22,6 +22,7 @@
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_service.h"
@@ -116,12 +117,15 @@ void* Send(CobaltExtensionPlatformService service,
     return nullptr;
   }
 
-  *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
   auto j_out_data = Java_ResponseToClient_getData(env, j_response);
-  *output_length = base::android::SafeGetArrayLength(env, j_out_data);
-  char* output = new char[*output_length];
-  env->GetByteArrayRegion(j_out_data.obj(), 0, *output_length,
+  int data_length = base::android::SafeGetArrayLength(env, j_out_data);
+  SB_CHECK_GE(data_length, 0);
+  char* output = new char[data_length];
+  env->GetByteArrayRegion(j_out_data.obj(), 0, data_length,
                           reinterpret_cast<jbyte*>(output));
+
+  *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
+  *output_length = data_length;
   return output;
 }
 

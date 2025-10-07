@@ -59,6 +59,8 @@ public abstract class CobaltService {
   public static class ResponseToClient {
     /** Indicate if the service was unable to receive data because it is in an invalid state. */
     public boolean invalidState;
+
+    /** The synchronous response data from the service. */
     public byte[] data;
 
     @CalledByNative("ResponseToClient")
