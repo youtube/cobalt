@@ -1,5 +1,15 @@
 {
   "failing_tests": [
-    "*"
+    "AnimationHostPerfTest.*",
+    "BrowserCompositorInvalidateLayerTreePerfTest.*",
+    "CalcDrawPropsTest.*",
+    "LayerPerfTest.*",
+    "LayerTreeHostPerfTestJsonReader.*",
+    "LayerTreeHostPerfTestLeafInvalidates.*",
+    "PaintOpPerfTest.*",
+    "PictureLayerImplPerfTest.*",
+    "RasterBufferProviderCommonPerfTest.*",
+    "RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.*",
+    "ScrollingLayerTreePerfTest.*"
   ]
 }
