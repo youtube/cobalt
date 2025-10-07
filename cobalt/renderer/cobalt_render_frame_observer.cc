@@ -15,10 +15,11 @@
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 
 #include "base/command_line.h"
+#include "base/task/thread_pool.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/renderer/render_frame.h"
-#include "starboard/extension/graphics.h"
-#include "starboard/system.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 
 #if defined(RUN_BROWSER_TESTS)
 #include "third_party/blink/public/web/web_testing_support.h"  // nogncheck
@@ -28,7 +29,10 @@ namespace cobalt {
 
 CobaltRenderFrameObserver::CobaltRenderFrameObserver(
     content::RenderFrame* render_frame)
-    : content::RenderFrameObserver(render_frame) {}
+    : content::RenderFrameObserver(render_frame) {
+  render_frame->GetBrowserInterfaceBroker()->GetInterface(
+      cobalt_renderer_host_.BindNewPipeAndPassReceiver());
+}
 
 CobaltRenderFrameObserver::~CobaltRenderFrameObserver() = default;
 
@@ -53,13 +57,9 @@ void CobaltRenderFrameObserver::DidClearWindowObject() {
 void CobaltRenderFrameObserver::DidMeaningfulLayout(
     blink::WebMeaningfulLayout meaningful_layout) {
   if (meaningful_layout == blink::WebMeaningfulLayout::kVisuallyNonEmpty) {
-    const CobaltExtensionGraphicsApi* graphics_extension =
-        static_cast<const CobaltExtensionGraphicsApi*>(
-            SbSystemGetExtension(kCobaltExtensionGraphicsName));
-    if (graphics_extension &&
-        strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
-        graphics_extension->version >= 6) {
-      graphics_extension->ReportFullyDrawn();
+    if (cobalt_renderer_host_.is_bound()) {
+      cobalt_renderer_host_->ReportFullyDrawn();
+      cobalt_renderer_host_.reset();
     }
   }
 }

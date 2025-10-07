@@ -15,6 +15,10 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojom") {
+  sources = [
+    "performance.mojom",
+    "rendering.mojom",
+  ]
+  public_deps = [ "//mojo/public/mojom/base" ]
   generate_java = is_android
-  sources = [ "performance.mojom" ]
 }
