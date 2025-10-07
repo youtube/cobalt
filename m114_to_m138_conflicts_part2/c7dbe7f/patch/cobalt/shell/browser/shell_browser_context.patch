@@ -1,0 +1,15 @@
+--- cobalt/shell/browser/shell_browser_context.cc
++++ cobalt/shell/browser/shell_browser_context.cc
+@@ -27,12 +27,8 @@
+ #include "build/build_config.h"
+ #include "cobalt/shell/browser/shell_content_browser_client.h"
+ #include "cobalt/shell/browser/shell_content_index_provider.h"
+-<<<<<<< HEAD
+ #include "cobalt/shell/common/shell_paths.h"
+-=======
+-#include "cobalt/shell/browser/shell_paths.h"
+ #include "cobalt/shell/common/shell_switches.h"
+->>>>>>> c15049941fb (Decouple cobalt/shell/common and cobalt/shell/resources from content shell (#6377))
+ #include "components/keyed_service/content/browser_context_dependency_manager.h"
+ #include "components/keyed_service/core/simple_dependency_manager.h"
+ #include "components/keyed_service/core/simple_factory_key.h"

@@ -1,0 +1,16 @@
+--- cobalt/shell/browser/shell_devtools_manager_delegate.cc
++++ cobalt/shell/browser/shell_devtools_manager_delegate.cc
+@@ -40,13 +40,6 @@
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/content_switches.h"
+ #include "content/public/common/url_constants.h"
+-<<<<<<< HEAD
+-#include "content/shell/common/shell_content_client.h"
+-#include "content/shell/common/shell_switches.h"
+-#include "content/shell/grit/shell_resources.h"
+-=======
+-#include "content/public/common/user_agent.h"
+->>>>>>> c15049941fb (Decouple cobalt/shell/common and cobalt/shell/resources from content shell (#6377))
+ #include "net/base/net_errors.h"
+ #include "net/log/net_log_source.h"
+ #include "net/socket/tcp_server_socket.h"

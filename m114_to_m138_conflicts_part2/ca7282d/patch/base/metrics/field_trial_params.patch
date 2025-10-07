@@ -1,0 +1,35 @@
+--- base/metrics/field_trial_params.h
++++ base/metrics/field_trial_params.h
+@@ -361,32 +361,6 @@
+     const Feature& feature,
+     const std::string& param_name,
+     base::TimeDelta default_value);
+-<<<<<<< HEAD
+-=======
+-
+-// Shared declaration for various FeatureParam<T> types.
+-//
+-// This template is defined for the following types T:
+-//   bool
+-//   int
+-//   double
+-//   std::string
+-//   enum types
+-//   base::TimeDelta
+-//
+-// See the individual definitions below for the appropriate interfaces.
+-// Attempting to use it with any other type is a compile error.
+-//
+-// Getting a param value from a FeatureParam<T> will have the same semantics as
+-// GetFieldTrialParamValueByFeature(), see that function's comments for details.
+-template <typename T, bool IsEnum = std::is_enum<T>::value>
+-struct FeatureParam {
+-  // Prevent use of FeatureParam<> with unsupported types (e.g. void*). Uses T
+-  // in its definition so that evaluation is deferred until the template is
+-  // instantiated.
+-  static_assert(!std::is_same<T, T>::value, "unsupported FeatureParam<> type");
+-};
+->>>>>>> 9c627e6bb13 (BACKPORT: Export GetFieldTrialParamByFeatureAsTimeDelta function (#6425))
+ 
+ // Same as GetFieldTrialParamValueByFeature(). On top of that, it converts the
+ // string value into an Enum and returns it, if successful. Otherwise, it

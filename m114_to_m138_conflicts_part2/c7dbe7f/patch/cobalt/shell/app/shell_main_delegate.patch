@@ -1,0 +1,17 @@
+--- cobalt/shell/app/shell_main_delegate.cc
++++ cobalt/shell/app/shell_main_delegate.cc
+@@ -34,13 +34,9 @@
+ #include "build/build_config.h"
+ #include "cobalt/shell/app/shell_crash_reporter_client.h"
+ #include "cobalt/shell/browser/shell_content_browser_client.h"
+-<<<<<<< HEAD
+-#include "cobalt/shell/common/shell_paths.h"
+-=======
+-#include "cobalt/shell/browser/shell_paths.h"
+ #include "cobalt/shell/common/shell_content_client.h"
++#include "cobalt/shell/common/shell_paths.h"
+ #include "cobalt/shell/common/shell_switches.h"
+->>>>>>> c15049941fb (Decouple cobalt/shell/common and cobalt/shell/resources from content shell (#6377))
+ #include "cobalt/shell/gpu/shell_content_gpu_client.h"
+ #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+ #include "cobalt/shell/utility/shell_content_utility_client.h"

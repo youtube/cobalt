@@ -1,0 +1,20 @@
+--- third_party/blink/renderer/core/dom/events/event_target.h
++++ third_party/blink/renderer/core/dom/events/event_target.h
+@@ -368,7 +368,6 @@
+   RegisteredEventListener* GetAttributeRegisteredEventListener(
+       const AtomicString& event_type);
+ 
+-<<<<<<< HEAD
+   // Fire event listeners. This method makes a copy of the `EventListenerVector`
+   // on invocation to match the HTML spec. Do not try to optimize it away.
+   // The spec snapshots the array at the beginning of a dispatch so that
+@@ -379,9 +378,6 @@
+   bool FireEventListeners(Event&,
+                           EventTargetData*,
+                           EventListenerVectorSnapshot);
+-=======
+-  bool FireEventListeners(Event&, EventTargetData*, EventListenerVector&);
+->>>>>>> d1c2e13a850 (Revert "BACKPORT: Improve event listener dispatch" (#6398))
+   void CountLegacyEvents(const AtomicString& legacy_type_name,
+                          EventListenerVector*,
+                          EventListenerVector*);

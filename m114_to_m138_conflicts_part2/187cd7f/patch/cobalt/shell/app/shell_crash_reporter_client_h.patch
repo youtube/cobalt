@@ -1,0 +1,31 @@
+--- cobalt/shell/app/shell_crash_reporter_client.h
++++ cobalt/shell/app/shell_crash_reporter_client.h
+@@ -29,28 +29,7 @@
+ 
+   ~ShellCrashReporterClient() override;
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_WIN)
+-  // Returns a textual description of the product type and version to include
+-  // in the crash report.
+-  void GetProductNameAndVersion(const std::wstring& exe_path,
+-                                std::wstring* product_name,
+-                                std::wstring* version,
+-                                std::wstring* special_build,
+-                                std::wstring* channel_name) override;
+-#endif
+-
+-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+-=======
+ #if BUILDFLAG(IS_POSIX)
+-  // Returns a textual description of the product type and version to include
+-  // in the crash report.
+-  void GetProductNameAndVersion(const char** product_name,
+-                                const char** version) override;
+-  void GetProductNameAndVersion(std::string* product_name,
+-                                std::string* version,
+-                                std::string* channel) override;
+->>>>>>> 64580f1af82 (Remove unsupported platforms from cobalt/shell/app (#6386))
+   base::FilePath GetReporterLogFilename() override;
+ #endif
+ 

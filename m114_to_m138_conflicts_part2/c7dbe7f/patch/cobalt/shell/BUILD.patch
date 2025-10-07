@@ -1,0 +1,25 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -205,10 +205,6 @@
+     "browser/shell_speech_recognition_manager_delegate.h",
+     "browser/shell_web_contents_view_delegate.h",
+     "browser/shell_web_contents_view_delegate_creator.h",
+-<<<<<<< HEAD
+-    "common/shell_paths.cc",
+-    "common/shell_paths.h",
+-=======
+     "common/main_frame_counter_test_impl.cc",
+     "common/main_frame_counter_test_impl.h",
+     "common/power_monitor_test_impl.cc",
+@@ -217,9 +213,10 @@
+     "common/shell_content_client.h",
+     "common/shell_origin_trial_policy.cc",
+     "common/shell_origin_trial_policy.h",
++    "common/shell_paths.cc",
++    "common/shell_paths.h",
+     "common/shell_switches.cc",
+     "common/shell_switches.h",
+->>>>>>> c15049941fb (Decouple cobalt/shell/common and cobalt/shell/resources from content shell (#6377))
+     "gpu/shell_content_gpu_client.cc",
+     "gpu/shell_content_gpu_client.h",
+     "renderer/render_frame_test_helper.cc",

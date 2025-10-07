@@ -1,0 +1,44 @@
+--- cobalt/shell/app/shell_crash_reporter_client.cc
++++ cobalt/shell/app/shell_crash_reporter_client.cc
+@@ -33,41 +33,7 @@
+ ShellCrashReporterClient::ShellCrashReporterClient() {}
+ ShellCrashReporterClient::~ShellCrashReporterClient() {}
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_WIN)
+-void ShellCrashReporterClient::GetProductNameAndVersion(
+-    const std::wstring& exe_path,
+-    std::wstring* product_name,
+-    std::wstring* version,
+-    std::wstring* special_build,
+-    std::wstring* channel_name) {
+-  *product_name = L"content_shell";
+-  *version = base::ASCIIToWide(CONTENT_SHELL_VERSION);
+-  *special_build = std::wstring();
+-  *channel_name = std::wstring();
+-}
+-#endif
+-
+-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+-=======
+ #if BUILDFLAG(IS_POSIX)
+-void ShellCrashReporterClient::GetProductNameAndVersion(
+-    const char** product_name,
+-    const char** version) {
+-  *product_name = "content_shell";
+-  *version = CONTENT_SHELL_VERSION;
+-}
+-
+-void ShellCrashReporterClient::GetProductNameAndVersion(
+-    std::string* product_name,
+-    std::string* version,
+-    std::string* channel) {
+-  *product_name = "content_shell";
+-  *version = CONTENT_SHELL_VERSION;
+-  *channel = "";
+-}
+-
+->>>>>>> 64580f1af82 (Remove unsupported platforms from cobalt/shell/app (#6386))
+ base::FilePath ShellCrashReporterClient::GetReporterLogFilename() {
+   return base::FilePath(FILE_PATH_LITERAL("uploads.log"));
+ }
