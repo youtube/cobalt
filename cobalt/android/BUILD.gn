@@ -270,7 +270,7 @@ template("content_shell_apk_tmpl") {
 
 # Copied from target: libcontent_shell_content_view
 # TODO(b/376867565) rename this library, NO shell
-shared_library("libchrobalt") {
+shared_library_with_jni("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
@@ -310,6 +310,7 @@ shared_library("libchrobalt") {
   if (is_official_build) {
     configs += [ "//build/config/compiler:strip_debug" ]
   }
+  java_targets = [ ":cobalt_apk" ]
 }
 
 content_shell_apk_tmpl("cobalt_apk") {
@@ -323,6 +324,7 @@ content_shell_apk_tmpl("cobalt_apk") {
     ":cobalt_apk_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
+  srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
 }
 
