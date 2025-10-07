@@ -117,15 +117,8 @@ void* Send(CobaltExtensionPlatformService service,
   }
 
   *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
-
   auto j_out_data = Java_ResponseToClient_getData(env, j_response);
-  *output_length = j_out_data.is_null()
-                       ? 0
-                       : base::android::SafeGetArrayLength(env, j_out_data);
-  if (*output_length == 0) {
-    return nullptr;
-  }
-
+  *output_length = base::android::SafeGetArrayLength(env, j_out_data);
   char* output = new char[*output_length];
   env->GetByteArrayRegion(j_out_data.obj(), 0, *output_length,
                           reinterpret_cast<jbyte*>(output));
