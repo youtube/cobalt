@@ -32,8 +32,6 @@ source_set("browser") {
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
-    "features.cc",
-    "features.h",
   ]
 
   if (is_androidtv) {
@@ -47,6 +45,7 @@ source_set("browser") {
 
   deps = [
     ":embed_polyfilled_javascript",
+    ":features",
     ":global_features",
     ":metrics",
     "//cobalt/browser:switches",
@@ -91,6 +90,15 @@ source_set("browser") {
   }
 }
 
+source_set("features") {
+  testonly = true
+  sources = [
+    "features.cc",
+    "features.h",
+  ]
+  deps = [ "//base" ]
+}
+
 source_set("switches") {
   testonly = true
 
@@ -133,6 +141,7 @@ source_set("global_features") {
     "global_features.cc",
     "global_features.h",
   ]
+  public_deps = [ ":features" ]
   deps = [
     ":metrics",
     "//base",
