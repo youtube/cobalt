@@ -142,7 +142,6 @@ gclient sync --no-history -r $(git rev-parse @)
    ```
 ## Excute cobalt on raspi-2
    ```
-   $ export LD_LIBRARY_PATH=.
    $ ./cobalt_loader
    ```
 ## Get stack trace with gdb
