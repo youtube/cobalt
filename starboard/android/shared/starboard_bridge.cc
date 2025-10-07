@@ -214,11 +214,6 @@ void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                           data);
 }
 
-void StarboardBridge::RequestStop(JNIEnv* env, int error_level) {
-  SB_CHECK(env);
-  Java_StarboardBridge_requestStop(env, j_starboard_bridge_, error_level);
-}
-
 void StarboardBridge::RequestSuspend(JNIEnv* env) {
   SB_DCHECK(env);
   Java_StarboardBridge_requestSuspend(env, j_starboard_bridge_);

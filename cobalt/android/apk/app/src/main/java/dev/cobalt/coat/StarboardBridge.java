@@ -286,10 +286,7 @@ public class StarboardBridge {
   }
 
   // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
-  @CalledByNative
-  public void requestStop(int errorLevel) {
-    Log.i(TAG, "requestStop is called with error level=" + errorLevel + ", but it does nothing");
-  }
+  public void requestStop(int errorLevel) {}
 
   public boolean onSearchRequested() {
     return false;

@@ -14,10 +14,10 @@
 
 #include "starboard/system.h"
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/log.h"
 
 void SbSystemRequestStop(int error_level) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::StarboardBridge::GetInstance()->RequestStop(env, error_level);
+  // TODO: b/450024477 - Implement this method when AOSP is used.
+  SB_LOG(WARNING) << __func__ << "(error_level=" << error_level
+                  << ") is called, but it's ignored on Android";
 }

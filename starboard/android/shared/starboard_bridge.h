@@ -47,8 +47,6 @@ class StarboardBridge {
 
   void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
 
-  void RequestStop(JNIEnv* env, int error_level);
-
   void RequestSuspend(JNIEnv* env);
 
   base::android::ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
