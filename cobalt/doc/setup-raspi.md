@@ -5,13 +5,9 @@ Raspberry Pi device.
 
 ## Set up your Raspberry Pi
 
-Download the latest Cobalt customized Raspbian image from <a
-href="https://storage.googleapis.com/cobalt-static-storage-public/2020-02-13-raspbian-buster-lite_shrunk_20210427.img">GCS bucket</a>
-(this is built via <a
-href="https://github.com/youtube/cobalt/tree/25.lts.1+/cobalt/tools/raspi_image">this
-customization tool</a>)
+Download the latest Cobalt customized Raspbian image from [GCS bucket](https://storage.googleapis.com/cobalt-static-storage-public/2020-02-13-raspbian-buster-lite_shrunk_20210427.img) (this is built via [this customization tool](https://github.com/youtube/cobalt/tree/25.lts.1+/cobalt/tools/raspi_image))
 
-On MacOS, use an image flashing tool like <a href="https://www.balena.io/etcher/">balenaEtcher</a> to write the image to a 32GB SD-card.
+On MacOS, use an image flashing tool like [balenaEtcher](https://www.balena.io/etcher/) to write the image to a 32GB SD-card.
 
 On Linux, follow the steps below.
 
@@ -73,14 +69,14 @@ Raspberry Pi.
 **This step diverges from Chromium's `fetch` command.** Instead of using `fetch`, please clone the Cobalt repository directly.
 
 ```sh
-git clone git@github.com:youtube/cobalt.git cobalt/src
+git clone https://github.com/youtube/cobalt.git cobalt/src
 ```
 
 ## Configure `gclient`
 
 ```sh
 cd cobalt
-gclient config --name=src git@github.com:youtube/cobalt.git
+gclient config --name=src https://github.com/youtube/cobalt.git
 ```
 
 ## Download and Sync Sub-repositories
@@ -105,7 +101,7 @@ gclient sync --no-history -r $(git rev-parse @)
 
 # Build, install, and run Cobalt for Raspberry Pi
 
-##  Congig and Build
+##  Config and Build
    Navigate to the `cobalt/src` directory and run the following commands
 
    Configure and Build Cobalt for raspi-2
@@ -126,7 +122,7 @@ gclient sync --no-history -r $(git rev-parse @)
    $ cp out/evergreen-arm-hardfp-raspi_devel/libcobalt.so out/evergreen-arm-hardfp-raspi_devel/libcobalt_unstripped.so
    $ arm-linux-gnueabihf-strip out/evergreen-arm-hardfp-raspi_devel/libcobalt_unstripped.so -o out/evergreen-arm-hardfp-raspi_devel/libcobalt.so
    ```
-## Pacakge
+## Package
    ```
    $ tar czpf cobalt.tgz -C out/evergreen-arm-hardfp-raspi_devel/ -T out/evergreen-arm-hardfp-raspi_devel/cobalt_loader.runtime_deps
    ```
@@ -140,7 +136,7 @@ gclient sync --no-history -r $(git rev-parse @)
    ```
    $ tar zxpf cobalt.tgz
    ```
-## Excute cobalt on raspi-2
+## Execute cobalt on raspi-2
    ```
    $ ./cobalt_loader
    ```
@@ -173,7 +169,7 @@ gclient sync --no-history -r $(git rev-parse @)
    While still in gdb use a second terminal to get the base memory address of the cobalt_loader.
    This would be the first address in the process memory mapping of libcobalt.so. In this example 0x6fae5000.
    ```
-   pi@raspberrypi:~ $ grep libcobalt /proc/`pidof cobalt_loader`/maps
+   pi@raspberrypi:~ $ grep libcobalt /proc/$(pidof cobalt_loader)/maps
    6fae5000-70a92000 r--p 00000000 b3:02 128655     /home/pi/cobalt_modular/libcobalt.so
    70a92000-70aa2000 ---p 00fad000 b3:02 128655     /home/pi/cobalt_modular/libcobalt.so
    70aa2000-76622000 r-xp 00fad000 b3:02 128655     /home/pi/cobalt_modular/libcobalt.so
@@ -185,7 +181,7 @@ gclient sync --no-history -r $(git rev-parse @)
    ```
    Run the symbolize script on the cloudtop:
 
-   stack_trace.txt
+   `stack_trace.txt`
    ```
    #0  0x00000000 in ?? ()
    #1  0x74192dca in ?? () from ./libcobalt.so
@@ -201,7 +197,7 @@ gclient sync --no-history -r $(git rev-parse @)
    #11 0x74a82042 in ?? () from ./libcobalt.so
    ```
    ```
-   $ export PYTHONPATH=`pwd`
+   $ export PYTHONPATH=$(pwd)
    $ python3 starboard/tools/symbolize/symbolize.py  -f stack_trace.txt -l out/evergreen-arm-hardfp-raspi_devel/libcobalt.so 0x6fae5000
     #0  0x00000000 in ?? ()
     #1 0x46addca in b'gl::EGLApiBase::eglQueryStringFn(void*, int)' b'./../../ui/gl/gl_bindings_autogen_gl.cc:3674:1'
@@ -220,7 +216,7 @@ gclient sync --no-history -r $(git rev-parse @)
 ## Remote debugging with gdbserver
    It is a bit slow but is a fully functional gdb with symbols.
 
-   Install on your host(cloudtop)
+   Install on your host(below is an example using google innternal cloudtop)
    ```
    $ sudo apt-get install gdb-multiarch
    ```
@@ -234,11 +230,11 @@ gclient sync --no-history -r $(git rev-parse @)
    ```
    Tunnel host(cloudtop) -- raspi-2 from a **laptop**
    ```
-   $ ssh -R 9000:100.107.44.141:3000 yct2.c.googlers.com
+   $ ssh -R 9000:<raspi-ip>:3000 <cloudtop-hostname>
    ```
    Connect from the host(cloudtop)
    ```
    $ cd out/evergreen-arm-hardfp-raspi_devel/
    $ gdb-multiarch
-   (gdb)  target remote  100.107.44.141:9000
+   (gdb)  target remote  localhost:9000
    ```
