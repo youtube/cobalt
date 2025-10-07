@@ -575,40 +575,43 @@ public class StarboardBridge {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
+  @CalledByNative
   public boolean hasCobaltService(String serviceName) {
     return cobaltServiceFactories.get(serviceName) != null;
   }
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
-  public CobaltService openCobaltService(
-      Activity activity, long nativeService, String serviceName) {
-    if (cobaltServices.get(serviceName) != null) {
-      // Attempting to re-open an already open service fails.
-      Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
-      return null;
-    }
-    final CobaltService.Factory factory = cobaltServiceFactories.get(serviceName);
-    if (factory == null) {
-      Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
-      return null;
-    }
-    CobaltService service = factory.createCobaltService(nativeService);
-    if (service != null) {
-      service.receiveStarboardBridge(this);
-      cobaltServices.put(serviceName, service);
-
-      if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
+    @CalledByNative
+    public CobaltService openCobaltService(
+        Activity activity, long nativeService, String serviceName) {
+      if (cobaltServices.get(serviceName) != null) {
+        // Attempting to re-open an already open service fails.
+        Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
+        return null;
       }
+      final CobaltService.Factory factory = cobaltServiceFactories.get(serviceName);
+      if (factory == null) {
+        Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
+        return null;
+      }
+      CobaltService service = factory.createCobaltService(nativeService);
+      if (service != null) {
+        service.receiveStarboardBridge(this);
+        cobaltServices.put(serviceName, service);
+
+        if (activity instanceof CobaltActivity) {
+          service.setCobaltActivity((CobaltActivity) activity);
+        }
+      }
+      return service;
     }
-    return service;
-  }
 
   public CobaltService getOpenedCobaltService(String serviceName) {
     return cobaltServices.get(serviceName);
   }
 
+  @CalledByNative
   public void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
   }
