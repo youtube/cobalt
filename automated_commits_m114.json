@@ -1,5 +1,57 @@
 [
   {
+    "hexsha": "efe59e75bce852aed94a1e8f41453688e336760b",
+    "original_hexsha": "0fcf3ea5c5b24846abcd8121e22687cbea1020cc",
+    "author": "billybw",
+    "datetime": "2025-10-07T09:16:44+08:00",
+    "summary": "Update unit test filter for evergreen-x64 (#7457)",
+    "stats": {
+      "files": 10,
+      "insertions": 112,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "308fc4e5aa1057b9d045f67fdd006529bdd8b3aa",
+    "original_hexsha": "1071a324283322ac155637964f70cec139384f33",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-10-06T16:00:53-07:00",
+    "summary": "Cleanup most linker stub hack (#7453)",
+    "stats": {
+      "files": 7,
+      "insertions": 8,
+      "deletions": 64
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "383a106fefded89d1de0053253e22f4dfcb34c19",
+    "original_hexsha": "7dc96201be86d5f7ab90c097c00afcefebc85143",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-06T11:16:40-07:00",
+    "summary": "starboard: Make SbPlayerBridge handle SetBounds directly (#7455)",
+    "stats": {
+      "files": 7,
+      "insertions": 27,
+      "deletions": 134
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6a7389b20d94321dea3688d760583639cdf3d879",
+    "original_hexsha": "804b1852d04ca9ab13404b164b91e005833a8322",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-10-06T10:44:23-07:00",
+    "summary": "Keep the v8 cpu.cc change (#7454)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "57ff4ea3abf039b59e478521dc0535b4182f69a5",
     "original_hexsha": "9cd2db17c5ae068805d2c20025ecb792ea15b657",
     "author": "Kyujung Youn",
