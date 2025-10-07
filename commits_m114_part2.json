@@ -6071,19 +6071,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "41c0a56a959254c23dcae3756b210b7d3cc50642",
-    "original_hexsha": "301df1e36fb0d333566d2185091b8551701c50be",
-    "author": "John Ocampo",
-    "datetime": "2025-07-17T20:11:17+00:00",
-    "summary": "BACKPORT: Android U: rolling DEPS entries to start using Android U by\u2026 (#6356)",
-    "stats": {
-      "files": 24,
-      "insertions": 124,
-      "deletions": 97
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "27bf0b25a868af688c92e6c44755c1114048d20d",
     "original_hexsha": "b2d5998ad6179901a273c0cbc987f694e1a05c3d",
     "author": "Hao",

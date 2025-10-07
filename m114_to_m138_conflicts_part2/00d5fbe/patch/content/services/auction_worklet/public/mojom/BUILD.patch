@@ -1,0 +1,23 @@
+--- content/services/auction_worklet/public/mojom/BUILD.gn
++++ content/services/auction_worklet/public/mojom/BUILD.gn
+@@ -46,20 +46,16 @@
+ 
+ # See comment at the top of //content/BUILD.gn for how this works.
+ group("for_content_tests") {
+-<<<<<<< HEAD
+   visibility = [
+     "//content/services/auction_worklet/public/cpp:test_support",
+     "//content/test/*",
+   ]
+-=======
+-  visibility = [ "//content/test/*" ]
+   if (is_cobalt) {
+     visibility += [
+       "//cobalt/testing:*",
+       "//cobalt/testing/browser_tests:*",
+     ]
+   }
+->>>>>>> bc0e7d18a84 (cobalt/shell: Add Content Browser Tests (#6430))
+   if (!is_component_build) {
+     public_deps = [ ":mojom" ]
+   } else {
