@@ -51,6 +51,8 @@ class StarboardBridge {
 
   base::android::ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
 
+  base::android::ScopedJavaLocalRef<jobject> GetCaptionSettings(JNIEnv* env);
+
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
