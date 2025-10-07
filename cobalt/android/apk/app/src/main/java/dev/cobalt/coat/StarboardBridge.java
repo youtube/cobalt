@@ -360,13 +360,10 @@ public class StarboardBridge {
     return ttsHelper;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/accessibility_get_caption_settings.cc
   /**
    * @return A new CaptionSettings object with the current system caption settings.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   CaptionSettings getCaptionSettings() {
     CaptioningManager cm =
         (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
