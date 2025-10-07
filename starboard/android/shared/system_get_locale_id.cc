@@ -17,9 +17,9 @@
 #include <string>
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 
@@ -35,10 +35,11 @@ class LocaleInfo {
   LocaleInfo() {
     JNIEnv* env = base::android::AttachCurrentThread();
 
-    ScopedLocalJavaRef<jstring> result(JniCallObjectMethodOrAbort(
-        env, JNIState::GetStarboardBridge(), "systemGetLocaleId",
-        "()Ljava/lang/String;"));
-    locale_id = JniGetStringStandardUTFOrAbort(env, result.Get());
+    base::android::ScopedJavaLocalRef<jstring> result(
+        env, static_cast<jstring>(JniCallObjectMethodOrAbort(
+                 env, JNIState::GetStarboardBridge(), "systemGetLocaleId",
+                 "()Ljava/lang/String;")));
+    locale_id = JniGetStringStandardUTFOrAbort(env, result.obj());
   }
 };
 

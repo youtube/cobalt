@@ -19,13 +19,15 @@
 #include <limits>
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
 namespace {
+
+using base::android::ScopedJavaLocalRef;
 
 // These constants are from android.media.session.PlaybackState
 const jlong kPlaybackStateActionStop = 1 << 0;
@@ -124,9 +126,10 @@ pthread_mutex_t mutex;
 // In practice, only one MediaSessionClient will become active at a time.
 // Protected by "mutex"
 CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
-    g_update_platform_playback_state_callback = NULL;
-CobaltExtensionMediaSessionInvokeActionCallback g_invoke_action_callback = NULL;
-void* g_callback_context = NULL;
+    g_update_platform_playback_state_callback = nullptr;
+CobaltExtensionMediaSessionInvokeActionCallback g_invoke_action_callback =
+    nullptr;
+void* g_callback_context = nullptr;
 
 void OnceInit() {
   pthread_mutex_init(&mutex, nullptr);
@@ -136,7 +139,7 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
   pthread_once(&once_flag, OnceInit);
   pthread_mutex_lock(&mutex);
 
-  if (g_invoke_action_callback != NULL && g_callback_context != NULL) {
+  if (g_invoke_action_callback != nullptr && g_callback_context != nullptr) {
     CobaltExtensionMediaSessionActionDetails details = {};
     CobaltExtensionMediaSessionActionDetailsInit(
         &details, PlaybackStateActionToMediaSessionAction(action));
@@ -155,8 +158,8 @@ void UpdateActiveSessionPlatformPlaybackState(
   pthread_once(&once_flag, OnceInit);
   pthread_mutex_lock(&mutex);
 
-  if (g_update_platform_playback_state_callback != NULL &&
-      g_callback_context != NULL) {
+  if (g_update_platform_playback_state_callback != nullptr &&
+      g_callback_context != nullptr) {
     g_update_platform_playback_state_callback(state, g_callback_context);
   }
 
@@ -173,47 +176,55 @@ void OnMediaSessionStateChanged(
   jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
       session_state.available_actions);
 
-  ScopedLocalJavaRef<jstring> j_title;
-  ScopedLocalJavaRef<jstring> j_artist;
-  ScopedLocalJavaRef<jstring> j_album;
-  ScopedLocalJavaRef<jobjectArray> j_artwork;
+  ScopedJavaLocalRef<jstring> j_title;
+  ScopedJavaLocalRef<jstring> j_artist;
+  ScopedJavaLocalRef<jstring> j_album;
+  ScopedJavaLocalRef<jobjectArray> j_artwork;
 
-  if (session_state.metadata != NULL) {
+  if (session_state.metadata != nullptr) {
     CobaltExtensionMediaMetadata* media_metadata(session_state.metadata);
 
-    j_title.Reset(JniNewStringStandardUTFOrAbort(env, media_metadata->title));
-    j_artist.Reset(JniNewStringStandardUTFOrAbort(env, media_metadata->artist));
-    j_album.Reset(JniNewStringStandardUTFOrAbort(env, media_metadata->album));
+    j_title = ScopedJavaLocalRef<jstring>(
+        env, JniNewStringStandardUTFOrAbort(env, media_metadata->title));
+    j_artist = ScopedJavaLocalRef<jstring>(
+        env, JniNewStringStandardUTFOrAbort(env, media_metadata->artist));
+    j_album = ScopedJavaLocalRef<jstring>(
+        env, JniNewStringStandardUTFOrAbort(env, media_metadata->album));
 
     size_t artwork_count = media_metadata->artwork_count;
     if (artwork_count > 0) {
       CobaltExtensionMediaImage* artwork(media_metadata->artwork);
-      ScopedLocalJavaRef<jclass> media_image_class(
-          JniFindClassExtOrAbort(env, "dev/cobalt/coat/MediaImage"));
+      ScopedJavaLocalRef<jclass> media_image_class(
+          env, JniFindClassExtOrAbort(env, "dev/cobalt/coat/MediaImage"));
       jmethodID media_image_constructor =
-          env->GetMethodID(media_image_class.Get(), "<init>",
+          env->GetMethodID(media_image_class.obj(), "<init>",
                            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/"
                            "String;)V");
       JniAbortOnException(env);
 
-      j_artwork.Reset(static_cast<jobjectArray>(
-          env->NewObjectArray(artwork_count, media_image_class.Get(), NULL)));
+      j_artwork = ScopedJavaLocalRef<jobjectArray>(
+          env, static_cast<jobjectArray>(env->NewObjectArray(
+                   artwork_count, media_image_class.obj(), nullptr)));
       JniAbortOnException(env);
 
-      ScopedLocalJavaRef<jstring> j_src;
-      ScopedLocalJavaRef<jstring> j_sizes;
-      ScopedLocalJavaRef<jstring> j_type;
+      ScopedJavaLocalRef<jstring> j_src;
+      ScopedJavaLocalRef<jstring> j_sizes;
+      ScopedJavaLocalRef<jstring> j_type;
       for (size_t i = 0; i < artwork_count; i++) {
         const CobaltExtensionMediaImage& media_image(artwork[i]);
-        j_src.Reset(JniNewStringStandardUTFOrAbort(env, media_image.src));
-        j_sizes.Reset(JniNewStringStandardUTFOrAbort(env, media_image.size));
-        j_type.Reset(JniNewStringStandardUTFOrAbort(env, media_image.type));
+        j_src = ScopedJavaLocalRef<jstring>(
+            env, JniNewStringStandardUTFOrAbort(env, media_image.src));
+        j_sizes = ScopedJavaLocalRef<jstring>(
+            env, JniNewStringStandardUTFOrAbort(env, media_image.size));
+        j_type = ScopedJavaLocalRef<jstring>(
+            env, JniNewStringStandardUTFOrAbort(env, media_image.type));
 
-        ScopedLocalJavaRef<jobject> j_media_image(
-            env->NewObject(media_image_class.Get(), media_image_constructor,
-                           j_src.Get(), j_sizes.Get(), j_type.Get()));
+        ScopedJavaLocalRef<jobject> j_media_image(
+            env,
+            env->NewObject(media_image_class.obj(), media_image_constructor,
+                           j_src.obj(), j_sizes.obj(), j_type.obj()));
 
-        env->SetObjectArrayElement(j_artwork.Get(), i, j_media_image.Get());
+        env->SetObjectArrayElement(j_artwork.obj(), i, j_media_image.obj());
       }
     }
   }
@@ -236,8 +247,8 @@ void OnMediaSessionStateChanged(
       "[Ldev/cobalt/coat/MediaImage;J)V",
       playback_state, playback_state_actions,
       session_state.current_playback_position / 1000,
-      static_cast<jfloat>(session_state.actual_playback_rate), j_title.Get(),
-      j_artist.Get(), j_album.Get(), j_artwork.Get(), durationInMilliseconds);
+      static_cast<jfloat>(session_state.actual_playback_rate), j_title.obj(),
+      j_artist.obj(), j_album.obj(), j_artwork.obj(), durationInMilliseconds);
 }
 
 void RegisterMediaSessionCallbacks(
@@ -260,9 +271,9 @@ void DestroyMediaSessionClientCallback() {
   pthread_once(&once_flag, OnceInit);
   pthread_mutex_lock(&mutex);
 
-  g_callback_context = NULL;
-  g_invoke_action_callback = NULL;
-  g_update_platform_playback_state_callback = NULL;
+  g_callback_context = nullptr;
+  g_invoke_action_callback = nullptr;
+  g_update_platform_playback_state_callback = nullptr;
 
   pthread_mutex_unlock(&mutex);
 

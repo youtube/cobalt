@@ -23,9 +23,9 @@
 #include <optional>
 #include <string>
 
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"

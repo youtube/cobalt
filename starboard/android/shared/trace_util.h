@@ -16,8 +16,8 @@
 #define STARBOARD_ANDROID_SHARED_TRACE_UTIL_H_
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 
 namespace starboard {
 
@@ -25,11 +25,11 @@ namespace starboard {
 struct ScopedTrace {
   explicit ScopedTrace(const char* section_name) {
     JNIEnv* env = base::android::AttachCurrentThread();
-    ScopedLocalJavaRef<jstring> j_section_name(
-        JniNewStringStandardUTFOrAbort(env, section_name));
+    base::android::ScopedJavaLocalRef<jstring> j_section_name(
+        env, JniNewStringStandardUTFOrAbort(env, section_name));
     JniCallStaticVoidMethodOrAbort(env, "android/os/Trace", "beginSection",
                                    "(Ljava/lang/String;)V",
-                                   j_section_name.Get());
+                                   j_section_name.obj());
   }
 
   ~ScopedTrace() {

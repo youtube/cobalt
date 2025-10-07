@@ -20,12 +20,14 @@
 #include <utility>
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/key.h"
 
 namespace starboard {
+
+using base::android::ScopedJavaLocalRef;
 
 typedef ::starboard::InputEventsGenerator::Event Event;
 typedef ::starboard::InputEventsGenerator::Events Events;
@@ -93,21 +95,22 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
 }
 
 float GetFlat(jobject input_device, int axis) {
-  if (input_device == NULL) {
+  if (input_device == nullptr) {
     return 0.0f;
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jobject> motion_range(JniCallObjectMethodOrAbort(
-      env, input_device, "getMotionRange",
-      "(I)Landroid/view/InputDevice$MotionRange;", axis));
+  ScopedJavaLocalRef<jobject> motion_range(
+      env, JniCallObjectMethodOrAbort(
+               env, input_device, "getMotionRange",
+               "(I)Landroid/view/InputDevice$MotionRange;", axis));
 
-  if (motion_range.Get() == NULL) {
+  if (motion_range.obj() == nullptr) {
     return 0.0f;
   }
 
   float flat =
-      JniCallFloatMethodOrAbort(env, motion_range.Get(), "getFlat", "()F");
+      JniCallFloatMethodOrAbort(env, motion_range.obj(), "getFlat", "()F");
 
   SB_DCHECK_LT(flat, 1.0f);
   return flat;
@@ -818,9 +821,10 @@ bool InputEventsGenerator::CreateInputEventsFromGameActivityEvent(
     return false;
   }
 
-  ScopedLocalJavaRef<jobject> device(GetDevice(android_event));
-  if (device.Get() != NULL) {
-    UpdateDeviceFlatMapIfNecessary(android_event, device.Get());
+  JNIEnv* env = base::android::AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> device(env, GetDevice(android_event));
+  if (device.obj() != nullptr) {
+    UpdateDeviceFlatMapIfNecessary(android_event, device.obj());
     ProcessJoyStickEvent(kLeftX, AMOTION_EVENT_AXIS_X, android_event, events);
     ProcessJoyStickEvent(kLeftY, AMOTION_EVENT_AXIS_Y, android_event, events);
     ProcessJoyStickEvent(kRightX, AMOTION_EVENT_AXIS_Z, android_event, events);

@@ -206,7 +206,6 @@ static_library("starboard_platform") {
     #"input_events_generator.h",
     "jni_env_ext.cc",
     "jni_env_ext.h",
-    "jni_utils.h",
     "log.cc",
     "log_flush.cc",
     "log_format.cc",
