@@ -677,6 +677,7 @@ public class StarboardBridge {
     }
   }
 
+  @CalledByNative
   public void setCrashContext(String key, String value) {
     CrashContext.INSTANCE.setCrashContext(key, value);
   }

@@ -40,6 +40,7 @@ namespace {
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::GetClass;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
@@ -269,6 +270,15 @@ bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::SetCrashContext(JNIEnv* env,
+                                      const char* key,
+                                      const char* value) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_setCrashContext(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, key),
+      ConvertUTF8ToJavaString(env, value));
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(

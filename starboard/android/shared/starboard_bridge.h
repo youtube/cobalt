@@ -66,6 +66,8 @@ class StarboardBridge {
 
   void ReportFullyDrawn(JNIEnv* env);
 
+  void SetCrashContext(JNIEnv* env, const char* key, const char* value);
+
   bool IsMicrophoneDisconnected(JNIEnv* env);
   bool IsMicrophoneMute(JNIEnv* env);
   base::android::ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(
