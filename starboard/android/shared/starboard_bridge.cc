@@ -276,9 +276,9 @@ void StarboardBridge::SetCrashContext(JNIEnv* env,
                                       const char* key,
                                       const char* value) {
   SB_CHECK(env);
-  return Java_StarboardBridge_setCrashContext(
-      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, key),
-      ConvertUTF8ToJavaString(env, value));
+  Java_StarboardBridge_setCrashContext(env, j_starboard_bridge_,
+                                       ConvertUTF8ToJavaString(env, key),
+                                       ConvertUTF8ToJavaString(env, value));
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
