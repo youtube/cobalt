@@ -1,0 +1,96 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -4288,93 +4288,6 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+-=======
+-  if (use_partition_alloc) {
+-    sources += [
+-      "allocator/partition_allocator/address_pool_manager_unittest.cc",
+-      "allocator/partition_allocator/address_space_randomization_unittest.cc",
+-      "allocator/partition_allocator/compressed_pointer_unittest.cc",
+-      "allocator/partition_allocator/freeslot_bitmap_unittest.cc",
+-      "allocator/partition_allocator/hardening_unittest.cc",
+-      "allocator/partition_allocator/memory_reclaimer_unittest.cc",
+-      "allocator/partition_allocator/page_allocator_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/bits_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/component_export_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/cpu_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/cxx17_backports_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/logging_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/rand_util_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/scoped_clear_last_error_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/strings/stringprintf_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_base/thread_annotations_pa_unittest.cc",
+-      "allocator/partition_allocator/partition_alloc_unittest.cc",
+-      "allocator/partition_allocator/partition_lock_unittest.cc",
+-      "allocator/partition_allocator/reverse_bytes_unittest.cc",
+-      "allocator/partition_allocator/thread_cache_unittest.cc",
+-    ]
+-
+-
+-    # TODO: b/402471389 Cobalt: - try to enable these tests.
+-    if (enable_cobalt_hermetic_hacks) {
+-      sources -= [
+-        "allocator/partition_allocator/page_allocator_unittest.cc",
+-        "allocator/partition_allocator/partition_alloc_unittest.cc",
+-      ]
+-    }
+-    if (use_starscan) {
+-      sources += [
+-        "allocator/partition_allocator/starscan/pcscan_scheduling_unittest.cc",
+-        "allocator/partition_allocator/starscan/pcscan_unittest.cc",
+-        "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+-        "allocator/partition_allocator/starscan/stack/stack_unittest.cc",
+-        "allocator/partition_allocator/starscan/state_bitmap_unittest.cc",
+-      ]
+-      if (is_starboard) {
+-        sources -= [
+-          "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+-          # TODO: b/402471389 Cobalt: - try to enable these tests.
+-          "allocator/partition_allocator/thread_cache_unittest.cc",
+-        ]
+-      }
+-    }
+-
+-    if ((is_android || is_linux) && target_cpu == "arm64") {
+-      cflags = [
+-        "-Xclang",
+-        "-target-feature",
+-        "-Xclang",
+-        "+mte",
+-      ]
+-    }
+-
+-    if (is_android) {
+-      sources += [
+-        "allocator/partition_allocator/partition_alloc_base/files/file_path_pa_unittest.cc",
+-        "allocator/partition_allocator/partition_alloc_base/native_library_pa_unittest.cc",
+-      ]
+-    } else if (is_fuchsia) {
+-      sources += [ "allocator/partition_allocator/partition_alloc_base/fuchsia/fuchsia_logging_pa_unittest.cc" ]
+-    }
+-
+-    if (enable_pkeys && is_debug && !is_component_build) {
+-      # This test requires RELRO, which is not enabled in component builds.
+-      # Also, require a debug build, since we only disable stack protectors in
+-      # debug builds in partition alloc (see below why it's needed).
+-      sources += [ "allocator/partition_allocator/pkey_unittest.cc" ]
+-
+-      # We want to test the pkey code without access to memory that is not
+-      # pkey-tagged. This will allow us to catch unintended memory accesses
+-      # that could break our security assumptions. The stack protector reads a
+-      # value from the TLS which won't be pkey-tagged, hence disabling it for
+-      # the test.
+-      configs += [ ":no_stack_protector" ]
+-    }
+-
+-    deps += [ ":partition_alloc_test_support" ]
+-  }
+-
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
+   if (is_mac) {
+     sources += [ "message_loop/message_pump_kqueue_unittest.cc" ]
+     frameworks += [

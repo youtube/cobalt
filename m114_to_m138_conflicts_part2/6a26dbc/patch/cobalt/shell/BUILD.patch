@@ -1,0 +1,18 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -214,15 +214,12 @@
+     "browser/shell_speech_recognition_manager_delegate.h",
+     "browser/shell_web_contents_view_delegate.h",
+     "browser/shell_web_contents_view_delegate_creator.h",
+-<<<<<<< HEAD
+     "common/shell_paths.cc",
+     "common/shell_paths.h",
+-=======
+     "gpu/shell_content_gpu_client.cc",
+     "gpu/shell_content_gpu_client.h",
+     "utility/shell_content_utility_client.cc",
+     "utility/shell_content_utility_client.h",
+->>>>>>> d2f4b79af13 (Decouple content/shell/gpu and content/shell/utility (#6309))
+   ]
+ 
+   if (is_android) {

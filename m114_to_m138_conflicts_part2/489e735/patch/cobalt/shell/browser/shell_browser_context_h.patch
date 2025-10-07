@@ -1,0 +1,26 @@
+--- cobalt/shell/browser/shell_browser_context.h
++++ cobalt/shell/browser/shell_browser_context.h
+@@ -34,10 +34,6 @@
+ class OriginTrialsControllerDelegate;
+ class PermissionControllerDelegate;
+ class ReduceAcceptLanguageControllerDelegate;
+-<<<<<<< HEAD
+-class ShellDownloadManagerDelegate;
+-=======
+->>>>>>> 5236479dbc0 (Remove redundant functionalities in cobalt/shell/browser (#6214))
+ class ZoomLevelDelegate;
+ 
+ class ShellBrowserContext : public BrowserContext {
+@@ -83,12 +79,6 @@
+ 
+   bool ignore_certificate_errors() const { return ignore_certificate_errors_; }
+ 
+-<<<<<<< HEAD
+-  std::unique_ptr<ShellDownloadManagerDelegate> download_manager_delegate_;
+-  std::unique_ptr<PermissionControllerDelegate> permission_manager_;
+-=======
+-  std::unique_ptr<ShellResourceContext> resource_context_;
+->>>>>>> 5236479dbc0 (Remove redundant functionalities in cobalt/shell/browser (#6214))
+   std::unique_ptr<BackgroundSyncController> background_sync_controller_;
+   std::unique_ptr<ContentIndexProvider> content_index_provider_;
+   std::unique_ptr<ReduceAcceptLanguageControllerDelegate>

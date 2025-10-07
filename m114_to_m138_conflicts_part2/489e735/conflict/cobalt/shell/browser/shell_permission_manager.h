@@ -1,0 +1,77 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_SHELL_BROWSER_SHELL_PERMISSION_MANAGER_H_
+#define COBALT_SHELL_BROWSER_SHELL_PERMISSION_MANAGER_H_
+
+#include "base/functional/callback_forward.h"
+#include "content/public/browser/permission_controller_delegate.h"
+#include "content/public/browser/permission_result.h"
+
+namespace blink {
+enum class PermissionType;
+}
+
+namespace content {
+
+class ShellPermissionManager : public PermissionControllerDelegate {
+ public:
+  ShellPermissionManager();
+
+  ShellPermissionManager(const ShellPermissionManager&) = delete;
+  ShellPermissionManager& operator=(const ShellPermissionManager&) = delete;
+
+  ~ShellPermissionManager() override;
+
+  // PermissionManager implementation.
+  void RequestPermissions(
+      RenderFrameHost* render_frame_host,
+      const PermissionRequestDescription& request_description,
+      base::OnceCallback<
+          void(const std::vector<blink::mojom::PermissionStatus>&)> callback)
+      override;
+  void ResetPermission(blink::PermissionType permission,
+                       const GURL& requesting_origin,
+                       const GURL& embedding_origin) override;
+  void RequestPermissionsFromCurrentDocument(
+      RenderFrameHost* render_frame_host,
+      const PermissionRequestDescription& request_description,
+      base::OnceCallback<
+          void(const std::vector<blink::mojom::PermissionStatus>&)> callback)
+      override;
+  blink::mojom::PermissionStatus GetPermissionStatus(
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      const GURL& requesting_origin,
+      const GURL& embedding_origin) override;
+  PermissionResult GetPermissionResultForOriginWithoutContext(
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      const url::Origin& requesting_origin,
+      const url::Origin& embedding_origin) override;
+  blink::mojom::PermissionStatus GetPermissionStatusForCurrentDocument(
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      content::RenderFrameHost* render_frame_host,
+      bool should_include_device_status) override;
+  blink::mojom::PermissionStatus GetPermissionStatusForWorker(
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      content::RenderProcessHost* render_process_host,
+      const GURL& worker_origin) override;
+  blink::mojom::PermissionStatus GetPermissionStatusForEmbeddedRequester(
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      content::RenderFrameHost* render_frame_host,
+      const url::Origin& overridden_origin) override;
+};
+
+}  // namespace content
+
+#endif  // COBALT_SHELL_BROWSER_SHELL_PERMISSION_MANAGER_H_

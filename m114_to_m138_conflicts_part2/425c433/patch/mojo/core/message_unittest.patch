@@ -1,0 +1,92 @@
+--- mojo/core/message_unittest.cc
++++ mojo/core/message_unittest.cc
+@@ -259,13 +259,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_SerializeSimpleMessageNoHandlesWithContext \
+   DISABLED_SerializeSimpleMessageNoHandlesWithContext
+ #else
+@@ -280,13 +275,8 @@
+   });
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_SerializeDynamicallySizedMessage \
+   DISABLED_SerializeDynamicallySizedMessage
+ #else
+@@ -327,13 +317,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_SerializeSimpleMessageOneHandleWithContext \
+   DISABLED_SerializeSimpleMessageOneHandleWithContext
+ #else
+@@ -371,13 +356,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(handles[3]));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_SerializeSimpleMessageWithHandlesWithContext \
+   DISABLED_SerializeSimpleMessageWithHandlesWithContext
+ #else
+@@ -1038,13 +1018,8 @@
+ 
+ #if BUILDFLAG(USE_BLINK)
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_ExtendPayloadWithHandlesAttached \
+   DISABLED_ExtendPayloadWithHandlesAttached
+ #else
+@@ -1108,13 +1083,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_ExtendPayloadWithHandlesAttachedViaExtension \
+   DISABLED_ExtendPayloadWithHandlesAttachedViaExtension
+ #else

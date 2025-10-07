@@ -1,0 +1,32 @@
+--- mojo/core/platform_wrapper_unittest.cc
++++ mojo/core/platform_wrapper_unittest.cc
+@@ -71,13 +71,8 @@
+ 
+ using PlatformWrapperTest = test::MojoTestBase;
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_WrapPlatformHandle DISABLED_WrapPlatformHandle
+ #else
+ #define MAYBE_WrapPlatformHandle WrapPlatformHandle
+@@ -130,13 +125,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_WrapPlatformSharedMemoryRegion \
+   DISABLED_WrapPlatformSharedMemoryRegion
+ #else

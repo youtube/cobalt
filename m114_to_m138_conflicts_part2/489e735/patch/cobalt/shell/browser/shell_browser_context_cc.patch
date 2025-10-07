@@ -1,0 +1,41 @@
+--- cobalt/shell/browser/shell_browser_context.cc
++++ cobalt/shell/browser/shell_browser_context.cc
+@@ -27,13 +27,7 @@
+ #include "build/build_config.h"
+ #include "cobalt/shell/browser/shell_content_browser_client.h"
+ #include "cobalt/shell/browser/shell_content_index_provider.h"
+-<<<<<<< HEAD
+-#include "cobalt/shell/browser/shell_download_manager_delegate.h"
+ #include "cobalt/shell/common/shell_paths.h"
+-#include "cobalt/shell/browser/shell_permission_manager.h"
+-=======
+-#include "cobalt/shell/browser/shell_paths.h"
+->>>>>>> 5236479dbc0 (Remove redundant functionalities in cobalt/shell/browser (#6214))
+ #include "components/keyed_service/content/browser_context_dependency_manager.h"
+ #include "components/keyed_service/core/simple_dependency_manager.h"
+ #include "components/keyed_service/core/simple_factory_key.h"
+@@ -173,24 +167,6 @@
+   return content_index_provider_.get();
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-FederatedIdentityApiPermissionContextDelegate*
+-ShellBrowserContext::GetFederatedIdentityApiPermissionContext() {
+-  return nullptr;
+-}
+-
+-FederatedIdentityAutoReauthnPermissionContextDelegate*
+-ShellBrowserContext::GetFederatedIdentityAutoReauthnPermissionContext() {
+-  return nullptr;
+-}
+-
+-FederatedIdentityPermissionContextDelegate*
+-ShellBrowserContext::GetFederatedIdentityPermissionContext() {
+-  return nullptr;
+-}
+-
+->>>>>>> 5236479dbc0 (Remove redundant functionalities in cobalt/shell/browser (#6214))
+ ReduceAcceptLanguageControllerDelegate*
+ ShellBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
+   if (!reduce_accept_lang_controller_delegate_) {

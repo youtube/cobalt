@@ -1,0 +1,21 @@
+--- third_party/boringssl/BUILD.gn
++++ third_party/boringssl/BUILD.gn
+@@ -249,18 +249,11 @@
+ 
+     # Chromium infrastructure does not support GTest, only the //base wrapper.
+     sources -= [ "src/crypto/test/gtest_main.cc" ]
+-<<<<<<< HEAD
+     sources += [ "gtest_main_chromium.cc" ]
+-=======
+-    sources += [
+-      "gtest_main_chromium.cc",
+-      "test_data_chromium.cc",
+-    ]
+     if (is_cobalt_hermetic_build) {
+       sources += [ "starboard/gtest_main_chromium.cc" ]
+       sources -= [ "gtest_main_chromium.cc" ]
+     }
+->>>>>>> f9a9e5d581c (Add entry points for modular targets (#6302))
+     deps += [ "//base/test:test_support" ]
+ 
+     if (is_fuchsia) {

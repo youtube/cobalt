@@ -1,0 +1,77 @@
+--- mojo/core/shared_buffer_unittest.cc
++++ mojo/core/shared_buffer_unittest.cc
+@@ -81,13 +81,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(b));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_PassSharedBufferCrossProcess DISABLED_PassSharedBufferCrossProcess
+ #else
+ #define MAYBE_PassSharedBufferCrossProcess PassSharedBufferCrossProcess
+@@ -118,13 +113,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_PassSharedBufferFromChild DISABLED_PassSharedBufferFromChild
+ #else
+ #define MAYBE_PassSharedBufferFromChild PassSharedBufferFromChild
+@@ -179,13 +169,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(other_child));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_PassSharedBufferFromChildToChild \
+   DISABLED_PassSharedBufferFromChildToChild
+ #else
+@@ -328,13 +313,8 @@
+   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_CreateAndPassReadOnlyBuffer DISABLED_CreateAndPassReadOnlyBuffer
+ #else
+ #define MAYBE_CreateAndPassReadOnlyBuffer CreateAndPassReadOnlyBuffer
+@@ -372,13 +352,8 @@
+   MojoClose(b);
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_IOS)
+-// TODO(crbug.com/40257752): Test currently fails on iOS.
+-=======
+ #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+-// TODO(crbug.com/1418597): Test currently fails on iOS.
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
++// TODO(crbug.com/40257752): Test currently fails on iOS.
+ #define MAYBE_CreateAndPassFromChildReadOnlyBuffer \
+   DISABLED_CreateAndPassFromChildReadOnlyBuffer
+ #else

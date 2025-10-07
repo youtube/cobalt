@@ -1,0 +1,139 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/shell/browser/shell_federated_permission_context.h"
+
+#include "base/feature_list.h"
+#include "content/public/common/content_features.h"
+#include "content/shell/common/shell_switches.h"
+#include "mojo/public/cpp/bindings/message.h"
+
+namespace content {
+
+ShellFederatedPermissionContext::ShellFederatedPermissionContext() = default;
+
+ShellFederatedPermissionContext::~ShellFederatedPermissionContext() = default;
+
+content::FederatedIdentityApiPermissionContextDelegate::PermissionStatus
+ShellFederatedPermissionContext::GetApiPermissionStatus(
+    const url::Origin& relying_party_embedder) {
+  if (!base::FeatureList::IsEnabled(features::kFedCm)) {
+    return PermissionStatus::BLOCKED_VARIATIONS;
+  }
+
+  if (embargoed_origins_.count(relying_party_embedder)) {
+    return PermissionStatus::BLOCKED_EMBARGO;
+  }
+
+  return PermissionStatus::GRANTED;
+}
+
+// FederatedIdentityApiPermissionContextDelegate
+void ShellFederatedPermissionContext::RecordDismissAndEmbargo(
+    const url::Origin& relying_party_embedder) {
+  embargoed_origins_.insert(relying_party_embedder);
+}
+
+void ShellFederatedPermissionContext::RemoveEmbargoAndResetCounts(
+    const url::Origin& relying_party_embedder) {
+  embargoed_origins_.erase(relying_party_embedder);
+}
+
+bool ShellFederatedPermissionContext::ShouldCompleteRequestImmediately() const {
+  return switches::IsRunWebTestsSwitchPresent();
+}
+
+// FederatedIdentityAutoReauthnPermissionContextDelegate
+bool ShellFederatedPermissionContext::IsAutoReauthnSettingEnabled() {
+  return auto_reauthn_permission_;
+}
+
+bool ShellFederatedPermissionContext::IsAutoReauthnEmbargoed(
+    const url::Origin& relying_party_embedder) {
+  return false;
+}
+
+base::Time ShellFederatedPermissionContext::GetAutoReauthnEmbargoStartTime(
+    const url::Origin& relying_party_embedder) {
+  return base::Time();
+}
+
+void ShellFederatedPermissionContext::RecordEmbargoForAutoReauthn(
+    const url::Origin& relying_party_embedder) {}
+
+void ShellFederatedPermissionContext::RemoveEmbargoForAutoReauthn(
+    const url::Origin& relying_party_embedder) {}
+
+void ShellFederatedPermissionContext::AddIdpSigninStatusObserver(
+    IdpSigninStatusObserver* observer) {}
+void ShellFederatedPermissionContext::RemoveIdpSigninStatusObserver(
+    IdpSigninStatusObserver* observer) {}
+
+bool ShellFederatedPermissionContext::HasSharingPermission(
+    const url::Origin& relying_party_requester,
+    const url::Origin& relying_party_embedder,
+    const url::Origin& identity_provider) {
+  return std::find_if(sharing_permissions_.begin(), sharing_permissions_.end(),
+                      [&](const auto& entry) {
+                        return relying_party_requester.Serialize() ==
+                                   std::get<0>(entry) &&
+                               relying_party_embedder.Serialize() ==
+                                   std::get<1>(entry) &&
+                               identity_provider.Serialize() ==
+                                   std::get<2>(entry);
+                      }) != sharing_permissions_.end();
+}
+
+void ShellFederatedPermissionContext::GrantSharingPermission(
+    const url::Origin& relying_party_requester,
+    const url::Origin& relying_party_embedder,
+    const url::Origin& identity_provider,
+    const std::string& account_id) {
+  sharing_permissions_.insert(std::tuple(
+      relying_party_requester.Serialize(), relying_party_embedder.Serialize(),
+      identity_provider.Serialize(), account_id));
+}
+
+void ShellFederatedPermissionContext::SetIdpSigninStatus(
+    const url::Origin& idp_origin,
+    bool idp_signin_status,
+    base::optional_ref<const blink::common::webid::LoginStatusOptions>
+        options) {
+  if (idp_origin.opaque()) {
+    mojo::ReportBadMessage("Bad IdP Origin from renderer.");
+    return;
+  }
+
+  idp_signin_status_[idp_origin.Serialize()] = idp_signin_status;
+  // TODO(crbug.com/40245925): Replace this with AddIdpSigninStatusObserver.
+  if (idp_signin_status_closure_) {
+    idp_signin_status_closure_.Run();
+  }
+}
+
+void ShellFederatedPermissionContext::RegisterIdP(const ::GURL& configURL) {
+  idp_registry_.push_back(configURL);
+}
+
+void ShellFederatedPermissionContext::UnregisterIdP(const ::GURL& configURL) {
+  idp_registry_.erase(
+      std::remove(idp_registry_.begin(), idp_registry_.end(), configURL),
+      idp_registry_.end());
+}
+
+std::vector<GURL> ShellFederatedPermissionContext::GetRegisteredIdPs() {
+  return idp_registry_;
+}
+
+}  // namespace content

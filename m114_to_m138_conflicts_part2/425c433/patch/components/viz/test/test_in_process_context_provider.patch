@@ -1,0 +1,18 @@
+--- components/viz/test/test_in_process_context_provider.cc
++++ components/viz/test/test_in_process_context_provider.cc
+@@ -93,15 +93,11 @@
+     raster_context_ = std::make_unique<gpu::RasterInProcessContext>();
+     auto result = raster_context_->Initialize(
+         holder->task_executor(), attribs, gpu::SharedMemoryLimits(),
+-<<<<<<< HEAD
+         holder->gpu_service()->gr_shader_cache(), use_shader_cache_shm_count_);
+-=======
+-        holder->gpu_service()->gr_shader_cache(), activity_flags_);
+ 
+ // TODO(sherryzy): Investigate why this ContextResult check fails
+ // specifically in single-process-test mode.
+ #if !BUILDFLAG(IS_STARBOARD)
+->>>>>>> 5570c14d97c ([POSIX] Disable multi-process functions (#6146))
+     CHECK_EQ(result, gpu::ContextResult::kSuccess);
+ #else
+     (void)result;

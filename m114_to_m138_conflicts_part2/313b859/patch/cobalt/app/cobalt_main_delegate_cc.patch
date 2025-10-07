@@ -1,0 +1,21 @@
+--- cobalt/app/cobalt_main_delegate.cc
++++ cobalt/app/cobalt_main_delegate.cc
+@@ -59,17 +59,13 @@
+   return renderer_client_.get();
+ }
+ 
+-<<<<<<< HEAD
+-std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+-=======
+ content::ContentUtilityClient*
+ CobaltMainDelegate::CreateContentUtilityClient() {
+   utility_client_ = std::make_unique<CobaltContentUtilityClient>();
+   return utility_client_.get();
+ }
+ 
+-absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+->>>>>>> 741c098da4a (Create ContentUtilityClient for Cobalt (#6360))
++std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+     InvokedIn invoked_in) {
+   content::RenderFrameHost::AllowInjectingJavaScript();
+ 

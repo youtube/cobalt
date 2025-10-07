@@ -1,0 +1,16 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -210,13 +210,6 @@
+     "browser/shell_javascript_dialog.h",
+     "browser/shell_javascript_dialog_manager.cc",
+     "browser/shell_javascript_dialog_manager.h",
+-<<<<<<< HEAD
+-    "browser/shell_permission_manager.cc",
+-    "browser/shell_permission_manager.h",
+-=======
+-    "browser/shell_paths.cc",
+-    "browser/shell_paths.h",
+->>>>>>> 5236479dbc0 (Remove redundant functionalities in cobalt/shell/browser (#6214))
+     "browser/shell_platform_data_aura.cc",
+     "browser/shell_platform_data_aura.h",
+     "browser/shell_platform_delegate.cc",

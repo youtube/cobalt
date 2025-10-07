@@ -1,0 +1,19 @@
+--- net/third_party/quiche/src/quiche/quic/core/quic_received_packet_manager.cc
++++ net/third_party/quiche/src/quiche/quic/core/quic_received_packet_manager.cc
+@@ -46,15 +46,11 @@
+       num_retransmittable_packets_received_since_last_ack_sent_(0),
+       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
+       ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
+-<<<<<<< HEAD
+-      ack_decimation_delay_(GetQuicFlag(quic_ack_decimation_delay)),
+-=======
+ #if BUILDFLAG(IS_COBALT)
+       max_retransmittable_packets_before_ack_(
+           kMaxRetransmittablePacketsBeforeAck),
+ #endif
+-      ack_decimation_delay_(kAckDecimationDelay),
+->>>>>>> 4fbebb4379e (net/third_party/quiche: Increase ack decimation count to 50 (#6334))
++      ack_decimation_delay_(GetQuicFlag(quic_ack_decimation_delay)),
+       unlimited_ack_decimation_(false),
+       one_immediate_ack_(false),
+       ignore_order_(false),

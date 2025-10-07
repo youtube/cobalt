@@ -1,0 +1,15 @@
+--- cobalt/shell/app/shell_main_delegate.cc
++++ cobalt/shell/app/shell_main_delegate.cc
+@@ -34,12 +34,8 @@
+ #include "components/crash/core/common/crash_key.h"
+ #endif
+ #include "cobalt/shell/browser/shell_content_browser_client.h"
+-<<<<<<< HEAD
+ #include "cobalt/shell/common/shell_paths.h"
+-=======
+-#include "cobalt/shell/browser/shell_paths.h"
+ #include "cobalt/shell/gpu/shell_content_gpu_client.h"
+->>>>>>> d2f4b79af13 (Decouple content/shell/gpu and content/shell/utility (#6309))
+ #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+ #include "cobalt/shell/utility/shell_content_utility_client.h"
+ #include "components/memory_system/initializer.h"

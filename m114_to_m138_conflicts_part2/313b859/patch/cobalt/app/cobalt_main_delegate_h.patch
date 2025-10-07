@@ -1,0 +1,16 @@
+--- cobalt/app/cobalt_main_delegate.h
++++ cobalt/app/cobalt_main_delegate.h
+@@ -39,12 +39,8 @@
+   content::ContentBrowserClient* CreateContentBrowserClient() override;
+   content::ContentGpuClient* CreateContentGpuClient() override;
+   content::ContentRendererClient* CreateContentRendererClient() override;
+-<<<<<<< HEAD
+-  std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
+-=======
+   content::ContentUtilityClient* CreateContentUtilityClient() override;
+-  absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
+->>>>>>> 741c098da4a (Create ContentUtilityClient for Cobalt (#6360))
++  std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
+ 
+   // Override the RunProcess method to store the  reference to
+   // BrowserMainRunner instead of leaking it. The reference would
