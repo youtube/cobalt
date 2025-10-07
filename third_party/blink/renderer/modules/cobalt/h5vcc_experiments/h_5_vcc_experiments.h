@@ -44,7 +44,7 @@ class MODULES_EXPORT H5vccExperiments final
   ScriptPromise setExperimentState(ScriptState*,
                                    const ExperimentConfiguration*,
                                    ExceptionState&);
-  ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
+  ScriptPromise resetExperimentState(ScriptState*, bool, ExceptionState&);
   WTF::Vector<uint32_t> activeExperimentIds();
   String getFeature(const String&);
   const String& getFeatureParam(const String&);
