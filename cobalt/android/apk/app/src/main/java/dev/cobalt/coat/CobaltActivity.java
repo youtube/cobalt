@@ -52,11 +52,12 @@ import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
-import org.chromium.components.version_info.VersionInfo;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
@@ -131,7 +132,7 @@ public abstract class CobaltActivity extends Activity {
         ));
     }
 
-    DeviceUtils.addDeviceSpecificUserAgentSwitch();
+    DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -157,7 +158,8 @@ public abstract class CobaltActivity extends Activity {
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker,
+            /* insetObserver= */ null, /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
     setContentView(mShellManager.getContentViewRenderView());
@@ -377,7 +379,7 @@ public abstract class CobaltActivity extends Activity {
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
-    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents);
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
@@ -387,7 +389,8 @@ public abstract class CobaltActivity extends Activity {
       javascriptInjector.addPossiblyUnsafeInterface(
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class);
+          CobaltJavaScriptInterface.class,
+          /* allowedMethods= */ null);
     }
   }
 
@@ -424,7 +427,7 @@ public abstract class CobaltActivity extends Activity {
       // document.onresume event
       webContents.onResume();
       // visibility:visible event
-      webContents.onShow();
+      webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
 
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -438,7 +441,7 @@ public abstract class CobaltActivity extends Activity {
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
-      webContents.onHide();
+      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
     }

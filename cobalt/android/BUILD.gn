@@ -151,7 +151,10 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  srcjar_deps = [ "//starboard/android/shared:java_enums", ":jni_headers" ]
+  srcjar_deps = [
+    ":jni_headers",
+    "//starboard/android/shared:java_enums",
+  ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
@@ -220,7 +223,13 @@ android_library("cobalt_apk_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
 
-  deps = [ ":cobalt_main_java" ]
+  deps = [
+    ":cobalt_main_java",
+    "//base:library_loader_java",
+    "//base:path_utils_java",
+    "//base:tasks_java",
+    "//ui/android:ui_no_recycler_view_java",
+  ]
 
   sources = [
     "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
@@ -290,6 +299,7 @@ shared_library("libchrobalt") {
       "//media/midi",
     ]
   }
+  libs = [ "aaudio" ]
   sources = [
     "//cobalt/app/cobalt_main_delegate.cc",
     "//cobalt/app/cobalt_main_delegate.h",
