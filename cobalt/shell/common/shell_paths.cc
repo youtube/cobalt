@@ -22,7 +22,7 @@
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "content/shell/common/shell_switches.h"
+#include "cobalt/shell/common/shell_switches.h"
 
 #if BUILDFLAG(IS_LINUX)
 #include "base/nix/xdg_util.h"
