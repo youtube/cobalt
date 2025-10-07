@@ -29,11 +29,6 @@ typedef struct musl_cpu_set_t {
   unsigned long __bits[128 / sizeof(long)];
 } musl_cpu_set_t;
 
-// Platforms that make all CPU cores reported by |sysconf(_SC_NPROCESSORS_CONF)|
-// available to the app (without a CPU affinity mask) can implement a stub that
-// returns -1 with errno=EPERM. This is possible as the only existing usage of
-// |sched_getaffinity| produces no operational changes if the CPU core behavior
-// with sysconf is satisfied.
 SB_EXPORT int __abi_wrap_sched_getaffinity(musl_pid_t pid,
                                            size_t cpusetsize,
                                            musl_cpu_set_t* mask);
