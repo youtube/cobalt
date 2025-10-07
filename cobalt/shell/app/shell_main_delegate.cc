@@ -17,6 +17,7 @@
 #include <iostream>
 #include <tuple>
 #include <utility>
+#include <variant>
 
 #include "base/base_paths.h"
 #include "base/base_switches.h"
@@ -28,17 +29,18 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/process/current_process.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
-#if !BUILDFLAG(IS_ANDROIDTV)
-#include "components/crash/core/common/crash_key.h"
-#endif
 #include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/gpu/shell_content_gpu_client.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 #include "cobalt/shell/utility/shell_content_utility_client.h"
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "components/crash/core/common/crash_key.h"
+#endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -51,14 +53,13 @@
 #include "content/shell/common/shell_switches.h"
 #include "ipc/ipc_buildflags.h"
 #include "net/cookies/cookie_monster.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
 #define IPC_MESSAGE_MACROS_LOG_ENABLED
 #include "content/public/common/content_ipc_logging.h"
 #define IPC_LOG_TABLE_ADD_ENTRY(msg_id, logger) \
-  content::RegisterIPCLogger(msg_id, logger)
+    content::RegisterIPCLogger(msg_id, logger)
 #endif
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
@@ -95,6 +96,9 @@ namespace {
 enum class LoggingDest {
   kFile,
   kStderr,
+#if BUILDFLAG(IS_WIN)
+  kHandle,
+#endif
 };
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -108,6 +112,27 @@ void InitLogging(const base::CommandLine& command_line) {
   if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "stderr") {
     dest = LoggingDest::kStderr;
   }
+
+#if BUILDFLAG(IS_WIN)
+  // On Windows child process may be given a handle in the --log-file switch.
+  base::win::ScopedHandle log_handle;
+  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "handle") {
+    auto handle_str = command_line.GetSwitchValueNative(switches::kLogFile);
+    uint32_t handle_value = 0;
+    if (base::StringToUint(handle_str, &handle_value)) {
+      // This handle is owned by the logging framework and is closed when the
+      // process exits.
+      HANDLE duplicate = nullptr;
+      if (::DuplicateHandle(GetCurrentProcess(),
+                            base::win::Uint32ToHandle(handle_value),
+                            GetCurrentProcess(), &duplicate, 0, FALSE,
+                            DUPLICATE_SAME_ACCESS)) {
+        log_handle.Set(duplicate);
+        dest = LoggingDest::kHandle;
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_WIN)
 
   base::FilePath log_filename;
   if (dest == LoggingDest::kFile) {
@@ -123,6 +148,14 @@ void InitLogging(const base::CommandLine& command_line) {
   }
 
   logging::LoggingSettings settings;
+#if BUILDFLAG(IS_WIN)
+  if (dest == LoggingDest::kHandle) {
+    // TODO(crbug.com/328285906) Use a ScopedHandle in logging settings.
+    settings.log_file = log_handle.release();
+  } else {
+    settings.log_file = nullptr;
+  }
+#endif  // BUILDFLAG(IS_WIN)
 
   if (dest == LoggingDest::kFile) {
     settings.log_file_path = log_filename.value();
@@ -149,7 +182,8 @@ namespace content {
 ShellMainDelegate::ShellMainDelegate(bool is_content_browsertests)
     : is_content_browsertests_(is_content_browsertests) {}
 
-ShellMainDelegate::~ShellMainDelegate() {}
+ShellMainDelegate::~ShellMainDelegate() {
+}
 
 std::optional<int> ShellMainDelegate::BasicStartupComplete() {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
@@ -184,7 +218,7 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
 }
 
 bool ShellMainDelegate::ShouldCreateFeatureList(InvokedIn invoked_in) {
-  return absl::holds_alternative<InvokedInChildProcess>(invoked_in);
+  return std::holds_alternative<InvokedInChildProcess>(invoked_in);
 }
 
 bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
@@ -192,16 +226,9 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
 }
 
 void ShellMainDelegate::PreSandboxStartup() {
-#if defined(ARCH_CPU_ARM_FAMILY) && \
-    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
-  // Create an instance of the CPU class to parse /proc/cpuinfo and cache
-  // cpu_brand info.
-  base::CPU cpu_info;
-#endif
-
 // Disable platform crash handling and initialize the crash reporter, if
 // requested.
-// TODO(crbug.com/1226159): Implement crash reporter integration for Fuchsia.
+// TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
 #if !BUILDFLAG(IS_ANDROIDTV)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
@@ -231,12 +258,23 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
     const std::string& process_type,
     MainFunctionParams main_function_params) {
   // For non-browser process, return and have the caller run the main loop.
-  if (!process_type.empty()) {
+  if (!process_type.empty())
     return std::move(main_function_params);
-  }
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    // Web tests implement their own BrowserMain() replacement.
+    web_test_runner_->RunBrowserMain(std::move(main_function_params));
+    web_test_runner_.reset();
+    // Returning 0 to indicate that we have replaced BrowserMain() and the
+    // caller should not call BrowserMain() itself. Web tests do not ever
+    // return an error.
+    return 0;
+  }
+#endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
   // On Android and iOS, we defer to the system message loop when the stack
@@ -257,16 +295,6 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   // to the |ui_task| for browser tests.
   return 0;
 #else
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    // Web tests implement their own BrowserMain() replacement.
-    web_test_runner_->RunBrowserMain(std::move(main_function_params));
-    web_test_runner_.reset();
-    // Returning 0 to indicate that we have replaced BrowserMain() and the
-    // caller should not call BrowserMain() itself. Web tests do not ever
-    // return an error.
-    return 0;
-  }
-
   // On non-Android, we can return the |main_function_params| back and have the
   // caller run BrowserMain() normally.
   return std::move(main_function_params);
@@ -315,7 +343,7 @@ void ShellMainDelegate::InitializeResourceBundle() {
     global_descriptors->Set(kShellPakDescriptor, pak_fd, pak_region);
   }
   DCHECK_GE(pak_fd, 0);
-  // TODO(crbug.com/330930): A better way to prevent fdsan error from a double
+  // TODO(crbug.com/40346051): A better way to prevent fdsan error from a double
   // close is to refactor GlobalDescriptors.{Get,MaybeGet} to return
   // "const base::File&" rather than fd itself.
   base::File android_pak_file(pak_fd);
@@ -336,9 +364,8 @@ void ShellMainDelegate::InitializeResourceBundle() {
 
 std::optional<int> ShellMainDelegate::PreBrowserMain() {
   std::optional<int> exit_code = content::ContentMainDelegate::PreBrowserMain();
-  if (exit_code.has_value()) {
+  if (exit_code.has_value())
     return exit_code;
-  }
 
   return std::nullopt;
 }
@@ -353,7 +380,7 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
     InitializeMojoCore();
   }
 
-    const std::string process_type =
+  const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType);
 
@@ -364,7 +391,7 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
   // PoissonAllocationSampler in the ContentShell. Therefore, enforce inclusion
   // at the moment.
   //
-  // TODO(https://crbug.com/1411454): Clarify which users of
+  // TODO(crbug.com/40062835): Clarify which users of
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
   memory_system::Initializer()

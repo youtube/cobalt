@@ -19,8 +19,9 @@
 
 #if BUILDFLAG(IS_MAC)
 extern "C" {
-__attribute__((visibility("default"))) int ContentMain(int argc,
-                                                       const char** argv);
+__attribute__((visibility("default")))
+int ContentMain(int argc,
+                const char** argv);
 }  // extern "C"
 #endif  // BUILDFLAG(IS_MAC)
 

@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <optional>
+#include <variant>
 
 #include "build/build_config.h"
 #include "components/memory_system/memory_system.h"

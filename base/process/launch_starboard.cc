@@ -16,12 +16,10 @@ void RaiseProcessToHighPriority() {
 bool GetAppOutput(const CommandLine& cl, std::string* output) {
   NOTREACHED() << "GetAppOutput called, but Cobalt does not "
                << "support multi-processing. This call will fail.";
-  return false;
 }
 
 bool GetAppOutputAndError(const CommandLine& cl, std::string* output) {
   NOTREACHED();
-  return false;
 }
 
 Process LaunchProcess(const CommandLine& cmdline,
@@ -29,7 +27,6 @@ Process LaunchProcess(const CommandLine& cmdline,
   NOTREACHED() << "LaunchProcess called, but Cobalt does not support "
                << "multi-processing. This call will return a fake "
                << "Process object.";
-  return Process();
 }
 
 Process LaunchProcess(const std::vector<std::string>& argv,
@@ -37,7 +34,6 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   NOTREACHED() << "LaunchProcess called, but Cobalt does not support "
                << "multi-processing. This call will return a fake "
                << "Process object.";
-  return Process();
 }
 
 pid_t ForkWithFlags(int flags, pid_t* ptid, pid_t* ctid) {
@@ -51,6 +47,5 @@ bool GetAppOutputWithExitCode(const CommandLine& cl,
       << "GetAppOutputWithExitCode called, but Cobalt does not support "
       << "multi-processing. This call will return a fake "
       << "Process object.";
-  return false;
 }
 }  // namespace base
