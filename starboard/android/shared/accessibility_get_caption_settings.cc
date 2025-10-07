@@ -21,6 +21,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/configuration.h"
@@ -86,12 +87,11 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
 
   JNIEnv* env = base::android::AttachCurrentThread();
 
-  ScopedLocalJavaRef<jobject> j_caption_settings(JniCallObjectMethodOrAbort(
-      env, JNIState::GetStarboardBridge(), "getCaptionSettings",
-      "()Ldev/cobalt/coat/CaptionSettings;"));
+  auto j_caption_settings =
+      StarboardBridge::GetInstance()->GetCaptionSettings(env);
 
   jfloat font_scale =
-      JniGetFloatFieldOrAbort(env, j_caption_settings.Get(), "fontScale", "F");
+      JniGetFloatFieldOrAbort(env, j_caption_settings.obj(), "fontScale", "F");
   caption_settings->font_size =
       GetClosestFontSizePercentage(100.0 * font_scale);
   // Android's captioning API always returns a font scale of 1 (100%) if
@@ -104,30 +104,30 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   caption_settings->font_family_state = kSbAccessibilityCaptionStateUnsupported;
 
   caption_settings->character_edge_style = AndroidEdgeTypeToSbEdgeStyle(
-      JniGetIntFieldOrAbort(env, j_caption_settings.Get(), "edgeType", "I"));
+      JniGetIntFieldOrAbort(env, j_caption_settings.obj(), "edgeType", "I"));
   caption_settings->character_edge_style_state =
       BooleanToCaptionState(JniGetBooleanFieldOrAbort(
-          env, j_caption_settings.Get(), "hasEdgeType", "Z"));
+          env, j_caption_settings.obj(), "hasEdgeType", "Z"));
 
   SetColorProperties(
-      env, j_caption_settings.Get(), "foregroundColor", "hasForegroundColor",
+      env, j_caption_settings.obj(), "foregroundColor", "hasForegroundColor",
       &caption_settings->font_color, &caption_settings->font_color_state,
       &caption_settings->font_opacity, &caption_settings->font_opacity_state);
 
-  SetColorProperties(env, j_caption_settings.Get(), "backgroundColor",
+  SetColorProperties(env, j_caption_settings.obj(), "backgroundColor",
                      "hasBackgroundColor", &caption_settings->background_color,
                      &caption_settings->background_color_state,
                      &caption_settings->background_opacity,
                      &caption_settings->background_opacity_state);
 
-  SetColorProperties(env, j_caption_settings.Get(), "windowColor",
+  SetColorProperties(env, j_caption_settings.obj(), "windowColor",
                      "hasWindowColor", &caption_settings->window_color,
                      &caption_settings->window_color_state,
                      &caption_settings->window_opacity,
                      &caption_settings->window_opacity_state);
 
   caption_settings->is_enabled = JniGetBooleanFieldOrAbort(
-      env, j_caption_settings.Get(), "isEnabled", "Z");
+      env, j_caption_settings.obj(), "isEnabled", "Z");
   caption_settings->supports_is_enabled = true;
   caption_settings->supports_set_enabled = false;
 
