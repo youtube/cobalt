@@ -25,10 +25,8 @@
 #include <string>
 #include <vector>
 
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track_bridge.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"

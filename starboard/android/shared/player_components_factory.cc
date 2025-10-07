@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"

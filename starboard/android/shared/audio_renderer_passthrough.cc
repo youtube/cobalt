@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/android/shared/jni_env_ext.h"
