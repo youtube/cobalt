@@ -119,15 +119,20 @@ void* Send(CobaltExtensionPlatformService service,
   *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
   auto j_out_data = Java_ResponseToClient_getData(env, j_response);
 
-  std::vector<uint8_t> out_vector;
-  if (!j_out_data.is_null()) {
-    base::android::JavaByteArrayToByteVector(env, j_out_data, &out_vector);
+  if (j_out_data.is_null()) {
+    *output_length = 0;
+    return nullptr;
   }
 
-  *output_length = out_vector.size();
+  *output_length = base::android::SafeGetArrayLength(env, j_out_data);
   if (*output_length == 0) {
     return nullptr;
   }
+
+  *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
+
+  std::vector<uint8_t> out_vector;
+  base::android::JavaByteArrayToByteVector(env, j_out_data, &out_vector);
   char* output = new char[*output_length];
   memcpy(output, out_vector.data(), *output_length);
   return output;
