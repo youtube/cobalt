@@ -55,6 +55,8 @@ class StarboardBridge {
 
   base::android::ScopedJavaLocalRef<jobject> GetResourceOverlay(JNIEnv* env);
 
+  base::android::ScopedJavaLocalRef<jstring> GetSystemLocaleId(JNIEnv* env);
+
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 

@@ -370,11 +370,8 @@ public class StarboardBridge {
     return new CaptionSettings(cm);
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_locale_id.cc
   /** Java-layer implementation of SbSystemGetLocaleId. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
   }
