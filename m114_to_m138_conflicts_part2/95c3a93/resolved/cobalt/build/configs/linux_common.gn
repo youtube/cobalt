@@ -1,0 +1,106 @@
+# Common configuration options for linux platforms. Values here should not
+# reference args set elsewhere (e.g. do not use `x = !is_cobalt`).
+import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
+import("//cobalt/build/configs/common.gn")
+
+use_ozone = true
+ozone_auto_platforms = false
+ozone_platform = "starboard"
+angle_enable_gl = true
+
+# Vulkan is a new rendering (and presentation, and more) API intended to replace
+# E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
+# Disable Vulkan until we formally decide to support it.
+enable_vulkan = false
+angle_enable_vulkan = false
+angle_use_vulkan_display = false
+angle_shared_libvulkan = false
+
+# Not used in Cobalt, see //ui/gl/features.gni
+enable_swiftshader = false
+
+# Don't allow Angle to transitively depend on SwiftShader
+# From angle/gni/angle.gni
+angle_enable_swiftshader = false
+
+# Disable GPU->Vulkan path as well
+# From gpu/vulkan/features.gni
+enable_swiftshader_vulkan = false
+
+# Overriding flag from components/nacl/features.gni
+# NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
+enable_nacl = false
+
+# Overriding the flag from //ui/gl/features.gni
+use_static_angle = true
+
+# Disable udev
+use_udev = false
+
+# Disable glib
+use_glib = false
+
+# Disable the Qt backend
+use_qt5 = false
+
+# Disable xcbcommon
+use_xkbcommon = false
+
+# Disable PipeWire in WebRTC
+rtc_use_pipewire = false
+
+# Disable Chrome Remote Desktop
+enable_remoting = false
+
+# Disable Wayland Ozone Backend
+ozone_platform_wayland = false
+
+# Some default disabled flags to remove unused features.
+# Additionally helps with running on Forge.
+enable_print_preview = false
+use_cups = false
+use_kerberos = false
+
+# We know we can trust clients to use https.
+include_transport_security_state_preload_list = false
+
+# Disable the chrome root store for linux/3P platforms.
+chrome_root_store_optional = false
+chrome_root_store_only = false
+
+# Disable linux audio APIs
+use_pulseaudio = false
+use_alsa = false
+
+# Disable gtk related modules
+use_gtk = false
+use_gio = false
+use_pangocairo = false
+
+# Overriding from components/optimization_guide/features.gni
+# TFLite is a part of the open-source machine-learning library TensorFlow.
+# We are not using tflite in cobalt currently.
+build_with_tflite_lib = false
+
+# Override from //third_party/angle/BUILD.gn
+# This flag uses the Use the PCI lib to collect GPU information on Linux.
+# Disabling this as it causes build errors.
+use_libpci = false
+
+# Override from chrome/installer/installers.gni
+# This flag enables the creation of Linux installer packages(like .deb , .rpm)
+enable_linux_installer = false
+
+# Disable Mozilla/NSS cert store access
+# We use Chromium root store
+use_nss_certs = false
+
+# Override from components/nacl/features.gni
+# Disables Pepper API (PPAPI) plugin support.
+enable_ppapi = false
+
+# Disable D-Bus
+use_dbus = false
+
+# Embed ICU data in the cobalt binary
+icu_use_data_file = false

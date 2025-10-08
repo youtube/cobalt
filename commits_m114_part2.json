@@ -169,19 +169,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "8b08120f95caaa4cc8ac775eb909c98286f3fe09",
-    "original_hexsha": "c0d5a974ba75f485d42c3bd3a0057be7ab443ca6",
-    "author": "Charley Kim",
-    "datetime": "2025-09-30T09:49:12-07:00",
-    "summary": "android: Change symbol for top 4 java stack frames on exception (#7366)",
-    "stats": {
-      "files": 1,
-      "insertions": 2,
-      "deletions": 3
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "b3f7fee6e4fe90625f2021eb1d6029ae8215b08a",
     "original_hexsha": "75ffd60c5a3f15540d9b1e719d874fd6268074ce",
     "author": "Holden Warriner",
@@ -347,19 +334,6 @@
       "files": 1,
       "insertions": 0,
       "deletions": 5
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "8331b560d793df4c6d071666716beb6ca8d01dc9",
-    "original_hexsha": "388ac447de7f29f2834660b224c18af855cb3655",
-    "author": "Sherry Zhou",
-    "datetime": "2025-09-26T18:01:10-07:00",
-    "summary": "BACKPORT: Don't set dirty bits for attribs that are out of range. (#7360)",
-    "stats": {
-      "files": 10,
-      "insertions": 51,
-      "deletions": 3
     },
     "is_linear": true
   },
@@ -1235,19 +1209,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "5152f1a551709e29c9a14655a0d873074789fcc4",
-    "original_hexsha": "e7c66931b4bc4b3d904415d003af9373636e9d42",
-    "author": "Colin Liang",
-    "datetime": "2025-09-16T16:25:17-07:00",
-    "summary": "android: Capture top 4 Java stack frames on exception (#7191)",
-    "stats": {
-      "files": 2,
-      "insertions": 26,
-      "deletions": 25
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "5e56ba38bfb4e66049c7991d660eba82d305ebdb",
     "original_hexsha": "846fcc13f750313120e85dcc428f48ac533b54f3",
     "author": "Kyujung Youn",
@@ -1595,19 +1556,6 @@
       "files": 2,
       "insertions": 42,
       "deletions": 24
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "e6037d010206fd46f0d155c55b788b0f78583a19",
-    "original_hexsha": "c5490a3f982a3c9cd94bb9a7e79b91063fff2ebd",
-    "author": "Austin Osagie",
-    "datetime": "2025-09-10T22:29:07+00:00",
-    "summary": "Add ExoPlayer media3 libraries to //third_party/androidx (#7074)",
-    "stats": {
-      "files": 23,
-      "insertions": 690,
-      "deletions": 12
     },
     "is_linear": true
   },
@@ -3289,19 +3237,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "183f576b5eae12b31320d78d8e967a2f0933e77b",
-    "original_hexsha": "c6e4c3ab0412c2d5682a627011cc79689c8f1fd7",
-    "author": "Andrew Savage",
-    "datetime": "2025-08-18T10:27:32-07:00",
-    "summary": "Revert \"[POSIX] Remove all syscalls\" (#6860)",
-    "stats": {
-      "files": 20,
-      "insertions": 33,
-      "deletions": 133
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "b86ec13c4fdbf2ab607732634316456a5a674177",
     "original_hexsha": "17d4fb032177fa12f4b01690bcf3c72a9657958a",
     "author": "Kyujung Youn",
@@ -3454,19 +3389,6 @@
       "files": 1,
       "insertions": 35,
       "deletions": 2
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "f9f2686f5f003b76029bcd83f85197cc9c06209e",
-    "original_hexsha": "f304ae789d7c582b91e3924bbea50ea3bdc5b914",
-    "author": "johnx",
-    "datetime": "2025-08-15T04:34:00+08:00",
-    "summary": "HeapObserverSet to use a copy for iteration (#6815)",
-    "stats": {
-      "files": 2,
-      "insertions": 92,
-      "deletions": 0
     },
     "is_linear": true
   },
@@ -4888,19 +4810,6 @@
     "is_linear": true
   },
   {
-    "hexsha": "e3036ca5e166c6cba3712df5f919ed3586fd1ffb",
-    "original_hexsha": "d4e034aac5fbf5d610504b6b0597e9d181a56ea4",
-    "author": "Andrew Savage",
-    "datetime": "2025-07-30T15:13:24-04:00",
-    "summary": "Import cpuinfo from commit beb46ca031988 (#6635)",
-    "stats": {
-      "files": 550,
-      "insertions": 479557,
-      "deletions": 2
-    },
-    "is_linear": true
-  },
-  {
     "hexsha": "938c0cfc0941ab981dff927aeae8d1f4ddd7b844",
     "original_hexsha": "9dadd3acedc1406de1b814404e6473bab1138540",
     "author": "Madhura Jayaraman",
@@ -5183,19 +5092,6 @@
       "files": 2,
       "insertions": 1,
       "deletions": 1
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "4d68c88dac459410bf75521c6840ad472a01d980",
-    "original_hexsha": "bf70f9159c000983ffd7ecab90046cc22927f25e",
-    "author": "Andrew Savage",
-    "datetime": "2025-07-25T19:16:10-04:00",
-    "summary": "Import perfetto from commit f2da6df2f144e (#6583)",
-    "stats": {
-      "files": 8347,
-      "insertions": 772711,
-      "deletions": 2
     },
     "is_linear": true
   },

@@ -1,0 +1,18 @@
+Name: Perfetto
+<<<<<<< HEAD
+URL: https://github.com/google/perfetto/
+Version: unknown
+License: blessing, BSD-3-Clause, Apache-2.0
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
+=======
+URL: https://android.googlesource.com/platform/external/perfetto/
+Version: unknown
+License: Apache2
+License File: LICENSE
+Security Critical: yes
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+License Android Compatible: yes
+Description: Performance instrumentation and logging for Google client platforms
+Local Modifications: None

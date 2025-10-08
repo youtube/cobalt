@@ -1,0 +1,15 @@
+--- base/process/set_process_title.cc
++++ base/process/set_process_title.cc
+@@ -37,11 +37,7 @@
+ #include "base/strings/string_util.h"
+ #include "base/threading/platform_thread.h"
+ // Linux/glibc doesn't natively have setproctitle().
+-<<<<<<< HEAD:base/process/set_process_title.cc
+-#include "base/process/set_process_title_linux.h"
+-=======
+-#include "content/common/set_process_title_linux.h"  // nogncheck
+->>>>>>> 632b3464a30 (Feature/fonts (#7049)):content/common/set_process_title.cc
++#include "base/process/set_process_title_linux.h"  // nogncheck
+ #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ 
+ namespace base {

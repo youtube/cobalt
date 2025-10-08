@@ -1,0 +1,24 @@
+--- net/BUILD.gn
++++ net/BUILD.gn
+@@ -1774,20 +1774,16 @@
+     configs += [ "//build/config/compiler:optimize_max" ]
+   }
+ 
+-<<<<<<< HEAD
+   if (!is_cronet_build) {
+     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
+   }
+ 
+-  if(is_starboard) {
+-=======
+   # We use `is_cobalt` here because non-starboard configs builds Chromedriver
+   # which needs to use the Chrome Root Store only.
+   if (is_cobalt && (!chrome_root_store_optional || chrome_root_store_only)) {
+->>>>>>> 573cb0f8d3a (Fix NSS and Root Store in non-starboard configs (#6602))
+     sources += [
+       "cert/test_root_certs_builtin.cc",
+-    "cert/internal/system_trust_store_cobalt.cc"
++      "cert/internal/system_trust_store_cobalt.cc"
+     ]
+   }
+ 

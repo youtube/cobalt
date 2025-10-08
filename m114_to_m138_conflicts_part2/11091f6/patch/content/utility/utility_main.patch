@@ -1,0 +1,19 @@
+--- content/utility/utility_main.cc
++++ content/utility/utility_main.cc
+@@ -253,7 +253,6 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
+     CHECK(on_device_model::OnDeviceModelService::PreSandboxInit());
+   }
+@@ -266,8 +265,6 @@
+   SandboxedProcessThreadTypeHandler::Create();
+ #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ 
+-=======
+->>>>>>> 145e859166b (Reland "[POSIX] Remove all syscalls" (#6873))
+ #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+   // Initializes the sandbox before any threads are created.
+   // TODO(jorgelo): move this after GTK initialization when we enable a strict

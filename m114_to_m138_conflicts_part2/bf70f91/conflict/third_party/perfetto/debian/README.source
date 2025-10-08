@@ -1,0 +1,14 @@
+perfetto for Debian
+------------------
+
+Perfetto is a performance instrumentation and logging framework for POSIX
+<<<<<<< HEAD
+platforms. See https://github.com/google/perfetto
+=======
+platforms. See https://android.googlesource.com/platform/external/perfetto/.
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+
+
+
+ -- Sami Kyostila <skyostil@google.com>  Mon, 15 Jan 2018 23:23:25 +0000
+

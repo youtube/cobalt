@@ -1,0 +1,22 @@
+--- third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.cc
++++ third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.cc
+@@ -183,9 +183,6 @@
+   remote_h5vcc_metrics_.reset();
+   receiver_.reset();
+ 
+-<<<<<<< HEAD
+-  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_metrics_promises;
+-=======
+   // If execution context is being destroyed, it is not safe to create a new
+   // JS error object and reject promises.
+   if (!HasValidExecutionContext()) {
+@@ -193,8 +190,7 @@
+     return;
+   }
+ 
+-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises;
+->>>>>>> d4736d21704 (Add execution context check to cleanup functions. (#6629))
++  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_metrics_promises;
+   // Script may execute during a call to Resolve(). Swap these sets to prevent
+   // concurrent modification.
+   h5vcc_metrics_promises_.swap(h5vcc_metrics_promises);

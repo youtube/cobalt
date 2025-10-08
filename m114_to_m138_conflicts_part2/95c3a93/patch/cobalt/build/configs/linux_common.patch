@@ -1,0 +1,15 @@
+--- cobalt/build/configs/linux_common.gn
++++ cobalt/build/configs/linux_common.gn
+@@ -66,12 +66,7 @@
+ 
+ # Disable the chrome root store for linux/3P platforms.
+ chrome_root_store_optional = false
+-<<<<<<< HEAD
+-chrome_root_store_only = true
+-=======
+ chrome_root_store_only = false
+-trial_comparison_cert_verifier_supported = false
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
+ 
+ # Disable linux audio APIs
+ use_pulseaudio = false

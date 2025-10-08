@@ -1,0 +1,47 @@
+--- content/utility/BUILD.gn
++++ content/utility/BUILD.gn
+@@ -109,7 +109,7 @@
+     }
+   }
+ 
+-  if (is_linux || is_chromeos) {
++  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+     deps += [
+       "//content/utility/speech:speech_recognition_sandbox_hook",
+       "//media/gpu/sandbox",
+@@ -146,34 +146,10 @@
+     deps += [ "//services/proxy_resolver:lib" ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (enable_screen_ai_service && (is_linux || is_chromeos)) {
++  if (enable_screen_ai_service && (is_linux && !is_cobalt_hermetic_build || is_chromeos)) {
+     deps += [ "//services/screen_ai:screen_ai_sandbox_hook" ]
+   }
+ 
+-  if (is_starboard) {
+-    deps -= [ 
+-      "//content/utility/speech:speech_recognition_sandbox_hook",
+-      "//services/screen_ai:screen_ai_sandbox_hook",
+-    ]
+-  }
+-
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    deps += [
+-      "//content/utility/speech:speech_recognition_sandbox_hook",
+-      "//services/network:network_sandbox_hook",
+-    ]
+-    if (enable_oop_printing) {
+-      deps += [ "//printing:printing_sandbox_hook" ]
+-    }
+-  }
+-
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    deps += [ "//components/services/screen_ai:screen_ai_sandbox_hook" ]
+-  }
+-
+->>>>>>> a3eafce6b18 ([POSIX] Remove all syscalls (#6625))
+   if (enable_accessibility_service) {
+     deps += [ "//services/accessibility:lib" ]
+   }

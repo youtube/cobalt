@@ -1,0 +1,10 @@
+
+// SHA1(tools/gen_binary_descriptors)
+// 6886b319e65925c037179e71a803b8473d06dc7d
+// SHA1(protos/perfetto/metrics/metrics.proto)
+<<<<<<< HEAD
+// fe539c6187d701d117ab2f757e1a6b20a035af9f
+=======
+// b07fa0b4ad2deed79d2d8cc320f70502e19eee0c
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  

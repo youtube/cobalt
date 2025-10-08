@@ -1,0 +1,66 @@
+--- build/toolchain/apple/compile_xcassets.py
++++ build/toolchain/apple/compile_xcassets.py
+@@ -98,14 +98,9 @@
+ 
+ 
+ def CompileAssetCatalog(output, target_os, target_environment, product_type,
+-<<<<<<< HEAD:build/toolchain/apple/compile_xcassets.py
+                         min_deployment_target, possibly_zipped_inputs,
+                         compress_pngs, target_platform, partial_info_plist,
+                         app_icon, include_all_app_icons, temporary_dir):
+-=======
+-                        min_deployment_target, inputs, compress_pngs,
+-                        target_platform, partial_info_plist):
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107)):build/toolchain/ios/compile_xcassets.py
+   """Compile the .xcassets bundles to an asset catalog using actool.
+ 
+   Args:
+@@ -195,7 +190,6 @@
+         sys.stderr.write(
+           'Unsupported iphoneos environment: %s' % target_environment)
+         sys.exit(1)
+-<<<<<<< HEAD:build/toolchain/apple/compile_xcassets.py
+   elif target_os == 'watchos':
+     if target_environment == 'simulator':
+       command.extend([
+@@ -234,8 +228,6 @@
+       inputs.append(os.path.join(unzip_path, catalog_name))
+     else:
+       inputs.append(relative_path)
+-=======
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107)):build/toolchain/ios/compile_xcassets.py
+ 
+   # Scan the input directories for the presence of asset catalog types that
+   # require special treatment, and if so, add them to the actool command-line.
+@@ -333,11 +325,7 @@
+   parser.add_argument('--target_os',
+                       '-O',
+                       required=True,
+-<<<<<<< HEAD:build/toolchain/apple/compile_xcassets.py
+                       choices=('mac', 'ios', 'watchos'),
+-=======
+-                      choices=('mac', 'ios'),
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107)):build/toolchain/ios/compile_xcassets.py
+                       help='target os for the compiled assets catalog')
+   parser.add_argument('--target-platform',
+                       '-p',
+@@ -393,19 +381,12 @@
+     else:
+       shutil.rmtree(args.output)
+ 
+-<<<<<<< HEAD:build/toolchain/apple/compile_xcassets.py
+   with tempfile.TemporaryDirectory() as temporary_dir:
+     CompileAssetCatalog(args.output, args.target_os, args.target_environment,
+                         args.product_type, args.minimum_deployment_target,
+                         args.inputs, args.compress_pngs, args.target_platform,
+                         args.partial_info_plist, args.app_icon,
+                         args.include_all_app_icons, temporary_dir)
+-=======
+-  CompileAssetCatalog(args.output, args.target_os, args.target_environment,
+-                      args.product_type, args.minimum_deployment_target,
+-                      args.inputs, args.compress_pngs, args.target_platform,
+-                      args.partial_info_plist)
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107)):build/toolchain/ios/compile_xcassets.py
+ 
+ 
+ if __name__ == '__main__':

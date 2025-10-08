@@ -1,0 +1,21 @@
+--- gpu/BUILD.gn
++++ gpu/BUILD.gn
+@@ -589,17 +589,7 @@
+     ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux || is_chromeos || is_android) {
+-=======
+-  if (is_android) {
+-    sources += [
+-      "ipc/common/gpu_memory_buffer_impl_android_hardware_buffer_unittest.cc",
+-    ]
+-  }
+-
+-  if (is_linux && !is_starboard || is_chromeos || is_android || is_chromeos) {
+->>>>>>> fc296807c1f ([POSIX] Remove references to ioctl (#6641))
++  if (is_linux && !is_starboard || is_chromeos || is_android) {
+     sources += [ "command_buffer/service/gpu_fence_manager_unittest.cc" ]
+   }
+ 

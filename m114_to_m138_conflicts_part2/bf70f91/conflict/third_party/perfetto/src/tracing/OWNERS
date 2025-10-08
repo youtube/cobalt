@@ -1,0 +1,10 @@
+# Knowledgeable people for C++ SDK & TRACE_EVENT headers.
+<<<<<<< HEAD
+=======
+skyostil@google.com
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+eseckler@google.com
+nuskos@google.com
+
+# For internal/ core/ and ipc/.
+primiano@google.com

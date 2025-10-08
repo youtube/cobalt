@@ -1,0 +1,25 @@
+--- cobalt/shell/browser/shell_content_browser_client.cc
++++ cobalt/shell/browser/shell_content_browser_client.cc
+@@ -44,22 +44,12 @@
+ #include "cobalt/shell/browser/shell_browser_main_parts.h"
+ #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
+ #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
+-<<<<<<< HEAD
+-#include "cobalt/shell/common/shell_controller.test-mojom.h"
+ #include "cobalt/shell/common/shell_paths.h"
+ #include "cobalt/shell/common/shell_switches.h"
+ #include "components/custom_handlers/protocol_handler_registry.h"
+ #include "components/custom_handlers/protocol_handler_throttle.h"
+-#if defined(RUN_BROWSER_TESTS)
+-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
+-#endif  // defined(RUN_BROWSER_TESTS)
+ #include "components/embedder_support/switches.h"
+ #include "components/embedder_support/user_agent_utils.h"
+-=======
+-#include "cobalt/shell/common/shell_switches.h"
+-#include "components/custom_handlers/protocol_handler_registry.h"
+-#include "components/custom_handlers/protocol_handler_throttle.h"
+->>>>>>> 2afd7a30a84 (Gate test logic in cobalt to official build (#6941))
+ #include "components/metrics/client_info.h"
+ #include "components/metrics/metrics_service.h"
+ #include "components/metrics/metrics_state_manager.h"

@@ -1,0 +1,35 @@
+--- components/crash/core/app/BUILD.gn
++++ components/crash/core/app/BUILD.gn
+@@ -62,20 +62,7 @@
+     "crashpad.h",
+   ]
+ 
+-<<<<<<< HEAD
+   if (is_castos) {
+-=======
+-  if (is_linux || is_chromeos) {
+-    sources += [ "crashpad_linux.cc" ]
+-  }
+-
+-  if (is_cobalt_hermetic_build) {
+-    sources -= [ "crashpad_linux.cc" ]
+-    sources += [ "crashpad_starboard.cc" ]
+-  }
+-
+-  if (is_chromeos || is_castos) {
+->>>>>>> 145e859166b (Reland "[POSIX] Remove all syscalls" (#6873))
+     sources += [
+       "breakpad_linux.cc",
+       "breakpad_linux.h",
+@@ -102,6 +89,11 @@
+     data_deps = [ ":chrome_crashpad_handler" ]
+   }
+ 
++  if (is_cobalt_hermetic_build) {
++    sources -= [ "crashpad_linux.cc" ]
++    sources += [ "crashpad_starboard.cc" ]
++  }
++
+   if (is_ios) {
+     deps -= [ "//content/public/common:content_descriptors" ]
+     deps += [ "//third_party/crashpad/crashpad/handler:common" ]

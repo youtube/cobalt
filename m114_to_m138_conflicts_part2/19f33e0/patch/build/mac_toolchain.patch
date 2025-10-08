@@ -1,0 +1,27 @@
+--- build/mac_toolchain.py
++++ build/mac_toolchain.py
+@@ -20,10 +20,6 @@
+ 
+ import argparse
+ import os
+-<<<<<<< HEAD
+-=======
+-from packaging import version
+->>>>>>> da93d3f7ca5 ([tvOS] Remove deprecated pkg_resources (#7061))
+ import platform
+ import plistlib
+ import shutil
+@@ -161,13 +157,8 @@
+     current_license_plist = LoadPList(current_license_path)
+     xcode_version = current_license_plist.get(
+         'IDEXcodeVersionForAgreedToGMLicense')
+-<<<<<<< HEAD
+     if (xcode_version is not None
+         and xcode_version.split('.') >= cipd_xcode_version.split('.')):
+-=======
+-    if (xcode_version is not None and version.parse(xcode_version)
+-        >= version.parse(cipd_xcode_version)):
+->>>>>>> da93d3f7ca5 ([tvOS] Remove deprecated pkg_resources (#7061))
+       should_overwrite_license = False
+ 
+   if not should_overwrite_license:

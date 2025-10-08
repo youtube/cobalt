@@ -1,0 +1,15 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -108,12 +108,8 @@
+     "//third_party/blink/public:image_resources",
+     "//third_party/blink/public:resources",
+     "//third_party/blink/public/strings",
+-<<<<<<< HEAD
+-=======
+-    "//third_party/blink/public/strings:accessibility_strings",
+     "//ui/gfx",
+     "//ui/gfx/geometry",
+->>>>>>> 0877ba45931 (Copy ContentViewRendererView to cobalt/shell (#6575))
+     "//url",
+     "//v8",
+   ]

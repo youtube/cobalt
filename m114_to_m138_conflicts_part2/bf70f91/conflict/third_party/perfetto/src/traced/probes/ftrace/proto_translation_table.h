@@ -1,0 +1,335 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACED_PROBES_FTRACE_PROTO_TRANSLATION_TABLE_H_
+#define SRC_TRACED_PROBES_FTRACE_PROTO_TRANSLATION_TABLE_H_
+
+#include <stdint.h>
+
+#include <deque>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <optional>
+#include <set>
+#include <string>
+#include <vector>
+
+<<<<<<< HEAD
+#include "perfetto/ext/base/flat_hash_map.h"
+#include "src/traced/probes/ftrace/compact_sched.h"
+=======
+#include "perfetto/ext/base/scoped_file.h"
+#include "src/traced/probes/ftrace/compact_sched.h"
+#include "src/traced/probes/ftrace/event_info.h"
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+#include "src/traced/probes/ftrace/format_parser/format_parser.h"
+#include "src/traced/probes/ftrace/printk_formats_parser.h"
+
+namespace perfetto {
+<<<<<<< HEAD
+class FtraceProcfs;
+
+=======
+
+class FtraceProcfs;
+
+namespace protos {
+namespace pbzero {
+class FtraceEventBundle;
+}  // namespace pbzero
+}  // namespace protos
+
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+// Used when reading the config to store the group and name info for the
+// ftrace event.
+class GroupAndName {
+ public:
+<<<<<<< HEAD
+  GroupAndName(std::string_view group, std::string_view name)
+=======
+  GroupAndName(const std::string& group, const std::string& name)
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+      : group_(group), name_(name) {}
+
+  bool operator==(const GroupAndName& other) const {
+    return std::tie(group_, name_) == std::tie(other.group(), other.name());
+  }
+
+  bool operator<(const GroupAndName& other) const {
+    return std::tie(group_, name_) < std::tie(other.group(), other.name());
+  }
+
+  const std::string& name() const { return name_; }
+  const std::string& group() const { return group_; }
+
+  std::string ToString() const { return group_ + "/" + name_; }
+
+ private:
+  std::string group_;
+  std::string name_;
+};
+
+inline void PrintTo(const GroupAndName& event, ::std::ostream* os) {
+  *os << "GroupAndName(" << event.group() << ", " << event.name() << ")";
+}
+
+bool InferFtraceType(const std::string& type_and_name,
+                     size_t size,
+                     bool is_signed,
+                     FtraceFieldType* out);
+
+class ProtoTranslationTable {
+ public:
+<<<<<<< HEAD
+  static constexpr uint32_t kGenericEvtProtoMinPbFieldId = 65536;
+
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  struct FtracePageHeaderSpec {
+    FtraceEvent::Field timestamp{};
+    FtraceEvent::Field overwrite{};
+    FtraceEvent::Field size{};
+  };
+
+  static FtracePageHeaderSpec DefaultPageHeaderSpecForTesting();
+
+  // This method mutates the |events| and |common_fields| vectors to
+  // fill some of the fields and to delete unused events/fields
+  // before std:move'ing them into the ProtoTranslationTable.
+  static std::unique_ptr<ProtoTranslationTable> Create(
+      const FtraceProcfs* ftrace_procfs,
+      std::vector<Event> events,
+      std::vector<Field> common_fields);
+  virtual ~ProtoTranslationTable();
+
+<<<<<<< HEAD
+  ProtoTranslationTable(const ProtoTranslationTable&) = delete;
+  ProtoTranslationTable& operator=(const ProtoTranslationTable&) = delete;
+
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  ProtoTranslationTable(const FtraceProcfs* ftrace_procfs,
+                        const std::vector<Event>& events,
+                        std::vector<Field> common_fields,
+                        FtracePageHeaderSpec ftrace_page_header_spec,
+                        CompactSchedEventFormat compact_sched_format,
+                        PrintkMap printk_formats);
+
+<<<<<<< HEAD
+=======
+  size_t largest_id() const { return largest_id_; }
+
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  const std::vector<Field>& common_fields() const { return common_fields_; }
+
+  const Field* common_pid() const {
+    // corner case: pKVM hypervisor pseudo-tracefs lacks common_pid
+    if (!common_pid_.has_value())
+      return nullptr;
+    return &common_pid_.value();
+  }
+
+  // Virtual for testing.
+  virtual const Event* GetEvent(const GroupAndName& group_and_name) const {
+    if (!group_and_name_to_event_.count(group_and_name))
+      return nullptr;
+    return group_and_name_to_event_.at(group_and_name);
+  }
+
+<<<<<<< HEAD
+  // Virtual for testing.
+  virtual const std::vector<const Event*>* GetEventsByGroup(
+=======
+  const std::vector<const Event*>* GetEventsByGroup(
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+      const std::string& group) const {
+    if (!group_to_events_.count(group))
+      return nullptr;
+    return &group_to_events_.at(group);
+  }
+
+  const Event* GetEventById(size_t id) const {
+<<<<<<< HEAD
+    if (id == 0 || id >= events_.size())
+=======
+    if (id == 0 || id > largest_id_)
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+      return nullptr;
+    const Event* evt = &events_[id];
+    if (!evt->ftrace_event_id)
+      return nullptr;
+    return evt;
+  }
+
+  size_t EventToFtraceId(const GroupAndName& group_and_name) const {
+    if (!group_and_name_to_event_.count(group_and_name))
+      return 0;
+    return group_and_name_to_event_.at(group_and_name)->ftrace_event_id;
+  }
+
+  const std::deque<Event>& events() { return events_; }
+  const FtracePageHeaderSpec& ftrace_page_header_spec() const {
+    return ftrace_page_header_spec_;
+  }
+
+  // Returns the size in bytes of the "size" field in the ftrace header. This
+  // usually matches sizeof(void*) in the kernel (which can be != sizeof(void*)
+  // of user space on 32bit-user + 64-bit-kernel configurations).
+<<<<<<< HEAD
+  uint16_t page_header_size_len() const {
+    return ftrace_page_header_spec_.size.size;
+  }
+
+  virtual const Event* CreateGenericEvent(const GroupAndName&);
+  virtual const Event* CreateKprobeEvent(const GroupAndName&);
+
+  // Removes the ftrace event from the proto translation table.
+  virtual void RemoveEvent(const GroupAndName&);
+
+  // This is for backwards compatibility. If a group is not specified in the
+  // config then the first event with that name will be returned.
+  // TODO(rsavitski): the convenience is useful, but would it make more sense to
+  // enable all events with that name?
+=======
+  inline uint16_t page_header_size_len() const {
+    // TODO(fmayer): Do kernel deepdive to double check this.
+    return ftrace_page_header_spec_.size.size;
+  }
+
+  // Retrieves the ftrace event from the proto translation
+  // table. If it does not exist, reads the format file and creates a
+  // new event with the proto id set to generic. Virtual for testing.
+  virtual const Event* GetOrCreateEvent(const GroupAndName&);
+
+  // This is for backwards compatibility. If a group is not specified in the
+  // config then the first event with that name will be returned.
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  const Event* GetEventByName(const std::string& name) const {
+    if (!name_to_events_.count(name))
+      return nullptr;
+    return name_to_events_.at(name)[0];
+  }
+
+  const CompactSchedEventFormat& compact_sched_format() const {
+    return compact_sched_format_;
+  }
+
+  base::StringView LookupTraceString(uint64_t address) const {
+    return printk_formats_.at(address);
+  }
+
+<<<<<<< HEAD
+  bool IsGenericEventProtoId(uint32_t proto_field_id) const {
+    return proto_field_id >= kGenericEvtProtoMinPbFieldId;
+  }
+
+  const base::FlatHashMap<uint32_t, std::vector<uint8_t>>*
+  generic_evt_pb_descriptors() const {
+    return &generic_evt_pb_descriptors_;
+  }
+
+ private:
+  // Store strings so they can be read when writing the trace output.
+  const char* InternString(const std::string& str);
+
+  const Event* CreateGenericEventInternal(const GroupAndName& group_and_name,
+                                          uint32_t proto_field_id,
+                                          bool keep_proto_descriptor);
+
+  const FtraceProcfs* ftrace_procfs_;
+  std::set<std::string> interned_strings_;
+  std::deque<Event> events_;
+=======
+ private:
+  ProtoTranslationTable(const ProtoTranslationTable&) = delete;
+  ProtoTranslationTable& operator=(const ProtoTranslationTable&) = delete;
+
+  // Store strings so they can be read when writing the trace output.
+  const char* InternString(const std::string& str);
+
+  uint16_t CreateGenericEventField(const FtraceEvent::Field& ftrace_field,
+                                   Event& event);
+
+  const FtraceProcfs* ftrace_procfs_;
+  std::deque<Event> events_;
+  size_t largest_id_;
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  std::map<GroupAndName, const Event*> group_and_name_to_event_;
+  std::map<std::string, std::vector<const Event*>> name_to_events_;
+  std::map<std::string, std::vector<const Event*>> group_to_events_;
+  std::vector<Field> common_fields_;
+  std::optional<Field> common_pid_;  // copy of entry in common_fields_
+  FtracePageHeaderSpec ftrace_page_header_spec_{};
+<<<<<<< HEAD
+  CompactSchedEventFormat compact_sched_format_;
+  PrintkMap printk_formats_;
+  // Used to assign proto field ids within "FtraceEvent" proto when serialising
+  // events not known at compile time.
+  uint32_t next_generic_evt_proto_id_ = kGenericEvtProtoMinPbFieldId;
+  // Keyed by proto id. Not garbage collected as the number of events is bounded
+  // unless someone is constantly recreating dynamic probes. This is acceptable
+  // since the proto translation table itself only lives for as long as tracing
+  // is active.
+  // TODO(rsavitski): double-check that tracefs doesn't reuse tracepoint ids for
+  // dynamic probes.
+  base::FlatHashMap<uint32_t, std::vector<uint8_t>> generic_evt_pb_descriptors_;
+=======
+  std::set<std::string> interned_strings_;
+  CompactSchedEventFormat compact_sched_format_;
+  PrintkMap printk_formats_;
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+};
+
+// Class for efficient 'is event with id x enabled?' checks.
+// Mirrors the data in a FtraceConfig but in a format better suited
+// to be consumed by CpuReader.
+class EventFilter {
+ public:
+<<<<<<< HEAD
+  EventFilter() = default;
+  ~EventFilter() = default;
+  // move-only
+  EventFilter(EventFilter&&) = default;
+  EventFilter& operator=(EventFilter&&) = default;
+  EventFilter(const EventFilter&) = delete;
+  EventFilter& operator=(const EventFilter&) = delete;
+=======
+  EventFilter();
+  ~EventFilter();
+  EventFilter(EventFilter&&) = default;
+  EventFilter& operator=(EventFilter&&) = default;
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+
+  void AddEnabledEvent(size_t ftrace_event_id);
+  void DisableEvent(size_t ftrace_event_id);
+  bool IsEventEnabled(size_t ftrace_event_id) const;
+  std::set<size_t> GetEnabledEvents() const;
+  void EnableEventsFrom(const EventFilter&);
+
+ private:
+<<<<<<< HEAD
+=======
+  EventFilter(const EventFilter&) = delete;
+  EventFilter& operator=(const EventFilter&) = delete;
+
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  std::vector<bool> enabled_ids_;
+};
+
+}  // namespace perfetto
+
+#endif  // SRC_TRACED_PROBES_FTRACE_PROTO_TRANSLATION_TABLE_H_

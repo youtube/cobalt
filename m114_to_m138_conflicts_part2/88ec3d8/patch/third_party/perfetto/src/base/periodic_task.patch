@@ -1,0 +1,15 @@
+--- third_party/perfetto/src/base/periodic_task.cc
++++ third_party/perfetto/src/base/periodic_task.cc
+@@ -44,11 +44,7 @@
+ }
+ 
+ ScopedPlatformHandle CreateTimerFd(const PeriodicTask::Args& args) {
+-<<<<<<< HEAD
+-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
+-=======
+-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) && !defined(STARBOARD) || \
+->>>>>>> fb969bc6007 ([POSIX] Remove references to timerfd_* functions (#6594))
++#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) && !defined(STARBOARD) || \
+     (PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) && __ANDROID_API__ >= 19)
+   ScopedPlatformHandle tfd(
+       timerfd_create(CLOCK_BOOTTIME, TFD_CLOEXEC | TFD_NONBLOCK));

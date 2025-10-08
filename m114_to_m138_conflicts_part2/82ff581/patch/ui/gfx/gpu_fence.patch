@@ -1,0 +1,20 @@
+--- ui/gfx/gpu_fence.cc
++++ ui/gfx/gpu_fence.cc
+@@ -88,16 +88,9 @@
+ }
+ 
+ base::TimeTicks GpuFence::GetMaxTimestamp() const {
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+   base::TimeTicks timestamp;
+   FenceStatus status = GetStatusChangeTime(fence_handle_.Peek(), &timestamp);
+-=======
+-  base::TimeTicks timestamp;
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+-  FenceStatus status =
+-      GetStatusChangeTime(fence_handle_.owned_fd.get(), &timestamp);
+->>>>>>> fc296807c1f ([POSIX] Remove references to ioctl (#6641))
+   DCHECK_EQ(status, FenceStatus::kSignaled);
+   return timestamp;
+ #else

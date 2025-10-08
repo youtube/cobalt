@@ -1,0 +1,17 @@
+--- third_party/blink/renderer/modules/encryptedmedia/media_keys.h
++++ third_party/blink/renderer/modules/encryptedmedia/media_keys.h
+@@ -86,13 +86,8 @@
+                                                      ExceptionState&);
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-<<<<<<< HEAD
+-  String getMetrics(ExceptionState&);
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+-  ScriptPromise getMetrics(ScriptState* script_state, ExceptionState&);
++  ScriptPromise<IDLString> getMetrics(ScriptState* script_state, ExceptionState&);
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 7f7e8d81f8b ([media] Implement custom Starboard MediaKeys GetMetrics over Mojo (#6344))
+ 
+   // Indicates that the provided HTMLMediaElement wants to use this object.
+   // Returns true if no other HTMLMediaElement currently references this

@@ -1,0 +1,19 @@
+--- cobalt/shell/browser/shell_content_browser_client.cc
++++ cobalt/shell/browser/shell_content_browser_client.cc
+@@ -839,16 +839,11 @@
+       command_line.GetSwitchValueASCII(
+           variations::switches::kForceVariationIds),
+       feature_overrides, std::move(feature_list), metrics_state_manager.get(),
+-<<<<<<< HEAD
+       &synthetic_trial_registry, &platform_field_trials, &safe_seed_manager,
+       /*add_entropy_source_to_variations_ids=*/false,
+       *metrics_state_manager->CreateEntropyProviders(
+           /*enable_limited_entropy_mode=*/false));
+-=======
+-      &platform_field_trials, &safe_seed_manager,
+-      /*add_entropy_source_to_variations_ids=*/false);
+ #endif  // defined(RUN_BROWSER_TESTS)
+->>>>>>> c2a8fa0eaf7 (Override CreateFeatureListAndFieldTrials and separate test logics (#6826))
+ }
+ 
+ std::optional<network::ParsedPermissionsPolicy>

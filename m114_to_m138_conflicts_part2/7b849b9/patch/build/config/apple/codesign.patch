@@ -1,0 +1,14 @@
+--- build/config/apple/codesign.py
++++ build/config/apple/codesign.py
+@@ -113,11 +113,8 @@
+       if extension == '.framework':
+         return 'mac_framework'
+       return 'mac'
+-<<<<<<< HEAD:build/config/apple/codesign.py
+     if platform in ('watchos', 'watchsimulator'):
+       return 'watchos'
+-=======
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107)):build/config/ios/codesign.py
+     if platform in ('appletvos', 'appletvsimulator'):
+       return 'tvos'
+     raise ValueError('unknown bundle type %s for %s' % (extension, platform))

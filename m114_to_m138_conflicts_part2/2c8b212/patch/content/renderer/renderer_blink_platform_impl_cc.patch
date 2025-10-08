@@ -1,0 +1,45 @@
+--- content/renderer/renderer_blink_platform_impl.cc
++++ content/renderer/renderer_blink_platform_impl.cc
+@@ -193,14 +193,9 @@
+                             : nullptr),
+       sudden_termination_disables_(0),
+       is_locked_to_site_(false),
+-<<<<<<< HEAD
+       main_thread_scheduler_(main_thread_scheduler),
+       next_frame_sink_id_(uint32_t{std::numeric_limits<int32_t>::max()} + 1) {
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+-=======
+-      main_thread_scheduler_(main_thread_scheduler) {
+ #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+   sk_sp<font_service::FontLoader> font_loader;
+ #endif
+ 
+@@ -230,12 +225,8 @@
+ #endif
+   }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
+     BUILDFLAG(IS_WIN)
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+   if (sandboxEnabled()) {
+ #if BUILDFLAG(IS_MAC)
+     sandbox_support_ = std::make_unique<WebSandboxSupportMac>();
+@@ -307,12 +298,8 @@
+ }
+ 
+ blink::WebSandboxSupport* RendererBlinkPlatformImpl::GetSandboxSupport() {
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
+     BUILDFLAG(IS_WIN)
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+   return sandbox_support_.get();
+ #else
+   // These platforms do not require sandbox support.

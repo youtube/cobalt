@@ -1,0 +1,23 @@
+--- third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_get_metrics.cc
++++ third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_get_metrics.cc
+@@ -23,16 +23,11 @@
+ namespace blink {
+ 
+ // static
+-<<<<<<< HEAD
+-String MediaKeysGetMetrics::getMetrics(MediaKeys& media_keys,
+-                                          ExceptionState& exception_state) {
+-  return media_keys.getMetrics(exception_state);
+-=======
+-ScriptPromise MediaKeysGetMetrics::getMetrics(ScriptState* script_state,
+-                                              MediaKeys& media_keys,
+-                                              ExceptionState& exception_state) {
++ScriptPromise<IDLString> MediaKeysGetMetrics::getMetrics(
++    ScriptState* script_state,
++    MediaKeys& media_keys,
++    ExceptionState& exception_state) {
+   return media_keys.getMetrics(script_state, exception_state);
+->>>>>>> 7f7e8d81f8b ([media] Implement custom Starboard MediaKeys GetMetrics over Mojo (#6344))
+ }
+ 
+ }  // namespace blink

@@ -1,0 +1,19 @@
+sched:sched_switch
+sched:sched_waking
+kmem:ion_heap_grow
+kmem:ion_heap_shrink
+kmem:rss_stat
+clk:clk_enable
+clk:clk_disable
+clk:clk_set_rate
+sde:tracing_mark_write
+fastrpc:fastrpc_dma_stat
+dpu:tracing_mark_write
+g2d:tracing_mark_write
+power:suspend_resume
+cpuhp:cpuhp_pause
+lwis:tracing_mark_write
+<<<<<<< HEAD
+panel:panel_write_generic
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))

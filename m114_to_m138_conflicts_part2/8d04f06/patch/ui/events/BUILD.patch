@@ -1,0 +1,23 @@
+--- ui/events/BUILD.gn
++++ ui/events/BUILD.gn
+@@ -165,20 +165,10 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+-=======
+   if (is_starboard) {
+     sources += [ "keycodes/keyboard_code_conversion_starboard.cc" ]
+   }
+ 
+-  if (is_mac) {
+-    sources += [
+-      "keycodes/keyboard_code_conversion_mac.h",
+-      "keycodes/keyboard_code_conversion_mac.mm",
+-    ]
+-  }
+-
+->>>>>>> b62d1338ae0 (Map the SbKey values to DOM keyboard events. (#7268))
+   if (is_win) {
+     sources += [
+       "keycodes/keyboard_code_conversion_win.cc",

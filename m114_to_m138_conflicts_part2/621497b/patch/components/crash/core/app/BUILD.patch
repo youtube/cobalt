@@ -1,0 +1,27 @@
+--- components/crash/core/app/BUILD.gn
++++ components/crash/core/app/BUILD.gn
+@@ -62,15 +62,7 @@
+     "crashpad.h",
+   ]
+ 
+-<<<<<<< HEAD
+   if (is_castos) {
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    sources += [ "crashpad_linux.cc" ]
+-  }
+-
+-  if (is_chromeos || is_castos) {
+->>>>>>> a3eafce6b18 ([POSIX] Remove all syscalls (#6625))
+     sources += [
+       "breakpad_linux.cc",
+       "breakpad_linux.h",
+@@ -92,7 +84,7 @@
+     "//third_party/crashpad/crashpad/util",
+   ]
+ 
+-  if (is_linux || is_chromeos) {
++  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+     sources += [ "crashpad_linux.cc" ]
+     data_deps = [ ":chrome_crashpad_handler" ]
+   }

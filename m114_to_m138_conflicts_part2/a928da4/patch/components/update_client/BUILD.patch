@@ -1,0 +1,28 @@
+--- components/update_client/BUILD.gn
++++ components/update_client/BUILD.gn
+@@ -184,7 +184,6 @@
+     "//url",
+   ]
+ 
+-<<<<<<< HEAD
+   if (is_mac) {
+     sources += [
+       "background_downloader_mac.h",
+@@ -192,7 +191,8 @@
+     ]
+     frameworks = [ "Foundation.framework" ]
+     deps += [ ":background_downloader_delegate" ]
+-=======
++  }
++
+   if (is_cobalt_hermetic_build) {
+     sources += [
+       "cobalt_slot_management.cc",
+@@ -204,7 +204,6 @@
+       "//starboard/loader_app:app_key_files",
+       "//starboard/loader_app:drain_file",
+     ]
+->>>>>>> b1bc10e96c9 (evergreen: Apply the customizations to update_client (#6949))
+   }
+ 
+   if (is_win) {

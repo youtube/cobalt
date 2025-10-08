@@ -1,0 +1,22 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -74,11 +74,6 @@
+     "//components/variations/service",
+     "//components/web_cache/renderer",
+     "//content:content_resources",
+-<<<<<<< HEAD
+-    "//content/common:main_frame_counter",
+-=======
+-    "//content:dev_ui_content_resources",
+->>>>>>> 2afd7a30a84 (Gate test logic in cobalt to official build (#6941))
+     "//content/public/app",
+     "//content/public/browser",
+     "//content/public/gpu",
+@@ -477,7 +472,6 @@
+ }
+ 
+ mojom("browsertests_mojom") {
+-  testonly = true
+   sources = [
+     "common/main_frame_counter_test.mojom",
+     "common/power_monitor_test.mojom",

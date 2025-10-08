@@ -1,0 +1,15 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -63,12 +63,8 @@
+     "//components/crash/content/browser",
+     "//components/crash/core/app",
+     "//components/custom_handlers",
+-<<<<<<< HEAD
+-    "//components/custom_handlers:test_support",
+     "//components/embedder_support:embedder_support",
+     "//components/embedder_support:user_agent",
+-=======
+->>>>>>> 75aeff7e3e4 (Gate browser test logic in non-official builds (#6851))
+     "//components/keyed_service/content",
+     "//components/metrics",
+     "//components/metrics:net",

@@ -1,0 +1,14 @@
+--- build/config/apple/sdk_info.py
++++ build/config/apple/sdk_info.py
+@@ -139,11 +139,8 @@
+                           'iphoneos',
+                           'iphonesimulator',
+                           'macosx',
+-<<<<<<< HEAD
+                           'watchos',
+                           'watchsimulator',
+-=======
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107))
+                       ])
+   args = parser.parse_args()
+   if args.developer_dir:

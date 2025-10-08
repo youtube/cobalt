@@ -1,0 +1,80 @@
+--- third_party/blink/renderer/modules/encryptedmedia/media_keys.cc
++++ third_party/blink/renderer/modules/encryptedmedia/media_keys.cc
+@@ -425,24 +425,12 @@
+ }
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+-<<<<<<< HEAD
+-String MediaKeys::getMetrics(ExceptionState& exception_state) {
+-  std::string metrics;
+-  if (!cdm_ || !cdm_->GetMetrics(metrics)) {
+-    exception_state.ThrowDOMException(
+-        DOMExceptionCode::kInvalidStateError,
+-        !cdm_ ? "No active CDM" : "GetMetrics() failed");
+-    return String();
+-  }
+-  return String::FromUTF8(metrics);
+-=======
+-class GetMetricsResultPromise
+-    : public ContentDecryptionModuleResultPromise {
++class GetMetricsResultPromise : public ContentDecryptionModuleResultPromise {
+  public:
+-  GetMetricsResultPromise(ScriptState* script_state,
++  GetMetricsResultPromise(ScriptPromiseResolver<IDLString>* resolver,
+                           const MediaKeysConfig& config,
+                           MediaKeys* media_keys)
+-      : ContentDecryptionModuleResultPromise(script_state,
++      : ContentDecryptionModuleResultPromise(resolver,
+                                              config,
+                                              EmeApiType::kGetMetrics),
+         media_keys_(media_keys) {}
+@@ -450,12 +438,12 @@
+   ~GetMetricsResultPromise() override = default;
+ 
+   // ContentDecryptionModuleResult implementation.
+-  void CompleteWithString(
+-      const WebString& result) override {
+-    if (!IsValidToFulfillPromise())
++  void CompleteWithString(const WebString& result) override {
++    if (!IsValidToFulfillPromise()) {
+       return;
++    }
+ 
+-    Resolve(result);
++    Resolve<IDLString>(result);
+   }
+   void Trace(Visitor* visitor) const override {
+     visitor->Trace(media_keys_);
+@@ -468,23 +456,24 @@
+   Member<MediaKeys> media_keys_;
+ };
+ 
+-ScriptPromise MediaKeys::getMetrics(ScriptState* script_state,
+-                                    ExceptionState& exception_state) {
++ScriptPromise<IDLString> MediaKeys::getMetrics(
++    ScriptState* script_state,
++    ExceptionState& exception_state) {
+   if (!cdm_) {
+     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                       "No active CDM..");
+-    return ScriptPromise();
++    return EmptyPromise();
+   }
+ 
+-  GetMetricsResultPromise* result = 
+-    MakeGarbageCollected<GetMetricsResultPromise>(script_state, config_, this);
+-
+-  ScriptPromise promise = result->Promise();
++  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
++      script_state, exception_state.GetContext());
++  GetMetricsResultPromise* result =
++      MakeGarbageCollected<GetMetricsResultPromise>(resolver, config_, this);
++  auto promise = resolver->Promise();
+ 
+   cdm_->GetMetrics(result->Result());
+ 
+   return promise;
+->>>>>>> 7f7e8d81f8b ([media] Implement custom Starboard MediaKeys GetMetrics over Mojo (#6344))
+ }
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 

@@ -1,0 +1,32 @@
+--- third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_get_metrics.h
++++ third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_get_metrics.h
+@@ -16,12 +16,8 @@
+ #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_ENCRYPTEDMEDIA_MEDIA_KEYS_GET_METRICS_H_
+ 
+ #include "build/build_config.h"
+-<<<<<<< HEAD
+-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+-=======
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+ #include "third_party/blink/renderer/platform/bindings/script_state.h"
+->>>>>>> 7f7e8d81f8b ([media] Implement custom Starboard MediaKeys GetMetrics over Mojo (#6344))
+ 
+ namespace blink {
+ 
+@@ -31,13 +27,9 @@
+   STATIC_ONLY(MediaKeysGetMetrics);
+ 
+  public:
+-<<<<<<< HEAD
+-  static String getMetrics(MediaKeys&, ExceptionState&);
+-=======
+-  static ScriptPromise getMetrics(ScriptState* script_state,
+-                                  MediaKeys& media_keys,
+-                                  ExceptionState&);
+->>>>>>> 7f7e8d81f8b ([media] Implement custom Starboard MediaKeys GetMetrics over Mojo (#6344))
++  static ScriptPromise<IDLString> getMetrics(ScriptState* script_state,
++                                             MediaKeys& media_keys,
++                                             ExceptionState&);
+ };
+ 
+ }  // namespace blink

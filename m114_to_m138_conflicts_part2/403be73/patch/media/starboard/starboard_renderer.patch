@@ -1,0 +1,14 @@
+--- media/starboard/starboard_renderer.cc
++++ media/starboard/starboard_renderer.cc
+@@ -16,11 +16,8 @@
+ 
+ #include "base/feature_list.h"
+ #include "base/logging.h"
+-<<<<<<< HEAD
+ #include "base/strings/stringprintf.h"
+-=======
+ #include "base/task/sequenced_task_runner.h"
+->>>>>>> df4a9798b0d (media/starboard: make SbPlayerSetBoundsHelper not ref-counted (#7092))
+ #include "base/trace_event/trace_event.h"
+ #include "media/base/audio_codecs.h"
+ #include "media/base/media_switches.h"

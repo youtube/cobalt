@@ -1,0 +1,20 @@
+--- content/common/BUILD.gn
++++ content/common/BUILD.gn
+@@ -381,16 +381,12 @@
+     sources -= [ "cursors/webcursor_aura.cc" ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux || is_chromeos) {
++  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+     sources += [
+       "gpu_pre_sandbox_hook_linux.cc",
+       "gpu_pre_sandbox_hook_linux.h",
+     ]
+     public_deps += [ "//sandbox/policy" ]
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+     deps += [
+       ":sandbox_support_linux",
+       "//media/gpu:buildflags",

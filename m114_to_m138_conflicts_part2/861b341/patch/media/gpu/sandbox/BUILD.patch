@@ -1,0 +1,14 @@
+--- media/gpu/sandbox/BUILD.gn
++++ media/gpu/sandbox/BUILD.gn
+@@ -6,11 +6,7 @@
+ 
+ source_set("sandbox") {
+   sources = []
+-<<<<<<< HEAD
+   if (use_linux_video_acceleration) {
+-=======
+-  if (is_linux && !is_starboard || is_chromeos_ash) {
+->>>>>>> b4969c6295f ([POSIX] Remove dlopen and friends from Starboard (#6488))
+     sources += [
+       "hardware_video_decoding_sandbox_hook_linux.cc",
+       "hardware_video_decoding_sandbox_hook_linux.h",

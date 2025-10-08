@@ -1,0 +1,83 @@
+--- skia/BUILD.gn
++++ skia/BUILD.gn
+@@ -294,19 +294,6 @@
+     "fontations_feature.cc",
+     "rusty_png_feature.cc",
+   ]
+-<<<<<<< HEAD
+-=======
+-  if (!is_apple) {
+-    public += [ "ext/fontmgr_default.h" ]
+-    sources += [ "ext/fontmgr_default.cc" ]
+-  }
+-  if (is_android) {
+-    sources += [ "ext/fontmgr_default_android.cc" ]
+-  }
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    sources += [ "ext/fontmgr_default_linux.cc" ]
+-  }
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+   if (is_ios) {
+     public += [ "ext/skia_utils_ios.h" ]
+     sources += [ "ext/skia_utils_ios.mm" ]
+@@ -319,9 +306,6 @@
+     public += [ "ext/skia_utils_win.h" ]
+     sources += [ "ext/skia_utils_win.cc" ]
+   }
+-  if (is_cobalt_hermetic_build) {
+-    sources += ["ext/fontmgr_default_starboard.cc"]
+-  }
+ 
+   if (use_blink) {
+     public += [ "ext/platform_canvas.h" ]
+@@ -468,8 +452,7 @@
+     sources += skia_ports_fontmgr_coretext_sources
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_linux || is_chromeos) {
++  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+     public += skia_ports_fci_public
+     sources += skia_ports_fci_sources
+   }
+@@ -479,14 +462,6 @@
+     # fonts. See content/zygote/zygote_main_linux.cc
+     # Note that this requires expat.
+     sources += skia_ports_fontmgr_android_sources
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    sources += [
+-      "//third_party/skia/src/ports/SkFontConfigInterface.cpp",
+-      "//third_party/skia/src/ports/SkFontConfigInterface_direct.cpp",
+-      "//third_party/skia/src/ports/SkFontConfigInterface_direct_factory.cpp",
+-      "//third_party/skia/src/ports/SkFontMgr_FontConfigInterface.cpp",
+-    ]
+   }
+ 
+   if (is_cobalt_hermetic_build) {
+@@ -515,25 +490,6 @@
+     ]
+   }
+ 
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos || is_android) {
+-    sources += [
+-      # Retain the files for the SkFontMgr_Android on linux to emulate android
+-      # fonts. See content/zygote/zygote_main_linux.cc
+-      # Note that this requires expat.
+-      "//third_party/skia/src/ports/SkFontMgr_android.cpp",
+-      "//third_party/skia/src/ports/SkFontMgr_android_parser.cpp",
+-    ]
+-  }
+-
+-  if (is_win || (is_apple && use_blink)) {
+-    sources += [
+-      # Add the FreeType custom font manager as a fallback backend for variable fonts.
+-      "//third_party/skia/src/ports/SkFontMgr_custom.cpp",
+-      "//third_party/skia/src/ports/SkFontMgr_custom_empty.cpp",
+-    ]
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+-  }
+-
+   if (is_fuchsia) {
+     public += skia_ports_fontmgr_fuchsia_public
+     sources += skia_ports_fontmgr_fuchsia_sources

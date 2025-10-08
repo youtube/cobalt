@@ -1,0 +1,63 @@
+<<<<<<< HEAD
+.aider*
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+.android_config
+.cache
+.ccls
+.ccls-cache
+.clangd
+.cproject
+<<<<<<< HEAD
+.cursor*
+.deps_sha1
+.DS_Store
+.env
+=======
+.deps_sha1
+.DS_Store
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+.eslintcache
+.gclient*
+.gm-actuals
+.gradle
+.idea
+.project
+.recipe_deps/
+.settings/
+<<<<<<< HEAD
+.venv
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+.vscode
+*.code-workspace
+*.iml
+*.pyc
+*.sock
+*.swp
+<<<<<<< HEAD
+/*.pftrace
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+/bazel-*
+/compile_commands.json
+/fuzz_out/
+/out*
+/ui/dist
+/venv/*
+<<<<<<< HEAD
+depot_tools/
+=======
+perf.data*
+TAGS
+/*.pftrace
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+examples/sdk/build/
+GPATH
+GRTAGS
+GTAGS
+<<<<<<< HEAD
+perf.data*
+TAGS
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))

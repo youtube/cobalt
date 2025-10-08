@@ -1,0 +1,19 @@
+--- components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
++++ components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
+@@ -290,16 +290,10 @@
+             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
+             mSurfaceView.setZOrderMediaOverlay(true);
+ 
+-<<<<<<< HEAD
+-            renderView.setSurfaceViewBackgroundColor(Color.WHITE);
+             renderView.addView(
+                     mSurfaceView,
+                     new FrameLayout.LayoutParams(
+                             FrameLayout.LayoutParams.MATCH_PARENT,
+-=======
+-            renderView.addView(mSurfaceView,
+-                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+->>>>>>> 31365b45a02 (fix: Prevent white screen flash on startup (#6663))
+                             FrameLayout.LayoutParams.MATCH_PARENT));
+             mSurfaceView.setVisibility(GONE);
+         }

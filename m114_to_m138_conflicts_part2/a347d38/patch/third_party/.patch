@@ -1,0 +1,52 @@
+--- third_party/.gitignore
++++ third_party/.gitignore
+@@ -17,10 +17,6 @@
+ /android_tools_internal/
+ /android_webview_glue/src
+ /androidx_javascriptengine/src/
+-<<<<<<< HEAD
+-=======
+-# /angle Note: Has been imported as a subtree, and is not ignored in Cobalt.
+->>>>>>> 01508b74062 (Update .gitignore entries for flattened repositories (#6700))
+ /angle_dx11
+ /anonymous_tokens/src/
+ /apache-linux/
+@@ -31,10 +27,6 @@
+ /arcore-android-sdk/src/
+ /arcore-android-sdk/test-apks/arcore/*.apk
+ /bison
+-<<<<<<< HEAD
+-=======
+-# /boringssl/src Note: Has been imported as a subtree, and is not ignored in Cobalt.
+->>>>>>> 01508b74062 (Update .gitignore entries for flattened repositories (#6700))
+ /bouncycastle/lib/
+ /byte_buddy/android_sdk_build_tools_25_0_2
+ /byte_buddy/lib/
+@@ -45,15 +37,7 @@
+ /chromeos_login_manager
+ /chromeos_text_input
+ /cld_2/src
+-<<<<<<< HEAD
+ /cronet_android_mainline_clang/linux-amd64
+-=======
+-/cld_3/src
+-/colorama/src
+-/content_analysis_sdk/src
+-# /cpuinfo/src Note: Has been imported as a subtree, and is not ignored in Cobalt.
+-/crc32c/src
+->>>>>>> 01508b74062 (Update .gitignore entries for flattened repositories (#6700))
+ /cros
+ /custom_tabs_client/src
+ /cygwin
+@@ -121,11 +105,6 @@
+ /omaha/src/omaha
+ /pdfsqueeze
+ /pefile
+-<<<<<<< HEAD
+-=======
+-# /perfetto Note: Has been imported as a subtree, and is not ignored in Cobalt.
+-/perl
+->>>>>>> 01508b74062 (Update .gitignore entries for flattened repositories (#6700))
+ /ppapi
+ /proguard/lib/
+ /protobuf-javascript/src

@@ -1,0 +1,19 @@
+--- printing/BUILD.gn
++++ printing/BUILD.gn
+@@ -81,7 +81,6 @@
+   ]
+ }
+ 
+-<<<<<<< HEAD
+ component("settings") {
+   sources = [
+     "page_range.cc",
+@@ -106,8 +105,6 @@
+   }
+ }
+ 
+-=======
+->>>>>>> 145e859166b (Reland "[POSIX] Remove all syscalls" (#6873))
+ if (enable_oop_printing && (is_linux && !is_cobalt_hermetic_build || is_chromeos)) {
+   source_set("printing_sandbox_hook") {
+     sources = [

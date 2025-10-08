@@ -1,0 +1,15 @@
+--- cobalt/browser/cobalt_content_browser_client.cc
++++ cobalt/browser/cobalt_content_browser_client.cc
+@@ -38,11 +38,8 @@
+ #include "cobalt/shell/browser/shell.h"
+ #include "cobalt/shell/common/shell_paths.h"
+ #include "cobalt/shell/common/shell_switches.h"
+-<<<<<<< HEAD
+-#include "components/embedder_support/user_agent_utils.h"
+-=======
+ #include "cobalt/version.h"
+->>>>>>> 32075a889a5 (Populate the missing fields in the UA string (#7085))
++#include "components/embedder_support/user_agent_utils.h"
+ #include "components/metrics/metrics_state_manager.h"
+ #include "components/metrics_services_manager/metrics_services_manager.h"
+ #include "components/prefs/pref_registry_simple.h"

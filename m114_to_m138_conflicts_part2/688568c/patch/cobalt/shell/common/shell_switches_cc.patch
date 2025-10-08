@@ -1,0 +1,22 @@
+--- cobalt/shell/common/shell_switches.cc
++++ cobalt/shell/common/shell_switches.cc
+@@ -47,19 +47,7 @@
+ // risk.
+ const char kRemoteDebuggingAddress[] = "remote-debugging-address";
+ 
+-<<<<<<< HEAD
+-// Runs Content Shell in web test mode, injecting test-only behaviour for
+-// blink web tests.
+-const char kRunWebTests[] = "run-web-tests";
+-
+ // Register the provided scheme as a standard scheme.
+ const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
+ 
+-bool IsRunWebTestsSwitchPresent() {
+-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+-      switches::kRunWebTests);
+-}
+-
+-=======
+->>>>>>> ce748a3700b (Separate switches for test and gate renderer test logics in non-official builds (#6881))
+ }  // namespace switches

@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [ "src/**/*" ],
+  "exclude": [
+    "./node_modules/",
+<<<<<<< HEAD
+    "./src/test/diff_viewer/",
+    "./src/service_worker/",
+    "./src/bigtrace/",
+=======
+    "./src/service_worker/",
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+    "./src/gen/",
+    "./out"
+  ],
+  "compilerOptions": {
+    "outDir": "./out/tsc",
+    "lib": [
+      "dom",                               // Need to be explicitly mentioned now since we're overriding default included libs.
+<<<<<<< HEAD
+      "es2022",                            // Need this to use Promise.allSettled, replaceAll, etc
+=======
+      "es2020",                            // Need this to use Promise.allSettled.
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+    ],
+    "paths": {
+      "*" : ["*", "./node_modules/@tsundoku/micromodal_types/*"]
+    },
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+  }
+}

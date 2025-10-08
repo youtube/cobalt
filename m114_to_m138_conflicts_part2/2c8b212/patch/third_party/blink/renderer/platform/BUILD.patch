@@ -1,0 +1,15 @@
+--- third_party/blink/renderer/platform/BUILD.gn
++++ third_party/blink/renderer/platform/BUILD.gn
+@@ -1707,12 +1707,7 @@
+   if (is_ios) {
+     sources += [ "fonts/ios/font_cache_ios.mm" ]
+   }
+-<<<<<<< HEAD
+-  if (is_linux || is_chromeos) {
+-=======
+-
+   if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+     sources += [
+       "fonts/linux/font_cache_linux.cc",
+       "fonts/linux/font_unique_name_lookup_linux.cc",

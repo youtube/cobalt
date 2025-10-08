@@ -1,0 +1,19 @@
+--- cobalt/shell/common/shell_switches.h
++++ cobalt/shell/common/shell_switches.h
+@@ -28,16 +28,8 @@
+ extern const char kContentShellHideToolbar[];
+ extern const char kIsolatedContextOrigins[];
+ extern const char kRemoteDebuggingAddress[];
+-<<<<<<< HEAD
+-extern const char kRunWebTests[];
+ extern const char kTestRegisterStandardScheme[];
+ 
+-// Helper that returns true if kRunWebTests is present in the command line,
+-// meaning Content Shell is running in web test mode.
+-bool IsRunWebTestsSwitchPresent();
+-=======
+->>>>>>> ce748a3700b (Separate switches for test and gate renderer test logics in non-official builds (#6881))
+-
+ }  // namespace switches
+ 
+ #endif  // COBALT_SHELL_COMMON_SHELL_SWITCHES_H_

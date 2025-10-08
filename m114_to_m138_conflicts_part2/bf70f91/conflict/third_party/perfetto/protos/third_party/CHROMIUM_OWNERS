@@ -1,0 +1,29 @@
+# This list should contain at least everyone from woa-perf sheriffs
+# The current sheriffs are listed at:
+# https://oncall.corp.google.com/chrometto-sheriff
+
+<<<<<<< HEAD
+amanvr@google.com
+eseckler@google.com
+etiennep@google.com
+kartarsingh@google.com
+khokhlov@google.com
+kraskevich@google.com
+oksamyt@google.com
+petrcermak@google.com
+rasikan@google.com
+victorvianna@google.com
+=======
+agarwaltushar@google.com
+altimin@google.com
+carlscab@google.com
+ddrone@google.com
+eseckler@google.com
+khokhlov@google.com
+kraskevich@google.com
+mekk@google.com
+mohitms@google.com
+nuskos@google.com
+oksamyt@google.com
+kartarsingh@google.com
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))

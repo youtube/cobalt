@@ -1,0 +1,26 @@
+--- cobalt/shell/browser/shell_content_browser_client.cc
++++ cobalt/shell/browser/shell_content_browser_client.cc
+@@ -399,7 +399,7 @@
+   };
+ 
+   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
+-                                 kForwardSwitches, std::size(kForwardSwitches));
++                                 kForwardSwitches);
+ 
+ #if defined(RUN_BROWSER_TESTS)
+   static const char* kForwardTestSwitches[] = {
+@@ -408,13 +408,8 @@
+   };
+ 
+   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
+-<<<<<<< HEAD
+-                                 kForwardSwitches);
+-=======
+-                                 kForwardTestSwitches,
+-                                 std::size(kForwardTestSwitches));
++                                 kForwardTestSwitches);
+ #endif  // defined(RUN_BROWSER_TESTS)
+->>>>>>> ce748a3700b (Separate switches for test and gate renderer test logics in non-official builds (#6881))
+ 
+ #if BUILDFLAG(IS_LINUX)
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(

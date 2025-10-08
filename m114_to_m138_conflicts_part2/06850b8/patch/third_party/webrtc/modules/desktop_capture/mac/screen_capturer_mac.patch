@@ -1,0 +1,46 @@
+--- third_party/webrtc/modules/desktop_capture/mac/screen_capturer_mac.mm
++++ third_party/webrtc/modules/desktop_capture/mac/screen_capturer_mac.mm
+@@ -489,13 +489,8 @@
+       if (status != kCGDisplayStreamFrameStatusFrameComplete) return;
+ 
+       size_t count = 0;
+-<<<<<<< HEAD
+       const CGRect* rects = CGDisplayStreamUpdateGetRects(
+           updateRef, kCGDisplayStreamUpdateDirtyRects, &count);
+-=======
+-      const CGRect* rects =
+-          CGDisplayStreamUpdateGetRects(updateRef, kCGDisplayStreamUpdateDirtyRects, &count);
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+       if (count != 0) {
+         // According to CGDisplayStream.h, it's safe to call
+         // CGDisplayStreamStop() from within the callback.
+@@ -511,7 +506,6 @@
+                            &kCFTypeDictionaryKeyCallBacks,
+                            &kCFTypeDictionaryValueCallBacks));
+ 
+-<<<<<<< HEAD
+     CGDisplayStreamRef display_stream =
+         CGDisplayStreamCreate(display_id,
+                               pixel_width,
+@@ -519,21 +513,13 @@
+                               'BGRA',
+                               properties_dict.get(),
+                               handler);
+-=======
+-    CGDisplayStreamRef display_stream = CGDisplayStreamCreate(
+-        display_id, pixel_width, pixel_height, 'BGRA', properties_dict.get(), handler);
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+ 
+     if (display_stream) {
+       CGError error = CGDisplayStreamStart(display_stream);
+       if (error != kCGErrorSuccess) return false;
+ 
+-<<<<<<< HEAD
+       CFRunLoopSourceRef source =
+           CGDisplayStreamGetRunLoopSource(display_stream);
+-=======
+-      CFRunLoopSourceRef source = CGDisplayStreamGetRunLoopSource(display_stream);
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+       CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
+       display_streams_.push_back(display_stream);
+     }

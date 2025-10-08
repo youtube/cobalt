@@ -1,0 +1,38 @@
+--- build/config/linux/pkg_config.gni
++++ build/config/linux/pkg_config.gni
+@@ -177,29 +177,22 @@
+     }
+     cflags = pkgresult[1]
+ 
+-<<<<<<< HEAD
+     foreach(_path, pkgresult[0]) {
+-      if (_pkg_config_requires_abs_path && (use_sysroot || use_remoteexec)) {
+-        _path = rebase_path(_path, root_build_dir)
+-=======
+-    foreach(include, pkgresult[0]) {
+       supports_isystem = true
+       if (defined(invoker.supports_isystem)) {
+         supports_isystem = invoker.supports_isystem
+       }
+-      if (use_sysroot && supports_isystem) {
+-        # We want the system include paths to use -isystem instead of -I to
+-        # suppress warnings in those headers.
+-        include_relativized = rebase_path(include, root_build_dir)
+-        cflags += [ "-isystem$include_relativized" ]
+-      } else {
+-        cflags += [ "-I$include" ]
+->>>>>>> e0f540619e0 (Add initial RDK build integration into cobalt 26 (#6854))
++      if (supports_isystem) {
++      if (_pkg_config_requires_abs_path && (use_sysroot || use_remoteexec)) {
++        _path = rebase_path(_path, root_build_dir)
+       }
+ 
+       # We want the system include paths to use -isystem instead of -I to
+       # suppress warnings in those headers.
+       cflags += [ "-isystem$_path" ]
++    } else {
++      cflags += [ "-I$_path" ]
++    }
+     }
+ 
+     if (!defined(invoker.ignore_libs) || !invoker.ignore_libs) {

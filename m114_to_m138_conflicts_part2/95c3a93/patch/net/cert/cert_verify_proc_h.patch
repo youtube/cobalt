@@ -1,0 +1,29 @@
+--- net/cert/cert_verify_proc.h
++++ net/cert/cert_verify_proc.h
+@@ -193,12 +193,7 @@
+     kMaxValue = kChainLengthOne
+   };
+ 
+-<<<<<<< HEAD
+-#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_ONLY))
+-=======
+-#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || \
+-      BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(CHROME_ROOT_STORE_ONLY) || BUILDFLAG(IS_STARBOARD))
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
++#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_ONLY) || BUILDFLAG(IS_STARBOARD))
+   // Creates and returns a CertVerifyProc that uses the system verifier.
+   // |cert_net_fetcher| may not be used, depending on the implementation.
+   static scoped_refptr<CertVerifyProc> CreateSystemVerifyProc(
+@@ -206,11 +201,7 @@
+       scoped_refptr<CRLSet> crl_set);
+ #endif
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_FUCHSIA)
+-=======
+-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_STARBOARD)
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
++#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+   // Creates and returns a CertVerifyProcBuiltin using the SSL SystemTrustStore.
+   static scoped_refptr<CertVerifyProc> CreateBuiltinVerifyProc(
+       scoped_refptr<CertNetFetcher> cert_net_fetcher,

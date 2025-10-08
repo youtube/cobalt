@@ -1,0 +1,73 @@
+--- third_party/boringssl/BUILD.gn
++++ third_party/boringssl/BUILD.gn
+@@ -127,69 +127,14 @@
+   # are all wrapped in processor checks for the corresponding target, so there
+   # is no need to add target conditions in the build.
+   source_set("boringssl_asm") {
+-<<<<<<< HEAD
+     visibility = [ ":*" ]
+     sources = rebase_path(bcm_sources_asm + crypto_sources_asm, ".", "src")
+-    if (is_cobalt && is_cobalt_hermetic_build) {
+-      include_dirs = [
+-        "//cobalt/third_party/boringssl/src/include",
+-        "src/include",
+-      ]
+-    } else {
+-      include_dirs = [ "src/include" ]
+-    }
++    include_dirs = [ "src/include" ]
+   }
+   source_set("test_support_asm") {
+     visibility = [ ":*" ]
+     sources = rebase_path(test_support_sources_asm, ".", "src")
+     include_dirs = [ "src/include" ]
+-=======
+-    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+-
+-    sources = []
+-    asmflags = []
+-    include_dirs = [ "src/include" ]
+-
+-    if (is_msan) {
+-      public_configs = [ ":no_asm_config" ]
+-    } else if (current_cpu == "x64") {
+-      if (is_apple) {
+-        sources += crypto_sources_apple_x86_64
+-      } else if (is_linux || is_chromeos || is_android) {
+-        sources += crypto_sources_linux_x86_64
+-      } else {
+-        public_configs = [ ":no_asm_config" ]
+-      }
+-    } else if (current_cpu == "x86") {
+-      if (is_apple) {
+-        sources += crypto_sources_apple_x86
+-      } else if (is_linux || is_chromeos || is_android) {
+-        sources += crypto_sources_linux_x86
+-      } else {
+-        public_configs = [ ":no_asm_config" ]
+-      }
+-    } else if (current_cpu == "arm") {
+-      if (is_linux || is_chromeos || is_android) {
+-        sources += crypto_sources_linux_arm
+-      } else if (is_apple) {
+-        sources += crypto_sources_apple_arm
+-      } else {
+-        public_configs = [ ":no_asm_config" ]
+-      }
+-    } else if (current_cpu == "arm64") {
+-      if (is_linux || is_chromeos || is_android) {
+-        sources += crypto_sources_linux_aarch64
+-      } else if (is_apple) {
+-        sources += crypto_sources_apple_aarch64
+-      } else if (is_win) {
+-        sources += crypto_sources_win_aarch64
+-      } else {
+-        public_configs = [ ":no_asm_config" ]
+-      }
+-    } else {
+-      public_configs = [ ":no_asm_config" ]
+-    }
+->>>>>>> 8dd4481b8ed (Remove the custom thread.h from boringssl (#6979))
+   }
+ }
+ 

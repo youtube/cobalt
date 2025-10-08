@@ -1,0 +1,19 @@
+--- content/utility/BUILD.gn
++++ content/utility/BUILD.gn
+@@ -150,16 +150,6 @@
+     deps += [ "//services/screen_ai:screen_ai_sandbox_hook" ]
+   }
+ 
+-<<<<<<< HEAD
+-  if (is_starboard) {
+-    deps -= [ 
+-      "//content/utility/speech:speech_recognition_sandbox_hook",
+-      "//services/screen_ai:screen_ai_sandbox_hook",
+-    ]
+-  }
+-
+-=======
+->>>>>>> adc7a4d0035 (Revert "[POSIX] Remove dlopen and friends from Starboard" (#6622))
+   if (enable_accessibility_service) {
+     deps += [ "//services/accessibility:lib" ]
+   }

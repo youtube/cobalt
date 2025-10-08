@@ -1,0 +1,16 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -399,13 +399,9 @@
+     "$root_gen_dir/content/content_resources.pak",
+     "$root_gen_dir/content/gpu_resources.pak",
+     "$root_gen_dir/content/histograms_resources.pak",
+-<<<<<<< HEAD
+     "$root_gen_dir/content/private_aggregation_internals_resources.pak",
+     "$root_gen_dir/content/process_resources.pak",
+     "$root_gen_dir/content/service_worker_resources.pak",
+-    "$root_gen_dir/content/test/web_ui_mojo_test_resources.pak",
+-=======
+->>>>>>> 496ebf42f76 (Add web_ui_mojo_test_resources.pak for non-official build (#7373))
+     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
+     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
+     "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",

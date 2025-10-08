@@ -1,0 +1,17 @@
+--- cobalt/shell/common/shell_switches.h
++++ cobalt/shell/common/shell_switches.h
+@@ -21,13 +21,9 @@
+ 
+ namespace switches {
+ 
+-<<<<<<< HEAD
+-extern const char kContentShellUserDataDir[];
+-=======
+ constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+ 
+-extern const char kContentShellDataPath[];
+->>>>>>> df244d7077b (evergreen: Implement lightweight device authentication (#7154))
++extern const char kContentShellUserDataDir[];
+ extern const char kCrashDumpsDir[];
+ extern const char kDisableSystemFontCheck[];
+ extern const char kContentShellHostWindowSize[];
