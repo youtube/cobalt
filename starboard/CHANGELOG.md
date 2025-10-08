@@ -93,6 +93,7 @@ The functionality is migrated to use `getauxval` instead.
 * `pthread_sigmask`
 * `readdir`
 * `realpath`
+* `sched_getaffinity`
 * `sem_destroy`
 * `sem_init`
 * `sem_post`
