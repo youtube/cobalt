@@ -399,9 +399,7 @@ public class StarboardBridge {
     return DisplayUtil.getSystemDisplaySize();
   }
 
-  // TODO: (cobalt b/372559388) migrate JNI.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public ResourceOverlay getResourceOverlay() {
     if (resourceOverlay == null) {
       throw new IllegalArgumentException("resourceOverlay cannot be null for native code");
