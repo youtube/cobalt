@@ -283,7 +283,6 @@ static_library("starboard_platform") {
     "text_to_speech_observer.h",
     "thread_create_priority.cc",
     "time_zone_get_name.cc",
-    "trace_util.h",
     "video_decoder.cc",
     "video_decoder.h",
     "video_frame_tracker.cc",
