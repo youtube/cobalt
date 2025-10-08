@@ -5714,15 +5714,15 @@ hooks = [
                ],
   },
   # Configure Siso for developer builds.
-  {
-    'name': 'configure_siso',
-    'pattern': '.',
-    'action': ['python3',
-               'src/build/config/siso/configure_siso.py',
-               '--rbe_instance',
-               Var('rbe_instance'),
-               ],
-  },
+  # {
+  #   'name': 'configure_siso',
+  #   'pattern': '.',
+  #   'action': ['python3',
+  #              'src/build/config/siso/configure_siso.py',
+  #              '--rbe_instance',
+  #              Var('rbe_instance'),
+  #              ],
+  # },
   {
     'name': 'libaom_testdata',
     'pattern': '.',
