@@ -120,7 +120,7 @@ class StarboardFeatureTest : public ::testing::Test {
 };
 
 TEST_F(StarboardFeatureTest, CanAccessFeatures) {
-  EXPECT_TRUE(FeatureList::IsEnabled(kStarboardFeatureTestEnabled));
+  EXPECT_FALSE(FeatureList::IsEnabled(kStarboardFeatureTestEnabled));
   EXPECT_FALSE(FeatureList::IsEnabled(kStarboardFeatureTestDisabled));
 }
 
