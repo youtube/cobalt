@@ -30,12 +30,12 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
-import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import dev.cobalt.util.Log;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -117,7 +117,6 @@ public class ExoPlayerBridge {
 
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
-        preferTunnelMode = true;
         if (preferTunnelMode) {
             Log.i(TAG, "Tunnel mode is preferred for this playback.");
         }
@@ -127,9 +126,9 @@ public class ExoPlayerBridge {
                                             .setTunnelingEnabled(preferTunnelMode)
                                             .build());
 
-        MediaCodecSelector mediaCodecSelector = new CobaltMediaCodecSelector();
         DefaultRenderersFactory renderersFactory =
-                new DefaultRenderersFactory(context).setMediaCodecSelector(mediaCodecSelector);
+                new DefaultRenderersFactory(context).setMediaCodecSelector(
+                        new ExoPlayerMediaCodecSelector());
 
         player = new ExoPlayer.Builder(context)
                          .setRenderersFactory(renderersFactory)
@@ -148,8 +147,8 @@ public class ExoPlayerBridge {
     }
 
     @CalledByNative
-    private ExoPlayerMediaSource createAudioMediaSource(int codec, String mime, byte[] audioConfigurationData,
-            int sampleRate, int channelCount, int bitsPerSample) {
+    private ExoPlayerMediaSource createAudioMediaSource(int codec, String mime,
+            byte[] audioConfigurationData, int sampleRate, int channelCount, int bitsPerSample) {
         if (audioMediaSource != null) {
             Log.e(TAG,
                     "Attempted to create an ExoPlayer audio MediaSource while one already exists.");
@@ -157,8 +156,8 @@ public class ExoPlayerBridge {
         }
 
         audioMediaSource = new ExoPlayerMediaSource(this,
-                ExoPlayerFormatCreator.createAudioFormat(
-                        codec, mime, audioConfigurationData, sampleRate, channelCount, bitsPerSample),
+                ExoPlayerFormatCreator.createAudioFormat(codec, mime, audioConfigurationData,
+                        sampleRate, channelCount, bitsPerSample),
                 ExoPlayerRendererType.AUDIO);
 
         return audioMediaSource;
@@ -235,20 +234,24 @@ public class ExoPlayerBridge {
         exoplayerHandler.removeCallbacksAndMessages(null);
 
         final CountDownLatch releaseLatch = new CountDownLatch(1);
-        try {
-            exoplayerHandler.post(() -> {
+        exoplayerHandler.post(() -> {
+            try {
                 stopped = true;
                 Log.i(TAG, "Releasing ExoPlayer.");
                 player.stop();
+                Log.i(TAG, String.format("Player playback state is %d", player.getPlaybackState()));
                 player.removeListener(playerListener);
                 player.removeAnalyticsListener(droppedFramesListener);
                 player.release();
                 player = null;
-            });
-        } finally {
-            releaseLatch.countDown();
-        }
+            } finally {
+                Log.i(TAG, "Signaling latch");
+                releaseLatch.countDown();
+            }
+        });
 
+        releaseLatch.await(5, TimeUnit.SECONDS);
+        exoplayerThread.quit();
         exoplayerThread.join();
 
         exoplayerHandler = null;

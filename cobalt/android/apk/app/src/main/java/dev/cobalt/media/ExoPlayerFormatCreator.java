@@ -21,7 +21,6 @@ public class ExoPlayerFormatCreator {
         switch(codec) {
             case ExoPlayerAudioCodec.AAC:
                 mimeType = MimeTypes.AUDIO_AAC;
-                builder.setSampleMimeType(MimeTypes.AUDIO_AAC);
                 if (audioConfigurationData != null) {
                     builder.setInitializationData(Collections.singletonList(audioConfigurationData));
                 }
@@ -34,7 +33,6 @@ public class ExoPlayerFormatCreator {
                 break;
             case ExoPlayerAudioCodec.OPUS:
                 mimeType = MimeTypes.AUDIO_OPUS;
-                builder.setSampleMimeType(MimeTypes.AUDIO_OPUS);
                 if (audioConfigurationData == null) {
                     Log.e(TAG, "Opus stream is missing configuration data.");
                     return null;

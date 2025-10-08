@@ -42,6 +42,7 @@ using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
 constexpr int kADTSHeaderSize = 7;
+constexpr int kNoOffset = 0;
 
 // TODO: For debug, remove this
 #if defined(COBALT_BUILD_TYPE_GOLD) || defined(COBALT_BUILD_TYPE_QA)
@@ -89,7 +90,7 @@ ExoPlayerBridge::ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
   int64_t start = CurrentMonotonicTime();
   InitExoplayer();
   int64_t end = CurrentMonotonicTime();
-  SB_LOG(INFO) << "ExoPlayer init took " << end - start << "msec.";
+  SB_LOG(INFO) << "ExoPlayer init took " << end - start << " msec.";
   ON_INSTANCE_CREATED(ExoPlayerBridge);
 }
 
@@ -149,41 +150,51 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
   }
 
   int type = input_buffers.front()->sample_type() == kSbMediaTypeAudio
-                 ? EXOPLAYER_RENDERER_TYPE_AUDIO
-                 : EXOPLAYER_RENDERER_TYPE_VIDEO;
+                 ? kSbMediaTypeAudio
+                 : kSbMediaTypeVideo;
   bool is_key_frame = true;
 
-  if (type == EXOPLAYER_RENDERER_TYPE_VIDEO) {
+  if (type == kSbMediaTypeVideo) {
     is_key_frame = input_buffers.front()->video_sample_info().is_key_frame;
   }
 
   bool is_eos = false;
 
   JNIEnv* env = AttachCurrentThread();
-  size_t data_size = input_buffers.front()->size();
-  if (type == kSbMediaTypeAudio &&
-      audio_stream_info_.codec == kSbMediaAudioCodecAac) {
-    j_sample_data_ = ScopedJavaLocalRef(
-        ToJavaByteArray(env, input_buffers.front()->data() + kADTSHeaderSize,
-                        input_buffers.front()->size() - kADTSHeaderSize));
-    data_size -= kADTSHeaderSize;
-  } else {
-    j_sample_data_ = ScopedJavaLocalRef(ToJavaByteArray(
-        env, input_buffers.front()->data(), input_buffers.front()->size()));
-  }
+  int offset = (type == kSbMediaTypeAudio &&
+                        audio_stream_info_.codec == kSbMediaAudioCodecAac
+                    ? kADTSHeaderSize
+                    : kNoOffset);
+  size_t data_size = input_buffers.front()->size() - offset;
+  env->SetByteArrayRegion(
+      static_cast<jbyteArray>(j_sample_data_.obj()), 0, data_size,
+      reinterpret_cast<const jbyte*>(input_buffers.front()->data() + offset));
+  ScopedJavaLocalRef<jbyteArray> media_samples(
+      env, static_cast<jbyteArray>(env->NewLocalRef(j_sample_data_.obj())));
+  // if (type == kSbMediaTypeAudio &&
+  //     audio_stream_info_.codec == kSbMediaAudioCodecAac) {
+  //   int offset =
+  //       audio_stream_info_.codec == kSbMediaAudioCodecAac ? kADTSHeaderSize :
+  //       0;
+  //   env->SetByteArrayRegion(
+  //       j_sample_data_.obj(), 0, data_size - offset,
+  //       static_cast<jbyte*>(input_buffers.front()->data() + offset));
+  //   data_size -= offset;
+  // } else {
+  //   j_sample_data_ = ScopedJavaLocalRef(ToJavaByteArray(
+  //       env, input_buffers.front()->data(), input_buffers.front()->size()));
+  // }
 
   auto media_source =
       type == kSbMediaTypeAudio ? j_audio_media_source_ : j_video_media_source_;
   Java_ExoPlayerMediaSource_writeSample(
-      env, media_source, j_sample_data_, data_size,
+      env, media_source, media_samples, data_size,
       input_buffers.front()->timestamp(), is_key_frame, is_eos);
 }
 
 void ExoPlayerBridge::WriteEndOfStream(SbMediaType stream_type) {
-  int type = stream_type == kSbMediaTypeAudio ? EXOPLAYER_RENDERER_TYPE_AUDIO
-                                              : EXOPLAYER_RENDERER_TYPE_VIDEO;
-  auto media_source =
-      type == kSbMediaTypeAudio ? j_audio_media_source_ : j_video_media_source_;
+  auto media_source = stream_type == kSbMediaTypeAudio ? j_audio_media_source_
+                                                       : j_video_media_source_;
   Java_ExoPlayerMediaSource_writeEndOfStream(AttachCurrentThread(),
                                              media_source);
 

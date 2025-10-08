@@ -26,10 +26,8 @@ import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
-
-import java.io.IOException;
-
 import dev.cobalt.util.Log;
+import java.io.IOException;
 
 /** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
@@ -89,7 +87,7 @@ public class ExoPlayerSampleStream implements SampleStream {
                                 timestampUs, lastWrittenTimeUs, lastWrittenTimeUs - timestampUs));
             }
         }
-        timestampUs = lastWrittenTimeUs;
+        lastWrittenTimeUs = timestampUs;
         wroteFirstSample = true;
     }
 

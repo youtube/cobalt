@@ -245,12 +245,8 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
         public boolean writeSample(byte[] data, int sizeInBytes, long timestampUs,
                 boolean isKeyFrame, boolean isEndOfStream) {
-            try {
-                if (isEndOfStream) {
-                    reachedEos = true;
-                }
-            } catch (Exception e) {
-                //
+            if (isEndOfStream) {
+                reachedEos = true;
             }
             stream.writeSample(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
 

@@ -130,7 +130,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
   ScopedJavaGlobalRef<jobject> j_audio_media_source_;
   ScopedJavaGlobalRef<jobject> j_video_media_source_;
-  ScopedJavaGlobalRef<jbyteArray> j_sample_data_;
+  ScopedJavaGlobalRef<jobject> j_sample_data_;
   ScopedJavaGlobalRef<jobject> j_output_surface_;
 
   bool error_occurred_ = false;

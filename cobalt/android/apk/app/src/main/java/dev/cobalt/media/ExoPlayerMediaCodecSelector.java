@@ -26,40 +26,41 @@ import java.util.List;
 import java.util.Locale;
 
 /** Overrides the default MediaCodecSelector to filter software video codecs. */
-public class CobaltMediaCodecSelector implements MediaCodecSelector {
-
+public class ExoPlayerMediaCodecSelector implements MediaCodecSelector {
     @Override
     public List<MediaCodecInfo> getDecoderInfos(
             String mimeType, boolean requiresSecureDecoder, boolean requiresTunnelingDecoder) {
-
         List<MediaCodecInfo> defaultDecoderInfos = null;
         try {
             defaultDecoderInfos =
-                    androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
+                    androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
+                            mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
         } catch (MediaCodecUtil.DecoderQueryException e) {
             Log.i(TAG, String.format("MediaCodecUtil.getDecoderInfos() error %s", e.toString()));
             return defaultDecoderInfos;
         }
-            // Skip video decoder filtering for emulators.
-               if (IsEmulator.isEmulator()) {
-                   Log.i(TAG, "Allowing all available decoders for emulator");
-                   return defaultDecoderInfos;
-               }
+        // Skip video decoder filtering for emulators.
+        if (IsEmulator.isEmulator()) {
+            Log.i(TAG, "Allowing all available decoders for emulator");
+            return defaultDecoderInfos;
+        }
 
-            List<MediaCodecInfo> filteredDecoderInfos = new ArrayList<>();
+        List<MediaCodecInfo> filteredDecoderInfos = new ArrayList<>();
 
-            if (mimeType.startsWith("video/")) {
-                for (MediaCodecInfo decoderInfo : defaultDecoderInfos) {
-                    if (!isSoftwareDecoder(decoderInfo)) {
-                        filteredDecoderInfos.add(decoderInfo);
-                        continue;
-                    }
+        if (mimeType.startsWith("video/")) {
+            for (MediaCodecInfo decoderInfo : defaultDecoderInfos) {
+                if (!isSoftwareDecoder(decoderInfo)) {
+                    filteredDecoderInfos.add(decoderInfo);
+                    continue;
                 }
-                return filteredDecoderInfos.isEmpty() ? defaultDecoderInfos : filteredDecoderInfos; // Fallback to default if no hardware decoders found
-            } else {
-                // Return default decoders for non-video.
-                return defaultDecoderInfos;
             }
+            return filteredDecoderInfos.isEmpty()
+                    ? defaultDecoderInfos
+                    : filteredDecoderInfos; // Fallback to default if no hardware decoders found
+        } else {
+            // Return default decoders for non-video.
+            return defaultDecoderInfos;
+        }
     }
 
     private static boolean isSoftwareDecoder(MediaCodecInfo codecInfo) {
