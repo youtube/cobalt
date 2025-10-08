@@ -340,9 +340,10 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    if: needs.initialize.outputs.test_on_device == 'true' &&
+    if: |
+      needs.initialize.outputs.test_on_device == 'true' &&
         (
-          github.event.pull_request.draft == false ||
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
         )
@@ -382,9 +383,10 @@ jobs:
     needs: [initialize, build]
     # Run E2E tests when on_device label is applied to PR.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
-    if: needs.initialize.outputs.test_e2e == 'true' &&
+    if: |
+      needs.initialize.outputs.test_e2e == 'true' &&
         (
-          github.event.pull_request.draft == false ||
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
         )
