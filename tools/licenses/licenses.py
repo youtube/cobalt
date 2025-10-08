@@ -395,7 +395,7 @@ SPECIAL_CASES = {
         "Name": "LLVM",
         "URL": "http://llvm.org",
         "License": "Apache 2.0 with LLVM exceptions",
-        "License File": "/third_party/llvm-project/compiler-rt/LICENSE.TXT",
+        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'lz4_lib'): {
         "Name": "lz4",

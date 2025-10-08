@@ -7,6 +7,7 @@
                 "cobalt_shell.pak",
                 "loader_app",
                 "gen/build_info.json",
+                "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt"
             ],
             "dirs": [
@@ -18,6 +19,10 @@
                     "to_file": "build_info.json"
                 },
                 {
+                    "from_file": "gen/licenses_cobalt.spdx",
+                    "to_file": "licenses_cobalt.spdx"
+                },
+                {
                     "from_file": "gen/licenses_cobalt.txt",
                     "to_file": "licenses_cobalt.txt"
                 }
@@ -27,12 +32,17 @@
         {
             "files": [
                 "gen/build_info.json",
+                "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt"
             ],
             "rename_files": [
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.spdx",
+                    "to_file": "licenses_cobalt.spdx"
                 },
                 {
                     "from_file": "gen/licenses_cobalt.txt",
