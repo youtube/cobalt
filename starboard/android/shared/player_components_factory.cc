@@ -95,6 +95,10 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
+  bool AllowOverflowAudioSamples() const override {
+    return tunnel_mode_audio_session_id_ != -1;
+  }
+
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
