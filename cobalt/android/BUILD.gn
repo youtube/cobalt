@@ -300,7 +300,6 @@ shared_library_with_jni("libchrobalt") {
       "//media/midi",
     ]
   }
-  libs = [ "aaudio" ]
   sources = [
     "//cobalt/app/cobalt_main_delegate.cc",
     "//cobalt/app/cobalt_main_delegate.h",
