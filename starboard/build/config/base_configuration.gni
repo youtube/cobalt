@@ -156,9 +156,4 @@ declare_args() {
   # TODO: b/406511608 - remove once crashpad builds and behaves as expected on
   # all platforms.
   use_crashpad = false
-
-  # Toolchains can set this true in order to build //base using C++17. Our
-  # version of this upstream library assumes it will be built using C++20 and
-  # some customizations are needed to instead build using C++17.
-  build_base_with_cpp17 = false
 }
