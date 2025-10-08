@@ -63,6 +63,13 @@ config("default_includes") {
   }
 }
 
+declare_args() {
+  # Toolchains can set this true in order to build //base using C++17. Our
+  # version of this upstream library assumes it will be built using C++20 and
+  # some customizations are needed to instead build using C++17.
+  build_base_with_cpp17 = false
+}
+
 config("buildflag_defines") {
   defines = []
 
