@@ -41,12 +41,17 @@ public class ResourceOverlay {
   }
 
   @CalledByNative
-  public int getMinAudioSinkBufferSizeInFrames() {
-    return min_audio_sink_buffer_size_in_frames;
+  public boolean getSupportsSphericalVideos() {
+    return supports_spherical_videos;
   }
 
   @CalledByNative
   public int getMaxVideoBufferBudget() {
     return max_video_buffer_budget;
+  }
+
+  @CalledByNative
+  public int getMinAudioSinkBufferSizeInFrames() {
+    return min_audio_sink_buffer_size_in_frames;
   }
 }

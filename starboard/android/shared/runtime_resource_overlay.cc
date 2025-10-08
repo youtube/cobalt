@@ -19,6 +19,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/string.h"
 
 #include "cobalt/android/jni_headers/ResourceOverlay_jni.h"
 
@@ -40,9 +41,13 @@ RuntimeResourceOverlay::RuntimeResourceOverlay() {
   max_video_buffer_budget_ =
       Java_ResourceOverlay_getMaxVideoBufferBudget(env, resource_overlay);
 
-  SB_LOG(INFO) << "Loaded RRO values\n\tmin_audio_sink_buffer_size_in_frames: "
+  supports_spherical_videos_ =
+      Java_ResourceOverlay_getSupportsSphericalVideos(env, resource_overlay);
+  SB_LOG(INFO) << "Loaded RRO values: min_audio_sink_buffer_size_in_frames="
                << min_audio_sink_buffer_size_in_frames_
-               << "\n\tmax_video_buffer_budget: " << max_video_buffer_budget_;
+               << ", max_video_buffer_budget=" << max_video_buffer_budget_
+               << ", supports_spherical_videos="
+               << to_string(supports_spherical_videos_);
 }
 
 }  // namespace starboard
