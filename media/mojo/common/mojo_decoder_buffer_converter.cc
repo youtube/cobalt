@@ -296,9 +296,7 @@ void MojoDecoderBufferReader::ProcessPendingReads() {
 
     DCHECK_EQ(result, MOJO_RESULT_OK);
     DVLOG(4) << __func__ << ": " << actually_read_bytes << " bytes read.";
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK_GT(actually_read_bytes, 0u);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
     bytes_read_ += actually_read_bytes;
 
     // TODO(sandersd): Make sure there are no possible re-entrancy issues
@@ -475,9 +473,7 @@ void MojoDecoderBufferWriter::ProcessPendingWrites() {
 
     DCHECK_EQ(MOJO_RESULT_OK, result);
     DVLOG(4) << __func__ << ": " << actually_written_bytes << " bytes written.";
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK_GT(actually_written_bytes, 0u);
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
     bytes_written_ += actually_written_bytes;
     if (actually_written_bytes == bytes_to_write.size()) {
       TRACE_EVENT_NESTABLE_ASYNC_END2(
