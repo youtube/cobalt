@@ -53,7 +53,8 @@ declare_args() {
   # that change in b/447346129 but for now set this false in partner toolchains
   # so that PartitionAlloc is not even linked into partner built binaries.
   use_partition_alloc =
-      !is_nacl && (!is_cobalt || (current_toolchain != starboard_toolchain &&
+      !is_nacl && (!is_cobalt || ((current_toolchain != starboard_toolchain ||
+                                   starboard_toolchain == default_toolchain) &&
                                   current_toolchain != native_target))
 }
 
