@@ -99,17 +99,17 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   caption_settings->character_edge_style = AndroidEdgeTypeToSbEdgeStyle(
       Java_CaptionSettings_getEdgeType(env, j_caption_settings));
   caption_settings->character_edge_style_state = BooleanToCaptionState(
-      Java_CaptionSettings_getHasEdgeType(env, j_caption_settings));
+      Java_CaptionSettings_hasEdgeType(env, j_caption_settings));
 
   SetColorProperties(
       Java_CaptionSettings_getForegroundColor(env, j_caption_settings),
-      Java_CaptionSettings_getHasForegroundColor(env, j_caption_settings),
+      Java_CaptionSettings_hasForegroundColor(env, j_caption_settings),
       &caption_settings->font_color, &caption_settings->font_color_state,
       &caption_settings->font_opacity, &caption_settings->font_opacity_state);
 
   SetColorProperties(
       Java_CaptionSettings_getBackgroundColor(env, j_caption_settings),
-      Java_CaptionSettings_getHasBackgroundColor(env, j_caption_settings),
+      Java_CaptionSettings_hasBackgroundColor(env, j_caption_settings),
       &caption_settings->background_color,
       &caption_settings->background_color_state,
       &caption_settings->background_opacity,
@@ -117,13 +117,13 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
 
   SetColorProperties(
       Java_CaptionSettings_getWindowColor(env, j_caption_settings),
-      Java_CaptionSettings_getHasWindowColor(env, j_caption_settings),
+      Java_CaptionSettings_hasWindowColor(env, j_caption_settings),
       &caption_settings->window_color, &caption_settings->window_color_state,
       &caption_settings->window_opacity,
       &caption_settings->window_opacity_state);
 
   caption_settings->is_enabled =
-      Java_CaptionSettings_getIsEnabled(env, j_caption_settings);
+      Java_CaptionSettings_isEnabled(env, j_caption_settings);
   caption_settings->supports_is_enabled = true;
   caption_settings->supports_set_enabled = false;
 

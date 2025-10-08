@@ -48,7 +48,7 @@ public class CaptionSettings {
   }
 
   @CalledByNative
-  public boolean getIsEnabled() {
+  public boolean isEnabled() {
     return isEnabled;
   }
 
@@ -63,7 +63,7 @@ public class CaptionSettings {
   }
 
   @CalledByNative
-  public boolean getHasEdgeType() {
+  public boolean hasEdgeType() {
     return hasEdgeType;
   }
 
@@ -73,7 +73,7 @@ public class CaptionSettings {
   }
 
   @CalledByNative
-  public boolean getHasForegroundColor() {
+  public boolean hasForegroundColor() {
     return hasForegroundColor;
   }
 
@@ -83,7 +83,7 @@ public class CaptionSettings {
   }
 
   @CalledByNative
-  public boolean getHasBackgroundColor() {
+  public boolean hasBackgroundColor() {
     return hasBackgroundColor;
   }
 
@@ -93,7 +93,7 @@ public class CaptionSettings {
   }
 
   @CalledByNative
-  public boolean getHasWindowColor() {
+  public boolean hasWindowColor() {
     return hasWindowColor;
   }
 }
