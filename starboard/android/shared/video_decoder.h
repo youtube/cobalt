@@ -91,7 +91,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
-  void OnNewTextureAvailable();
+  void OnNewTextureAvailable(JNIEnv* env);
 
   bool is_decoder_created() const { return media_decoder_ != NULL; }
 

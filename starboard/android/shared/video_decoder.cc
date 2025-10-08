@@ -27,8 +27,6 @@
 
 #include "base/android/jni_android.h"
 #include "build/build_config.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
 #include "starboard/common/check_op.h"
@@ -44,10 +42,14 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
 
+#include "cobalt/android/jni_headers/VideoSurfaceTexture_jni.h"
+
 namespace starboard {
 
 namespace {
 
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -705,9 +707,11 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       }
       j_output_surface = decode_target->surface();
 
-      JNIEnv* env = base::android::AttachCurrentThread();
-      JniCallVoidMethodOrAbort(env, decode_target->surface_texture(),
-                               "setOnFrameAvailableListener", "(J)V", this);
+      JNIEnv* env = AttachCurrentThread();
+      Java_VideoSurfaceTexture_setOnFrameAvailableListener(
+          env,
+          ScopedJavaLocalRef<jobject>(env, decode_target->surface_texture()),
+          reinterpret_cast<jlong>(this));
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -781,9 +785,10 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
-      JNIEnv* env = base::android::AttachCurrentThread();
-      JniCallVoidMethodOrAbort(env, decode_target_->surface_texture(),
-                               "removeOnFrameAvailableListener", "()V");
+      JNIEnv* env = AttachCurrentThread();
+      Java_VideoSurfaceTexture_removeOnFrameAvailableListener(
+          env,
+          ScopedJavaLocalRef<jobject>(env, decode_target_->surface_texture()));
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -982,23 +987,24 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 namespace {
 
 void updateTexImage(jobject surface_texture) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethodOrAbort(env, surface_texture, "updateTexImage", "()V");
+  JNIEnv* env = AttachCurrentThread();
+  Java_VideoSurfaceTexture_updateTexImage(
+      env, ScopedJavaLocalRef<jobject>(env, surface_texture));
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
 
-  jfloatArray java_array = env->NewFloatArray(16);
-  SB_DCHECK(java_array);
+  base::android::ScopedJavaLocalRef<jfloatArray> java_array(
+      env, env->NewFloatArray(16));
+  SB_DCHECK(java_array.obj());
 
-  JniCallVoidMethodOrAbort(env, surface_texture, "getTransformMatrix", "([F)V",
-                           java_array);
+  Java_VideoSurfaceTexture_getTransformMatrix(
+      env, ScopedJavaLocalRef<jobject>(env, surface_texture), java_array);
 
-  jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
+  jfloat* array_values = env->GetFloatArrayElements(java_array.obj(), 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
-
-  env->DeleteLocalRef(java_array);
+  env->ReleaseFloatArrayElements(java_array.obj(), array_values, JNI_ABORT);
 }
 
 // Converts a 4x4 matrix representing the texture coordinate transform into
@@ -1170,7 +1176,7 @@ void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
   }
 }
 
-void MediaCodecVideoDecoder::OnNewTextureAvailable() {
+void MediaCodecVideoDecoder::OnNewTextureAvailable(JNIEnv* env) {
   has_new_texture_available_.store(true);
 }
 
@@ -1276,16 +1282,3 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
 }
 
 }  // namespace starboard
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_VideoSurfaceTexture_nativeOnFrameAvailable(
-    JNIEnv* env,
-    jobject unused_this,
-    jlong native_video_decoder) {
-  using starboard::MediaCodecVideoDecoder;
-
-  MediaCodecVideoDecoder* video_decoder =
-      reinterpret_cast<MediaCodecVideoDecoder*>(native_video_decoder);
-  SB_DCHECK(video_decoder);
-  video_decoder->OnNewTextureAvailable();
-}

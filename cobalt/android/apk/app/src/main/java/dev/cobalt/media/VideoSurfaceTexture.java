@@ -15,34 +15,51 @@
 package dev.cobalt.media;
 
 import android.graphics.SurfaceTexture;
-import dev.cobalt.util.UsedByNative;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /**
  *  A wrapper of SurfaceTexture class.
  * VideoSurfaceTexture allows native code to receive OnFrameAvailable event.
  */
-@UsedByNative
+@JNINamespace("starboard")
 public class VideoSurfaceTexture extends SurfaceTexture {
-  @UsedByNative
   VideoSurfaceTexture(int texName) {
     super(texName);
   }
 
-  @UsedByNative
+  @CalledByNative
   void setOnFrameAvailableListener(final long nativeVideoDecoder) {
     super.setOnFrameAvailableListener(
         new SurfaceTexture.OnFrameAvailableListener() {
           @Override
           public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-            nativeOnFrameAvailable(nativeVideoDecoder);
+            VideoSurfaceTextureJni.get().onNewTextureAvailable(nativeVideoDecoder);
           }
         });
   }
 
-  @UsedByNative
+  @CalledByNative
   void removeOnFrameAvailableListener() {
     super.setOnFrameAvailableListener(null);
   }
 
-  private native void nativeOnFrameAvailable(long nativeVideoDecoder);
+  @Override
+  @CalledByNative
+  public void updateTexImage() {
+    super.updateTexImage();
+  }
+
+  @Override
+  @CalledByNative
+  public void getTransformMatrix(float[] mtx) {
+    super.getTransformMatrix(mtx);
+  }
+
+
+ @NativeMethods
+ interface Natives {
+    void onNewTextureAvailable(long nativeMediaCodecVideoDecoder);
+ }
 }
