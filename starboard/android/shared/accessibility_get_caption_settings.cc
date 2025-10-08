@@ -28,6 +28,7 @@
 namespace starboard {
 
 namespace {
+using base::android::ScopedJavaLocalRef;
 
 SbAccessibilityCaptionCharacterEdgeStyle AndroidEdgeTypeToSbEdgeStyle(
     int edge_type) {
@@ -56,12 +57,16 @@ SbAccessibilityCaptionState BooleanToCaptionState(bool is_set) {
   }
 }
 
-void SetColorProperties(jint j_color,
-                        bool has_color,
+void SetColorProperties(JNIEnv* env,
+                        const ScopedJavaLocalRef<jobject>& j_caption_settings,
                         SbAccessibilityCaptionColor* color,
                         SbAccessibilityCaptionState* color_state,
                         SbAccessibilityCaptionOpacityPercentage* opacity,
                         SbAccessibilityCaptionState* opacity_state) {
+  jint j_color =
+      Java_CaptionSettings_getForegroundColor(env, j_caption_settings);
+  bool has_color =
+      Java_CaptionSettings_hasForegroundColor(env, j_caption_settings);
   *color = GetClosestCaptionColor(j_color);
   *opacity = GetClosestOpacity((0xFF & (j_color >> 24)) * 100 / 255);
   *color_state = BooleanToCaptionState(has_color);
@@ -82,6 +87,7 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
 
   auto j_caption_settings =
       StarboardBridge::GetInstance()->GetCaptionSettings(env);
+  SB_CHECK(j_caption_settings);
 
   jfloat font_scale =
       Java_CaptionSettings_getFontScale(env, j_caption_settings);
@@ -101,26 +107,21 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   caption_settings->character_edge_style_state = BooleanToCaptionState(
       Java_CaptionSettings_hasEdgeType(env, j_caption_settings));
 
-  SetColorProperties(
-      Java_CaptionSettings_getForegroundColor(env, j_caption_settings),
-      Java_CaptionSettings_hasForegroundColor(env, j_caption_settings),
-      &caption_settings->font_color, &caption_settings->font_color_state,
-      &caption_settings->font_opacity, &caption_settings->font_opacity_state);
+  SetColorProperties(env, j_caption_settings, &caption_settings->font_color,
+                     &caption_settings->font_color_state,
+                     &caption_settings->font_opacity,
+                     &caption_settings->font_opacity_state);
 
-  SetColorProperties(
-      Java_CaptionSettings_getBackgroundColor(env, j_caption_settings),
-      Java_CaptionSettings_hasBackgroundColor(env, j_caption_settings),
-      &caption_settings->background_color,
-      &caption_settings->background_color_state,
-      &caption_settings->background_opacity,
-      &caption_settings->background_opacity_state);
+  SetColorProperties(env, j_caption_settings,
+                     &caption_settings->background_color,
+                     &caption_settings->background_color_state,
+                     &caption_settings->background_opacity,
+                     &caption_settings->background_opacity_state);
 
-  SetColorProperties(
-      Java_CaptionSettings_getWindowColor(env, j_caption_settings),
-      Java_CaptionSettings_hasWindowColor(env, j_caption_settings),
-      &caption_settings->window_color, &caption_settings->window_color_state,
-      &caption_settings->window_opacity,
-      &caption_settings->window_opacity_state);
+  SetColorProperties(env, j_caption_settings, &caption_settings->window_color,
+                     &caption_settings->window_color_state,
+                     &caption_settings->window_opacity,
+                     &caption_settings->window_opacity_state);
 
   caption_settings->is_enabled =
       Java_CaptionSettings_isEnabled(env, j_caption_settings);

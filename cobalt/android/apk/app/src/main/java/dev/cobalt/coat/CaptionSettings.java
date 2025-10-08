@@ -28,10 +28,6 @@ public class CaptionSettings {
   private final boolean hasEdgeType;
   private final int foregroundColor;
   private final boolean hasForegroundColor;
-  private final int backgroundColor;
-  private final boolean hasBackgroundColor;
-  private final int windowColor;
-  private final boolean hasWindowColor;
 
   public CaptionSettings(CaptioningManager cm) {
     CaptioningManager.CaptionStyle style = cm.getUserStyle();
@@ -41,10 +37,6 @@ public class CaptionSettings {
     hasEdgeType = style.hasEdgeType();
     foregroundColor = style.foregroundColor;
     hasForegroundColor = style.hasForegroundColor();
-    backgroundColor = style.backgroundColor;
-    hasBackgroundColor = style.hasBackgroundColor();
-    windowColor = style.windowColor;
-    hasWindowColor = style.hasWindowColor();
   }
 
   @CalledByNative
@@ -75,25 +67,5 @@ public class CaptionSettings {
   @CalledByNative
   public boolean hasForegroundColor() {
     return hasForegroundColor;
-  }
-
-  @CalledByNative
-  public int getBackgroundColor() {
-    return backgroundColor;
-  }
-
-  @CalledByNative
-  public boolean hasBackgroundColor() {
-    return hasBackgroundColor;
-  }
-
-  @CalledByNative
-  public int getWindowColor() {
-    return windowColor;
-  }
-
-  @CalledByNative
-  public boolean hasWindowColor() {
-    return hasWindowColor;
   }
 }
