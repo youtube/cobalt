@@ -146,6 +146,8 @@ ADDITIONAL_PATHS = (
     # Fake directories to include the strongtalk and fdlibm licenses.
     os.path.join('v8', 'strongtalk'),
     os.path.join('v8', 'fdlibm'),
+    os.path.join('third_party', 'llvm-project', 'compiler-rt'),
+    os.path.join('third_party', 'llvm-project', 'libunwind'),
 )
 
 
