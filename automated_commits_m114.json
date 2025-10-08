@@ -1,5 +1,44 @@
 [
   {
+    "hexsha": "1586507f9a309b11b6ffcdb9c05064d18055031f",
+    "original_hexsha": "7243a636a2ca6ce8ea15c194e86660d03b641c31",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-07T16:43:38-07:00",
+    "summary": "starboard: Make SbSystemRequestStop a no-op on Android (#7470)",
+    "stats": {
+      "files": 1,
+      "insertions": 4,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "bf1baf84ea12a448bbd8323c9359fe191be2e041",
+    "original_hexsha": "68b68ddde8502a12c0ae2c0243390687a4523883",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-07T14:30:32-07:00",
+    "summary": "starboard: Migrate getCaptionSettings method to use JNI generator (#7468)",
+    "stats": {
+      "files": 4,
+      "insertions": 18,
+      "deletions": 14
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "707a032e92e62e4cad1217fdff929ac1fe265fac",
+    "original_hexsha": "c616d163eb00e592da5c7438e0a66e5a52220d20",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-10-07T08:54:55-07:00",
+    "summary": "Deprecate V8_OS_STARBOARD (#7463)",
+    "stats": {
+      "files": 22,
+      "insertions": 19,
+      "deletions": 785
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "efe59e75bce852aed94a1e8f41453688e336760b",
     "original_hexsha": "0fcf3ea5c5b24846abcd8121e22687cbea1020cc",
     "author": "billybw",
