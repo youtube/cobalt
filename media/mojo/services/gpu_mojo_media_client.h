@@ -259,6 +259,10 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
   // carefully used only on the GPU thread and not the media service thread.
   const base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager_;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
+#endif
+
   // Cross-platform cache supported config cache.
   std::optional<SupportedVideoDecoderConfigs> supported_config_cache_;
 };

@@ -150,7 +150,12 @@ GpuMojoMediaClient::GpuMojoMediaClient(GpuMojoMediaClientTraits& traits)
       gpu_feature_info_(std::move(traits.gpu_feature_info)),
       gpu_info_(std::move(traits.gpu_info)),
       gpu_task_runner_(std::move(traits.gpu_task_runner)),
-      media_gpu_channel_manager_(std::move(traits.media_gpu_channel_manager)) {}
+      media_gpu_channel_manager_(std::move(traits.media_gpu_channel_manager))
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      android_overlay_factory_cb_(std::move(traits.android_overlay_factory_cb))
+#endif
+  {}
 
 GpuMojoMediaClient::~GpuMojoMediaClient() = default;
 
