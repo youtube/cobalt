@@ -127,7 +127,10 @@ if (use_arm_neon_optimizations) {
     # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
     #  "All implementations of the ARMv8.1 architecture are required to
     #   implement the CRC32* instructions. These are optional in ARMv8.0."
-    if (!is_ios) {
+    # Cobalt comment: partner toolchains using ARM may use version less than 8.
+    # This customization is ported forward from c25.
+    if (!is_ios && ((current_toolchain != native_target && current_toolchain !=
+        starboard_toolchain) || arm_version >= 8)) {
       defines = [ "CRC32_ARMV8_CRC32" ]
       if (is_android) {
         defines += [ "ARMV8_OS_ANDROID" ]
@@ -151,7 +154,11 @@ if (use_arm_neon_optimizations) {
     if (!is_ios) {
       include_dirs = [ "." ]
 
-      if (!is_win && !is_clang) {
+      # Cobalt comment: this -march flag value is not recognized by some partner
+      # toolchain compilers, probably because of the GCC version. This
+      # customization is ported forward from c25.
+      if (!is_win && !is_clang && !is_native_target_build &&
+          current_toolchain != starboard_toolchain) {
         assert(!use_thin_lto,
                "ThinLTO fails mixing different module-level targets")
         cflags_c = [ "-march=armv8-a+aes+crc" ]
