@@ -99,7 +99,7 @@ V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 // tvOS simulator does not use intptr_t as TLS key.
-#if !defined(V8_OS_STARBOARD) || !defined(TARGET_OS_SIMULATOR)
+#if !defined(TARGET_OS_SIMULATOR)
 
 #define V8_FAST_TLS_SUPPORTED 1
 
@@ -115,7 +115,7 @@ V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   return result;
 }
 
-#endif  // !defined(V8_OS_STARBOARD) || !defined(TARGET_OS_SIMULATOR)
+#endif  // !defined(TARGET_OS_SIMULATOR)
 
 #endif
 
@@ -513,11 +513,7 @@ class V8_BASE_EXPORT AddressSpaceReservation {
 class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
-#if V8_OS_STARBOARD
-  using LocalStorageKey = SbThreadLocalKey;
-#else
   using LocalStorageKey = int32_t;
-#endif
 
   class Options {
    public:

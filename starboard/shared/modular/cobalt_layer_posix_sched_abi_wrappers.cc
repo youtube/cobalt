@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include <sched.h>
 
-#include "starboard/common/log.h"
+extern "C" {
 
-void SbSystemRequestStop(int error_level) {
-  // TODO: b/450024477 - Implement this method when AOSP is used.
-  SB_LOG(WARNING) << __func__ << "(error_level=" << error_level
-                  << ") is called, but it's ignored on Android";
+int __abi_wrap_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t* mask);
+
+int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t* mask) {
+  return __abi_wrap_sched_getaffinity(pid, cpusetsize, mask);
 }
+
+}  // extern "C"
