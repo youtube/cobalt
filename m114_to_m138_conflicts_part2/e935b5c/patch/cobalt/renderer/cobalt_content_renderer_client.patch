@@ -1,0 +1,15 @@
+--- cobalt/renderer/cobalt_content_renderer_client.cc
++++ cobalt/renderer/cobalt_content_renderer_client.cc
+@@ -141,11 +141,7 @@
+   ::media::KeySystemInfos key_systems;
+   AddStarboardCmaKeySystems(&key_systems);
+   std::move(cb).Run(std::move(key_systems));
+-<<<<<<< HEAD
+-#endif
+-return nullptr;
+-=======
+->>>>>>> 8b8011690b5 (Enable support for widevine  (#7248))
++  return nullptr;
+ }
+ 
+ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(

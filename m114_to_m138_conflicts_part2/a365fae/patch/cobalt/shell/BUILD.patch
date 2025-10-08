@@ -1,0 +1,16 @@
+--- cobalt/shell/BUILD.gn
++++ cobalt/shell/BUILD.gn
+@@ -223,13 +223,8 @@
+     "common/power_monitor_test_impl.h",
+     "common/shell_content_client.cc",
+     "common/shell_content_client.h",
+-<<<<<<< HEAD
+-    "common/shell_origin_trial_policy.cc",
+-    "common/shell_origin_trial_policy.h",
+     "common/shell_paths.cc",
+     "common/shell_paths.h",
+-=======
+->>>>>>> 125434c9864 (cobalt/shell: Remove origin trials deps (#6699))
+     "common/shell_switches.cc",
+     "common/shell_switches.h",
+     "gpu/shell_content_gpu_client.cc",

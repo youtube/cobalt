@@ -1,0 +1,21 @@
+--- .gitignore
++++ .gitignore
+@@ -323,7 +323,6 @@
+ 
+ # Ignore the default results output directory for tools/run-swarmed.py
+ /results
+-<<<<<<< HEAD
+ 
+ # ignore rust build files
+ third_party/rust/target/
+@@ -342,10 +341,3 @@
+ 
+ # Extensions: Generated DNR e.g. /_metadata/generated_indexed_rulesets/_ruleset1
+ **/_metadata/generated_indexed_rulesets/
+-
+-#  ---- Cobalt ignores below this line ----
+-
+-# Intermediate Gradle outputs from builds
+-starboard/android/apk/.gradle/
+-=======
+->>>>>>> b8c61141311 (Fix gitignore entries (#7141))

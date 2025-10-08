@@ -1,0 +1,14 @@
+--- .gitignore
++++ .gitignore
+@@ -303,11 +303,7 @@
+ /ui/gl/resources/angle-metal
+ /ui/surface/surface.xml
+ /ui/surface/surface_gpu_tests.xml
+-<<<<<<< HEAD
+-=======
+-/ui/webui/internal
+ # /v8 Note: Has been imported as a subtree, and is not ignored in Cobalt.
+->>>>>>> 01508b74062 (Update .gitignore entries for flattened repositories (#6700))
+ /webkit/data
+ /webpagereplay_logs/
+ /x86-generic_out/

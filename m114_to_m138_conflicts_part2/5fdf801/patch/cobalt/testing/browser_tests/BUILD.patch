@@ -1,0 +1,17 @@
+--- cobalt/testing/browser_tests/BUILD.gn
++++ cobalt/testing/browser_tests/BUILD.gn
+@@ -97,14 +97,9 @@
+     "//base:i18n",
+     "//base/test:test_config",
+     "//base/test:test_support",
+-<<<<<<< HEAD
+     "//build:chromeos_buildflags",
+-    "//cobalt/shell:content_shell_app",
+-    "//cobalt/shell:content_shell_lib",
+-=======
+     "//cobalt/shell:cobalt_shell_app",
+     "//cobalt/shell:cobalt_shell_lib",
+->>>>>>> d1a80e25e1c (Rename Cobalt shell targets names (#6711))
+     "//components/network_session_configurator/common:common",
+     "//components/services/storage:storage",
+     "//content/app:for_content_tests",

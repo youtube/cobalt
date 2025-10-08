@@ -1,0 +1,43 @@
+--- net/cert/cert_verify_proc.cc
++++ net/cert/cert_verify_proc.cc
+@@ -55,12 +55,7 @@
+ #include "third_party/boringssl/src/pki/signature_algorithm.h"
+ #include "url/url_canon.h"
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+-=======
+-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(USE_NSS_CERTS) || \
+-    BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED) || BUILDFLAG(IS_STARBOARD)
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
++#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED) || BUILDFLAG(IS_STARBOARD)
+ #include "net/cert/cert_verify_proc_builtin.h"
+ #endif
+ 
+@@ -395,12 +390,7 @@
+ 
+ }  // namespace
+ 
+-<<<<<<< HEAD
+-#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_ONLY))
+-=======
+-#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || \
+-      BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(CHROME_ROOT_STORE_ONLY) || BUILDFLAG(IS_STARBOARD))
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
++#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_ONLY) || BUILDFLAG(IS_STARBOARD))
+ // static
+ scoped_refptr<CertVerifyProc> CertVerifyProc::CreateSystemVerifyProc(
+     scoped_refptr<CertNetFetcher> cert_net_fetcher,
+@@ -416,11 +406,7 @@
+ }
+ #endif
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_FUCHSIA)
+-=======
+-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_STARBOARD)
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
++#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+ // static
+ scoped_refptr<CertVerifyProc> CertVerifyProc::CreateBuiltinVerifyProc(
+     scoped_refptr<CertNetFetcher> cert_net_fetcher,

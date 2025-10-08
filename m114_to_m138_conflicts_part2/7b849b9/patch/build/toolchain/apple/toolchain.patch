@@ -1,0 +1,27 @@
+--- build/toolchain/apple/toolchain.gni
++++ build/toolchain/apple/toolchain.gni
+@@ -780,7 +780,6 @@
+           _env_vars += " DEVELOPER_DIR=${toolchain_args.sdk_developer_dir}"
+         }
+ 
+-<<<<<<< HEAD
+         command = "$_env_vars $python_path $_tool " +
+                   "-O '${toolchain_args.current_os}' " +
+                   "-p '${invoker.target_platform}' " +
+@@ -789,16 +788,6 @@
+                   "-T '{{bundle_product_type}}' " +
+                   "-P '{{bundle_partial_info_plist}}' " +
+                   " {{xcasset_compiler_flags}} " + "-o {{output}} {{inputs}}"
+-=======
+-        command =
+-            "$_env_vars $python_path $_tool " +
+-            "-O '${toolchain_args.current_os}' " +
+-            "-p '${invoker.target_platform}' " +
+-            "-e '${invoker.target_environment}' " +
+-            "-t '${invoker.deployment_target}' " +
+-            "-T '{{bundle_product_type}}' " +
+-            "-P '{{bundle_partial_info_plist}}' " + "-o {{output}} {{inputs}}"
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107))
+ 
+         description = "COMPILE_XCASSETS {{output}}"
+         pool = "//build/toolchain/apple:bundle_pool($default_toolchain)"

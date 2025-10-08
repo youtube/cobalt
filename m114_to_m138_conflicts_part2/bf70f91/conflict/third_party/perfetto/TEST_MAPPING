@@ -1,0 +1,48 @@
+{
+<<<<<<< HEAD
+  "art-mainline-presubmit": [
+    {
+      "name": "CtsPerfettoTestCases",
+      "options": [
+        {
+          "include-filter": "HeapprofdJavaCtsTest*"
+        }
+      ]
+    }
+  ],
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  "presubmit": [
+    {
+      "name": "CtsPerfettoTestCases"
+    },
+    // Additional presubmit tests that explicitly exercise
+    // Perfetto's backend
+    {
+      "name": "libsurfaceflinger_unittest"
+    }
+  ],
+  "mainline-presubmit": [
+    {
+      "name": "CtsPerfettoTestCases[com.google.android.art.apex]",
+      "options": [
+        {
+          "include-filter": "HeapprofdJavaCtsTest*"
+        }
+      ]
+    }
+  ],
+  "hwasan-presubmit": [
+    {
+      "name": "CtsPerfettoTestCases"
+    }
+<<<<<<< HEAD
+  ],
+  "postsubmit": [
+    {
+      "name": "libtracing_perfetto_tests"
+    }
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  ]
+}

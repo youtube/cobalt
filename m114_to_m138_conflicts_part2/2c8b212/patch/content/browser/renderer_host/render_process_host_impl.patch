@@ -1,0 +1,108 @@
+--- content/browser/renderer_host/render_process_host_impl.cc
++++ content/browser/renderer_host/render_process_host_impl.cc
+@@ -1333,105 +1333,10 @@
+ 
+ RenderProcessHostImpl::IOThreadHostImpl::~IOThreadHostImpl() = default;
+ 
+-<<<<<<< HEAD
+ void RenderProcessHostImpl::IOThreadHostImpl::SetPid(
+     base::ProcessId child_pid) {
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+   child_thread_type_switcher_.SetPid(child_pid);
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+-    if (auto font_receiver = receiver.As<font_service::mojom::FontService>()) {
+-      ConnectToFontService(std::move(font_receiver));
+-      return;
+-    }
+-
+-    if (base::FeatureList::IsEnabled(media::kUseOutOfProcessVideoEncoding)) {
+-      if (auto r =
+-              receiver.As<media::mojom::VideoEncodeAcceleratorProvider>()) {
+-        if (!video_encode_accelerator_factory_remote_.is_bound()) {
+-          LaunchVideoEncodeAcceleratorProviderFactory(
+-              video_encode_accelerator_factory_remote_
+-                  .BindNewPipeAndPassReceiver());
+-          video_encode_accelerator_factory_remote_.reset_on_disconnect();
+-        }
+-
+-        if (!video_encode_accelerator_factory_remote_.is_bound())
+-          return;
+-
+-        video_encode_accelerator_factory_remote_
+-            ->CreateVideoEncodeAcceleratorProvider(std::move(r));
+-        return;
+-      }
+-    }
+-#endif  // (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS))
+-
+-#if BUILDFLAG(IS_WIN)
+-    if (auto r = receiver.As<mojom::FontCacheWin>()) {
+-      FontCacheDispatcher::Create(std::move(r));
+-      return;
+-    }
+-#endif
+-
+-#if BUILDFLAG(IS_MAC)
+-    if (auto r = receiver.As<mojom::SandboxSupportMac>()) {
+-      static base::NoDestructor<SandboxSupportMacImpl> sandbox_support;
+-      sandbox_support->BindReceiver(std::move(r));
+-      return;
+-    }
+-#endif
+-
+-    if (auto r = receiver.As<
+-                 discardable_memory::mojom::DiscardableSharedMemoryManager>()) {
+-      discardable_memory::DiscardableSharedMemoryManager::Get()->Bind(
+-          std::move(r));
+-      return;
+-    }
+-
+-    if (auto r = receiver.As<ukm::mojom::UkmRecorderFactory>()) {
+-      metrics::UkmRecorderFactoryImpl::Create(ukm::UkmRecorder::Get(),
+-                                              std::move(r));
+-      return;
+-    }
+-
+-#if BUILDFLAG(IS_ANDROID)
+-    // Bind the font lookup on the IO thread as an optimization to avoid
+-    // running navigation critical path tasks on the UI thread.
+-    if (auto r = receiver.As<blink::mojom::AndroidFontLookup>()) {
+-      GetGlobalJavaInterfacesOnIOThread()->GetInterface(std::move(r));
+-      return;
+-    }
+-#endif
+-
+-    std::string interface_name = *receiver.interface_name();
+-    mojo::ScopedMessagePipeHandle pipe = receiver.PassPipe();
+-    if (binders_->TryBindInterface(interface_name, &pipe))
+-      return;
+-
+-    receiver = mojo::GenericPendingReceiver(interface_name, std::move(pipe));
+-    if (!receiver)
+-      return;
+-
+-    GetUIThreadTaskRunner({})->PostTask(
+-        FROM_HERE, base::BindOnce(&IOThreadHostImpl::BindHostReceiverOnUIThread,
+-                                  weak_host_, std::move(receiver)));
+-  }
+-
+-  static void BindHostReceiverOnUIThread(
+-      base::WeakPtr<RenderProcessHostImpl> weak_host,
+-      mojo::GenericPendingReceiver receiver) {
+-    if (weak_host)
+-      weak_host->OnBindHostReceiver(std::move(receiver));
+-  }
+-
+-  const int render_process_id_;
+-  const base::WeakPtr<RenderProcessHostImpl> weak_host_;
+-  std::unique_ptr<service_manager::BinderRegistry> binders_;
+-  mojo::Receiver<mojom::ChildProcessHost> receiver_{this};
+-
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+-  mojo::Remote<media::mojom::VideoEncodeAcceleratorProviderFactory>
+-      video_encode_accelerator_factory_remote_;
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+ #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ }
+ 

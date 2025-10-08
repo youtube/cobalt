@@ -1,0 +1,16 @@
+--- content/renderer/renderer_blink_platform_impl.h
++++ content/renderer/renderer_blink_platform_impl.h
+@@ -271,12 +271,8 @@
+   void Collect3DContextInformation(blink::Platform::GraphicsInfo* gl_info,
+                                    const gpu::GPUInfo& gpu_info) const;
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
+     BUILDFLAG(IS_WIN)
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+   std::unique_ptr<blink::WebSandboxSupport> sandbox_support_;
+ #endif
+ 

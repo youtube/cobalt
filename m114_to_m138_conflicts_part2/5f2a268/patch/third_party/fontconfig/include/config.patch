@@ -1,0 +1,18 @@
+--- third_party/fontconfig/include/config.h
++++ third_party/fontconfig/include/config.h
+@@ -68,15 +68,8 @@
+ 
+ #define HAVE_MMAP 1
+ 
+-<<<<<<< HEAD
+-=======
+-/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
+-/* #undef HAVE_NDIR_H */
+-
+ // TODO: b/428969097 - Cobalt: Investigate removing this condition
+ #if !BUILDFLAG(IS_STARBOARD)
+-/* Define to 1 if you have the 'posix_fadvise' function. */
+->>>>>>> cb82df9b762 (Fix API leak for "posix_fadvise" (#6587))
+ #define HAVE_POSIX_FADVISE 1
+ #endif // BUILDFLAG(IS_STARBOARD)
+ 

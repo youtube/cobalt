@@ -1,0 +1,23 @@
+--- BUILD.gn
++++ BUILD.gn
+@@ -869,7 +869,6 @@
+     }
+   }
+ 
+-<<<<<<< HEAD
+   if (is_chrome_for_testing) {
+     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
+   }
+@@ -879,12 +878,6 @@
+   }
+ 
+   if (is_cobalt) {
+-=======
+-  # TODO(b/432823234): Temporarily disable dependency on cobalt targets while
+-  # the tvOS code is not upstreamed so that no hacks are added just to get GN
+-  # to stop complaining.
+-  if (is_cobalt && !is_ios) {
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107))
+     deps += [
+       "//cobalt:gn_all",
+       "//cobalt:cobalt_browsertests",

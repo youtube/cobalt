@@ -1,0 +1,16 @@
+--- build/config/ios/ios_sdk.gni
++++ build/config/ios/ios_sdk.gni
+@@ -80,13 +80,8 @@
+     if (target_environment == "simulator") {
+       ios_sdk_name = "appletvsimulator"
+       ios_sdk_platform = "AppleTVSimulator"
+-<<<<<<< HEAD
+     } else if (target_environment == "device") {
+       ios_sdk_name = "appletvos"
+-=======
+-    } else if (target_environement == "device") {
+-      ios_sdk_name = "appletv"
+->>>>>>> e6e7e9c54f5 ([tvOS] Add minimum set of required backports + tvos-arm64-simulator build config (#7107))
+       ios_sdk_platform = "AppleTVOS"
+     } else {
+       assert(false, "unsupported target_environment=$target_environment")

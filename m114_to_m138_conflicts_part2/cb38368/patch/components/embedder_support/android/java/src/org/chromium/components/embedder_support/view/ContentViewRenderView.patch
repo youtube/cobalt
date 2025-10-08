@@ -1,0 +1,20 @@
+--- components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
++++ components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
+@@ -290,16 +290,11 @@
+             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
+             mSurfaceView.setZOrderMediaOverlay(true);
+ 
+-<<<<<<< HEAD
++            renderView.setSurfaceViewBackgroundColor(Color.WHITE);
+             renderView.addView(
+                     mSurfaceView,
+                     new FrameLayout.LayoutParams(
+                             FrameLayout.LayoutParams.MATCH_PARENT,
+-=======
+-            renderView.setSurfaceViewBackgroundColor(Color.WHITE);
+-            renderView.addView(mSurfaceView,
+-                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+->>>>>>> 5605a5b5143 (fix: Move ContentViewRenderView fix to Cobalt (#6685))
+                             FrameLayout.LayoutParams.MATCH_PARENT));
+             mSurfaceView.setVisibility(GONE);
+         }

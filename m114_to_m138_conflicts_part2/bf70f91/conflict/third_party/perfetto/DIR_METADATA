@@ -1,0 +1,10 @@
+monorail {
+  component: "Speed>Tracing"
+}
+team_email: "tracing@chromium.org"
+<<<<<<< HEAD
+buganizer_public: {
+  component_id: 1457213
+}
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))

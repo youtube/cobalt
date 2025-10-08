@@ -1,0 +1,30 @@
+--- chrome/services/sharing/nearby/platform/BUILD.gn
++++ chrome/services/sharing/nearby/platform/BUILD.gn
+@@ -38,13 +38,8 @@
+     "bluetooth_server_socket.h",
+     "bluetooth_socket.cc",
+     "bluetooth_socket.h",
+-<<<<<<< HEAD
+     "bluetooth_utils.cc",
+     "bluetooth_utils.h",
+-    "condition_variable.cc",
+-    "condition_variable.h",
+-=======
+->>>>>>> 7f66de9800d (refactor: Remove starboard::Mutex and starboard::ConditionVariable (#6894))
+     "count_down_latch.cc",
+     "count_down_latch.h",
+     "credential_storage.cc",
+@@ -55,13 +50,8 @@
+     "input_stream_impl.h",
+     "log_message.cc",
+     "log_message.h",
+-<<<<<<< HEAD
+-    "mutex.cc",
+-    "mutex.h",
+     "nearby_platform_metrics.cc",
+     "nearby_platform_metrics.h",
+-=======
+->>>>>>> 7f66de9800d (refactor: Remove starboard::Mutex and starboard::ConditionVariable (#6894))
+     "output_file.cc",
+     "output_file.h",
+     "output_stream_impl.cc",

@@ -1,0 +1,16 @@
+--- content/utility/utility_blink_platform_with_sandbox_support_impl.cc
++++ content/utility/utility_blink_platform_with_sandbox_support_impl.cc
+@@ -39,12 +39,8 @@
+ 
+ blink::WebSandboxSupport*
+ UtilityBlinkPlatformWithSandboxSupportImpl::GetSandboxSupport() {
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
+     BUILDFLAG(IS_WIN)
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+   return sandbox_support_.get();
+ #else
+   return nullptr;

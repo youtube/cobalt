@@ -1,0 +1,39 @@
+--- content/public/android/BUILD.gn
++++ content/public/android/BUILD.gn
+@@ -154,16 +154,10 @@
+     ":content_public_android_java_switches_srcjar",
+     ":generate_sandboxed_service_srcjar",
+   ]
+-<<<<<<< HEAD
+-=======
+-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+-
+   if (is_cobalt) {
+     deps -= [ "//ui/android:ui_no_recycler_view_java" ]
+-
+     deps += [ "//ui/android:cobalt_ui_full_java" ]
+   }
+->>>>>>> a5a015bd77f (Create lean UI library for Cobalt ATV (#7241))
+ }
+ 
+ android_library("content_full_java") {
+@@ -460,11 +454,6 @@
+   sources = [
+     "java/src/org/chromium/content_public/browser/util/DialogTypeRecorder.java",
+   ]
+-<<<<<<< HEAD
+-=======
+-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+-  proguard_configs = [ "proguard.flags" ]
+-
+   if (is_cobalt) {
+     sources -= [
+       "java/src/org/chromium/content/browser/ContentClassFactory.java",
+@@ -517,7 +506,6 @@
+ 
+     deps += [ "//ui/android:cobalt_ui_full_java" ]
+   }
+->>>>>>> a5a015bd77f (Create lean UI library for Cobalt ATV (#7241))
+ }
+ 
+ java_strings_grd("content_strings_grd") {

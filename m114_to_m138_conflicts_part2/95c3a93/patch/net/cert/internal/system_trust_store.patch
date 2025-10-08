@@ -1,0 +1,44 @@
+--- net/cert/internal/system_trust_store.cc
++++ net/cert/internal/system_trust_store.cc
+@@ -384,8 +384,6 @@
+ 
+ #endif  // CHROME_ROOT_STORE_SUPPORTED
+ 
+-<<<<<<< HEAD
+-=======
+ #elif BUILDFLAG(IS_STARBOARD)
+ 
+ namespace {
+@@ -413,16 +411,14 @@
+  public:
+   SystemTrustStoreStarboard() = default;
+ 
+-  TrustStore* GetTrustStore() override {
++  bssl::TrustStore* GetTrustStore() override {
+     if (TestRootCerts::HasInstance()) {
+       return TestRootCerts::GetInstance()->test_trust_store();
+     }
+     return g_root_certs_starboard.Get().system_trust_store();
+   }
+ 
+-  bool UsesSystemTrustStore() const override { return true; }
+-
+-  bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
++  bool IsKnownRoot(const bssl::ParsedCertificate* trust_anchor) const override {
+     return g_root_certs_starboard.Get().system_trust_store()->Contains(
+         trust_anchor);
+   }
+@@ -432,13 +428,6 @@
+   return std::make_unique<SystemTrustStoreStarboard>();
+ }
+ 
+-#else
+-
+-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
+-  return std::make_unique<DummySystemTrustStore>();
+-}
+-
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
+ #endif
+ 
+ }  // namespace net

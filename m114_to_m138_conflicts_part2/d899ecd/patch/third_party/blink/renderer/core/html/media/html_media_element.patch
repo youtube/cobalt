@@ -1,0 +1,53 @@
+--- third_party/blink/renderer/core/html/media/html_media_element.cc
++++ third_party/blink/renderer/core/html/media/html_media_element.cc
+@@ -343,24 +343,8 @@
+   }
+ 
+   NOTREACHED();
+-<<<<<<< HEAD
+-=======
+-  return String();
+ }
+ 
+-// Disabled on Cobalt together with `ShouldShowControls()`.
+-#if !BUILDFLAG(IS_COBALT)
+-void RecordShowControlsUsage(const HTMLMediaElement* element,
+-                             MediaControlsShow value) {
+-  if (element->IsHTMLVideoElement()) {
+-    base::UmaHistogramEnumeration("Media.Controls.Show.Video", value);
+-    return;
+-  }
+-  base::UmaHistogramEnumeration("Media.Controls.Show.Audio", value);
+->>>>>>> c32ed09b505 (Disable HTMLMediaElement MediaControl (#7045))
+-}
+-#endif
+-
+ bool IsValidPlaybackRate(double rate) {
+   return rate == 0.0 || (rate >= HTMLMediaElement::kMinPlaybackRate &&
+                          rate <= HTMLMediaElement::kMaxPlaybackRate);
+@@ -3201,21 +3185,16 @@
+   SetBooleanAttribute(html_names::kLoopAttr, b);
+ }
+ 
+-<<<<<<< HEAD
+ bool HTMLMediaElement::ShouldShowControls() const {
++#if BUILDFLAG(IS_COBALT)
++  // Cobalt targets TV specifically and does not support media control.
++  return false;
++#else
+   // If the document is not active, then we should not show controls.
+   if (!GetDocument().IsActive()) {
+     return false;
+   }
+ 
+-=======
+-bool HTMLMediaElement::ShouldShowControls(
+-    const RecordMetricsBehavior record_metrics) const {
+-#if BUILDFLAG(IS_COBALT)
+-  // Cobalt targets TV specifically and does not support media control.
+-  return false;
+-#else
+->>>>>>> c32ed09b505 (Disable HTMLMediaElement MediaControl (#7045))
+   Settings* settings = GetDocument().GetSettings();
+   if (settings && !settings->GetMediaControlsEnabled()) {
+     return false;

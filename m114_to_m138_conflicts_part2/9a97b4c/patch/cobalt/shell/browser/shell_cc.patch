@@ -1,0 +1,87 @@
+--- cobalt/shell/browser/shell.cc
++++ cobalt/shell/browser/shell.cc
+@@ -527,84 +527,7 @@
+              : blink::mojom::DisplayMode::kBrowser;
+ }
+ 
+-<<<<<<< HEAD
+-#if !BUILDFLAG(IS_ANDROID)
+-void Shell::RegisterProtocolHandler(RenderFrameHost* requesting_frame,
+-                                    const std::string& protocol,
+-                                    const GURL& url,
+-                                    bool user_gesture) {
+-  BrowserContext* context = requesting_frame->GetBrowserContext();
+-  if (context->IsOffTheRecord()) {
+-    return;
+-  }
+-
+-  custom_handlers::ProtocolHandler handler =
+-      custom_handlers::ProtocolHandler::CreateProtocolHandler(
+-          protocol, url, GetProtocolHandlerSecurityLevel(requesting_frame));
+-
+-  // The parameters's normalization process defined in the spec has been already
+-  // applied in the WebContentImpl class, so at this point it shouldn't be
+-  // possible to create an invalid handler.
+-  // https://html.spec.whatwg.org/multipage/system-state.html#normalize-protocol-handler-parameters
+-  DCHECK(handler.IsValid());
+-
+-#if defined(RUN_BROWSER_TESTS)
+-  custom_handlers::ProtocolHandlerRegistry* registry = custom_handlers::
+-      SimpleProtocolHandlerRegistryFactory::GetForBrowserContext(context, true);
+-  DCHECK(registry);
+-  if (registry->SilentlyHandleRegisterHandlerRequest(handler)) {
+-    return;
+-  }
+-
+-  if (!user_gesture && !windows_.empty()) {
+-    // TODO(jfernandez): This is not strictly needed, but we need a way to
+-    // inform the observers in browser tests that the request has been
+-    // cancelled, to avoid timeouts. Chrome just holds the handler as pending in
+-    // the PageContentSettingsDelegate, but we don't have such thing in the
+-    // Content Shell.
+-    registry->OnDenyRegisterProtocolHandler(handler);
+-    return;
+-  }
+-
+-  // FencedFrames can not register to handle any protocols.
+-  if (requesting_frame->IsNestedWithinFencedFrame()) {
+-    registry->OnIgnoreRegisterProtocolHandler(handler);
+-    return;
+-  }
+-
+-  // TODO(jfernandez): Are we interested at all on using the
+-  // PermissionRequestManager in the ContentShell ?
+-  if (registry->registration_mode() ==
+-      custom_handlers::RphRegistrationMode::kAutoAccept) {
+-    registry->OnAcceptRegisterProtocolHandler(handler);
+-  }
+-#endif  // defined(RUN_BROWSER_TESTS)
+-}
+-
+-void Shell::UnregisterProtocolHandler(RenderFrameHost* requesting_frame,
+-                                      const std::string& protocol,
+-                                      const GURL& url,
+-                                      bool user_gesture) {
+-  BrowserContext* context = requesting_frame->GetBrowserContext();
+-  if (context->IsOffTheRecord()) {
+-    return;
+-  }
+-
+-  custom_handlers::ProtocolHandler handler =
+-      custom_handlers::ProtocolHandler::CreateProtocolHandler(
+-          protocol, url, GetProtocolHandlerSecurityLevel(requesting_frame));
+-  custom_handlers::ProtocolHandlerRegistry* registry = custom_handlers::
+-      SimpleProtocolHandlerRegistryFactory::GetForBrowserContext(context, true);
+-  CHECK(registry);
+-
+-  registry->RemoveHandler(handler);
+-}
+-#endif
+-
+ void Shell::RequestPointerLock(WebContents* web_contents,
+-=======
+-void Shell::RequestToLockMouse(WebContents* web_contents,
+->>>>>>> cf7a664ffd2 (Create cobalt_shell_test_lib static library (#7158))
+                                bool user_gesture,
+                                bool last_unlocked_by_target) {
+   // Give the platform a chance to handle the lock request, if it doesn't

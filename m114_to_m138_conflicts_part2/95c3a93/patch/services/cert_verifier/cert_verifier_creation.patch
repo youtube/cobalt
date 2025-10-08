@@ -1,0 +1,55 @@
+--- services/cert_verifier/cert_verifier_creation.cc
++++ services/cert_verifier/cert_verifier_creation.cc
+@@ -20,17 +20,11 @@
+ #include "services/network/public/cpp/network_service_buildflags.h"
+ #include "services/network/public/mojom/cert_verifier_service_updater.mojom.h"
+ 
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_CT_SUPPORTED)
+ #include "net/cert/multi_log_ct_verifier.h"
+-=======
+-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+-#include "net/cert/cert_verify_proc_builtin.h"
+-#include "net/cert/internal/system_trust_store.h"
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
+ #endif
+ 
+-#if BUILDFLAG(IS_FUCHSIA)
++#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+ #include "net/cert/cert_verify_proc_builtin.h"
+ #include "net/cert/internal/system_trust_store.h"
+ #endif
+@@ -99,32 +93,16 @@
+   // return a CertVerifyProc that supports that configuration.
+   scoped_refptr<net::CertVerifyProc> CreateOldCertVerifyProc(
+       scoped_refptr<net::CertNetFetcher> cert_net_fetcher,
+-<<<<<<< HEAD
+       scoped_refptr<net::CRLSet> crl_set,
+       std::unique_ptr<net::CTVerifier> ct_verifier,
+       scoped_refptr<net::CTPolicyEnforcer> ct_policy_enforcer,
+       const net::CertVerifyProc::InstanceParams& instance_params,
+       std::optional<network_time::TimeTracker> time_tracker) {
+-#if BUILDFLAG(IS_FUCHSIA)
++#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+     return net::CreateCertVerifyProcBuiltin(
+         std::move(cert_net_fetcher), std::move(crl_set), std::move(ct_verifier),
+         std::move(ct_policy_enforcer), net::CreateSslSystemTrustStore(),
+         instance_params, std::move(time_tracker));
+-=======
+-      scoped_refptr<net::CRLSet> crl_set) {
+-    scoped_refptr<net::CertVerifyProc> verify_proc;
+-#if BUILDFLAG(IS_CHROMEOS)
+-    verify_proc = net::CreateCertVerifyProcBuiltin(
+-        std::move(cert_net_fetcher), std::move(crl_set),
+-        net::CreateSslSystemTrustStoreNSSWithUserSlotRestriction(
+-            user_slot_restriction_ ? crypto::ScopedPK11Slot(PK11_ReferenceSlot(
+-                                         user_slot_restriction_.get()))
+-                                   : nullptr));
+-#elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD)
+-    verify_proc = net::CreateCertVerifyProcBuiltin(
+-        std::move(cert_net_fetcher), std::move(crl_set),
+-        net::CreateSslSystemTrustStore());
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
+ #else
+     return net::CertVerifyProc::CreateSystemVerifyProc(
+         std::move(cert_net_fetcher), std::move(crl_set));

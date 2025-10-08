@@ -1,0 +1,37 @@
+--- content/utility/utility_main.cc
++++ content/utility/utility_main.cc
+@@ -313,7 +313,6 @@
+ #else
+       NOTREACHED();
+ #endif
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_LINUX)
+     case sandbox::mojom::Sandbox::kVideoEffects:
+ #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+@@ -323,9 +322,6 @@
+       break;
+ #endif  // BUILDFLAG(IS_LINUX)
+ #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+-=======
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
+->>>>>>> adc7a4d0035 (Revert "[POSIX] Remove dlopen and friends from Starboard" (#6622))
+     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
+ #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+       COBALT_LINKER_STUB();
+@@ -334,16 +330,11 @@
+           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
+ #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+       break;
+-<<<<<<< HEAD
+-=======
+-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
+->>>>>>> adc7a4d0035 (Revert "[POSIX] Remove dlopen and friends from Starboard" (#6622))
+     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
+       pre_sandbox_hook =
+           base::BindOnce(&media::HardwareVideoEncodingPreSandboxHook);
+       break;
+ #endif
+-#endif  // !BUILDFLAG(IS_STARBOARD)
+ #if BUILDFLAG(IS_CHROMEOS)
+     case sandbox::mojom::Sandbox::kIme:
+       pre_sandbox_hook = base::BindOnce(&ash::ime::ImePreSandboxHook);

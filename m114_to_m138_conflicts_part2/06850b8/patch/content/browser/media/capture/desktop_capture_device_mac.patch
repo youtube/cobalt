@@ -1,0 +1,62 @@
+--- content/browser/media/capture/desktop_capture_device_mac.cc
++++ content/browser/media/capture/desktop_capture_device_mac.cc
+@@ -91,29 +91,18 @@
+           &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
+     }
+ 
+-<<<<<<< HEAD
+     display_stream_.reset(
+         CGDisplayStreamCreate(display_id_, requested_format_.frame_size.width(),
+                               requested_format_.frame_size.height(),
+                               kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                               properties.get(), handler));
+-=======
+-    display_stream_.reset(CGDisplayStreamCreate(
+-        display_id_, requested_format_.frame_size.width(),
+-        requested_format_.frame_size.height(),
+-        kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, properties, handler));
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+     if (!display_stream_) {
+       client()->OnError(
+           media::VideoCaptureError::kDesktopCaptureDeviceMacFailedStreamCreate,
+           FROM_HERE, "CGDisplayStreamCreate failed");
+       return;
+     }
+-<<<<<<< HEAD
+     CGError error = CGDisplayStreamStart(display_stream_.get());
+-=======
+-    CGError error = CGDisplayStreamStart(display_stream_);
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+     if (error != kCGErrorSuccess) {
+       client()->OnError(
+           media::VideoCaptureError::kDesktopCaptureDeviceMacFailedStreamStart,
+@@ -125,29 +114,18 @@
+     // worker thread where the CFRunLoop does not get serviced.
+     // https://crbug.com/1185388
+     CFRunLoopAddSource(CFRunLoopGetMain(),
+-<<<<<<< HEAD
+                        CGDisplayStreamGetRunLoopSource(display_stream_.get()),
+-=======
+-                       CGDisplayStreamGetRunLoopSource(display_stream_),
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+                        kCFRunLoopCommonModes);
+     client()->OnStarted();
+   }
+   void OnStop() override {
+     weak_factory_.InvalidateWeakPtrs();
+     if (display_stream_) {
+-<<<<<<< HEAD
+       CFRunLoopRemoveSource(
+           CFRunLoopGetMain(),
+           CGDisplayStreamGetRunLoopSource(display_stream_.get()),
+           kCFRunLoopCommonModes);
+       CGDisplayStreamStop(display_stream_.get());
+-=======
+-      CFRunLoopRemoveSource(CFRunLoopGetMain(),
+-                            CGDisplayStreamGetRunLoopSource(display_stream_),
+-                            kCFRunLoopCommonModes);
+-      CGDisplayStreamStop(display_stream_);
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+     }
+     display_stream_.reset();
+   }

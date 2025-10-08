@@ -1,0 +1,26 @@
+--- content/utility/BUILD.gn
++++ content/utility/BUILD.gn
+@@ -146,23 +146,8 @@
+     deps += [ "//services/proxy_resolver:lib" ]
+   }
+ 
+-<<<<<<< HEAD
+   if (enable_screen_ai_service && (is_linux && !is_cobalt_hermetic_build || is_chromeos)) {
+     deps += [ "//services/screen_ai:screen_ai_sandbox_hook" ]
+-=======
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    deps += [
+-      "//content/utility/speech:speech_recognition_sandbox_hook",
+-      "//services/network:network_sandbox_hook",
+-    ]
+-    if (enable_oop_printing) {
+-      deps += [ "//printing:printing_sandbox_hook" ]
+-    }
+-  }
+-
+-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-    deps += [ "//components/services/screen_ai:screen_ai_sandbox_hook" ]
+->>>>>>> 145e859166b (Reland "[POSIX] Remove all syscalls" (#6873))
+   }
+ 
+   if (enable_accessibility_service) {

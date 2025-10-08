@@ -1,0 +1,16 @@
+# Changes to the Tracing Protocol ABI are extremely subtle because they need to
+# be forward/backward compatible with various combinations of producer and
+# service versions. Adding >1 OWNER is encouraged here.
+
+set noparent
+eseckler@google.com
+<<<<<<< HEAD
+primiano@google.com
+
+# For merges and refactorings only.
+lalitm@google.com
+=======
+hjd@google.com
+primiano@google.com
+skyostil@google.com
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))

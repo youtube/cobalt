@@ -1,0 +1,20 @@
+--- cobalt/shell/browser/shell_content_browser_client.cc
++++ cobalt/shell/browser/shell_content_browser_client.cc
+@@ -49,15 +49,11 @@
+ #include "cobalt/shell/common/shell_switches.h"
+ #include "components/custom_handlers/protocol_handler_registry.h"
+ #include "components/custom_handlers/protocol_handler_throttle.h"
+-<<<<<<< HEAD
+-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+-#include "components/embedder_support/switches.h"
+-#include "components/embedder_support/user_agent_utils.h"
+-=======
+ #if defined(RUN_BROWSER_TESTS)
+ #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"  //nogncheck
+ #endif  // defined(RUN_BROWSER_TESTS)
+->>>>>>> 75aeff7e3e4 (Gate browser test logic in non-official builds (#6851))
++#include "components/embedder_support/switches.h"
++#include "components/embedder_support/user_agent_utils.h"
+ #include "components/metrics/client_info.h"
+ #include "components/metrics/metrics_service.h"
+ #include "components/metrics/metrics_state_manager.h"

@@ -1,0 +1,16 @@
+# See go/perfetto-ui-autopush for docs on how this works end-to-end.
+# Reuse the same Docker container of the UI autopusher.
+<<<<<<< HEAD
+# If this file is modified, the inline YAML must be copy-pasted into the
+# trigger configs inline YAML in Google Cloud Console > Cloud Build for the
+# "perfetto-site" project (zone: global)
+steps:
+- name: europe-docker.pkg.dev/perfetto-ui/builder/perfetto-ui-builder
+=======
+steps:
+- name: gcr.io/perfetto-ui/perfetto-ui-builder
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+  args:
+  - 'infra/perfetto.dev/cloud_build_entrypoint.sh'
+# Timeout: 15 min (last measured time in Feb 2021: 2 min)
+timeout: 900s

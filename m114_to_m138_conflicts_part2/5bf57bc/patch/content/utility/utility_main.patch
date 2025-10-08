@@ -1,0 +1,31 @@
+--- content/utility/utility_main.cc
++++ content/utility/utility_main.cc
+@@ -314,7 +314,6 @@
+ #else
+       NOTREACHED();
+ #endif
+-<<<<<<< HEAD
+ #if BUILDFLAG(IS_LINUX)
+     case sandbox::mojom::Sandbox::kVideoEffects:
+ #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+@@ -323,19 +322,12 @@
+ #endif
+       break;
+ #endif  // BUILDFLAG(IS_LINUX)
++#endif  // !BUILDFLAG(IS_STARBOARD)
+ #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+-=======
+-#endif // !BUILDFLAG(IS_STARBOARD)
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS_ASH)
+->>>>>>> fbc3d3fdb4d ([POSIX] Reland Remove dlopen and friends from Starboard (#6637))
+     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
+       pre_sandbox_hook =
+           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
+       break;
+-<<<<<<< HEAD
+-=======
+-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS_ASH)
+->>>>>>> fbc3d3fdb4d ([POSIX] Reland Remove dlopen and friends from Starboard (#6637))
+     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
+       pre_sandbox_hook =
+           base::BindOnce(&media::HardwareVideoEncodingPreSandboxHook);

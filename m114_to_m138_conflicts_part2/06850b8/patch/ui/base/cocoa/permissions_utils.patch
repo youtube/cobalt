@@ -1,0 +1,39 @@
+--- ui/base/cocoa/permissions_utils.mm
++++ ui/base/cocoa/permissions_utils.mm
+@@ -14,10 +14,6 @@
+ #include "base/feature_list.h"
+ #include "base/logging.h"
+ #include "base/mac/mac_util.h"
+-<<<<<<< HEAD
+-=======
+-#include "base/mac/scoped_cftyperef.h"
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+ #include "base/task/thread_pool.h"
+ 
+ namespace ui {
+@@ -116,25 +112,6 @@
+ 
+ bool TryPromptUserForScreenCapture() {
+     return CGRequestScreenCaptureAccess();
+-<<<<<<< HEAD
+-=======
+-  } else if (@available(macOS 10.15, *)) {
+-    // On 10.15+, macOS will show the permissions prompt for Screen Recording
+-    // if we request to create a display stream and our application is not
+-    // in the applications list in System permissions. Stream creation will
+-    // fail if the user denies permission, or if our application is already
+-    // in the system permssion and is unchecked.
+-    base::ScopedCFTypeRef<CGDisplayStreamRef> stream(CGDisplayStreamCreate(
+-        CGMainDisplayID(), 1, 1, 'BGRA', nullptr,
+-        ^(CGDisplayStreamFrameStatus status, uint64_t displayTime,
+-          IOSurfaceRef frameSurface, CGDisplayStreamUpdateRef updateRef){
+-        }));
+-    return stream != nullptr;
+-  } else {
+-    // Screen capture is always allowed in older macOS versions.
+-    return true;
+-  }
+->>>>>>> 82b21211021 ([macOS][Backport] Cherrypick upstream removals of CG_AVAILABLE_BUT_DEPRECATED (#7223))
+ }
+ 
+ void WarmScreenCapture() {

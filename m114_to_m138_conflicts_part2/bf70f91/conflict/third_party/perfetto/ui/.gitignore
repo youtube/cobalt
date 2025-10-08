@@ -1,0 +1,7 @@
+/node_modules/
+/out
+/src/gen
+<<<<<<< HEAD
+/playwright/.cache/
+=======
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))

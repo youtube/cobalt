@@ -1,0 +1,5 @@
+<<<<<<< HEAD
+workspace(name = "org_pytorch_cpuinfo")
+=======
+workspace(name = "org_pytorch_cpuinfo")
+>>>>>>> e3036ca5e16 (Import cpuinfo from commit beb46ca031988 (#6635))

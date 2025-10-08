@@ -1,0 +1,25 @@
+--- media/starboard/sbplayer_bridge.cc
++++ media/starboard/sbplayer_bridge.cc
+@@ -1194,20 +1194,10 @@
+   }
+ 
+   DecodingBuffer& decoding_buffer = iter->second;
+-<<<<<<< HEAD
+-  {
+-    base::AutoLock auto_lock(lock_);
+-    if (decoding_buffer.type == kSbMediaTypeAudio) {
+-      cached_audio_bytes_decoded_ += decoding_buffer.buffer->size();
+-    } else {
+-      cached_video_bytes_decoded_ += decoding_buffer.buffer->size();
+-    }
+-=======
+   if (decoding_buffer.type == kSbMediaTypeAudio) {
+-    cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
++    cached_audio_bytes_decoded_ += decoding_buffer.buffer->size();
+   } else {
+-    cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
+->>>>>>> 6a4d0ca1d0b (refactor: Remove lock from SbPlayerBridge (#6662))
++    cached_video_bytes_decoded_ += decoding_buffer.buffer->size();
+   }
+   --decoding_buffer.usage_count;
+   DCHECK_GE(decoding_buffer.usage_count, 0);

@@ -1,0 +1,56 @@
+is_cobalt = true
+
+# Build flag declared originally in build/config/features.gni
+# This flag is overridden to enable common video codecs playbacks.
+proprietary_codecs = true
+
+# This flag is needed by both platforms - android and linux.
+# For android: android_webview/docs/aosp-system-integration.md
+# For linux: docs/linux/hw_video_decode.md
+ffmpeg_branding = "Chrome"
+
+# TODO(b/378934120): Remove flags below this line
+
+# These flags come from build/config/clang/clang.gni
+# Removing these flags causes a lot of compiler errors in starboard code.
+clang_use_chrome_plugins = false
+enable_check_raw_ptr_fields = false
+
+# Enable e/ac3 support for Cobalt.
+enable_platform_ac3_eac3_audio = true
+
+# We use Angle+EGL based graphics pipeline, not Dawn path
+# see //ui/gl/features.gni
+use_dawn = false
+skia_use_dawn = false
+
+# Use MojoRenderer for StarboardRenderer.
+# Use MojoCdm for StarboardCdm.
+mojo_media_host = "gpu"
+mojo_media_services = [
+  "renderer",
+  "cdm",
+]
+
+# WebXR and implementations are not needed, remove.
+enable_arcore = false
+enable_cardboard = false
+enable_openxr = false
+enable_vr = false
+
+# Disable screen/window/tab capture (Note: live capture, not screenshots).
+enable_screen_capture = false
+
+# Disable concurrent-marking due to b/415843979.
+v8_enable_concurrent_marking = false
+
+# This flag is also needed to disable concurrent marking.
+v8_enable_atomic_object_field_writes = false
+
+<<<<<<< HEAD
+# Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
+enable_hls_demuxer=false
+=======
+# This will force V8 to embed snapshot blob in binary.
+v8_use_external_startup_data = false
+>>>>>>> f3b6f212eb1 (Use embedded v8 snapshot for linux (#6426))

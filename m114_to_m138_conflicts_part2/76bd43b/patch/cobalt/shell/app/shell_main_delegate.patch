@@ -1,0 +1,22 @@
+--- cobalt/shell/app/shell_main_delegate.cc
++++ cobalt/shell/app/shell_main_delegate.cc
+@@ -143,16 +143,12 @@
+ #else
+       base::PathService::Get(base::DIR_EXE, &log_filename);
+ #endif
+-<<<<<<< HEAD
+-      log_filename = log_filename.AppendASCII("content_shell.log");
+-    }
+-=======
+ #if BUILDFLAG(IS_ANDROID)
+-    log_filename = log_filename.AppendASCII("cobalt_shell.log");
++      log_filename = log_filename.AppendASCII("cobalt_shell.log");
+ #else
+-    log_filename = log_filename.AppendASCII("content_shell.log");
++      log_filename = log_filename.AppendASCII("content_shell.log");
+ #endif
+->>>>>>> 2f00917edac (Refactor the Android build system to have cobalt/android/BUILD.gn depend on cobalt/shell/android/BUILD.gn (#6504))
++    }
+   }
+ 
+   logging::LoggingSettings settings;

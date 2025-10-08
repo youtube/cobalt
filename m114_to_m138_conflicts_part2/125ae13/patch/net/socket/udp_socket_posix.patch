@@ -1,0 +1,14 @@
+--- net/socket/udp_socket_posix.cc
++++ net/socket/udp_socket_posix.cc
+@@ -34,11 +34,7 @@
+ #include "base/rand_util.h"
+ #include "base/task/current_thread.h"
+ #include "base/task/thread_pool.h"
+-<<<<<<< HEAD
+-=======
+ #include "base/time/time.h"
+-#include "build/chromeos_buildflags.h"
+->>>>>>> 737b6e9f908 (net/socket: Limit excessive error logging from recvmmsg (#6816))
+ #include "net/base/cronet_buildflags.h"
+ #include "net/base/io_buffer.h"
+ #include "net/base/ip_address.h"

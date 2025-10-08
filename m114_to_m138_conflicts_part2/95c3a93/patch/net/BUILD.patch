@@ -1,0 +1,25 @@
+--- net/BUILD.gn
++++ net/BUILD.gn
+@@ -1774,22 +1774,15 @@
+     configs += [ "//build/config/compiler:optimize_max" ]
+   }
+ 
+-<<<<<<< HEAD
+   if (!is_cronet_build) {
+     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
+   }
+ 
+-  # We use `is_cobalt` here because non-starboard configs builds Chromedriver
+-  # which needs to use the Chrome Root Store only.
+-  if (is_cobalt && is_linux &&
+-      (!chrome_root_store_optional || chrome_root_store_only)) {
+-=======
+   if (is_cobalt && is_linux && !use_nss_certs) {
+     sources += [ "cert/test_root_certs_builtin.cc" ]
+   }
+   if (is_starboard) {
+     assert(!chrome_root_store_supported)
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
+     sources += [
+       "cert/internal/trust_store_in_memory_starboard.cc",
+       "cert/internal/trust_store_in_memory_starboard.h",

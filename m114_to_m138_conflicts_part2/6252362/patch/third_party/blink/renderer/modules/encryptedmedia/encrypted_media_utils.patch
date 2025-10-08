@@ -1,0 +1,62 @@
+--- third_party/blink/renderer/modules/encryptedmedia/encrypted_media_utils.cc
++++ third_party/blink/renderer/modules/encryptedmedia/encrypted_media_utils.cc
+@@ -139,7 +139,6 @@
+ }
+ 
+ // static
+-<<<<<<< HEAD
+ WebEncryptedMediaClient*
+ EncryptedMediaUtils::GetEncryptedMediaClientFromLocalDOMWindow(
+     LocalDOMWindow* window) {
+@@ -156,51 +155,6 @@
+                                       bool is_persistent_session) {
+   if (!execution_context) {
+     return;
+-=======
+-const char* EncryptedMediaUtils::GetInterfaceName(EmeApiType type) {
+-  switch (type) {
+-    case EmeApiType::kCreateMediaKeys:
+-      return "MediaKeySystemAccess";
+-    case EmeApiType::kSetServerCertificate:
+-    case EmeApiType::kGetStatusForPolicy:
+-      return "MediaKeys";
+-    case EmeApiType::kGenerateRequest:
+-    case EmeApiType::kLoad:
+-    case EmeApiType::kUpdate:
+-    case EmeApiType::kClose:
+-    case EmeApiType::kRemove:
+-      return "MediaKeySession";
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-    case EmeApiType::kGetMetrics:
+-      return "GetMetrics";
+-#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
+-  }
+-}
+-
+-// static
+-const char* EncryptedMediaUtils::GetPropertyName(EmeApiType type) {
+-  switch (type) {
+-    case EmeApiType::kCreateMediaKeys:
+-      return "createMediaKeys";
+-    case EmeApiType::kSetServerCertificate:
+-      return "setServerCertificate";
+-    case EmeApiType::kGetStatusForPolicy:
+-      return "getStatusForPolicy";
+-    case EmeApiType::kGenerateRequest:
+-      return "generateRequest";
+-    case EmeApiType::kLoad:
+-      return "load";
+-    case EmeApiType::kUpdate:
+-      return "update";
+-    case EmeApiType::kClose:
+-      return "close";
+-    case EmeApiType::kRemove:
+-      return "remove";
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+-    case EmeApiType::kGetMetrics:
+-      return "getMetrics";
+-#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 7f7e8d81f8b ([media] Implement custom Starboard MediaKeys GetMetrics over Mojo (#6344))
+   }
+ 
+   ukm::builders::Media_EME_Usage builder(execution_context->UkmSourceID());

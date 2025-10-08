@@ -1,0 +1,20 @@
+--- ui/gfx/font_util.cc
++++ ui/gfx/font_util.cc
+@@ -24,16 +24,9 @@
+   // background (resources have not yet been granted to cast) since it prevents
+   // the long delay the user would have seen on first rendering.
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
++#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+   // Early initialize FontConfig.
+   InitializeGlobalFontConfigAsync();
+-=======
+-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+-  // Ensures the config is created on this thread.
+-  FcConfig* config = GetGlobalFontConfig();
+-  DCHECK(config);
+->>>>>>> 632b3464a30 (Feature/fonts (#7049))
+ #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+ 
+ #if BUILDFLAG(IS_WIN)

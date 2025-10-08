@@ -1,0 +1,27 @@
+--- net/cert/cert_verifier.cc
++++ net/cert/cert_verifier.cc
+@@ -46,23 +46,16 @@
+ #if BUILDFLAG(CHROME_ROOT_STORE_ONLY)
+     return CertVerifyProc::CreateBuiltinWithChromeRootStore(
+         std::move(cert_net_fetcher), impl_params.crl_set,
+-<<<<<<< HEAD
+         std::make_unique<net::DoNothingCTVerifier>(),
+         base::MakeRefCounted<DefaultCTPolicyEnforcer>(),
+         base::OptionalToPtr(impl_params.root_store_data), instance_params,
+         impl_params.time_tracker);
+-#elif BUILDFLAG(IS_FUCHSIA)
++#elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+     return CertVerifyProc::CreateBuiltinVerifyProc(
+         std::move(cert_net_fetcher), impl_params.crl_set,
+         std::make_unique<net::DoNothingCTVerifier>(),
+         base::MakeRefCounted<DefaultCTPolicyEnforcer>(), instance_params,
+         impl_params.time_tracker);
+-=======
+-        base::OptionalToPtr(impl_params.root_store_data));
+-#elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+-    return CertVerifyProc::CreateBuiltinVerifyProc(std::move(cert_net_fetcher),
+-                                                   impl_params.crl_set);
+->>>>>>> 92d70f9b32c (Use bundled SSL certs for Starboard (#7170))
+ #else
+     return CertVerifyProc::CreateSystemVerifyProc(std::move(cert_net_fetcher),
+                                                   impl_params.crl_set);

@@ -1,0 +1,7 @@
+<<<<<<< HEAD
+Flask==2.2.5
+Jinja2==3.0.3
+=======
+Flask==1.1.2
+>>>>>>> 4d68c88dac4 (Import perfetto from commit f2da6df2f144e (#6583))
+requests

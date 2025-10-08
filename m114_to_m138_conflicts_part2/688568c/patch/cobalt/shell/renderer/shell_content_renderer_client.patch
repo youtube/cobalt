@@ -1,0 +1,14 @@
+--- cobalt/shell/renderer/shell_content_renderer_client.cc
++++ cobalt/shell/renderer/shell_content_renderer_client.cc
+@@ -24,11 +24,7 @@
+ #include "base/strings/string_number_conversions.h"
+ #include "base/task/sequenced_task_runner.h"
+ #include "base/task/single_thread_task_runner.h"
+-<<<<<<< HEAD
+ #include "base/types/pass_key.h"
+-#include "cobalt/shell/common/main_frame_counter_test_impl.h"
+-=======
+->>>>>>> ce748a3700b (Separate switches for test and gate renderer test logics in non-official builds (#6881))
+ #include "cobalt/shell/common/shell_switches.h"
+ #include "components/cdm/renderer/external_clear_key_key_system_info.h"
+ #include "components/network_hints/renderer/web_prescient_networking_impl.h"

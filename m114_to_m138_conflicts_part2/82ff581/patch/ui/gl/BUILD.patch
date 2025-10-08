@@ -1,0 +1,54 @@
+--- ui/gl/BUILD.gn
++++ ui/gl/BUILD.gn
+@@ -194,42 +194,6 @@
+       "gl_angle_util_vulkan.cc",
+       "gl_angle_util_vulkan.h",
+     ]
+-<<<<<<< HEAD
+-=======
+-
+-    if (enable_vulkan) {
+-      sources += [
+-        "gl_angle_util_vulkan.cc",
+-        "gl_angle_util_vulkan.h",
+-      ]
+-    }
+-
+-    if (is_android) {
+-      sources += [
+-        "android/egl_fence_utils.cc",
+-        "android/egl_fence_utils.h",
+-        "gl_surface_egl_surface_control.cc",
+-        "gl_surface_egl_surface_control.h",
+-      ]
+-    }
+-
+-    if (is_posix && !is_fuchsia && !is_mac && !is_ios && !is_starboard) {
+-      # Windows has USE_EGL but doesn't support base::FileDescriptor.
+-      # libsync isn't supported or needed on MacOSX.
+-      # Fuchsia is excluded due to a libsync dependency and because it's
+-      # unknown if the required EGL_ANDROID_native_fence_sync extension works
+-      # there. If it does and there's a use case, this could be revisited.
+-      sources += [
+-        "gl_fence_android_native_fence_sync.cc",
+-        "gl_fence_android_native_fence_sync.h",
+-      ]
+-
+-      deps += [
+-        "//components/crash/core/common",
+-        "//third_party/libsync",
+-      ]
+-    }
+->>>>>>> fc296807c1f ([POSIX] Remove references to ioctl (#6641))
+   }
+ 
+   if (use_ozone) {
+@@ -419,7 +383,7 @@
+     ]
+   }
+ 
+-  if (is_android || is_chromeos || is_linux) {
++  if (is_android || is_chromeos || is_linux && !is_starboard) {
+     # Windows doesn't support base::FileDescriptor.
+     # libsync isn't supported or needed on MacOSX.
+     # Fuchsia is excluded due to a libsync dependency and because it's

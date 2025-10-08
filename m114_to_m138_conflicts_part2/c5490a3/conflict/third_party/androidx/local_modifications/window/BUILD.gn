@@ -1,0 +1,48 @@
+<<<<<<< HEAD
+# Copyright 2024 The Chromium Authors
+=======
+# Copyright 2023 The Chromium Authors
+>>>>>>> e6037d01020 (Add ExoPlayer media3 libraries to //third_party/androidx (#7074))
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/android/rules.gni")
+
+# Target contains no-op implementations of androidx.window symbols needed by internal chrome.
+# See b/301417565 and https://crbug.com/1415351
+android_library("androidx_window_shims_java") {
+  visibility = [
+    ":*",
+    "//third_party/androidx:*",
+  ]
+  sources = [
+    "java/androidx/window/java/layout/WindowInfoTrackerCallbackAdapter.java",
+<<<<<<< HEAD
+=======
+    "java/androidx/window/layout/DisplayFeature.java",
+    "java/androidx/window/layout/FoldingFeature.java",
+    "java/androidx/window/layout/WindowInfoTracker.java",
+    "java/androidx/window/layout/WindowLayoutInfo.java",
+>>>>>>> e6037d01020 (Add ExoPlayer media3 libraries to //third_party/androidx (#7074))
+  ]
+  deps = [
+    "//third_party/androidx:androidx_annotation_annotation_jvm_java",
+    "//third_party/androidx:androidx_core_core_java",
+<<<<<<< HEAD
+    "//third_party/androidx:androidx_window_window_java",
+  ]
+}
+
+# Helpers to use in place of androidx.window APIs.
+# See //third_party/android_sdk/window_extensions/README.md
+android_library("window_util_java") {
+  sources = [
+    "java/org/chromium/window/WindowApiCheck.java",
+    "java/org/chromium/window/WindowUtil.java",
+  ]
+  deps = [ "//third_party/android_sdk:android_window_extensions_java" ]
+}
+=======
+  ]
+}
+>>>>>>> e6037d01020 (Add ExoPlayer media3 libraries to //third_party/androidx (#7074))

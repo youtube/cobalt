@@ -1,0 +1,22 @@
+--- cobalt/shell/app/shell_main_delegate.cc
++++ cobalt/shell/app/shell_main_delegate.cc
+@@ -39,16 +39,12 @@
+ #include "cobalt/shell/common/shell_switches.h"
+ #include "cobalt/shell/gpu/shell_content_gpu_client.h"
+ #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+-<<<<<<< HEAD
+-#include "cobalt/shell/utility/shell_content_utility_client.h"
+-#if !BUILDFLAG(IS_ANDROIDTV)
+-#include "components/crash/core/common/crash_key.h"
+-#endif
+-=======
+ #if defined(RUN_BROWSER_TESTS)
+ #include "cobalt/shell/utility/shell_content_utility_client.h"  // nogncheck
+ #endif  // defined(RUN_BROWSER_TESTS)
+->>>>>>> 5016ff36bf0 (Create browsertest source set to separate test logic from Cobalt shell (#6803))
++#if !BUILDFLAG(IS_ANDROIDTV)
++#include "components/crash/core/common/crash_key.h"
++#endif
+ #include "components/memory_system/initializer.h"
+ #include "components/memory_system/parameters.h"
+ #include "content/common/content_constants_internal.h"
