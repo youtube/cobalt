@@ -34,6 +34,7 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.DisplayUtil;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -191,7 +192,8 @@ public final class VideoFrameReleaseTimeHelper {
     // Do nothing.
   }
 
-  private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
+  @VisibleForTesting
+  boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
     long elapsedFrameTimeNs = frameTimeNs - mSyncFramePresentationTimeNs;
     long elapsedReleaseTimeNs = releaseTimeNs - mSyncUnadjustedReleaseTimeNs;
     return Math.abs(
@@ -199,19 +201,21 @@ public final class VideoFrameReleaseTimeHelper {
         > MAX_ALLOWED_DRIFT_NS;
   }
 
-  private long adjustFrameTimeForPlaybackRate(long frameTimeNs, double playbackRate) {
+  @VisibleForTesting
+  long adjustFrameTimeForPlaybackRate(long frameTimeNs, double playbackRate) {
     if (playbackRate == 1.0 || playbackRate == 0.0) {
       return frameTimeNs;
     }
     // YT playback rate can be set to multiples of 0.25, ranging from 0.25 to 2.0 (e.g., 0.25, 0.5,
     // 0.75, 1.0, 1.25, 1.5, 1.75, and 2.0). To prevent issues with floating-point conversions, the
     // playback rate is converted to a long integer by multiplying it by 4.
-    final long PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER = 4;
+    final long playbackRateAdjustmentMultiplier = 4;
     long adjustedPlaybackRate = Math.round(playbackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER);
     return frameTimeNs / adjustedPlaybackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER;
   }
 
-  private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
+  @VisibleForTesting
+  static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
     long vsyncCount = (releaseTime - sampledVsyncTime) / vsyncDuration;
     long snappedTimeNs = sampledVsyncTime + (vsyncDuration * vsyncCount);
     long snappedBeforeNs;
@@ -233,7 +237,7 @@ public final class VideoFrameReleaseTimeHelper {
    * shared by all {@link VideoFrameReleaseTimeHelper} instances. This is done to avoid a resource
    * leak in the platform on API levels prior to 23.
    */
-  private static final class VSyncSampler implements FrameCallback, Handler.Callback {
+  static final class VSyncSampler implements FrameCallback, Handler.Callback {
 
     public volatile long sampledVsyncTimeNs;
 

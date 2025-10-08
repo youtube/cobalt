@@ -259,3 +259,20 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//third_party/junit",
   ]
 }
+
+robolectric_binary("cobalt_media_junit_tests") {
+  sources = [ "apk/app/src/test/java/dev/cobalt/media/VideoFrameReleaseTimeHelperTest.java" ]
+  deps = [
+    ":cobalt_apk_java",
+    ":cobalt_main_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//cobalt/shell/android:cobalt_shell_java",
+    "//components/embedder_support/android:view_java",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/google-truth:google_truth_java",
+    "//third_party/junit",
+  ]
+}
