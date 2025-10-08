@@ -133,6 +133,13 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+
+// By default, Cobalt calculates the maximum video size for videos using
+// calculations as old as 2018. Set the following variable to true to force use
+// calculations from the latest exoplayer code found in cl/467641494.
+STARBOARD_FEATURE(kExperimentalVideoSizeCalculation,
+                  "ExperimentalVideoSizeCalculation",
+                  false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
