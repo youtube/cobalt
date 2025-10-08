@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
-#include "base/android/jni_int_wrapper.h"
 #include "base/memory/raw_ref.h"
 #include "starboard/drm.h"
 
@@ -77,19 +76,22 @@ class MediaDrmBridge {
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
   void CreateSession(int ticket,
-                     std::string_view init_data,
-                     std::string_view mime) const;
-
+                     const std::vector<uint8_t>& init_data,
+                     const std::string& mime) const;
   OperationResult CreateSessionWithAppProvisioning(int ticket,
                                                    std::string_view init_data,
                                                    std::string_view mime) const;
   void GenerateProvisionRequest() const;
   OperationResult ProvideProvisionResponse(std::string_view response) const;
 
-  OperationResult UpdateSession(int ticket,
-                                std::string_view key,
-                                std::string_view session_id) const;
-  void CloseSession(std::string_view session_id) const;
+  // Updates the session. Returns true on success.
+  bool UpdateSession(int ticket,
+                     const void* key,
+                     int key_size,
+                     const void* session_id,
+                     int session_id_size,
+                     std::string* error_msg) const;
+  void CloseSession(const std::string& session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 

@@ -459,7 +459,7 @@ void MojoDecoderBufferWriter::ProcessPendingWrites() {
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = producer_handle_->WriteData(
         bytes_to_write, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);

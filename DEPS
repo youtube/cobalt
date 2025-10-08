@@ -3238,6 +3238,17 @@ deps = {
       'dep_type': 'cipd',
   },
 
+   'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_ads_identifier': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_ads_identifier',
+              'version': 'version:2@18.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
   'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_auth': {
       'packages': [
           {
@@ -5721,15 +5732,15 @@ hooks = [
                ],
   },
   # Configure Siso for developer builds.
-  {
-    'name': 'configure_siso',
-    'pattern': '.',
-    'action': ['python3',
-               'src/build/config/siso/configure_siso.py',
-               '--rbe_instance',
-               Var('rbe_instance'),
-               ],
-  },
+  # {
+  #   'name': 'configure_siso',
+  #   'pattern': '.',
+  #   'action': ['python3',
+  #              'src/build/config/siso/configure_siso.py',
+  #              '--rbe_instance',
+  #              Var('rbe_instance'),
+  #              ],
+  # },
   {
     'name': 'libaom_testdata',
     'pattern': '.',

@@ -76,7 +76,10 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  srcjar_deps = [ "//starboard/android/shared:java_enums", ":jni_headers" ]
+  srcjar_deps = [
+    ":jni_headers",
+    "//starboard/android/shared:java_enums",
+  ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
@@ -167,10 +170,11 @@ android_assets("coat_assets") {
 
 # Copied from target: libcontent_shell_content_view
 # TODO(b/376867565) rename this library, NO shell
-shared_library("libchrobalt") {
+shared_library_with_jni("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    ":content_shell_jni_headers",
     "//cobalt/browser",
     "//cobalt/gpu",
     "//cobalt/renderer",
@@ -207,6 +211,7 @@ shared_library("libchrobalt") {
   if (is_official_build) {
     configs += [ "//build/config/compiler:strip_debug" ]
   }
+  java_targets = [ ":cobalt_apk" ]
 }
 
 android_apk("cobalt_apk") {
@@ -227,6 +232,7 @@ android_apk("cobalt_apk") {
     "//ui/android:ui_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
+  srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
 }
 

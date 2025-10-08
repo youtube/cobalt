@@ -31,7 +31,7 @@ namespace starboard {
 namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -372,9 +372,11 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
         drm_sample_info.subsample_mapping[i].encrypted_byte_count;
   }
   ScopedJavaLocalRef<jintArray> j_clear_bytes =
-      ToJavaIntArray(env, clear_bytes.get(), subsample_count);
+      ToJavaIntArray(env, base::span<const jint>(clear_bytes.get(),
+                                                  static_cast<size_t>(subsample_count)));
   ScopedJavaLocalRef<jintArray> j_encrypted_bytes =
-      ToJavaIntArray(env, encrypted_bytes.get(), subsample_count);
+      ToJavaIntArray(env, base::span<const jint>(encrypted_bytes.get(),
+                                                    static_cast<size_t>(subsample_count)));
 
   jint cipher_mode = CRYPTO_MODE_AES_CTR;
   jint blocks_to_encrypt = 0;

@@ -597,15 +597,6 @@ void Shell::ActivateContents(WebContents* contents) {
   contents->Focus();
 }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-std::unique_ptr<ColorChooser> Shell::OpenColorChooser(
-    WebContents* web_contents,
-    SkColor color,
-    const std::vector<blink::mojom::ColorSuggestionPtr>& suggestions) {
-  return g_platform->OpenColorChooser(web_contents, color, suggestions);
-}
-#endif
-
 void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
                            scoped_refptr<FileSelectListener> listener,
                            const blink::mojom::FileChooserParams& params) {
