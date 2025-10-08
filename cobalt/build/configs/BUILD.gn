@@ -147,4 +147,10 @@ config("buildflag_defines") {
   if (is_native_target_build) {
     defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
   }
+
+  # Use build_base_with_cpp17 and BUILDFLAG(BUILD_BASE_WITH_CPP17) to guard
+  # customizations to //base in order to build the library using C++17.
+  if (build_base_with_cpp17) {
+    defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
+  }
 }

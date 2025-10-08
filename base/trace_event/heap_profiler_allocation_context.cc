@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "base/hash/hash.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace trace_event {
@@ -25,6 +26,10 @@ bool operator != (const StackFrame& lhs, const StackFrame& rhs) {
 }
 
 Backtrace::Backtrace() = default;
+
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+Backtrace::Backtrace(const Backtrace& other) = default;
+#endif
 
 bool operator==(const Backtrace& lhs, const Backtrace& rhs) {
   if (lhs.frame_count != rhs.frame_count) return false;
