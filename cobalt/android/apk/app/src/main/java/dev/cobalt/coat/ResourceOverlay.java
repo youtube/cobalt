@@ -24,11 +24,11 @@ import org.chromium.base.annotations.CalledByNative;
 public class ResourceOverlay {
   // To facilitate maintenance, these member names should match what is in the
   // resource XML file.
-  public final boolean supports_spherical_videos;
+  private final boolean supports_spherical_videos;
 
-  public final int max_video_buffer_budget;
+  private final int max_video_buffer_budget;
 
-  public final int min_audio_sink_buffer_size_in_frames;
+  private final int min_audio_sink_buffer_size_in_frames;
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
