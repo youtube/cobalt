@@ -275,6 +275,7 @@ void MojoDecoderBufferReader::ProcessPendingReads() {
     size_t actually_read_bytes = 0;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = MOJO_RESULT_OK;
+    actually_read_bytes = buffer_size;
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = consumer_handle_->ReadData(
         MOJO_WRITE_DATA_FLAG_NONE,
@@ -454,6 +455,7 @@ void MojoDecoderBufferWriter::ProcessPendingWrites() {
     size_t actually_written_bytes = 0;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = MOJO_RESULT_OK;
+    actually_written_bytes = bytes_to_write.size();
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = producer_handle_->WriteData(
         bytes_to_write, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
