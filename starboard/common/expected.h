@@ -36,6 +36,33 @@ class Unexpected {
   E error_;
 };
 
+// A lightweight class modeled after C++23's std::expected. It offers a
+// robust and expressive way to handle function return values that can hold
+// either a success value of type T or an error of type E.
+//
+// It is a vocabulary type for functions that can fail, providing a clear and
+// explicit way to handle errors instead of using exceptions or out-of-band
+// error codes (e.g., returning a null pointer or a magic number).
+//
+// Example Usage:
+//   Expected<int, std::string> ParseInt(const std::string& s) {
+//     try {
+//       return std::stoi(s);
+//     } catch (const std::exception& e) {
+//       // Use the Unexpected helper to construct an error state.
+//       return Unexpected(std::string(e.what()));
+//     }
+//   }
+//
+//   auto result = ParseInt("123");
+//   if (result) {  // or result.has_value()
+//     UseValue(*result); // or result.value()
+//   } else {
+//     HandleError(result.error());
+//   }
+//
+// NOTE: This implementation can be replaced with c++ 23's `std::expected` or
+// Chromium's `base::expected` once either becomes available in this codebase.
 template <typename T, typename E>
 class Expected {
  public:

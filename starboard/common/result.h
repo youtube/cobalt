@@ -38,7 +38,7 @@ using Result = Expected<T, std::string>;
 // A version of Result for pointer types that guarantees the success value is
 // never null.
 template <typename T>
-class NonNullResult : public Result<T> {
+class NonNullResult {
  public:
   static_assert(std::is_pointer<T>::value || is_unique_ptr<T>::value,
                 "T must be a raw pointer or std::unique_ptr.");
@@ -51,34 +51,47 @@ class NonNullResult : public Result<T> {
           std::is_convertible<U, T>::value &&
           !std::is_same<std::decay_t<U>, Unexpected<std::string>>::value &&
           !std::is_same<std::decay_t<U>, NonNullResult<T>>::value>>
-  NonNullResult(U&& value) : Result<T>(std::forward<U>(value)) {
+  NonNullResult(U&& value) : result_(std::forward<U>(value)) {
     SB_CHECK(this->value() != nullptr) << "NonNullResult value cannot be null.";
   }
 
   // Constructor for failure value.
+  NonNullResult(Unexpected<std::string> error) : result_(std::move(error)) {}
 
-  NonNullResult(Unexpected<std::string> error)
+  // Forwarded methods
+  bool has_value() const { return result_.has_value(); }
+  explicit operator bool() const { return has_value(); }
 
-      : Result<T>(std::move(error)) {}
+  T& value() & { return result_.value(); }
+  const T& value() const& { return result_.value(); }
+  T&& value() && { return std::move(result_).value(); }
 
+  std::string& error() & { return result_.error(); }
+  const std::string& error() const& { return result_.error(); }
+  std::string&& error() && { return std::move(result_).error(); }
+
+  // Custom operators
   auto operator->() {
     if constexpr (std::is_pointer_v<T>) {
-      return this->value();
+      return value();
     } else {  // is_unique_ptr
-      return this->value().get();
+      return value().get();
     }
   }
 
   auto operator->() const {
     if constexpr (std::is_pointer_v<T>) {
-      return this->value();
+      return value();
     } else {  // is_unique_ptr
-      return this->value().get();
+      return value().get();
     }
   }
 
-  auto& operator*() & { return *this->value(); }
-  const auto& operator*() const& { return *this->value(); }
+  auto& operator*() & { return *value(); }
+  const auto& operator*() const& { return *value(); }
+
+ private:
+  Result<T> result_;
 };
 
 // Helper functions for creating success and failure Result values.
