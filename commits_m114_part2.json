@@ -1,5 +1,18 @@
 [
   {
+    "hexsha": "6e8220fb91502f5e847de70c0e8384fa5758b8f4",
+    "original_hexsha": "8005e8bdc7d5ab9d66c8a29e6f4871ba58117ca0",
+    "author": "Hao",
+    "datetime": "2025-09-29T17:03:58-04:00",
+    "summary": "Add Cobalt configuration for ICU (#7349)",
+    "stats": {
+      "files": 5,
+      "insertions": 2102,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "c87b4f8438233f2048d9a60d760387c2ee798fd8",
     "original_hexsha": "5f46d6146236665839c4e39000782167217a9d19",
     "author": "Miguel Casas",
@@ -425,19 +438,6 @@
       "files": 1,
       "insertions": 4,
       "deletions": 1
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "6e8220fb91502f5e847de70c0e8384fa5758b8f4",
-    "original_hexsha": "8005e8bdc7d5ab9d66c8a29e6f4871ba58117ca0",
-    "author": "Hao",
-    "datetime": "2025-09-29T17:03:58-04:00",
-    "summary": "Add Cobalt configuration for ICU (#7349)",
-    "stats": {
-      "files": 5,
-      "insertions": 2102,
-      "deletions": 2
     },
     "is_linear": true
   },
