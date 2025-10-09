@@ -60,6 +60,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_sched_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
@@ -409,6 +410,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_sigmask);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
+  REGISTER_WRAPPER(sched_getaffinity);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(sem_destroy);
   REGISTER_WRAPPER(sem_init);

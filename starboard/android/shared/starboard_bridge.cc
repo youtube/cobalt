@@ -225,6 +225,11 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
   return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
 }
 
+ScopedJavaLocalRef<jobject> StarboardBridge::GetCaptionSettings(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_getCaptionSettings(env, j_starboard_bridge_);
+}
+
 SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> advertising_id_java =
