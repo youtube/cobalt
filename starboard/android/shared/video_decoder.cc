@@ -406,8 +406,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   if (video_codec_ != kSbMediaVideoCodecAv1) {
     auto result = InitializeCodec(video_stream_info);
     if (!result) {
-      *error_message = "Failed to initialize video decoder with error: " +
-                       result.error_message();
+      *error_message =
+          "Failed to initialize video decoder with error: " + result.error();
       SB_LOG(ERROR) << *error_message;
       TeardownCodec();
     }
@@ -516,8 +516,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       auto result = InitializeCodec(input_buffers.front()->video_stream_info());
       if (!result) {
         std::string error_message =
-            "Failed to reinitialize codec with error: " +
-            result.error_message();
+            "Failed to reinitialize codec with error: " + result.error();
         SB_LOG(ERROR) << error_message;
         TeardownCodec();
         ReportError(kSbPlayerErrorDecode, error_message);
@@ -548,7 +547,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         InitializeCodec(pending_input_buffers_.front()->video_stream_info());
     if (!result) {
       std::string error_message =
-          "Failed to reinitialize codec with error: " + result.error_message();
+          "Failed to reinitialize codec with error: " + result.error();
       SB_LOG(ERROR) << error_message;
       TeardownCodec();
       ReportError(kSbPlayerErrorDecode, error_message);
@@ -587,7 +586,7 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
         InitializeCodec(pending_input_buffers_.front()->video_stream_info());
     if (!result) {
       std::string error_message =
-          "Failed to reinitialize codec with error: " + result.error_message();
+          "Failed to reinitialize codec with error: " + result.error();
       SB_LOG(ERROR) << error_message;
       TeardownCodec();
       ReportError(kSbPlayerErrorDecode, error_message);
@@ -645,7 +644,7 @@ void MediaCodecVideoDecoder::Reset() {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
-Expected<void> MediaCodecVideoDecoder::InitializeCodec(
+Result<void> MediaCodecVideoDecoder::InitializeCodec(
     const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
 

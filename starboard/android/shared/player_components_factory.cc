@@ -167,7 +167,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     return (value + alignment - 1) / alignment * alignment;
   }
 
-  ExpectedNonNull<std::unique_ptr<PlayerComponents>> CreateComponents(
+  NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
       const CreationParameters& creation_parameters) override {
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {

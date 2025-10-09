@@ -33,8 +33,8 @@
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/android/shared/video_window.h"
-#include "starboard/common/expected.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/result.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -102,7 +102,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
  private:
   // Attempt to initialize the codec.
-  Expected<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
+  Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);

@@ -173,8 +173,8 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      const std::string& error_message) {
   SB_DCHECK(!result);
   std::string complete_error_message = error_message;
-  if (!result.error_message().empty()) {
-    complete_error_message += " Error: " + result.error_message();
+  if (!result.error().empty()) {
+    complete_error_message += " Error: " + result.error();
   }
 
   SB_LOG(WARNING) << "Encountered player error " << error
@@ -222,7 +222,7 @@ void PlayerWorker::DoInit() {
 
   Handler::UpdatePlayerErrorCB update_player_error_cb;
   update_player_error_cb =
-      std::bind(&PlayerWorker::UpdatePlayerError, this, _1, Unexpected(""), _2);
+      std::bind(&PlayerWorker::UpdatePlayerError, this, _1, Failure(""), _2);
   HandlerResult result = handler_->Init(
       player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),

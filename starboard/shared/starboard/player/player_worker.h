@@ -24,9 +24,9 @@
 #include <string>
 #include <utility>
 
-#include "starboard/common/expected.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/result.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -63,7 +63,7 @@ class PlayerWorker {
    public:
     // Stores the success status of Handler operations. If |success| is false,
     // |error_message| may be set with details of the error.
-    using HandlerResult = Expected<void>;
+    using HandlerResult = Result<void>;
 
     typedef PlayerWorker::Bounds Bounds;
 

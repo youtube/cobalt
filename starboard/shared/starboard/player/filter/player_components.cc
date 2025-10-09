@@ -140,7 +140,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->drm_system_ = that.drm_system_;
 }
 
-ExpectedNonNull<std::unique_ptr<PlayerComponents>>
+NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||

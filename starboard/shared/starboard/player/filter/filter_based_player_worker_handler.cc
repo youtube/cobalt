@@ -131,11 +131,11 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
-    ExpectedNonNull<std::unique_ptr<PlayerComponents>> components =
+    NonNullResult<std::unique_ptr<PlayerComponents>> components =
         factory->CreateComponents(creation_parameters);
     if (!components) {
       return Failure("Failed to create player components with error: " +
-                     components.error_message());
+                     components.error());
     }
     player_components_ = std::move(components.value());
     media_time_provider_ = player_components_->GetMediaTimeProvider();
