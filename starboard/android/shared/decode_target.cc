@@ -47,13 +47,10 @@ ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,
 ScopedJavaGlobalRef<jobject> CreateSurfaceFromSurfaceTexture(
     JNIEnv* env,
     jobject surface_texture) {
-  ScopedJavaLocalRef<jclass> surface_class;
-  jmethodID surface_constructor;
-
-  surface_class =
-      ScopedJavaLocalRef<jclass>(env, env->FindClass("android/view/Surface"));
+  ScopedJavaLocalRef<jclass> surface_class(
+      env, env->FindClass("android/view/Surface"));
   SB_CHECK(surface_class);
-  surface_constructor = env->GetMethodID(
+  jmethodID surface_constructor = env->GetMethodID(
       surface_class.obj(), "<init>", "(Landroid/graphics/SurfaceTexture;)V");
   SB_CHECK(surface_constructor);
 
