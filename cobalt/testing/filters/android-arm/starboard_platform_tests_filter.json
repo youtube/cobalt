@@ -1,0 +1,10 @@
+{
+  "failing_tests": [
+    "JniEnvExtTest.EmptyNewStringStandardUTF",
+    "JniEnvExtTest.NewStringStandardUTF",
+    "MimeUtilTest.ChecksSupportedFlacContainers",
+    "MimeUtilTest.ChecksSupportedMp3Containers",
+    "MimeUtilTest.ChecksSupportedPcmContainers",
+    "SbPlayerGetPreferredOutputModeTest.SecuredDrmRequiresPunchOut"
+  ]
+}
