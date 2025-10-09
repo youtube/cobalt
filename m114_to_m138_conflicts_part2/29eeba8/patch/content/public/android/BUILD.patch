@@ -1,0 +1,88 @@
+--- content/public/android/BUILD.gn
++++ content/public/android/BUILD.gn
+@@ -154,14 +154,6 @@
+     ":content_public_android_java_switches_srcjar",
+     ":generate_sandboxed_service_srcjar",
+   ]
+-<<<<<<< HEAD
+-  if (is_cobalt) {
+-    deps -= [ "//ui/android:ui_no_recycler_view_java" ]
+-    deps += [ "//ui/android:cobalt_ui_full_java" ]
+-  }
+-=======
+-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+->>>>>>> 3bb21e0abd6 (Revert "Create lean UI library for Cobalt ATV" (#7438))
+ }
+ 
+ android_library("content_full_java") {
+@@ -446,7 +438,6 @@
+     "java/src/org/chromium/content_public/browser/selection/SelectionActionMenuDelegate.java",
+     "java/src/org/chromium/content_public/browser/selection/SelectionDropdownMenuDelegate.java",
+   ]
+-<<<<<<< HEAD
+ 
+   public_deps = [ "//ui/base/mojom:ui_base_types_java" ]
+ }
+@@ -459,62 +450,6 @@
+   sources = [
+     "java/src/org/chromium/content_public/browser/util/DialogTypeRecorder.java",
+   ]
+-  if (is_cobalt) {
+-    sources -= [
+-      "java/src/org/chromium/content/browser/ContentClassFactory.java",
+-      "java/src/org/chromium/content/browser/ContentUiEventHandler.java",
+-      "java/src/org/chromium/content/browser/GestureListenerManagerImpl.java",
+-      "java/src/org/chromium/content/browser/PopupController.java",
+-      "java/src/org/chromium/content/browser/ViewEventSinkImpl.java",
+-      "java/src/org/chromium/content/browser/input/ImeAdapterImpl.java",
+-      "java/src/org/chromium/content/browser/input/SelectPopup.java",
+-      "java/src/org/chromium/content/browser/input/SelectPopupAdapter.java",
+-      "java/src/org/chromium/content/browser/input/SelectPopupDialog.java",
+-      "java/src/org/chromium/content/browser/input/SelectPopupDropdown.java",
+-      "java/src/org/chromium/content/browser/input/SelectPopupItem.java",
+-      "java/src/org/chromium/content/browser/input/SpellCheckPopupWindow.java",
+-      "java/src/org/chromium/content/browser/input/SuggestionsPopupWindow.java",
+-      "java/src/org/chromium/content/browser/input/TextSuggestionHost.java",
+-      "java/src/org/chromium/content/browser/input/TextSuggestionsPopupWindow.java",
+-      "java/src/org/chromium/content/browser/selection/AdditionalMenuItemProvider.java",
+-      "java/src/org/chromium/content/browser/selection/AdditionalMenuItemProviderImpl.java",
+-      "java/src/org/chromium/content/browser/selection/FloatingPastePopupMenu.java",
+-      "java/src/org/chromium/content/browser/selection/LGEmailActionModeWorkaroundImpl.java",
+-      "java/src/org/chromium/content/browser/selection/MagnifierAnimator.java",
+-      "java/src/org/chromium/content/browser/selection/MagnifierWrapper.java",
+-      "java/src/org/chromium/content/browser/selection/MagnifierWrapperImpl.java",
+-      "java/src/org/chromium/content/browser/selection/PastePopupMenu.java",
+-      "java/src/org/chromium/content/browser/selection/SelectionIndicesConverter.java",
+-      "java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java",
+-      "java/src/org/chromium/content/browser/selection/SmartSelectionClient.java",
+-      "java/src/org/chromium/content/browser/selection/SmartSelectionEventProcessor.java",
+-      "java/src/org/chromium/content/browser/selection/SmartSelectionProvider.java",
+-      "java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java",
+-      "java/src/org/chromium/content_public/browser/ActionModeCallbackHelper.java",
+-      "java/src/org/chromium/content_public/browser/GestureListenerManager.java",
+-      "java/src/org/chromium/content_public/browser/LGEmailActionModeWorkaround.java",
+-      "java/src/org/chromium/content_public/browser/SelectionClient.java",
+-      "java/src/org/chromium/content_public/browser/SelectionPopupController.java",
+-    ]
+-
+-    sources += [
+-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/ContentUiEventHandler.java",
+-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/ViewEventSinkImpl.java",
+-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/input/ImeAdapterImpl.java",
+-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/webcontents/WebContentsImpl.java",
+-    ]
+-    deps -= [
+-      "//device/bluetooth:java",
+-      "//ui/android:ui_no_recycler_view_java",
+-      "//ui/android:ui_utils_java",
+-    ]
+-
+-    deps += [ "//ui/android:cobalt_ui_full_java" ]
+-  }
+-=======
+-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+-  proguard_configs = [ "proguard.flags" ]
+->>>>>>> 3bb21e0abd6 (Revert "Create lean UI library for Cobalt ATV" (#7438))
+ }
+ 
+ java_strings_grd("content_strings_grd") {
