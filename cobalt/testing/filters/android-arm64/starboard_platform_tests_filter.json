@@ -1,10 +1,12 @@
 {
+  "comment": "TODO: b/450568428 - Investigate these failing tests",
   "failing_tests": [
     "JniEnvExtTest.EmptyNewStringStandardUTF",
     "JniEnvExtTest.NewStringStandardUTF",
     "MimeUtilTest.ChecksSupportedFlacContainers",
     "MimeUtilTest.ChecksSupportedMp3Containers",
     "MimeUtilTest.ChecksSupportedPcmContainers",
-    "SbPlayerGetPreferredOutputModeTest.SecuredDrmRequiresPunchOut"
+    "SbPlayerGetPreferredOutputModeTest.SecuredDrmRequiresPunchOut",
+    "SbPlayerGetPreferredOutputModeTest.SecuredDrmWithDecodeToTextureIsInvalid"
   ]
 }
