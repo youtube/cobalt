@@ -123,7 +123,8 @@ TEST_F(GlobalFeaturesTest, RegisterPrefsRegistersExpectedPrefs) {
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfigFeatureParams));
 }
 
-TEST_F(GlobalFeaturesTest, ActiveConfigDataUnchangedAfterInitialization) {
+TEST_F(GlobalFeaturesTest,
+       InitializedActiveConfigDataUnchangedAfterChangeToStoredData) {
   ASSERT_NE(instance_, nullptr);
   auto active_config_data = instance_->active_config_data();
   EXPECT_TRUE(active_config_data.empty());
