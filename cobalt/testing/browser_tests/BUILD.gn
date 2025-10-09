@@ -407,16 +407,23 @@ test("cobalt_browsertests") {
   }
 }
 
+source_set("shell_test_switches_lib") {
+  testonly = true
+  sources = [
+    "//cobalt/shell/common/shell_test_switches.cc",
+    "//cobalt/shell/common/shell_test_switches.h",
+  ]
+  public_deps = [ "//base:base" ]
+}
+
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
-    # TODO(b/428999732): move test switches files to cobalt/testing.
-    "//cobalt/shell/common/shell_test_switches.cc",
-    "//cobalt/shell/common/shell_test_switches.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
   ]
   public_deps = [
+    ":shell_test_switches_lib",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/custom_handlers:test_support",
     "//content/test:test_support",
