@@ -1821,6 +1821,16 @@ void LayerTreeHostImpl::UpdateTileManagerMemoryPolicy(
          settings_.max_memory_for_prepaint_percentage) /
         100;
   }
+
+  LOG(ERROR) << (uint64_t)this << " miguelao policy.bytes_limit_when_visible="
+             << policy.bytes_limit_when_visible
+             << ", settings_.max_memory_for_prepaint_percentage="
+             << settings_.max_memory_for_prepaint_percentage
+             << ", global_tile_state_.hard_memory_limit_in_bytes="
+             << global_tile_state_.hard_memory_limit_in_bytes
+             << ", global_tile_state_.soft_memory_limit_in_bytes="
+             << global_tile_state_.soft_memory_limit_in_bytes;
+
   global_tile_state_.memory_limit_policy =
       ManagedMemoryPolicy::PriorityCutoffToTileMemoryLimitPolicy(
           visible_ ? policy.priority_cutoff_when_visible

@@ -76,6 +76,10 @@ public final class CommandLineOverrideHelper {
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
 
+        // Limit the total amount of memory that may be allocated for GPU
+        // resources. Left to its devices, it's usually 64MB.
+        //paramOverrides.add("--force-gpu-mem-available-mb=48");
+
         return paramOverrides;
     }
 

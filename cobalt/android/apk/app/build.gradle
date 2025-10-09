@@ -124,6 +124,19 @@ android {
         qa {
             debuggable true
             jniDebuggable true
+            minifyEnabled false
+            shrinkResources false
+            packagingOptions {
+                doNotStrip "**/*.so"
+            }
+            externalNativeBuild {
+                cmake {
+                    cppFlags '-g'
+                }
+                ndkBuild {
+                    cFlags '-g'
+                }
+            }
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
             }

@@ -52,6 +52,10 @@ LayerTreeCcWrapper::LayerTreeCcWrapper(InitParams init_params)
     : client_(init_params.client) {
   animation_host_ = cc::AnimationHost::CreateMainInstance();
 
+  LOG(ERROR) << "miguelao, are we using Slim CC for Browser UI";
+  // These |settings| are left to its defaults which means: a large,
+  // desktop-like compositor. That's bad, but if we don't use it, the caches
+  // won't fill up and there would be no memory used... right? To investigate.
   cc::LayerTreeSettings settings;
   settings.use_zero_copy = true;
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
