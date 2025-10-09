@@ -33,6 +33,7 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 
 ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,
                                                   int gl_texture_id) {
@@ -46,25 +47,18 @@ ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,
 ScopedJavaGlobalRef<jobject> CreateSurfaceFromSurfaceTexture(
     JNIEnv* env,
     jobject surface_texture) {
-  struct SurfaceJniCache {
-    ScopedJavaGlobalRef<jclass> surface_class;
-    jmethodID surface_constructor;
-  };
+  ScopedJavaLocalRef<jclass> surface_class;
+  jmethodID surface_constructor;
 
-  static SurfaceJniCache cache;
-  static std::once_flag once_flag;
-  std::call_once(once_flag, [env]() {
-    cache.surface_class = ScopedJavaGlobalRef<jclass>(
-        env, env->FindClass("android/view/Surface"));
-    SB_CHECK(cache.surface_class);
-    cache.surface_constructor =
-        env->GetMethodID(cache.surface_class.obj(), "<init>",
-                         "(Landroid/graphics/SurfaceTexture;)V");
-    SB_CHECK(cache.surface_constructor);
-  });
+  surface_class =
+      ScopedJavaLocalRef<jclass>(env, env->FindClass("android/view/Surface"));
+  SB_CHECK(surface_class);
+  surface_constructor = env->GetMethodID(
+      surface_class.obj(), "<init>", "(Landroid/graphics/SurfaceTexture;)V");
+  SB_CHECK(surface_constructor);
 
   ScopedJavaGlobalRef<jobject> surface(
-      env, env->NewObject(cache.surface_class.obj(), cache.surface_constructor,
+      env, env->NewObject(surface_class.obj(), surface_constructor,
                           surface_texture));
   SB_CHECK(surface);
 
