@@ -1,5 +1,70 @@
 [
   {
+    "hexsha": "c87b4f8438233f2048d9a60d760387c2ee798fd8",
+    "original_hexsha": "5f46d6146236665839c4e39000782167217a9d19",
+    "author": "Miguel Casas",
+    "datetime": "2025-10-08T20:21:53-07:00",
+    "summary": "common: Remove codec libraries pulled from //media (#7053)",
+    "stats": {
+      "files": 4,
+      "insertions": 23,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "849d21f4c743cd4cafa16dc32690f59f73394c94",
+    "original_hexsha": "648f2bc363f892b57bbc9950fa95623179bc0648",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-08T16:11:24-07:00",
+    "summary": "android: Remove unused trace_util.h (#7478)",
+    "stats": {
+      "files": 2,
+      "insertions": 0,
+      "deletions": 45
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7d8b7633b20ac283bf8ad4b57a0d7d0bda601a94",
+    "original_hexsha": "6117eb43740f293343305005d8706103384a6666",
+    "author": "Jason",
+    "datetime": "2025-10-08T15:21:17-07:00",
+    "summary": "android: allow overflow audio samples for tunnel mode (#6885)",
+    "stats": {
+      "files": 5,
+      "insertions": 33,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "69f574b895b0f65ad7712f3450083c0a1eb809ea",
+    "original_hexsha": "0a4186f84de4be122945d342a129a269b856b9b1",
+    "author": "Igor Sarkisov",
+    "datetime": "2025-10-08T11:39:56-07:00",
+    "summary": "Fix on-device test job conditional (#7467)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 4
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "70751c53a327c45956b7346e4f43a108db010e28",
+    "original_hexsha": "1060ea0c27b910fa3e39af286982833d16bda472",
+    "author": "John Ocampo",
+    "datetime": "2025-10-08T16:26:36+00:00",
+    "summary": "POSIX: Add sched_getaffinity to Starboard (#7439)",
+    "stats": {
+      "files": 11,
+      "insertions": 205,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "1586507f9a309b11b6ffcdb9c05064d18055031f",
     "original_hexsha": "7243a636a2ca6ce8ea15c194e86660d03b641c31",
     "author": "Kyujung Youn",
