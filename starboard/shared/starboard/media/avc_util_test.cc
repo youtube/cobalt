@@ -161,7 +161,7 @@ void VerifyAllEmpty(const std::vector<uint8_t>& nalus_in_annex_b) {
     ASSERT_FALSE(parameter_sets.has_sps_and_pps());
     ASSERT_TRUE(parameter_sets.GetAddresses().empty());
     ASSERT_TRUE(parameter_sets.GetSizesInBytes().empty());
-    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0);
+    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0U);
   }
 
   VerifyConvertTo(parameter_sets);
@@ -249,7 +249,7 @@ TEST(AvcParameterSetsTest, MultipleSpsAndPps) {
 
 TEST(AvcParameterSetsTest, SpsWithoutPps) {
   auto leading_sps_nalus = kSpsInAnnexB;
-  for (int i = 0; i < 5; ++i) {
+  for (size_t i = 0; i < 5; ++i) {
     auto nalus_in_annex_b = leading_sps_nalus + kIdrInAnnexB;
 
     AvcParameterSets parameter_sets(kAnnexB, nalus_in_annex_b.data(),
@@ -274,7 +274,7 @@ TEST(AvcParameterSetsTest, SpsWithoutPps) {
 
 TEST(AvcParameterSetsTest, PpsWithoutSps) {
   auto leading_pps_nalus = kPpsInAnnexB;
-  for (int i = 0; i < 5; ++i) {
+  for (size_t i = 0; i < 5; ++i) {
     auto nalus_in_annex_b = leading_pps_nalus + kIdrInAnnexB;
 
     AvcParameterSets parameter_sets(kAnnexB, nalus_in_annex_b.data(),
@@ -365,7 +365,7 @@ TEST(AvcParameterSetsTest, Nullptr) {
   ASSERT_FALSE(parameter_sets.has_sps_and_pps());
   ASSERT_TRUE(parameter_sets.GetAddresses().empty());
   ASSERT_TRUE(parameter_sets.GetSizesInBytes().empty());
-  ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0);
+  ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0U);
 }
 
 TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
@@ -378,7 +378,7 @@ TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
     ASSERT_FALSE(parameter_sets.has_sps_and_pps());
     ASSERT_TRUE(parameter_sets.GetAddresses().empty());
     ASSERT_TRUE(parameter_sets.GetSizesInBytes().empty());
-    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0);
+    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0U);
   }
   for (int i = 0; i < 2; ++i) {
     auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;

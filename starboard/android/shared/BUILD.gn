@@ -17,6 +17,7 @@ import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
+import("//testing/test.gni")
 
 ##########################################################
 # Configuration for overall Android Starboard Platform.
@@ -388,10 +389,11 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
-source_set("starboard_platform_tests") {
+test("starboard_platform_tests") {
   testonly = true
 
   sources = media_tests_sources + player_tests_sources + [
+              "//starboard/common/test_main.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "//starboard/shared/starboard/starboard_feature_test.cc",
