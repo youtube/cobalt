@@ -54,7 +54,10 @@ class NonNullResult : public Result<T> {
   }
 
   // Constructor for failure value.
-  NonNullResult(Unexpected<std::string> error) : Result<T>(std::move(error)) {}
+
+  NonNullResult(Unexpected<std::string> error)
+
+      : Result<T>(std::move(error)) {}
 
   auto operator->() {
     if constexpr (std::is_pointer_v<T>) {

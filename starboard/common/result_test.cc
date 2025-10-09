@@ -96,23 +96,22 @@ TEST(ResultTest, OperatorStar) {
 TEST(NonNullResultTest, SuccessWithRawPointer) {
   int x = 42;
   NonNullResult<int*> result(&x);
-  EXPECT_TRUE(result.ok());
+  EXPECT_TRUE(result.has_value());
   EXPECT_EQ(*result.value(), 42);
 }
 
 TEST(NonNullResultTest, SuccessWithUniquePtr) {
   auto ptr = std::make_unique<int>(123);
   NonNullResult<std::unique_ptr<int>> result(std::move(ptr));
-  EXPECT_TRUE(result.ok());
+  EXPECT_TRUE(result.has_value());
   EXPECT_NE(result.value(), nullptr);
   EXPECT_EQ(*result.value(), 123);
 }
 
 TEST(NonNullResultTest, Failure) {
   NonNullResult<int*> result(Failure("Something went wrong"));
-  EXPECT_FALSE(result.ok());
-  EXPECT_NE(result.error_message().find("Something went wrong"),
-            std::string::npos);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_NE(result.error().find("Something went wrong"), std::string::npos);
 }
 
 #if SB_IS(EVERGREEN)
@@ -144,28 +143,28 @@ TEST_F(NonNullResultDeathTest, MAYBE_DeathTest_UniquePtr) {
 TEST(NonNullResultTest, OperatorArrowRawPointer) {
   TestObject obj;
   NonNullResult<TestObject*> result(&obj);
-  EXPECT_TRUE(result.ok());
+  EXPECT_TRUE(result.has_value());
   EXPECT_EQ(result->GetValue(), 123);
 }
 
 TEST(NonNullResultTest, OperatorStarRawPointer) {
   TestObject obj;
   NonNullResult<TestObject*> result(&obj);
-  EXPECT_TRUE(result.ok());
+  EXPECT_TRUE(result.has_value());
   EXPECT_EQ((*result).value, 123);
 }
 
 TEST(NonNullResultTest, OperatorArrowUniquePtr) {
   auto ptr = std::make_unique<TestObject>();
   NonNullResult<std::unique_ptr<TestObject>> result(std::move(ptr));
-  EXPECT_TRUE(result.ok());
+  EXPECT_TRUE(result.has_value());
   EXPECT_EQ(result->GetValue(), 123);
 }
 
 TEST(NonNullResultTest, OperatorStarUniquePtr) {
   auto ptr = std::make_unique<TestObject>();
   NonNullResult<std::unique_ptr<TestObject>> result(std::move(ptr));
-  EXPECT_TRUE(result.ok());
+  EXPECT_TRUE(result.has_value());
   EXPECT_EQ((*result).value, 123);
 }
 

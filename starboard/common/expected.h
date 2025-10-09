@@ -15,8 +15,9 @@
 #ifndef STARBOARD_COMMON_EXPECTED_H_
 #define STARBOARD_COMMON_EXPECTED_H_
 
+#include <optional>
+#include <type_traits>
 #include <utility>
-#include <variant>
 
 #include "starboard/common/log.h"
 
@@ -41,95 +42,128 @@ class Expected {
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
-                !std::is_same<std::decay_t<U>, Unexpected<E>>::value>>
-  Expected(U&& value) : storage_(std::forward<U>(value)) {}
-  Expected(Unexpected<E> unexpected)
-      : storage_(std::in_place_type<E>, std::move(unexpected.error())) {}
+                !std::is_same<std::decay_t<U>, Unexpected<E>>::value &&
+                !std::is_same<std::decay_t<U>, Expected<T, E>>::value>>
+  Expected(U&& value) : has_value_(true) {
+    new (&storage_.value_) T(std::forward<U>(value));
+  }
 
-  bool has_value() const { return std::holds_alternative<T>(storage_); }
-  explicit operator bool() const { return has_value(); }
+  Expected(Unexpected<E> unexpected) : has_value_(false) {
+    new (&storage_.error_) E(std::move(unexpected.error()));
+  }
+
+  Expected(const Expected& other) : has_value_(other.has_value_) {
+    if (has_value_) {
+      new (&storage_.value_) T(other.storage_.value_);
+    } else {
+      new (&storage_.error_) E(other.storage_.error_);
+    }
+  }
+
+  Expected(Expected&& other) : has_value_(other.has_value_) {
+    if (has_value_) {
+      new (&storage_.value_) T(std::move(other.storage_.value_));
+    } else {
+      new (&storage_.error_) E(std::move(other.storage_.error_));
+    }
+  }
+
+  ~Expected() {
+    if (has_value_) {
+      storage_.value_.~T();
+    } else {
+      storage_.error_.~E();
+    }
+  }
+
+  bool has_value() const { return has_value_; }
+  explicit operator bool() const { return has_value_; }
 
   T& value() & {
     SB_CHECK(has_value());
-    return std::get<T>(storage_);
+    return storage_.value_;
   }
   const T& value() const& {
     SB_CHECK(has_value());
-    return std::get<T>(storage_);
+    return storage_.value_;
   }
   T&& value() && {
     SB_CHECK(has_value());
-    return std::move(std::get<T>(storage_));
+    return std::move(storage_.value_);
   }
 
   E& error() & {
     SB_CHECK(!has_value());
-    return std::get<E>(storage_);
+    return storage_.error_;
   }
   const E& error() const& {
     SB_CHECK(!has_value());
-    return std::get<E>(storage_);
+    return storage_.error_;
   }
   E&& error() && {
     SB_CHECK(!has_value());
-    return std::move(std::get<E>(storage_));
+    return std::move(storage_.error_);
   }
 
   T* operator->() {
     SB_CHECK(has_value());
-    return &std::get<T>(storage_);
+    return &storage_.value_;
   }
   const T* operator->() const {
     SB_CHECK(has_value());
-    return &std::get<T>(storage_);
+    return &storage_.value_;
   }
 
   T& operator*() & {
     SB_CHECK(has_value());
-    return std::get<T>(storage_);
+    return storage_.value_;
   }
   const T& operator*() const& {
     SB_CHECK(has_value());
-    return std::get<T>(storage_);
+    return storage_.value_;
   }
   T&& operator*() && {
     SB_CHECK(has_value());
-    return std::move(std::get<T>(storage_));
+    return std::move(storage_.value_);
   }
 
  private:
-  std::variant<T, E> storage_;
+  union Storage {
+    Storage() {}
+    ~Storage() {}
+    T value_;
+    E error_;
+  } storage_;
+
+  bool has_value_;
 };
 
 template <typename E>
 class Expected<void, E> {
  public:
-  Expected() : storage_() {}
-  Expected(Unexpected<E> unexpected)
-      : storage_(std::in_place_type<E>, std::move(unexpected.error())) {}
+  Expected() : error_(std::nullopt) {}
+  Expected(Unexpected<E> unexpected) : error_(std::move(unexpected.error())) {}
 
-  bool has_value() const {
-    return std::holds_alternative<std::monostate>(storage_);
-  }
+  bool has_value() const { return !error_.has_value(); }
   explicit operator bool() const { return has_value(); }
 
   void value() const { SB_CHECK(has_value()); }
 
   E& error() & {
     SB_CHECK(!has_value());
-    return std::get<E>(storage_);
+    return *error_;
   }
   const E& error() const& {
     SB_CHECK(!has_value());
-    return std::get<E>(storage_);
+    return *error_;
   }
   E&& error() && {
     SB_CHECK(!has_value());
-    return std::move(std::get<E>(storage_));
+    return std::move(*error_);
   }
 
  private:
-  std::variant<std::monostate, E> storage_;
+  std::optional<E> error_;
 };
 
 }  // namespace starboard
