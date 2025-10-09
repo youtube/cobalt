@@ -26,6 +26,7 @@
 #include "media/base/video_decoder.h"
 #include "media/base/video_encoder.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_frame_pool.h"
 #include "media/base/video_util.h"
 #include "media/video/video_encode_accelerator_adapter.h"
 #include "testing/gtest/include/gtest/gtest.h"
