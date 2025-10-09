@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/common/expected.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -62,10 +63,7 @@ class PlayerWorker {
    public:
     // Stores the success status of Handler operations. If |success| is false,
     // |error_message| may be set with details of the error.
-    struct HandlerResult {
-      bool success;
-      std::string error_message;
-    };
+    using HandlerResult = Expected<void>;
 
     typedef PlayerWorker::Bounds Bounds;
 

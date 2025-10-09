@@ -167,29 +167,24 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     return (value + alignment - 1) / alignment * alignment;
   }
 
-  std::unique_ptr<PlayerComponents> CreateComponents(
-      const CreationParameters& creation_parameters,
-      std::string* error_message) override {
-    SB_CHECK(error_message);
-
+  ExpectedNonNull<std::unique_ptr<PlayerComponents>> CreateComponents(
+      const CreationParameters& creation_parameters) override {
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
-      return PlayerComponents::Factory::CreateComponents(creation_parameters,
-                                                         error_message);
+      return PlayerComponents::Factory::CreateComponents(creation_parameters);
     }
 
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
-        return nullptr;
+        return Failure("Invalid audio mime type.");
       }
-
       if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
-        return nullptr;
+        return Failure("Passthrough disabled by mime attribute.");
       }
     }
 
@@ -205,7 +200,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek);
     if (!audio_renderer->is_valid()) {
-      return nullptr;
+      return Failure("Failed to create audio renderer.");
     }
 
     // Set max_video_input_size with a positive value to overwrite
@@ -220,10 +215,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
+      std::string error_message;
       std::unique_ptr<MediaCodecVideoDecoder> video_decoder =
           CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
                              kForceSecurePipelineUnderTunnelMode,
-                             max_video_input_size, error_message);
+                             max_video_input_size, &error_message);
       if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
@@ -234,7 +230,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
       } else {
-        return nullptr;
+        return Failure("Failed to create video decoder: " + error_message);
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(

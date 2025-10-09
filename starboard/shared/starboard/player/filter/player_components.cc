@@ -140,12 +140,11 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->drm_system_ = that.drm_system_;
 }
 
-std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
-    const CreationParameters& creation_parameters,
-    std::string* error_message) {
+ExpectedNonNull<std::unique_ptr<PlayerComponents>>
+PlayerComponents::Factory::CreateComponents(
+    const CreationParameters& creation_parameters) {
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
-  SB_CHECK(error_message);
 
   std::unique_ptr<AudioDecoder> audio_decoder;
   std::unique_ptr<AudioRendererSink> audio_renderer_sink;
@@ -178,11 +177,12 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     } else if (use_stub_video_decoder) {
       copy_of_creation_parameters.reset_video_codec();
     }
+    std::string error_message;
     if (!CreateSubComponents(copy_of_creation_parameters, &audio_decoder,
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
-                             error_message)) {
-      return std::unique_ptr<PlayerComponents>();
+                             &error_message)) {
+      return Failure(error_message);
     }
     if (use_stub_audio_decoder) {
       SB_DCHECK(!audio_decoder);
