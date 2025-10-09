@@ -15,8 +15,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 #define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 
-#include "starboard/shared/starboard/drm/drm_system_internal.h"
-
 #include <jni.h>
 
 #include <atomic>
@@ -30,6 +28,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -98,7 +97,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
    private:
     const int ticket_;
-    const std::vector<uint8_t> init_data_;
+    const std::string init_data_;
     const std::string mime_;
   };
 

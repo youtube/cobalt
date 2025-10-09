@@ -48,7 +48,7 @@ android_library("cobalt_main_java") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
-    "//components/version_info/android:version_constants_java",
+    "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
@@ -174,7 +174,6 @@ shared_library_with_jni("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
-    ":content_shell_jni_headers",
     "//cobalt/browser",
     "//cobalt/gpu",
     "//cobalt/renderer",
