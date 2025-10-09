@@ -49,15 +49,6 @@ class ExceptionHandlerClient {
   //! \return `true` on success. Otherwise, `false` with a message logged.
   bool GetHandlerCredentials(ucred* creds);
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  //! \brief Sends EvergreenInfo to the ExceptionHandlerServer.
-  //!
-  //! \param[in] info Information to about this client.
-  //! \return `true` on success or `false` on failure.
-  bool SendEvergreenInfo(
-      const ExceptionHandlerProtocol::ClientInformation& info);
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-
   //! \brief Request a crash dump from the ExceptionHandlerServer.
   //!
   //! This method blocks until the crash dump is complete.
@@ -79,10 +70,6 @@ class ExceptionHandlerClient {
   void SetCanSetPtracer(bool can_set_ptracer);
 
  private:
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  bool SendEvergreenInfoRequest(
-      const ExceptionHandlerProtocol::ClientInformation& info);
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
   int SendCrashDumpRequest(
       const ExceptionHandlerProtocol::ClientInformation& info,
       VMAddress stack_pointer);
