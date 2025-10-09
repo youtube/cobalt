@@ -91,18 +91,15 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
 
-  ExperimentConfigType config_type;
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
-    config_type = ExperimentConfigType::kEmptyConfig;
-  } else if (num_crashes >= kCrashStreakSafeConfigThreshold) {
+    return ExperimentConfigType::kEmptyConfig;
+  }
+
+  ExperimentConfigType config_type;
+  if (num_crashes >= kCrashStreakSafeConfigThreshold) {
     config_type = ExperimentConfigType::kSafeConfig;
   } else {
     config_type = ExperimentConfigType::kRegularConfig;
-  }
-
-  // If the config is already empty, no need to check for expiration.
-  if (config_type == ExperimentConfigType::kEmptyConfig) {
-    return config_type;
   }
 
   // Now, check if the expiration feature is enabled in the determined config.
