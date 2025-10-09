@@ -104,20 +104,34 @@ const String& H5vccExperiments::getFeatureParam(
   return feature_param_value_;
 }
 
-String H5vccExperiments::getActiveExperimentConfigData() {
+ScriptPromise H5vccExperiments::getActiveExperimentConfigData(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
   EnsureReceiverIsBound();
-  String active_experiment_config_data;
+
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->GetActiveExperimentConfigData(
-      &active_experiment_config_data);
-  return active_experiment_config_data;
+      WTF::BindOnce(&H5vccExperiments::OnGetActiveExperimentConfigData,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+  return resolver->Promise();
 }
 
-String H5vccExperiments::getLatestExperimentConfigHashData() {
+ScriptPromise H5vccExperiments::getLatestExperimentConfigHashData(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
   EnsureReceiverIsBound();
-  String latest_experiment_config_hash_data;
+
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->GetLatestExperimentConfigHashData(
-      &latest_experiment_config_hash_data);
-  return latest_experiment_config_hash_data;
+      WTF::BindOnce(&H5vccExperiments::OnGetLatestExperimentConfigHashData,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+  return resolver->Promise();
 }
 
 ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
@@ -126,7 +140,6 @@ ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  auto promise = resolver->Promise();
 
   EnsureReceiverIsBound();
 
@@ -136,7 +149,7 @@ ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
       WTF::BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
-  return promise;
+  return resolver->Promise();
 }
 
 ScriptPromise H5vccExperiments::setFinchParameters(
@@ -167,6 +180,20 @@ ScriptPromise H5vccExperiments::setFinchParameters(
                     WrapPersistent(this), WrapPersistent(resolver)));
 
   return promise;
+}
+
+void H5vccExperiments::OnGetActiveExperimentConfigData(
+    ScriptPromiseResolver* resolver,
+    const String& result) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve(result);
+}
+
+void H5vccExperiments::OnGetLatestExperimentConfigHashData(
+    ScriptPromiseResolver* resolver,
+    const String& result) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve(result);
 }
 
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {

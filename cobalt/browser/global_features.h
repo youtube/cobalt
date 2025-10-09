@@ -80,9 +80,10 @@ class GlobalFeatures {
   void CreateMetricsLocalState();
   // Initialize a PrefService instance for local state.
   void CreateLocalState();
-  // Record the active config data in the member variable.
-  // Needed because the experiment config applied to Cobalt does not change
-  // during the app lifecycle, but new config can be written to storage.
+  // Record the active config data in the member variable to preserve the active
+  // config data for the current app life cycle in case it's needed after the
+  // config data in storage has been modified.
+  // Modified config data should only apply to the next app life cycle.
   void InitializeActiveConfigData();
 
   std::unique_ptr<base::FeatureList::Accessor> accessor_;

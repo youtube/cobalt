@@ -91,7 +91,9 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kLatestConfigHash,
       std::move(
           experiment_config.Find(cobalt::kLatestConfigHash)->GetString()));
-  experiment_config_ptr->CommitPendingWrite();
+  // CommitPendingWrite not called here to avoid excessive disk writes.
+  // Features and featureParams won't be applied until the next Cobalt cold
+  // start so the delay is acceptable.
   std::move(callback).Run();
 }
 
@@ -100,7 +102,7 @@ void H5vccExperimentsImpl::ResetExperimentState(
   PrefService* experiment_config =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
   experiment_config->ClearPref(cobalt::kExperimentConfig);
-  experiment_config->CommitPendingWrite();
+  // CommitPendingWrite not called here due to the same reason as above.
   std::move(callback).Run();
 }
 
@@ -134,7 +136,7 @@ void H5vccExperimentsImpl::SetLatestExperimentConfigHashData(
     SetLatestExperimentConfigHashDataCallback callback) {
   cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetString(
       cobalt::kLatestConfigHash, hash_data);
-  // CommitPendingWrite not called here to avoid excessive disk writes.
+  // CommitPendingWrite not called here due to the same reason as above.
   std::move(callback).Run();
 }
 
@@ -143,7 +145,7 @@ void H5vccExperimentsImpl::SetFinchParameters(
     SetFinchParametersCallback callback) {
   cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetDict(
       cobalt::kFinchParameters, std::move(settings));
-  // CommitPendingWrite not called here to avoid excessive disk writes.
+  // CommitPendingWrite not called here due to the same reason as above.
   std::move(callback).Run();
 }
 

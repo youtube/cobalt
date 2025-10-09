@@ -48,8 +48,9 @@ class MODULES_EXPORT H5vccExperiments final
   ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
   String getFeature(const String&);
   const String& getFeatureParam(const String&);
-  String getActiveExperimentConfigData();
-  String getLatestExperimentConfigHashData();
+  ScriptPromise getActiveExperimentConfigData(ScriptState*, ExceptionState&);
+  ScriptPromise getLatestExperimentConfigHashData(ScriptState*,
+                                                  ExceptionState&);
   ScriptPromise setLatestExperimentConfigHashData(ScriptState*,
                                                   const String&,
                                                   ExceptionState&);
@@ -63,6 +64,9 @@ class MODULES_EXPORT H5vccExperiments final
   void Trace(Visitor*) const override;
 
  private:
+  void OnGetActiveExperimentConfigData(ScriptPromiseResolver*, const String&);
+  void OnGetLatestExperimentConfigHashData(ScriptPromiseResolver*,
+                                           const String&);
   void OnSetExperimentState(ScriptPromiseResolver*);
   void OnSetFinchParameters(ScriptPromiseResolver*);
   void OnSetLatestExperimentConfigHashData(ScriptPromiseResolver*);
@@ -77,7 +81,6 @@ class MODULES_EXPORT H5vccExperiments final
   HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
 
   String feature_param_value_;
-  WTF::Vector<uint32_t> active_experiment_ids_;
 };
 
 }  // namespace blink
