@@ -764,7 +764,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     return Success();
   }
   media_decoder_.reset();
-  return Failure("Media Decoder is not valid.");
+  return Failure("Media Decoder is not valid: " + error_message);
 }
 
 void MediaCodecVideoDecoder::TeardownCodec() {

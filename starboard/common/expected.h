@@ -76,6 +76,44 @@ class Expected {
     }
   }
 
+  Expected& operator=(const Expected& other) {
+    if (this == &other) {
+      return *this;
+    }
+    if (has_value_ && other.has_value_) {
+      storage_.value_ = other.storage_.value_;
+    } else if (!has_value_ && !other.has_value_) {
+      storage_.error_ = other.storage_.error_;
+    } else if (has_value_ && !other.has_value_) {
+      storage_.value_.~T();
+      new (&storage_.error_) E(other.storage_.error_);
+    } else {  // !has_value_ && other.has_value_
+      storage_.error_.~E();
+      new (&storage_.value_) T(other.storage_.value_);
+    }
+    has_value_ = other.has_value_;
+    return *this;
+  }
+
+  Expected& operator=(Expected&& other) {
+    if (this == &other) {
+      return *this;
+    }
+    if (has_value_ && other.has_value_) {
+      storage_.value_ = std::move(other.storage_.value_);
+    } else if (!has_value_ && !other.has_value_) {
+      storage_.error_ = std::move(other.storage_.error_);
+    } else if (has_value_ && !other.has_value_) {
+      storage_.value_.~T();
+      new (&storage_.error_) E(std::move(other.storage_.error_));
+    } else {  // !has_value_ && other.has_value_
+      storage_.error_.~E();
+      new (&storage_.value_) T(std::move(other.storage_.value_));
+    }
+    has_value_ = other.has_value_;
+    return *this;
+  }
+
   bool has_value() const { return has_value_; }
   explicit operator bool() const { return has_value_; }
 
