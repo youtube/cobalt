@@ -218,7 +218,12 @@ config("default_libs") {
       "CoreText.framework",
       "Foundation.framework",
     ]
-  } else if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  } else if (is_cobalt && is_native_target_build) {
+    # This build configuration is only used for the crashpad handler executable.
+    # This binary needs dynamic linking but gets undefined symbols, which result
+    # in symbol lookup errors at runtime, when also linked with pthread.
+    libs = [ "dl" ]
+  } else if ((is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
     libs = [
       "dl",
       "pthread",
