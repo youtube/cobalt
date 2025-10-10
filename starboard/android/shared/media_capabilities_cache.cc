@@ -73,10 +73,9 @@ using GetRangeFunc = std::function<ScopedJavaLocalRef<jobject>(
     JNIEnv*,
     const base::android::JavaRef<jobject>&)>;
 Range GetRange(JNIEnv* env,
-               const ScopedJavaGlobalRef<jobject>& j_video_capabilities,
+               const base::android::JavaRef<jobject>& j_capabilities,
                GetRangeFunc get_range_func) {
-  ScopedJavaLocalRef<jobject> j_range = get_range_func(
-      env, JavaParamRef<jobject>(env, j_video_capabilities.obj()));
+  ScopedJavaLocalRef<jobject> j_range = get_range_func(env, j_capabilities);
   SB_CHECK(j_range);
   return ConvertJavaRangeToRange(env, j_range.obj());
 }
@@ -167,19 +166,18 @@ AudioCodecCapability::AudioCodecCapability(
     JNIEnv* env,
     ScopedJavaLocalRef<jobject>& j_codec_info,
     ScopedJavaLocalRef<jobject>& j_audio_capabilities)
-    : CodecCapability(env, j_codec_info) {
+    : CodecCapability(env, j_codec_info),
+      supported_bitrates_([env, &j_audio_capabilities] {
+        Range supported_bitrates =
+            GetRange(env, j_audio_capabilities,
+                     &Java_MediaCodecUtil_getAudioBitrateRange);
+        // Overwrite the lower bound to 0.
+        supported_bitrates.minimum = 0;
+        return supported_bitrates;
+      }()) {
   SB_CHECK(env);
   SB_CHECK(j_codec_info);
   SB_CHECK(j_audio_capabilities);
-
-  ScopedJavaLocalRef<jobject> j_bitrate_range(
-      Java_MediaCodecUtil_getAudioBitrateRange(
-          env, JavaParamRef<jobject>(env, j_audio_capabilities.obj())));
-  SB_CHECK(j_bitrate_range);
-  supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
-
-  // Overwrite the lower bound to 0.
-  supported_bitrates_.minimum = 0;
 }
 
 bool AudioCodecCapability::IsBitrateSupported(int bitrate) const {

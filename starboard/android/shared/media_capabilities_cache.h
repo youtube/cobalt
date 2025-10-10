@@ -78,7 +78,7 @@ class AudioCodecCapability : public CodecCapability {
   AudioCodecCapability(const AudioCodecCapability&) = delete;
   AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
 
-  Range supported_bitrates_;
+  const Range supported_bitrates_;
 };
 
 class VideoCodecCapability : public CodecCapability {
