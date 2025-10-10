@@ -39,8 +39,9 @@ void RegisterContentWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<QuotaInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ServiceWorkerInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<UkmInternalsUIConfig>());
+#if !BUILDFLAG(IS_COBALT)
   map.AddWebUIConfig(std::make_unique<WebRTCInternalsUIConfig>());
-
+#endif
 #if !BUILDFLAG(IS_ANDROID)
   map.AddWebUIConfig(std::make_unique<TracingUIConfig>());
 #endif

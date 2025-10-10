@@ -79,10 +79,11 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
 const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
     // Disable Vulkan.
-    {switches::kDisableFeatures, "Vulkan,"
-        // Don't launch services related to user-interaction via peripherals,
-        // e.g. video capture.
-         "UserInteractionPeripherals"},
+    {switches::kDisableFeatures,
+    "Vulkan,"
+    // Don't launch services related to user-interaction via peripherals,
+    // e.g. video capture.
+    "UserInteractionPeripherals"},
         // The Renderer Compositor (a.k.a. "cc" see //docs/how_cc_works.md) has
         // two important parts re. memory consumption, one is the image decode
         // cache whose size is specified by the LimitImageDecodeCacheSize flag
