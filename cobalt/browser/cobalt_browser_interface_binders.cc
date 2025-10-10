@@ -24,6 +24,8 @@
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "cobalt/browser/h5vcc_storage/h5vcc_storage_impl.h"
+#include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
@@ -64,6 +66,8 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_experiments::H5vccExperimentsImpl::Create));
   binder_map->Add<h5vcc_metrics::mojom::H5vccMetrics>(
       base::BindRepeating(&h5vcc_metrics::H5vccMetricsImpl::Create));
+  binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
+      base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
   binder_map->Add<h5vcc_runtime::mojom::H5vccRuntime>(
