@@ -218,12 +218,11 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
   JNIEnv* env = AttachCurrentThread();
   if (frame_width != 0 && frame_height != 0 && fps != 0) {
     return Java_MediaCodecUtil_areSizeAndRateSupported(
-        env, JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
-        frame_width, frame_height, static_cast<jdouble>(fps));
+        env, j_video_capabilities_, frame_width, frame_height,
+        static_cast<jdouble>(fps));
   } else if (frame_width != 0 && frame_height != 0) {
-    return Java_MediaCodecUtil_isSizeSupported(
-        env, JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
-        frame_width, frame_height);
+    return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
+                                               frame_width, frame_height);
   }
   if (frame_width != 0 && !supported_widths_.Contains(frame_width)) {
     return false;
