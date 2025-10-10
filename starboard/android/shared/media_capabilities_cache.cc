@@ -75,6 +75,8 @@ using GetRangeFunc = std::function<ScopedJavaLocalRef<jobject>(
 Range GetRange(JNIEnv* env,
                const base::android::JavaRef<jobject>& j_capabilities,
                GetRangeFunc get_range_func) {
+  SB_CHECK(env);
+  SB_CHECK(j_capabilities);
   ScopedJavaLocalRef<jobject> j_range = get_range_func(env, j_capabilities);
   SB_CHECK(j_range);
   return ConvertJavaRangeToRange(env, j_range.obj());
@@ -175,9 +177,7 @@ AudioCodecCapability::AudioCodecCapability(
         supported_bitrates.minimum = 0;
         return supported_bitrates;
       }()) {
-  SB_CHECK(env);
   SB_CHECK(j_codec_info);
-  SB_CHECK(j_audio_capabilities);
 }
 
 bool AudioCodecCapability::IsBitrateSupported(int bitrate) const {
