@@ -100,7 +100,7 @@ class VideoCodecCapability : public CodecCapability {
   // supportability.
   bool AreResolutionAndRateSupported(int frame_width,
                                      int frame_height,
-                                     int fps);
+                                     int fps) const;
 
  private:
   VideoCodecCapability(const VideoCodecCapability&) = delete;
@@ -109,10 +109,10 @@ class VideoCodecCapability : public CodecCapability {
   const bool is_software_decoder_;
   const bool is_hdr_capable_;
   const base::android::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
-  Range supported_widths_;
-  Range supported_heights_;
-  Range supported_bitrates_;
-  Range supported_frame_rates_;
+  const Range supported_widths_;
+  const Range supported_heights_;
+  const Range supported_bitrates_;
+  const Range supported_frame_rates_;
 };
 
 class MediaCapabilitiesCache {
