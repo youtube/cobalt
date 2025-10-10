@@ -26,7 +26,6 @@ ftello
 fwrite
 getc
 newlocale
-prctl
 printf
 puts
 rewind

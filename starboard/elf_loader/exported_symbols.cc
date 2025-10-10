@@ -58,6 +58,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_sched_abi_wrappers.h"
@@ -350,6 +351,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(poll);
+  REGISTER_WRAPPER(prctl);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);

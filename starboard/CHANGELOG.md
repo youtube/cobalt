@@ -37,6 +37,7 @@ The functionality is migrated to use `getauxval` instead.
 * `mkstemp`
 * `pause`
 * `pipe`
+* `prctl`
 * `pread`
 * `pwrite`
 * `raise`
