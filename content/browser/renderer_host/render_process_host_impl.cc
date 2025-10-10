@@ -4183,13 +4183,17 @@ void RenderProcessHostImpl::EnableAudioDebugRecordings(
     const base::FilePath& file_path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
+#if !BUILDFLAG(IS_COBALT)
   aec_dump_manager_.Start(file_path);
+#endif
 }
 
 void RenderProcessHostImpl::DisableAudioDebugRecordings() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
+#if !BUILDFLAG(IS_COBALT)
   aec_dump_manager_.Stop();
+#endif
 }
 
 RenderProcessHostImpl::WebRtcStopRtpDumpCallback
@@ -5260,7 +5264,9 @@ void RenderProcessHostImpl::OnProcessLaunched() {
   }
 
   aec_dump_manager_.set_pid(GetProcess().Pid());
+#if !BUILDFLAG(IS_COBALT)
   aec_dump_manager_.AutoStart();
+#endif
 
   tracing_registration_ = TracingServiceController::Get().RegisterClient(
       GetProcess().Pid(),

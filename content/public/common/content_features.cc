@@ -1188,6 +1188,15 @@ BASE_FEATURE(kSubframeShutdownDelay,
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 );
 
+// Controls launching services related to user interaction via peripherals, e.g.
+// video capture, audio playback, speech recognition, webrtc etc.
+// TODO(b/450888267): Ideally this would be a build-time GN flag, but some of
+// these services, e.g. MediaStreamManager, are very embedded and need deeper
+// cuts.
+BASE_FEATURE(kUserInteractionPeripherals,
+             "UserInteractionPeripherals",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // If enabled, GetUserMedia API will only work when the concerned tab is in
 // focus
 BASE_FEATURE(kUserMediaCaptureOnFocus,

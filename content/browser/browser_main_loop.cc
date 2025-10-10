@@ -1273,7 +1273,9 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
   // so this cannot happen any earlier than now.
   InitializeMojo();
 
+#if !BUILDFLAG(IS_COBALT)
   data_decoder_service_provider_ = std::make_unique<OopDataDecoder>();
+#endif
 
   HistogramSynchronizer::GetInstance();
 
@@ -1338,24 +1340,30 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
       nullptr);
 #endif
 
-  {
-    TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:AudioMan");
-    InitializeAudio();
-  }
+  // TODO(b/450888267): This should ideally be compiled out, but it will
+  // interfere with running WebPlatformTests, which in Cobalt we do by tacking
+  // out H5VCC Web APIs on top of content_shell (IOW BUILDFLAG(IS_COBALT) is
+  // set), which in turn expects this path to be working.
+  if (base::FeatureList::IsEnabled(features::kUserInteractionPeripherals)) {
+    {
+      TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:AudioMan");
+      InitializeAudio();
+    }
 
-  {
-    TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:MidiService");
-    midi_service_ = std::make_unique<midi::MidiService>();
-  }
+    {
+      TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:MidiService");
+      midi_service_ = std::make_unique<midi::MidiService>();
+    }
 
-  {
-    TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:Devices");
-    device::GamepadService::GetInstance()->StartUp(
-        base::BindRepeating(&BindHidManager));
-#if !BUILDFLAG(IS_ANDROID)
-    device::FidoHidDiscovery::SetHidManagerBinder(
-        base::BindRepeating(&BindHidManager));
-#endif
+    {
+      TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:Devices");
+      device::GamepadService::GetInstance()->StartUp(
+          base::BindRepeating(&BindHidManager));
+  #if !BUILDFLAG(IS_ANDROID)
+      device::FidoHidDiscovery::SetHidManagerBinder(
+          base::BindRepeating(&BindHidManager));
+  #endif
+    }
   }
 
 #if BUILDFLAG(IS_WIN)
@@ -1368,27 +1376,35 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
           {base::TaskPriority::USER_VISIBLE}));
 #endif
 
-  // Instantiated once using CreateSingletonInstance(), and accessed only using
-  // GetInstance(), which is not allowed to create the object. This allows us
-  // to ensure that it cannot be used before objects it relies on have been
-  // created; namely, WebRtcEventLogManager.
-  // Allowed to leak when the browser exits.
-  WebRTCInternals::CreateSingletonInstance();
+#if !BUILDFLAG(IS_COBALT)
+    // Instantiated once using CreateSingletonInstance(), and accessed only using
+    // GetInstance(), which is not allowed to create the object. This allows us
+    // to ensure that it cannot be used before objects it relies on have been
+    // created; namely, WebRtcEventLogManager.
+    // Allowed to leak when the browser exits.
+    WebRTCInternals::CreateSingletonInstance();
+#endif
 
-  // MediaStreamManager needs the IO thread to be created.
-  {
-    TRACE_EVENT0("startup",
-                 "BrowserMainLoop::PostCreateThreads:InitMediaStreamManager");
+  // TODO(b/450888267): This should ideally be compiled out, but it will
+  // interfere with running WebPlatformTests, which in Cobalt we do by tacking
+  // out H5VCC Web APIs on top of content_shell (IOW BUILDFLAG(IS_COBALT) is
+  // set), which in turn expects this path to be working.
+  if (base::FeatureList::IsEnabled(features::kUserInteractionPeripherals)) {
+    // MediaStreamManager needs the IO thread to be created.
+    {
+      TRACE_EVENT0("startup",
+                   "BrowserMainLoop::PostCreateThreads:InitMediaStreamManager");
 
-    media_stream_manager_ =
-        std::make_unique<MediaStreamManager>(audio_system_.get());
-  }
+      media_stream_manager_ =
+          std::make_unique<MediaStreamManager>(audio_system_.get());
+    }
 
-  {
-    TRACE_EVENT0("startup",
-                 "BrowserMainLoop::PostCreateThreads:InitSpeechRecognition");
-    speech_recognition_manager_.reset(new SpeechRecognitionManagerImpl(
-        audio_system_.get(), media_stream_manager_.get()));
+    {
+      TRACE_EVENT0("startup",
+                   "BrowserMainLoop::PostCreateThreads:InitSpeechRecognition");
+      speech_recognition_manager_.reset(new SpeechRecognitionManagerImpl(
+          audio_system_.get(), media_stream_manager_.get()));
+    }
   }
 
   {

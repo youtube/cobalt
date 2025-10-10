@@ -98,7 +98,6 @@ public final class CommandLineOverrideHelper {
         // It is important to use a feature override instead of the
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
-
         return paramOverrides;
     }
 
@@ -107,7 +106,9 @@ public final class CommandLineOverrideHelper {
 
         // Use SurfaceTexture for decode-to-texture mode.
         paramOverrides.add("AImageReader");
-
+        // Don't launch services related to user-interaction via peripherals,
+        // e.g. video capture.
+        paramOverrides.add("UserInteractionPeripherals");
         return paramOverrides;
     }
 
