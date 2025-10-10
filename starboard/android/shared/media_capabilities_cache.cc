@@ -16,6 +16,7 @@
 
 #include <jni.h>
 
+#include <functional>
 #include <mutex>
 #include <utility>
 
@@ -43,6 +44,7 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
@@ -67,14 +69,14 @@ Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
                Java_MediaCodecUtil_getRangeUpper(env, j_range_ref));
 }
 
-using GetRangeFunc =
-    ScopedJavaLocalRef<jobject> (*)(JNIEnv*,
-                                    const base::android::JavaRef<jobject>&);
+using GetRangeFunc = std::function<ScopedJavaLocalRef<jobject>(
+    JNIEnv*,
+    const base::android::JavaRef<jobject>&)>;
 Range GetRange(JNIEnv* env,
-               const JavaParamRef<jobject>& j_video_capabilities,
+               const ScopedJavaGlobalRef<jobject>& j_video_capabilities,
                GetRangeFunc get_range_func) {
-  ScopedJavaLocalRef<jobject> j_range =
-      get_range_func(env, j_video_capabilities);
+  ScopedJavaLocalRef<jobject> j_range = get_range_func(
+      env, JavaParamRef<jobject>(env, j_video_capabilities.obj()));
   SB_CHECK(j_range);
   return ConvertJavaRangeToRange(env, j_range.obj());
 }
@@ -193,21 +195,18 @@ VideoCodecCapability::VideoCodecCapability(
           Java_CodecCapabilityInfo_isSoftware(env, j_codec_info)),
       is_hdr_capable_(Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info)),
       j_video_capabilities_(env, j_video_capabilities.obj()),
-      supported_widths_(
-          GetRange(env,
-                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
-                   &Java_MediaCodecUtil_getVideoWidthRange)),
-      supported_heights_(
-          GetRange(env,
-                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
-                   &Java_MediaCodecUtil_getVideoHeightRange)),
-      supported_bitrates_(
-          GetRange(env,
-                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
-                   &Java_MediaCodecUtil_getVideoBitrateRange)),
+      supported_widths_(GetRange(env,
+                                 j_video_capabilities_,
+                                 &Java_MediaCodecUtil_getVideoWidthRange)),
+      supported_heights_(GetRange(env,
+                                  j_video_capabilities_,
+                                  &Java_MediaCodecUtil_getVideoHeightRange)),
+      supported_bitrates_(GetRange(env,
+                                   j_video_capabilities_,
+                                   &Java_MediaCodecUtil_getVideoBitrateRange)),
       supported_frame_rates_(
           GetRange(env,
-                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
+                   j_video_capabilities_,
                    &Java_MediaCodecUtil_getVideoFrameRateRange)) {}
 VideoCodecCapability::~VideoCodecCapability() = default;
 
