@@ -1,0 +1,157 @@
+--- base/android/jni_android.cc
++++ base/android/jni_android.cc
+@@ -4,11 +4,7 @@
+ 
+ #include "base/android/jni_android.h"
+ 
+-<<<<<<< HEAD
+-=======
+-#include <cstring>
+ #include <iostream>
+->>>>>>> a00a3a9c3f5 (Informative JNI crash message (#6337))
+ #include <stddef.h>
+ #include <string>
+ #include <sys/prctl.h>
+@@ -119,9 +115,13 @@
+ void CheckException(JNIEnv* env) {
+   if (!jni_zero::HasException(env)) {
+     return;
+-<<<<<<< HEAD
+   }
+ 
++#if BUILDFLAG(IS_COBALT)
++  std::string exception_token;
++  std::string exception_info;
++#endif
++
+   static thread_local bool g_reentering = false;
+   if (g_reentering) {
+     // We were handling an uncaught Java exception already, but one of the Java
+@@ -188,12 +188,22 @@
+   auto throwable = ScopedJavaLocalRef<jthrowable>::Adopt(env, raw_throwable);
+ 
+   if (!handle_exception_in_java) {
++#if BUILDFLAG(IS_COBALT)
++    exception_info = GetJavaExceptionInfo(env, throwable);
++    base::android::SetJavaException(exception_info.c_str());
++    exception_token = FindFirstJavaFileAndLine(exception_info);
++#else
+     base::android::SetJavaException(
+         GetJavaExceptionInfo(env, throwable).c_str());
++#endif
+     if (g_log_fatal_callback_for_testing) {
+       g_log_fatal_callback_for_testing(kUncaughtExceptionMessage);
+     } else {
++#if BUILDFLAG(IS_COBALT)
++      LOG(FATAL) << "JNI exception: " << exception_token;
++#else
+       LOG(FATAL) << kUncaughtExceptionMessage;
++#endif
+     }
+     // Needed for tests, which do not terminate from LOG(FATAL).
+     g_reentering = false;
+@@ -215,56 +225,27 @@
+   // app that embedded WebView installed an exception handler that does not
+   // terminate, or itself threw an exception. We cannot be confident that
+   // JavaExceptionReporter ran, so set the java exception explicitly.
++#if BUILDFLAG(IS_COBALT)
++  exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
++  base::android::SetJavaException(exception_info.c_str());
++  exception_token = FindFirstJavaFileAndLine(exception_info);
++#else
+   base::android::SetJavaException(
+       GetJavaExceptionInfo(
+           env, secondary_exception ? secondary_exception : throwable)
+           .c_str());
++#endif
+   if (g_log_fatal_callback_for_testing) {
+     g_log_fatal_callback_for_testing(kUncaughtExceptionHandlerFailedMessage);
+   } else {
+-    LOG(FATAL) << kUncaughtExceptionHandlerFailedMessage;
+-  }
+-  // Needed for tests, which do not terminate from LOG(FATAL).
+-  g_reentering = false;
+-=======
+-
+-#if BUILDFLAG(IS_COBALT)
+-  std::string exception_token;
+-#endif
+-  jthrowable java_throwable = env->ExceptionOccurred();
+-  if (java_throwable) {
+-    // Clear the pending exception, since a local reference is now held.
+-    env->ExceptionDescribe();
+-    env->ExceptionClear();
+-
+-    if (g_fatal_exception_occurred) {
+-      // Another exception (probably OOM) occurred during GetJavaExceptionInfo.
+-      base::android::SetJavaException(
+-          "Java OOM'ed in exception handling, check logcat");
+ #if BUILDFLAG(IS_COBALT)
+-      exception_token = "Java OOM'ed";
+-#endif
+-    } else {
+-      g_fatal_exception_occurred = true;
+-#if BUILDFLAG(IS_COBALT)
+-      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
+-      base::android::SetJavaException(exception_info.c_str());
+-      exception_token = FindFirstJavaFileAndLine(exception_info);
++    LOG(FATAL) << "JNI exception: " << exception_token;
+ #else
+-      // RVO should avoid any extra copies of the exception string.
+-      base::android::SetJavaException(
+-          GetJavaExceptionInfo(env, java_throwable).c_str());
++    LOG(FATAL) << kUncaughtExceptionHandlerFailedMessage;
+ #endif
+-    }
+   }
+-
+-  // Now, feel good about it and die.
+-#if BUILDFLAG(IS_COBALT)
+-  LOG(FATAL) << "JNI exception: " << exception_token;
+-#else
+-  LOG(FATAL) << "Please include Java exception stack in crash report";
+-#endif
+->>>>>>> a00a3a9c3f5 (Informative JNI crash message (#6337))
++  // Needed for tests, which do not terminate from LOG(FATAL).
++  g_reentering = false;
+ }
+ 
+ std::string GetJavaExceptionInfo(JNIEnv* env,
+@@ -277,18 +258,6 @@
+              : kOomInGetJavaExceptionInfoMessage;
+ }
+ 
+-<<<<<<< HEAD
+-std::string GetJavaStackTraceIfPresent() {
+-  JNIEnv* env = nullptr;
+-  JavaVM* jvm = jni_zero::GetVM();
+-  if (jvm) {
+-    jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_2);
+-  }
+-  if (!env) {
+-    // JNI has not been initialized on this thread.
+-    return {};
+-  }
+-=======
+ std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
+     // This regular expression looks for a pattern inside parentheses.
+     // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
+@@ -316,8 +285,16 @@
+     return "";
+ }
+ 
+-#if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+->>>>>>> a00a3a9c3f5 (Informative JNI crash message (#6337))
++std::string GetJavaStackTraceIfPresent() {
++  JNIEnv* env = nullptr;
++  JavaVM* jvm = jni_zero::GetVM();
++  if (jvm) {
++    jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_2);
++  }
++  if (!env) {
++    // JNI has not been initialized on this thread.
++    return {};
++  }
+ 
+   if (HasException(env)) {
+     // This can happen if CheckException() is being re-entered, decided to

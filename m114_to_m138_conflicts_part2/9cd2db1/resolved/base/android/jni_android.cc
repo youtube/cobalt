@@ -77,6 +77,47 @@ void PrepareClassLoaders(JNIEnv* env) {
   }
 }
 #endif  // !BUILDFLAG(IS_ROBOLECTRIC)
+
+#if BUILDFLAG(IS_COBALT)
+// Java exception stack trace example:
+//
+// java.lang.RuntimeException: Hello
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodC(VideoFrameReleaseTimeHelper.java:111)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodB(VideoFrameReleaseTimeHelper.java:115)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodA(VideoFrameReleaseTimeHelper.java:119)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.adjustReleaseTime(VideoFrameReleaseTimeHelper.java:135)
+std::string GetFirstLine(const std::string& stack_trace) {
+  return stack_trace.substr(0, stack_trace.find('\n'));
+}
+
+std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
+    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
+
+    std::vector<std::string> all_matches;
+    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
+    std::sregex_iterator end;
+
+    while (it != end && all_matches.size() < max_matches) {
+        std::smatch match = *it;
+
+        // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
+        all_matches.push_back(match[0].str());
+
+        ++it; // Move to the next match
+    }
+
+    std::ostringstream oss;
+    for (size_t i = 0; i < all_matches.size(); ++i) {
+        oss << all_matches[i];
+        if (i < all_matches.size() - 1) {
+            oss << "&";
+        }
+    }
+
+    return oss.str();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 
 LogFatalCallback g_log_fatal_callback_for_testing = nullptr;
@@ -149,25 +190,12 @@ void CheckException(JNIEnv* env) {
         LOG(FATAL) << kReetrantOutOfMemoryMessage;
       }
     } else {
-<<<<<<< HEAD
       base::android::SetJavaException(kReetrantExceptionMessage);
       if (g_log_fatal_callback_for_testing) {
         g_log_fatal_callback_for_testing(kReetrantExceptionMessage);
       } else {
         LOG(FATAL) << kReetrantExceptionMessage;
       }
-=======
-      g_fatal_exception_occurred = true;
-#if BUILDFLAG(IS_COBALT)
-      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
-      base::android::SetJavaException(exception_info.c_str());
-      exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
-#else
-      // RVO should avoid any extra copies of the exception string.
-      base::android::SetJavaException(
-          GetJavaExceptionInfo(env, java_throwable).c_str());
-#endif
->>>>>>> 5152f1a5517 (android: Capture top 4 Java stack frames on exception (#7191))
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     return;
@@ -207,7 +235,9 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
     exception_info = GetJavaExceptionInfo(env, throwable);
     base::android::SetJavaException(exception_info.c_str());
-    exception_token = FindFirstJavaFileAndLine(exception_info);
+    exception_token =
+        GetFirstLine(exception_info) + " at " +
+        FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
 #else
     base::android::SetJavaException(
         GetJavaExceptionInfo(env, throwable).c_str());
@@ -244,7 +274,9 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
   exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
   base::android::SetJavaException(exception_info.c_str());
-  exception_token = FindFirstJavaFileAndLine(exception_info);
+  exception_token =
+      GetFirstLine(exception_info) + " at " +
+      FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
 #else
   base::android::SetJavaException(
       GetJavaExceptionInfo(
@@ -273,36 +305,6 @@ std::string GetJavaExceptionInfo(JNIEnv* env,
              ? sanitized_exception_string
              : kOomInGetJavaExceptionInfoMessage;
 }
-
-#if BUILDFLAG(IS_COBALT)
-std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
-    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
-
-    std::vector<std::string> all_matches;
-    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
-    std::sregex_iterator end;
-
-    while (it != end && all_matches.size() < max_matches) {
-        std::smatch match = *it;
-        
-        // match[1] is the method (e.g., "onCreate")
-        // match[2] is the file/line (e.g., "CobaltActivity.java:219")
-        all_matches.push_back(match[1].str() + "@" + match[2].str());
-        
-        ++it; // Move to the next match
-    }
-
-    std::ostringstream oss;
-    for (size_t i = 0; i < all_matches.size(); ++i) {
-        oss << all_matches[i];
-        if (i < all_matches.size() - 1) {
-            oss << "&";
-        }
-    }
-
-    return oss.str();
-}
-#endif
 
 std::string GetJavaStackTraceIfPresent() {
   JNIEnv* env = nullptr;

@@ -4,14 +4,15 @@
 
 #include "base/android/jni_android.h"
 
-#include <stddef.h>
-#include <sys/prctl.h>
-
-#if BUILDFLAG(IS_COBALT)
-#include <string>
+<<<<<<< HEAD
+=======
+#include <cstring>
 #include <iostream>
+>>>>>>> a00a3a9c3f5 (Informative JNI crash message (#6337))
+#include <stddef.h>
+#include <string>
+#include <sys/prctl.h>
 #include <regex>
-#endif
 
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
@@ -118,12 +119,8 @@ void InitVM(JavaVM* vm) {
 void CheckException(JNIEnv* env) {
   if (!jni_zero::HasException(env)) {
     return;
+<<<<<<< HEAD
   }
-
-#if BUILDFLAG(IS_COBALT)
-  std::string exception_token;
-  std::string exception_info;
-#endif
 
   static thread_local bool g_reentering = false;
   if (g_reentering) {
@@ -149,25 +146,12 @@ void CheckException(JNIEnv* env) {
         LOG(FATAL) << kReetrantOutOfMemoryMessage;
       }
     } else {
-<<<<<<< HEAD
       base::android::SetJavaException(kReetrantExceptionMessage);
       if (g_log_fatal_callback_for_testing) {
         g_log_fatal_callback_for_testing(kReetrantExceptionMessage);
       } else {
         LOG(FATAL) << kReetrantExceptionMessage;
       }
-=======
-      g_fatal_exception_occurred = true;
-#if BUILDFLAG(IS_COBALT)
-      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
-      base::android::SetJavaException(exception_info.c_str());
-      exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
-#else
-      // RVO should avoid any extra copies of the exception string.
-      base::android::SetJavaException(
-          GetJavaExceptionInfo(env, java_throwable).c_str());
-#endif
->>>>>>> 5152f1a5517 (android: Capture top 4 Java stack frames on exception (#7191))
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     return;
@@ -204,22 +188,12 @@ void CheckException(JNIEnv* env) {
   auto throwable = ScopedJavaLocalRef<jthrowable>::Adopt(env, raw_throwable);
 
   if (!handle_exception_in_java) {
-#if BUILDFLAG(IS_COBALT)
-    exception_info = GetJavaExceptionInfo(env, throwable);
-    base::android::SetJavaException(exception_info.c_str());
-    exception_token = FindFirstJavaFileAndLine(exception_info);
-#else
     base::android::SetJavaException(
         GetJavaExceptionInfo(env, throwable).c_str());
-#endif
     if (g_log_fatal_callback_for_testing) {
       g_log_fatal_callback_for_testing(kUncaughtExceptionMessage);
     } else {
-#if BUILDFLAG(IS_COBALT)
-      LOG(FATAL) << "JNI exception: " << exception_token;
-#else
       LOG(FATAL) << kUncaughtExceptionMessage;
-#endif
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     g_reentering = false;
@@ -241,27 +215,56 @@ void CheckException(JNIEnv* env) {
   // app that embedded WebView installed an exception handler that does not
   // terminate, or itself threw an exception. We cannot be confident that
   // JavaExceptionReporter ran, so set the java exception explicitly.
-#if BUILDFLAG(IS_COBALT)
-  exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
-  base::android::SetJavaException(exception_info.c_str());
-  exception_token = FindFirstJavaFileAndLine(exception_info);
-#else
   base::android::SetJavaException(
       GetJavaExceptionInfo(
           env, secondary_exception ? secondary_exception : throwable)
           .c_str());
-#endif
   if (g_log_fatal_callback_for_testing) {
     g_log_fatal_callback_for_testing(kUncaughtExceptionHandlerFailedMessage);
   } else {
-#if BUILDFLAG(IS_COBALT)
-    LOG(FATAL) << "JNI exception: " << exception_token;
-#else
     LOG(FATAL) << kUncaughtExceptionHandlerFailedMessage;
-#endif
   }
   // Needed for tests, which do not terminate from LOG(FATAL).
   g_reentering = false;
+=======
+
+#if BUILDFLAG(IS_COBALT)
+  std::string exception_token;
+#endif
+  jthrowable java_throwable = env->ExceptionOccurred();
+  if (java_throwable) {
+    // Clear the pending exception, since a local reference is now held.
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+
+    if (g_fatal_exception_occurred) {
+      // Another exception (probably OOM) occurred during GetJavaExceptionInfo.
+      base::android::SetJavaException(
+          "Java OOM'ed in exception handling, check logcat");
+#if BUILDFLAG(IS_COBALT)
+      exception_token = "Java OOM'ed";
+#endif
+    } else {
+      g_fatal_exception_occurred = true;
+#if BUILDFLAG(IS_COBALT)
+      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
+      base::android::SetJavaException(exception_info.c_str());
+      exception_token = FindFirstJavaFileAndLine(exception_info);
+#else
+      // RVO should avoid any extra copies of the exception string.
+      base::android::SetJavaException(
+          GetJavaExceptionInfo(env, java_throwable).c_str());
+#endif
+    }
+  }
+
+  // Now, feel good about it and die.
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << "JNI exception: " << exception_token;
+#else
+  LOG(FATAL) << "Please include Java exception stack in crash report";
+#endif
+>>>>>>> a00a3a9c3f5 (Informative JNI crash message (#6337))
 }
 
 std::string GetJavaExceptionInfo(JNIEnv* env,
@@ -274,36 +277,7 @@ std::string GetJavaExceptionInfo(JNIEnv* env,
              : kOomInGetJavaExceptionInfoMessage;
 }
 
-#if BUILDFLAG(IS_COBALT)
-std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
-    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
-
-    std::vector<std::string> all_matches;
-    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
-    std::sregex_iterator end;
-
-    while (it != end && all_matches.size() < max_matches) {
-        std::smatch match = *it;
-        
-        // match[1] is the method (e.g., "onCreate")
-        // match[2] is the file/line (e.g., "CobaltActivity.java:219")
-        all_matches.push_back(match[1].str() + "@" + match[2].str());
-        
-        ++it; // Move to the next match
-    }
-
-    std::ostringstream oss;
-    for (size_t i = 0; i < all_matches.size(); ++i) {
-        oss << all_matches[i];
-        if (i < all_matches.size() - 1) {
-            oss << "&";
-        }
-    }
-
-    return oss.str();
-}
-#endif
-
+<<<<<<< HEAD
 std::string GetJavaStackTraceIfPresent() {
   JNIEnv* env = nullptr;
   JavaVM* jvm = jni_zero::GetVM();
@@ -314,6 +288,36 @@ std::string GetJavaStackTraceIfPresent() {
     // JNI has not been initialized on this thread.
     return {};
   }
+=======
+std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
+    // This regular expression looks for a pattern inside parentheses.
+    // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
+    // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
+    // (        - Starts a capturing group. This is the part of the match we want to extract.
+    // [^)]+    - Matches one or more characters that are NOT a closing parenthesis ')'. This captures the file name.
+    // \\.java: - Matches the literal text ".java:".
+    // \\d+     - Matches one or more digits (the line number).
+    // )        - Ends the capturing group.
+    // \\)      - Matches the literal closing parenthesis ')'.
+    std::regex pattern("\\(([^)]+\\.java:\\d+)\\)");
+
+    // smatch object will store the results of the search.
+    std::smatch match;
+
+    // Search the input string for the first occurrence of the pattern.
+    if (std::regex_search(stack_trace, match, pattern)) {
+        // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
+        // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
+        // We return the content of the first captured group.
+        return match[1].str();
+    }
+
+    // Return an empty string if no match was found.
+    return "";
+}
+
+#if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+>>>>>>> a00a3a9c3f5 (Informative JNI crash message (#6337))
 
   if (HasException(env)) {
     // This can happen if CheckException() is being re-entered, decided to

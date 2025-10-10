@@ -1,0 +1,38 @@
+--- base/android/jni_android.h
++++ base/android/jni_android.h
+@@ -114,35 +114,7 @@
+ // This returns a string representation of the java stack trace.
+ BASE_EXPORT std::string GetJavaStackTraceIfPresent();
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_COBALT)
+-// Utility method to find the java file name from the java stack trace.
+-BASE_EXPORT std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches);
+-#endif
+-
+ using MethodID = jni_zero::MethodID;
+-=======
+-#if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+-
+-// Saves caller's PC and stack frame in a thread-local variable.
+-// Implemented only when profiling is enabled (enable_profiling=true).
+-class BASE_EXPORT JNIStackFrameSaver {
+- public:
+-  JNIStackFrameSaver(void* current_fp);
+-
+-  JNIStackFrameSaver(const JNIStackFrameSaver&) = delete;
+-  JNIStackFrameSaver& operator=(const JNIStackFrameSaver&) = delete;
+-
+-  ~JNIStackFrameSaver();
+-  static void* SavedFrame();
+-
+- private:
+-  const AutoReset<void*> resetter_;
+-};
+-
+-#endif  // BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+-
+->>>>>>> 57ff4ea3abf (starboard: JniEnvExt logs JNI exception on abort  (#7440))
+ }  // namespace android
+ }  // namespace base
+ 

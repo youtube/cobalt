@@ -1,0 +1,14 @@
+--- base/android/jni_android.cc
++++ base/android/jni_android.cc
+@@ -4,11 +4,6 @@
+ 
+ #include "base/android/jni_android.h"
+ 
+-<<<<<<< HEAD
+-#include <iostream>
+-=======
+-#include <cstring>
+->>>>>>> 5d6d0316097 (Add IS_COBALT macro for jni_android files (#6363))
+ #include <stddef.h>
+ #include <sys/prctl.h>
+ 

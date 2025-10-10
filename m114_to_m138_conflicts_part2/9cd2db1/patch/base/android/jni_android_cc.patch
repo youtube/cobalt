@@ -1,0 +1,164 @@
+--- base/android/jni_android.cc
++++ base/android/jni_android.cc
+@@ -76,10 +76,9 @@
+     CHECK(!ClearException(env));
+   }
+ }
+-<<<<<<< HEAD
+ #endif  // !BUILDFLAG(IS_ROBOLECTRIC)
+-=======
+ 
++#if BUILDFLAG(IS_COBALT)
+ // Java exception stack trace example:
+ //
+ // java.lang.RuntimeException: Hello
+@@ -119,52 +118,6 @@
+ }
+ #endif  // BUILDFLAG(IS_COBALT)
+ 
+-ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
+-#if BUILDFLAG(IS_COBALT)
+-                                            const char* original_class_name,
+-                                            jobject class_loader) {
+-  const char* class_name;
+-  std::string holder;
+-  if (shouldAddCobaltPrefix()) {
+-    holder = getRepackagedName(original_class_name);
+-    class_name = holder.c_str();
+-  } else {
+-    class_name = original_class_name;
+-  }
+-#else
+-                                            const char* class_name,
+-                                            jobject class_loader) {
+-#endif
+-  jclass clazz;
+-  if (class_loader != nullptr) {
+-    // ClassLoader.loadClass expects a classname with components separated by
+-    // dots instead of the slashes that JNIEnv::FindClass expects. The JNI
+-    // generator generates names with slashes, so we have to replace them here.
+-    // TODO(torne): move to an approach where we always use ClassLoader except
+-    // for the special case of base::android::GetClassLoader(), and change the
+-    // JNI generator to generate dot-separated names. http://crbug.com/461773
+-    size_t bufsize = strlen(class_name) + 1;
+-    char dotted_name[bufsize];
+-    memmove(dotted_name, class_name, bufsize);
+-    for (size_t i = 0; i < bufsize; ++i) {
+-      if (dotted_name[i] == '/') {
+-        dotted_name[i] = '.';
+-      }
+-    }
+-
+-    clazz = static_cast<jclass>(
+-        env->CallObjectMethod(class_loader, g_class_loader_load_class_method_id,
+-                              ConvertUTF8ToJavaString(env, dotted_name).obj()));
+-  } else {
+-    clazz = env->FindClass(class_name);
+-  }
+-  if (ClearException(env) || !clazz) {
+-    LOG(FATAL) << "Failed to find class " << class_name;
+-  }
+-  return ScopedJavaLocalRef<jclass>(env, clazz);
+-}
+-
+->>>>>>> 57ff4ea3abf (starboard: JniEnvExt logs JNI exception on abort  (#7440))
+ }  // namespace
+ 
+ LogFatalCallback g_log_fatal_callback_for_testing = nullptr;
+@@ -237,27 +190,12 @@
+         LOG(FATAL) << kReetrantOutOfMemoryMessage;
+       }
+     } else {
+-<<<<<<< HEAD
+       base::android::SetJavaException(kReetrantExceptionMessage);
+       if (g_log_fatal_callback_for_testing) {
+         g_log_fatal_callback_for_testing(kReetrantExceptionMessage);
+       } else {
+         LOG(FATAL) << kReetrantExceptionMessage;
+       }
+-=======
+-      g_fatal_exception_occurred = true;
+-#if BUILDFLAG(IS_COBALT)
+-      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
+-      base::android::SetJavaException(exception_info.c_str());
+-      exception_token =
+-          GetFirstLine(exception_info) + " at " +
+-          FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
+-#else
+-      // RVO should avoid any extra copies of the exception string.
+-      base::android::SetJavaException(
+-          GetJavaExceptionInfo(env, java_throwable).c_str());
+-#endif
+->>>>>>> 57ff4ea3abf (starboard: JniEnvExt logs JNI exception on abort  (#7440))
+     }
+     // Needed for tests, which do not terminate from LOG(FATAL).
+     return;
+@@ -297,7 +235,9 @@
+ #if BUILDFLAG(IS_COBALT)
+     exception_info = GetJavaExceptionInfo(env, throwable);
+     base::android::SetJavaException(exception_info.c_str());
+-    exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
++    exception_token =
++        GetFirstLine(exception_info) + " at " +
++        FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
+ #else
+     base::android::SetJavaException(
+         GetJavaExceptionInfo(env, throwable).c_str());
+@@ -334,7 +274,9 @@
+ #if BUILDFLAG(IS_COBALT)
+   exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
+   base::android::SetJavaException(exception_info.c_str());
+-  exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
++  exception_token =
++      GetFirstLine(exception_info) + " at " +
++      FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
+ #else
+   base::android::SetJavaException(
+       GetJavaExceptionInfo(
+@@ -364,36 +306,6 @@
+              : kOomInGetJavaExceptionInfoMessage;
+ }
+ 
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_COBALT)
+-std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
+-    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
+-
+-    std::vector<std::string> all_matches;
+-    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
+-    std::sregex_iterator end;
+-
+-    while (it != end && all_matches.size() < max_matches) {
+-        std::smatch match = *it;
+-        
+-        // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
+-        all_matches.push_back(match[0].str());
+-        
+-        ++it; // Move to the next match
+-    }
+-
+-    std::ostringstream oss;
+-    for (size_t i = 0; i < all_matches.size(); ++i) {
+-        oss << all_matches[i];
+-        if (i < all_matches.size() - 1) {
+-            oss << "&";
+-        }
+-    }
+-
+-    return oss.str();
+-}
+-#endif
+-
+ std::string GetJavaStackTraceIfPresent() {
+   JNIEnv* env = nullptr;
+   JavaVM* jvm = jni_zero::GetVM();
+@@ -404,9 +316,6 @@
+     // JNI has not been initialized on this thread.
+     return {};
+   }
+-=======
+-#if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+->>>>>>> 57ff4ea3abf (starboard: JniEnvExt logs JNI exception on abort  (#7440))
+ 
+   if (HasException(env)) {
+     // This can happen if CheckException() is being re-entered, decided to

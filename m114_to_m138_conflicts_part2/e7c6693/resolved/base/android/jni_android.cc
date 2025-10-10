@@ -149,25 +149,12 @@ void CheckException(JNIEnv* env) {
         LOG(FATAL) << kReetrantOutOfMemoryMessage;
       }
     } else {
-<<<<<<< HEAD
       base::android::SetJavaException(kReetrantExceptionMessage);
       if (g_log_fatal_callback_for_testing) {
         g_log_fatal_callback_for_testing(kReetrantExceptionMessage);
       } else {
         LOG(FATAL) << kReetrantExceptionMessage;
       }
-=======
-      g_fatal_exception_occurred = true;
-#if BUILDFLAG(IS_COBALT)
-      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
-      base::android::SetJavaException(exception_info.c_str());
-      exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
-#else
-      // RVO should avoid any extra copies of the exception string.
-      base::android::SetJavaException(
-          GetJavaExceptionInfo(env, java_throwable).c_str());
-#endif
->>>>>>> 5152f1a5517 (android: Capture top 4 Java stack frames on exception (#7191))
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     return;
@@ -207,7 +194,7 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
     exception_info = GetJavaExceptionInfo(env, throwable);
     base::android::SetJavaException(exception_info.c_str());
-    exception_token = FindFirstJavaFileAndLine(exception_info);
+    exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
 #else
     base::android::SetJavaException(
         GetJavaExceptionInfo(env, throwable).c_str());
@@ -244,7 +231,7 @@ void CheckException(JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
   exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
   base::android::SetJavaException(exception_info.c_str());
-  exception_token = FindFirstJavaFileAndLine(exception_info);
+  exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
 #else
   base::android::SetJavaException(
       GetJavaExceptionInfo(

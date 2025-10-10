@@ -4,6 +4,11 @@
 
 #include "base/android/jni_android.h"
 
+<<<<<<< HEAD
+#include <iostream>
+=======
+#include <cstring>
+>>>>>>> 5d6d0316097 (Add IS_COBALT macro for jni_android files (#6363))
 #include <stddef.h>
 #include <sys/prctl.h>
 
@@ -149,25 +154,12 @@ void CheckException(JNIEnv* env) {
         LOG(FATAL) << kReetrantOutOfMemoryMessage;
       }
     } else {
-<<<<<<< HEAD
       base::android::SetJavaException(kReetrantExceptionMessage);
       if (g_log_fatal_callback_for_testing) {
         g_log_fatal_callback_for_testing(kReetrantExceptionMessage);
       } else {
         LOG(FATAL) << kReetrantExceptionMessage;
       }
-=======
-      g_fatal_exception_occurred = true;
-#if BUILDFLAG(IS_COBALT)
-      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
-      base::android::SetJavaException(exception_info.c_str());
-      exception_token = FindTopJavaMethodsAndFiles(exception_info, 4);
-#else
-      // RVO should avoid any extra copies of the exception string.
-      base::android::SetJavaException(
-          GetJavaExceptionInfo(env, java_throwable).c_str());
-#endif
->>>>>>> 5152f1a5517 (android: Capture top 4 Java stack frames on exception (#7191))
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     return;
@@ -275,32 +267,31 @@ std::string GetJavaExceptionInfo(JNIEnv* env,
 }
 
 #if BUILDFLAG(IS_COBALT)
-std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
-    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
+std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
+    // This regular expression looks for a pattern inside parentheses.
+    // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
+    // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
+    // (        - Starts a capturing group. This is the part of the match we want to extract.
+    // [^)]+    - Matches one or more characters that are NOT a closing parenthesis ')'. This captures the file name.
+    // \\.java: - Matches the literal text ".java:".
+    // \\d+     - Matches one or more digits (the line number).
+    // )        - Ends the capturing group.
+    // \\)      - Matches the literal closing parenthesis ')'.
+    std::regex pattern("\\(([^)]+\\.java:\\d+)\\)");
 
-    std::vector<std::string> all_matches;
-    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
-    std::sregex_iterator end;
+    // smatch object will store the results of the search.
+    std::smatch match;
 
-    while (it != end && all_matches.size() < max_matches) {
-        std::smatch match = *it;
-        
-        // match[1] is the method (e.g., "onCreate")
-        // match[2] is the file/line (e.g., "CobaltActivity.java:219")
-        all_matches.push_back(match[1].str() + "@" + match[2].str());
-        
-        ++it; // Move to the next match
+    // Search the input string for the first occurrence of the pattern.
+    if (std::regex_search(stack_trace, match, pattern)) {
+        // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
+        // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
+        // We return the content of the first captured group.
+        return match[1].str();
     }
 
-    std::ostringstream oss;
-    for (size_t i = 0; i < all_matches.size(); ++i) {
-        oss << all_matches[i];
-        if (i < all_matches.size() - 1) {
-            oss << "&";
-        }
-    }
-
-    return oss.str();
+    // Return an empty string if no match was found.
+    return "";
 }
 #endif
 
