@@ -35,6 +35,7 @@
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
 
+#include "cobalt/android/jni_headers/DisplayUtil_jni.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 
 namespace starboard {
@@ -621,8 +622,7 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
+void JNI_DisplayUtil_OnDisplayChanged(JNIEnv* env) {
   // Display device change could change hdr capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
