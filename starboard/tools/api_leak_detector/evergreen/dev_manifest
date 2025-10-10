@@ -27,7 +27,6 @@ fwrite
 getc
 localeconv
 newlocale
-prctl
 printf
 puts
 rewind
