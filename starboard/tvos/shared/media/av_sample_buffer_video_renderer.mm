@@ -209,7 +209,7 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
 
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     [display_layer flush];
     [display_view removeFromSuperview];
 
@@ -321,7 +321,7 @@ void AVSBVideoRenderer::SetBounds(int z_index,
                                   int height) {
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     float scale = [UIScreen mainScreen].scale;
     display_view.frame =
         CGRectMake(x / scale, y / scale, width / scale, height / scale);
@@ -337,7 +337,7 @@ void AVSBVideoRenderer::SetMediaTimeOffset(int64_t media_time_offset) {
   // AVSBSynchronizer::Seek().
   is_display_layer_flushing_ = true;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     [display_layer flush];
     is_display_layer_flushing_ = false;
   });
@@ -412,7 +412,7 @@ void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
     // delegate cannot be performed on the resource loader's queue thread.
     // Otherwise, it will cause deadlock.
     AVDisplayCriteria* criteria = asset.preferredDisplayCriteria;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    onApplicationMainThread(^{
       avDisplayManager.preferredDisplayCriteria = criteria;
     });
   }
