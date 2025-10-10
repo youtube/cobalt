@@ -107,7 +107,7 @@ runs:
           set -ex
           cd src
           test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
+          time RBE_preserve_symlink=true RBE_exec_root=$(pwd) autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
         env:
