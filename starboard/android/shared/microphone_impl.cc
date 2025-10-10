@@ -542,14 +542,3 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
   delete s_microphone;
   s_microphone = kSbMicrophoneInvalid;
 }
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_AudioPermissionRequester_nativeHandlePermission(
-    JNIEnv* env,
-    jobject unused_this,
-    jlong nativeSbMicrophoneImpl,
-    jboolean is_granted) {
-  starboard::SbMicrophoneImpl* native =
-      reinterpret_cast<starboard::SbMicrophoneImpl*>(nativeSbMicrophoneImpl);
-  native->SetPermission(is_granted);
-}
