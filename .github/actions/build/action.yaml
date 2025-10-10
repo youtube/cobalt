@@ -116,7 +116,7 @@ runs:
           set -ex
           cd src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
-          time RBE_preserve_symlink=true RBE_exec_root=$(pwd) autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
