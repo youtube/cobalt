@@ -100,15 +100,6 @@ runs:
           path: |
             src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
             src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
-      - name: Ninja build test targets
-        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
-        id: build-test-targets
-        run: |
-          set -ex
-          cd src
-          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
-          time RBE_preserve_symlink=true RBE_exec_root=$(pwd) autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
-        shell: bash
       - name: Ninja build
         env:
           TARGETS_JSON: ${{ inputs.targets }}
@@ -117,6 +108,15 @@ runs:
           cd src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+        shell: bash
+      - name: Ninja build test targets
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        id: build-test-targets
+        run: |
+          set -ex
+          cd src
+          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
