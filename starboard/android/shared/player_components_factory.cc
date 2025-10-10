@@ -66,6 +66,12 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to > 0 to force it to
+// wait during Reset()/Flush().
+constexpr int64_t kResetDelayUsecOverride = 0;
+constexpr int64_t kFlushDelayUsecOverride = 0;
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -464,10 +470,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
-    int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
-    int64_t reset_delay_usec = features::kResetDelayUsec.Get();
+    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
+        starboard::features::kForceFlushDecoderDuringReset);
+    int64_t reset_delay_usec = 0;
+    int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -491,12 +497,16 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " video decoder during Reset().";
-    SB_LOG_IF(INFO, flush_delay_usec > 0)
-        << "`kFlushDelayUsec` is set to > 0, force a delay of "
-        << flush_delay_usec << "us during Flush().";
-    SB_LOG_IF(INFO, reset_delay_usec > 0)
-        << "`kResetDelayUsec` is set to > 0, force a delay of "
-        << reset_delay_usec << "us during Reset().";
+    if (kResetDelayUsecOverride > 0) {
+      reset_delay_usec = kResetDelayUsecOverride;
+      SB_LOG(INFO) << "`kResetDelayUsecOverride` is set to > 0, force a delay"
+                   << " of " << reset_delay_usec << "us during Reset().";
+    }
+    if (kFlushDelayUsecOverride > 0) {
+      flush_delay_usec = kFlushDelayUsecOverride;
+      SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
+                   << " of " << flush_delay_usec << "us during Flush().";
+    }
 
     auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
         creation_parameters.video_stream_info(),
