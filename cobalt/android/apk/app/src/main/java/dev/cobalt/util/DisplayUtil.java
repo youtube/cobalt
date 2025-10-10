@@ -25,11 +25,19 @@ import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
 
   private DisplayUtil() {}
+
+  @JNINamespace("starboard")
+  @NativeMethods
+  interface Natives {
+    void onDisplayChanged();
+  }
 
   private static Display sDefaultDisplay;
   private static DisplayMetrics sCachedDisplayMetrics = null;
@@ -154,17 +162,17 @@ public class DisplayUtil {
       new DisplayListener() {
         @Override
         public void onDisplayAdded(int displayId) {
-          nativeOnDisplayChanged();
+          DisplayUtilJni.get().onDisplayChanged();
         }
 
         @Override
         public void onDisplayChanged(int displayId) {
-          nativeOnDisplayChanged();
+          DisplayUtilJni.get().onDisplayChanged();
         }
 
         @Override
         public void onDisplayRemoved(int displayId) {
-          nativeOnDisplayChanged();
+          DisplayUtilJni.get().onDisplayChanged();
         }
       };
 
@@ -181,8 +189,6 @@ public class DisplayUtil {
 
     // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
     // Display created.
-    nativeOnDisplayChanged();
+    DisplayUtilJni.get().onDisplayChanged();
   }
-
-  private static native void nativeOnDisplayChanged();
 }
