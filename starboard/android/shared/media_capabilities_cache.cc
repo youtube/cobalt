@@ -62,11 +62,21 @@ bool EndsWith(const std::string& str, const std::string& suffix) {
 }
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
-  jint j_upper_int = Java_MediaCodecUtil_getRangeUpper(
-      env, JavaParamRef<jobject>(env, j_range));
-  jint j_lower_int = Java_MediaCodecUtil_getRangeLower(
-      env, JavaParamRef<jobject>(env, j_range));
-  return Range(j_lower_int, j_upper_int);
+  const auto j_range_ref = JavaParamRef<jobject>(env, j_range);
+  return Range(Java_MediaCodecUtil_getRangeLower(env, j_range_ref),
+               Java_MediaCodecUtil_getRangeUpper(env, j_range_ref));
+}
+
+using GetRangeFunc =
+    ScopedJavaLocalRef<jobject> (*)(JNIEnv*,
+                                    const base::android::JavaRef<jobject>&);
+Range GetRange(JNIEnv* env,
+               const JavaParamRef<jobject>& j_video_capabilities,
+               GetRangeFunc get_range_func) {
+  ScopedJavaLocalRef<jobject> j_range =
+      get_range_func(env, j_video_capabilities);
+  SB_CHECK(j_range);
+  return ConvertJavaRangeToRange(env, j_range.obj());
 }
 
 void ConvertStringToLowerCase(std::string* str) {
@@ -183,34 +193,22 @@ VideoCodecCapability::VideoCodecCapability(
           Java_CodecCapabilityInfo_isSoftware(env, j_codec_info)),
       is_hdr_capable_(Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info)),
       j_video_capabilities_(env, j_video_capabilities.obj()),
-      supported_widths_([this, env] {
-        ScopedJavaLocalRef<jobject> j_width_range(
-            Java_MediaCodecUtil_getVideoWidthRange(
-                env, JavaParamRef<jobject>(env, j_video_capabilities_.obj())));
-        SB_CHECK(j_width_range);
-        return ConvertJavaRangeToRange(env, j_width_range.obj());
-      }()),
-      supported_heights_([this, env] {
-        ScopedJavaLocalRef<jobject> j_height_range(
-            Java_MediaCodecUtil_getVideoHeightRange(
-                env, JavaParamRef<jobject>(env, j_video_capabilities_.obj())));
-        SB_CHECK(j_height_range);
-        return ConvertJavaRangeToRange(env, j_height_range.obj());
-      }()),
-      supported_bitrates_([this, env] {
-        ScopedJavaLocalRef<jobject> j_bitrate_range(
-            Java_MediaCodecUtil_getVideoBitrateRange(
-                env, JavaParamRef<jobject>(env, j_video_capabilities_.obj())));
-        SB_CHECK(j_bitrate_range);
-        return ConvertJavaRangeToRange(env, j_bitrate_range.obj());
-      }()),
-      supported_frame_rates_([this, env] {
-        ScopedJavaLocalRef<jobject> j_frame_rate_range(
-            Java_MediaCodecUtil_getVideoFrameRateRange(
-                env, JavaParamRef<jobject>(env, j_video_capabilities_.obj())));
-        SB_CHECK(j_frame_rate_range);
-        return ConvertJavaRangeToRange(env, j_frame_rate_range.obj());
-      }()) {}
+      supported_widths_(
+          GetRange(env,
+                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
+                   &Java_MediaCodecUtil_getVideoWidthRange)),
+      supported_heights_(
+          GetRange(env,
+                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
+                   &Java_MediaCodecUtil_getVideoHeightRange)),
+      supported_bitrates_(
+          GetRange(env,
+                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
+                   &Java_MediaCodecUtil_getVideoBitrateRange)),
+      supported_frame_rates_(
+          GetRange(env,
+                   JavaParamRef<jobject>(env, j_video_capabilities_.obj()),
+                   &Java_MediaCodecUtil_getVideoFrameRateRange)) {}
 VideoCodecCapability::~VideoCodecCapability() = default;
 
 bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
