@@ -1,5 +1,70 @@
 [
   {
+    "hexsha": "e0ff0736f34e1a08c4aaf84b0a277f7d968cd4a8",
+    "original_hexsha": "92f2996cb2368c88c8a7a33021d473a63452d6dd",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-09T16:05:33-07:00",
+    "summary": "android: Migrate CaptionSettings to JNI generator (#7477)",
+    "stats": {
+      "files": 3,
+      "insertions": 91,
+      "deletions": 41
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "cfabcd7acc2712601efd2021a6ed997acb173ad0",
+    "original_hexsha": "2dd0429132c967de10f65adf1073e29183b65f3b",
+    "author": "Holden Warriner",
+    "datetime": "2025-10-09T21:07:30+00:00",
+    "summary": "Remove customization to send EG info addr via IPC (#7492)",
+    "stats": {
+      "files": 7,
+      "insertions": 0,
+      "deletions": 83
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f6ae4b060feb6c8902513dcd5f9733381ace790f",
+    "original_hexsha": "7be1d37262e0ed4fb771066c3c2ec77dac18e637",
+    "author": "John Ocampo",
+    "datetime": "2025-10-09T20:23:59+00:00",
+    "summary": "starboard: Add starboard_platform_tests to CI on android (#7484)",
+    "stats": {
+      "files": 10,
+      "insertions": 50,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4007f18e164bd73c092189541c992055cb827eff",
+    "original_hexsha": "f9ae14611ad9e2f944f0b404df2da66fa29353c1",
+    "author": "John Ocampo",
+    "datetime": "2025-10-09T18:50:27+00:00",
+    "summary": "media: Refine AdjustForDiscardedDurations (#7483)",
+    "stats": {
+      "files": 1,
+      "insertions": 10,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f07f42ac8bfd031430dbeac4528043057831b08e",
+    "original_hexsha": "f62346027cfdfdee4bdb5b3741e8d728397fc6f7",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-10-09T10:51:43-07:00",
+    "summary": "Make kokoro pipeline work for evergreen-arm, evergreen-x64 (#7422)",
+    "stats": {
+      "files": 18,
+      "insertions": 355,
+      "deletions": 142
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "c87b4f8438233f2048d9a60d760387c2ee798fd8",
     "original_hexsha": "5f46d6146236665839c4e39000782167217a9d19",
     "author": "Miguel Casas",
