@@ -103,6 +103,8 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   }
 
   // Now, check if the expiration feature is enabled in the determined config.
+  // This check reads directly from the pref because it runs *before* the
+  // global base::FeatureList is initialized.
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
   const base::Value::Dict& feature_map = experiment_config_->GetDict(
