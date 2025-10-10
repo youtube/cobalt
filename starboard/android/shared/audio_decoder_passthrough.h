@@ -41,7 +41,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   // AudioDecoder methods.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!output_cb_);
     SB_DCHECK(output_cb);
 
@@ -50,7 +50,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!input_buffers.empty());
     SB_DCHECK(consumed_cb);
     SB_DCHECK(output_cb_);
@@ -77,7 +77,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
   }
 
   void WriteEndOfStream() override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(output_cb_);
 
     decoded_audios_.push(new DecodedAudio);
@@ -85,7 +85,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
   }
 
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(samples_per_second);
     SB_DCHECK(!decoded_audios_.empty());
 
@@ -97,7 +97,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
   }
 
   void Reset() override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
 
     decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // Clear
   }
