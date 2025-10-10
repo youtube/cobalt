@@ -179,6 +179,7 @@ test("nplb") {
       "posix_compliance/posix_pipe_test.cc",
       "posix_compliance/posix_poll_test.cc",
       "posix_compliance/posix_posix_memory_allocate_aligned_test.cc",
+      "posix_compliance/posix_prctl_test.cc",
       "posix_compliance/posix_priority_test.cc",
       "posix_compliance/posix_process_test.cc",
       "posix_compliance/posix_rand_r_test.cc",
