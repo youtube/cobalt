@@ -25,16 +25,14 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
-#include "starboard/extension/accessibility.h"
-
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
+#include "starboard/extension/accessibility.h"
 #include "starboard/key.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
