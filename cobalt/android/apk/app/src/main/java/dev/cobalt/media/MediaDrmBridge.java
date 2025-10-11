@@ -498,8 +498,9 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-            KeyStatus[] keyStatusArray = new KeyStatus[keyInformation.size()];
-            for (int i = 0; i < keyInformation.size(); i++) {
+            final int size = keyInformation.size();
+            KeyStatus[] keyStatusArray = new KeyStatus[size];
+            for (int i = 0; i < size; i++) {
               MediaDrm.KeyStatus keyStatus = keyInformation.get(i);
               keyStatusArray[i] =
                   new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode());
@@ -932,13 +933,13 @@ public class MediaDrmBridge {
     private final int mStatusCode;
 
     private KeyStatus(byte[] keyId, int statusCode) {
-      mKeyId = keyId;
+      mKeyId = keyId.clone();
       mStatusCode = statusCode;
     }
 
     @CalledByNative("KeyStatus")
     private byte[] getKeyId() {
-      return mKeyId;
+      return mKeyId.clone();
     }
 
     @CalledByNative("KeyStatus")
