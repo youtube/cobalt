@@ -139,27 +139,6 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 }  // namespace
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JNIEnv* env,
-                                                      jobject jcaller,
-                                                      jlong nativeService,
-                                                      jbyteArray j_data) {
-  CobaltExtensionPlatformService service =
-      reinterpret_cast<CobaltExtensionPlatformService>(nativeService);
-  if (!CobaltExtensionPlatformServiceIsValid(service)) {
-    SB_LOG(WARNING) << "Trying to send message through platform service when "
-                       "the service is already closed";
-    return;
-  }
-
-  jsize length = env->GetArrayLength(j_data);
-  std::unique_ptr<char[]> data(new char[length]);
-  env->GetByteArrayRegion(j_data, 0, length,
-                          reinterpret_cast<jbyte*>(data.get()));
-
-  service->receive_callback(service->context, data.get(), length);
-}
-
 const void* GetPlatformServiceApiAndroid() {
   return &kPlatformServiceApi;
 }
