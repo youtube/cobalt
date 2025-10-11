@@ -498,17 +498,12 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-            final int size = keyInformation.size();
-            KeyStatus[] keyStatusArray = new KeyStatus[size];
-            for (int i = 0; i < size; i++) {
-              MediaDrm.KeyStatus keyStatus = keyInformation.get(i);
-              keyStatusArray[i] =
-                  new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode());
-            }
             MediaDrmBridgeJni.get().onKeyStatusChange(
                 mNativeMediaDrmBridge,
                 sessionId,
-                keyStatusArray);
+                keyInformation.stream()
+                    .map(keyStatus -> new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode()))
+                    .toArray(KeyStatus[]::new));
           }
         },
         null);
