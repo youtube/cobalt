@@ -19,7 +19,6 @@ import static dev.cobalt.media.Log.TAG;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
 import androidx.annotation.GuardedBy;
@@ -41,7 +40,7 @@ public class AudioTrackBridge {
   static final int AV_SYNC_HEADER_V1_SIZE = 16;
 
   private AudioTrack mAudioTrack;
-  private AudioTimestamp mAudioTimestamp = new AudioTimestamp();
+  private android.media.AudioTimestamp mAudioTimestamp = new android.media.AudioTimestamp();
   private final Object mPositionLock = new Object();
   @GuardedBy("mPositionLock")
   private long mMaxFramePositionSoFar = 0;
@@ -379,7 +378,7 @@ public class AudioTrackBridge {
     // information to the starboard audio sink.
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
-      return mAudioTimestamp;
+      return new AudioTimestamp(mAudioTimestamp.framePosition, mAudioTimestamp.nanoTime);
     }
     // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
@@ -406,7 +405,7 @@ public class AudioTrackBridge {
       }
     }
 
-    return mAudioTimestamp;
+    return new AudioTimestamp(mAudioTimestamp.framePosition, mAudioTimestamp.nanoTime);
   }
 
   @CalledByNative
@@ -424,6 +423,28 @@ public class AudioTrackBridge {
       return getStartThresholdInFramesV31();
     }
     return 0;
+  }
+
+  /** A wrapper of the android AudioTimestamp class to be used by JNI. */
+  @JNINamespace("starboard")
+  private static class AudioTimestamp {
+    private final long framePosition;
+    private final long nanoTime;
+
+    public AudioTimestamp(long framePosition, long nanoTime) {
+      this.framePosition = framePosition;
+      this.nanoTime = nanoTime;
+    }
+
+    @CalledByNative("AudioTimestamp")
+    public long getFramePosition() {
+      return framePosition;
+    }
+
+    @CalledByNative("AudioTimestamp")
+    public long getNanoTime() {
+      return nanoTime;
+    }
   }
 
   @RequiresApi(31)
