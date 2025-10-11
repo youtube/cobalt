@@ -1,5 +1,109 @@
 [
   {
+    "hexsha": "82ea877923bf7695d7d7c444ca632cef2d14757a",
+    "original_hexsha": "761a6469b88741d7be6d85540d610bef32f091e5",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T22:33:27-07:00",
+    "summary": "android: Migrate Video/Audio capabilities logic to JNI generator (#7504)",
+    "stats": {
+      "files": 3,
+      "insertions": 104,
+      "deletions": 172
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "12473eb311b7576fab30a6ae2a7efec2265bb3cf",
+    "original_hexsha": "66010b2e4e3f4ed57f30e49f2a20201524a3344e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T19:58:16-07:00",
+    "summary": "android: Remove unused Android InputEventsGenerator (#7502)",
+    "stats": {
+      "files": 4,
+      "insertions": 0,
+      "deletions": 1067
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a1068423b12363ee17121e31433ae411bd2de52b",
+    "original_hexsha": "ee9a0709d6832504331991d48c72c93d1ed72471",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T18:45:27-07:00",
+    "summary": "android: Migrate Cobalt service to JNI generator (#7471)",
+    "stats": {
+      "files": 6,
+      "insertions": 87,
+      "deletions": 67
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f7e3c0bd3120b49b993c6751ae4951d51d9266a1",
+    "original_hexsha": "fbc96e7b073679d93c36528524ec8b04a36d21f1",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T16:42:33-07:00",
+    "summary": "android: Migrate systemGetLocaleId to JNI generator (#7473)",
+    "stats": {
+      "files": 4,
+      "insertions": 13,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "918f17bc7c19cfd8363b521c96fea3d88d81aa28",
+    "original_hexsha": "dcb44c88ffdecc3c9aa2289d04a5646966364ece",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T13:14:23-07:00",
+    "summary": "android: Migrate getResourceOverlay to JNI generator (#7475)",
+    "stats": {
+      "files": 7,
+      "insertions": 50,
+      "deletions": 25
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1f8eed70df5d81275dd6452fa635aa80dccbbfc5",
+    "original_hexsha": "aff0ef3e5a29b54cc30cfa6139c892df24daefd1",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T13:12:04-07:00",
+    "summary": "android: Migrate crash context to JNI generator (#7469)",
+    "stats": {
+      "files": 4,
+      "insertions": 15,
+      "deletions": 6
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "716d20b1d6989f4bba4f1b66c06fe63ccc00e59e",
+    "original_hexsha": "b4b66929c00ef822b072ecb4c503e34599c48aff",
+    "author": "johnx",
+    "datetime": "2025-10-10T12:57:38-07:00",
+    "summary": "Revert \"android: Preserve Viz components in ProGuard\" (#7500)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "54c73d2137d903cc3423ba48574ce8a2a986e3b1",
+    "original_hexsha": "79738305f5177dcfc920f343a0984cc623864400",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-10T10:31:46-07:00",
+    "summary": "android: Remove obsolete JNI implementation in Android Media Session client (#7490)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 272
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "e0ff0736f34e1a08c4aaf84b0a277f7d968cd4a8",
     "original_hexsha": "92f2996cb2368c88c8a7a33021d473a63452d6dd",
     "author": "Kyujung Youn",
