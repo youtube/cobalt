@@ -16,7 +16,6 @@
 
 #include <jni.h>
 
-#include <functional>
 #include <mutex>
 #include <utility>
 
@@ -69,9 +68,7 @@ Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
                Java_MediaCodecUtil_getRangeUpper(env, j_range_ref));
 }
 
-using GetRangeFunc = std::function<ScopedJavaLocalRef<jobject>(
-    JNIEnv*,
-    const base::android::JavaRef<jobject>&)>;
+template <typename GetRangeFunc>
 Range GetRange(JNIEnv* env,
                const base::android::JavaRef<jobject>& j_capabilities,
                GetRangeFunc get_range_func) {
