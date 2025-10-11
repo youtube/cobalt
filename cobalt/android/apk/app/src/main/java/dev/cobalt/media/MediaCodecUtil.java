@@ -549,6 +549,58 @@ public class MediaCodecUtil {
     return false;
   }
 
+  @CalledByNative
+  public static int getRangeUpper(Range<Integer> range) {
+    return range.getUpper();
+  }
+
+  @CalledByNative
+  public static int getRangeLower(Range<Integer> range) {
+    return range.getLower();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getAudioBitrateRange(
+      MediaCodecInfo.AudioCapabilities audioCapabilities) {
+    return audioCapabilities.getBitrateRange();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoWidthRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getSupportedWidths();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoHeightRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getSupportedHeights();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoBitrateRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getBitrateRange();
+  }
+
+  @CalledByNative
+  public static Range<Integer> getVideoFrameRateRange(
+      MediaCodecInfo.VideoCapabilities videoCapabilities) {
+    return videoCapabilities.getSupportedFrameRates();
+  }
+
+  @CalledByNative
+  public static boolean areSizeAndRateSupported(
+      MediaCodecInfo.VideoCapabilities videoCapabilities, int width, int height, double frameRate) {
+    return videoCapabilities.areSizeAndRateSupported(width, height, frameRate);
+  }
+
+  @CalledByNative
+  public static boolean isSizeSupported(
+      MediaCodecInfo.VideoCapabilities videoCapabilities, int width, int height) {
+    return videoCapabilities.isSizeSupported(width, height);
+  }
+
   /**
    * Returns the name of the video decoder if it is found, or "" otherwise.
    *
