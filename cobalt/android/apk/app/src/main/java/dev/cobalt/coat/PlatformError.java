@@ -29,8 +29,11 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
+@JNINamespace("starboard")
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -143,8 +146,11 @@ public class PlatformError
 
   /** Informs Starboard when the error is dismissed. */
   protected void sendResponse(@PlatformError.Response int response, long data) {
-    nativeSendResponse(response, data);
+    PlatformErrorJni.get().sendResponse(response, data);
   }
 
-  private native void nativeSendResponse(@PlatformError.Response int response, long data);
+  @NativeMethods
+  interface Natives {
+    void sendResponse(@PlatformError.Response int response, long data);
+  }
 }
