@@ -40,7 +40,12 @@ public class AudioTrackBridge {
   static final int AV_SYNC_HEADER_V1_SIZE = 16;
 
   private AudioTrack mAudioTrack;
-  private android.media.AudioTimestamp mAudioTimestamp = new android.media.AudioTimestamp();
+
+  // mRawAudioTimestamp and mAudioTimestamp are defined as member variables to avoid object
+  // allocation in getAudioTimestamp(), which is on a hot path for audio processing.
+  private android.media.AudioTimestamp mRawAudioTimestamp = new android.media.AudioTimestamp();
+  private AudioTimestamp mAudioTimestamp = new AudioTimestamp(0, 0);
+
   private final Object mPositionLock = new Object();
   @GuardedBy("mPositionLock")
   private long mMaxFramePositionSoFar = 0;
@@ -378,16 +383,17 @@ public class AudioTrackBridge {
     // information to the starboard audio sink.
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
-      return new AudioTimestamp(mAudioTimestamp.framePosition, mAudioTimestamp.nanoTime);
+      return mAudioTimestamp;
     }
     // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (mPositionLock) {
-      if (mAudioTrack.getTimestamp(mAudioTimestamp)) {
+      if (mAudioTrack.getTimestamp(mRawAudioTimestamp)) {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        mAudioTimestamp.framePosition &= 0x7FFFFFFF;
+        mAudioTimestamp.framePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
+        mAudioTimestamp.nanoTime = mRawAudioTimestamp.nanoTime;
       } else {
         // Time stamps haven't been updated yet, assume playback hasn't started.
         mAudioTimestamp.framePosition = 0;
@@ -405,7 +411,7 @@ public class AudioTrackBridge {
       }
     }
 
-    return new AudioTimestamp(mAudioTimestamp.framePosition, mAudioTimestamp.nanoTime);
+    return mAudioTimestamp;
   }
 
   @CalledByNative
@@ -428,8 +434,8 @@ public class AudioTrackBridge {
   /** A wrapper of the android AudioTimestamp class to be used by JNI. */
   @JNINamespace("starboard")
   private static class AudioTimestamp {
-    private final long framePosition;
-    private final long nanoTime;
+    public long framePosition;
+    public long nanoTime;
 
     public AudioTimestamp(long framePosition, long nanoTime) {
       this.framePosition = framePosition;

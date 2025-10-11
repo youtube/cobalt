@@ -15,11 +15,9 @@
 #include "starboard/android/shared/audio_track_bridge.h"
 
 #include <algorithm>
-#include <mutex>
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
