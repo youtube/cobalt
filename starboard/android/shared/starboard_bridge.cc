@@ -359,4 +359,28 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
+base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& activity,
+    jlong native_service,
+    const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_openCobaltService(
+      env, j_starboard_bridge_, activity, native_service,
+      ConvertUTF8ToJavaString(env, service_name));
+}
+
+void StarboardBridge::CloseCobaltService(JNIEnv* env,
+                                         const char* service_name) {
+  SB_CHECK(env);
+  Java_StarboardBridge_closeCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
+bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_hasCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
 }  // namespace starboard
