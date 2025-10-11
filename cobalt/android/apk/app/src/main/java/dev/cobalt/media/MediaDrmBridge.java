@@ -934,7 +934,7 @@ public class MediaDrmBridge {
 
     @CalledByNative("KeyStatus")
     private byte[] getKeyId() {
-      return mKeyId.clone();
+      return (mKeyId == null) ? null : mKeyId.clone();
     }
 
     @CalledByNative("KeyStatus")
