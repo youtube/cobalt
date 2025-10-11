@@ -294,7 +294,6 @@ static_library("starboard_platform") {
 
     #"window_create.cc",
     #"window_destroy.cc",
-    #"window_get_diagonal_size_in_inches.cc",
     #"window_get_platform_handle.cc",
     #"window_get_size.cc",
     #"window_internal.h",

@@ -223,7 +223,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
-  REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);

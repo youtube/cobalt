@@ -148,7 +148,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/time_zone_get_name.cc",
     "//starboard/shared/stub/window_create.cc",
     "//starboard/shared/stub/window_destroy.cc",
-    "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
     "//starboard/shared/stub/window_get_platform_handle.cc",
     "//starboard/shared/stub/window_get_size.cc",
     "//starboard/shared/stub/window_set_default_options.cc",
