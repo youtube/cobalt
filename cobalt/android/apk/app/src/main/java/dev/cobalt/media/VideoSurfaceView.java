@@ -50,7 +50,7 @@ public class VideoSurfaceView extends SurfaceView {
 
     // Reset video surface on nexus player to avoid b/159073388.
     if (sNeedResetSurfaceList.contains(Build.MODEL)) {
-      VideoSurfaceViewJni.get().setNeedResetSurface();
+      // VideoSurfaceViewJni.get().setNeedResetSurface();
     }
   }
 
