@@ -392,22 +392,22 @@ public class AudioTrackBridge {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        mAudioTimestamp.framePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
-        mAudioTimestamp.nanoTime = mRawAudioTimestamp.nanoTime;
+        mAudioTimestamp.setFramePosition(mRawAudioTimestamp.framePosition & 0x7FFFFFFF);
+        mAudioTimestamp.setNanoTime(mRawAudioTimestamp.nanoTime);
       } else {
         // Time stamps haven't been updated yet, assume playback hasn't started.
-        mAudioTimestamp.framePosition = 0;
-        mAudioTimestamp.nanoTime = System.nanoTime();
+        mAudioTimestamp.setFramePosition(0);
+        mAudioTimestamp.setNanoTime(System.nanoTime());
       }
 
-      if (mAudioTimestamp.framePosition > mMaxFramePositionSoFar) {
-        mMaxFramePositionSoFar = mAudioTimestamp.framePosition;
+      if (mAudioTimestamp.getFramePosition() > mMaxFramePositionSoFar) {
+        mMaxFramePositionSoFar = mAudioTimestamp.getFramePosition();
       } else {
         // The returned |audioTimestamp.framePosition| is not monotonically
         // increasing, and a monotonically increastion frame position is
         // required to calculate the playback time correctly, because otherwise
         // we would be going back in time.
-        mAudioTimestamp.framePosition = mMaxFramePositionSoFar;
+        mAudioTimestamp.setFramePosition(mMaxFramePositionSoFar);
       }
     }
 
@@ -434,11 +434,19 @@ public class AudioTrackBridge {
   /** A wrapper of the android AudioTimestamp class to be used by JNI. */
   @JNINamespace("starboard")
   private static class AudioTimestamp {
-    public long framePosition;
-    public long nanoTime;
+    private long framePosition;
+    private long nanoTime;
 
     public AudioTimestamp(long framePosition, long nanoTime) {
       this.framePosition = framePosition;
+      this.nanoTime = nanoTime;
+    }
+
+    public void setFramePosition(long framePosition) {
+      this.framePosition = framePosition;
+    }
+
+    public void setNanoTime(long nanoTime) {
       this.nanoTime = nanoTime;
     }
 
