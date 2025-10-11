@@ -22,11 +22,11 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
-#include "starboard/common/check_op.h"
 
 namespace starboard {
 namespace {
@@ -99,11 +99,6 @@ std::string JavaByteArrayToString(
   std::string out;
   JavaByteArrayToString(env, j_byte_array, &out);
   return out;
-}
-
-std::string JavaByteArrayToString(JNIEnv* env, jbyteArray j_byte_array) {
-  return JavaByteArrayToString(
-      env, ScopedJavaLocalRef<jbyteArray>(env, j_byte_array));
 }
 
 ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
@@ -299,29 +294,18 @@ void MediaDrmBridge::OnKeyStatusChange(
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
-  static jclass mediaDrmKeyStatusClass =
-      env->FindClass("android/media/MediaDrm$KeyStatus");
-  SB_DCHECK(mediaDrmKeyStatusClass);
-
-  static jmethodID getKeyIdMethod =
-      env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
-  SB_DCHECK(getKeyIdMethod);
-
-  static jmethodID getStatusCodeMethod =
-      env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
-  SB_DCHECK(getStatusCodeMethod);
-
   for (jsize i = 0; i < length; ++i) {
-    jobject j_key_status = env->GetObjectArrayElement(key_information, i);
-    jbyteArray j_key_id = static_cast<jbyteArray>(
-        env->CallObjectMethod(j_key_status, getKeyIdMethod));
+    ScopedJavaLocalRef<jobject> j_key_status(
+        env, env->GetObjectArrayElement(key_information.obj(), i));
+    ScopedJavaLocalRef<jbyteArray> j_key_id =
+        Java_KeyStatus_getKeyId(env, j_key_status);
     std::string key_id = JavaByteArrayToString(env, j_key_id);
 
     SB_DCHECK_LE(key_id.size(), sizeof(drm_key_ids[i].identifier));
     memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
     drm_key_ids[i].identifier_size = key_id.size();
 
-    jint j_status_code = env->CallIntMethod(j_key_status, getStatusCodeMethod);
+    jint j_status_code = Java_KeyStatus_getStatusCode(env, j_key_status);
     drm_key_statuses[i] =
         ToSbDrmKeyStatus(static_cast<MediaDrmKeyStatus>(j_status_code));
   }

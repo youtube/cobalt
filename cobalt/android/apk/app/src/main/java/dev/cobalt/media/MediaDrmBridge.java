@@ -498,11 +498,16 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-
+            KeyStatus[] keyStatusArray = new KeyStatus[keyInformation.size()];
+            for (int i = 0; i < keyInformation.size(); i++) {
+              MediaDrm.KeyStatus keyStatus = keyInformation.get(i);
+              keyStatusArray[i] =
+                  new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode());
+            }
             MediaDrmBridgeJni.get().onKeyStatusChange(
                 mNativeMediaDrmBridge,
                 sessionId,
-                keyInformation.toArray(new MediaDrm.KeyStatus[keyInformation.size()]));
+                keyStatusArray);
           }
         },
         null);
@@ -920,6 +925,28 @@ public class MediaDrmBridge {
     return mNativeMediaDrmBridge != INVALID_NATIVE_MEDIA_DRM_BRIDGE;
   }
 
+  /** A wrapper of the android MediaDrm.KeyStatus class to be used by JNI. */
+  @JNINamespace("starboard")
+  public static class KeyStatus {
+    private final byte[] mKeyId;
+    private final int mStatusCode;
+
+    private KeyStatus(byte[] keyId, int statusCode) {
+      mKeyId = keyId;
+      mStatusCode = statusCode;
+    }
+
+    @CalledByNative("KeyStatus")
+    private byte[] getKeyId() {
+      return mKeyId;
+    }
+
+    @CalledByNative("KeyStatus")
+    private int getStatusCode() {
+      return mStatusCode;
+    }
+  }
+
   @NativeMethods
   interface Natives {
     void onSessionMessage(
@@ -936,6 +963,6 @@ public class MediaDrmBridge {
     void onKeyStatusChange(
         long nativeMediaDrmBridge,
         byte[] sessionId,
-        MediaDrm.KeyStatus[] keyInformation);
+        KeyStatus[] keyInformation);
   }
 }
