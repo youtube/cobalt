@@ -390,13 +390,9 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  Size getDeviceResolution() {
-    android.util.Size size = getDisplaySize();
+  Size getDisplaySize() {
+    android.util.Size size = DisplayUtil.getSystemDisplaySize();
     return new Size(size.getWidth(), size.getHeight());
-  }
-
-  android.util.Size getDisplaySize() {
-    return DisplayUtil.getSystemDisplaySize();
   }
 
   @CalledByNative

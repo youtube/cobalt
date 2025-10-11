@@ -275,7 +275,7 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetDisplayDpi(JNIEnv* env) {
 Size StarboardBridge::GetDeviceResolution(JNIEnv* env) {
   SB_CHECK(env);
   ScopedJavaLocalRef<jobject> j_size =
-      Java_StarboardBridge_getDeviceResolution(env, j_starboard_bridge_);
+      Java_StarboardBridge_getDisplaySize(env, j_starboard_bridge_);
   return {Java_Size_getWidth(env, j_size), Java_Size_getHeight(env, j_size)};
 }
 
