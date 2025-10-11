@@ -928,7 +928,7 @@ public class MediaDrmBridge {
     private final int mStatusCode;
 
     private KeyStatus(byte[] keyId, int statusCode) {
-      mKeyId = keyId.clone();
+      mKeyId = (keyId == null) ? null : keyId.clone();
       mStatusCode = statusCode;
     }
 
