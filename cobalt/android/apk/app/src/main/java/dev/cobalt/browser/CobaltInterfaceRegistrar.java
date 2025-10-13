@@ -21,7 +21,7 @@ import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.services.service_manager.InterfaceRegistry;
 
-/** Registers Mojo interface implementations exposed to C++ code at the Cobalt layer. */
+/** Register Mojo interface implementations exposed to C++ code at the Cobalt layer. */
 class CobaltInterfaceRegistrar {
     @CalledByNative
     private static void registerMojoInterfaces() {
