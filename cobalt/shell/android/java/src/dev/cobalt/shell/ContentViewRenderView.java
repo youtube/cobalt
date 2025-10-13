@@ -12,11 +12,11 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /***
  * This view is used by a ContentView to render its content.
@@ -72,7 +72,8 @@ public class ContentViewRenderView extends FrameLayout {
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                 assert mNativeContentViewRenderView != 0;
                 ContentViewRenderViewJni.get().surfaceChanged(mNativeContentViewRenderView,
-                        ContentViewRenderView.this, format, width, height, holder.getSurface());
+                        ContentViewRenderView.this, format, width, height, holder.getSurface(),
+                        mWindowAndroid.getWindowToken());
                 if (mWebContents != null) {
                     ContentViewRenderViewJni.get().onPhysicalBackingSizeChanged(
                             mNativeContentViewRenderView, ContentViewRenderView.this, mWebContents,
@@ -263,7 +264,7 @@ public class ContentViewRenderView extends FrameLayout {
         void surfaceCreated(long nativeContentViewRenderView, ContentViewRenderView caller);
         void surfaceDestroyed(long nativeContentViewRenderView, ContentViewRenderView caller);
         void surfaceChanged(long nativeContentViewRenderView, ContentViewRenderView caller,
-                int format, int width, int height, Surface surface);
+                int format, int width, int height, Surface surface, Object hostInputToken);
         void setOverlayVideoMode(
                 long nativeContentViewRenderView, ContentViewRenderView caller, boolean enabled);
     }

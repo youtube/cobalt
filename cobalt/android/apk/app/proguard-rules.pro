@@ -36,11 +36,11 @@
 
 # TODO(cobalt, b/393465183): Remove the cobalt prefix if we can avoid symbol relocation.
 -keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+  @**cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
-  @cobalt.org.chromium.base.annotations.CalledByNative <methods>;
+  @cobalt.org.jni_zero.CalledByNative <methods>;
 }
 
 -keepclasseswithmembernames,includedescriptorclasses,allowaccessmodification class ** {
@@ -48,7 +48,7 @@
 }
 
 -keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+  @**cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
