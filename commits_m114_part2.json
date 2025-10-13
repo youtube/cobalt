@@ -1,79 +1,66 @@
 [
   {
-    "hexsha": "57ff4ea3abf039b59e478521dc0535b4182f69a5",
-    "original_hexsha": "9cd2db17c5ae068805d2c20025ecb792ea15b657",
+    "hexsha": "e0ff0736f34e1a08c4aaf84b0a277f7d968cd4a8",
+    "original_hexsha": "92f2996cb2368c88c8a7a33021d473a63452d6dd",
     "author": "Kyujung Youn",
-    "datetime": "2025-10-04T01:19:19-07:00",
-    "summary": "starboard: JniEnvExt logs JNI exception on abort  (#7440)",
+    "datetime": "2025-10-09T16:05:33-07:00",
+    "summary": "android: Migrate CaptionSettings to JNI generator (#7477)",
     "stats": {
       "files": 3,
-      "insertions": 45,
-      "deletions": 43
+      "insertions": 91,
+      "deletions": 41
     },
     "is_linear": true
   },
   {
-    "hexsha": "8b08120f95caaa4cc8ac775eb909c98286f3fe09",
-    "original_hexsha": "c0d5a974ba75f485d42c3bd3a0057be7ab443ca6",
-    "author": "Charley Kim",
-    "datetime": "2025-09-30T09:49:12-07:00",
-    "summary": "android: Change symbol for top 4 java stack frames on exception (#7366)",
+    "hexsha": "cfabcd7acc2712601efd2021a6ed997acb173ad0",
+    "original_hexsha": "2dd0429132c967de10f65adf1073e29183b65f3b",
+    "author": "Holden Warriner",
+    "datetime": "2025-10-09T21:07:30+00:00",
+    "summary": "Remove customization to send EG info addr via IPC (#7492)",
+    "stats": {
+      "files": 7,
+      "insertions": 0,
+      "deletions": 83
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f6ae4b060feb6c8902513dcd5f9733381ace790f",
+    "original_hexsha": "7be1d37262e0ed4fb771066c3c2ec77dac18e637",
+    "author": "John Ocampo",
+    "datetime": "2025-10-09T20:23:59+00:00",
+    "summary": "starboard: Add starboard_platform_tests to CI on android (#7484)",
+    "stats": {
+      "files": 10,
+      "insertions": 50,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "4007f18e164bd73c092189541c992055cb827eff",
+    "original_hexsha": "f9ae14611ad9e2f944f0b404df2da66fa29353c1",
+    "author": "John Ocampo",
+    "datetime": "2025-10-09T18:50:27+00:00",
+    "summary": "media: Refine AdjustForDiscardedDurations (#7483)",
     "stats": {
       "files": 1,
-      "insertions": 2,
-      "deletions": 3
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "5152f1a551709e29c9a14655a0d873074789fcc4",
-    "original_hexsha": "e7c66931b4bc4b3d904415d003af9373636e9d42",
-    "author": "Colin Liang",
-    "datetime": "2025-09-16T16:25:17-07:00",
-    "summary": "android: Capture top 4 Java stack frames on exception (#7191)",
-    "stats": {
-      "files": 2,
-      "insertions": 26,
-      "deletions": 25
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "5d6d03160972fae7ef1630b8154e888b8c583bfe",
-    "original_hexsha": "9afa8784560d716102d157dd97b00ae9b268bb1d",
-    "author": "Colin Liang",
-    "datetime": "2025-07-11T07:17:51-07:00",
-    "summary": "Add IS_COBALT macro for jni_android files (#6363)",
-    "stats": {
-      "files": 2,
-      "insertions": 9,
+      "insertions": 10,
       "deletions": 2
     },
     "is_linear": true
   },
   {
-    "hexsha": "a00a3a9c3f5da6a0d66360dbd264c9ea274405d5",
-    "original_hexsha": "dd8c2cdace16014f1548a49912d3c183fa28949e",
-    "author": "Colin Liang",
-    "datetime": "2025-07-09T15:24:13-07:00",
-    "summary": "Informative JNI crash message (#6337)",
+    "hexsha": "f07f42ac8bfd031430dbeac4528043057831b08e",
+    "original_hexsha": "f62346027cfdfdee4bdb5b3741e8d728397fc6f7",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-10-09T10:51:43-07:00",
+    "summary": "Make kokoro pipeline work for evergreen-arm, evergreen-x64 (#7422)",
     "stats": {
-      "files": 2,
-      "insertions": 49,
-      "deletions": 0
-    },
-    "is_linear": true
-  },
-  {
-    "hexsha": "6e8220fb91502f5e847de70c0e8384fa5758b8f4",
-    "original_hexsha": "8005e8bdc7d5ab9d66c8a29e6f4871ba58117ca0",
-    "author": "Hao",
-    "datetime": "2025-09-29T17:03:58-04:00",
-    "summary": "Add Cobalt configuration for ICU (#7349)",
-    "stats": {
-      "files": 5,
-      "insertions": 2102,
-      "deletions": 2
+      "files": 18,
+      "insertions": 355,
+      "deletions": 142
     },
     "is_linear": true
   },
@@ -178,6 +165,97 @@
       "files": 22,
       "insertions": 19,
       "deletions": 785
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "57ff4ea3abf039b59e478521dc0535b4182f69a5",
+    "original_hexsha": "9cd2db17c5ae068805d2c20025ecb792ea15b657",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-04T01:19:19-07:00",
+    "summary": "starboard: JniEnvExt logs JNI exception on abort  (#7440)",
+    "stats": {
+      "files": 3,
+      "insertions": 45,
+      "deletions": 43
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8b08120f95caaa4cc8ac775eb909c98286f3fe09",
+    "original_hexsha": "c0d5a974ba75f485d42c3bd3a0057be7ab443ca6",
+    "author": "Charley Kim",
+    "datetime": "2025-09-30T09:49:12-07:00",
+    "summary": "android: Change symbol for top 4 java stack frames on exception (#7366)",
+    "stats": {
+      "files": 1,
+      "insertions": 2,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5152f1a551709e29c9a14655a0d873074789fcc4",
+    "original_hexsha": "e7c66931b4bc4b3d904415d003af9373636e9d42",
+    "author": "Colin Liang",
+    "datetime": "2025-09-16T16:25:17-07:00",
+    "summary": "android: Capture top 4 Java stack frames on exception (#7191)",
+    "stats": {
+      "files": 2,
+      "insertions": 26,
+      "deletions": 25
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5d6d03160972fae7ef1630b8154e888b8c583bfe",
+    "original_hexsha": "9afa8784560d716102d157dd97b00ae9b268bb1d",
+    "author": "Colin Liang",
+    "datetime": "2025-07-11T07:17:51-07:00",
+    "summary": "Add IS_COBALT macro for jni_android files (#6363)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 2
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f2c40a83f476957de961d9bc1473f8920a9121b3",
+    "original_hexsha": "5e6a0d9502d2ad7c7a7e74210002783865c1a42f",
+    "author": "johnx",
+    "datetime": "2025-01-14T20:58:54+00:00",
+    "summary": "CoAT changes to support Kimono build (#4506)",
+    "stats": {
+      "files": 14,
+      "insertions": 738,
+      "deletions": 49
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "a00a3a9c3f5da6a0d66360dbd264c9ea274405d5",
+    "original_hexsha": "dd8c2cdace16014f1548a49912d3c183fa28949e",
+    "author": "Colin Liang",
+    "datetime": "2025-07-09T15:24:13-07:00",
+    "summary": "Informative JNI crash message (#6337)",
+    "stats": {
+      "files": 2,
+      "insertions": 49,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "6e8220fb91502f5e847de70c0e8384fa5758b8f4",
+    "original_hexsha": "8005e8bdc7d5ab9d66c8a29e6f4871ba58117ca0",
+    "author": "Hao",
+    "datetime": "2025-09-29T17:03:58-04:00",
+    "summary": "Add Cobalt configuration for ICU (#7349)",
+    "stats": {
+      "files": 5,
+      "insertions": 2102,
+      "deletions": 2
     },
     "is_linear": true
   },
