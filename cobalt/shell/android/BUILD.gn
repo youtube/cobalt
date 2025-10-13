@@ -73,6 +73,7 @@ android_library("cobalt_shell_java") {
     "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
+    "//components/viz/service:service_java",
     "//content/public/android:content_java",
     "//media/base/android:media_java",
     "//media/capture/video/android:capture_java",
