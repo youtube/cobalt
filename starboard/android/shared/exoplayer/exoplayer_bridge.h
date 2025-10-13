@@ -1,0 +1,145 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
+#define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
+
+#include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <string>
+
+#include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
+#include "starboard/android/shared/video_window.h"
+#include "starboard/media.h"
+#include "starboard/player.h"
+#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
+
+namespace starboard {
+
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
+enum ExoPlayerRendererType {
+  EXOPLAYER_RENDERER_TYPE_AUDIO,
+  EXOPLAYER_RENDERER_TYPE_VIDEO,
+
+  EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
+};
+
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_AUDIO_CODEC_
+enum ExoPlayerAudioCodec {
+  EXOPLAYER_AUDIO_CODEC_AAC,
+  EXOPLAYER_AUDIO_CODEC_AC3,
+  EXOPLAYER_AUDIO_CODEC_EAC3,
+  EXOPLAYER_AUDIO_CODEC_OPUS,
+  EXOPLAYER_AUDIO_CODEC_VORBIS,
+  EXOPLAYER_AUDIO_CODEC_MP3,
+  EXOPLAYER_AUDIO_CODEC_FLAC,
+  EXOPLAYER_AUDIO_CODEC_PCM,
+  EXOPLAYER_AUDIO_CODEC_IAMF,
+
+  EXOPLAYER_AUDIO_CODEC_MAX = EXOPLAYER_AUDIO_CODEC_IAMF,
+};
+
+class ExoPlayerBridge final : private VideoSurfaceHolder {
+ public:
+  struct MediaInfo {
+    bool is_playing;
+    bool is_eos_played;
+    bool is_underflow;
+    double playback_rate;
+  };
+
+  ExoPlayerBridge(const starboard::AudioStreamInfo& audio_stream_info,
+                  const starboard::VideoStreamInfo& video_stream_info);
+  ~ExoPlayerBridge();
+
+  void SetCallbacks(const starboard::ErrorCB& error_cb,
+                    const starboard::PrerolledCB& prerolled_cb,
+                    const starboard::EndedCB& ended_cb);
+
+  void Seek(int64_t seek_to_timestamp);
+  void WriteSamples(const starboard::InputBuffers& input_buffers);
+  void WriteEndOfStream(SbMediaType stream_type);
+  void Play();
+  void Pause();
+  void Stop();
+  void SetVolume(double volume);
+  void SetPlaybackRate(const double playback_rate);
+
+  int GetDroppedFrames();
+  int64_t GetCurrentMediaTime(MediaInfo& info);
+
+  // Native callbacks.
+  void OnInitialized(JNIEnv*);
+  void OnReady(JNIEnv*);
+  void OnError(JNIEnv* env, jstring error_message);
+  void OnBuffering(JNIEnv*);
+  void SetPlayingStatus(JNIEnv*, jboolean isPlaying);
+  void OnPlaybackEnded(JNIEnv*);
+
+  // VideoSurfaceHolder method
+  void OnSurfaceDestroyed() override {}
+
+  bool IsEndOfStreamWritten(SbMediaType type) {
+    return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
+  }
+
+  bool is_valid() const {
+    return !j_exoplayer_bridge_.is_null() && !j_sample_data_.is_null() &&
+           !error_occurred_;
+  }
+
+  bool EnsurePlayerIsInitialized();
+
+ private:
+  void InitExoplayer();
+
+  base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
+  base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_audio_media_source_;
+  base::android::ScopedJavaGlobalRef<jobject> j_video_media_source_;
+  base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
+  base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
+
+  bool error_occurred_ = false;
+  starboard::AudioStreamInfo audio_stream_info_;
+  starboard::VideoStreamInfo video_stream_info_;
+
+  int64_t seek_time_ = 0;
+  bool is_playing_ = false;
+  bool ended_ = false;
+
+  starboard::ErrorCB error_cb_;
+  starboard::PrerolledCB prerolled_cb_;
+  starboard::EndedCB ended_cb_;
+
+  std::mutex mutex_;
+  // Signaled once player initialization is complete.
+  std::condition_variable initialized_cv_;
+  bool audio_eos_written_ = false;
+  bool video_eos_written_ = false;
+  bool playback_ended_ = false;
+  double playback_rate_ = 0.0;
+  bool seeking_ = false;
+  bool underflow_ = false;
+};
+
+}  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
