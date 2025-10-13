@@ -49,9 +49,9 @@ namespace starboard {
 
 class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,
+                               public VideoSurfaceTextureBridge::Host,
                                private JobQueue::JobOwner,
-                               private VideoSurfaceHolder,
-                               public VideoSurfaceTextureBridge::Host {
+                               private VideoSurfaceHolder {
  public:
   class Sink;
 

@@ -26,8 +26,6 @@
 
 namespace starboard {
 
-using base::android::ScopedJavaGlobalRef;
-
 class DecodeTarget final : public SbDecodeTargetPrivate {
  public:
   explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
@@ -56,8 +54,8 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
 
   // Java objects which wrap the texture.  We hold on to global references
   // to these objects.
-  ScopedJavaGlobalRef<jobject> surface_texture_;
-  ScopedJavaGlobalRef<jobject> surface_;
+  base::android::ScopedJavaGlobalRef<jobject> surface_texture_;
+  base::android::ScopedJavaGlobalRef<jobject> surface_;
   ANativeWindow* native_window_;
 
   SbDecodeTargetInfo info_;

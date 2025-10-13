@@ -985,36 +985,36 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-// Cache the SurfaceTexture methods so that we minimize JNI calls in
-// updateTexImage() and getTransformMatrix().
-struct SurfaceTextureJniCache {
-  ScopedJavaGlobalRef<jclass> surface_class;
+jmethodID GetUpdateTexImageMethod(JNIEnv* env) {
   jmethodID update_tex_image_method;
+
+  ScopedJavaLocalRef<jclass> surface_class(
+      env, env->FindClass("android/graphics/SurfaceTexture"));
+  SB_CHECK(surface_class);
+  update_tex_image_method =
+      env->GetMethodID(surface_class.obj(), "updateTexImage", "()V");
+  SB_CHECK(update_tex_image_method);
+
+  return update_tex_image_method;
+}
+
+jmethodID GetTransformMatrixMethod(JNIEnv* env) {
   jmethodID get_transform_matrix_method;
-};
 
-SurfaceTextureJniCache cache;
+  ScopedJavaLocalRef<jclass> surface_class(
+      env, env->FindClass("android/graphics/SurfaceTexture"));
+  SB_CHECK(surface_class);
+  get_transform_matrix_method =
+      env->GetMethodID(surface_class.obj(), "getTransformMatrix", "([F)V");
+  SB_CHECK(get_transform_matrix_method);
 
-void EnsureCacheIsInitialized(JNIEnv* env) {
-  static std::once_flag once_flag;
-  std::call_once(once_flag, [env]() {
-    cache.surface_class = ScopedJavaGlobalRef<jclass>(
-        env, env->FindClass("android/graphics/SurfaceTexture"));
-    SB_CHECK(cache.surface_class);
-    cache.update_tex_image_method =
-        env->GetMethodID(cache.surface_class.obj(), "updateTexImage", "()V");
-    SB_CHECK(cache.update_tex_image_method);
-    cache.get_transform_matrix_method = env->GetMethodID(
-        cache.surface_class.obj(), "getTransformMatrix", "([F)V");
-    SB_CHECK(cache.get_transform_matrix_method);
-  });
+  return get_transform_matrix_method;
 }
 
 void updateTexImage(jobject surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
-  EnsureCacheIsInitialized(env);
-  env->CallVoidMethod(surface_texture, cache.update_tex_image_method);
+  env->CallVoidMethod(surface_texture, GetUpdateTexImageMethod(env));
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
@@ -1023,9 +1023,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
   jfloatArray java_array = env->NewFloatArray(16);
   SB_CHECK(java_array);
 
-  EnsureCacheIsInitialized(env);
-
-  env->CallVoidMethod(surface_texture, cache.get_transform_matrix_method,
+  env->CallVoidMethod(surface_texture, GetTransformMatrixMethod(env),
                       java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);

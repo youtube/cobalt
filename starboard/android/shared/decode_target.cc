@@ -33,6 +33,7 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
+using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
 ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,

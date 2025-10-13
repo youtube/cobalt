@@ -18,12 +18,10 @@
 #include <jni.h>
 
 #include "base/android/jni_android.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
-
-using base::android::ScopedJavaLocalRef;
 
 class VideoSurfaceTextureBridge {
  public:
@@ -35,9 +33,11 @@ class VideoSurfaceTextureBridge {
     virtual void OnFrameAvailable() = 0;
   };
 
-  VideoSurfaceTextureBridge(Host* host) : host_(host) { SB_CHECK(host_); }
+  VideoSurfaceTextureBridge(Host* host)
+      : host_(raw_ref<Host>::from_ptr(host)) {}
   ~VideoSurfaceTextureBridge() = default;
 
+  // Disallow copy and assign.
   VideoSurfaceTextureBridge(const VideoSurfaceTextureBridge&) = delete;
   VideoSurfaceTextureBridge& operator=(const VideoSurfaceTextureBridge&) =
       delete;
@@ -49,14 +49,14 @@ class VideoSurfaceTextureBridge {
       JNIEnv* env,
       base::android::ScopedJavaLocalRef<jobject> surface_texture) const;
 
-  static ScopedJavaLocalRef<jobject> CreateVideoSurfaceTexture(
+  static base::android::ScopedJavaLocalRef<jobject> CreateVideoSurfaceTexture(
       JNIEnv* env,
       int gl_texture_id);
 
   void OnFrameAvailable(JNIEnv*) { host_->OnFrameAvailable(); }
 
  private:
-  const raw_ptr<Host> host_;
+  const raw_ref<Host> host_;
 };
 
 }  // namespace starboard
