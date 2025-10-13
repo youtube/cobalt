@@ -743,3 +743,9 @@ if (!limit_android_deps) {
   }
 }
 # === Generated Code End ===
+
+android_aar_prebuilt("google_play_services_ads_identifier_java") {
+  aar_path = "libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-18.1.0.aar"
+  info_path = "libs/com_google_android_gms_play_services_ads_identifier/com_google_android_gms_play_services_ads_identifier.info"
+  deps = [ ":google_play_services_basement_java" ]
+}
