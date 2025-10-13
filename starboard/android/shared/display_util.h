@@ -7,8 +7,8 @@ namespace starboard {
 class DisplayUtil {
  public:
   struct Dpi {
-    float width;
-    float height;
+    float x;
+    float y;
   };
 
   // Returns the physical pixels per inch of the screen in the X and Y

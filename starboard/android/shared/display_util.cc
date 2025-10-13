@@ -18,8 +18,8 @@ DisplayUtil::Dpi DisplayUtil::GetDisplayDpi() {
   ScopedJavaLocalRef<jobject> display_dpi_obj =
       Java_DisplayUtil_getDisplayDpi(env);
 
-  return {Java_DisplayDpi_getWidth(env, display_dpi_obj),
-          Java_DisplayDpi_getHeight(env, display_dpi_obj)};
+  return {Java_DisplayDpi_getX(env, display_dpi_obj),
+          Java_DisplayDpi_getY(env, display_dpi_obj)};
 }
 
 void JNI_DisplayUtil_OnDisplayChanged(JNIEnv* env) {

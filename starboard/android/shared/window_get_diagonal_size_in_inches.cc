@@ -29,8 +29,8 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window) {
 
   DisplayUtil::Dpi display_dpi = DisplayUtil::GetDisplayDpi();
 
-  float xdpi = display_dpi.width;
-  float ydpi = display_dpi.height;
+  const float xdpi = display_dpi.x;
+  const float ydpi = display_dpi.y;
 
   if (xdpi < 0.1f || ydpi < 0.1f) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid display values.";
