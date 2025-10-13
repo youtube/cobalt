@@ -18,28 +18,48 @@
 
 namespace starboard {
 namespace {
+
 using base::android::ScopedJavaLocalRef;
-}  // namespace
+}
 
 void VideoSurfaceTextureBridge::SetOnFrameAvailableListener(
     JNIEnv* env,
-    ScopedJavaLocalRef<jobject> surface_texture) const {
+    const ScopedJavaLocalRef<jobject>& surface_texture) const {
   Java_VideoSurfaceTexture_setOnFrameAvailableListener(
-      env, surface_texture, reinterpret_cast<jlong>(this));
+      env, surface_texture, reinterpret_cast<intptr_t>(this));
 }
 
 void VideoSurfaceTextureBridge::RemoveOnFrameAvailableListener(
     JNIEnv* env,
-    ScopedJavaLocalRef<jobject> surface_texture) const {
+    const ScopedJavaLocalRef<jobject>& surface_texture) const {
   Java_VideoSurfaceTexture_removeOnFrameAvailableListener(env, surface_texture);
 }
 
-// static
 ScopedJavaLocalRef<jobject>
 VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(JNIEnv* env,
                                                      int gl_texture_id) {
-  SB_CHECK(env);
   return Java_VideoSurfaceTexture_Constructor(env, gl_texture_id);
+}
+
+base::android::ScopedJavaGlobalRef<jobject>
+VideoSurfaceTextureBridge::CreateSurface(JNIEnv* env, jobject surface_texture) {
+  return base::android::ScopedJavaGlobalRef<jobject>(
+      Java_VideoSurfaceTexture_createSurface(
+          env, ScopedJavaLocalRef<jobject>(env, surface_texture)));
+}
+
+void VideoSurfaceTextureBridge::UpdateTexImage(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& surface_texture) {
+  Java_VideoSurfaceTexture_updateTexImage(env, surface_texture);
+}
+
+void VideoSurfaceTextureBridge::GetTransformMatrix(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& surface_texture,
+    jfloatArray mtx) {
+  Java_VideoSurfaceTexture_getTransformMatrix(
+      env, surface_texture, ScopedJavaLocalRef<jfloatArray>(env, mtx));
 }
 
 }  // namespace starboard
