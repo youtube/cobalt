@@ -23,5 +23,5 @@ int ioctl_TIOCGWINSZ(int fd, struct winsize *wz) {
   }
 
   // Return error when the fd is not for a tty.
-  return isatty(fd) ? 0 : -1;
+  return 0; // TEMPORARY TO FORCE LINE BUFFERING, was: isatty(fd) ? 0 : -1;
 }
