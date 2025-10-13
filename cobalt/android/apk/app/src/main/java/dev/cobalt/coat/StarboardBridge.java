@@ -29,7 +29,6 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
 import android.util.Size;
-import android.util.SizeF;
 import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
@@ -387,7 +386,7 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  SizeF getDisplayDpi() {
+  DisplayUtil.DisplayDpi getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
 
