@@ -1,0 +1,31 @@
+#include "starboard/android/shared/display_util.h"
+
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/starboard/media/mime_supportability_cache.h"
+
+#include "cobalt/android/jni_headers/DisplayUtil_jni.h"
+
+namespace starboard {
+using base::android::ScopedJavaLocalRef;
+
+DisplayUtil::Dpi DisplayUtil::GetDisplayDpi() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+
+  ScopedJavaLocalRef<jobject> display_dpi_obj =
+      Java_DisplayUtil_getDisplayDpi(env);
+
+  return {Java_DisplayDpi_getWidth(env, display_dpi_obj),
+          Java_DisplayDpi_getHeight(env, display_dpi_obj)};
+}
+
+void JNI_DisplayUtil_OnDisplayChanged(JNIEnv* env) {
+  // Display device change could change hdr capabilities.
+  MediaCapabilitiesCache::GetInstance()->ClearCache();
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+}
+
+}  // namespace starboard
