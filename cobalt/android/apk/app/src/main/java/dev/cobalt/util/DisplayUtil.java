@@ -20,16 +20,37 @@ import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
 import android.util.DisplayMetrics;
 import android.util.Size;
-import android.util.SizeF;
 import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
+
+  /** A simple wrapper for display DPI to allow JNI generation for its methods. */
+  public static class DisplayDpi {
+    private final float width;
+    private final float height;
+
+    public DisplayDpi(float width, float height) {
+      this.width = width;
+      this.height = height;
+    }
+
+    @CalledByNative("DisplayDpi")
+    public float getWidth() {
+      return width;
+    }
+
+    @CalledByNative("DisplayDpi")
+    public float getHeight() {
+      return height;
+    }
+  }
 
   private DisplayUtil() {}
 
@@ -45,9 +66,9 @@ public class DisplayUtil {
   public static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
 
   /** Returns the physical pixels per inch of the screen in the X and Y dimensions. */
-  public static SizeF getDisplayDpi() {
+  public static DisplayDpi getDisplayDpi() {
     DisplayMetrics metrics = getDisplayMetrics();
-    return new SizeF(metrics.xdpi, metrics.ydpi);
+    return new DisplayDpi(metrics.xdpi, metrics.ydpi);
   }
 
   /** Returns the default display associated with a context. */
