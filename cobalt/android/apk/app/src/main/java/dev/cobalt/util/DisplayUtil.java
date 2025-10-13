@@ -66,6 +66,7 @@ public class DisplayUtil {
   public static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
 
   /** Returns the physical pixels per inch of the screen in the X and Y dimensions. */
+  @CalledByNative
   public static DisplayDpi getDisplayDpi() {
     DisplayMetrics metrics = getDisplayMetrics();
     return new DisplayDpi(metrics.xdpi, metrics.ydpi);
