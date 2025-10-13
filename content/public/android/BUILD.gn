@@ -124,12 +124,6 @@ android_library("content_main_dex_java") {
     ":generate_sandboxed_service_srcjar",
   ]
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
-
-  if (is_cobalt) {
-    deps -= [ "//ui/android:ui_no_recycler_view_java" ]
-
-    deps += [ "//ui/android:cobalt_ui_full_java" ]
-  }
 }
 
 android_library("content_full_java") {
@@ -195,10 +189,10 @@ android_library("content_full_java") {
   ]
 
   # TODO(b/443992661): Add a GN flag to conditionally disable or enable shape detection.
-  if (is_cobalt) {
+  if(is_cobalt) {
     deps -= [ "//services/shape_detection:shape_detection_java" ]
   }
-
+  
   srcjar_deps = [
     ":is_ready_to_pay_service_aidl",
     "//content/browser:client_data_json_generated_enum",
@@ -396,59 +390,6 @@ android_library("content_full_java") {
   ]
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   proguard_configs = [ "proguard.flags" ]
-
-  if (is_cobalt) {
-    sources -= [
-      "java/src/org/chromium/content/browser/ContentClassFactory.java",
-      "java/src/org/chromium/content/browser/ContentUiEventHandler.java",
-      "java/src/org/chromium/content/browser/GestureListenerManagerImpl.java",
-      "java/src/org/chromium/content/browser/PopupController.java",
-      "java/src/org/chromium/content/browser/ViewEventSinkImpl.java",
-      "java/src/org/chromium/content/browser/input/ImeAdapterImpl.java",
-      "java/src/org/chromium/content/browser/input/SelectPopup.java",
-      "java/src/org/chromium/content/browser/input/SelectPopupAdapter.java",
-      "java/src/org/chromium/content/browser/input/SelectPopupDialog.java",
-      "java/src/org/chromium/content/browser/input/SelectPopupDropdown.java",
-      "java/src/org/chromium/content/browser/input/SelectPopupItem.java",
-      "java/src/org/chromium/content/browser/input/SpellCheckPopupWindow.java",
-      "java/src/org/chromium/content/browser/input/SuggestionsPopupWindow.java",
-      "java/src/org/chromium/content/browser/input/TextSuggestionHost.java",
-      "java/src/org/chromium/content/browser/input/TextSuggestionsPopupWindow.java",
-      "java/src/org/chromium/content/browser/selection/AdditionalMenuItemProvider.java",
-      "java/src/org/chromium/content/browser/selection/AdditionalMenuItemProviderImpl.java",
-      "java/src/org/chromium/content/browser/selection/FloatingPastePopupMenu.java",
-      "java/src/org/chromium/content/browser/selection/LGEmailActionModeWorkaroundImpl.java",
-      "java/src/org/chromium/content/browser/selection/MagnifierAnimator.java",
-      "java/src/org/chromium/content/browser/selection/MagnifierWrapper.java",
-      "java/src/org/chromium/content/browser/selection/MagnifierWrapperImpl.java",
-      "java/src/org/chromium/content/browser/selection/PastePopupMenu.java",
-      "java/src/org/chromium/content/browser/selection/SelectionIndicesConverter.java",
-      "java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java",
-      "java/src/org/chromium/content/browser/selection/SmartSelectionClient.java",
-      "java/src/org/chromium/content/browser/selection/SmartSelectionEventProcessor.java",
-      "java/src/org/chromium/content/browser/selection/SmartSelectionProvider.java",
-      "java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java",
-      "java/src/org/chromium/content_public/browser/ActionModeCallbackHelper.java",
-      "java/src/org/chromium/content_public/browser/GestureListenerManager.java",
-      "java/src/org/chromium/content_public/browser/LGEmailActionModeWorkaround.java",
-      "java/src/org/chromium/content_public/browser/SelectionClient.java",
-      "java/src/org/chromium/content_public/browser/SelectionPopupController.java",
-    ]
-
-    sources += [
-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/ContentUiEventHandler.java",
-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/ViewEventSinkImpl.java",
-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/input/ImeAdapterImpl.java",
-      "java/src/org/chromium/content/browser/cobalt/org/chromium/content/browser/webcontents/WebContentsImpl.java",
-    ]
-    deps -= [
-      "//device/bluetooth:java",
-      "//ui/android:ui_no_recycler_view_java",
-      "//ui/android:ui_utils_java",
-    ]
-
-    deps += [ "//ui/android:cobalt_ui_full_java" ]
-  }
 }
 
 java_strings_grd("content_strings_grd") {

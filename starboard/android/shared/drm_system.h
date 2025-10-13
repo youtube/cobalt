@@ -30,7 +30,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/thread.h"
-#include "starboard/types.h"
+#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
@@ -45,6 +45,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
             SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
   ~DrmSystem() override;
+  // SbDrmSystemPrivate override begins
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,
                                     const void* initialization_data,
@@ -62,6 +63,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                                const void* certificate,
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
+  // SbDrmSystemPrivate override ends.
 
   jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
 
@@ -123,6 +125,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::atomic_bool created_media_crypto_session_{false};
 
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard

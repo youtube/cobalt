@@ -17,6 +17,7 @@ import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
+import("//testing/test.gni")
 
 ##########################################################
 # Configuration for overall Android Starboard Platform.
@@ -190,6 +191,8 @@ static_library("starboard_platform") {
     "crash_handler.h",
     "decode_target.cc",
     "decode_target.h",
+    "display_util.cc",
+    "display_util.h",
     "drm_create_system.cc",
     "drm_system.cc",
     "drm_system.h",
@@ -201,9 +204,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-
-    #"input_events_generator.cc",
-    #"input_events_generator.h",
     "jni_env_ext.cc",
     "jni_env_ext.h",
     "jni_utils.h",
@@ -283,7 +283,6 @@ static_library("starboard_platform") {
     "text_to_speech_observer.h",
     "thread_create_priority.cc",
     "time_zone_get_name.cc",
-    "trace_util.h",
     "video_decoder.cc",
     "video_decoder.h",
     "video_frame_tracker.cc",
@@ -391,10 +390,11 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
-source_set("starboard_platform_tests") {
+test("starboard_platform_tests") {
   testonly = true
 
   sources = media_tests_sources + player_tests_sources + [
+              "//starboard/common/test_main.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "//starboard/shared/starboard/starboard_feature_test.cc",

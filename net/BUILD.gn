@@ -1199,12 +1199,19 @@ component("net") {
     ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build) {
+  if (is_linux) {
     sources += [
       "base/network_change_notifier_linux.cc",
       "base/network_change_notifier_linux.h",
       "proxy_resolution/proxy_config_service_linux.cc",
       "proxy_resolution/proxy_config_service_linux.h",
+    ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "base/network_change_notifier_linux.cc",
+      "base/network_change_notifier_linux.h",
     ]
   }
 
@@ -1652,7 +1659,6 @@ component("net") {
       "base/platform_mime_util_starboard.cc",
       "base/network_change_notifier_starboard.h",
       "base/network_change_notifier_passive_starboard_stub.cc",
-      "proxy_resolution/proxy_config_service_linux_starboard_stub.cc"
     ]
   }
   if (is_cobalt && is_linux && current_toolchain == host_toolchain) {

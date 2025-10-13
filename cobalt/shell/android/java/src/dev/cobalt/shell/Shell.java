@@ -16,7 +16,11 @@ package dev.cobalt.shell;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Rect;
 import android.text.TextUtils;
+import android.view.ActionMode;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -24,8 +28,10 @@ import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
+import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
@@ -215,7 +221,43 @@ public class Shell {
         }
     }
 
+    /**
+     * {link @ActionMode.Callback} that uses the default implementation in
+     * {@link SelectionPopupController}.
+     */
+    private ActionMode.Callback2 defaultActionCallback() {
+        final ActionModeCallbackHelper helper =
+                SelectionPopupController.fromWebContents(mWebContents)
+                        .getActionModeCallbackHelper();
 
+        return new ActionMode.Callback2() {
+            @Override
+            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+                helper.onCreateActionMode(mode, menu);
+                return true;
+            }
+
+            @Override
+            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+                return helper.onPrepareActionMode(mode, menu);
+            }
+
+            @Override
+            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                return helper.onActionItemClicked(mode, item);
+            }
+
+            @Override
+            public void onDestroyActionMode(ActionMode mode) {
+                helper.onDestroyActionMode();
+            }
+
+            @Override
+            public void onGetContentRect(ActionMode mode, View view, Rect outRect) {
+                helper.onGetContentRect(mode, view, outRect);
+            }
+        };
+    }
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {

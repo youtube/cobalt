@@ -40,6 +40,7 @@ namespace {
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::GetClass;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
@@ -225,6 +226,21 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
   return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
 }
 
+ScopedJavaLocalRef<jobject> StarboardBridge::GetCaptionSettings(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_getCaptionSettings(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetResourceOverlay(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_getResourceOverlay(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jstring> StarboardBridge::GetSystemLocaleId(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_systemGetLocaleId(env, j_starboard_bridge_);
+}
+
 SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> advertising_id_java =
@@ -269,6 +285,15 @@ bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::SetCrashContext(JNIEnv* env,
+                                      const char* key,
+                                      const char* value) {
+  SB_CHECK(env);
+  Java_StarboardBridge_setCrashContext(env, j_starboard_bridge_,
+                                       ConvertUTF8ToJavaString(env, key),
+                                       ConvertUTF8ToJavaString(env, value));
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
@@ -332,6 +357,30 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
   SB_DCHECK(env);
   return static_cast<int64_t>(
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
+}
+
+base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& activity,
+    jlong native_service,
+    const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_openCobaltService(
+      env, j_starboard_bridge_, activity, native_service,
+      ConvertUTF8ToJavaString(env, service_name));
+}
+
+void StarboardBridge::CloseCobaltService(JNIEnv* env,
+                                         const char* service_name) {
+  SB_CHECK(env);
+  Java_StarboardBridge_closeCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
+bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_hasCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
 }
 
 }  // namespace starboard

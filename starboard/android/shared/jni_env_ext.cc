@@ -21,10 +21,10 @@
 #include <algorithm>
 #include <string>
 
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
-
-#include "starboard/android/shared/jni_state.h"
 
 namespace {
 
@@ -283,11 +283,7 @@ jobject JniConvertLocalRefToGlobalRef(JNIEnv* env, jobject local) {
 
 void JniAbortOnException(JNIEnv* env) {
   SB_CHECK(env);
-  if (!env->ExceptionCheck()) {
-    return;
-  }
-  env->ExceptionDescribe();
-  SbSystemBreakIntoDebugger();
+  base::android::CheckException(env);
 }
 
 }  // namespace starboard
