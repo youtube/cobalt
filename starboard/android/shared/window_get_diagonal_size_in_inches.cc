@@ -14,12 +14,13 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/common/log.h"
 
 #include "cobalt/android/jni_headers/DisplayUtil_jni.h"
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-using base.android::ScopedJavaLocalRef;
+using base::android::ScopedJavaLocalRef;
 
 float SbWindowGetDiagonalSizeInInches(SbWindow window) {
   if (!SbWindowIsValid(window)) {
@@ -34,8 +35,8 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window) {
   ScopedJavaLocalRef<jobject> display_dpi =
       starboard::StarboardBridge::GetInstance()->GetDisplayDpi(env);
 
-  float xdpi = JNI_DisplayDpi::Java_DisplayDpi_getWidth(env, display_dpi);
-  float ydpi = JNI_DisplayDpi::Java_DisplayDpi_getHeight(env, display_dpi);
+  float xdpi = Java_DisplayDpi_getWidth(env, display_dpi);
+  float ydpi = Java_DisplayDpi_getHeight(env, display_dpi);
 
   if (xdpi < 0.1f || ydpi < 0.1f) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid display values.";

@@ -33,22 +33,22 @@ public class DisplayUtil {
 
   /** A simple wrapper for display DPI to allow JNI generation for its methods. */
   public static class DisplayDpi {
-    private final float width;
-    private final float height;
+    private final float xdpi;
+    private final float ydpi;
 
-    public DisplayDpi(float width, float height) {
-      this.width = width;
-      this.height = height;
+    public DisplayDpi(float xdpi, float ydpi) {
+      this.xdpi = xdpi;
+      this.ydpi = ydpi;
     }
 
     @CalledByNative("DisplayDpi")
     public float getWidth() {
-      return width;
+      return xdpi;
     }
 
     @CalledByNative("DisplayDpi")
     public float getHeight() {
-      return height;
+      return ydpi;
     }
   }
 
