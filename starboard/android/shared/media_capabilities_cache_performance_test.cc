@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 #include <chrono>
+#include <mutex>
 
 #include "starboard/common/log.h"
 
@@ -26,27 +27,40 @@ namespace {
 
 // 200 milliseconds is chosen for the time limit on uncached calls, mainly due
 // to the amount of time it potentially could take for a MediaCapabilitiesCache
-// query on a cold start. Once the cache is warmed up, uncached queries are much
-// faster.
+// query on an empty cache.
 //
 // Cached queries are extremely fast, and usually are timed to take 0
 // milliseconds for a call. We set the cache time limit to 5 ms, to allow some
 // leeway if the function call is slowed down due to other external means.
-const int64_t kUncacheTimeLimitMs = 200;
-const int64_t kCacheTimeLimitMs = 5;
+constexpr int64_t kUncacheTimeLimitMs = 200;
+constexpr int64_t kCacheTimeLimitMs = 5;
+
+// Since these tests rely on the same resource, it is possible that one test
+// could mess up the status of one test if ran in parallel. To make sure this
+// doesn't happen, we use a mutex to lock each test when ran.
+std::mutex media_cache_test_mutex;
 
 class MediaCapabilitiesCachePerformanceTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     JNIEnv* env = base::android::AttachCurrentThread();
     StarboardBridge::InitializeForTesting(env);
+
+    // Make an initial call to MediaCapabilitiesCache, as the first ever call to
+    // the cache can be extremely slow (up to 700 ms). This behavior is
+    // something that we don't want influencing the tests.
+    MediaCapabilitiesCache::GetInstance()->IsWidevineSupported();
   }
 
   void SetUp() override {
+    // Lock the test so that other tests can't start while this one is running.
+    media_cache_test_mutex.lock();
     instance_ = MediaCapabilitiesCache::GetInstance();
     instance_->ClearCache();
     MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
   }
+
+  void TearDown() override { media_cache_test_mutex.unlock(); }
 
   MediaCapabilitiesCache* instance_ = nullptr;
 };
@@ -61,15 +75,16 @@ void TimeFunctionCall(const std::string& test_name, Func func) {
         .count();
   };
 
-  const int64_t uncached_duration = measure_duration_ms();
-  SB_LOG(INFO) << test_name << " - 1st call (uncached): " << uncached_duration
+  const int64_t uncached_duration_ms = measure_duration_ms();
+  SB_LOG(INFO) << test_name
+               << " - 1st call (uncached): " << uncached_duration_ms
                << " milliseconds.";
-  EXPECT_LT(uncached_duration, kUncacheTimeLimitMs);
+  EXPECT_LT(uncached_duration_ms, kUncacheTimeLimitMs);
 
-  const int64_t cached_duration = measure_duration_ms();
-  SB_LOG(INFO) << test_name << " - 2nd call (cached): " << cached_duration
+  const int64_t cached_duration_ms = measure_duration_ms();
+  SB_LOG(INFO) << test_name << " - 2nd call (cached): " << cached_duration_ms
                << " milliseconds.";
-  EXPECT_LT(cached_duration, kCacheTimeLimitMs);
+  EXPECT_LT(cached_duration_ms, kCacheTimeLimitMs);
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, IsWidevineSupported) {
@@ -84,73 +99,67 @@ TEST_F(MediaCapabilitiesCachePerformanceTest, IsCbcsSchemeSupported) {
 
 TEST_F(MediaCapabilitiesCachePerformanceTest,
        IsHDRTransferCharacteristicsSupported) {
-  const SbMediaTransferId smpte_st_2084 = kSbMediaTransferIdSmpteSt2084;
-  TimeFunctionCall(
-      "IsHDRTransferCharacteristicsSupported (SmpteSt2084)", [&]() {
-        instance_->IsHDRTransferCharacteristicsSupported(smpte_st_2084);
-      });
+  TimeFunctionCall("IsHDRTransferCharacteristicsSupported (SmpteSt2084)",
+                   [&]() {
+                     instance_->IsHDRTransferCharacteristicsSupported(
+                         /*transfer_id=*/kSbMediaTransferIdSmpteSt2084);
+                   });
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, IsPassthroughSupported) {
-  const SbMediaAudioCodec ac3_codec = kSbMediaAudioCodecAc3;
-  TimeFunctionCall("IsPassthroughSupported (AC3)",
-                   [&]() { instance_->IsPassthroughSupported(ac3_codec); });
+  TimeFunctionCall("IsPassthroughSupported (AC3)", [&]() {
+    instance_->IsPassthroughSupported(/*codec=*/kSbMediaAudioCodecAc3);
+  });
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, GetAudioConfiguration) {
-  const int index = 0;
   SbMediaAudioConfiguration configuration;
   TimeFunctionCall("GetAudioConfiguration", [&]() {
-    instance_->GetAudioConfiguration(index, &configuration);
+    instance_->GetAudioConfiguration(/*index=*/0, &configuration);
   });
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, HasAudioDecoderFor) {
-  const std::string mime_type = "audio/mp4; codecs=\"mp4a.40.2\"";
-  const int bitrate = 192000;
   TimeFunctionCall("HasAudioDecoderFor", [&]() {
-    instance_->HasAudioDecoderFor(mime_type, bitrate);
+    instance_->HasAudioDecoderFor(
+        /*mime_type=*/"audio/mp4; codecs=\"mp4a.40.2\"",
+        /*bitrate=*/192'000);
   });
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, HasVideoDecoderFor) {
-  const std::string mime_type = "video/avc; codecs=\"avc1.4d401f\"";
-  const bool must_support_secure = false;
-  const bool must_support_hdr = false;
-  const bool must_support_tunnel_mode = false;
-  const int frame_width = 1920;
-  const int frame_height = 1080;
-  const int bitrate = 8000000;
-  const int fps = 30;
   TimeFunctionCall("HasVideoDecoderFor", [&]() {
-    instance_->HasVideoDecoderFor(mime_type, must_support_secure,
-                                  must_support_hdr, must_support_tunnel_mode,
-                                  frame_width, frame_height, bitrate, fps);
+    instance_->HasVideoDecoderFor(
+        /*mime_type=*/"video/avc; codecs=\"avc1.4d401f\"",
+        /*must_support_secure=*/false,
+        /*must_support_hdr=*/false,
+        /*must_support_tunnel_mode=*/false,
+        /*frame_width=*/1'920,
+        /*frame_height=*/1'080,
+        /*bitrate=*/8'000'000,
+        /*fps=*/30);
   });
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, FindAudioDecoder) {
-  const std::string mime_type = "audio/eac-3";
-  const int bitrate = 640000;
-  TimeFunctionCall("FindAudioDecoder",
-                   [&]() { instance_->FindAudioDecoder(mime_type, bitrate); });
+  TimeFunctionCall("FindAudioDecoder", [&]() {
+    instance_->FindAudioDecoder(/*mime_type=*/"audio/eac-3",
+                                /*bitrate=*/640'000);
+  });
 }
 
 TEST_F(MediaCapabilitiesCachePerformanceTest, FindVideoDecoder) {
-  const std::string mime_type = "video/x-vnd.on2.vp9";
-  const bool must_support_secure = false;
-  const bool must_support_hdr = false;
-  const bool require_software_codec = false;
-  const bool must_support_tunnel_mode = false;
-  const int frame_width = 1920;
-  const int frame_height = 1080;
-  const int bitrate = 8000000;
-  const int fps = 30;
   TimeFunctionCall("FindVideoDecoder", [&]() {
-    instance_->FindVideoDecoder(mime_type, must_support_secure,
-                                must_support_hdr, require_software_codec,
-                                must_support_tunnel_mode, frame_width,
-                                frame_height, bitrate, fps);
+    instance_->FindVideoDecoder(
+        /*mime_type=*/"video/x-vnd.on2.vp9",
+        /*must_support_secure=*/false,
+        /*must_support_hdr=*/false,
+        /*require_software_codec=*/false,
+        /*must_support_tunnel_mode=*/false,
+        /*frame_width=*/1'920,
+        /*frame_height=*/1'080,
+        /*bitrate=*/8'000'000,
+        /*fps=*/30);
   });
 }
 

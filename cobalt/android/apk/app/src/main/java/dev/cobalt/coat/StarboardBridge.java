@@ -659,16 +659,18 @@ public class StarboardBridge {
   }
 
   // Creates a StarboardBridge instance that can then be used for testing purposes.
+  // This method does not return a StarboardBridge object as the StarboardBridge constructor
+  // initializes the static instance of StarboardBridge.
   @CalledByNative
   public static void initializeForTesting() {
-    Holder<Activity> activityHolder = new Holder<>();
-    Holder<Service> serviceHolder = new Holder<>();
-    new StarboardBridge(ContextUtils.getApplicationContext(),
-      activityHolder,
-      serviceHolder,
-      new ArtworkDownloaderDefault(),
+    new StarboardBridge(
+      ContextUtils.getApplicationContext(),
+      /*activityHolder=*/ new Holder<>(),
+      /*serviceHolder=*/ new Holder<>(),
+      /*artworkDownloader=*/ new ArtworkDownloaderDefault(),
       new String[0],
       "");
+
   }
 
   // Returns the saved app start timestamp.
