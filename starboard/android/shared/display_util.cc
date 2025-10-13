@@ -1,10 +1,7 @@
 #include "starboard/android/shared/display_util.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
-#include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 
 #include "cobalt/android/jni_headers/DisplayUtil_jni.h"
