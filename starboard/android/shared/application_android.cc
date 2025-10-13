@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/window_internal.h"
@@ -42,6 +43,8 @@
 
 namespace starboard {
 
+using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
@@ -99,10 +102,10 @@ ScopedJavaLocalRef<jstring> JNI_HTMLMediaElementExtension_CanPlayType(
     const JavaParamRef<jstring>& j_key_system) {
   std::string mime_type, key_system;
   if (j_mime_type) {
-    mime_type = JniGetStringStandardUTFOrAbort(env, j_mime_type.obj());
+    mime_type = ConvertJavaStringToUTF8(env, j_mime_type);
   }
   if (j_key_system) {
-    key_system = JniGetStringStandardUTFOrAbort(env, j_key_system.obj());
+    key_system = ConvertJavaStringToUTF8(env, j_key_system);
   }
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
@@ -120,8 +123,7 @@ ScopedJavaLocalRef<jstring> JNI_HTMLMediaElementExtension_CanPlayType(
   }
   SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
                << ") --> " << ret;
-  return ScopedJavaLocalRef<jstring>(env,
-                                     JniNewStringStandardUTFOrAbort(env, ret));
+  return ConvertUTF8ToJavaString(env, ret);
 }
 
 Application::Event* ApplicationAndroid::GetNextEvent() {
