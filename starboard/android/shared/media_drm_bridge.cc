@@ -75,8 +75,11 @@ SbDrmSessionRequestType ToSbDrmSessionRequestType(RequestType request_type) {
   }
 }
 
-SbDrmKeyStatus ToSbDrmKeyStatus(MediaDrmKeyStatus status_code) {
-  switch (status_code) {
+// Converts a Java MediaDrm.KeyStatus status code to the equivalent
+// SbDrmKeyStatus. The |status_code| is obtained via JNI from a Java KeyStatus
+// object's getStatusCode() method.
+SbDrmKeyStatus ToSbDrmKeyStatus(jint status_code) {
+  switch (static_cast<MediaDrmKeyStatus>(status_code)) {
     case MediaDrmKeyStatus::kExpired:
       return kSbDrmKeyStatusExpired;
     case MediaDrmKeyStatus::kInternalError:
@@ -88,7 +91,7 @@ SbDrmKeyStatus ToSbDrmKeyStatus(MediaDrmKeyStatus status_code) {
     case MediaDrmKeyStatus::kUsable:
       return kSbDrmKeyStatusUsable;
     default:
-      SB_NOTREACHED() << "Unknown status=" << static_cast<int>(status_code);
+      SB_NOTREACHED() << "Unknown status=" << status_code;
       return kSbDrmKeyStatusError;
   }
 }
@@ -305,9 +308,8 @@ void MediaDrmBridge::OnKeyStatusChange(
     memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
     drm_key_ids[i].identifier_size = key_id.size();
 
-    jint j_status_code = Java_KeyStatus_getStatusCode(env, j_key_status);
     drm_key_statuses[i] =
-        ToSbDrmKeyStatus(static_cast<MediaDrmKeyStatus>(j_status_code));
+        ToSbDrmKeyStatus(Java_KeyStatus_getStatusCode(env, j_key_status));
   }
 
   host_->OnKeyStatusChange(session_id_bytes, drm_key_ids, drm_key_statuses);
