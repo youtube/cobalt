@@ -41,7 +41,8 @@ lines = proc.stdout.readlines()
 
 # Limit output so as to not confuse the model. It generally can work (well) on
 # only a few errors at time anyways.
-sys.stdout.writelines(lines[:MAX_LINES_HEAD])
+for line in lines[:MAX_LINES_HEAD]:
+  sys.stdout.write(line.decode('utf-8', 'replace'))
 lines = lines[MAX_LINES_HEAD:]
 
 if lines:
@@ -50,6 +51,7 @@ if lines:
     print()
     print(f'Skipping {omit_count} lines of output...')
     print()
-  sys.stdout.writelines(lines[-MAX_LINES_TAIL:])
+  for line in lines[-MAX_LINES_TAIL:]:
+    sys.stdout.write(line.decode('utf-8', 'replace'))
 
 sys.exit(proc.wait())

@@ -890,7 +890,9 @@ void ServiceWorkerRegisterJob::ResolvePromise(
     blink::ServiceWorkerStatusCode status,
     const std::string& status_message,
     ServiceWorkerRegistration* registration) {
-  DCHECK(!is_promise_resolved_);
+  if (is_promise_resolved_) {
+    return;
+  }
 
   is_promise_resolved_ = true;
   promise_resolved_status_ = status;

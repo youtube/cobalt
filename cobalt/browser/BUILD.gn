@@ -32,6 +32,8 @@ source_set("browser") {
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "cobalt_webapps_client.cc",
+    "cobalt_webapps_client.h",
   ]
 
   if (is_androidtv) {
@@ -75,7 +77,9 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/security_state/core",
     "//components/variations/service:service",
+    "//components/webapps/browser",
     "//starboard:starboard_group",
   ]
 

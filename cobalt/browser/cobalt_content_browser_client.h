@@ -18,6 +18,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+#include "cobalt/browser/cobalt_webapps_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -125,6 +126,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  private:
   void CreateVideoGeometrySetterService();
 
+  //   std::unique_ptr<CobaltWebappsClient> webapps_client_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>

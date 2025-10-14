@@ -17,9 +17,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "components/webapps/browser/installable/installable_data.h"
+#include "components/webapps/browser/installable/installable_manager.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/page.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
@@ -36,6 +40,8 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
   // Create browser-side mojo service component
   js_communication_host_ =
       std::make_unique<js_injection::JsCommunicationHost>(web_contents);
+
+  webapps::InstallableManager::CreateForWebContents(web_contents);
 
   RegisterInjectedJavaScript();
 
@@ -85,6 +91,30 @@ enum {
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+
+  webapps::InstallableManager* installable_manager =
+      webapps::InstallableManager::FromWebContents(web_contents());
+  if (!installable_manager) {
+    return;
+  }
+
+  webapps::InstallableParams params;
+  params.check_eligibility = true;
+  params.valid_manifest = true;
+  params.valid_primary_icon = true;
+  params.has_worker = true;
+
+  installable_manager->GetData(
+      params, base::BindOnce([](const webapps::InstallableData& data) {
+        if (!data.errors.empty()) {
+          for (const auto& error : data.errors) {
+            LOG(ERROR) << "Installability error: " << static_cast<int>(error);
+          }
+        } else {
+          LOG(INFO) << "App is installable!";
+        }
+      }));
+
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {

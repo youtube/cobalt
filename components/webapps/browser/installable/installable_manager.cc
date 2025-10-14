@@ -258,28 +258,35 @@ int InstallableManager::GetMinimumIconSizeInPx() {
 
 // static
 bool InstallableManager::IsContentSecure(content::WebContents* web_contents) {
-  if (!web_contents)
+  if (!web_contents) {
     return false;
+  }
 
   // chrome:// URLs are considered secure.
   const GURL& url = web_contents->GetLastCommittedURL();
-  if (url.scheme() == content::kChromeUIScheme)
+  if (url.scheme() == content::kChromeUIScheme) {
     return true;
+  }
 
   // chrome-untrusted:// URLs are shipped with Chrome, so they are considered
   // secure in this context.
-  if (url.scheme() == content::kChromeUIUntrustedScheme)
+  if (url.scheme() == content::kChromeUIUntrustedScheme) {
     return true;
+  }
 
-  if (IsOriginConsideredSecure(url))
+  bool is_origin_secure = IsOriginConsideredSecure(url);
+  if (is_origin_secure) {
     return true;
+  }
 
   // This can be null in unit tests but should be non-null in production.
-  if (!webapps::WebappsClient::Get())
+  if (!webapps::WebappsClient::Get()) {
     return false;
+  }
 
-  return security_state::IsSslCertificateValid(
+  bool is_ssl_valid = security_state::IsSslCertificateValid(
       WebappsClient::Get()->GetSecurityLevelForWebContents(web_contents));
+  return is_ssl_valid;
 }
 
 // static
@@ -1029,7 +1036,7 @@ void InstallableManager::PrimaryPageChanged(content::Page& page) {
 void InstallableManager::DidUpdateWebManifestURL(content::RenderFrameHost* rfh,
                                                  const GURL& manifest_url) {
   // A change in the manifest URL invalidates our entire internal state.
-  Reset(MANIFEST_URL_CHANGED);
+  // Reset(MANIFEST_URL_CHANGED);
 }
 
 void InstallableManager::WebContentsDestroyed() {

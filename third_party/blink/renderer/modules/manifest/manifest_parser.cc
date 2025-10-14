@@ -649,6 +649,10 @@ ManifestParser::ParseIconPurpose(const JSONObject* icon) {
 
     if (EqualIgnoringASCIICase(keyword, "any")) {
       purposes.push_back(mojom::blink::ManifestImageResource::Purpose::ANY);
+    } else if (EqualIgnoringASCIICase(keyword, "yt-splash")) {
+      purposes.push_back(mojom::blink::ManifestImageResource::Purpose::ANY);
+    } else if (EqualIgnoringASCIICase(keyword, "yt-videosplash")) {
+      purposes.push_back(mojom::blink::ManifestImageResource::Purpose::ANY);
     } else if (EqualIgnoringASCIICase(keyword, "monochrome")) {
       purposes.push_back(
           mojom::blink::ManifestImageResource::Purpose::MONOCHROME);

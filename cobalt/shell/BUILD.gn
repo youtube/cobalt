@@ -68,6 +68,7 @@ group("cobalt_shell_lib_deps") {
     "//components/variations",
     "//components/variations/service",
     "//components/web_cache/renderer",
+    "//components/webapps/browser",
     "//content:content_resources",
     "//content:dev_ui_content_resources",
     "//content/public/app",

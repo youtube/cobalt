@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/browser/cobalt_browser_main_parts.h"
+
 #include <memory>
 
 #include "base/path_service.h"
-#include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/cobalt_webapps_client.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
@@ -45,6 +47,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
+  new CobaltWebappsClient();
   StartMetricsRecording();
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
