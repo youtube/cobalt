@@ -26,9 +26,6 @@
 
 #include "cobalt/android/jni_headers/CobaltService_jni.h"
 
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
-
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
   ReceiveMessageCallback receive_callback;
@@ -40,7 +37,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
       delete name;
     }
     if (cobalt_service) {
-      JNIEnv* env = AttachCurrentThread();
+      JNIEnv* env = base::android::AttachCurrentThread();
       env->DeleteGlobalRef(cobalt_service);
     }
   }
@@ -51,15 +48,15 @@ namespace starboard {
 namespace {
 
 bool Has(const char* name) {
-  JNIEnv* env = AttachCurrentThread();
-  return StarboardBridge::GetInstance()->HasCobaltService(env, name);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return starboard::StarboardBridge::GetInstance()->HasCobaltService(env, name);
 }
 
 CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   if (!Has(name)) {
     SB_LOG(ERROR) << "Can't open Service " << name;
@@ -72,8 +69,9 @@ CobaltExtensionPlatformService Open(void* context,
   // Passing a null Activity is a temporary workaround to avoid breaking the
   // build during the JNI migration, since the Activity is not available in
   // this context.
-  auto cobalt_service = StarboardBridge::GetInstance()->OpenCobaltService(
-      env, /*activity=*/nullptr, reinterpret_cast<jlong>(service), name);
+  auto cobalt_service =
+      starboard::StarboardBridge::GetInstance()->OpenCobaltService(
+          env, /*activity=*/nullptr, reinterpret_cast<jlong>(service), name);
   if (!cobalt_service) {
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
@@ -83,10 +81,11 @@ CobaltExtensionPlatformService Open(void* context,
 }
 
 void Close(CobaltExtensionPlatformService service) {
-  JNIEnv* env = AttachCurrentThread();
-  Java_CobaltService_onClose(
-      env, ScopedJavaLocalRef<jobject>(env, service->cobalt_service));
-  StarboardBridge::GetInstance()->CloseCobaltService(env, service->name);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_CobaltService_onClose(env, base::android::ScopedJavaLocalRef<jobject>(
+                                      env, service->cobalt_service));
+  starboard::StarboardBridge::GetInstance()->CloseCobaltService(env,
+                                                                service->name);
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -104,7 +103,9 @@ void* Send(CobaltExtensionPlatformService service,
       env, reinterpret_cast<const uint8_t*>(data), length);
 
   auto j_response = Java_CobaltService_receiveFromClient(
-      env, ScopedJavaLocalRef<jobject>(env, service->cobalt_service), j_data);
+      env,
+      base::android::ScopedJavaLocalRef<jobject>(env, service->cobalt_service),
+      j_data);
 
   if (j_response.is_null()) {
     *invalid_state = true;
