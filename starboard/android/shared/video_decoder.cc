@@ -25,7 +25,6 @@
 #include <list>
 
 #include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
@@ -990,8 +989,6 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-// TODO: b/450024477 - Replace with JNI generator code
-// go/cobalt-pr/7429 will replace with JNI generator code.
 void updateTexImage(jobject surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -999,8 +996,6 @@ void updateTexImage(jobject surface_texture) {
       env, JavaParamRef<jobject>(env, surface_texture));
 }
 
-// TODO: b/450024477 - Replace with JNI generator code
-// go/cobalt-pr/7429 will replace with JNI generator code.
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -1011,8 +1006,10 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
       env, JavaParamRef<jobject>(env, surface_texture),
       JavaParamRef<jfloatArray>(env, java_array));
 
-  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4);
-  SB_CHECK(!base::android::ClearException(env));
+  jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
+  memcpy(matrix4x4, array_values, sizeof(float) * 16);
+
+  env->DeleteLocalRef(java_array);
 }
 
 // Converts a 4x4 matrix representing the texture coordinate transform into

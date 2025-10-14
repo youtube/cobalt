@@ -192,8 +192,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "jni_env_ext.cc",
-    "jni_env_ext.h",
     "log.cc",
     "log_flush.cc",
     "log_format.cc",
