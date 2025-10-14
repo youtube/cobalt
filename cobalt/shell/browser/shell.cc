@@ -37,7 +37,6 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
@@ -596,15 +595,6 @@ void Shell::ActivateContents(WebContents* contents) {
   // TODO(danakj): Move this to ShellPlatformDelegate.
   contents->Focus();
 }
-
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-std::unique_ptr<ColorChooser> Shell::OpenColorChooser(
-    WebContents* web_contents,
-    SkColor color,
-    const std::vector<blink::mojom::ColorSuggestionPtr>& suggestions) {
-  return g_platform->OpenColorChooser(web_contents, color, suggestions);
-}
-#endif
 
 void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
                            scoped_refptr<FileSelectListener> listener,

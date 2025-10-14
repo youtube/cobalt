@@ -119,6 +119,7 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//cc/slim",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
+      "//components/embedder_support/android:view",
       "//ui/android",
     ]
   }
@@ -392,8 +393,8 @@ group("cobalt_shell_app_deps") {
 repack("pak") {
   sources = [
     "$root_gen_dir/base/tracing/protos/tracing_proto_resources.pak",
-    "$root_gen_dir/components/ukm_resources.pak",
     "$root_gen_dir/cobalt/shell/cobalt_shell_resources.pak",
+    "$root_gen_dir/components/ukm_resources.pak",
     "$root_gen_dir/content/browser/resources/media/media_internals_resources.pak",
     "$root_gen_dir/content/browser/webrtc/resources/webrtc_internals_resources.pak",
     "$root_gen_dir/content/content_resources.pak",

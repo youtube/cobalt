@@ -15,8 +15,8 @@
 package dev.cobalt.coat;
 
 import android.view.accessibility.CaptioningManager;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /** Captures the system Caption style in properties as needed by the Starboard implementation. */
 @JNINamespace("starboard")
