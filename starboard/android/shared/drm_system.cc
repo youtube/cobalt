@@ -331,7 +331,7 @@ void DrmSystem::OnSessionUpdate(int ticket,
     if (session_id_mapper_->IsMediaDrmSessionIdForProvisioningRequired()) {
       session_id_mapper_->RegisterMediaDrmSessionIdForProvisioning(session_id);
     }
-    cdm_session_id_str = session_id_mapper_->GetCdmSessionId(session_id);
+    cdm_session_id_str = session_id_mapper_->GetEmeSessionId(session_id);
     cdm_session_id = cdm_session_id_str;
   } else {
     cdm_session_id = session_id;
@@ -354,7 +354,7 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
     SB_CHECK(!deferred_session_update_requests_.empty())
         << "Provisioning request is sent, even though there is no pending "
            "session update request.";
-    cdm_session_id = session_id_mapper_->GetBridgeCdmSessionId();
+    cdm_session_id = session_id_mapper_->GetBridgeEmeSessionId();
     SB_CHECK(!cdm_session_id.empty());
     ticket = deferred_session_update_requests_.front()->ReleaseTicket();
   }

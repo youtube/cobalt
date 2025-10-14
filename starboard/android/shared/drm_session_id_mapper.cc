@@ -28,36 +28,36 @@ std::string DrmSessionIdMapper::GenerateBridgeSessionId() {
   return "cobalt.sid." + std::to_string(counter++);
 }
 
-std::string_view DrmSessionIdMapper::GetCdmSessionId(
+std::string_view DrmSessionIdMapper::GetEmeSessionId(
     std::string_view media_drm_session_id) const {
   if (bridge_session_id_map_.has_value() &&
       bridge_session_id_map_->media_drm_id == media_drm_session_id) {
-    return bridge_session_id_map_->cdm_id;
+    return bridge_session_id_map_->eme_id;
   }
   return media_drm_session_id;
 }
 
 std::string_view DrmSessionIdMapper::GetMediaDrmSessionId(
-    std::string_view cdm_session_id) const {
+    std::string_view eme_session_id) const {
   if (bridge_session_id_map_.has_value() &&
-      bridge_session_id_map_->cdm_id == cdm_session_id) {
+      bridge_session_id_map_->eme_id == eme_session_id) {
     return bridge_session_id_map_->media_drm_id;
   }
-  return cdm_session_id;
+  return eme_session_id;
 }
 
-std::string DrmSessionIdMapper::GetBridgeCdmSessionId() {
+std::string DrmSessionIdMapper::GetBridgeEmeSessionId() {
   if (bridge_session_id_map_.has_value()) {
     SB_LOG(INFO) << __func__ << " re-used exising bridge session id="
-                 << bridge_session_id_map_->cdm_id;
-    return bridge_session_id_map_->cdm_id;
+                 << bridge_session_id_map_->eme_id;
+    return bridge_session_id_map_->eme_id;
   }
 
   bridge_session_id_map_.emplace(
-      SessionIdMap{.cdm_id = GenerateBridgeSessionId()});
-  SB_LOG(INFO) << __func__ << " created new bridge session: cdm_id="
-               << bridge_session_id_map_->cdm_id;
-  return bridge_session_id_map_->cdm_id;
+      SessionIdMap{.eme_id = GenerateBridgeSessionId()});
+  SB_LOG(INFO) << __func__ << " created new bridge session: eme_id="
+               << bridge_session_id_map_->eme_id;
+  return bridge_session_id_map_->eme_id;
 }
 
 bool DrmSessionIdMapper::IsMediaDrmSessionIdForProvisioningRequired() const {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/media/drm_session_id_mapper.h"
+#include "starboard/android/shared/drm_session_id_mapper.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -21,56 +21,56 @@ namespace {
 
 TEST(DrmSessionIdMapperTest, InitialState) {
   DrmSessionIdMapper mapper;
-  EXPECT_EQ(mapper.GetCdmSessionId("test_id"), "test_id");
+  EXPECT_EQ(mapper.GetEmeSessionId("test_id"), "test_id");
   EXPECT_EQ(mapper.GetMediaDrmSessionId("test_id"), "test_id");
 }
 
-TEST(DrmSessionIdMapperTest, GetBridgeCdmSessionId) {
+TEST(DrmSessionIdMapperTest, GetBridgeEmeSessionId) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
-  EXPECT_FALSE(cdm_session_id.empty());
-  EXPECT_NE(cdm_session_id, "test_id");
+  std::string eme_session_id = mapper.GetBridgeEmeSessionId();
+  EXPECT_FALSE(eme_session_id.empty());
+  EXPECT_NE(eme_session_id, "test_id");
 
   // The media drm session id should be empty initially.
-  EXPECT_TRUE(mapper.GetMediaDrmSessionId(cdm_session_id).empty());
+  EXPECT_TRUE(mapper.GetMediaDrmSessionId(eme_session_id).empty());
 }
 
-TEST(DrmSessionIdMapperTest, GetCdmSessionId) {
+TEST(DrmSessionIdMapperTest, GetEmeSessionId) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
+  std::string eme_session_id = mapper.GetBridgeEmeSessionId();
 
   const std::string media_drm_session_id = "media_drm_session_id";
   if (mapper.IsMediaDrmSessionIdForProvisioningRequired()) {
     mapper.RegisterMediaDrmSessionIdForProvisioning(media_drm_session_id);
   }
 
-  EXPECT_EQ(mapper.GetCdmSessionId(media_drm_session_id), cdm_session_id);
+  EXPECT_EQ(mapper.GetEmeSessionId(media_drm_session_id), eme_session_id);
 }
 
 TEST(DrmSessionIdMapperTest, GetMediaDrmSessionId) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
+  std::string eme_session_id = mapper.GetBridgeEmeSessionId();
 
   const std::string media_drm_session_id = "media_drm_session_id";
   if (mapper.IsMediaDrmSessionIdForProvisioningRequired()) {
     mapper.RegisterMediaDrmSessionIdForProvisioning(media_drm_session_id);
   }
 
-  EXPECT_EQ(mapper.GetMediaDrmSessionId(cdm_session_id), media_drm_session_id);
+  EXPECT_EQ(mapper.GetMediaDrmSessionId(eme_session_id), media_drm_session_id);
 }
 
-TEST(DrmSessionIdMapperTest, GetBridgeCdmSessionIdIsConsistent) {
+TEST(DrmSessionIdMapperTest, GetBridgeEmeSessionIdIsConsistent) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id1 = mapper.GetBridgeCdmSessionId();
-  std::string cdm_session_id2 = mapper.GetBridgeCdmSessionId();
-  EXPECT_EQ(cdm_session_id1, cdm_session_id2);
+  std::string eme_session_id1 = mapper.GetBridgeEmeSessionId();
+  std::string eme_session_id2 = mapper.GetBridgeEmeSessionId();
+  EXPECT_EQ(eme_session_id1, eme_session_id2);
 }
 
 TEST(DrmSessionIdMapperTest, IsMediaDrmSessionIdForProvisioningRequired) {
   DrmSessionIdMapper mapper;
   EXPECT_FALSE(mapper.IsMediaDrmSessionIdForProvisioningRequired());
 
-  std::string cdm_id = mapper.GetBridgeCdmSessionId();
+  std::string eme_id = mapper.GetBridgeEmeSessionId();
   EXPECT_TRUE(mapper.IsMediaDrmSessionIdForProvisioningRequired());
 
   mapper.RegisterMediaDrmSessionIdForProvisioning("media_id_1");
@@ -79,11 +79,11 @@ TEST(DrmSessionIdMapperTest, IsMediaDrmSessionIdForProvisioningRequired) {
 
 TEST(DrmSessionIdMapperTest, RegisterMediaDrmSessionIdForProvisioning) {
   DrmSessionIdMapper mapper;
-  std::string cdm_id = mapper.GetBridgeCdmSessionId();
-  EXPECT_TRUE(mapper.GetMediaDrmSessionId(cdm_id).empty());
+  std::string eme_id = mapper.GetBridgeEmeSessionId();
+  EXPECT_TRUE(mapper.GetMediaDrmSessionId(eme_id).empty());
 
   mapper.RegisterMediaDrmSessionIdForProvisioning("media_id_1");
-  EXPECT_EQ(mapper.GetMediaDrmSessionId(cdm_id), "media_id_1");
+  EXPECT_EQ(mapper.GetMediaDrmSessionId(eme_id), "media_id_1");
 }
 
 }  // namespace
