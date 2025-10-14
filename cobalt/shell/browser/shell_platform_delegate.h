@@ -25,6 +25,10 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
+namespace views {
+class ViewsDelegate;
+}
+
 #if BUILDFLAG(IS_APPLE)
 #include "ui/display/screen.h"
 #endif
@@ -141,6 +145,7 @@ class ShellPlatformDelegate {
 #endif
 
  protected:
+  virtual std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
 #if defined(USE_AURA) && !defined(SHELL_USE_TOOLKIT_VIEWS)
   // Helper to avoid duplicating aura's ShellPlatformDelegate in web tests. If
   // this hack gets expanded to become more expansive then we should just
