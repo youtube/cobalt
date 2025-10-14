@@ -22,7 +22,6 @@
 
 #include <mutex>
 
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
