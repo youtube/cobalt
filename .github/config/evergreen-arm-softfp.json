@@ -7,7 +7,6 @@
     "cobalt"
   ],
   "build_configs": [
-    "debug",
     "devel",
     "qa",
     "gold"
