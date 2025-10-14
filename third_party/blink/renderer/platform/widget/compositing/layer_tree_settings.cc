@@ -91,7 +91,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   cc::ManagedMemoryPolicy actual = default_policy;
   actual.bytes_limit_when_visible = 0;
   actual.priority_cutoff_when_visible =
-      gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
 
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
@@ -107,6 +107,8 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     return actual;
   }
 
+    LOG(ERROR) << "miguelao, actual.bytes_limit_when_visible=" << actual.bytes_limit_when_visible;
+
 #if BUILDFLAG(IS_ANDROID)
   if (base::SysInfo::IsLowEndDevice() ||
       base::SysInfo::AmountOfPhysicalMemoryMB() < 2000) {
@@ -114,6 +116,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   } else {
     actual.bytes_limit_when_visible = 256 * 1024 * 1024;
   }
+    LOG(ERROR) << "miguelao, actual.bytes_limit_when_visible=" << actual.bytes_limit_when_visible;
 #else
   // Ignore what the system said and give all clients the same maximum
   // allocation on desktop platforms.
@@ -407,13 +410,16 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // On low-end we want to be very careful about killing other
     // apps. So initially we use 50% more memory to avoid flickering
     // or raster-on-demand.
-    settings.max_memory_for_prepaint_percentage = 67;
+    settings.max_memory_for_prepaint_percentage = 25;
   } else {
     // On other devices we have increased memory excessively to avoid
     // raster-on-demand already, so now we reserve 50% _only_ to avoid
     // raster-on-demand, and use 50% of the memory otherwise.
     settings.max_memory_for_prepaint_percentage = 50;
   }
+  LOG(ERROR) << "miguelao, using_low_memory_policy=" << using_low_memory_policy
+             << ", settings.max_memory_for_prepaint_percentage="
+             << settings.max_memory_for_prepaint_percentage;
 
   // TODO(danakj): Only do this on low end devices.
   settings.create_low_res_tiling = true;

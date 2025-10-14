@@ -79,6 +79,10 @@ public final class CommandLineOverrideHelper {
         // Remove below if Cobalt rebase to m138+.
         paramOverrides.add("--disable-quic");
 
+        // Limit the total amount of memory that may be allocated for GPU
+        // resources. Left to its devices, it's usually 64MB.
+        //paramOverrides.add("--force-gpu-mem-available-mb=48");
+
         return paramOverrides;
     }
 
