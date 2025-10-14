@@ -134,6 +134,9 @@ class MediaCodecBridge {
    // - Exposes formatHasCropValues() to the native layer, which needs to call it.
    // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
    // - Add @Nonnul annotation to mFormat. since it is not null.
+   // - Add safety checks for width() and height() to prevent a crash. Cobalt's native code
+   //   accesses the format immediately in the onOutputFormatChanged callback, which can be
+   //   before the dimension keys are available.
    private static class MediaFormatWrapper {
     @NonNull private final MediaFormat mFormat;
 
@@ -151,16 +154,26 @@ class MediaCodecBridge {
 
     @CalledByNative("MediaFormatWrapper")
     private int width() {
-      return formatHasCropValues()
-          ? mFormat.getInteger(KEY_CROP_RIGHT) - mFormat.getInteger(KEY_CROP_LEFT) + 1
-          : mFormat.getInteger(MediaFormat.KEY_WIDTH);
+      if (formatHasCropValues()) {
+        return mFormat.getInteger(KEY_CROP_RIGHT) - mFormat.getInteger(KEY_CROP_LEFT) + 1;
+      }
+      if (mFormat.containsKey(MediaFormat.KEY_WIDTH)) {
+        return mFormat.getInteger(MediaFormat.KEY_WIDTH);
+      }
+      Log.w(TAG, "KEY_WIDTH not found in MediaFormat.");
+      return 0;
     }
 
     @CalledByNative("MediaFormatWrapper")
     private int height() {
-      return formatHasCropValues()
-          ? mFormat.getInteger(KEY_CROP_BOTTOM) - mFormat.getInteger(KEY_CROP_TOP) + 1
-          : mFormat.getInteger(MediaFormat.KEY_HEIGHT);
+      if (formatHasCropValues()) {
+        return mFormat.getInteger(KEY_CROP_BOTTOM) - mFormat.getInteger(KEY_CROP_TOP) + 1;
+      }
+      if (mFormat.containsKey(MediaFormat.KEY_HEIGHT)) {
+        return mFormat.getInteger(MediaFormat.KEY_HEIGHT);
+      }
+      Log.w(TAG, "KEY_HEIGHT not found in MediaFormat.");
+      return 0;
     }
 
     @CalledByNative("MediaFormatWrapper")
