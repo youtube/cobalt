@@ -26,12 +26,12 @@ namespace starboard {
 template <typename E>
 class Unexpected {
  public:
-  explicit Unexpected(E error) : error_(std::move(error)) {}
+  constexpr explicit Unexpected(E error) : error_(std::move(error)) {}
 
-  E& error() & { return error_; }
-  const E& error() const& { return error_; }
-  E&& error() && { return std::move(error_); }
-  const E&& error() const&& { return std::move(error_); }
+  constexpr E& error() & noexcept { return error_; }
+  constexpr const E& error() const& noexcept { return error_; }
+  constexpr E&& error() && noexcept { return std::move(error_); }
+  constexpr const E&& error() const&& noexcept { return std::move(error_); }
 
  private:
   E error_;
@@ -142,39 +142,39 @@ class Expected {
     return *this;
   }
 
-  bool has_value() const { return has_value_; }
-  explicit operator bool() const { return has_value_; }
+  constexpr bool has_value() const noexcept { return has_value_; }
+  constexpr explicit operator bool() const noexcept { return has_value_; }
 
-  T& value() & {
+  constexpr T& value() & noexcept {
     SB_CHECK(has_value());
     return storage_.value_;
   }
-  const T& value() const& {
+  constexpr const T& value() const& noexcept {
     SB_CHECK(has_value());
     return storage_.value_;
   }
-  T&& value() && {
+  constexpr T&& value() && noexcept {
     SB_CHECK(has_value());
     return std::move(storage_.value_);
   }
-  const T&& value() const&& {
+  constexpr const T&& value() const&& noexcept {
     SB_CHECK(has_value());
     return std::move(storage_.value_);
   }
 
-  E& error() & {
+  constexpr E& error() & noexcept {
     SB_CHECK(!has_value());
     return storage_.error_;
   }
-  const E& error() const& {
+  constexpr const E& error() const& noexcept {
     SB_CHECK(!has_value());
     return storage_.error_;
   }
-  E&& error() && {
+  constexpr E&& error() && noexcept {
     SB_CHECK(!has_value());
     return std::move(storage_.error_);
   }
-  const E&& error() const&& {
+  constexpr const E&& error() const&& noexcept {
     SB_CHECK(!has_value());
     return std::move(storage_.error_);
   }
@@ -222,24 +222,24 @@ class Expected<void, E> {
   Expected() : error_(std::nullopt) {}
   Expected(Unexpected<E> unexpected) : error_(std::move(unexpected.error())) {}
 
-  bool has_value() const { return !error_.has_value(); }
-  explicit operator bool() const { return has_value(); }
+  constexpr bool has_value() const noexcept { return !error_.has_value(); }
+  constexpr explicit operator bool() const noexcept { return has_value(); }
 
-  void value() const { SB_CHECK(has_value()); }
+  constexpr void value() const noexcept { SB_CHECK(has_value()); }
 
-  E& error() & {
+  constexpr E& error() & noexcept {
     SB_CHECK(!has_value());
     return *error_;
   }
-  const E& error() const& {
+  constexpr const E& error() const& noexcept {
     SB_CHECK(!has_value());
     return *error_;
   }
-  E&& error() && {
+  constexpr E&& error() && noexcept {
     SB_CHECK(!has_value());
     return std::move(*error_);
   }
-  const E&& error() const&& {
+  constexpr const E&& error() const&& noexcept {
     SB_CHECK(!has_value());
     return std::move(*error_);
   }

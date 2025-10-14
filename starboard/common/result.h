@@ -59,16 +59,20 @@ class NonNullResult {
   NonNullResult(Unexpected<std::string> error) : result_(std::move(error)) {}
 
   // Forwarded methods
-  bool has_value() const { return result_.has_value(); }
-  explicit operator bool() const { return has_value(); }
+  constexpr bool has_value() const noexcept { return result_.has_value(); }
+  constexpr explicit operator bool() const noexcept { return has_value(); }
 
-  T& value() & { return result_.value(); }
-  const T& value() const& { return result_.value(); }
-  T&& value() && { return std::move(result_).value(); }
+  constexpr T& value() & noexcept { return result_.value(); }
+  constexpr const T& value() const& noexcept { return result_.value(); }
+  constexpr T&& value() && noexcept { return std::move(result_).value(); }
 
-  std::string& error() & { return result_.error(); }
-  const std::string& error() const& { return result_.error(); }
-  std::string&& error() && { return std::move(result_).error(); }
+  constexpr std::string& error() & noexcept { return result_.error(); }
+  constexpr const std::string& error() const& noexcept {
+    return result_.error();
+  }
+  constexpr std::string&& error() && noexcept {
+    return std::move(result_).error();
+  }
 
   // Custom operators
   auto operator->() {
