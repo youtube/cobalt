@@ -131,9 +131,10 @@ source_set("common") {
     ]
   }
 
+  public_deps = [ "//cobalt/browser" ]
+
   deps = [
     "//base",
-    "//cobalt/browser",
     "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",

@@ -17,12 +17,14 @@
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/json_pref_store.h"
+#include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
@@ -162,10 +164,13 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
   registry->RegisterListPref(kExperimentConfigExpIds);
+  registry->RegisterDictionaryPref(kFinchParameters);
   registry->RegisterDictionaryPref(kSafeConfig);
   registry->RegisterDictionaryPref(kSafeConfigFeatures);
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
   registry->RegisterListPref(kSafeConfigExpIds);
+  registry->RegisterTimePref(variations::prefs::kVariationsLastFetchTime,
+                             base::Time(), PrefRegistry::LOSSY_PREF);
   metrics::MetricsService::RegisterPrefs(registry);
 }
 
