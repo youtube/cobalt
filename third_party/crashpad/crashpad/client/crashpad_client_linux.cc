@@ -51,6 +51,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/notreached.h"
+#include "base/synchronization/lock.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
 
@@ -60,6 +61,7 @@ namespace {
 
 #if BUILDFLAG(IS_STARBOARD)
 constexpr char kEvergreenInfoKey[] = "evergreen-information";
+constexpr char kAnnotationKey[] = "annotation=%s";
 #endif  // BUILDFLAG(IS_STARBOARD)
 
 std::string FormatArgumentInt(const std::string& name, int value) {
@@ -69,6 +71,36 @@ std::string FormatArgumentInt(const std::string& name, int value) {
 std::string FormatArgumentAddress(const std::string& name, const void* addr) {
   return base::StringPrintf("--%s=%p", name.c_str(), addr);
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+std::string FormatArgumentString(const std::string& name,
+                                 const std::string& value) {
+  return base::StringPrintf("--%s=%s", name.c_str(), value.c_str());
+}
+
+bool UpdateAnnotation(std::string& annotation,
+                      const std::string key,
+                      const std::string& new_value) {
+  if (new_value.empty()) {
+    return false;
+  }
+  // The annotation is in the format --key=value
+  if (annotation.compare(2, key.size(), key) == 0) {
+    annotation = FormatArgumentString(key, new_value);
+    LOG(INFO) << "Updated annotation: " << annotation;
+    return true;
+  }
+  return false;
+}
+
+void AddAnnotation(std::vector<std::string>& argv_strings,
+                   const std::string& key,
+                   const std::string& new_value) {
+  std::string v = FormatArgumentString(key, new_value);
+  argv_strings.push_back(v);
+  LOG(INFO) << "Added annotation: " << v;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_ANDROID)
 
@@ -183,6 +215,10 @@ class SignalHandler {
     evergreen_info_ = evergreen_info;
     return SendEvergreenInfoImpl();
   }
+
+  bool InsertAnnotation(const char* key, const char* value) {
+    return InsertAnnotationImpl(key, value);
+  }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
  protected:
@@ -206,11 +242,15 @@ class SignalHandler {
     return exception_information_;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   virtual void HandleCrashImpl() = 0;
 
 #if BUILDFLAG(IS_STARBOARD)
   virtual bool SendEvergreenInfoImpl() = 0;
-  const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
+  virtual bool InsertAnnotationImpl(const char* key, const char* value) = 0;
 #endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
@@ -344,6 +384,8 @@ class LaunchAtCrashHandler : public SignalHandler {
 
 #if BUILDFLAG(IS_STARBOARD)
   bool SendEvergreenInfoImpl() override {
+    base::AutoLock lock(argv_lock_);
+
     bool updated = false;
     for (auto& s : argv_strings_) {
       if (s.compare(2, strlen(kEvergreenInfoKey), kEvergreenInfoKey) == 0) {
@@ -364,6 +406,26 @@ class LaunchAtCrashHandler : public SignalHandler {
 
     return true;
   }
+
+  bool InsertAnnotationImpl(const char* key, const char* value) override {
+    base::AutoLock lock(argv_lock_);
+
+    std::string formatted_key = base::StringPrintf(kAnnotationKey, key);
+    bool updated_annotation = false;
+    for (auto& s : argv_strings_) {
+      if (UpdateAnnotation(s, formatted_key, value)) {
+        updated_annotation = true;
+      }
+    }
+
+    if (!updated_annotation) {
+      AddAnnotation(argv_strings_, formatted_key, value);
+    }
+
+    StringVectorToCStringVector(argv_strings_, &argv_);
+
+    return true;
+  }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
@@ -373,6 +435,12 @@ class LaunchAtCrashHandler : public SignalHandler {
 
   std::vector<std::string> argv_strings_;
   std::vector<const char*> argv_;
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Protects access to both argv_strings_ and argv_.
+  base::Lock argv_lock_;
+#endif
+
   std::vector<std::string> envp_strings_;
   std::vector<const char*> envp_;
   bool set_envp_ = false;
@@ -457,7 +525,16 @@ class RequestCrashDumpHandler : public SignalHandler {
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO: b/446908034 - Cobalt: consider removing these custom methods from the
+  // base class since for Chrobalt we have no immediate plans to support this
+  // derived signal handler class.
   bool SendEvergreenInfoImpl() override {
+    // Cobalt currently doesn't support RequestCrashDumpHandler.
+    NOTIMPLEMENTED();
+    return false;
+  }
+
+  bool InsertAnnotationImpl(const char* key, const char* value) override {
     // Cobalt currently doesn't support RequestCrashDumpHandler.
     NOTIMPLEMENTED();
     return false;
@@ -817,6 +894,17 @@ bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
     return false;
   }
   return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
+}
+
+// static
+bool CrashpadClient::InsertAnnotationForHandler(
+    const char* key, const char* value) {
+  if (!SignalHandler::Get()) {
+    DLOG(ERROR) << "Crashpad isn't enabled";
+    return false;
+  }
+
+  return SignalHandler::Get()->InsertAnnotation(key, value);
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
