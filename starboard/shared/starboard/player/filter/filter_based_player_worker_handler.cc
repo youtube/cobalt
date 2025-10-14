@@ -206,7 +206,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   return Success();
 }
 
-Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
+HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     const InputBuffers& input_buffers,
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
@@ -296,7 +296,7 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
   return Success();
 }
 
-Result<void> FilterBasedPlayerWorkerHandler::WriteEndOfStream(
+HandlerResult FilterBasedPlayerWorkerHandler::WriteEndOfStream(
     SbMediaType sample_type) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -327,7 +327,7 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteEndOfStream(
   return Success();
 }
 
-Result<void> FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
+HandlerResult FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set pause from " << paused_ << " to " << pause
@@ -348,7 +348,7 @@ Result<void> FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   return Success();
 }
 
-Result<void> FilterBasedPlayerWorkerHandler::SetPlaybackRate(
+HandlerResult FilterBasedPlayerWorkerHandler::SetPlaybackRate(
     double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -379,7 +379,7 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
   }
 }
 
-Result<void> FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
+HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0) {
