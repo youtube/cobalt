@@ -22,7 +22,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
