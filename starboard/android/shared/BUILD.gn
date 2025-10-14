@@ -191,6 +191,8 @@ static_library("starboard_platform") {
     "crash_handler.h",
     "decode_target.cc",
     "decode_target.h",
+    "display_util.cc",
+    "display_util.h",
     "drm_create_system.cc",
     "drm_system.cc",
     "drm_system.h",
@@ -202,9 +204,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-
-    #"input_events_generator.cc",
-    #"input_events_generator.h",
     "jni_env_ext.cc",
     "jni_env_ext.h",
     "jni_utils.h",

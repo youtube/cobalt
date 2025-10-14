@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/android_media_session_client.h"
-
-#include "starboard/common/log.h"
+#ifndef STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
+#define STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
 
 namespace starboard {
 
-const void* GetMediaSessionApi() {
-  // Android build uses the Chromium MediaSession implementation directly,
-  // bypassing this Starboard extension. However, AOSP builds may require this
-  // Starboard API to be implemented.
-  // TODO: b/377019873 - Implement this method if required for AOSP.
-  SB_LOG(FATAL) << "MediaSessionApi is not supported.";
-  return nullptr;
-}
+// A gateway to access DisplayUtil.java through JNI.
+class DisplayUtil {
+ public:
+  struct Dpi {
+    float x;
+    float y;
+  };
+
+  // Returns the physical pixels per inch of the screen in the X and Y
+  // dimensions.
+  static Dpi GetDisplayDpi();
+};
 
 }  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
