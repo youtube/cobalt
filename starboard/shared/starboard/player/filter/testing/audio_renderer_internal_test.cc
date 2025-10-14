@@ -81,6 +81,7 @@ class AudioRendererTest : public ::testing::Test {
         .WillByDefault(InvokeWithoutArgs([this]() {
           audio_renderer_sink_->SetHasStarted(false);
         }));  // NOLINT
+    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
 
     ON_CALL(*audio_renderer_sink_, HasStarted())
         .WillByDefault(::testing::ReturnPointee(
@@ -304,7 +305,6 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   {
     InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
@@ -390,7 +390,6 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
@@ -466,7 +465,6 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
@@ -534,7 +532,6 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
@@ -578,7 +575,6 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
@@ -628,7 +624,6 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
@@ -720,7 +715,6 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(*audio_renderer_sink_, HasStarted())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(
@@ -811,7 +805,6 @@ TEST_F(AudioRendererTest, Seek) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
