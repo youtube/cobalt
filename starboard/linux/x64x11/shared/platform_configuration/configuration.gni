@@ -27,3 +27,4 @@ if (current_toolchain == default_toolchain &&
 }
 
 sb_is_evergreen_compatible = true
+use_crashpad = true

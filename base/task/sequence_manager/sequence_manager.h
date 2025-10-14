@@ -21,6 +21,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -163,7 +164,13 @@ class BASE_EXPORT SequenceManager {
     Settings& operator=(const Settings&) = delete;
     // In the future MessagePump (which is move-only) will also be a setting,
     // so we are making Settings move-only in preparation.
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+    // The compiler does not agree that the default move constructor should be
+    // declared as non-throwing.
+    Settings(Settings&& move_from);
+#else
     Settings(Settings&& move_from) noexcept;
+#endif
 
     ~Settings();
 

@@ -615,7 +615,13 @@ absl::optional<Value> Value::Dict::Extract(StringPiece key) {
   }
   Value v = std::move(*it->second);
   storage_.erase(it);
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+  // Use the move constructor to sidestep an implicit conversion issue with the
+  // copy constructor.
+  return std::move(v);
+#else
   return v;
+#endif
 }
 
 const Value* Value::Dict::FindByDottedPath(StringPiece path) const {
