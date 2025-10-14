@@ -18,9 +18,6 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -79,8 +76,7 @@ CobaltExtensionPlatformService Open(void* context,
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
   }
-  service->cobalt_service =
-      JniConvertLocalRefToGlobalRef(env, cobalt_service.obj());
+  service->cobalt_service = env->NewGlobalRef(cobalt_service.obj());
   return service;
 }
 
