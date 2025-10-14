@@ -54,7 +54,7 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // rebasing to m120+
       switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-      sandbox::policy::switches::kNoSandbox
+      sandbox::policy::switches::kNoSandbox,
       // Disable QUIC to save CPU budgets on m114.
       // Remove below if Cobalt rebase to m138+.
       switches::kDisableQuic,
