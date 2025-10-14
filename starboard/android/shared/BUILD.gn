@@ -23,18 +23,6 @@ import("//testing/test.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
-# This shared library contains only shared state variables needed
-# for shared JNI to work across library boundaries.
-shared_library("starboard_jni_state") {
-  sources = [
-    "jni_state.cc",
-    "jni_state.h",
-  ]
-
-  # Do not just hide symbols from us
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-}
-
 config("starboard_platform_libs") {
   libs = [
     "EGL",
@@ -321,7 +309,6 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
-    ":starboard_jni_state",
     "//cobalt/android:jni_headers",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
@@ -397,7 +384,6 @@ test("starboard_platform_tests") {
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "//starboard/shared/starboard/starboard_feature_test.cc",
-              "jni_env_ext_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
             ]
