@@ -69,18 +69,9 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
-<<<<<<< HEAD
-=======
-        // Disable Chrome's accelerated video encoding and decoding (Cobalt uses
-        // Starboard's stack).
-        paramOverrides.add("--disable-accelerated-video-decode");
-        paramOverrides.add("--disable-accelerated-video-encode");
-        // Rasterize Tiles directly to GPU memory.
-        paramOverrides.add("--enable-zero-copy");
         // Disable QUIC to save CPU budgets on m114.
         // Remove below if Cobalt rebase to m138+.
         paramOverrides.add("--disable-quic");
->>>>>>> dee13824cd6 (cobalt/browser: Disable QUIC by default (#7525))
 
         return paramOverrides;
     }
