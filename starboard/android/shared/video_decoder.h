@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
+#include <jni.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <memory>
@@ -29,6 +31,7 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
+#include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
@@ -46,6 +49,7 @@ namespace starboard {
 
 class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,
+                               public VideoSurfaceTextureBridge::Host,
                                private JobQueue::JobOwner,
                                private VideoSurfaceHolder {
  public:
@@ -91,7 +95,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
-  void OnNewTextureAvailable();
+  void OnFrameAvailable() override;
 
   bool is_decoder_created() const { return media_decoder_ != NULL; }
 
@@ -224,6 +228,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+
+  const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;
 };
 
 }  // namespace starboard
