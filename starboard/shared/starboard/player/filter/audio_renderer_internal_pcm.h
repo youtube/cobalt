@@ -177,7 +177,7 @@ class AudioRendererPcm : public AudioRenderer,
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
 
-  std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
+  const std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
   bool is_eos_reached_on_sink_thread_ = false;
   bool is_playing_on_sink_thread_ = false;
   int64_t frames_in_buffer_on_sink_thread_ = 0;

@@ -88,6 +88,7 @@ AudioRendererPcm::AudioRendererPcm(
   SB_DCHECK(decoder_);
   SB_DCHECK_GT(min_frames_per_append_, 0);
   SB_DCHECK_GE(max_cached_frames_, min_frames_per_append_ * 2);
+  SB_CHECK(audio_renderer_sink_);
 
   frame_buffers_[0] = &frame_buffer_[0];
 
@@ -103,6 +104,10 @@ AudioRendererPcm::~AudioRendererPcm() {
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
   SB_CHECK(BelongsToCurrentThread());
+
+  // Stop audio renderer sink before destroying members, in order to
+  // prevent the callback called during destruction.
+  audio_renderer_sink_->Stop();
 }
 
 void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
