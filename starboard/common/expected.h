@@ -31,6 +31,7 @@ class Unexpected {
   E& error() & { return error_; }
   const E& error() const& { return error_; }
   E&& error() && { return std::move(error_); }
+  const E&& error() const&& { return std::move(error_); }
 
  private:
   E error_;
@@ -61,7 +62,7 @@ class Unexpected {
 //     HandleError(result.error());
 //   }
 //
-// NOTE: This implementation can be replaced with c++ 23's `std::expected` or
+// NOTE: This implementation can be replaced with C++ 23's `std::expected` or
 // Chromium's `base::expected` once either becomes available in this codebase.
 template <typename T, typename E>
 class Expected {
@@ -156,6 +157,10 @@ class Expected {
     SB_CHECK(has_value());
     return std::move(storage_.value_);
   }
+  const T&& value() const&& {
+    SB_CHECK(has_value());
+    return std::move(storage_.value_);
+  }
 
   E& error() & {
     SB_CHECK(!has_value());
@@ -166,6 +171,10 @@ class Expected {
     return storage_.error_;
   }
   E&& error() && {
+    SB_CHECK(!has_value());
+    return std::move(storage_.error_);
+  }
+  const E&& error() const&& {
     SB_CHECK(!has_value());
     return std::move(storage_.error_);
   }
@@ -188,6 +197,10 @@ class Expected {
     return storage_.value_;
   }
   T&& operator*() && {
+    SB_CHECK(has_value());
+    return std::move(storage_.value_);
+  }
+  const T&& operator*() const&& {
     SB_CHECK(has_value());
     return std::move(storage_.value_);
   }
@@ -223,6 +236,10 @@ class Expected<void, E> {
     return *error_;
   }
   E&& error() && {
+    SB_CHECK(!has_value());
+    return std::move(*error_);
+  }
+  const E&& error() const&& {
     SB_CHECK(!has_value());
     return std::move(*error_);
   }
