@@ -33,35 +33,6 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
-ScopedJavaGlobalRef<jobject> CreateSurfaceTexture(JNIEnv* env,
-                                                  int gl_texture_id) {
-  ScopedJavaGlobalRef<jobject> surface_texture(
-      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, gl_texture_id));
-  SB_CHECK(surface_texture);
-
-  return surface_texture;
-}
-
-ScopedJavaGlobalRef<jobject> CreateSurfaceFromSurfaceTexture(
-    JNIEnv* env,
-    jobject surface_texture) {
-  ScopedJavaLocalRef<jclass> surface_class(
-      env, env->FindClass("android/view/Surface"));
-  SB_CHECK(surface_class);
-  jmethodID surface_constructor = env->GetMethodID(
-      surface_class.obj(), "<init>", "(Landroid/graphics/SurfaceTexture;)V");
-  SB_CHECK(surface_constructor);
-
-  ScopedJavaGlobalRef<jobject> surface(
-      env, env->NewObject(surface_class.obj(), surface_constructor,
-                          surface_texture));
-  SB_CHECK(surface);
-
-  return surface;
-}
 
 void RunOnContextRunner(void* context) {
   std::function<void()>* closure = static_cast<std::function<void()>*>(context);
@@ -109,11 +80,15 @@ void DecodeTarget::CreateOnContextRunner() {
 
   JNIEnv* env = AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
-  surface_texture_ = CreateSurfaceTexture(env, texture);
+  surface_texture_ =
+      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, texture);
+  SB_CHECK(surface_texture_);
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  surface_ = CreateSurfaceFromSurfaceTexture(env, surface_texture_.obj());
+  surface_ =
+      VideoSurfaceTextureBridge::CreateSurface(env, surface_texture_.obj());
+  SB_CHECK(surface_texture_);
 
   native_window_ = ANativeWindow_fromSurface(env, surface_.obj());
 

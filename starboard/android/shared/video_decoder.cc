@@ -28,6 +28,7 @@
 #include "build/build_config.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -46,6 +47,7 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -710,7 +712,8 @@ bool MediaCodecVideoDecoder::InitializeCodec(
       JNIEnv* env = AttachCurrentThread();
       ScopedJavaLocalRef<jobject> surface_texture(
           env, decode_target->surface_texture());
-      bridge_->SetOnFrameAvailableListener(env, surface_texture);
+      bridge_->SetOnFrameAvailableListener(
+          env, JavaParamRef<jobject>(env, surface_texture.obj()));
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -787,7 +790,8 @@ void MediaCodecVideoDecoder::TeardownCodec() {
       JNIEnv* env = AttachCurrentThread();
       ScopedJavaLocalRef<jobject> surface_texture(
           env, decode_target_->surface_texture());
-      bridge_->RemoveOnFrameAvailableListener(env, surface_texture);
+      bridge_->RemoveOnFrameAvailableListener(
+          env, JavaParamRef<jobject>(env, surface_texture.obj()));
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -985,36 +989,11 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-jmethodID GetUpdateTexImageMethod(JNIEnv* env) {
-  jmethodID update_tex_image_method;
-
-  ScopedJavaLocalRef<jclass> surface_class(
-      env, env->FindClass("android/graphics/SurfaceTexture"));
-  SB_CHECK(surface_class);
-  update_tex_image_method =
-      env->GetMethodID(surface_class.obj(), "updateTexImage", "()V");
-  SB_CHECK(update_tex_image_method);
-
-  return update_tex_image_method;
-}
-
-jmethodID GetTransformMatrixMethod(JNIEnv* env) {
-  jmethodID get_transform_matrix_method;
-
-  ScopedJavaLocalRef<jclass> surface_class(
-      env, env->FindClass("android/graphics/SurfaceTexture"));
-  SB_CHECK(surface_class);
-  get_transform_matrix_method =
-      env->GetMethodID(surface_class.obj(), "getTransformMatrix", "([F)V");
-  SB_CHECK(get_transform_matrix_method);
-
-  return get_transform_matrix_method;
-}
-
 void updateTexImage(jobject surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
-  env->CallVoidMethod(surface_texture, GetUpdateTexImageMethod(env));
+  VideoSurfaceTextureBridge::UpdateTexImage(
+      env, JavaParamRef<jobject>(env, surface_texture));
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
@@ -1023,8 +1002,9 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
   jfloatArray java_array = env->NewFloatArray(16);
   SB_CHECK(java_array);
 
-  env->CallVoidMethod(surface_texture, GetTransformMatrixMethod(env),
-                      java_array);
+  VideoSurfaceTextureBridge::GetTransformMatrix(
+      env, JavaParamRef<jobject>(env, surface_texture),
+      JavaParamRef<jfloatArray>(env, java_array));
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);

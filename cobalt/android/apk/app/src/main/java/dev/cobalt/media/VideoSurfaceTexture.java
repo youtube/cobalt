@@ -15,6 +15,7 @@
 package dev.cobalt.media;
 
 import android.graphics.SurfaceTexture;
+import android.view.Surface;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -44,6 +45,21 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   @CalledByNative
   void removeOnFrameAvailableListener() {
     super.setOnFrameAvailableListener(null);
+  }
+
+  @CalledByNative
+  static Surface createSurface(VideoSurfaceTexture surfaceTexture) {
+    return new Surface(surfaceTexture);
+  }
+
+  @CalledByNative
+  public void updateTexImage() {
+    super.updateTexImage();
+  }
+
+  @CalledByNative
+  public void getTransformMatrix(float[] mtx) {
+    super.getTransformMatrix(mtx);
   }
 
   @NativeMethods
