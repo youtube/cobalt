@@ -309,6 +309,13 @@ void SbEventHandle(const SbEvent* event) {
   SB_CHECK_EQ(pthread_mutex_unlock(&mutex), 0);
 }
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+// StarboardMain is called from wpeframework cobalt plugin
+extern "C" SB_EXPORT_PLATFORM int StarboardMain(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+#endif
+
 int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
