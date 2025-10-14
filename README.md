@@ -4,6 +4,8 @@
 [![android](https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Apush+branch%3Amain)
 [![linux](https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Apush+branch%3Amain)
 
+BREAK
+
 Chromium is an open-source browser project that aims to build a safer, faster,
 and more stable way for all users to experience the web.
 
