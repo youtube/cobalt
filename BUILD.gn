@@ -9,6 +9,7 @@
 # file to your new one or GN won't know about it.
 
 import("//build/config/cast.gni")
+import("//build/config/chrome_exclude.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/dcheck_always_on.gni")
@@ -149,7 +150,7 @@ group("gn_all") {
     }
 
     if (!is_ios && !is_android && !is_castos) {
-      if (!is_fuchsia) {
+      if (!exclude_chrome_build) {
         deps += [
           "//chrome",
           "//chrome/browser/ui/actions:dump_actions",
@@ -171,15 +172,15 @@ group("gn_all") {
       ]
     }
 
-    if (!is_castos && !is_fuchsia) {
+    if (!exclude_chrome_build) {
       deps += [ "//chrome/installer" ]
     }
 
-    if (!is_fuchsia && enable_updater) {
+    if (!exclude_chrome_build && enable_updater) {
       deps += [ "//chrome/updater" ]
     }
 
-    if (enable_enterprise_companion) {
+    if (enable_enterprise_companion && !exclude_chrome_build) {
       deps += [ "//chrome/enterprise_companion" ]
     }
 
@@ -191,7 +192,7 @@ group("gn_all") {
     }
 
     if (!is_ios && !is_castos) {
-      if (!is_fuchsia) {
+      if (!exclude_chrome_build) {
         deps += [ "//chrome/test:unit_tests" ]
       }
       deps += [ "//ui/accessibility:accessibility_unittests" ]
@@ -261,7 +262,7 @@ group("gn_all") {
         "//third_party/catapult/telemetry:bitmaptools($host_toolchain)",
       ]
       if (!is_android) {
-        if (!is_castos && !is_fuchsia) {
+        if (!exclude_chrome_build) {
           deps += [ "//chrome/test:telemetry_perf_unittests" ]
         }
       } else {
@@ -331,7 +332,7 @@ group("gn_all") {
       ]
     }
 
-    if (enterprise_watermark) {
+    if (enterprise_watermark && !exclude_chrome_build) {
       deps += [ "//chrome/browser/enterprise/watermark:watermark_app" ]
     }
 
@@ -497,7 +498,7 @@ group("gn_all") {
         deps += [ "//testing:empty_main" ]
       }
 
-      if (!is_castos) {
+      if (!exclude_chrome_build) {
         deps += [ "//chrome:xdg_mime" ]
       }
 
@@ -555,7 +556,7 @@ group("gn_all") {
         ]
       }
 
-      if (!is_android && !is_castos && !is_ios && !is_fuchsia) {
+      if (!is_android && !is_ios && !exclude_chrome_build) {
         deps += [
           "//chrome/test:load_library_perf_tests",
           "//chrome/test:sync_performance_tests",
@@ -626,7 +627,7 @@ group("gn_all") {
         "//ui/snapshot:snapshot_unittests",
       ]
 
-      if (!is_castos) {
+      if (!exclude_chrome_build) {
         deps += [ "//chrome/test:chrome_app_unittests" ]
       }
 
@@ -757,8 +758,6 @@ group("gn_all") {
       # TODO(https://crbug.com/1329673): Figure out if any of these should be in
       # gn_all and figure out how cross-platform they are.
       deps += [
-        "//chrome/installer/util:strings",
-        "//chrome/tools/convert_dict",
         "//components/constrained_window:unit_tests",
         "//components/metrics:serialization",
         "//components/sessions:unit_tests",
@@ -778,8 +777,15 @@ group("gn_all") {
         "//ui/shell_dialogs:shell_dialogs_unittests",
       ]
 
+      if (!exclude_chrome_build) {
+        deps += [
+          "//chrome/installer/util:strings",
+          "//chrome/tools/convert_dict",
+        ]
+      }
+
       if (target_cpu == "x86" || target_cpu == "x64") {
-        if (!is_android) {
+        if (!is_android && !exclude_chrome_build) {
           deps += [ "//chrome/test:load_library_perf_tests" ]
         }
         deps += [ "//third_party/libjpeg_turbo:simd_asm" ]
@@ -817,7 +823,7 @@ group("gn_all") {
       ]
     }
 
-    if (enable_vr) {
+    if (enable_vr && !exclude_chrome_build) {
       deps += [
         "//chrome/browser/vr:vr_common_perftests",
         "//chrome/browser/vr:vr_common_unittests",
@@ -1127,7 +1133,7 @@ if (use_blink && !is_cronet_build) {
       "//third_party/blink/public:all_blink",
     ]
 
-    if (!is_chromeos && !is_ios && !is_fuchsia && !is_android && !is_castos) {
+    if (!is_chromeos && !is_ios && !is_android && !exclude_chrome_build) {
       deps += [
         ":chrome_wpt_tests",
         ":headless_shell_wpt",
@@ -1181,7 +1187,7 @@ if (use_blink && !is_cronet_build) {
     ]
   }
 
-  if (!is_chromeos && !is_ios && !is_fuchsia && !is_android && !is_castos) {
+  if (!is_chromeos && !is_ios && !is_android && !exclude_chrome_build) {
     # https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/run_web_platform_tests.md
     script_test("chrome_wpt_tests") {
       script = "//third_party/blink/tools/run_wpt_tests.py"
@@ -1731,14 +1737,14 @@ group("chromium_builder_perf") {
       "//tools/perf/chrome_telemetry_build:telemetry_chrome_test",
     ]
 
-    if (!is_fuchsia) {
+    if (!exclude_chrome_build) {
       data_deps += [
         "//chrome/test:load_library_perf_tests",
         "//chrome/test:performance_test_suite",
       ]
     }
 
-    if (!is_chromeos && !is_fuchsia) {
+    if (!is_chromeos && !exclude_chrome_build) {
       data_deps += [ "//chrome/test:performance_browser_tests" ]
     }
 
@@ -1776,7 +1782,7 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
       "//third_party/blink/public/mojom:mojom_modules_js",
       "//v8:d8",
     ]
-    if (!is_fuchsia) {
+    if (!exclude_chrome_build) {
       deps += [ "//chrome:chrome" ]
     }
     if (!is_win) {
