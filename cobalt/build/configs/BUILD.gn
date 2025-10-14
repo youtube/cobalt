@@ -63,6 +63,13 @@ config("default_includes") {
   }
 }
 
+declare_args() {
+  # Toolchains can set this true in order to build //base using C++17. Our
+  # version of this upstream library assumes it will be built using C++20 and
+  # some customizations are needed to instead build using C++17.
+  build_base_with_cpp17 = false
+}
+
 config("buildflag_defines") {
   defines = []
 
@@ -146,5 +153,11 @@ config("buildflag_defines") {
   # rename the build variable if we do.
   if (is_native_target_build) {
     defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
+  }
+
+  # Use build_base_with_cpp17 and BUILDFLAG(BUILD_BASE_WITH_CPP17) to guard
+  # customizations to //base in order to build the library using C++17.
+  if (build_base_with_cpp17) {
+    defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
   }
 }
