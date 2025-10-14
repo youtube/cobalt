@@ -18,6 +18,7 @@
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "components/viz/common/switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
@@ -72,6 +73,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
       switches::kDisableAcceleratedVideoDecode,
       switches::kDisableAcceleratedVideoEncode,
+      // Force double buffering ISO triple or even deeper queueing.
+      switches::kDoubleBufferCompositing,
 });
 
 // Map of switches with parameters and their defaults.

@@ -75,6 +75,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
+        // Force double buffering ISO triple or even deeper queueing.
+        paramOverrides.add("--double-buffer-compositing");
 
         return paramOverrides;
     }
