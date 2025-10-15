@@ -17,7 +17,7 @@
 
 #include <X11/Xlib.h>
 
-#include <stdint.h>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <queue>
