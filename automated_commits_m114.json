@@ -1,5 +1,44 @@
 [
   {
+    "hexsha": "5c97e87f5d16da965e13142f4dc59e93884e914e",
+    "original_hexsha": "f97c53f2c95f7e6151c1bd83b69b52ca0de7672c",
+    "author": "Hao",
+    "datetime": "2025-10-15T07:18:28+00:00",
+    "summary": "Refactor ShellPlatformDelegate and implement TestShellPlatformDelegate (#7536)",
+    "stats": {
+      "files": 5,
+      "insertions": 65,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d77eaa47c63e50b5c62896e3dbb4c71b7a2f47bc",
+    "original_hexsha": "9658bd25d13031579598bad329190bda812093d5",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-14T15:39:31-07:00",
+    "summary": "android: Remove deprecated ScopedLocalJavaRef  utility (#7533)",
+    "stats": {
+      "files": 17,
+      "insertions": 5,
+      "deletions": 91
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8df76f7da8ea009e730f7c26bb3747fee5ffc786",
+    "original_hexsha": "df83586a8393f25cce384fa39682cad6ac623b89",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-14T15:27:19-07:00",
+    "summary": "starboard: Stop AudioRenderSink's thread before destroying it (#7523)",
+    "stats": {
+      "files": 3,
+      "insertions": 7,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "0eeef7e51bc7d4d4248dd5211ec58e302ed14399",
     "original_hexsha": "383960be671cd8bf01a8be365ba134b8db80b556",
     "author": "Sherry Zhou",
