@@ -15,10 +15,10 @@
 #include "media/starboard/progressive/mp4_map.h"
 
 #include <stdlib.h>  // for rand and srand
-
+\
+#include <algorithm>  // for std::min
 #include <cstddef>
 #include <cstdint>
-#include <algorithm>  // for std::min
 #include <memory>
 #include <set>
 #include <sstream>
