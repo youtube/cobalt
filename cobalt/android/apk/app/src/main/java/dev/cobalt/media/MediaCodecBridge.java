@@ -127,7 +127,7 @@ class MediaCodecBridge {
 
   private FrameRateEstimator mFrameRateEstimator = null;
 
-   /** A wrapper around a MediaFormat. */
+   /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
    // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
    // Here are changes made.
