@@ -17,8 +17,8 @@
 #include <string>
 
 #include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
@@ -37,7 +37,7 @@ class LocaleInfo {
 
     base::android::ScopedJavaLocalRef<jstring> result =
         StarboardBridge::GetInstance()->GetSystemLocaleId(env);
-    locale_id = JniGetStringStandardUTFOrAbort(env, result.obj());
+    locale_id = base::android::ConvertJavaStringToUTF8(env, result.obj());
   }
 };
 

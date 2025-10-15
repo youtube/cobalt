@@ -21,6 +21,7 @@ if (current_toolchain != default_toolchain ||
 }
 
 sb_is_evergreen_compatible = true
+use_crashpad = true
 
 if (!build_with_separate_cobalt_toolchain) {
   separate_install_targets_for_bundling = true

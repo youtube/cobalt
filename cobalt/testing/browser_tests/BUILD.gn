@@ -37,6 +37,10 @@ import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/typescript/ts_library.gni")
 import("//v8/gni/v8.gni")
 
+# TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
+# true.
+shell_use_toolkit_views = toolkit_views && !is_castos
+
 if (is_android) {
   import("//build/config/android/rules.gni")  # For generate_jni().
 }
@@ -416,9 +420,21 @@ static_library("cobalt_shell_test_lib") {
     "shell/test_shell.cc",
     "shell/test_shell.h",
   ]
+
   public_deps = [
     "//cobalt/shell:cobalt_shell_lib",
     "//components/custom_handlers:test_support",
     "//content/test:test_support",
   ]
+
+  if (shell_use_toolkit_views) {
+    if (use_aura) {
+      sources += [
+        "browser/test_shell_platform_delegate.cc",
+        "browser/test_shell_platform_delegate.h",
+      ]
+
+      public_deps += [ "//ui/views:test_support" ]
+    }
+  }
 }
