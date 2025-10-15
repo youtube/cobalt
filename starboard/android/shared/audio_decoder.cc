@@ -274,14 +274,14 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
 
 void MediaCodecAudioDecoder::RefreshOutputFormat(
     MediaCodecBridge* media_codec_bridge) {
-  AudioOutputFormatResult output_format =
+  std::optional<AudioOutputFormatResult> output_format =
       media_codec_bridge->GetAudioOutputFormat();
-  if (output_format.status == MEDIA_CODEC_ERROR) {
+  if (!output_format) {
     SB_LOG(ERROR) << "|getOutputFormat| failed";
     return;
   }
-  output_sample_rate_ = output_format.sample_rate;
-  output_channel_count_ = output_format.channel_count;
+  output_sample_rate_ = output_format->sample_rate;
+  output_channel_count_ = output_format->channel_count;
 }
 
 void MediaCodecAudioDecoder::ReportError(SbPlayerError error,
