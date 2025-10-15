@@ -16,8 +16,8 @@
 
 #include <stdlib.h>  // for rand and srand
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <algorithm>  // for std::min
 #include <memory>
 #include <set>
