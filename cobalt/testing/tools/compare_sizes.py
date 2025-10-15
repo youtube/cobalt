@@ -9,7 +9,7 @@ def get_stripped_size(perf_results_path):
   with open(perf_results_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
   for item in data:
-    if item.get('name') == 'libcobalt.so-stripped':
+    if item.get('name') == 'libcobalt.so':
       return item['sampleValues'][0]
   return None
 
@@ -18,8 +18,8 @@ def get_reference_size(reference_path, platform, config):
   with open(reference_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
   build_key = f"{platform}_{config}"
-  if build_key in data and 'libcobalt.so-stripped' in data[build_key]:
-    return data[build_key]['libcobalt.so-stripped']['size']
+  if build_key in data and 'libcobalt.so' in data[build_key]:
+    return data[build_key]['libcobalt.so']['size']
   return None
 
 
@@ -39,7 +39,7 @@ def main():
   current_size = get_stripped_size(args.current)
   if current_size is None:
     print(
-        f"Error: Could not find libcobalt.so-stripped size in {args.current}",
+        f"Error: Could not find libcobalt.so size in {args.current}",
         file=sys.stderr)
     sys.exit(1)
 
