@@ -17,11 +17,11 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard::shared::signal {
+namespace starboard {
 
 void InstallCrashSignalHandlers();
 void UninstallCrashSignalHandlers();
 
-}  // namespace starboard::shared::signal
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_SIGNAL_CRASH_SIGNALS_H_

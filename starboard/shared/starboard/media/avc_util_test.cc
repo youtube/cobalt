@@ -19,10 +19,8 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
-
-using ::starboard::shared::starboard::media::ConvertAnnexBToAvcc;
 
 const auto kAnnexB = AvcParameterSets::kAnnexB;
 const auto kHeadless = AvcParameterSets::kHeadless;
@@ -73,7 +71,7 @@ std::vector<uint8_t> Mutate(const std::vector<uint8_t>& nalu_in_annex_b) {
   return nalu_in_annex_b + std::vector<uint8_t>({123});
 }
 
-std::vector<uint8_t> ConvertAnnexBToAvcc(
+std::vector<uint8_t> ConvertAnnexBToAvccFromVector(
     const std::vector<uint8_t>& nalus_in_annex_b) {
   std::vector<uint8_t> nalus_in_avcc(nalus_in_annex_b.size());
   SB_CHECK(ConvertAnnexBToAvcc(nalus_in_annex_b.data(), nalus_in_annex_b.size(),
@@ -163,7 +161,7 @@ void VerifyAllEmpty(const std::vector<uint8_t>& nalus_in_annex_b) {
     ASSERT_FALSE(parameter_sets.has_sps_and_pps());
     ASSERT_TRUE(parameter_sets.GetAddresses().empty());
     ASSERT_TRUE(parameter_sets.GetSizesInBytes().empty());
-    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0);
+    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0U);
   }
 
   VerifyConvertTo(parameter_sets);
@@ -176,8 +174,8 @@ bool HasEqualParameterSets(const std::vector<uint8_t>& nalus_in_annex_b_1,
   AvcParameterSets parameter_sets_2(kAnnexB, nalus_in_annex_b_2.data(),
                                     nalus_in_annex_b_2.size());
 
-  SB_CHECK((parameter_sets_1 == parameter_sets_2) !=
-           (parameter_sets_1 != parameter_sets_2));
+  SB_CHECK_NE(parameter_sets_1 == parameter_sets_2,
+              parameter_sets_1 != parameter_sets_2);
 
   return parameter_sets_1 == parameter_sets_2;
 }
@@ -251,7 +249,7 @@ TEST(AvcParameterSetsTest, MultipleSpsAndPps) {
 
 TEST(AvcParameterSetsTest, SpsWithoutPps) {
   auto leading_sps_nalus = kSpsInAnnexB;
-  for (int i = 0; i < 5; ++i) {
+  for (size_t i = 0; i < 5; ++i) {
     auto nalus_in_annex_b = leading_sps_nalus + kIdrInAnnexB;
 
     AvcParameterSets parameter_sets(kAnnexB, nalus_in_annex_b.data(),
@@ -276,7 +274,7 @@ TEST(AvcParameterSetsTest, SpsWithoutPps) {
 
 TEST(AvcParameterSetsTest, PpsWithoutSps) {
   auto leading_pps_nalus = kPpsInAnnexB;
-  for (int i = 0; i < 5; ++i) {
+  for (size_t i = 0; i < 5; ++i) {
     auto nalus_in_annex_b = leading_pps_nalus + kIdrInAnnexB;
 
     AvcParameterSets parameter_sets(kAnnexB, nalus_in_annex_b.data(),
@@ -367,7 +365,7 @@ TEST(AvcParameterSetsTest, Nullptr) {
   ASSERT_FALSE(parameter_sets.has_sps_and_pps());
   ASSERT_TRUE(parameter_sets.GetAddresses().empty());
   ASSERT_TRUE(parameter_sets.GetSizesInBytes().empty());
-  ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0);
+  ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0U);
 }
 
 TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
@@ -380,7 +378,7 @@ TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
     ASSERT_FALSE(parameter_sets.has_sps_and_pps());
     ASSERT_TRUE(parameter_sets.GetAddresses().empty());
     ASSERT_TRUE(parameter_sets.GetSizesInBytes().empty());
-    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0);
+    ASSERT_EQ(parameter_sets.combined_size_in_bytes(), 0U);
   }
   for (int i = 0; i < 2; ++i) {
     auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
@@ -488,7 +486,7 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
       nalus_in_avcc =
           nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
 
-      ASSERT_EQ(ConvertAnnexBToAvcc(nalus_in_annex_b), nalus_in_avcc);
+      ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
     }
   }
   {
@@ -502,7 +500,7 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
       nalus_in_avcc =
           nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
 
-      ASSERT_EQ(ConvertAnnexBToAvcc(nalus_in_annex_b), nalus_in_avcc);
+      ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
     }
   }
 }
@@ -518,13 +516,15 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccEmptyNalus) {
     nalus_in_annex_b = nalus_in_annex_b + ToAnnexB(kEmpty);
     nalus_in_avcc = nalus_in_avcc + ToAvcc(kEmpty);
 
-    ASSERT_EQ(ConvertAnnexBToAvcc(nalus_in_annex_b), nalus_in_avcc);
+    ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
   }
 
-  ASSERT_EQ(ConvertAnnexBToAvcc(ToAnnexB(kEmpty) + ToAnnexB(kRawNalu)),
-            ToAvcc(kEmpty) + ToAvcc(kRawNalu));
-  ASSERT_EQ(ConvertAnnexBToAvcc(ToAnnexB(kRawNalu) + ToAnnexB(kEmpty)),
-            ToAvcc(kRawNalu) + ToAvcc(kEmpty));
+  ASSERT_EQ(
+      ConvertAnnexBToAvccFromVector(ToAnnexB(kEmpty) + ToAnnexB(kRawNalu)),
+      ToAvcc(kEmpty) + ToAvcc(kRawNalu));
+  ASSERT_EQ(
+      ConvertAnnexBToAvccFromVector(ToAnnexB(kRawNalu) + ToAnnexB(kEmpty)),
+      ToAvcc(kRawNalu) + ToAvcc(kEmpty));
 }
 
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
@@ -552,4 +552,4 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

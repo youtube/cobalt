@@ -19,7 +19,6 @@
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -120,7 +119,8 @@ TEST(PosixSocketBindTest, SunnyDayAnyAddr) {
 // Pair data input test
 std::string GetPosixSocketAddressTypeFilterPairName(
     ::testing::TestParamInfo<std::pair<int, int>> info) {
-  return FormatString("type_%d_filter_%d", info.param.first, info.param.second);
+  return starboard::FormatString("type_%d_filter_%d", info.param.first,
+                                 info.param.second);
 }
 
 class PosixSocketBindPairFilterTest
@@ -250,4 +250,3 @@ INSTANTIATE_TEST_SUITE_P(PosixSocketBindTest,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

@@ -162,7 +162,7 @@ static_assert(sizeof(void*) != 8, "");
 
 #define PA_CONFIG_HAS_MEMORY_TAGGING()              \
   (defined(ARCH_CPU_ARM64) && defined(__clang__) && \
-   (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)))
+   (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)))
 
 #if PA_CONFIG(HAS_MEMORY_TAGGING)
 static_assert(sizeof(void*) == 8);

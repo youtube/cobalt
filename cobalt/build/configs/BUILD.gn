@@ -21,8 +21,9 @@ config("cobalt_config") {
     ":default_includes",
     ":buildflag_defines",
   ]
-  if (current_toolchain == starboard_toolchain &&
-      starboard_toolchain != default_toolchain) {
+  if ((current_toolchain == starboard_toolchain &&
+       starboard_toolchain != default_toolchain) ||
+      current_toolchain == native_target) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
@@ -60,6 +61,13 @@ config("default_includes") {
       "//starboard/android/shared/posix_emu/include",
     ]
   }
+}
+
+declare_args() {
+  # Toolchains can set this true in order to build //base using C++17. Our
+  # version of this upstream library assumes it will be built using C++20 and
+  # some customizations are needed to instead build using C++17.
+  build_base_with_cpp17 = false
 }
 
 config("buildflag_defines") {
@@ -134,5 +142,22 @@ config("buildflag_defines") {
   # false).
   if (is_androidtv) {
     defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
+  }
+
+  # Use is_native_target_build and BUILDFLAG(IS_NATIVE_TARGET_BUILD) for code
+  # that should only be built using the platform's "native_target" toolchain.
+  # This is for binaries that should run natively on the system, without
+  # Starboard.
+  # TODO: b/406511608 - consider removing the is_native_target_build variable
+  # since it's true iff current_toolchain == native_target. We may want to
+  # rename the build variable if we do.
+  if (is_native_target_build) {
+    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
+  }
+
+  # Use build_base_with_cpp17 and BUILDFLAG(BUILD_BASE_WITH_CPP17) to guard
+  # customizations to //base in order to build the library using C++17.
+  if (build_base_with_cpp17) {
+    defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
   }
 }

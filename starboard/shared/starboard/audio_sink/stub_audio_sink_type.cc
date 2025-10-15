@@ -26,7 +26,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 namespace {
 
 class StubAudioSink : public SbAudioSinkPrivate {
@@ -82,7 +82,7 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  pthread_join(audio_out_thread_, NULL);
+  SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
 }
 
 // static
@@ -146,4 +146,4 @@ SbAudioSink StubAudioSinkType::Create(
                            context);
 }
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard

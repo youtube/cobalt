@@ -14,7 +14,6 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
@@ -23,9 +22,6 @@
 #include "starboard/media.h"
 
 namespace starboard::shared::starboard::media {
-
-using ::starboard::android::shared::MediaCapabilitiesCache;
-using ::starboard::android::shared::SupportedAudioCodecToMimeType;
 
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,

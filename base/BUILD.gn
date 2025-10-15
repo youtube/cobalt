@@ -1786,8 +1786,6 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
-
-    all_dependent_configs += [ ":base_starboard_linker_stub" ]
   }
 
   # Windows.
@@ -2060,7 +2058,6 @@ component("base") {
       "mac/scoped_mach_msg_destroy.h",
       "mac/scoped_sending_event.h",
       "mac/scoped_sending_event.mm",
-      "mac/wrap_cg_display.h",
       "message_loop/message_pump_kqueue.cc",
       "message_loop/message_pump_kqueue.h",
       "native_library_mac.mm",
@@ -5052,13 +5049,5 @@ source_set("partition_alloc_test_support") {
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
-  }
-}
-
-if (enable_cobalt_hermetic_hacks) {
-  # TODO: b/413130400 - Cobalt: Remove this config
-  # after removing base/starboard/linker_stub.h
-  config("base_starboard_linker_stub") {
-    cflags = ["-Wno-unreachable-code-break"]
   }
 }

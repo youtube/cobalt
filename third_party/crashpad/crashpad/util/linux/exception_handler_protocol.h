@@ -51,6 +51,12 @@ class ExceptionHandlerProtocol {
     //!     SanitizationInformation struct, or 0 if there is no such struct.
     VMAddress sanitization_information_address;
 
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+    //! \brief The address in the client's address space of an EvergreenInfo
+    //!     struct, or 0 if there is no such struct.
+    VMAddress evergreen_information_address;
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     //! \brief Indicates that the client is likely in a crash loop if a crash
     //!     occurs before this timestamp. This value is only used by ChromeOS's

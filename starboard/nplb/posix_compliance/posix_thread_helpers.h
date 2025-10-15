@@ -23,9 +23,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
-namespace posix {
 
 class TestSemaphore {
  public:
@@ -199,8 +197,6 @@ class AbstractTestThread {
   void operator=(const AbstractTestThread&) = delete;
 };
 
-}  // namespace posix
 }  // namespace nplb
-}  // namespace starboard
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_THREAD_HELPERS_H_

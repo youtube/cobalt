@@ -17,6 +17,7 @@
 
 #include <sched.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/lazy_initialization_public.h"
@@ -26,7 +27,7 @@
 #define INITIALIZED_STATE_INITIALIZING 1
 #define INITIALIZED_STATE_INITIALIZED 2
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // The utility functions defined here use atomics and spin-locks to allow for
 // easy lazy initialization in a thread-safe way.
@@ -54,7 +55,7 @@ static inline bool EnsureInitialized(InitializedState* state) {
     } while (state->load(std::memory_order_acquire) !=
              INITIALIZED_STATE_INITIALIZED);
   } else {
-    SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED)
+    SB_DCHECK_EQ(original, INITIALIZED_STATE_INITIALIZED)
         << "Unexpected original=" << original;
   }
 
@@ -74,6 +75,6 @@ static inline void SetInitialized(InitializedState* state) {
   state->store(INITIALIZED_STATE_INITIALIZED, std::memory_order_release);
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_INTERNAL_H_

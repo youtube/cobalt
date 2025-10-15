@@ -16,8 +16,6 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -50,7 +48,7 @@
 #define VERBOSE_MEDIA_LOG() SB_EAT_STREAM_PARAMETERS
 #endif
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
@@ -71,9 +69,10 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 }  // namespace
 
-AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool enable_flush_during_seek)
+MediaCodecAudioDecoder::MediaCodecAudioDecoder(
+    const AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system,
+    bool enable_flush_during_seek)
     : audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       enable_flush_during_seek_(enable_flush_during_seek),
@@ -85,10 +84,10 @@ AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
   }
 }
 
-AudioDecoder::~AudioDecoder() {}
+MediaCodecAudioDecoder::~MediaCodecAudioDecoder() {}
 
-void AudioDecoder::Initialize(const OutputCB& output_cb,
-                              const ErrorCB& error_cb) {
+void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
+                                        const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
@@ -100,12 +99,12 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
   if (media_decoder_) {
     media_decoder_->Initialize(
-        std::bind(&AudioDecoder::ReportError, this, _1, _2));
+        std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
   }
 }
 
-void AudioDecoder::Decode(const InputBuffers& input_buffers,
-                          const ConsumedCB& consumed_cb) {
+void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
+                                    const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
@@ -133,7 +132,7 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 }
 
-void AudioDecoder::WriteEndOfStream() {
+void MediaCodecAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
@@ -143,7 +142,7 @@ void AudioDecoder::WriteEndOfStream() {
   }
 }
 
-scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
+scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
     int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
@@ -167,7 +166,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
   return result;
 }
 
-void AudioDecoder::Reset() {
+void MediaCodecAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
@@ -193,13 +192,14 @@ void AudioDecoder::Reset() {
   CancelPendingJobs();
 }
 
-bool AudioDecoder::InitializeCodec() {
+bool MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_));
+  media_decoder_ = std::make_unique<MediaCodecDecoder>(this, audio_stream_info_,
+                                                       drm_system_);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(
-          std::bind(&AudioDecoder::ReportError, this, _1, _2));
+          std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
     }
     return true;
   }
@@ -207,7 +207,7 @@ bool AudioDecoder::InitializeCodec() {
   return false;
 }
 
-void AudioDecoder::ProcessOutputBuffer(
+void MediaCodecAudioDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
@@ -272,7 +272,8 @@ void AudioDecoder::ProcessOutputBuffer(
   media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
 }
 
-void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
+void MediaCodecAudioDecoder::RefreshOutputFormat(
+    MediaCodecBridge* media_codec_bridge) {
   AudioOutputFormatResult output_format =
       media_codec_bridge->GetAudioOutputFormat();
   if (output_format.status == MEDIA_CODEC_ERROR) {
@@ -283,8 +284,8 @@ void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   output_channel_count_ = output_format.channel_count;
 }
 
-void AudioDecoder::ReportError(SbPlayerError error,
-                               const std::string& error_message) {
+void MediaCodecAudioDecoder::ReportError(SbPlayerError error,
+                                         const std::string& error_message) {
   SB_DCHECK(error_cb_);
 
   if (!error_cb_) {
@@ -294,4 +295,4 @@ void AudioDecoder::ReportError(SbPlayerError error,
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

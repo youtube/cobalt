@@ -15,11 +15,9 @@
 #include "starboard/extension/crash_handler.h"
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/crash_handler.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
@@ -27,12 +25,7 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 
 bool SetString(const char* key, const char* value) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jstring> j_key(JniNewStringStandardUTFOrAbort(env, key));
-  ScopedLocalJavaRef<jstring> j_value(
-      JniNewStringStandardUTFOrAbort(env, value));
-  JniCallVoidMethodOrAbort(
-      env, JNIState::GetStarboardBridge(), "setCrashContext",
-      "(Ljava/lang/String;Ljava/lang/String;)V", j_key.Get(), j_value.Get());
+  StarboardBridge::GetInstance()->SetCrashContext(env, key, value);
   return true;
 }
 
@@ -47,4 +40,4 @@ const void* GetCrashHandlerApi() {
   return &kCrashHandlerApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

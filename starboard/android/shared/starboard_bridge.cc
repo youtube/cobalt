@@ -22,7 +22,6 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -32,7 +31,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -40,6 +39,7 @@ namespace {
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::GetClass;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
@@ -66,16 +66,10 @@ jboolean JNI_StarboardBridge_InitJNI(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_starboard_bridge) {
   SB_CHECK(env);
-  JniInitialize(env, j_starboard_bridge.obj());
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
   return true;
-}
-
-void JNI_StarboardBridge_OnStop(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
-  SbFileAndroidTeardown();
 }
 
 jlong JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
@@ -109,7 +103,7 @@ void JNI_StarboardBridge_CloseNativeStarboard(JNIEnv* env, jlong nativeApp) {
 }
 
 void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  SbAudioSinkImpl::Initialize();
 }
 
 void JNI_StarboardBridge_HandleDeepLink(JNIEnv* env,
@@ -230,6 +224,21 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
   return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
 }
 
+ScopedJavaLocalRef<jobject> StarboardBridge::GetCaptionSettings(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_getCaptionSettings(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetResourceOverlay(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_getResourceOverlay(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jstring> StarboardBridge::GetSystemLocaleId(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_systemGetLocaleId(env, j_starboard_bridge_);
+}
+
 SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> advertising_id_java =
@@ -261,9 +270,11 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetDisplayDpi(JNIEnv* env) {
   return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
 }
 
-ScopedJavaLocalRef<jobject> StarboardBridge::GetDeviceResolution(JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
+Size StarboardBridge::GetDeviceResolution(JNIEnv* env) {
+  SB_CHECK(env);
+  ScopedJavaLocalRef<jobject> j_size =
+      Java_StarboardBridge_getDisplaySize(env, j_starboard_bridge_);
+  return {Java_Size_getWidth(env, j_size), Java_Size_getHeight(env, j_size)};
 }
 
 bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
@@ -274,6 +285,15 @@ bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::SetCrashContext(JNIEnv* env,
+                                      const char* key,
+                                      const char* value) {
+  SB_CHECK(env);
+  Java_StarboardBridge_setCrashContext(env, j_starboard_bridge_,
+                                       ConvertUTF8ToJavaString(env, key),
+                                       ConvertUTF8ToJavaString(env, value));
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
@@ -339,4 +359,28 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-}  // namespace starboard::android::shared
+base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& activity,
+    jlong native_service,
+    const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_openCobaltService(
+      env, j_starboard_bridge_, activity, native_service,
+      ConvertUTF8ToJavaString(env, service_name));
+}
+
+void StarboardBridge::CloseCobaltService(JNIEnv* env,
+                                         const char* service_name) {
+  SB_CHECK(env);
+  Java_StarboardBridge_closeCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
+bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_hasCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
+}  // namespace starboard

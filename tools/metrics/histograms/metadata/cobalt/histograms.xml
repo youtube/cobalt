@@ -40,6 +40,37 @@ Always run the pretty print utility on this file after editing:
     if the current work unit started running more than 10 seconds ago. This is
     emitted only in single process mode(when renderer is a thread inside
     BrowserProcess).
+
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
+    expires_after="never">
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the age of the Finch configuration in days each time it is
+    checked at startup. This data is used to determine an appropriate
+    expiration threshold.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the state of the Finch configuration at startup. This is used
+    to monitor the frequency of expired or invalid configurations.
   </summary>
 </histogram>
 

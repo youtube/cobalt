@@ -27,10 +27,8 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
-namespace starboard::shared::starboard::player::filter::testing {
+namespace starboard {
 namespace {
-
-using video_dmp::VideoDmpReader;
 
 const size_t kMaxNumberOfInputs = 256;
 
@@ -41,7 +39,7 @@ class AudioDecoderHelper {
         number_of_inputs_(std::min(dmp_reader_.number_of_audio_buffers(),
                                    kMaxNumberOfInputs)) {
     const bool kUseStubDecoder = false;
-    SB_CHECK(number_of_inputs_ > 0);
+    SB_CHECK_GT(number_of_inputs_, 0);
     SB_CHECK(CreateAudioComponents(kUseStubDecoder,
                                    dmp_reader_.audio_stream_info(),
                                    &audio_decoder_, &audio_renderer_sink_));
@@ -53,7 +51,7 @@ class AudioDecoderHelper {
   size_t number_of_inputs() const { return number_of_inputs_; }
 
   void DecodeAll() {
-    SB_CHECK(current_input_buffer_index_ == 0);
+    SB_CHECK_EQ(current_input_buffer_index_, 0);
     OnConsumed();  // Kick off the first Decode() call
     // Note that we deliberately don't add any time out to the loop, to ensure
     // that the benchmark is accurate.
@@ -92,7 +90,7 @@ class AudioDecoderHelper {
                              std::bind(&AudioDecoderHelper::OnConsumed, this));
       ++current_input_buffer_index_;
     } else {
-      SB_CHECK(current_input_buffer_index_ == number_of_inputs_);
+      SB_CHECK_EQ(current_input_buffer_index_, number_of_inputs_);
       audio_decoder_->WriteEndOfStream();
       // Increment so we can know if WriteEndOfStream() is called twice.
       ++current_input_buffer_index_;
@@ -124,13 +122,12 @@ void RunBenchmark(::benchmark::State& state, const char* filename) {
   state.SetItemsProcessed(state.iterations() * number_of_inputs);
 }
 
-}  // namespace starboard::shared::starboard::player::filter::testing
+}  // namespace starboard
 
 // This function has to reside in the global namespace for BENCHMARK_CAPTURE to
 // pick it up.
 void BM_AudioDecoder(::benchmark::State& state, const char* filename) {
-  starboard::shared::starboard::player::filter::testing::RunBenchmark(state,
-                                                                      filename);
+  starboard::RunBenchmark(state, filename);
 }
 
 BENCHMARK_CAPTURE(BM_AudioDecoder,

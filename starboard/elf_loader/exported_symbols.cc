@@ -42,7 +42,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
@@ -60,6 +59,8 @@
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_sched_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
@@ -87,7 +88,6 @@
     map_[#s] = reinterpret_cast<const void*>(&__abi_wrap_##s); \
   } while (0)
 
-namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
@@ -117,7 +117,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAudioSinkIsAudioFrameStorageTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsAudioSampleTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsValid);
-  REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDrmCloseSession);
@@ -243,6 +242,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
+  REGISTER_SYMBOL(getcwd);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
@@ -274,6 +274,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
@@ -334,6 +335,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
+  REGISTER_WRAPPER(getpriority);
+  REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(lseek);
 
   // TODO: Cobalt - b/424001809.
@@ -407,6 +410,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_sigmask);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
+  REGISTER_WRAPPER(sched_getaffinity);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(sem_destroy);
   REGISTER_WRAPPER(sem_init);
@@ -414,6 +418,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(sendmsg);
+  REGISTER_WRAPPER(setpriority);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
@@ -447,4 +452,3 @@ const void* ExportedSymbols::Lookup(const char* name) {
 }
 
 }  // namespace elf_loader
-}  // namespace starboard

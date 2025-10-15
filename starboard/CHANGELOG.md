@@ -10,6 +10,9 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### Removed SbCPUFeaturesGet
+The functionality is migrated to use `getauxval` instead.
+
 ### Added the following POSIX symbols:
 * `aligned_alloc`
 * `fdatasync`
@@ -19,6 +22,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `epoll_create1`
 * `epoll_ctl`
 * `epoll_wait`
+* `getcwd`
 * `getpeername`
 * `getsockopt`
 * `isatty`
@@ -58,6 +62,8 @@ Starboard 17 fully switches to POSIX APIs.
 * `getauxval`
 * `geteuid`
 * `getpid`
+* `getpriority`
+* `getrlimit`
 * `pathconf`
 * `pipe2`
 * `poll`
@@ -86,12 +92,15 @@ Starboard 17 fully switches to POSIX APIs.
 * `pthread_setschedparam`
 * `pthread_sigmask`
 * `readdir`
+* `realpath`
+* `sched_getaffinity`
 * `sem_destroy`
 * `sem_init`
 * `sem_post`
 * `sem_timedwait`
 * `sem_wait`
 * `sendmsg`
+* `setpriority`
 * `shutdown`
 * `sigaction`
 * `socketpair`
@@ -106,7 +115,7 @@ Starboard 17 fully switches to POSIX APIs.
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
    that is in the included ICU data.
 
-### Removed the followoing SbEvents:
+### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`

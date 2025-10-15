@@ -26,7 +26,7 @@ namespace media {
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
 // using posix_memalign() and free().
-class StarboardMemoryAllocator : public starboard::common::Allocator {
+class StarboardMemoryAllocator : public starboard::Allocator {
  public:
   void* Allocate(std::size_t size) override { return Allocate(size, 1); }
 

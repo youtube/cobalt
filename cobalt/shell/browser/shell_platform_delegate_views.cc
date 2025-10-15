@@ -47,13 +47,14 @@
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/layout/flex_layout_view.h"
-#include "ui/views/test/desktop_test_views_delegate.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/desktop_aura/desktop_screen.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
+
+#include "cobalt/shell/browser/cobalt_views_delegate.h"
 
 namespace content {
 
@@ -309,6 +310,11 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
+std::unique_ptr<views::ViewsDelegate>
+ShellPlatformDelegate::CreateViewsDelegate() {
+  return std::make_unique<views::CobaltViewsDelegate>();
+}
+
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
   platform_ = std::make_unique<PlatformData>();
 
@@ -318,8 +324,7 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
     platform_->screen = views::CreateDesktopScreen();
   }
 
-  platform_->views_delegate =
-      std::make_unique<views::DesktopTestViewsDelegate>();
+  platform_->views_delegate = CreateViewsDelegate();
 }
 
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;

@@ -75,6 +75,8 @@ static_library("common") {
     "ref_counted.h",
     "reuse_allocator_base.cc",
     "reuse_allocator_base.h",
+    "scoped_timer.cc",
+    "scoped_timer.h",
     "semaphore.cc",
     "semaphore.h",
     "size.cc",
@@ -85,6 +87,7 @@ static_library("common") {
     "spin_lock.h",
     "storage.cc",
     "storage.h",
+    "string.cc",
     "string.h",
     "thread.cc",
     "thread.h",
@@ -115,6 +118,7 @@ source_set("common_test") {
     "semaphore_test.cc",
     "size_test.cc",
     "starboard_common_time_test.cc",
+    "string_test.cc",
   ]
   deps = [
     ":common",

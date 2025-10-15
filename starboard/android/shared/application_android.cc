@@ -25,24 +25,28 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
-#include "starboard/extension/accessibility.h"
-
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/input_events_generator.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
+#include "starboard/extension/accessibility.h"
 #include "starboard/key.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::android::shared {
+#include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
+#include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 
+namespace starboard {
+
+using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
@@ -55,7 +59,7 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& files_dir,
     const std::string& cache_dir,
     const std::string& native_library_dir)
-    : QueueApplication(stubSbEventHandle) {
+    : Application(stubSbEventHandle) {
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
@@ -79,32 +83,25 @@ ApplicationAndroid::ApplicationAndroid(
 ApplicationAndroid::~ApplicationAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
-
-  // Detaches JNI, no more JNI calls after this.
-  JniOnThreadShutdown();
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfigurationChanged(
-    JNIEnv* env,
-    jobject jcaller) {
+void JNI_CobaltSystemConfigChangeReceiver_DateTimeConfigurationChanged(
+    JNIEnv* env) {
   // TODO(cobalt, b/378705729): Make sure tzset() is called on the right thread.
   // Set the timezone to allow SbTimeZoneGetName() to return updated timezone.
   tzset();
 }
 
-extern "C" SB_EXPORT_PLATFORM jstring
-Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
+ScopedJavaLocalRef<jstring> JNI_HTMLMediaElementExtension_CanPlayType(
     JNIEnv* env,
-    jobject jcaller,
-    jstring j_mime_type,
-    jstring j_key_system) {
+    const JavaParamRef<jstring>& j_mime_type,
+    const JavaParamRef<jstring>& j_key_system) {
   std::string mime_type, key_system;
   if (j_mime_type) {
-    mime_type = JniGetStringStandardUTFOrAbort(env, j_mime_type);
+    mime_type = ConvertJavaStringToUTF8(env, j_mime_type);
   }
   if (j_key_system) {
-    key_system = JniGetStringStandardUTFOrAbort(env, j_key_system);
+    key_system = ConvertJavaStringToUTF8(env, j_key_system);
   }
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
@@ -122,7 +119,47 @@ Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
   }
   SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
                << ") --> " << ret;
-  return JniNewStringStandardUTFOrAbort(env, ret);
+  return ConvertUTF8ToJavaString(env, ret);
 }
 
-}  // namespace starboard::android::shared
+Application::Event* ApplicationAndroid::GetNextEvent() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return nullptr;
+}
+
+void ApplicationAndroid::Inject(Application::Event* event) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+void ApplicationAndroid::InjectTimedEvent(
+    Application::TimedEvent* timed_event) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+void ApplicationAndroid::CancelTimedEvent(SbEventId event_id) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+Application::TimedEvent* ApplicationAndroid::GetNextDueTimedEvent() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return nullptr;
+}
+
+int64_t ApplicationAndroid::GetNextTimedEventTargetTime() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return std::numeric_limits<int64_t>::max();
+}
+
+}  // namespace starboard

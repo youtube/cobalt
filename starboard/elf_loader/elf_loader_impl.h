@@ -26,7 +26,6 @@
 #include "starboard/elf_loader/program_table.h"
 #include "starboard/elf_loader/relocations.h"
 
-namespace starboard {
 namespace elf_loader {
 
 // Implementation of the elf loader.
@@ -51,5 +50,4 @@ class ElfLoaderImpl {
 };
 
 }  // namespace elf_loader
-}  // namespace starboard
 #endif  // STARBOARD_ELF_LOADER_ELF_LOADER_IMPL_H_

@@ -19,7 +19,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard::shared::widevine {
+namespace starboard {
 
 class WidevineTimer::WaitEvent {
  public:
@@ -63,7 +63,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                void* context) {
   std::unique_lock lock(mutex_);
   if (active_clients_.empty()) {
-    SB_DCHECK(thread_ == 0);
+    SB_DCHECK_EQ(thread_, 0);
     SB_DCHECK(!job_queue_);
 
     WaitEvent wait_event(mutex_);
@@ -73,7 +73,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
     wait_event.Wait(lock);
   }
 
-  SB_DCHECK(thread_ != 0);
+  SB_DCHECK_NE(thread_, 0);
   SB_DCHECK(job_queue_);
 
   auto iter = active_clients_.find(client);
@@ -148,4 +148,4 @@ void WidevineTimer::CancelAllJobsOnClient(IClient* client,
   wait_event->Signal();
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace starboard

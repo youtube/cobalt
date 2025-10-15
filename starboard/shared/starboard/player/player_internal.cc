@@ -28,7 +28,7 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 namespace {
 
 using std::placeholders::_1;
@@ -116,7 +116,6 @@ void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
     input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
                                             context_, sample_infos[i]));
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-    using video_dmp::VideoDmpWriter;
     VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
   }
@@ -256,4 +255,4 @@ SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
                << number_of_players_ << " players.";
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

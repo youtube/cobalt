@@ -15,7 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_RUNTIME_RESOURCE_OVERLAY_H_
 #define STARBOARD_ANDROID_SHARED_RUNTIME_RESOURCE_OVERLAY_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Caches the Runtime Resource Overlay variables.
 // All RRO variables which can be retrieved here must be defined
@@ -31,13 +31,16 @@ class RuntimeResourceOverlay {
 
   int max_video_buffer_budget() const { return max_video_buffer_budget_; }
 
+  bool supports_spherical_videos() const { return supports_spherical_videos_; }
+
  private:
   RuntimeResourceOverlay();
 
   int min_audio_sink_buffer_size_in_frames_;
   int max_video_buffer_budget_;
+  bool supports_spherical_videos_;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_RUNTIME_RESOURCE_OVERLAY_H_

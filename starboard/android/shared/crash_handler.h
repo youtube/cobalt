@@ -15,10 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_CRASH_HANDLER_H_
 #define STARBOARD_ANDROID_SHARED_CRASH_HANDLER_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 const void* GetCrashHandlerApi();
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_CRASH_HANDLER_H_

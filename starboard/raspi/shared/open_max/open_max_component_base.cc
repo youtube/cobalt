@@ -23,9 +23,6 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
-namespace raspi {
-namespace shared {
-namespace open_max {
 
 namespace {
 
@@ -39,7 +36,7 @@ pthread_once_t s_open_max_initialization_once = PTHREAD_ONCE_INIT;
 
 void DoInitializeOpenMax() {
   OMX_ERRORTYPE error = OMX_Init();
-  SB_DCHECK(error == OMX_ErrorNone)
+  SB_DCHECK_EQ(error, OMX_ErrorNone)
       << "OMX_Init() failed with error code: 0x" << std::hex << error << ".";
 }
 
@@ -191,7 +188,4 @@ OMX_ERRORTYPE OpenMaxComponentBase::FillBufferDone(
   return OMX_ErrorNone;
 }
 
-}  // namespace open_max
-}  // namespace shared
-}  // namespace raspi
 }  // namespace starboard

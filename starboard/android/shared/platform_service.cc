@@ -17,12 +17,14 @@
 #include <memory>
 
 #include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "base/android/jni_array.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_service.h"
+
+#include "cobalt/android/jni_headers/CobaltService_jni.h"
 
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
@@ -41,19 +43,13 @@ typedef struct CobaltExtensionPlatformServicePrivate {
   }
 } CobaltExtensionPlatformServicePrivate;
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
-using starboard::android::shared::ScopedLocalJavaRef;
-
 bool Has(const char* name) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jstring> j_name(JniNewStringStandardUTFOrAbort(env, name));
-  jboolean j_has = JniCallBooleanMethodOrAbort(
-      env, JNIState::GetStarboardBridge(), "hasCobaltService",
-      "(Ljava/lang/String;)Z", j_name.Get());
-  return j_has;
+  return starboard::StarboardBridge::GetInstance()->HasCobaltService(env, name);
 }
 
 CobaltExtensionPlatformService Open(void* context,
@@ -69,27 +65,27 @@ CobaltExtensionPlatformService Open(void* context,
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
-  ScopedLocalJavaRef<jstring> j_name(JniNewStringStandardUTFOrAbort(env, name));
-  jobject cobalt_service = JniCallObjectMethodOrAbort(
-      env, JNIState::GetStarboardBridge(), "openCobaltService",
-      "(JLjava/lang/String;)Ldev/cobalt/coat/CobaltService;",
-      reinterpret_cast<jlong>(service), j_name.Get());
+  // TODO: b/450024477 - Plumb the Activity through the platform service API.
+  // Passing a null Activity is a temporary workaround to avoid breaking the
+  // build during the JNI migration, since the Activity is not available in
+  // this context.
+  auto cobalt_service =
+      starboard::StarboardBridge::GetInstance()->OpenCobaltService(
+          env, /*activity=*/nullptr, reinterpret_cast<jlong>(service), name);
   if (!cobalt_service) {
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
   }
-  service->cobalt_service = JniConvertLocalRefToGlobalRef(env, cobalt_service);
+  service->cobalt_service = env->NewGlobalRef(cobalt_service.obj());
   return service;
 }
 
 void Close(CobaltExtensionPlatformService service) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethodOrAbort(env, service->cobalt_service, "onClose", "()V");
-  ScopedLocalJavaRef<jstring> j_name(
-      JniNewStringStandardUTFOrAbort(env, service->name));
-  JniCallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(),
-                           "closeCobaltService", "(Ljava/lang/String;)V",
-                           j_name.Get());
+  Java_CobaltService_onClose(env, base::android::ScopedJavaLocalRef<jobject>(
+                                      env, service->cobalt_service));
+  starboard::StarboardBridge::GetInstance()->CloseCobaltService(env,
+                                                                service->name);
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -103,28 +99,29 @@ void* Send(CobaltExtensionPlatformService service,
   SB_DCHECK(invalid_state);
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedLocalJavaRef<jbyteArray> data_byte_array;
-  data_byte_array.Reset(JniNewByteArrayFromRaw(
-      env, reinterpret_cast<const jbyte*>(data), length));
-  ScopedLocalJavaRef<jobject> j_response_from_client(
-      static_cast<jbyteArray>(JniCallObjectMethodOrAbort(
-          env, service->cobalt_service, "receiveFromClient",
-          "([B)Ldev/cobalt/coat/CobaltService$ResponseToClient;",
-          data_byte_array.Get())));
-  if (!j_response_from_client) {
+  auto j_data = base::android::ToJavaByteArray(
+      env, reinterpret_cast<const uint8_t*>(data), length);
+
+  auto j_response = Java_CobaltService_receiveFromClient(
+      env,
+      base::android::ScopedJavaLocalRef<jobject>(env, service->cobalt_service),
+      j_data);
+
+  if (j_response.is_null()) {
     *invalid_state = true;
     *output_length = 0;
-    return 0;
+    return nullptr;
   }
-  *invalid_state = JniGetBooleanFieldOrAbort(env, j_response_from_client.Get(),
-                                             "invalidState", "Z");
-  ScopedLocalJavaRef<jbyteArray> j_out_data_array(
-      static_cast<jbyteArray>(JniGetObjectFieldOrAbort(
-          env, j_response_from_client.Get(), "data", "[B")));
-  *output_length = env->GetArrayLength(j_out_data_array.Get());
-  char* output = new char[*output_length];
-  env->GetByteArrayRegion(j_out_data_array.Get(), 0, *output_length,
+
+  auto j_out_data = Java_ResponseToClient_getData(env, j_response);
+  int data_length = base::android::SafeGetArrayLength(env, j_out_data);
+  SB_CHECK_GE(data_length, 0);
+  char* output = new char[data_length];
+  env->GetByteArrayRegion(j_out_data.obj(), 0, data_length,
                           reinterpret_cast<jbyte*>(output));
+
+  *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
+  *output_length = data_length;
   return output;
 }
 
@@ -138,29 +135,8 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 }  // namespace
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JNIEnv* env,
-                                                      jobject jcaller,
-                                                      jlong nativeService,
-                                                      jbyteArray j_data) {
-  CobaltExtensionPlatformService service =
-      reinterpret_cast<CobaltExtensionPlatformService>(nativeService);
-  if (!CobaltExtensionPlatformServiceIsValid(service)) {
-    SB_LOG(WARNING) << "Trying to send message through platform service when "
-                       "the service is already closed";
-    return;
-  }
-
-  jsize length = env->GetArrayLength(j_data);
-  std::unique_ptr<char[]> data(new char[length]);
-  env->GetByteArrayRegion(j_data, 0, length,
-                          reinterpret_cast<jbyte*>(data.get()));
-
-  service->receive_callback(service->context, data.get(), length);
-}
-
-const void* GetPlatformServiceApi() {
+const void* GetPlatformServiceApiAndroid() {
   return &kPlatformServiceApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

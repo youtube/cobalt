@@ -29,9 +29,6 @@ struct SbWindowPrivate {
 
   Window window;
 
-  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
-      CpuVideoFrame;
-
   // The following functions composite graphics and the given video frame video
   // for this window. In kSbPlayerOutputModePunchOut mode, this is the only way
   // any graphics or video is presented in the window.  The video frame will be
@@ -44,7 +41,7 @@ struct SbWindowPrivate {
       int bounds_y,
       int bounds_width,
       int bounds_height,
-      const starboard::scoped_refptr<CpuVideoFrame>& frame);
+      const starboard::scoped_refptr<starboard::CpuVideoFrame>& frame);
   void EndComposite();
 
   // The cached XRender Picture that represents the window that is the

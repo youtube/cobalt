@@ -22,7 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard::shared::starboard::player {
+namespace starboard {
 
 namespace {
 
@@ -109,7 +109,7 @@ void FileCacheReader::EnsureFileOpened() {
 }
 
 int FileCacheReader::ReadFromCache(void* out_buffer, int bytes_to_read) {
-  SB_CHECK(static_cast<size_t>(file_cache_offset_) <= file_cache_.size());
+  SB_CHECK_LE(static_cast<size_t>(file_cache_offset_), file_cache_.size());
   bytes_to_read = std::min(
       static_cast<int>(file_cache_.size()) - file_cache_offset_, bytes_to_read);
   memcpy(out_buffer, file_cache_.data() + file_cache_offset_, bytes_to_read);
@@ -129,4 +129,4 @@ void FileCacheReader::RefillCacheIfEmpty() {
   }
 }
 
-}  // namespace starboard::shared::starboard::player
+}  // namespace starboard

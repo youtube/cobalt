@@ -21,7 +21,6 @@
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   if (!SbWindowIsValid(window)) {
@@ -37,21 +36,14 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   size->height = ANativeWindow_getHeight(window->native_window);
 
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> display_dpi =
-      starboard::android::shared::StarboardBridge::GetInstance()
-          ->GetDeviceResolution(env);
-
-  jclass sizeClass = env->FindClass("android/util/Size");
-  jmethodID getWidthMethod = env->GetMethodID(sizeClass, "getWidth", "()I");
-  jmethodID getHeightMethod = env->GetMethodID(sizeClass, "getHeight", "()I");
-  int display_width = env->CallIntMethod(display_dpi.obj(), getWidthMethod);
-  int display_height = env->CallIntMethod(display_dpi.obj(), getHeightMethod);
+  starboard::Size display_size =
+      starboard::StarboardBridge::GetInstance()->GetDeviceResolution(env);
 
   // In the off chance we have non-square pixels, use the max ratio so the
   // highest quality video suitable to the device gets selected.
   size->video_pixel_ratio =
-      std::max(static_cast<float>(display_width) / size->width,
-               static_cast<float>(display_height) / size->height);
+      std::max(static_cast<float>(display_size.width) / size->width,
+               static_cast<float>(display_size.height) / size->height);
 
   return true;
 }

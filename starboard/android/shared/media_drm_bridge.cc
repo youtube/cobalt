@@ -22,14 +22,13 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
 #include "starboard/common/check_op.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
@@ -363,4 +362,4 @@ std::ostream& operator<<(std::ostream& os, const DrmOperationResult& result) {
   return os << "}";
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

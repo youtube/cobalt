@@ -27,15 +27,13 @@
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track_bridge.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
@@ -99,8 +97,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   bool has_remote_audio_output_ = false;
 };
 
-class AudioTrackAudioSink
-    : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
+class AudioTrackAudioSink : public SbAudioSinkImpl {
  public:
   AudioTrackAudioSink(
       Type* type,
@@ -159,6 +156,6 @@ class AudioTrackAudioSink
   double playback_rate_ = 1.0;
 };
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_

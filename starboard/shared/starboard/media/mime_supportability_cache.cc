@@ -30,7 +30,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 namespace {
 
@@ -256,7 +256,7 @@ void MimeSupportabilityCache::DumpCache() {
         ss << "\n    Height : " << video_info.frame_height;
         ss << "\n    Fps : " << video_info.fps;
         ss << "\n    DecodeToTexture : "
-           << (video_info.decode_to_texture_required ? "true" : "false");
+           << to_string(video_info.decode_to_texture_required);
       }
     } else {
       ss << "\n    Mime info is not valid";
@@ -329,4 +329,4 @@ void MimeSupportabilityCache::UpdateBitrateSupportability_Locked(
   }
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

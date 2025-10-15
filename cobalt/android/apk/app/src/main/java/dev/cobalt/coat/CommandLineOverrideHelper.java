@@ -75,6 +75,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
+        // Disable QUIC to save CPU budgets on m114.
+        // Remove below if Cobalt rebase to m138+.
+        paramOverrides.add("--disable-quic");
 
         return paramOverrides;
     }
@@ -118,6 +121,10 @@ public final class CommandLineOverrideHelper {
 
         // Align with MSE spec for MediaSource.duration.
         paramOverrides.add("MediaSourceNewAbortAndDuration");
+
+        // Enable precise memory info so we can make accurate client-side
+        // measurements.
+        paramOverrides.add("PreciseMemoryInfo");
 
         return paramOverrides;
     }

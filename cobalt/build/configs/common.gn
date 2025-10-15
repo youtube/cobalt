@@ -4,10 +4,9 @@ is_cobalt = true
 # This flag is overridden to enable common video codecs playbacks.
 proprietary_codecs = true
 
-# This flag is needed by both platforms - android and linux.
-# For android: android_webview/docs/aosp-system-integration.md
-# For linux: docs/linux/hw_video_decode.md
-ffmpeg_branding = "Chrome"
+# Overriding flag from //media/media_options.gni.
+# Cobalt doesn't use //third_party/ffmpeg.
+media_use_ffmpeg = false
 
 # TODO(b/378934120): Remove flags below this line
 
@@ -48,3 +47,17 @@ v8_enable_atomic_object_field_writes = false
 
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
+
+# Many of these come from media_options.gni.
+enable_dav1d_decoder = false
+enable_hevc_parser_and_hw_decoder = false
+enable_libaom = false
+enable_platform_ac3_eac3_audio = false
+enable_platform_dolby_vision = false
+enable_platform_mpeg_h_audio = false
+media_use_libvpx = false
+media_use_openh264 = false
+rtc_use_h264 = false
+
+# Enable widevine for encrypted media playback.
+enable_widevine = true

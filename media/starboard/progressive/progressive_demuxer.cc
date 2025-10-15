@@ -315,7 +315,7 @@ void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
   }
 
   // make sure we got back an AU of the correct type
-  DCHECK(au->GetType() == type);
+  DCHECK_EQ(au->GetType(), type);
 
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {

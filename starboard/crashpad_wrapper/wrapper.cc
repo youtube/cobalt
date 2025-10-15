@@ -16,15 +16,19 @@
 
 #include <sys/stat.h>
 
+#include <string.h>
+
 #include <map>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "client/crash_report_database.h"
 #include "client/crashpad_client.h"
 #include "client/settings.h"
+#include "starboard/common/log.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/loader_app_metrics.h"
@@ -33,9 +37,7 @@
 
 using starboard::kSystemPropertyMaxLength;
 
-namespace third_party {
 namespace crashpad {
-namespace wrapper {
 
 const char kCrashpadVersionKey[] = "ver";
 const char kCrashpadProductKey[] = "prod";
@@ -69,8 +71,14 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 #if defined(OS_ANDROID)
   // Path to the extracted native library.
   handler_path.append("arm/libcrashpad_handler.so");
-#else
+#else  // defined(OS_ANDROID)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: b/406511608 - we probably want to be able to expect the binary to be
+  // in the executable directory itself, without the native_target subdir.
+  handler_path.append("native_target/crashpad_handler");
+#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   handler_path.append("crashpad_handler");
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #endif  // defined(OS_ANDROID)
   return base::FilePath(handler_path.c_str());
 }
@@ -201,6 +209,9 @@ void RecordStatus(CrashpadInstallationStatus status) {
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  LOG(WARNING) << "ca_certificates_path is unused:" << ca_certificates_path;
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -219,7 +230,15 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   std::map<std::string, std::string> default_annotations = {
       {kCrashpadVersionKey, kCrashpadVersion},
       {kCrashpadProductKey, product_name}};
-  const std::vector<std::string> default_arguments = {};
+
+  // Without this argument the handler's report upload thread, when the handler
+  // is started in response to a crash, will perform its first periodic scan for
+  // pending reports before that crash is handled. This scan is not needed -
+  // a scan is triggered via CrashReportUploadThread::ReportPending after the
+  // crash is handled - and we can simplify the concurrency model and avoid
+  // thread contention by skipping it, especially now that upload scans trigger
+  // report pruning upon completion.
+  const std::vector<std::string> default_arguments = {"--no-periodic-tasks"};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
@@ -241,16 +260,22 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
                                    default_metrics_dir, kUploadUrl,
-                                   ca_certificates_path, default_annotations,
-                                   default_arguments)) {
+// TODO: b/446932156 - pass Cobalt's CA store path to the handler.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+                                   ca_certificates_path,
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+                                   default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
     return;
   }
 
+// TODO: b/446933116 - pass sanitization information to the handler.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
   client->SendSanitizationInformationToHandler(sanitization_info);
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
   RecordStatus(CrashpadInstallationStatus::kSucceeded);
 }
@@ -265,6 +290,4 @@ bool InsertCrashpadAnnotation(const char* key, const char* value) {
   return client->InsertAnnotationForHandler(key, value);
 }
 
-}  // namespace wrapper
 }  // namespace crashpad
-}  // namespace third_party

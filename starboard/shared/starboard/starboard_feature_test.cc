@@ -19,7 +19,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 namespace {
 using features::FeatureList;
 using features::SbFeatureParamExt;
@@ -162,4 +162,4 @@ TEST_F(StarboardFeatureTest, CanAccessParams) {
     }
   }
 }
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

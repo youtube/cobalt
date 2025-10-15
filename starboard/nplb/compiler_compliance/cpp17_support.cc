@@ -14,15 +14,14 @@
 
 #include <utility>
 
-namespace starboard::foo::bar::baz {
+namespace nplb::foo::bar::baz {
 
 constexpr int life() {
   return 42;
 }
 
-}  // namespace starboard::foo::bar::baz
+}  // namespace nplb::foo::bar::baz
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -58,7 +57,7 @@ static_assert(add_one(1) == 2, "Constexpr lambdas support is required");
 
 // Test Nested Namespaces support
 
-static_assert(starboard::foo::bar::baz::life() == 42,
+static_assert(foo::bar::baz::life() == 42,
               "Nested Namespaces support is required");
 
 // Test fallthrough support
@@ -83,4 +82,3 @@ static_assert(test_fallthrough(2) == 3,
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

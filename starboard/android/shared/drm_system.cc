@@ -35,9 +35,8 @@ static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   return memcmp(left.identifier, right.identifier, left.identifier_size) == 0;
 }
 
-namespace starboard::android::shared {
+namespace starboard {
 namespace {
-using starboard::android::shared::DrmSystem;
 
 // TODO: b/79941850 - Use base::Feature instead for the experimentation.
 constexpr bool kEnableAppProvisioning = false;
@@ -110,6 +109,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const char* type,
                                              const void* initialization_data,
                                              int initialization_data_size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   auto session_update_request = std::make_unique<SessionUpdateRequest>(
       ticket, type,
       std::string_view(static_cast<const char*>(initialization_data),
@@ -131,6 +131,7 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
       std::string_view(static_cast<const char*>(session_id), session_id_size));
@@ -141,6 +142,7 @@ void DrmSystem::UpdateSession(int ticket,
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   std::string session_id_as_string(static_cast<const char*>(session_id),
                                    session_id_size);
 
@@ -166,6 +168,7 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
 }
 
 const void* DrmSystem::GetMetrics(int* size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   return media_drm_bridge_->GetMetrics(size);
 }
 
@@ -232,4 +235,4 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   }
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

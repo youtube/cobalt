@@ -19,7 +19,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard::shared::starboard::audio_sink {
+namespace starboard {
 
 class StubAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
@@ -48,6 +48,6 @@ class StubAudioSinkType : public SbAudioSinkPrivate::Type {
   }
 };
 
-}  // namespace starboard::shared::starboard::audio_sink
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_AUDIO_SINK_STUB_AUDIO_SINK_TYPE_H_

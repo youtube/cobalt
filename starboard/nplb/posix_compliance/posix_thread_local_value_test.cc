@@ -17,7 +17,6 @@
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
 namespace nplb {
 namespace {
 
@@ -177,4 +176,3 @@ TEST(PosixThreadLocalValueTest, SunnyDayMany) {
 
 }  // namespace
 }  // namespace nplb
-}  // namespace starboard

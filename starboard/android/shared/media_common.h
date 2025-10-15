@@ -16,16 +16,15 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 
 #include <cstring>
-
 #include <optional>
-#include "starboard/android/shared/jni_env_ext.h"
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
@@ -105,6 +104,6 @@ inline int GetAudioFormatSampleType(
   return 0u;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_

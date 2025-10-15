@@ -21,9 +21,9 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 
-using starboard::android::shared::IsAndroidAssetPath;
-using starboard::android::shared::OpenAndroidAsset;
-using starboard::android::shared::OpenAndroidAssetDir;
+using starboard::IsAndroidAssetPath;
+using starboard::OpenAndroidAsset;
+using starboard::OpenAndroidAssetDir;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Implementations below exposed externally in pure C for emulation.

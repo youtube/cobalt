@@ -29,6 +29,7 @@ config("common_flags") {
     "-Wl,-gc-sections",
     "-Wl,--unresolved-symbols=ignore-all",
   ]
+
   libs = [
     "asound",
     "rt",
@@ -43,8 +44,37 @@ config("common_flags") {
     "EGL_static",
     "GLESv2_static",
   ]
+
+  cflags = [
+    # The compiler can't identify exhaustive switch statements and therefore
+    # sometimes can't guarantee that a non-void function returns.
+    "-Wno-return-type",
+
+    # The compiler warns about missing braces for an if statement even if there
+    # is no else statement.
+    "-Wno-dangling-else",
+
+    # The compiler ignores attributes on template arguments, at least sometimes.
+    "-Wno-ignored-attributes",
+
+    # Some attributes, like |maybe_unused|, are ignored by the compiler.
+    "-Wno-attributes",
+  ]
+
+  cflags_cc = [
+    # The compiler is claiming that |partition_alloc::internal::PartitionPage|
+    # is a non-standard layout type, probably because |SlotSpanMetadata|, one of
+    # its members, has both public and private members.
+    # TODO: b/446904317 - do more research to ensure we're not enabling
+    # undefined behavior by ignoring this warning. We should see if there's an
+    # extension available to correctly implement offsetof in this case and, if
+    # so, whether we're already using it. Otherwise, we may want to make a
+    # customization to remove the problematic use of offsetof.
+    "-Wno-invalid-offsetof",
+  ]
+
   if (cobalt_pending_clean_up) {
-    cflags = [ "-Wno-multichar" ]
+    cflags += [ "-Wno-multichar" ]
   }
 }
 
@@ -172,23 +202,6 @@ config("size") {
       "-fdata-sections",
     ]
   }
-}
-
-config("pedantic_warnings") {
-  cflags = [
-    "-Wall",
-    "-Wextra",
-    "-Wunreachable-code",
-
-    # Raspi toolchain is based off an old version of gcc, which
-    # falsely flags some code.  That same code does not warn with gcc 6.3.
-    # This decision should be revisited after raspi toolchain is upgraded.
-    "-Wno-maybe-uninitialized",
-
-    "-Werror",
-    "-Wno-expansion-to-defined",
-    "-Wno-implicit-fallthrough",
-  ]
 }
 
 config("no_pedantic_warnings") {

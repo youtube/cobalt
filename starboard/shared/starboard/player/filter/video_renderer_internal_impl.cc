@@ -22,9 +22,10 @@
 #include <utility>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
-namespace starboard::shared::starboard::player::filter {
+namespace starboard {
 
 namespace {
 
@@ -285,7 +286,8 @@ void VideoRendererImpl::OnDecoderStatus(
         seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       SB_LOG(INFO) << "Video preroll takes "
-                   << CurrentMonotonicTime() - first_input_written_at_
+                   << FormatWithDigitSeparators(CurrentMonotonicTime() -
+                                                first_input_written_at_)
                    << " microseconds.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
@@ -423,4 +425,4 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
 
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace starboard::shared::starboard::player::filter
+}  // namespace starboard

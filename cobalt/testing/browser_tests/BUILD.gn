@@ -37,6 +37,10 @@ import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/typescript/ts_library.gni")
 import("//v8/gni/v8.gni")
 
+# TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
+# true.
+shell_use_toolkit_views = toolkit_views && !is_castos
+
 if (is_android) {
   import("//build/config/android/rules.gni")  # For generate_jni().
 }
@@ -90,11 +94,11 @@ static_library("browsertest_support") {
   ]
 
   deps = [
+    ":cobalt_shell_test_lib",
     "//base:i18n",
     "//base/test:test_config",
     "//base/test:test_support",
     "//cobalt/shell:cobalt_shell_app",
-    "//cobalt/shell:cobalt_shell_lib",
     "//components/network_session_configurator/common:common",
     "//components/services/storage:storage",
     "//content/app:for_content_tests",
@@ -216,11 +220,11 @@ test("cobalt_browsertests") {
 
   deps = [
     ":browsertest_support",
+    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//cc/slim",
     "//cobalt/shell:browsertests_mojom",
-    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
@@ -403,6 +407,34 @@ test("cobalt_browsertests") {
     data_deps += [ "//mojo/core:shared_library" ]
     if (use_ozone) {
       deps += [ "//ui/ozone" ]
+    }
+  }
+}
+
+static_library("cobalt_shell_test_lib") {
+  testonly = true
+  sources = [
+    # TODO(b/428999732): move test switches files to cobalt/testing.
+    "//cobalt/shell/common/shell_test_switches.cc",
+    "//cobalt/shell/common/shell_test_switches.h",
+    "shell/test_shell.cc",
+    "shell/test_shell.h",
+  ]
+
+  public_deps = [
+    "//cobalt/shell:cobalt_shell_lib",
+    "//components/custom_handlers:test_support",
+    "//content/test:test_support",
+  ]
+
+  if (shell_use_toolkit_views) {
+    if (use_aura) {
+      sources += [
+        "browser/test_shell_platform_delegate.cc",
+        "browser/test_shell_platform_delegate.h",
+      ]
+
+      public_deps += [ "//ui/views:test_support" ]
     }
   }
 }

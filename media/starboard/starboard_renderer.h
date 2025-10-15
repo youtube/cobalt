@@ -32,7 +32,6 @@
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
-#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -146,6 +145,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   };
 
   void CreatePlayerBridge();
+  void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
@@ -186,7 +186,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const std::unique_ptr<MediaLog> media_log_;
-  const scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
   const TimeDelta audio_write_duration_local_;
@@ -215,6 +214,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   // The current overlay info, which possibly specifies an overlay to render to.
   OverlayInfo overlay_info_;
+
+  std::optional<gfx::Rect> output_rect_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;

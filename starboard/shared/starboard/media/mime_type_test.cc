@@ -16,7 +16,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 namespace {
 
 TEST(MimeTypeTest, EmptyString) {
@@ -128,20 +128,20 @@ TEST(MimeTypeTest, ValidContentTypeWithParams) {
 TEST(MimeTypeTest, GetCodecs) {
   {
     MimeType mime_type("audio/mp4;codecs=\"abc\"");
-    EXPECT_EQ(1, mime_type.GetCodecs().size());
+    EXPECT_EQ(1U, mime_type.GetCodecs().size());
     EXPECT_EQ("abc", mime_type.GetCodecs()[0]);
   }
 
   {
     MimeType mime_type("audio/mp4;codecs=\"abc, def\"");
-    EXPECT_EQ(2, mime_type.GetCodecs().size());
+    EXPECT_EQ(2U, mime_type.GetCodecs().size());
     EXPECT_EQ("abc", mime_type.GetCodecs()[0]);
     EXPECT_EQ("def", mime_type.GetCodecs()[1]);
   }
 
   {
     MimeType mime_type("audio/mp4;codecs=\"abc, def\";param1=\" value1 \"");
-    EXPECT_EQ(2, mime_type.GetCodecs().size());
+    EXPECT_EQ(2U, mime_type.GetCodecs().size());
   }
 }
 
@@ -441,4 +441,4 @@ TEST(MimeTypeTest, ValidateParamWithInvalidMimeType) {
 
 }  // namespace
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

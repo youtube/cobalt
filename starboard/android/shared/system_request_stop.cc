@@ -14,15 +14,10 @@
 
 #include "starboard/system.h"
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
-
-using starboard::android::shared::JniCallVoidMethodOrAbort;
-using starboard::android::shared::JNIState;
+#include "starboard/common/log.h"
 
 void SbSystemRequestStop(int error_level) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(), "requestStop",
-                           "(I)V", error_level);
+  // TODO: b/450024477 - Implement this method when AOSP is used.
+  SB_LOG(WARNING) << __func__ << "(error_level=" << error_level
+                  << ") is called, but it's ignored on Android";
 }
