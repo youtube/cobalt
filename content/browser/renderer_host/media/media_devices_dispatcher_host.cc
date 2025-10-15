@@ -149,8 +149,11 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
   MediaDevicesManager::BoolDeviceTypes devices_to_enumerate;
   devices_to_enumerate[static_cast<size_t>(
       MediaDeviceType::MEDIA_AUDIO_INPUT)] = request_audio_input;
+// Starboard doesn't support video input.
+#if !BUILDFLAG(IS_STARBOARD)
   devices_to_enumerate[static_cast<size_t>(
       MediaDeviceType::MEDIA_VIDEO_INPUT)] = request_video_input;
+#endif
   devices_to_enumerate[static_cast<size_t>(
       MediaDeviceType::MEDIA_AUDIO_OUTPUT)] = request_audio_output;
 
