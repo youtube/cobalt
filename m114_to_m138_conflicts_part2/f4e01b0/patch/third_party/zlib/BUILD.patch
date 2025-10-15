@@ -1,0 +1,83 @@
+--- third_party/zlib/BUILD.gn
++++ third_party/zlib/BUILD.gn
+@@ -134,26 +134,6 @@
+   }
+ 
+   config("zlib_arm_crc32_config") {
+-<<<<<<< HEAD
+-    defines = [ "CRC32_ARMV8_CRC32" ]
+-    if (is_android) {
+-      defines += [ "ARMV8_OS_ANDROID" ]
+-    } else if (is_linux || is_chromeos) {
+-      defines += [ "ARMV8_OS_LINUX" ]
+-    } else if (is_mac) {
+-      defines += [ "ARMV8_OS_MACOS" ]
+-    } else if (is_ios) {
+-      defines += [ "ARMV8_OS_IOS" ]
+-    } else if (is_fuchsia) {
+-      defines += [ "ARMV8_OS_FUCHSIA" ]
+-    } else if (is_win) {
+-      defines += [ "ARMV8_OS_WINDOWS" ]
+-    } else {
+-      assert(false, "Unsupported ARM OS")
+-=======
+-    # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
+-    #  "All implementations of the ARMv8.1 architecture are required to
+-    #   implement the CRC32* instructions. These are optional in ARMv8.0."
+     # Cobalt comment: implementations of ARM version less than 8 are not
+     # expected to have CRC32 instructions. Some of our reference toolchains do -
+     # and some partner toolchains may - use ARMv7. This customization is ported
+@@ -162,8 +142,8 @@
+     # !_is_platform_defined_toolchain toolchains but it turns out that some of
+     # these, such as //build/toolchain/linux:clang_arm, require some of these
+     # defines even though they use ARMv7. We should address this eventually.
+-    if (!is_ios && (!is_cobalt || !_is_platform_defined_toolchain ||
+-                    current_cpu == "arm64" || arm_version >= 8)) {
++    if (!is_cobalt || !_is_platform_defined_toolchain ||
++        current_cpu == "arm64" || arm_version >= 8) {
+       defines = [ "CRC32_ARMV8_CRC32" ]
+       if (is_android) {
+         defines += [ "ARMV8_OS_ANDROID" ]
+@@ -171,6 +151,8 @@
+         defines += [ "ARMV8_OS_LINUX" ]
+       } else if (is_mac) {
+         defines += [ "ARMV8_OS_MACOS" ]
++      } else if (is_ios) {
++        defines += [ "ARMV8_OS_IOS" ]
+       } else if (is_fuchsia) {
+         defines += [ "ARMV8_OS_FUCHSIA" ]
+       } else if (is_win) {
+@@ -178,7 +160,6 @@
+       } else {
+         assert(false, "Unsupported ARM OS")
+       }
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+     }
+   }
+ 
+@@ -187,20 +168,14 @@
+ 
+     include_dirs = [ "." ]
+ 
+-<<<<<<< HEAD
+-    if (!is_win && !is_clang) {
++    # Cobalt comment: this -march flag value is not recognized by some partner
++    # toolchain compilers, probably because of the GCC version. This
++    # customization is ported forward from c25.
++    if (!is_win && !is_clang &&
++        (!is_cobalt || !_is_platform_defined_toolchain)) {
+       assert(!use_thin_lto,
+              "ThinLTO fails mixing different module-level targets")
+       if (current_cpu == "arm64") {
+-=======
+-      # Cobalt comment: this -march flag value is not recognized by some partner
+-      # toolchain compilers, probably because of the GCC version. This
+-      # customization is ported forward from c25.
+-      if (!is_win && !is_clang &&
+-          (!is_cobalt || !_is_platform_defined_toolchain)) {
+-        assert(!use_thin_lto,
+-               "ThinLTO fails mixing different module-level targets")
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+         cflags_c = [ "-march=armv8-a+aes+crc" ]
+       } else if (current_cpu == "arm") {
+         cflags_c = [ "-march=armv8-a+crc" ]

@@ -1,0 +1,47 @@
+--- base/numerics/safe_conversions_impl.h
++++ base/numerics/safe_conversions_impl.h
+@@ -15,19 +15,7 @@
+ #include <type_traits>
+ #include <utility>
+ 
+-<<<<<<< HEAD
+ #include "base/numerics/integral_constant_like.h"
+-=======
+-#include "build/build_config.h"
+-
+-#if defined(__GNUC__) || defined(__clang__)
+-#define BASE_NUMERICS_LIKELY(x) __builtin_expect(!!(x), 1)
+-#define BASE_NUMERICS_UNLIKELY(x) __builtin_expect(!!(x), 0)
+-#else
+-#define BASE_NUMERICS_LIKELY(x) (x)
+-#define BASE_NUMERICS_UNLIKELY(x) (x)
+-#endif
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+ 
+ namespace base::internal {
+ 
+@@ -80,24 +68,6 @@
+              : static_cast<UnsignedT>(value);
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+-constexpr bool is_constant_evaluated_stub() noexcept {
+-  // Compilers are not guaranteed to provide this builtin. Always returning
+-  // false should be safe: if a calling function that uses this result to select
+-  // a runtime or compile-time path were actually used in a constant-evaluated
+-  // context then we should get a compile-time error.
+-  return false;
+-}
+-#define IsConstantEvaluated() (is_constant_evaluated_stub())
+-#else
+-// TODO(jschuh): Switch to std::is_constant_evaluated() once C++20 is supported.
+-// Alternately, the usage could be restructured for "consteval if" in C++23.
+-#define IsConstantEvaluated() (__builtin_is_constant_evaluated())
+-#endif
+-
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+ // TODO(jschuh): Debug builds don't reliably propagate constants, so we restrict
+ // some accelerated runtime paths to release builds until this can be forced
+ // with consteval support in C++20 or C++23.

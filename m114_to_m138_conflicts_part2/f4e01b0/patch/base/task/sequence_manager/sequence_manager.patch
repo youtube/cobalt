@@ -1,0 +1,18 @@
+--- base/task/sequence_manager/sequence_manager.cc
++++ base/task/sequence_manager/sequence_manager.cc
+@@ -6,14 +6,9 @@
+ 
+ #include <utility>
+ 
+-<<<<<<< HEAD
+-namespace base::sequence_manager {
+-=======
+ #include "build/build_config.h"
+ 
+-namespace base {
+-namespace sequence_manager {
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
++namespace base::sequence_manager {
+ 
+ namespace {
+ 

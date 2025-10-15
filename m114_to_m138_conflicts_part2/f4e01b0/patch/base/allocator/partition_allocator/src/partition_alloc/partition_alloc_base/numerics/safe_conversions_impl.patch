@@ -1,0 +1,23 @@
+--- base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/numerics/safe_conversions_impl.h
++++ base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/numerics/safe_conversions_impl.h
+@@ -9,19 +9,8 @@
+ #include <limits>
+ #include <type_traits>
+ 
+-<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/numerics/safe_conversions_impl.h
+-#include "partition_alloc/buildflags.h"
+-=======
+ #include "build/build_config.h"
+-
+-#if defined(__GNUC__) || defined(__clang__)
+-#define PA_BASE_NUMERICS_LIKELY(x) __builtin_expect(!!(x), 1)
+-#define PA_BASE_NUMERICS_UNLIKELY(x) __builtin_expect(!!(x), 0)
+-#else
+-#define PA_BASE_NUMERICS_LIKELY(x) (x)
+-#define PA_BASE_NUMERICS_UNLIKELY(x) (x)
+-#endif
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479)):base/allocator/partition_allocator/partition_alloc_base/numerics/safe_conversions_impl.h
++#include "partition_alloc/buildflags.h"
+ 
+ namespace partition_alloc::internal::base::internal {
+ 

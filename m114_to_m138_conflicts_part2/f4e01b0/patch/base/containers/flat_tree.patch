@@ -1,0 +1,14 @@
+--- base/containers/flat_tree.h
++++ base/containers/flat_tree.h
+@@ -20,11 +20,7 @@
+ #include "base/compiler_specific.h"
+ #include "base/containers/span.h"
+ #include "base/memory/raw_ptr_exclusion.h"
+-<<<<<<< HEAD
+-=======
+-#include "base/ranges/algorithm.h"
+ #include "build/build_config.h"
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+ 
+ namespace base {
+ 

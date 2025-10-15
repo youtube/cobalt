@@ -1,0 +1,38 @@
+--- base/allocator/partition_allocator/partition_alloc.gni
++++ base/allocator/partition_allocator/partition_alloc.gni
+@@ -123,8 +123,15 @@
+   #     and doesn't wish to incur the library size increase (crbug.com/674570).
+   # 2.  On NaCl (through this declaration), where PartitionAlloc doesn't
+   #     build at all.
+-<<<<<<< HEAD
+-  use_partition_alloc = !is_nacl && is_clang_or_gcc
++  #
++  # Cobalt comment: it would be a significant change to use PartitionAlloc as
++  # the default allocator in components built by partners. We're considering
++  # that change in b/447346129 but for now set this false in partner toolchains
++  # so that PartitionAlloc is not even linked into partner built binaries.
++  use_partition_alloc = (!is_nacl && is_clang_or_gcc &&
++      !(is_cobalt && ((current_toolchain == starboard_toolchain &&
++                       starboard_toolchain != default_toolchain) ||
++                      current_toolchain == native_target)))
+ }
+ 
+ if (!is_clang_or_gcc) {
+@@ -136,17 +143,6 @@
+ 
+ if (is_nacl) {
+   assert(!use_partition_alloc, "PartitionAlloc doesn't build on NaCl")
+-=======
+-  #
+-  # Cobalt comment: it would be a significant change to use PartitionAlloc as
+-  # the default allocator in components built by partners. We're considering
+-  # that change in b/447346129 but for now set this false in partner toolchains
+-  # so that PartitionAlloc is not even linked into partner built binaries.
+-  use_partition_alloc =
+-      !is_nacl && !(is_cobalt && ((current_toolchain == starboard_toolchain &&
+-                                   starboard_toolchain != default_toolchain) ||
+-                                  current_toolchain == native_target))
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+ }
+ 
+ declare_args() {

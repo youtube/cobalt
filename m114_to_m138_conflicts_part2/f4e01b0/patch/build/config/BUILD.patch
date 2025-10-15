@@ -1,0 +1,31 @@
+--- build/config/BUILD.gn
++++ build/config/BUILD.gn
+@@ -212,27 +212,15 @@
+     # linking can have run-time side effects, nothing should be listed here.
+     libs = []
+   } else if (is_ios) {
+-<<<<<<< HEAD
+     # Targets should choose to explicitly link frameworks they require. Since
+     # linking can have run-time side effects, nothing should be listed here.
+     libs = []
+-  } else if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+-=======
+-    # The libraries listed here will be specified for both the target and the
+-    # host. Only the common ones should be listed here.
+-    frameworks = [
+-      "CoreFoundation.framework",
+-      "CoreGraphics.framework",
+-      "CoreText.framework",
+-      "Foundation.framework",
+-    ]
+   } else if (is_cobalt && is_native_target_build) {
+     # This build configuration is only used for the crashpad handler executable.
+     # This binary needs dynamic linking but gets undefined symbols, which result
+     # in symbol lookup errors at runtime, when also linked with pthread.
+     libs = [ "dl" ]
+-  } else if ((is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
++  } else if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+     libs = [
+       "dl",
+       "pthread",

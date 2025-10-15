@@ -1,5 +1,96 @@
 [
   {
+    "hexsha": "da89e1a338ca3903708400eade4a1129f4ea99ee",
+    "original_hexsha": "93c4fc419261f9c873399a122b617dada07f640b",
+    "author": "Jammel",
+    "datetime": "2025-10-14T11:13:44-07:00",
+    "summary": "Finch Config Expiration (#7402)",
+    "stats": {
+      "files": 12,
+      "insertions": 445,
+      "deletions": 5
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "b5a92d08f427631e0d7ead28a29743d58f124f87",
+    "original_hexsha": "f4e01b08e6e810f1b79dd3cd8cf0c629d4c60654",
+    "author": "Holden Warriner",
+    "datetime": "2025-10-14T16:22:29+00:00",
+    "summary": "Enable crashpad for arm, and cxx17, toolchains (#7479)",
+    "stats": {
+      "files": 25,
+      "insertions": 237,
+      "deletions": 46
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2283b2e4dc835386f18be84ddea1bf803c2d8afe",
+    "original_hexsha": "94a3de2c662386405f9b5c384de648199722b54f",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-13T20:30:25-07:00",
+    "summary": "android: Migrate GetDeviceResolution to JNI generator (#7514)",
+    "stats": {
+      "files": 4,
+      "insertions": 35,
+      "deletions": 16
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "c8e8fa94916d39dce1fcc076a72ffe91fdce6a76",
+    "original_hexsha": "21a3e04a8f830c0bda86be164bcf181e840a0c7a",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-13T16:22:04-07:00",
+    "summary": "android: Migrate canPlayType and dateTimeConfigurationChanged to JNI generator (#7506)",
+    "stats": {
+      "files": 4,
+      "insertions": 36,
+      "deletions": 21
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "99b01e58e74bb9a32a8287ee8410d23901fe0b57",
+    "original_hexsha": "d3bed5c8afa34c2263d077636166e07eb811aa20",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-13T14:12:33-07:00",
+    "summary": "android: Migrate DisplayUtil to JNI generator (#7524)",
+    "stats": {
+      "files": 8,
+      "insertions": 110,
+      "deletions": 32
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "23b000e427a5134e621982e1d43f6ed09e646276",
+    "original_hexsha": "4dee3daa525b239ccb40438091f34a5aca5ce26e",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-13T13:45:04-07:00",
+    "summary": "android: Remove unused legacy JNI for audio permissions (#7509)",
+    "stats": {
+      "files": 1,
+      "insertions": 0,
+      "deletions": 11
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1a11849069745903885f1a785437e28dfca95bca",
+    "original_hexsha": "59135afb7170de67e6f3eadf948e2ce18cce7005",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-13T11:44:22-07:00",
+    "summary": "android: Add thread checker to DrmSystem on Android TV (#7501)",
+    "stats": {
+      "files": 2,
+      "insertions": 9,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "82ea877923bf7695d7d7c444ca632cef2d14757a",
     "original_hexsha": "761a6469b88741d7be6d85540d610bef32f091e5",
     "author": "Kyujung Youn",

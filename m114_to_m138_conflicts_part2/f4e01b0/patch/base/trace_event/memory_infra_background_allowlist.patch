@@ -1,0 +1,62 @@
+--- base/trace_event/memory_infra_background_allowlist.cc
++++ base/trace_event/memory_infra_background_allowlist.cc
+@@ -20,16 +20,11 @@
+ #include "base/android/meminfo_dump_provider.h"
+ #endif
+ 
+-<<<<<<< HEAD
+-namespace base::trace_event {
+-=======
+ #if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+ #include <utility>
+ #endif
+ 
+-namespace base {
+-namespace trace_event {
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
++namespace base::trace_event {
+ namespace {
+ 
+ #if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+@@ -63,17 +58,13 @@
+ // TODO(ssid): Some dump providers do not create ownership edges on background
+ // dump. So, the effective size will not be correct.
+ constexpr auto kDumpProviderAllowlist =
+-<<<<<<< HEAD
+-    base::MakeFixedFlatSet<std::string_view>({
+-=======
+ #if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+     // We use a custom wrapper to sidestep the compiler's inability to perform
+     // template argument deduction as expected.
+     MakeFixedFlatSetFromStringLiterals({
+ #else
+-    base::MakeFixedFlatSet<base::StringPiece>({
++    base::MakeFixedFlatSet<std::string_view>({
+ #endif
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+ // clang-format off
+ #if BUILDFLAG(IS_ANDROID)
+         base::android::MeminfoDumpProvider::kDumpProviderName,
+@@ -145,21 +136,16 @@
+ 
+ // A list of string names that are allowed for the memory allocator dumps in
+ // background mode.
+-<<<<<<< HEAD
+ // NOTE: There is no generic pattern matching support and only names containing
+ // "0x?" match "0x" followed by hex digits.
+ constexpr auto kAllocatorDumpNameAllowlist =
+-    base::MakeFixedFlatSet<std::string_view>({
+-=======
+-constexpr auto kAllocatorDumpNameAllowlist =
+ #if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+     // We use a custom wrapper to sidestep the compiler's inability to perform
+     // template argument deduction as expected.
+     MakeFixedFlatSetFromStringLiterals({
+ #else
+-    base::MakeFixedFlatSet<base::StringPiece>({
++    base::MakeFixedFlatSet<std::string_view>({
+ #endif
+->>>>>>> b5a92d08f42 (Enable crashpad for arm, and cxx17, toolchains (#7479))
+ // clang-format off
+         // Some of the blink values vary based on compile time flags. The
+         // compile time flags are not in base, so all are listed here.
