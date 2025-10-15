@@ -898,8 +898,10 @@ group("all_rust") {
 
   # TODO(https://crbug.com/405379314): This fails to build on some iOS ASAN
   # builders.
+  if (!is_cobalt_hermetic_build) {
   if (!is_ios || !is_asan) {
     deps += [ "//testing/rust_gtest_interop:rust_gtest_interop_unittests" ]
+  }
   }
 
   if (enable_rust_mojo) {
