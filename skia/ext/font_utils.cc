@@ -42,6 +42,10 @@
 #include "third_party/skia/include/ports/SkFontMgr_empty.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
+#endif
+
 #include <mutex>
 
 namespace {
@@ -60,28 +64,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     return sk_ref_sp(g_fontmgr_override);
   }
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  base::FilePath cobalt_font_directory;
-  CHECK(base::PathService::Get(base::DIR_EXE, &cobalt_font_directory));
-  cobalt_font_directory =
-      cobalt_font_directory.Append(FILE_PATH_LITERAL("fonts"));
-
-  base::FilePath system_font_config_directory;
-  base::PathService::Get(base::DIR_SYSTEM_FONTS_CONFIGURATION,
-                         &system_font_config_directory);
-
-  base::FilePath system_font_files_directory;
-  base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
-
-  skia_private::TArray<SkString, true> default_families;
-  default_families.push_back(SkString("sans-serif"));
-
-  sk_sp<SkFontMgr> font_manager(new SkFontMgr_Cobalt(
-      cobalt_font_directory.value().c_str(),
-      cobalt_font_directory.value().c_str(),
-      system_font_config_directory.value().c_str(),
-      system_font_files_directory.value().c_str(), default_families));
-
-  return font_manager;
+  return SkFontMgr_New_Cobalt();
 #else
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
