@@ -58,7 +58,7 @@ jobs:
               export START_COMMIT="$(git rev-parse --verify post-chrobalt-tag)"
           fi
           python main.py commits --repo-path=${GITHUB_WORKSPACE} --source-branch=origin/automated/linear_main \
-            --start-commit-ref="$(git rev-parse --verify post-chrobalt-tag)" --end-commit-ref="$(git rev-parse --verify origin/automated/linear_main)" \
+            --start-commit-ref="${START_COMMIT}" --end-commit-ref="$(git rev-parse --verify origin/automated/linear_main)" \
             --output-file=${GITHUB_WORKSPACE}/automated_commits_m114.json
 
           git add automated_commits_m114.json
