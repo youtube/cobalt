@@ -62,8 +62,8 @@ class Unexpected {
 //     HandleError(result.error());
 //   }
 //
-// NOTE: This implementation can be replaced with C++ 23's `std::expected` or
-// Chromium's `base::expected` once either becomes available in this codebase.
+// NOTE: This implementation can be replaced with C++ 23's `std::expected`, when
+// it becomes available in this codebase.
 template <typename T, typename E>
 class Expected {
  public:
