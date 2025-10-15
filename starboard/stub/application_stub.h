@@ -15,7 +15,7 @@
 #ifndef STARBOARD_STUB_APPLICATION_STUB_H_
 #define STARBOARD_STUB_APPLICATION_STUB_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
