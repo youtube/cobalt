@@ -286,14 +286,8 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
 }
 
 bool InsertCrashpadAnnotation(const char* key, const char* value) {
-// TODO: b/446908034 - enable annotations to be set using this API.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  SB_NOTIMPLEMENTED();
-  return false;
-#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
   return client->InsertAnnotationForHandler(key, value);
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }
 
 }  // namespace crashpad
