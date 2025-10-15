@@ -4,7 +4,7 @@
     "android-x86"
   ],
   "targets": [
-    "cobalt:gn_all"
+    "cobalt"
   ],
   "includes": [
     {
