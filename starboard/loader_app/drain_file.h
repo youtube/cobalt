@@ -15,7 +15,9 @@
 #ifndef STARBOARD_LOADER_APP_DRAIN_FILE_H_
 #define STARBOARD_LOADER_APP_DRAIN_FILE_H_
 
-#include "starboard/types.h"
+#include <stdint.h>
+
+#include "starboard/export.h"
 
 #ifdef __cplusplus
 extern "C" {

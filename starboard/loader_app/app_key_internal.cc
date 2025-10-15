@@ -14,10 +14,10 @@
 
 #include "starboard/loader_app/app_key_internal.h"
 
+#include <stddef.h>
 #include <algorithm>
 
 #include "starboard/common/log.h"
-#include "starboard/types.h"
 #include "third_party/modp_b64/modp_b64.h"
 
 namespace loader_app {

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_COMMON_REUSE_ALLOCATOR_BASE_H_
 #define STARBOARD_COMMON_REUSE_ALLOCATOR_BASE_H_
 
+#include <stddef.h>
 #include <algorithm>
 #include <map>
 #include <set>
@@ -24,7 +25,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

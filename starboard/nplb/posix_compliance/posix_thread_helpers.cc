@@ -14,10 +14,10 @@
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 
+#include <stddef.h>
 #include <unistd.h>
 
 #include "starboard/thread.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

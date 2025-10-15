@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <functional>
 #include <limits>
@@ -37,7 +39,6 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/types.h"
 
 // Uncomment the following statement to log the media time stats with deviation
 // when GetCurrentMediaTime() is called.

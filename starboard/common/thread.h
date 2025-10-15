@@ -17,6 +17,8 @@
 #ifndef STARBOARD_COMMON_THREAD_H_
 #define STARBOARD_COMMON_THREAD_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -24,7 +26,6 @@
 
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

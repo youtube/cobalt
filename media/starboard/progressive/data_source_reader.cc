@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/starboard/progressive/data_source_reader.h"
+#include <stdint.h>
 
-#include "starboard/types.h"
+#include "media/starboard/progressive/data_source_reader.h"
 
 namespace media {
 

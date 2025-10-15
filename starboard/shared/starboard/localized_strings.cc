@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/localized_strings.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <algorithm>
 #include <limits>
 
@@ -21,7 +23,6 @@
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

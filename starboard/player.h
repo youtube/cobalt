@@ -21,11 +21,12 @@
 
 #include "starboard/configuration.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/export.h"
 #include "starboard/media.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 #ifdef __cplusplus

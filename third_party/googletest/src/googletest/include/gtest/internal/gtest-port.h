@@ -270,6 +270,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "starboard/common/log.h" // nogncheck
 #include "starboard/common/spin_lock.h" // nogncheck
 #include "starboard/common/string.h" // nogncheck
@@ -277,7 +280,6 @@
 #include "starboard/log.h" // nogncheck
 #include "starboard/system.h" // nogncheck
 #include "starboard/thread.h" // nogncheck
-#include "starboard/types.h" // nogncheck
 #endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <cerrno>

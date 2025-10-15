@@ -17,8 +17,6 @@
 
 #include <string>
 
-#include "starboard/types.h"
-
 namespace starboard {
 
 // Computes the checksum of the Widevine Keybox.

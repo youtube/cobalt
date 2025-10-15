@@ -20,13 +20,14 @@
 #define STARBOARD_COMMON_STRING_H_
 
 #include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

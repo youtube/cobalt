@@ -15,6 +15,8 @@
 #include "media/starboard/progressive/progressive_demuxer.h"
 
 #include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <utility>
 
@@ -29,7 +31,6 @@
 #include "media/base/data_source.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/starboard_utils.h"
-#include "starboard/types.h"
 
 namespace media {
 

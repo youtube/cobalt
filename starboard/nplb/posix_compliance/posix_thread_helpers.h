@@ -16,10 +16,11 @@
 #define STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_THREAD_HELPERS_H_
 
 #include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/types.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 

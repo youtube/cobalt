@@ -21,9 +21,11 @@
 
 #include <pthread.h>
 
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
