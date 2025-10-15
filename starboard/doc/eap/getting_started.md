@@ -21,10 +21,8 @@ gclient config --name=src git@github.com:youtube/cobalt.git
 cd src
 gclient sync --no-history -r $(git rev-parse @)
 
-# Apply our patch and install build dependencies.
-git apply starboard/doc/eap/open_source_install.patch
+# Install build dependencies.
 ./build/install-build-deps.sh
-git restore build/install-build-deps.sh
 
 # Build Evergreen for linux
 cobalt/build/gn.py -p evergreen-x64 -c devel --no-rbe
