@@ -42,7 +42,9 @@
 #include "base/file_descriptor_store.h"
 #include "base/files/file_util.h"
 #include "base/pickle.h"
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "content/child/sandboxed_process_thread_type_handler.h"
+#endif
 #include "content/common/gpu_pre_sandbox_hook_linux.h"
 #include "content/public/common/content_descriptor_keys.h"
 #include "content/utility/speech/speech_recognition_sandbox_hook_linux.h"
