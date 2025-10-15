@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <inttypes.h>
-#include <limits.h>
-#include <wchar.h>
+#include <cinttypes>
+#include <climits>
+#include <cwchar>
 
 #include "starboard/configuration.h"
 
