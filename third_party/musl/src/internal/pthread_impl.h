@@ -41,7 +41,11 @@ typedef struct {
 } StarboardPthreadCondMutexPair;
 
 static inline void __cond_mutex_pair_init(StarboardPthreadCondMutexPair* pair) {
-	pthread_mutex_init(&pair->mutex, NULL);
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&pair->mutex, &attr);
+	pthread_mutexattr_destroy(&attr);
 	pthread_cond_init(&pair->cond, NULL);
 }
 
@@ -50,23 +54,37 @@ static inline void __cond_mutex_pair_destroy(StarboardPthreadCondMutexPair* pair
 	pthread_mutex_destroy(&pair->mutex);
 }
 
-
 static inline void __wake(volatile void *addr, int cnt, int priv)
 {
-	StarboardPthreadCondMutexPair* lock = (StarboardPthreadCondMutexPair*)(*(uintptr_t*)addr);
-	if (lock) {
+	const intptr_t lock_intptr = *(intptr_t*)addr;
+	if (lock_intptr != -1) {
+		StarboardPthreadCondMutexPair* lock = (StarboardPthreadCondMutexPair*)(lock_intptr);
+		// Signal threads that are waiting on the condition variable. It is safe
+		// to call pthread_cond_broadcast without holding the associated mutex.
+		// Waiting threads will be woken up, and they will then attempt to
+		// re-acquire the mutex within their call to pthread_cond_wait.
 		pthread_cond_broadcast(&lock->cond);
 	}
 }
 
 static inline void __futexwait(volatile void *addr, int val, int priv)
 {
-	StarboardPthreadCondMutexPair* lock = (StarboardPthreadCondMutexPair*)(*(uintptr_t*)addr);
-	if (lock) {
+	const intptr_t lock_intptr = *(intptr_t*)addr;
+	if (lock_intptr != -1) {
+		StarboardPthreadCondMutexPair* lock = (StarboardPthreadCondMutexPair*)(lock_intptr);
+		// Lock the mutex to safely check the condition.
 		pthread_mutex_lock(&lock->mutex);
+
+		// Check if the condition for waiting is still true. If the
+		// value at the address has changed, we should not wait.
 		if (*(volatile int*)addr == val) {
+			// Atomically unlock the mutex and wait for a signal. When
+			// woken, the thread will re-acquire the mutex before
+			// proceeding.
 			pthread_cond_wait(&lock->cond, &lock->mutex);
 		}
+
+		// The wait is over (or was not needed). Unlock the mutex.
 		pthread_mutex_unlock(&lock->mutex);
 	}
 }

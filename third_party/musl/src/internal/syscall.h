@@ -66,17 +66,8 @@ hidden long __syscall_ret(unsigned long),
 hidden long __libc_to_syscall_ret(unsigned long r);
 
 #define __syscall(name, ...) __libc_to_syscall_ret(libc_wrapper_##name(__VA_ARGS__))
-#define syscall(name, ...) libc_wrapper_##name(__VA_ARGS__)
 #define __syscall_cp(name, ...) __libc_to_syscall_ret(libc_wrapper_##name(__VA_ARGS__))
 #define syscall_cp(name, ...) libc_wrapper_##name(__VA_ARGS__)
-
-// Map `libc_wrapper_SYS_ioctl(int fd, op,...)` to `ioctl_op(int fd,...)` calls
-// to allow separate implementation per ioctl operation.
-#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b) a##b
-#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT(a,b) __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b)
-#define __LIBC_WRAPPER_SYS_IOCTL_DISP(b, op,...) __LIBC_WRAPPER_SYS_IOCTL_CONCAT(b,op)(__VA_ARGS__)
-#define libc_wrapper_SYS_ioctl(fd, op,...) __LIBC_WRAPPER_SYS_IOCTL_DISP(ioctl_, op, fd, __VA_ARGS__)
-
 #else  // defined(STARBOARD)
 
 #define __syscall1(n,a) __syscall1(n,__scc(a))

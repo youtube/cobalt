@@ -47,18 +47,15 @@ FILE *__fdopen(int fd, const char *mode)
 		f->lbf = '\n';
 
 	/* Initialize op ptrs. No problem if some are unneeded. */
-#if defined(STARBOARD)
-	f->read = __stdio_read_init;
-	f->write = __stdio_write_init;
-	f->seek = __stdio_seek_init;
-	f->close = __stdio_close;
-  f->lock = 0;
-#else
 	f->read = __stdio_read;
 	f->write = __stdio_write;
 	f->seek = __stdio_seek;
 	f->close = __stdio_close;
 
+	#if defined(STARBOARD)
+	f->lock = __init_file_lock(
+			f);  // Starboard apps are typicall multithreaded, require locking.
+#else
 	if (!libc.threaded) f->lock = -1;
 #endif
 
