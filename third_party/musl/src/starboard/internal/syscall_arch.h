@@ -24,8 +24,11 @@
 
 // Signal that we support these sycalls. This is only necessary for syscalls
 // where musl code uses non-existence of these defines to use fallbacks instead.
+#define SYS_lstat
+#define SYS_open
 #define SYS_unlink
 #define SYS_rmdir
+#define SYS_stat
 
 // syscall() calls are split by syscall 'number' parameter.
 // For Starboard builds, the syscall names are not mapped to numbers, allowing
@@ -33,15 +36,18 @@
 // See src/internal/syscall.h for more details.
 
 // Simple wrappers can be directly replaced with the function name.
-#define libc_wrapper_SYS_gettid() SbThreadGetId()
 #define libc_wrapper_SYS_close(fildes) close(fildes)
+#define libc_wrapper_SYS_gettid() SbThreadGetId()
+#define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
+#define libc_wrapper_SYS_lstat(pathname, statbuf) lstat(pathname, statbuf)
+#define libc_wrapper_SYS_open(pathname, flags, mode) open(pathname, flags, mode)
 #define libc_wrapper_SYS_read(fildes, buf, nbyte) read(fildes, buf, nbyte)
 #define libc_wrapper_SYS_readv(fildes, iov, iovcnt) readv(fildes, iov, iovcnt)
+#define libc_wrapper_SYS_rmdir(pathname) rmdir(pathname)
+#define libc_wrapper_SYS_stat(pathname, statbuf) stat(pathname, statbuf)
+#define libc_wrapper_SYS_unlink(pathname) unlink(pathname)
 #define libc_wrapper_SYS_write(fildes, buf, nbyte) write(fildes, buf, nbyte)
 #define libc_wrapper_SYS_writev(fildes, iov, iovcnt) writev(fildes, iov, iovcnt)
-#define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
-#define libc_wrapper_SYS_open(pathname, flags, mode) open(pathname, flags, mode)
-#define libc_wrapper_SYS_unlink(pathname) unlink(pathname)
 
 static inline int libc_wrapper_SYS_fcntl(int fd, int op, ... /* arg */ ) {
   va_list ap;

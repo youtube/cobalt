@@ -11,9 +11,15 @@
 
 #define UNGET 8
 
+#if defined(STARBOARD)
+#define FFINALLOCK(f) ((f)->lock != -1 ? __lockfile((f)) : 0)
+#define FLOCK(f) int __need_unlock = ((f)->lock != -1 ? __lockfile((f)) : 0)
+#define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
+#else
 #define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FLOCK(f) int __need_unlock = ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
+#endif  // defined(STARBOARD)
 
 
 #define F_PERM 1
@@ -42,7 +48,10 @@ struct _IO_FILE {
 	long lockcount;
 	int mode;
 #if defined(STARBOARD)
-	uintptr_t lock;
+	// A |lock| value of -1 means don't use locking.
+	// A |lock| value of 0 means needs initialization.
+	// Otherwise, |lock| points to |_lock|.
+	volatile intptr_t lock;
 	StarboardPthreadCondMutexPair _lock;
 #else
 	volatile int lock;
@@ -60,16 +69,16 @@ struct _IO_FILE {
 
 #if defined(STARBOARD)
 static inline uintptr_t __init_file_lock(struct _IO_FILE* f) {
-  if (!f->lock) {
+	if (f->lock == 0) {
 		__cond_mutex_pair_init(&f->_lock);
 	}
-  return (uintptr_t)&f->_lock;
+	return (uintptr_t)&f->_lock;
 }
 
 static inline uintptr_t __destroy_file_lock(struct _IO_FILE* f) {
-  if (!f->lock) return 0;
+	if (!f->lock || f->lock == -1) return (uintptr_t)&f->_lock;
 	__cond_mutex_pair_destroy(&f->_lock);
-  return 0;
+	return 0;
 }
 
 // File read and write functions that initialize the mutex and cond variable

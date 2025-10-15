@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/ioctl.h>
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_
 
-int ioctl_TIOCGWINSZ(int fd, struct winsize *wz) {
-  // Return the current terminal size.
-  // Note: In POSIX 2024, this can be handled by tcgetwinsize.
-  if (wz) {
-    wz->ws_row = 24;
-    wz->ws_col = 80;
-  }
+// Direct to the implementaton in a file that can be included in a source set
+// for build dependency tracking.
 
-  // Return error when the fd is not for a tty.
-  return isatty(fd) ? 0 : -1;
-}
+#include "syscall_impl.h"
+
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_

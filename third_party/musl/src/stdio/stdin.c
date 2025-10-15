@@ -13,7 +13,7 @@ hidden FILE __stdin_FILE = {
 	.write = __stdio_write_stub,
 	.seek = __stdio_seek_init,
 	.close = __stdio_close,
-	.lock = 0,
+	.lock = 0,  // Starboard apps are typically multithreaded, require locking.
 #else
 	.read = __stdio_read,
 	.seek = __stdio_seek,
