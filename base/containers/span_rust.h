@@ -11,7 +11,7 @@
 #include "build/build_config.h"
 #include "third_party/rust/cxx/v1/cxx.h"
 
-#if BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT) && !defined(SB_IS_DEFAULT_TC)
 #error "span_rust.h included under IS_NACL"
 #endif
 

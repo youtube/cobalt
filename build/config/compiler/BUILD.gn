@@ -1081,6 +1081,9 @@ config("compiler") {
     # We use clang-rt sanitizer runtimes.
     "-Zexternal-clangrt",
   ]
+  if (is_cobalt && current_toolchain == default_toolchain) {
+    rustflags += ["-Ztls-model=emulated"]
+  }
 
   if (!is_win || force_rustc_color_output) {
     # Colorize error output. The analogous flag is passed for clang. This must
