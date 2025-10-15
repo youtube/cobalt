@@ -28,4 +28,6 @@
 // This is just a place holder not to break RDK build on CI.
 // http://go/paste/6485997206503424
 
+#include <limits.h>
+
 #endif  // STARBOARD_TYPES_H_
