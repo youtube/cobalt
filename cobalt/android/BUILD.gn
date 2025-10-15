@@ -194,7 +194,6 @@ shared_library_with_jni("libchrobalt") {
     "//components/memory_system",
     "//media",
     "//skia",
-    "//starboard/android/shared:starboard_jni_state",
     "//third_party/blink/public/common",
   ]
 
