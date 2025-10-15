@@ -15,9 +15,9 @@
 #include "media/starboard/progressive/progressive_demuxer.h"
 
 #include <inttypes.h>
-#include <stddef.h>
-#include <stdint.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include "base/functional/bind.h"

@@ -14,9 +14,9 @@
 
 #include "starboard/common/reuse_allocator_base.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "starboard/common/check_op.h"
