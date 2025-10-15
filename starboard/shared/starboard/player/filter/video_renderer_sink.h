@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_SINK_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_SINK_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <functional>
 
 #include "starboard/common/ref_counted.h"
