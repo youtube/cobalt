@@ -575,9 +575,9 @@ TEST_F(CertDatabaseNSSTest, ImportCACertHierarchy) {
 
   ScopedCERTCertificateList cert_list = ListCerts();
   ASSERT_EQ(3U, cert_list.size());
-  EXPECT_EQ("B CA - Multi-root", GetSubjectCN(cert_list[0].get()));
-  EXPECT_EQ("D Root CA - Multi-root", GetSubjectCN(cert_list[1].get()));
-  EXPECT_EQ("C CA - Multi-root", GetSubjectCN(cert_list[2].get()));
+  EXPECT_EQ("C CA - Multi-root", GetSubjectCN(cert_list[0].get()));
+  EXPECT_EQ("B CA - Multi-root", GetSubjectCN(cert_list[1].get()));
+  EXPECT_EQ("D Root CA - Multi-root", GetSubjectCN(cert_list[2].get()));
 }
 
 TEST_F(CertDatabaseNSSTest, ImportCACertHierarchyDupeRoot) {
@@ -615,9 +615,9 @@ TEST_F(CertDatabaseNSSTest, ImportCACertHierarchyDupeRoot) {
 
   cert_list = ListCerts();
   ASSERT_EQ(3U, cert_list.size());
-  EXPECT_EQ("B CA - Multi-root", GetSubjectCN(cert_list[0].get()));
-  EXPECT_EQ("D Root CA - Multi-root", GetSubjectCN(cert_list[1].get()));
-  EXPECT_EQ("C CA - Multi-root", GetSubjectCN(cert_list[2].get()));
+  EXPECT_EQ("C CA - Multi-root", GetSubjectCN(cert_list[0].get()));
+  EXPECT_EQ("B CA - Multi-root", GetSubjectCN(cert_list[1].get()));
+  EXPECT_EQ("D Root CA - Multi-root", GetSubjectCN(cert_list[2].get()));
 }
 
 TEST_F(CertDatabaseNSSTest, ImportCACertHierarchyUntrusted) {
@@ -655,9 +655,9 @@ TEST_F(CertDatabaseNSSTest, ImportCACertHierarchyTree) {
 
   ScopedCERTCertificateList cert_list = ListCerts();
   ASSERT_EQ(3U, cert_list.size());
-  EXPECT_EQ("F CA - Multi-root", GetSubjectCN(cert_list[0].get()));
-  EXPECT_EQ("C CA - Multi-root", GetSubjectCN(cert_list[1].get()));
-  EXPECT_EQ("E Root CA - Multi-root", GetSubjectCN(cert_list[2].get()));
+  EXPECT_EQ("E Root CA - Multi-root", GetSubjectCN(cert_list[0].get()));
+  EXPECT_EQ("F CA - Multi-root", GetSubjectCN(cert_list[1].get()));
+  EXPECT_EQ("C CA - Multi-root", GetSubjectCN(cert_list[2].get()));
 }
 
 TEST_F(CertDatabaseNSSTest, ImportCACertNotHierarchy) {
