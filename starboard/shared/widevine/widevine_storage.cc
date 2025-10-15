@@ -14,8 +14,8 @@
 
 #include "starboard/shared/widevine/widevine_storage.h"
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
