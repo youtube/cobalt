@@ -88,13 +88,6 @@ class ExceptionHandlerProtocol {
 
       //! \brief Used to request a crash dump for the sending client.
       kTypeCrashDumpRequest
-
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-      ,
-      //! \brief Used to store Evergreen mapping info in the handler for use at
-      //!     time of crash.
-      kTypeAddEvergreenInfo
-#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     };
 
     Type type;

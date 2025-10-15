@@ -38,7 +38,6 @@ import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -46,10 +45,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard")
@@ -360,24 +359,18 @@ public class StarboardBridge {
     return ttsHelper;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/accessibility_get_caption_settings.cc
   /**
    * @return A new CaptionSettings object with the current system caption settings.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   CaptionSettings getCaptionSettings() {
     CaptioningManager cm =
         (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_locale_id.cc
   /** Java-layer implementation of SbSystemGetLocaleId. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
   }
@@ -402,9 +395,7 @@ public class StarboardBridge {
     return DisplayUtil.getSystemDisplaySize();
   }
 
-  // TODO: (cobalt b/372559388) migrate JNI.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public ResourceOverlay getResourceOverlay() {
     if (resourceOverlay == null) {
       throw new IllegalArgumentException("resourceOverlay cannot be null for native code");
@@ -580,12 +571,14 @@ public class StarboardBridge {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
+  @CalledByNative
   public boolean hasCobaltService(String serviceName) {
     return cobaltServiceFactories.get(serviceName) != null;
   }
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
+  @CalledByNative
   public CobaltService openCobaltService(
       Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
@@ -614,6 +607,7 @@ public class StarboardBridge {
     return cobaltServices.get(serviceName);
   }
 
+  @CalledByNative
   public void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
   }
@@ -677,6 +671,7 @@ public class StarboardBridge {
     }
   }
 
+  @CalledByNative
   public void setCrashContext(String key, String value) {
     CrashContext.INSTANCE.setCrashContext(key, value);
   }

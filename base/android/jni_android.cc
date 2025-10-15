@@ -7,6 +7,12 @@
 #include <stddef.h>
 #include <sys/prctl.h>
 
+#if BUILDFLAG(IS_COBALT)
+#include <string>
+#include <iostream>
+#include <regex>
+#endif
+
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_utils.h"
@@ -71,6 +77,47 @@ void PrepareClassLoaders(JNIEnv* env) {
   }
 }
 #endif  // !BUILDFLAG(IS_ROBOLECTRIC)
+
+#if BUILDFLAG(IS_COBALT)
+// Java exception stack trace example:
+//
+// java.lang.RuntimeException: Hello
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodC(VideoFrameReleaseTimeHelper.java:111)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodB(VideoFrameReleaseTimeHelper.java:115)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.MethodA(VideoFrameReleaseTimeHelper.java:119)
+//     at dev.cobalt.media.VideoFrameReleaseTimeHelper.adjustReleaseTime(VideoFrameReleaseTimeHelper.java:135)
+std::string GetFirstLine(const std::string& stack_trace) {
+  return stack_trace.substr(0, stack_trace.find('\n'));
+}
+
+std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const size_t max_matches) {
+    std::regex pattern("\\.([^.(]+)\\(([^)]+\\.java:\\d+)\\)");
+
+    std::vector<std::string> all_matches;
+    std::sregex_iterator it(stack_trace.begin(), stack_trace.end(), pattern);
+    std::sregex_iterator end;
+
+    while (it != end && all_matches.size() < max_matches) {
+        std::smatch match = *it;
+
+        // match[0] contains the method, file, and line (e.g., ".onCreate(CobaltActivity.java:219)")
+        all_matches.push_back(match[0].str());
+
+        ++it; // Move to the next match
+    }
+
+    std::ostringstream oss;
+    for (size_t i = 0; i < all_matches.size(); ++i) {
+        oss << all_matches[i];
+        if (i < all_matches.size() - 1) {
+            oss << "&";
+        }
+    }
+
+    return oss.str();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 
 LogFatalCallback g_log_fatal_callback_for_testing = nullptr;
@@ -113,6 +160,11 @@ void CheckException(JNIEnv* env) {
   if (!jni_zero::HasException(env)) {
     return;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  std::string exception_token;
+  std::string exception_info;
+#endif
 
   static thread_local bool g_reentering = false;
   if (g_reentering) {
@@ -180,12 +232,24 @@ void CheckException(JNIEnv* env) {
   auto throwable = ScopedJavaLocalRef<jthrowable>::Adopt(env, raw_throwable);
 
   if (!handle_exception_in_java) {
+#if BUILDFLAG(IS_COBALT)
+    exception_info = GetJavaExceptionInfo(env, throwable);
+    base::android::SetJavaException(exception_info.c_str());
+    exception_token =
+        GetFirstLine(exception_info) + " at " +
+        FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
+#else
     base::android::SetJavaException(
         GetJavaExceptionInfo(env, throwable).c_str());
+#endif
     if (g_log_fatal_callback_for_testing) {
       g_log_fatal_callback_for_testing(kUncaughtExceptionMessage);
     } else {
+#if BUILDFLAG(IS_COBALT)
+      LOG(FATAL) << "JNI exception: " << exception_token;
+#else
       LOG(FATAL) << kUncaughtExceptionMessage;
+#endif
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     g_reentering = false;
@@ -207,14 +271,26 @@ void CheckException(JNIEnv* env) {
   // app that embedded WebView installed an exception handler that does not
   // terminate, or itself threw an exception. We cannot be confident that
   // JavaExceptionReporter ran, so set the java exception explicitly.
+#if BUILDFLAG(IS_COBALT)
+  exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
+  base::android::SetJavaException(exception_info.c_str());
+  exception_token =
+      GetFirstLine(exception_info) + " at " +
+      FindTopJavaMethodsAndFiles(exception_info, /*max_matches=*/4);
+#else
   base::android::SetJavaException(
       GetJavaExceptionInfo(
           env, secondary_exception ? secondary_exception : throwable)
           .c_str());
+#endif
   if (g_log_fatal_callback_for_testing) {
     g_log_fatal_callback_for_testing(kUncaughtExceptionHandlerFailedMessage);
   } else {
+#if BUILDFLAG(IS_COBALT)
+    LOG(FATAL) << "JNI exception: " << exception_token;
+#else
     LOG(FATAL) << kUncaughtExceptionHandlerFailedMessage;
+#endif
   }
   // Needed for tests, which do not terminate from LOG(FATAL).
   g_reentering = false;

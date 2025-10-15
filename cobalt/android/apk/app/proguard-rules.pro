@@ -36,11 +36,11 @@
 
 # TODO(cobalt, b/393465183): Remove the cobalt prefix if we can avoid symbol relocation.
 -keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+  @**cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
-  @cobalt.org.chromium.base.annotations.CalledByNative <methods>;
+  @cobalt.org.jni_zero.CalledByNative <methods>;
 }
 
 -keepclasseswithmembernames,includedescriptorclasses,allowaccessmodification class ** {
@@ -48,7 +48,7 @@
 }
 
 -keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+  @**cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
@@ -63,8 +63,6 @@
 -keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.components.embedder_support.view.* { *; }
 # classes with package name starts with org.chromium.content
 -keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.content.** { *; }
-# classes with package name starts with org.chromium.components.viz
--keep,allowshrinking,allowoptimization,allowaccessmodification class org.chromium.components.viz.** { *; }
 
 # Keeps debugging information for stack traces for the ENTIRE app.
 # Without this dev.cobalt.coat.CobaltActivity.onStart() will be renamed to a.b.c.a()

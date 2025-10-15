@@ -87,11 +87,6 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
                        pid_t* requesting_thread_id = nullptr,
                        UUID* local_report_id = nullptr) override;
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  bool AddEvergreenInfo(
-      const ExceptionHandlerProtocol::ClientInformation& info) override;
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-
   bool HandleExceptionWithBroker(
       pid_t client_process_id,
       uid_t client_uid,
@@ -122,9 +117,6 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
   bool write_minidump_to_database_;
   bool write_minidump_to_log_;
   const UserStreamDataSources* user_stream_data_sources_;  // weak
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  VMAddress evergreen_info_;
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 };
 
 }  // namespace crashpad

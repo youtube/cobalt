@@ -119,6 +119,7 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//cc/slim",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
+      "//components/embedder_support/android:view",
       "//ui/android",
     ]
   }

@@ -156,6 +156,8 @@ ADDITIONAL_PATHS = (
     # Fake directories to include the strongtalk and fdlibm licenses.
     os.path.join('v8', 'strongtalk'),
     os.path.join('v8', 'fdlibm'),
+    os.path.join('third_party', 'llvm-project', 'compiler-rt'),
+    os.path.join('third_party', 'llvm-project', 'libunwind'),
 )
 
 # SPECIAL_CASES are used for historical directories where we checked out
@@ -336,6 +338,30 @@ SPECIAL_CASES = {
         "Shipped": "yes",
         "License": "Apache 2.0",
         "License File": ["//third_party/dawn/third_party/khronos/LICENSE"],
+    },
+    os.path.join('starboard', 'contrib', 'rdk', 'src', 'third_party', 'starboard'): {
+        "Name": "RDK",
+        "URL": "https://github.com/rdkcentral/rdk",
+        "License": "Apache 2.0",
+        "License File": "/starboard/contrib/rdk/LICENSE",
+    },
+    os.path.join('third_party', 'llvm-project'): {
+        "Name": "LLVM",
+        "URL": "http://llvm.org",
+        "License": "Apache 2.0 with LLVM exceptions",
+        "License File": "NOT_SHIPPED",
+    },
+    os.path.join('third_party', 'lz4_lib'): {
+        "Name": "lz4",
+        "URL": "https://github.com/lz4/lz4",
+        "License": "BSD",
+        "License File": "/third_party/lz4_lib/LICENSE",
+    },
+    os.path.join('third_party', 'musl'): {
+        "Name": "musl",
+        "URL": "https://musl.libc.org/",
+        "License": "MIT",
+        "License File": "/third_party/musl/COPYRIGHT",
     },
 }
 

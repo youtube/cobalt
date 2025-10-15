@@ -14,8 +14,8 @@
 
 # Note: This is copied from //content/test/BUILD.gn.
 
-import("//build/config/chrome_build.gni")
 import("//build/config/cast.gni")
+import("//build/config/chrome_build.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
@@ -38,7 +38,7 @@ import("//tools/typescript/ts_library.gni")
 import("//v8/gni/v8.gni")
 
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_ios) {
@@ -153,7 +153,6 @@ if (is_android) {
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
-      "//base:jni_java",
       "//cobalt/shell/android:cobalt_shell_browsertests_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
@@ -161,6 +160,7 @@ if (is_android) {
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
       "//testing/android/native_test:native_test_java",
+      "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_java",
     ]
   }
