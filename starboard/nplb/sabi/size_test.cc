@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <inttypes.h>
+#include <limits.h>
+#include <wchar.h>
+
 #include "starboard/configuration.h"
 
 namespace nplb {
