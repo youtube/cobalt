@@ -17,7 +17,7 @@
 
 #include <bcm_host.h>
 
-#include <stdint.h>
+#include <cstdint>
 #include <functional>
 #include <memory>
 

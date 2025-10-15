@@ -17,7 +17,7 @@
 #ifndef STARBOARD_NPLB_RANDOM_HELPERS_H_
 #define STARBOARD_NPLB_RANDOM_HELPERS_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "testing/gtest/include/gtest/gtest.h"
 

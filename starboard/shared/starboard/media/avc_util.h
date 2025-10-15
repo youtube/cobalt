@@ -15,8 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_AVC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_AVC_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "starboard/common/check_op.h"

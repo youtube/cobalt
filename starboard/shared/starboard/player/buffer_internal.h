@@ -15,8 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <utility>
 

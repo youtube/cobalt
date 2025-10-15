@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stddef.h>
 #include <sys/stat.h>
+#include <cstddef>
 #include <string>
 
 #include "starboard/common/file.h"

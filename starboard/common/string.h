@@ -23,8 +23,8 @@
 #include <stdio.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
-#include <stdint>
 #include <string>
 #include <vector>
 

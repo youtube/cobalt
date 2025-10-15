@@ -16,12 +16,12 @@
 #define STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_THREAD_HELPERS_H_
 
 #include <pthread.h>
-#include <stddef.h>
-#include <stdint.h>
+
+#include <cstddef>
+#include <cstdint>
 
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

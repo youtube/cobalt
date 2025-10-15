@@ -14,8 +14,9 @@
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 
-#include <stddef.h>
 #include <unistd.h>
+
+#include <cstddef>
 
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

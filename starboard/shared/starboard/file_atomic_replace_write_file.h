@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_ATOMIC_REPLACE_WRITE_FILE_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_ATOMIC_REPLACE_WRITE_FILE_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "starboard/configuration.h"
 

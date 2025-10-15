@@ -23,7 +23,7 @@
 #error "Only C++ files can include this header."
 #endif
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "starboard/configuration.h"
 

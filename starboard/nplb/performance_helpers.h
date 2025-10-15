@@ -15,8 +15,8 @@
 #ifndef STARBOARD_NPLB_PERFORMANCE_HELPERS_H_
 #define STARBOARD_NPLB_PERFORMANCE_HELPERS_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"

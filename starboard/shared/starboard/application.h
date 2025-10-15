@@ -20,8 +20,8 @@
 
 #include <pthread.h>
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>

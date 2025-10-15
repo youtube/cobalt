@@ -15,8 +15,8 @@
 #ifndef STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 #define STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "starboard/configuration.h"

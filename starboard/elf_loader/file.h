@@ -15,7 +15,7 @@
 #ifndef STARBOARD_ELF_LOADER_FILE_H_
 #define STARBOARD_ELF_LOADER_FILE_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 
 namespace elf_loader {

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 #define STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <mutex>
 
 #include "starboard/media.h"

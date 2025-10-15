@@ -15,8 +15,8 @@
 #ifndef STARBOARD_SHARED_LIBJPEG_JPEG_IMAGE_DECODER_H_
 #define STARBOARD_SHARED_LIBJPEG_JPEG_IMAGE_DECODER_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include "starboard/decode_target.h"
 

@@ -15,9 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>

@@ -16,8 +16,8 @@
 
 #include "media/starboard/bidirectional_fit_reuse_allocator.h"
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "starboard/common/fixed_no_free_allocator.h"

@@ -14,7 +14,7 @@
 
 #include "starboard/microphone.h"
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "starboard/nplb/microphone_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"

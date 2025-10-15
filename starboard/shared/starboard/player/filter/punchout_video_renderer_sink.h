@@ -16,8 +16,9 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_
 
 #include <pthread.h>
-#include <stdint.h>
+
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 
 #include "starboard/media.h"
