@@ -4,9 +4,9 @@
 static pthread_once_t __std_files_once = PTHREAD_ONCE_INIT;
 
 void __init_std_files() {
-  __init_file_lock(&__stdin_FILE);
-  __init_file_lock(&__stdout_FILE);
-  __init_file_lock(&__stderr_FILE);
+  __stdin_FILE.lock = __init_file_lock(&__stdin_FILE);
+  __stdout_FILE.lock = __init_file_lock(&__stdout_FILE);
+  __stderr_FILE.lock = __init_file_lock(&__stderr_FILE);
 }
 
 size_t __stdio_read_stub(FILE *f, unsigned char *buf, size_t len) {

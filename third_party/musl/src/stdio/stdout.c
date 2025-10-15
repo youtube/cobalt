@@ -14,7 +14,7 @@ hidden FILE __stdout_FILE = {
 	.write = __stdio_write_init,
 	.seek = __stdio_seek_init,
 	.close = __stdio_close,
-	.lock = 0,
+	.lock = 0,  // Starboard apps are typically multithreaded, require locking.
 #else
 	.write = __stdout_write,
 	.seek = __stdio_seek,

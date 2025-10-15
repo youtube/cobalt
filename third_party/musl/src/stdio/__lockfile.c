@@ -1,6 +1,23 @@
 #include "stdio_impl.h"
 #include "pthread_impl.h"
 
+#if defined(STARBOARD)
+
+int __lockfile(FILE* f) {
+  if (f->lock != -1) {
+    pthread_mutex_lock(&f->_lock.mutex);
+  }
+  return 1;
+}
+
+void __unlockfile(FILE* f) {
+  if (f->lock != -1) {
+    pthread_mutex_unlock(&f->_lock.mutex);
+  }
+}
+
+#else  // defined(STARBOARD)
+
 int __lockfile(FILE *f)
 {
 	int owner = f->lock, tid = __pthread_self()->tid;
@@ -21,3 +38,5 @@ void __unlockfile(FILE *f)
 	if (a_swap(&f->lock, 0) & MAYBE_WAITERS)
 		__wake(&f->lock, 1, 1);
 }
+
+#endif  // defined(STARBOARD)
