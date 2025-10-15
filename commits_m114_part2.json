@@ -1,5 +1,96 @@
 [
   {
+    "hexsha": "5c97e87f5d16da965e13142f4dc59e93884e914e",
+    "original_hexsha": "f97c53f2c95f7e6151c1bd83b69b52ca0de7672c",
+    "author": "Hao",
+    "datetime": "2025-10-15T07:18:28+00:00",
+    "summary": "Refactor ShellPlatformDelegate and implement TestShellPlatformDelegate (#7536)",
+    "stats": {
+      "files": 5,
+      "insertions": 65,
+      "deletions": 10
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "d77eaa47c63e50b5c62896e3dbb4c71b7a2f47bc",
+    "original_hexsha": "9658bd25d13031579598bad329190bda812093d5",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-14T15:39:31-07:00",
+    "summary": "android: Remove deprecated ScopedLocalJavaRef  utility (#7533)",
+    "stats": {
+      "files": 17,
+      "insertions": 5,
+      "deletions": 91
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8df76f7da8ea009e730f7c26bb3747fee5ffc786",
+    "original_hexsha": "df83586a8393f25cce384fa39682cad6ac623b89",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-14T15:27:19-07:00",
+    "summary": "starboard: Stop AudioRenderSink's thread before destroying it (#7523)",
+    "stats": {
+      "files": 3,
+      "insertions": 7,
+      "deletions": 9
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "0eeef7e51bc7d4d4248dd5211ec58e302ed14399",
+    "original_hexsha": "383960be671cd8bf01a8be365ba134b8db80b556",
+    "author": "Sherry Zhou",
+    "datetime": "2025-10-14T14:34:04-07:00",
+    "summary": "Reduce Skia's GPU resource cache size to lower memory usage (#7531)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "8083514a5c7a1f9e9da778079376e31bb90c71e9",
+    "original_hexsha": "dee13824cd6e5cda5ec3ec5bfc2f3eb83b82f541",
+    "author": "Bo-Rong Chen",
+    "datetime": "2025-10-14T13:18:15-07:00",
+    "summary": "cobalt/browser: Disable QUIC by default (#7525)",
+    "stats": {
+      "files": 2,
+      "insertions": 7,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "2053edea522e9b81aeb61724dab0888384dab762",
+    "original_hexsha": "24499a58309ca8ab2f36d9f6967ec0c1aa637aa8",
+    "author": "Austin Osagie",
+    "datetime": "2025-10-14T13:14:03-07:00",
+    "summary": "android: Migrate VideoSurfaceTexture to JNI Generator (#7429)",
+    "stats": {
+      "files": 9,
+      "insertions": 230,
+      "deletions": 72
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "7e6ea7888226523407f8e6c89ac407fb1bdb1f76",
+    "original_hexsha": "84f69ad84c501e6ca3f7cb3cc37530fc221a46a3",
+    "author": "Eric Zhang",
+    "datetime": "2025-10-14T11:54:59-07:00",
+    "summary": "Add automated cl culling on the commits.json on the linear_main workflow (#7521)",
+    "stats": {
+      "files": 1,
+      "insertions": 6,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "da89e1a338ca3903708400eade4a1129f4ea99ee",
     "original_hexsha": "93c4fc419261f9c873399a122b617dada07f640b",
     "author": "Jammel",
