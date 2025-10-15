@@ -733,7 +733,6 @@ public class StarboardBridge {
   }
 
   /** A wrapper of the android.util.Size class to be used by JNI. */
-  @JNINamespace("starboard")
   public static class Size {
     private final int mWidth;
     private final int mHeight;
