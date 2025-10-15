@@ -17,9 +17,9 @@
 #ifndef STARBOARD_COMMON_THREAD_H_
 #define STARBOARD_COMMON_THREAD_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>

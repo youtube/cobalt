@@ -15,9 +15,9 @@
 #ifndef STARBOARD_COMMON_FLAT_MAP_H_
 #define STARBOARD_COMMON_FLAT_MAP_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <utility>
 #include <vector>

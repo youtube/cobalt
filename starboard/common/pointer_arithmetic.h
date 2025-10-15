@@ -18,8 +18,8 @@
 #ifndef STARBOARD_COMMON_POINTER_ARITHMETIC_H_
 #define STARBOARD_COMMON_POINTER_ARITHMETIC_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 namespace starboard {
 

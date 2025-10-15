@@ -13,7 +13,7 @@
 #ifndef STARBOARD_COMMON_COMMAND_LINE_H_
 #define STARBOARD_COMMON_COMMAND_LINE_H_
 
-#include <stddef.h>
+#include <cstddef>
 #include <map>
 #include <string>
 #include <utility>

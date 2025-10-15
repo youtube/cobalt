@@ -20,7 +20,7 @@
 #ifndef STARBOARD_COMMON_STORAGE_H_
 #define STARBOARD_COMMON_STORAGE_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 
 #include "starboard/configuration.h"

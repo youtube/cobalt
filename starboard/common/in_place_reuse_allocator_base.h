@@ -15,9 +15,9 @@
 #ifndef STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_
 #define STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <vector>

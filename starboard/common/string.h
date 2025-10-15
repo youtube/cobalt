@@ -20,10 +20,11 @@
 #define STARBOARD_COMMON_STRING_H_
 
 #include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
+
+#include <cstddef>
 #include <cstring>
+#include <stdint>
 #include <string>
 #include <vector>
 

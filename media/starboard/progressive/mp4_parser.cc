@@ -15,9 +15,9 @@
 #include "media/starboard/progressive/mp4_parser.h"
 
 #include <inttypes.h>
-#include <stddef.h>
-#include <stdint.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
