@@ -17,7 +17,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_QUEUE_APPLICATION_H_
 #define STARBOARD_SHARED_STARBOARD_QUEUE_APPLICATION_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <set>
