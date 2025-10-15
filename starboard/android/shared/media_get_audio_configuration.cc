@@ -14,8 +14,8 @@
 
 #include "starboard/media.h"
 
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/log.h"
 #include "starboard/common/media.h"
 
 // TODO(b/284140486): Refine the implementation so it works when the audio

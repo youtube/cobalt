@@ -28,8 +28,6 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
-import android.util.Size;
-import android.util.SizeF;
 import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
@@ -387,12 +385,14 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  SizeF getDisplayDpi() {
+  DisplayUtil.DisplayDpi getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
 
+  @CalledByNative
   Size getDisplaySize() {
-    return DisplayUtil.getSystemDisplaySize();
+    android.util.Size size = DisplayUtil.getSystemDisplaySize();
+    return new Size(size.getWidth(), size.getHeight());
   }
 
   @CalledByNative
@@ -729,6 +729,28 @@ public class StarboardBridge {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       ((CobaltActivity) activity).finishAffinity();
+    }
+  }
+
+  /** A wrapper of the android.util.Size class to be used by JNI. */
+  @JNINamespace("starboard")
+  public static class Size {
+    private final int mWidth;
+    private final int mHeight;
+
+    public Size(int width, int height) {
+      mWidth = width;
+      mHeight = height;
+    }
+
+    @CalledByNative("Size")
+    public int getWidth() {
+      return mWidth;
+    }
+
+    @CalledByNative("Size")
+    public int getHeight() {
+      return mHeight;
     }
   }
 }

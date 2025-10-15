@@ -417,7 +417,6 @@ if (is_win || is_mac || is_linux) {
         "device_management/dm_storage_linux.cc",
         "installer_linux.cc",
         "ipc/ipc_security_linux.cc",
-        "linux/setup/setup.cc",
         "linux/systemd_util.h",
         "setup_linux.cc",
         "update_service_internal_impl_qualifying_linux.cc",

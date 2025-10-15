@@ -18,6 +18,7 @@
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
@@ -72,6 +73,9 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
       switches::kDisableAcceleratedVideoDecode,
       switches::kDisableAcceleratedVideoEncode,
+      // Disable QUIC to save CPU budgets on m114.
+      // Remove below if Cobalt rebase to m138+.
+      switches::kDisableQuic,
 });
 
 // Map of switches with parameters and their defaults.

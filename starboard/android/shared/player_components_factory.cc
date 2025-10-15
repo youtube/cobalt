@@ -26,7 +26,6 @@
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
