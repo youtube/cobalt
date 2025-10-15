@@ -29,7 +29,7 @@ component("memory_instrumentation") {
     sources += [ "os_metrics_win.cc" ]
   }
 
-  if (is_android || is_linux && !is_starboard || is_chromeos) {
+  if (is_android || is_linux || is_chromeos) {
     sources += [ "os_metrics_linux.cc" ]
   }
 
