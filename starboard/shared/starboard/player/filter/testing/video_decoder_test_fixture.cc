@@ -95,7 +95,7 @@ void VideoDecoderTestFixture::Initialize() {
   ASSERT_TRUE(result.has_value()) << result.error();
   video_decoder_ = std::move(result.value().video.decoder);
   video_render_algorithm_ = std::move(result.value().video.render_algorithm);
-  video_renderer_sink_ = std::move(*result.value().video.renderer_sink);
+  video_renderer_sink_ = std::move(result.value().video.renderer_sink);
   ASSERT_TRUE(video_decoder_);
 
   if (video_renderer_sink_) {
