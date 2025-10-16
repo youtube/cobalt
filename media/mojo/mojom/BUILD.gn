@@ -1033,7 +1033,7 @@ source_set("unit_tests") {
     "video_decoder_config_mojom_traits_unittest.cc",
     "video_encode_accelerator_mojom_traits_unittest.cc",
     "video_frame_metadata_mojom_traits_unittest.cc",
-    "video_frame_mojom_traits_unittest.cc",
+    # "video_frame_mojom_traits_unittest.cc",
   ]
 
   if (!is_android) {

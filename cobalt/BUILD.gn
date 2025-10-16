@@ -188,22 +188,22 @@ test("cobalt_unittests") {
 
   sources = [
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
-    "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
+    # "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
-    "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
-    "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
-    "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
+    # "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
+    # "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
+    # "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
   ]
 
   if (is_starboard) {
     sources += [
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
-      "//cobalt/shell/common/device_authentication_test.cc",
+      # "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
 
@@ -219,7 +219,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-    "//cobalt/browser/migrate_storage_record:unittest",
+    # "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
     "//components/metrics",

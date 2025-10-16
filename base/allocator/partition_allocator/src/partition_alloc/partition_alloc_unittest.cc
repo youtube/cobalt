@@ -58,7 +58,7 @@
 #endif
 
 #if PA_BUILDFLAG(IS_POSIX)
-#if PA_BUILDFLAG(IS_LINUX) && !PA_BUILDFLAG(IS_STARBOARD)
+#if PA_BUILDFLAG(IS_LINUX) && !defined(STARBOARD)
 // We need PKEY_DISABLE_WRITE in this file; glibc defines it in sys/mman.h but
 // it's actually Linux-specific and other Linux libcs define it in linux/mman.h.
 // We have to include both to be sure we get the definition.

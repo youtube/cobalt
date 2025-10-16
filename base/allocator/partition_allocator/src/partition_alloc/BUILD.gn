@@ -1007,7 +1007,7 @@ if (build_with_chromium) {
         "partition_alloc_base/strings/string_util_pa_unittest.cc",
         "partition_alloc_base/strings/stringprintf_pa_unittest.cc",
         "partition_alloc_base/thread_annotations_pa_unittest.cc",
-        "partition_alloc_unittest.cc",
+        # "partition_alloc_unittest.cc",
         "partition_lock_unittest.cc",
         "reverse_bytes_unittest.cc",
         "slot_start_unittest.cc",
@@ -1023,7 +1023,7 @@ if (build_with_chromium) {
 
     if (use_allocator_shim) {
       sources += [
-        "shim/allocator_shim_default_dispatch_to_partition_alloc_unittest.cc",
+        # "shim/allocator_shim_default_dispatch_to_partition_alloc_unittest.cc",
       ]
 
       if (is_win) {

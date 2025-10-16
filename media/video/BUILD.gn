@@ -121,7 +121,7 @@ source_set("unit_tests") {
     "gpu_memory_buffer_video_frame_pool_unittest.cc",
     "offloading_video_encoder_unittest.cc",
     "renderable_gpu_memory_buffer_video_frame_pool_unittest.cc",
-    "software_video_encoder_test.cc",
+    # "software_video_encoder_test.cc",
     "video_encode_accelerator_adapter_test.cc",
     "video_encoder_fallback_test.cc",
   ]

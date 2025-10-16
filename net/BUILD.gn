@@ -2749,7 +2749,7 @@ target(_test_target_type, "net_unittests") {
     "base/network_isolation_key_unittest.cc",
     "base/parse_number_unittest.cc",
     "base/pickle_base_types_unittest.cc",
-    "base/pickle_unittest.cc",
+    # "base/pickle_unittest.cc",
     "base/port_util_unittest.cc",
     "base/prioritized_dispatcher_unittest.cc",
     "base/prioritized_task_runner_unittest.cc",

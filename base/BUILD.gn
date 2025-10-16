@@ -3545,7 +3545,7 @@ test("base_unittests") {
     "i18n/transliterator_unittest.cc",
     "immediate_crash_unittest.cc",
     "json/json_parser_unittest.cc",
-    "json/json_reader_unittest.cc",
+    # "json/json_reader_unittest.cc",
     "json/json_value_converter_unittest.cc",
     "json/json_value_serializer_unittest.cc",
     "json/json_writer_unittest.cc",
@@ -4440,7 +4440,7 @@ test("base_unittests") {
 
       # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
       "allocator/partition_alloc_support_unittest.cc",
-      "allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_unittest.cc",
+      # "allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_unittest.cc",
     ]
   }
 

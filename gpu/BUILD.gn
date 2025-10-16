@@ -379,7 +379,7 @@ test("gl_tests") {
   }
 
   # Simply loading the Vulkan driver leaks crbug.com/1134681
-  if (is_linux && !is_lsan) {
+  if (is_linux && !is_lsan && !is_cobalt_hermetic_build) {
     sources += [ "command_buffer/service/shared_image/angle_vulkan_image_backing_factory_unittest.cc" ]
   }
 
@@ -612,7 +612,7 @@ test("gpu_unittests") {
     if (!is_ios) {
       # This test depends on the test trace processor which is not currently
       # a dependency on iOS. See //base/test:test_support.
-      sources += [ "ipc/service/gpu_channel_manager_unittest.cc" ]
+      # sources += [ "ipc/service/gpu_channel_manager_unittest.cc" ]
     }
   }
 

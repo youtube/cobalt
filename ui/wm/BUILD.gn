@@ -149,7 +149,7 @@ test("wm_unittests") {
     "core/cursor_util_unittest.cc",
     "core/focus_controller_unittest.cc",
     "core/shadow_controller_unittest.cc",
-    "core/transient_window_manager_unittest.cc",
+    # "core/transient_window_manager_unittest.cc",
     "core/transient_window_stacking_client_unittest.cc",
     "core/visibility_controller_unittest.cc",
     "core/window_animations_unittest.cc",

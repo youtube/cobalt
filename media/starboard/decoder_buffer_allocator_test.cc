@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <string_view>
 
 #include "base/check_op.h"
 #include "base/files/file_path.h"

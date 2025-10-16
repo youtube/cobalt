@@ -32,16 +32,18 @@
 #include "base/functional/callback_helpers.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_suite.h"
+#include "content/public/test/blink_test_environment.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
-#include "third_party/blink/renderer/controller/tests/blink_test_suite.h"
-#include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/controller/tests/thread_state_test_environment.h"
 
 static int InitAndRunAllTests(int argc, char** argv) {
-  BlinkUnitTestSuite<base::TestSuite> test_suite(argc, argv);
+  ::testing::AddGlobalTestEnvironment(new content::BlinkTestEnvironment);
+  ::testing::AddGlobalTestEnvironment(new ThreadStateTestEnvironment);
+
+  base::TestSuite test_suite(argc, argv);
   return base::LaunchUnitTests(
       argc, argv,
-      WTF::BindOnce(&BlinkUnitTestSuite<base::TestSuite>::Run,
-                    base::Unretained(&test_suite)));
+      base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
 }
 
 SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
