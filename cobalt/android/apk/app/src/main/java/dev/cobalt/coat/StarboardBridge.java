@@ -43,7 +43,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
-import org.chromium.base.ContextUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -656,21 +655,6 @@ public class StarboardBridge {
   @CalledByNative
   protected long getAppStartTimestamp() {
     return mAppStartTimestamp;
-  }
-
-  // Creates a StarboardBridge instance that can then be used for testing purposes.
-  // This method does not return a StarboardBridge object as the StarboardBridge constructor
-  // initializes the static instance of StarboardBridge.
-  @CalledByNative
-  public static void initializeForTesting() {
-    new StarboardBridge(
-      ContextUtils.getApplicationContext(),
-      /*activityHolder=*/ new Holder<>(),
-      /*serviceHolder=*/ new Holder<>(),
-      /*artworkDownloader=*/ new ArtworkDownloaderDefault(),
-      new String[0],
-      "");
-
   }
 
   // Returns the saved app start timestamp.

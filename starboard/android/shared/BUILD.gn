@@ -382,7 +382,7 @@ test("starboard_platform_tests") {
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "//starboard/shared/starboard/starboard_feature_test.cc",
-              "media_capabilities_cache_performance_test.cc",
+              "media_capabilities_cache_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
             ]
@@ -391,7 +391,6 @@ test("starboard_platform_tests") {
 
   deps = [
     ":starboard_platform",
-    "//cobalt/android:cobalt_main_java",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
