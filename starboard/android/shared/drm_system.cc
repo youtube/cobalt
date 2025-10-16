@@ -379,13 +379,13 @@ void DrmSystem::OnKeyStatusChange(
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
   SB_CHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
-  std::string eme_session_id([this, session_id] {
-    if (kEnableAppProvisioning) {
-      std::lock_guard lock(mutex_);
-      return session_id_mapper_->GetEmeSessionId(session_id);
-    }
-    return session_id;
-  }());
+  std::string eme_session_id;
+  if (kEnableAppProvisioning) {
+    std::lock_guard lock(mutex_);
+    eme_session_id = session_id_mapper_->GetEmeSessionId(session_id);
+  } else {
+    eme_session_id = session_id;
+  }
 
   {
     std::lock_guard scoped_lock(mutex_);
