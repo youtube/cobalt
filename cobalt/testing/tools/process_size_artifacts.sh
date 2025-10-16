@@ -27,24 +27,28 @@ for artifact_dir in size_artifacts/size_artifacts_*; do
     mkdir -p "${TARGET_DIR}/sizes"
 
     # Find and move libcobalt.so
-    libcobalt_so_src=$(find "$artifact_dir" -name libcobalt.so -type f | head -n 1)
-    if [[ -f "$libcobalt_so_src" ]]; then
-      mv "$libcobalt_so_src" "${TARGET_DIR}/lib/"
-    else
-      echo "libcobalt.so not found in $artifact_dir"
-      continue
-    fi
+    find_file() {
+      local file_name="$1"
+      local search_dir="$2"
+      local result_var="$3"
+      local file_path
+      file_path=$(find "$search_dir" -name "$file_name" -type f | head -n 1)
+      if [[ -z "$file_path" ]]; then
+        echo "$file_name not found in $search_dir"
+        return 1
+      fi
+      eval "$result_var"="'$file_path'"
+    }
 
-    RUNNER_PATH=$(find "$artifact_dir" -name run_cobalt_sizes -type f | head -n 1)
-    if [[ -z "$RUNNER_PATH" ]]; then
-      echo "run_cobalt_sizes not found in $artifact_dir"
-      continue
-    fi
-    SIZES_PATH="${TARGET_DIR}/sizes/perf_results.json"
+    find_file "libcobalt.so" "$artifact_dir" "libcobalt_so_src" || continue
+    find_file "run_cobalt_sizes" "$artifact_dir" "RUNNER_PATH" || continue
 
     echo "Running Check binary size for $PLATFORM"
     chmod +x "$RUNNER_PATH"
     "$RUNNER_PATH"
+
+    find_file "perf_results.json" "$artifact_dir" "SIZES_PATH" || continue
+
 
     echo "Running Compare binary size for $PLATFORM"
     python3 cobalt/testing/tools/compare_sizes.py \
