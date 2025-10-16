@@ -49,6 +49,7 @@ using base::android::ToJavaByteArray;
 constexpr int kADTSHeaderSize = 7;
 constexpr int kNoOffset = 0;
 constexpr int kWaitForInitializedTimeoutUs = 250'000;  // 250 ms.
+constexpr int kMediaBufferSize = 2 * 65536 * 32;       // ~4 MB.
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
@@ -286,15 +287,15 @@ void ExoPlayerBridge::OnPlaybackEnded(JNIEnv* env) {
 }
 
 bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
-  bool wait_timeout;
+  bool completed_init;
   {
     std::unique_lock<std::mutex> lock(mutex_);
-    wait_timeout = initialized_cv_.wait_for(
+    completed_init = initialized_cv_.wait_for(
         lock, std::chrono::microseconds(kWaitForInitializedTimeoutUs),
         [this] { return initialized_; });
   }
 
-  if (wait_timeout) {
+  if (!completed_init) {
     std::string error_message = starboard::FormatString(
         "ExoPlayer initialization exceeded the %d timeout threshold.",
         kWaitForInitializedTimeoutUs);
@@ -413,7 +414,7 @@ void ExoPlayerBridge::InitExoplayer() {
     j_video_media_source_.Reset(j_video_media_source);
   }
 
-  j_sample_data_.Reset(env->NewByteArray(2 * 65536 * 32));
+  j_sample_data_.Reset(env, env->NewByteArray(kMediaBufferSize));
   SB_CHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|";
 
   Java_ExoPlayerBridge_preparePlayer(env, j_exoplayer_bridge_);
