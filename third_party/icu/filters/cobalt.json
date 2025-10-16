@@ -1,6 +1,11 @@
-// Copyright 2019 the V8 project authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// This file is based off android_small.json, with the following modifications:
+// (1) Change "filterType" from "language" to "locale" and set "includeChildren"
+// to "false", so not all regional variants are included by default.
+// (2) Explicitly specify which regional variants we want to be included. This
+// is a subset representing the most widely used regional variants of "en",
+// "es", "fr", "pt", and zh", and in certain cases, "it", "ro", and "sr" as
+// well.
+
 {
 // To use implicithan for Collation UCAData.
   "collationUCAData": "implicithan",
@@ -8,11 +13,9 @@
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/locales/reslocal.mk?rcl=797b7c
 // Includes the items from GENRB_ALIAS_SOURCE and GENRB_SOURCE
   "localeFilter": {
-    "filterType": "language",
-    "includelist": [
-// Need to explicitly add "root"
-      "root",
-
+    "filterType": "locale",
+    "includeChildren": false,
+    "whitelist": [
       "af",
       "ak",
       "am",
@@ -35,8 +38,22 @@
       "ee",
       "el",
       "en",
+      "en_001",
+      "en_150",
+      "en_AU",
+      "en_CA",
+      "en_GB",
+      "en_IN",
+      "en_NZ",
+      "en_US",
+      "en_ZA",
       "eo",
       "es",
+      "es_419",
+      "es_AR",
+      "es_ES",
+      "es_MX",
+      "es_US",
       "et",
       "eu",
       "fa",
@@ -44,6 +61,8 @@
       "fil",
       "fo",
       "fr",
+      "fr_CA",
+      "fr_CH",
       "ga",
       "gl",
       "gu",
@@ -59,6 +78,7 @@
       "in",
       "is",
       "it",
+      "it_CH",
       "iw",
       "ja",
       "ka",
@@ -95,9 +115,12 @@
       "pl",
       "ps",
       "pt",
+      "pt_BR",
+      "pt_PT",
       "rm",
       "rn",
       "ro",
+      "ro_MD",
       "ru",
       "rw",
       "sh",
@@ -108,6 +131,7 @@
       "so",
       "sq",
       "sr",
+      "sr_Latn",
       "sv",
       "sw",
       "ta",
@@ -125,38 +149,43 @@
       "wa",
       "yo",
       "zh",
+      "zh_CN",
+      "zh_HK",
+      "zh_Hans",
+      "zh_Hans_CN",
+      "zh_Hans_SG",
+      "zh_Hant",
+      "zh_Hant_HK",
+      "zh_Hant_TW",
+      "zh_SG",
+      "zh_TW",
       "zu"
     ]
   },
   "featureFilters": {
     "brkitr_dictionaries": {
-      "excludelist": [
+      "blacklist": [
 // Filtered by android/brkitr.patch        "cjdict",
         "cjdict"
       ]
     },
     "brkitr_rules": {
-      "excludelist": [
-// Exclude *phrase_cj
-        "line_phrase_cj",
-        "line_normal_phrase_cj",
-        "line_loose_phrase_cj",
+      "blacklist": [
 // Exclude line_cj till we upgrade to 68.1 due to size impact.
-	"line_cj",
+        "line_cj",
         "title",
         "word_POSIX"
-
       ]
     },
     "brkitr_tree": {
-      "excludelist": [
+      "blacklist": [
         "en_US_POSIX"
       ]
     },
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/mappings/ucmlocal.mk?rcl=797b7c
     "conversion_mappings": {
-      "includelist": [
+      "whitelist": [
 // UCM_SOURCE_CORE=...
         "iso-8859-2-html",
         "iso-8859-3-html",
@@ -196,194 +225,153 @@
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/curr/reslocal.mk?rcl=797b7c
 // Includes the items from CURR_ALIAS_SOURCE and CURR_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Removed locales per cast/patch_locale.sh:
+// "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "curr_tree": {
-      "filterType": "language",
-      "includelist": [
-// Need to explicitly add "root"
-	"root",
-
-        "af",
+      "filterType": "locale",
+      "includeChildren": false,
+      "whitelist": [
         "am",
         "ar",
-        "az",
         "bg",
-        "bn",
         "ca",
         "cs",
         "da",
         "de",
         "el",
         "en",
+        "en_001",
+        "en_150",
+        "en_AU",
+        "en_CA",
+        "en_GB",
+        "en_IN",
+        "en_NZ",
+        "en_ZA",
         "es",
-        "et",
-        "eu",
+        "es_419",
+        "es_AR",
+        "es_MX",
+        "es_US",
         "fa",
         "fi",
         "fil",
         "fr",
-        "gl",
-        "gu",
+        "fr_CA",
         "he",
         "hi",
         "hr",
         "hu",
-        "hy",
         "id",
         "in",
-        "is",
         "it",
         "iw",
         "ja",
-        "ka",
-        "kk",
-        "km",
-        "kn",
         "ko",
-        "ky",
-        "lo",
         "lt",
         "lv",
-        "mk",
-        "ml",
-        "mn",
         "mo",
-        "mr",
-        "ms",
-        "my",
         "nb",
-        "ne",
         "nl",
         "no",
-        "pa",
         "pl",
         "pt",
+        "pt_PT",
         "ro",
         "ru",
-        "si",
         "sh",
         "sk",
         "sl",
-        "sq",
         "sr",
         "sv",
         "sw",
-        "ta",
-        "te",
         "th",
         "tl",
         "tr",
         "uk",
-        "ur",
-        "uz",
         "vi",
         "zh",
-        "zu"
+        "zh_CN",
+        "zh_HK",
+        "zh_Hans",
+        "zh_Hans_CN",
+        "zh_Hans_SG",
+        "zh_Hant",
+        "zh_Hant_HK",
+        "zh_Hant_TW",
+        "zh_SG",
+        "zh_TW"
       ]
     },
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/coll/collocal.mk?rcl=797b7c
 // Includes the items from COLLATION_SYNTHETIC_ALIAS and COLLATION_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Removed locales per cast/patch_locale.sh:
+// "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "coll_tree": {
       "filterType": "union",
       "unionOf": [
         {
-          "includelist": [
+          "whitelist": [
             "en",
             "en_US"
           ]
         },
         {
-          "filterType": "language",
-          "includelist": [
-// Need to explicitly add "root"
-    	    "root",
-
-            "af",
+          "filterType": "locale",
+          "includeChildren": false,
+          "whitelist": [
             "am",
             "ar",
-            "az",
             "bg",
-            "bn",
             "ca",
             "cs",
             "da",
             "de",
             "el",
             "es",
-            "et",
-            "eu",
             "fa",
             "fi",
             "fil",
             "fr",
-            "gl",
-            "gu",
             "he",
             "hi",
             "hr",
             "hu",
-            "hy",
             "id",
             "in",
-            "is",
             "it",
             "iw",
             "ja",
-            "ka",
-            "kk",
-            "km",
-            "kn",
             "ko",
-            "ky",
-            "lo",
             "lt",
             "lv",
-            "mk",
-            "ml",
-            "mn",
             "mo",
-            "mr",
-            "ms",
-            "my",
             "nb",
-            "ne",
             "nl",
             "no",
-            "pa",
             "pl",
             "pt",
             "ro",
             "ru",
             "sh",
-            "si",
             "sk",
             "sl",
-            "sq",
             "sr",
             "sv",
             "sw",
-            "ta",
-            "te",
             "th",
+            "tl",
             "tr",
             "uk",
-            "ur",
-            "uz",
             "vi",
-            "zh",
-            "zu"
+            "zh"
           ]
         }
       ]
     },
     "rbnf_tree": {
-      "includelist": [
+      "whitelist": [
 // Needed by "y=jpanyear" in locales/ja.txt for calendar="japanese"
         "ja",
 // Needed by "d=hanidays" in locales/zh*.txt for calendar="chinese"
@@ -394,278 +382,222 @@
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/region/reslocal.mk?rcl=797b7c
 // Includes the items from REGION_ALIAS_SOURCE and REGION_SOURCE
     "region_tree": {
-      "filterType": "language",
-      "includelist": [
-// Need to explicitly add "root"
-	"root",
-
-        "af",
-        "am",
+      "filterType": "locale",
+      "includeChildren": false,
+      "whitelist": [
+//        "am",
         "ar",
-        "az",
-        "bg",
-        "bn",
-        "ca",
-        "cs",
-        "da",
+//        "bg",
+//        "ca",
+//        "cs",
+//        "da",
         "de",
         "el",
         "en",
         "es",
-        "et",
-        "eu",
-        "fa",
-        "fi",
-        "fil",
+//        "fa",
+//        "fi",
+//        "fil",
         "fr",
-        "gl",
-        "gu",
         "he",
         "hi",
-        "hr",
-        "hu",
-        "hy",
+//        "hr",
+//        "hu",
         "id",
         "in",
-        "is",
         "it",
         "iw",
         "ja",
-        "ka",
-        "kk",
-        "km",
-        "kn",
         "ko",
-        "ky",
-        "lo",
-        "lt",
-        "lv",
-        "mk",
-        "ml",
-        "mn",
-        "mo",
-        "mr",
-        "ms",
-        "my",
-        "nb",
-        "ne",
+//        "lt",
+//        "lv",
+//        "mo",
+//        "nb",
         "nl",
-        "no",
-        "pa",
-        "pl",
+//        "no",
+//        "pl",
         "pt",
-        "ro",
+//        "ro",
         "ru",
-        "sh",
-        "si",
-        "sk",
-        "sl",
-        "sq",
-        "sr",
-        "sv",
+//        "sh",
+//        "sk",
+//        "sl",
+//        "sr",
+//        "sv",
         "sw",
-        "ta",
-        "te",
         "th",
-        "tl",
+//        "tl",
         "tr",
-        "uk",
-        "ur",
-        "uz",
+//        "uk",
         "vi",
-        "zh",
-        "zu"
+        "zh"
       ]
     },
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/sprep/spreplocal.mk?rcl=797b7c
     "stringprep": { "filterType": "exclude" },
-    "translit": {
-      "filterType": "language",
-      "includelist": [
-         "root"
-      ]
-    },
+    "translit": { "filterType": "exclude" },
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/unit/reslocal.mk?rcl=797b7c
 // Includes the items from UNIT_ALIAS_SOURCE and UNIT_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Removed locales per cast/patch_locale.sh:
+// "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "unit_tree": {
-      "filterType": "language",
-      "includelist": [
-// Need to explicitly add "root"
-	"root",
-
-        "af",
+      "filterType": "locale",
+      "includeChildren": false,
+      "whitelist": [
         "am",
         "ar",
-        "az",
         "bg",
-        "bn",
         "ca",
         "cs",
         "da",
         "de",
         "el",
         "en",
+        "en_001",
+        "en_150",
+        "en_AU",
+        "en_CA",
+        "en_GB",
+        "en_IN",
+        "en_NZ",
+        "en_ZA",
         "es",
-        "et",
-        "eu",
+        "es_419",
+        "es_AR",
+        "es_MX",
+        "es_US",
         "fa",
         "fi",
         "fil",
         "fr",
-        "gl",
-        "gu",
+        "fr_CA",
         "he",
         "hi",
         "hr",
         "hu",
-        "hy",
         "id",
         "in",
-        "is",
         "it",
         "iw",
         "ja",
-        "ka",
-        "kk",
-        "km",
-        "kn",
         "ko",
-        "ky",
-        "lo",
         "lt",
         "lv",
-        "mk",
-        "ml",
-        "mn",
         "mo",
-        "mr",
-        "ms",
-        "my",
         "nb",
-        "ne",
         "nl",
         "no",
-        "pa",
         "pl",
         "pt",
+        "pt_PT",
         "ro",
         "ru",
         "sh",
-        "si",
         "sk",
         "sl",
-        "sq",
         "sr",
+        "sr_Latn",
         "sv",
         "sw",
-        "ta",
-        "te",
         "th",
         "tl",
         "tr",
         "uk",
-        "ur",
-        "uz",
         "vi",
         "zh",
-        "zu"
+        "zh_CN",
+        "zh_HK",
+        "zh_Hans",
+        "zh_Hans_CN",
+        "zh_Hans_SG",
+        "zh_Hant",
+        "zh_Hant_HK",
+        "zh_Hant_TW",
+        "zh_SG",
+        "zh_TW"
       ]
     },
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/zone/reslocal.mk?rcl=797b7c
 // Includes the items from ZONE_ALIAS_SOURCE and ZONE_SOURCE
-// Also add new locales after that:
-// "af", "az", "eu", "gl", "hy", "is", "ka", "kk", "km", "ky", "lo", "mk", "mn",
-// "my", "ne", "pa", "si", "sq", "ur", "uz", "zu"
+// Removed locales per cast/patch_locale.sh:
+// "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "zone_tree": {
-      "filterType": "language",
-      "includelist": [
-// Need to explicitly add "root"
-	"root",
-// Need to explicitly add "tzdbNames"
-	"tzdbNames",
-
-        "af",
+      "filterType": "locale",
+      "includeChildren": false,
+      "whitelist": [
         "am",
         "ar",
-        "az",
         "bg",
-        "bn",
         "ca",
         "cs",
         "da",
         "de",
         "el",
         "en",
+        "en_001",
+        "en_150",
+        "en_AU",
+        "en_CA",
+        "en_GB",
+        "en_IN",
+        "en_NZ",
+        "en_ZA",
         "es",
-        "et",
-        "eu",
+        "es_419",
+        "es_AR",
+        "es_MX",
+        "es_US",  
         "fa",
         "fi",
         "fil",
         "fr",
-        "gl",
-        "gu",
+        "fr_CA",
         "he",
         "hi",
         "hr",
         "hu",
-        "hy",
         "id",
         "in",
-        "is",
         "it",
         "iw",
         "ja",
-        "ka",
-        "kk",
-        "km",
-        "kn",
         "ko",
-        "ky",
-        "lo",
         "lt",
         "lv",
-        "mk",
-        "ml",
-        "mn",
         "mo",
-        "mr",
-        "ms",
-        "my",
         "nb",
-        "ne",
         "nl",
         "no",
-        "pa",
         "pl",
         "pt",
+        "pt_PT",
         "ro",
         "ru",
-        "si",
         "sh",
         "sk",
         "sl",
-        "sq",
         "sr",
         "sv",
         "sw",
-        "ta",
-        "te",
         "th",
         "tl",
         "tr",
         "uk",
-        "ur",
-        "uz",
         "vi",
         "zh",
-        "zu"
+        "zh_CN",
+        "zh_HK",
+        "zh_Hans",
+        "zh_Hans_CN",
+        "zh_Hans_SG",
+        "zh_Hant",
+        "zh_Hant_HK",
+        "zh_Hant_TW",
+        "zh_SG",
+        "zh_TW"
       ]
     },
 // Based on
@@ -726,7 +658,7 @@
         "-/ExemplarCharactersPunctuation",
         "-/measurementSystemNames",
         "-/NumberElements/minimalPairs",
-        "-/personNames"
+        "-/delimiters"
       ]
     },
 // Based on filter_currency_data
@@ -864,6 +796,23 @@
         "-/*/202"
       ]
     },
+// Based on remove_legacy_chinese_codepoint_collation
+// # big5han and gb2312han collation do not make any sense and nobody uses them.
+    {
+      "categories": [
+        "coll_tree"
+      ],
+      "files": {
+        "whitelist": [
+    "zh"
+  ]
+      },
+      "rules": [
+        "-/*/unihan",
+        "-/*/big5han",
+        "-/*/gb2312han"
+      ]
+    },
 // Based on https://cs.chromium.org/chromium/src/third_party/icu/patches/data.build.patch?rcl=797b7c
 // +# Chromium : To save space, use '-R' option (exclude collation rules. just
 // +# include the compiled binary data.)
@@ -873,26 +822,8 @@
         "coll_tree"
       ],
       "rules": [
-	"-/UCARules",
-	"-/collations/*/Sequence"
-      ]
-    },
-// The following rules must be placed below "-/collations/*/Sequence" to avoid keeping empty unihan, big5han and gb2312han
-// Based on remove_legacy_chinese_codepoint_collation
-// # big5han and gb2312han collation do not make any sense and nobody uses them.
-    {
-      "categories": [
-        "coll_tree"
-      ],
-      "files": {
-        "includelist": [
-	  "zh"
-	]
-      },
-      "rules": [
-        "-/*/unihan",
-        "-/*/big5han",
-        "-/*/gb2312han"
+  "-/UCARules",
+  "-/collations/*/Sequence"
       ]
     },
 // Based on filter_unit_data
@@ -906,159 +837,56 @@
         "-/unitsNarrow",
         "-/unitsShort",
         "+/*/*/acre",
-        "-/*/*/acre/case",
-        "-/*/*/acre/gender",
         "+/*/*/bit",
-        "-/*/*/bit/case",
-        "-/*/*/bit/gender",
         "+/*/*/byte",
-        "-/*/*/byte/case",
-        "-/*/*/byte/gender",
         "+/*/*/celsius",
-        "-/*/*/celsius/case",
-        "-/*/*/celsius/gender",
         "+/*/*/centimeter",
-        "-/*/*/centimeter/case",
-        "-/*/*/centimeter/gender",
         "+/*/*/day",
-        "-/*/*/day/case",
-        "-/*/*/day/gender",
         "+/*/*/degree",
-        "-/*/*/degree/case",
-        "-/*/*/degree/gender",
         "+/*/*/fahrenheit",
-        "-/*/*/fahrenheit/case",
-        "-/*/*/fahrenheit/gender",
         "+/*/*/fluid-ounce",
-        "-/*/*/fluid-ounce/case",
-        "-/*/*/fluid-ounce/gender",
         "+/*/*/foot",
-        "-/*/*/foot/case",
-        "-/*/*/foot/gender",
         "+/*/*/gallon",
-        "-/*/*/gallon/case",
-        "-/*/*/gallon/gender",
         "+/*/*/gigabit",
-        "-/*/*/gigabit/case",
-        "-/*/*/gigabit/gender",
         "+/*/*/gigabyte",
-        "-/*/*/gigabyte/case",
-        "-/*/*/gigabyte/gender",
         "+/*/*/gram",
-        "-/*/*/gram/case",
-        "-/*/*/gram/gender",
         "+/*/*/hectare",
-        "-/*/*/hectare/case",
-        "-/*/*/hectare/gender",
         "+/*/*/hour",
-        "-/*/*/hour/case",
-        "-/*/*/hour/gender",
         "+/*/*/inch",
-        "-/*/*/inch/case",
-        "-/*/*/inch/gender",
         "+/*/*/kilobit",
-        "-/*/*/kilobit/case",
-        "-/*/*/kilobit/gender",
         "+/*/*/kilobyte",
-        "-/*/*/kilobyte/case",
-        "-/*/*/kilobyte/gender",
         "+/*/*/kilogram",
-        "-/*/*/kilogram/case",
-        "-/*/*/kilogram/gender",
         "+/*/*/kilometer",
-        "-/*/*/kilometer/case",
-        "-/*/*/kilometer/gender",
         "+/*/*/liter",
-        "-/*/*/liter/case",
-        "-/*/*/liter/gender",
         "+/*/*/megabit",
-        "-/*/*/megabit/case",
-        "-/*/*/megabit/gender",
         "+/*/*/megabyte",
-        "-/*/*/megabyte/case",
-        "-/*/*/megabyte/gender",
         "+/*/*/meter",
-        "-/*/*/meter/case",
-        "-/*/*/meter/gender",
-        "+/*/*/microsecond",
-        "-/*/*/microsecond/case",
-        "-/*/*/microsecond/gender",
         "+/*/*/mile",
-        "-/*/*/mile/case",
-        "-/*/*/mile/gender",
         "+/*/*/mile-scandinavian",
-        "-/*/*/mile-scandinavian/case",
-        "-/*/*/mile-scandinavian/gender",
         "+/*/*/millimeter",
-        "-/*/*/millimeter/case",
-        "-/*/*/millimeter/gender",
         "+/*/*/milliliter",
-        "-/*/*/milliliter/case",
-        "-/*/*/milliliter/gender",
         "+/*/*/millisecond",
-        "-/*/*/millisecond/case",
-        "-/*/*/millisecond/gender",
         "+/*/*/minute",
-        "-/*/*/minute/case",
-        "-/*/*/minute/gender",
         "+/*/*/month",
-        "-/*/*/month/case",
-        "-/*/*/month/gender",
-        "+/*/*/nanosecond",
-        "-/*/*/nanosecond/case",
-        "-/*/*/nanosecond/gender",
         "+/*/*/ounce",
-        "-/*/*/ounce/case",
-        "-/*/*/ounce/gender",
         "+/*/*/percent",
-        "-/*/*/percent/case",
-        "-/*/*/percent/gender",
         "+/*/*/petabyte",
-        "-/*/*/petabyte/case",
-        "-/*/*/petabyte/gender",
         "+/*/*/pound",
-        "-/*/*/pound/case",
-        "-/*/*/pound/gender",
         "+/*/*/second",
-        "-/*/*/second/case",
-        "-/*/*/second/gender",
         "+/*/*/stone",
-        "-/*/*/stone/case",
-        "-/*/*/stone/gender",
         "+/*/*/terabit",
-        "-/*/*/terabit/case",
-        "-/*/*/terabit/gender",
         "+/*/*/terabyte",
-        "-/*/*/terabyte/case",
-        "-/*/*/terabyte/gender",
         "+/*/*/week",
-        "-/*/*/week/case",
-        "-/*/*/week/gender",
         "+/*/*/yard",
-        "-/*/*/yard/case",
-        "-/*/*/yard/gender",
         "+/*/*/year",
-        "-/*/*/year/case",
-        "-/*/*/year/gender",
         "+/*/*/kilometer-per-hour",
-        "-/*/*/kilometer-per-hour/case",
-        "-/*/*/kilometer-per-hour/gender",
         "+/*/*/meter-per-second",
-        "-/*/*/meter-per-second/case",
-        "-/*/*/meter-per-second/gender",
         "+/*/*/mile-per-hour",
-        "-/*/*/mile-per-hour/case",
-        "-/*/*/mile-per-hour/gender",
         "+/*/*/liter-per-kilometer",
-        "-/*/*/liter-per-kilometer/case",
-        "-/*/*/liter-per-kilometer/gender",
         "+/*/*/mile-per-gallon",
-        "-/*/*/mile-per-gallon/case",
-        "-/*/*/mile-per-gallon/gender",
-        "+/*/compound/per"
+        "+/*/compound"
       ]
     },
-
 // # Remove exemplar cities in timezone data.
     {
       "categories": [
@@ -1505,20 +1333,16 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "th"
-	]
+        "whitelist": [
+    "th"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/buddhist",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/buddhist/DateTimeSkeletons"
+        "+/calendar/buddhist"
       ]
     },
     {
@@ -1526,20 +1350,16 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "zh"
-	]
+        "whitelist": [
+    "zh"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/chinese",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/chinese/DateTimeSkeletons"
+        "+/calendar/chinese"
       ]
     },
     {
@@ -1547,20 +1367,16 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "ko"
-	]
+        "whitelist": [
+    "ko"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/dangi",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/dangi/DateTimeSkeletons"
+        "+/calendar/dangi"
       ]
     },
     {
@@ -1568,9 +1384,9 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "am"
-	]
+        "whitelist": [
+    "am"
+  ]
       },
       "rules": [
         "-/calendar/*",
@@ -1578,12 +1394,7 @@
         "+/calendar/gregorian",
         "+/calendar/generic",
         "+/calendar/ethiopic",
-        "+/calendar/ethiopic-amete-alem",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/ethiopic/DateTimeSkeletons",
-        "-/calendar/ethiopic-amete-alem/DateTimeSkeletons"
+        "+/calendar/ethiopic-amete-alem"
       ]
     },
     {
@@ -1591,20 +1402,16 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "he"
-	]
+        "whitelist": [
+    "he"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/hebrew",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/hebrew/DateTimeSkeletons"
+        "+/calendar/hebrew"
       ]
     },
     {
@@ -1612,9 +1419,9 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "ar"
-	]
+        "whitelist": [
+    "ar"
+  ]
       },
       "rules": [
         "-/calendar/*",
@@ -1624,11 +1431,7 @@
 //       # Other Islamic calendar formats are not in locales other than root.
 //       # ar-SA's default is islamic-umalqura, but its format entries are
 //       # specified in root via aliases.
-        "+/calendar/islamic",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/islamic/DateTimeSkeletons"
+        "+/calendar/islamic"
       ]
     },
     {
@@ -1636,9 +1439,9 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "fa"
-	]
+        "whitelist": [
+    "fa"
+  ]
       },
       "rules": [
         "-/calendar/*",
@@ -1646,12 +1449,7 @@
         "+/calendar/gregorian",
         "+/calendar/generic",
         "+/calendar/persian",
-        "+/calendar/islamic",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/persian/DateTimeSkeletons",
-        "-/calendar/islamic/DateTimeSkeletons"
+        "+/calendar/islamic"
       ]
     },
     {
@@ -1659,20 +1457,16 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "ja"
-	]
+        "whitelist": [
+    "ja"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/japanese",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/japanese/DateTimeSkeletons"
+        "+/calendar/japanese"
       ]
     },
     {
@@ -1680,22 +1474,18 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
+        "whitelist": [
 //     # When adding other Indian locales for Android,
 //     # add 'indian' calendar to them as well.
-	  "hi"
-	]
+    "hi"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/indian",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/indian/DateTimeSkeletons"
+        "+/calendar/indian"
       ]
     },
     {
@@ -1703,20 +1493,16 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "zh_Hant"
-	]
+        "whitelist": [
+    "zh_Hant"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
         "+/calendar/generic",
-        "+/calendar/roc",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/roc/DateTimeSkeletons"
+        "+/calendar/roc"
       ]
     },
     {
@@ -1724,9 +1510,9 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-	  "root"
-	]
+        "whitelist": [
+    "root"
+  ]
       },
       "rules": [
         "-/calendar/*",
@@ -1753,25 +1539,7 @@
 // # The same is true of eras and monthNames for Islamic calendar.
         "-/calendar/japanese/eras",
         "-/calendar/islamic/eras",
-        "-/calendar/islamic/monthNames",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons",
-        "-/calendar/buddhist/DateTimeSkeletons",
-        "-/calendar/chinese/DateTimeSkeletons",
-        "-/calendar/roc/DateTimeSkeletons",
-        "-/calendar/dangi/DateTimeSkeletons",
-        "-/calendar/ethiopic/DateTimeSkeletons",
-        "-/calendar/ethiopic-amete-alem/DateTimeSkeletons",
-        "-/calendar/japanese/DateTimeSkeletons",
-        "-/calendar/hebrew/DateTimeSkeletons",
-        "-/calendar/islamic/DateTimeSkeletons",
-        "-/calendar/islamic-umalqura/DateTimeSkeletons",
-        "-/calendar/islamic-civil/DateTimeSkeletons",
-        "-/calendar/islamic-tbla/DateTimeSkeletons",
-        "-/calendar/islamic-rgsa/DateTimeSkeletons",
-        "-/calendar/persian/DateTimeSkeletons",
-        "-/calendar/indian/DateTimeSkeletons"
+        "-/calendar/islamic/monthNames"
       ]
     },
     {
@@ -1779,29 +1547,26 @@
         "locales_tree"
       ],
       "files": {
-        "excludelist": [
-	  "root",
+        "blacklist": [
+    "root",
 
-          "am",
-          "ar",
-          "fa",
-          "he",
-          "hi",
-          "ja",
-          "ko",
-          "th",
-          "zh",
-          "zh_Hant"
-	]
+    "am",
+    "ar",
+    "fa",
+    "he",
+    "hi",
+    "ja",
+    "ko",
+    "th",
+    "zh",
+    "zh_Hant"
+  ]
       },
       "rules": [
         "-/calendar/*",
         "+/calendar/default",
         "+/calendar/gregorian",
-        "+/calendar/generic",
-        "-/calendar/default/DateTimeSkeletons",
-        "-/calendar/gregorian/DateTimeSkeletons",
-        "-/calendar/generic/DateTimeSkeletons"
+        "+/calendar/generic"
       ]
     },
 // Based on abridge_locale_data_for_non_ui_languages
@@ -1811,16 +1576,23 @@
         "locales_tree"
       ],
       "files": {
-        "includelist": [
-// Created by diff scripts/chrome_ui_languages.list scripts/accept_lang.list|egrep "^>"|egrep -v "#"|cut -c3-10
+        "whitelist": [
+// 1. Created by diff scripts/chrome_ui_languages.list scripts/accept_lang.list|egrep "^>"|egrep -v "#"|cut -c3-10
+// 2. Add EXTRA_LANGUAGES="bn et gu kn ml mr ms ta te" based on
+//    https://cs.chromium.org/chromium/src/third_party/icu/cast/patch_locale.sh?rcl=797b7c
+//    # Chrome on Android is not localized to the following languages and we
+//    # have to minimize the locale data for them.
           "ach",
+          "af",
           "ak",
           "an",
           "ast",
+          "az",
           "ban",
           "be",
           "bem",
           "bh",
+          "bn",
           "br",
           "bs",
           "ccp",
@@ -1832,34 +1604,54 @@
           "cy",
           "ee",
           "eo",
+          "et",
+          "eu",
           "fo",
           "fy",
           "ga",
           "gaa",
           "gd",
+          "gl",
           "gn",
+          "gu",
           "ha",
           "haw",
           "hmn",
           "ht",
+          "hy",
           "ia",
           "ig",
+          "is",
           "jv",
           "jw",
+          "ka",
           "kg",
+          "kk",
+          "km",
+          "kn",
           "kri",
           "ku",
+          "ky",
           "la",
           "lb",
           "lg",
           "ln",
+          "lo",
           "loz",
           "lua",
           "mfe",
           "mg",
           "mi",
+          "mk",
+          "ml",
+          "mn",
+          "mr",
+          "ms",
           "mt",
+          "my",
+          "ne",
           "nn",
+          "no",
           "nso",
           "ny",
           "nyn",
@@ -1867,6 +1659,7 @@
           "om",
           "or",
           "osa",
+          "pa",
           "pcm",
           "ps",
           "qu",
@@ -1874,11 +1667,15 @@
           "rn",
           "rw",
           "sd",
+          "si",
           "sm",
           "sn",
           "so",
+          "sq",
           "st",
           "su",
+          "ta",
+          "te",
           "tg",
           "ti",
           "tk",
@@ -1888,139 +1685,69 @@
           "tum",
           "tw",
           "ug",
+          "ur",
+          "uz",
           "wa",
           "wo",
           "xh",
           "xx",
           "yi",
-          "yo"
-	]
+          "yo",
+          "zu"
+  ]
       },
       "rules": [
         "-/*",
         "+/%%ALIAS",
-        "+/%%Parent",
         "+/LocaleScript",
         "+/layout",
         "+/Version"
       ]
     },
-// Based on filter_display_language_names
+// Based on
+// https://cs.chromium.org/chromium/src/third_party/icu/android/patch_locale.sh?rcl=797b7c
+// # On Android Java API is used to get lang data, except for the language and
+// # script names for zh_Hans and zh_Hant which are not supported by Java API.
+// # Here remove all lang data except those names.
+// # See the comments in GetDisplayNameForLocale() (in Chromium's
+// # src/ui/base/l10n/l10n_util.cc) about why we need the scripts.
     {
       "categories": [
         "lang_tree"
       ],
       "rules": [
+        "-/Keys",
         "-/Languages",
         "-/Languages%long",
-        "-/Languages%menu",
+        "-/Languages%short",
         "-/Languages%variant",
-        "+/*/af",
-        "+/*/am",
-        "+/*/ar",
-        "+/*/az",
-        "+/*/bg",
-        "+/*/bn",
-        "+/*/ca",
-        "+/*/cs",
-        "+/*/da",
-        "+/*/de",
-        "+/*/el",
-        "+/*/en",
-        "+/*/es",
-        "+/*/et",
-        "+/*/eu",
-        "+/*/fa",
-        "+/*/fi",
-        "+/*/fil",
-        "+/*/fr",
-        "+/*/gl",
-        "+/*/gu",
-        "+/*/he",
-        "+/*/hi",
-        "+/*/hr",
-        "+/*/hu",
-        "+/*/hy",
-        "+/*/id",
-        "+/*/in",
-        "+/*/is",
-        "+/*/it",
-        "+/*/iw",
-        "+/*/ja",
-        "+/*/ka",
-        "+/*/kk",
-        "+/*/km",
-        "+/*/kn",
-        "+/*/ko",
-        "+/*/ky",
-        "+/*/lo",
-        "+/*/lt",
-        "+/*/lv",
-        "+/*/mk",
-        "+/*/ml",
-        "+/*/mn",
-        "+/*/mo",
-        "+/*/mr",
-        "+/*/ms",
-        "+/*/my",
-        "+/*/nb",
-        "+/*/ne",
-        "+/*/nl",
-        "+/*/no",
-        "+/*/pa",
-        "+/*/pl",
-        "+/*/pt",
-        "+/*/ro",
-        "+/*/ru",
-        "+/*/sh",
-        "+/*/si",
-        "+/*/sk",
-        "+/*/sl",
-        "+/*/sq",
-        "+/*/sr",
-        "+/*/sr_Latn",
-        "+/*/sv",
-        "+/*/sw",
-        "+/*/ta",
-        "+/*/te",
-        "+/*/th",
-        "+/*/tl",
-        "+/*/tr",
-        "+/*/uk",
-        "+/*/ur",
-        "+/*/uz",
-        "+/*/vi",
-        "+/*/zh",
-        "+/*/zu",
-        "+/*/ar_001",
-        "+/*/az_Arab",
-        "+/*/de_AT",
-        "+/*/de_CH",
-        "+/*/en_AU",
-        "+/*/en_CA",
-        "+/*/en_GB",
-        "+/*/en_US",
-        "+/*/es_419",
-        "+/*/es_ES",
-        "+/*/es_MX",
-        "+/*/fa_AF",
-        "+/*/fr_CA",
-        "+/*/fr_CH",
-        "+/*/nl_BE",
-        "+/*/pt_BR",
-        "+/*/pt_PT",
-        "+/*/ro_MD",
-        "+/*/sr_ME",
-        "+/*/sw_CD",
-        "+/*/zh_Hans",
-        "+/*/zh_Hant",
-        "-/Keys",
+        "-/LanguagesShort",
+        "-/Scripts",
+        "-/Scripts%long",
+        "-/Scripts%short",
+        "-/Scripts%variant",
+        "-/Scripts%stand-alone",
         "-/Types",
         "-/Types%short",
-        "+/Types/calendar",
-        "-/characterLabelPattern",
         "-/Variants",
-        "+/Variants/OXENDICT"
+        "-/calendar",
+        "-/characterLabelPattern",
+        "-/codePatterns",
+        "-/localeDisplayPattern",
+        "+/Languages/zh",
+        "+/Languages%long/zh",
+        "+/Languages%short/zh",
+        "+/Languages%variant/zh",
+        "+/Scripts/Hans",
+        "+/Scripts%long/Hans",
+        "+/Scripts%short/Hans",
+        "+/Scripts%variant/Hans",
+        "+/Scripts%stand-alone/Hans",
+        "+/Scripts/Hant",
+        "+/Scripts%long/Hant",
+        "+/Scripts%short/Hant",
+        "+/Scripts%variant/Hant",
+        "+/Scripts%stand-alone/Hant"
       ]
     },
     {
@@ -2028,23 +1755,9 @@
         "misc"
       ],
       "files": {
-        "includelist": [
-          "grammaticalFeatures"
-        ]
-      },
-      "rules": [
-        "-/*",
-        "+/grammaticalData/derivations/*/compound/gender/per"
-      ]
-    },
-    {
-      "categories": [
-        "misc"
-      ],
-      "files": {
-        "includelist": [
+        "whitelist": [
           "supplementalData"
-	]
+  ]
       },
       "rules": [
         "-/*",
@@ -2058,15 +1771,6 @@
         "+/timeData",
         "+/weekData",
         "+/weekData%variant"
-      ]
-    },
-    {
-      "categories": [
-        "translit"
-      ],
-      "rules": [
-        "-/*",
-        "+/RuleBasedTransliteratorIDs/Latin-ASCII"
       ]
     },
 // Remove all the Version
