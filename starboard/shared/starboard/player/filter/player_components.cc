@@ -254,7 +254,7 @@ PlayerComponents::Factory::CreateStubVideoComponents(
   PlayerComponents::Factory::VideoComponents components;
   components.decoder = std::make_unique<StubVideoDecoder>();
   components.render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
-  components.renderer_sink = new PunchoutVideoRendererSink(
+  components.renderer_sink = make_scoped_refptr<PunchoutVideoRendererSink>(
       creation_parameters.player(), kVideoSinkRenderIntervalUsec);
   return components;
 }
