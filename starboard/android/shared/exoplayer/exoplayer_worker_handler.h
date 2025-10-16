@@ -30,33 +30,25 @@
 
 namespace starboard {
 
-class ExoPlayerWorkerHandler : public starboard::PlayerWorker::Handler,
-                               private starboard::JobQueue::JobOwner {
+class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
+                               private JobQueue::JobOwner {
  public:
   explicit ExoPlayerWorkerHandler(const SbPlayerCreationParam* creation_param);
 
  private:
-  starboard::PlayerWorker::Handler::HandlerResult Init(
-      SbPlayer player,
-      UpdateMediaInfoCB update_media_info_cb,
-      GetPlayerStateCB get_player_state_cb,
-      UpdatePlayerStateCB update_player_state_cb,
-      UpdatePlayerErrorCB update_player_error_cb) override;
-  starboard::PlayerWorker::Handler::HandlerResult Seek(int64_t seek_to_time,
-                                                       int ticket) override;
-  starboard::PlayerWorker::Handler::HandlerResult WriteSamples(
-      const InputBuffers& input_buffers,
-      int* samples_written) override;
-  starboard::PlayerWorker::Handler::HandlerResult WriteEndOfStream(
-      SbMediaType sample_type) override;
-  starboard::PlayerWorker::Handler::HandlerResult SetPause(bool pause) override;
-  starboard::PlayerWorker::Handler::HandlerResult SetPlaybackRate(
-      double playback_rate) override;
+  HandlerResult Init(SbPlayer player,
+                     UpdateMediaInfoCB update_media_info_cb,
+                     GetPlayerStateCB get_player_state_cb,
+                     UpdatePlayerStateCB update_player_state_cb,
+                     UpdatePlayerErrorCB update_player_error_cb) override;
+  HandlerResult Seek(int64_t seek_to_time, int ticket) override;
+  HandlerResult WriteSamples(const InputBuffers& input_buffers,
+                             int* samples_written) override;
+  HandlerResult WriteEndOfStream(SbMediaType sample_type) override;
+  HandlerResult SetPause(bool pause) override;
+  HandlerResult SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-  starboard::PlayerWorker::Handler::HandlerResult SetBounds(
-      const Bounds& bounds) override {
-    return {true};
-  }
+  HandlerResult SetBounds(const Bounds& bounds) override { return {true}; }
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void Stop() override;
@@ -70,7 +62,7 @@ class ExoPlayerWorkerHandler : public starboard::PlayerWorker::Handler,
     return kSbDecodeTargetInvalid;
   }
 
-  std::unique_ptr<ExoPlayerBridge> bridge_;
+  const std::unique_ptr<ExoPlayerBridge> bridge_;
 
   SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaInfoCB update_media_info_cb_;
@@ -82,10 +74,10 @@ class ExoPlayerWorkerHandler : public starboard::PlayerWorker::Handler,
   double playback_rate_ = 1.0;
   double volume_ = 1.0;
   JobQueue::JobToken update_job_token_;
-  std::function<void()> update_job_;
+  const std::function<void()> update_job_;
 
-  const starboard::AudioStreamInfo audio_stream_info_;
-  const starboard::VideoStreamInfo video_stream_info_;
+  const AudioStreamInfo audio_stream_info_;
+  const VideoStreamInfo video_stream_info_;
 };
 
 }  // namespace starboard

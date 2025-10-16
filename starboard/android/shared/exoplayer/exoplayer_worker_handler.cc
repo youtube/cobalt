@@ -19,8 +19,6 @@
 namespace starboard {
 namespace {
 
-using ::starboard::GetPlayerStateName;
-using HandlerResult = starboard::PlayerWorker::Handler::HandlerResult;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -31,11 +29,10 @@ ExoPlayerWorkerHandler::ExoPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
       audio_stream_info_(creation_param->audio_stream_info),
-      video_stream_info_(creation_param->video_stream_info) {
-  update_job_ = std::bind(&ExoPlayerWorkerHandler::Update, this);
-  bridge_ =
-      std::make_unique<ExoPlayerBridge>(audio_stream_info_, video_stream_info_);
-}
+      video_stream_info_(creation_param->video_stream_info),
+      update_job_(std::bind(&ExoPlayerWorkerHandler::Update, this)),
+      bridge_(std::make_unique<ExoPlayerBridge>(audio_stream_info_,
+                                                video_stream_info_)) {}
 
 HandlerResult ExoPlayerWorkerHandler::Init(
     SbPlayer player,
@@ -44,7 +41,7 @@ HandlerResult ExoPlayerWorkerHandler::Init(
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
-  SB_CHECK(update_media_info_cb_ == NULL);
+  SB_CHECK(!update_media_info_cb_);
 
   // All parameters have to be valid.
   SB_CHECK(SbPlayerIsValid(player));
@@ -94,7 +91,7 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
     int* samples_written) {
   SB_CHECK(!input_buffers.empty());
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(samples_written != NULL);
+  SB_CHECK(samples_written);
   SB_CHECK(bridge_);
   for (const auto& input_buffer : input_buffers) {
     SB_CHECK(input_buffer);
@@ -106,7 +103,7 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
       SB_LOG(WARNING) << "Tried to write audio sample after EOS is reached";
     }
   } else {
-    SB_CHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
+    SB_CHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeVideo)) {
       SB_LOG(WARNING) << "Tried to write video sample after EOS is reached";
     }
@@ -211,7 +208,7 @@ void ExoPlayerWorkerHandler::OnPrerolled() {
     return;
   }
 
-  SB_CHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
+  SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   update_player_state_cb_(kSbPlayerStatePresenting);
