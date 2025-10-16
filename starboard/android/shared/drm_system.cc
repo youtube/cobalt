@@ -330,15 +330,13 @@ void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
                                 std::string_view session_id,
                                 std::string_view content) {
-  std::string eme_session_id_str;
   std::string_view eme_session_id;
   if (kEnableAppProvisioning) {
     std::lock_guard lock(mutex_);
     if (session_id_mapper_->IsMediaDrmSessionIdForProvisioningRequired()) {
       session_id_mapper_->RegisterMediaDrmSessionIdForProvisioning(session_id);
     }
-    eme_session_id_str = session_id_mapper_->GetEmeSessionId(session_id);
-    eme_session_id = eme_session_id_str;
+    eme_session_id = session_id_mapper_->GetEmeSessionId(session_id);
   } else {
     eme_session_id = session_id;
   }
