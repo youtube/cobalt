@@ -17,22 +17,11 @@ import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
+import("//testing/test.gni")
 
 ##########################################################
 # Configuration for overall Android Starboard Platform.
 ##########################################################
-
-# This shared library contains only shared state variables needed
-# for shared JNI to work across library boundaries.
-shared_library("starboard_jni_state") {
-  sources = [
-    "jni_state.cc",
-    "jni_state.h",
-  ]
-
-  # Do not just hide symbols from us
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-}
 
 config("starboard_platform_libs") {
   libs = [
@@ -49,7 +38,6 @@ static_library("starboard_platform") {
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/internal_only.h",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
     "//starboard/shared/linux/system_get_total_cpu_memory.cc",
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
@@ -191,6 +179,8 @@ static_library("starboard_platform") {
     "crash_handler.h",
     "decode_target.cc",
     "decode_target.h",
+    "display_util.cc",
+    "display_util.h",
     "drm_create_system.cc",
     "drm_system.cc",
     "drm_system.h",
@@ -202,12 +192,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-
-    #"input_events_generator.cc",
-    #"input_events_generator.h",
-    "jni_env_ext.cc",
-    "jni_env_ext.h",
-    "jni_utils.h",
     "log.cc",
     "log_flush.cc",
     "log_format.cc",
@@ -284,7 +268,6 @@ static_library("starboard_platform") {
     "text_to_speech_observer.h",
     "thread_create_priority.cc",
     "time_zone_get_name.cc",
-    "trace_util.h",
     "video_decoder.cc",
     "video_decoder.h",
     "video_frame_tracker.cc",
@@ -293,6 +276,8 @@ static_library("starboard_platform") {
     "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
+    "video_surface_texture_bridge.cc",
+    "video_surface_texture_bridge.h",
     "video_window.cc",
     "video_window.h",
 
@@ -322,7 +307,6 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
-    ":starboard_jni_state",
     "//cobalt/android:jni_headers",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
@@ -390,14 +374,14 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
-source_set("starboard_platform_tests") {
+test("starboard_platform_tests") {
   testonly = true
 
   sources = media_tests_sources + player_tests_sources + [
+              "//starboard/common/test_main.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "//starboard/shared/starboard/starboard_feature_test.cc",
-              "jni_env_ext_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
             ]

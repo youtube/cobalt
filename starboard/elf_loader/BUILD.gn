@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/config/os_definitions.gni")
 
 _elf_loader_sources = [
   "dynamic_section.cc",
@@ -108,10 +107,10 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    } else {
+    if (sb_is_evergreen_compatible && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
@@ -148,10 +147,11 @@ if (current_toolchain == starboard_toolchain) {
       ":sabi_string",
       "//starboard:starboard_group",
     ]
-    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    } else {
+
+    if (sb_is_evergreen_compatible && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
   }
 }

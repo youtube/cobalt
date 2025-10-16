@@ -54,11 +54,7 @@
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
 
-#if defined(RUN_BROWSER_TESTS)
-#include "ui/views/test/desktop_test_views_delegate.h"  // nogncheck
-#else
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
-#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace content {
 
@@ -314,6 +310,11 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
+std::unique_ptr<views::ViewsDelegate>
+ShellPlatformDelegate::CreateViewsDelegate() {
+  return std::make_unique<views::CobaltViewsDelegate>();
+}
+
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
   platform_ = std::make_unique<PlatformData>();
 
@@ -323,12 +324,7 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
     platform_->screen = views::CreateDesktopScreen();
   }
 
-#if defined(RUN_BROWSER_TESTS)
-  platform_->views_delegate =
-      std::make_unique<views::DesktopTestViewsDelegate>();
-#else
-  platform_->views_delegate = std::make_unique<views::CobaltViewsDelegate>();
-#endif  // defined(RUN_BROWSER_TESTS)
+  platform_->views_delegate = CreateViewsDelegate();
 }
 
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;

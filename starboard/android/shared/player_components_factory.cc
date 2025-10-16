@@ -26,7 +26,6 @@
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
@@ -54,6 +53,7 @@ namespace starboard {
 namespace {
 
 using base::android::AttachCurrentThread;
+using features::FeatureList;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -82,8 +82,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
               auto type = static_cast<AudioTrackAudioSinkType*>(
-                  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
-                      GetPreferredType());
+                  SbAudioSinkImpl::GetPreferredType());
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
@@ -94,6 +93,10 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
+
+  bool AllowOverflowAudioSamples() const override {
+    return tunnel_mode_audio_session_id_ != -1;
+  }
 
  private:
   bool IsAudioSampleTypeSupported(
@@ -164,34 +167,29 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     return (value + alignment - 1) / alignment * alignment;
   }
 
-  std::unique_ptr<PlayerComponents> CreateComponents(
-      const CreationParameters& creation_parameters,
-      std::string* error_message) override {
-    SB_CHECK(error_message);
-
+  NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
+      const CreationParameters& creation_parameters) override {
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
-      return PlayerComponents::Factory::CreateComponents(creation_parameters,
-                                                         error_message);
+      return PlayerComponents::Factory::CreateComponents(creation_parameters);
     }
 
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
-        return nullptr;
+        return Failure("Invalid audio mime type.");
       }
-
       if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
-        return nullptr;
+        return Failure("Passthrough disabled by mime attribute.");
       }
     }
 
-    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -202,7 +200,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek);
     if (!audio_renderer->is_valid()) {
-      return nullptr;
+      return Failure("Failed to create audio renderer.");
     }
 
     // Set max_video_input_size with a positive value to overwrite
@@ -217,10 +215,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
+      std::string error_message;
       std::unique_ptr<MediaCodecVideoDecoder> video_decoder =
           CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
                              kForceSecurePipelineUnderTunnelMode,
-                             max_video_input_size, error_message);
+                             max_video_input_size, &error_message);
       if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
@@ -231,7 +230,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
       } else {
-        return nullptr;
+        return Failure("Failed to create video decoder: " + error_message);
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
@@ -297,8 +296,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << ". Tunnel mode is disabled.";
     }
 
-    const bool force_tunnel_mode = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceTunnelMode);
+    const bool force_tunnel_mode =
+        FeatureList::IsEnabled(features::kForceTunnelMode);
 
     if (force_tunnel_mode && !enable_tunnel_mode) {
       SB_LOG(INFO)
@@ -334,14 +333,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kForceResetAudioDecoder);
+        FeatureList::IsEnabled(features::kForceResetAudioDecoder);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
-    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceFlushDecoderDuringReset);
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -351,8 +349,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_renderer_sink);
 
       const bool enable_platform_opus_decoder =
-          starboard::features::FeatureList::IsEnabled(
-              starboard::features::kForcePlatformOpusDecoder);
+          FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
@@ -466,10 +463,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceFlushDecoderDuringReset);
-    int64_t flush_delay_usec = starboard::features::kFlushDelayUsec.Get();
-    int64_t reset_delay_usec = starboard::features::kResetDelayUsec.Get();
+    bool enable_flush_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+    int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
+    int64_t reset_delay_usec = features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&

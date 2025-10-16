@@ -36,6 +36,10 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
       "starboard_layer_posix_poll_abi_wrappers.h",
       "starboard_layer_posix_pthread_abi_wrappers.cc",
       "starboard_layer_posix_pthread_abi_wrappers.h",
+      "starboard_layer_posix_resource_abi_wrappers.cc",
+      "starboard_layer_posix_resource_abi_wrappers.h",
+      "starboard_layer_posix_sched_abi_wrappers.cc",
+      "starboard_layer_posix_sched_abi_wrappers.h",
       "starboard_layer_posix_semaphore_abi_wrappers.cc",
       "starboard_layer_posix_semaphore_abi_wrappers.h",
       "starboard_layer_posix_signal_abi_wrappers.cc",
@@ -79,6 +83,8 @@ if (is_cobalt_hermetic_build && !sb_is_evergreen &&
       "cobalt_layer_posix_pipe2_abi_wrappers.cc",
       "cobalt_layer_posix_poll_abi_wrappers.cc",
       "cobalt_layer_posix_pthread_abi_wrappers.cc",
+      "cobalt_layer_posix_resource_abi_wrappers.cc",
+      "cobalt_layer_posix_sched_abi_wrappers.cc",
       "cobalt_layer_posix_semaphore_abi_wrappers.cc",
       "cobalt_layer_posix_signal_abi_wrappers.cc",
       "cobalt_layer_posix_socket_abi_wrappers.cc",
@@ -87,6 +93,7 @@ if (is_cobalt_hermetic_build && !sb_is_evergreen &&
       "cobalt_layer_posix_statvfs_abi_wrappers.cc",
       "cobalt_layer_posix_time_abi_wrappers.cc",
       "cobalt_layer_posix_uio_abi_wrappers.cc",
+      "cobalt_layer_posix_uname_abi_wrappers.cc",
       "cobalt_layer_posix_unistd_abi_wrappers.cc",
     ]
     deps = [ "//starboard/common:common_headers_only" ]

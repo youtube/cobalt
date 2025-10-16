@@ -37,8 +37,7 @@ typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
-  starboard::testing::FakeGraphicsContextProvider
-      fake_graphics_context_provider_;
+  starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
 void CheckVerticalResolutionSupport(const char* mime) {

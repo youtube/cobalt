@@ -151,6 +151,15 @@ bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
   return !(left == right);
 }
 
+std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info) {
+  return os << "{codec=" << GetMediaAudioCodecName(info.codec)
+            << ", mime=" << (info.mime.empty() ? "(empty)" : info.mime)
+            << ", channels=" << info.number_of_channels
+            << ", samples_per_second="
+            << FormatWithDigitSeparators(info.samples_per_second)
+            << ", bits_per_sample=" << info.bits_per_sample << "}";
+}
+
 AudioSampleInfo& AudioSampleInfo::operator=(
     const SbMediaAudioSampleInfo& that) {
   stream_info = that.stream_info;
@@ -422,7 +431,7 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 }
 
 int AudioDurationToFrames(int64_t duration, int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0)
+  SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   // The same as `frames = (duration / 1'000'000) * samples_per_second`,
   // switch order to avoid precision loss due to integer division.
@@ -430,7 +439,7 @@ int AudioDurationToFrames(int64_t duration, int samples_per_second) {
 }
 
 int64_t AudioFramesToDuration(int frames, int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0)
+  SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }

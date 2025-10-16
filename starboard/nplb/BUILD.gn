@@ -14,7 +14,6 @@
 
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
-import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
 
 declare_args() {
@@ -96,7 +95,6 @@ test("nplb") {
       "align_test.cc",
       "char_is_signed_test.cc",
       "configuration_test.cc",
-      "cpu_features_get_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
       "file_atomic_replace_test.cc",
@@ -179,6 +177,7 @@ test("nplb") {
       "posix_compliance/posix_pipe_test.cc",
       "posix_compliance/posix_poll_test.cc",
       "posix_compliance/posix_posix_memory_allocate_aligned_test.cc",
+      "posix_compliance/posix_priority_test.cc",
       "posix_compliance/posix_process_test.cc",
       "posix_compliance/posix_rand_r_test.cc",
       "posix_compliance/posix_rand_test.cc",
@@ -186,6 +185,8 @@ test("nplb") {
       "posix_compliance/posix_readlink_test.cc",
       "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
+      "posix_compliance/posix_resource_limit_test.cc",
+      "posix_compliance/posix_sched_getaffinity_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -309,15 +310,6 @@ test("nplb") {
       "window_get_size_test.cc",
     ]
     sources += starboard_platform_sources
-    if (enable_cobalt_hermetic_hacks) {
-      sources -= [
-        # TODO: b/400512503 - Fix build errors.
-        "posix_compliance/posix_condition_variable_wait_test.cc",
-        "posix_compliance/posix_condition_variable_wait_timed_test.cc",
-        "thread_test.cc",
-        "vertical_video_test.cc",
-      ]
-    }
   }
 
   configs += [
@@ -332,6 +324,7 @@ test("nplb") {
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/common:file_wrapper",
+    "//starboard/egl_and_gles:buildflags",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",

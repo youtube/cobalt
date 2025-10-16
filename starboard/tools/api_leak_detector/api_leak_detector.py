@@ -126,6 +126,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'getifaddrs',
     'getpeername',
     'getpid',
+    'getrlimit',
     'getsockname',
     'getsockopt',
     'gmtime_r',
@@ -229,6 +230,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'recvmsg',
     'rename',
     'rmdir',
+    'sched_getaffinity',
     'sched_get_priority_max',
     'sched_get_priority_min',
     'sched_yield',
@@ -241,6 +243,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'send',
     'sendmsg',
     'sendto',
+    'setpriority',
     'setsockopt',
     'shutdown',
     'sigaction',
@@ -565,16 +568,12 @@ def main():
   print(f'Building {config_dir} if necessary...', file=sys.stderr)
   RunCommand(['autoninja', '-C', config_path, args.target])
 
-  # First try using the GYP shared library path 'lib/libcobalt.so'.
-  # TODO(b/211885836): stop considering the GYP shared library path once all
-  # relevant GYP builders are removed from CI.
-  binary_path = os.path.join(config_path, 'lib', f'lib{args.target}.so')
-  # Then fall back on the GN shared library path 'libcobalt.so'.
+  # Use the library at lib.unstripped if available, as if that's around it
+  # means the top-level one has been stripped of symbols.
+  file_name = f'lib{args.target}.so'
+  binary_path = os.path.join(config_path, 'lib.unstripped', file_name)
   if not os.path.exists(binary_path):
-    binary_path = os.path.join(config_path, f'lib{args.target}.so')
-  # Then fall back on the executable path 'cobalt', used by both GYP and GN.
-  if not os.path.exists(binary_path):
-    binary_path = os.path.join(config_path, format(args.target))
+    binary_path = os.path.join(config_path, file_name)
   print(f'Analyzing: {binary_path}', file=sys.stderr)
 
   # Get all of the unresolved symbols of the binary.

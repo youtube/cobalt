@@ -31,7 +31,7 @@
 namespace nplb {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
+using ::starboard::FakeGraphicsContextProvider;
 using ::testing::Values;
 
 constexpr SbPlayerOutputMode kOutputModes[] = {

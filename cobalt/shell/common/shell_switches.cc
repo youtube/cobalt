@@ -47,6 +47,11 @@ const char kContentShellDevToolsTabTarget[] =
 // comma-separated list of origins.
 const char kIsolatedContextOrigins[] = "isolated-context-origins";
 
+// When set, no device authentication parameters will be appended to the initial
+// URL."
+const char kOmitDeviceAuthenticationQueryParameters[] =
+    "omit-device-authentication-query-parameters";
+
 // Use the given address instead of the default loopback for accepting remote
 // debugging connections. Note that the remote debugging protocol does not
 // perform any authentication, so exposing it too widely can be a security

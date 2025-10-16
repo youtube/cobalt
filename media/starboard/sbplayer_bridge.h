@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/atomic_sequence_num.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/task/sequenced_task_runner.h"
@@ -43,7 +44,6 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/sbplayer_interface.h"
-#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -87,7 +87,6 @@ class SbPlayerBridge {
                  const std::string& url,
                  SbWindow window,
                  Host* host,
-                 SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
@@ -107,7 +106,6 @@ class SbPlayerBridge {
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
-                 SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -133,7 +131,7 @@ class SbPlayerBridge {
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
-  void SetBounds(int z_index, const gfx::Rect& rect);
+  void SetBounds(const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
@@ -302,7 +300,6 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
-  SbPlayerSetBoundsHelper* const set_bounds_helper_;
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   const bool allow_resume_after_suspend_;
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME

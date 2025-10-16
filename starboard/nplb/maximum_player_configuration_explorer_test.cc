@@ -53,8 +53,7 @@ class MaximumPlayerConfigurationExplorerTest
  protected:
   MaximumPlayerConfigurationExplorerTest() {}
 
-  starboard::testing::FakeGraphicsContextProvider
-      fake_graphics_context_provider_;
+  starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
 TEST_P(MaximumPlayerConfigurationExplorerTest, SunnyDay) {

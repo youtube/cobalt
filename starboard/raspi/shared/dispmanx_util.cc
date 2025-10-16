@@ -40,7 +40,7 @@ class DispmanxAutoUpdate {
   void Update() {
     SB_DCHECK_NE(handle_, DISPMANX_NO_HANDLE);
     int32_t result = vc_dispmanx_update_submit_sync(handle_);
-    SB_DCHECK(result == 0) << " result=" << result;
+    SB_DCHECK_EQ(result, 0);
     handle_ = DISPMANX_NO_HANDLE;
   }
 
@@ -64,10 +64,14 @@ DispmanxResource::DispmanxResource(VC_IMAGE_TYPE_T image_type,
       visible_height_(visible_height) {
   static const uint32_t kMaxDimension = 1 << 16;
 
-  SB_DCHECK(width_ > 0 && width_ < kMaxDimension);
-  SB_DCHECK(height_ > 0 && height_ < kMaxDimension);
-  SB_DCHECK(visible_width_ > 0 && visible_width_ < kMaxDimension);
-  SB_DCHECK(visible_height > 0 && visible_height < kMaxDimension);
+  SB_DCHECK_GT(width_, 0);
+  SB_DCHECK_LT(width_, kMaxDimension);
+  SB_DCHECK_GT(height_, 0);
+  SB_DCHECK_LT(height_, kMaxDimension);
+  SB_DCHECK_GT(visible_width_, 0);
+  SB_DCHECK_LT(visible_width_, kMaxDimension);
+  SB_DCHECK_GT(visible_height, 0);
+  SB_DCHECK_LT(visible_height, kMaxDimension);
   SB_DCHECK_GE(width_, visible_width_);
   SB_DCHECK_GE(height_, visible_height);
 
@@ -127,7 +131,7 @@ DispmanxElement::DispmanxElement(const DispmanxDisplay& display,
 DispmanxElement::~DispmanxElement() {
   DispmanxAutoUpdate update;
   int32_t result = vc_dispmanx_element_remove(update.handle(), handle_);
-  SB_DCHECK(result == 0) << " result=" << result;
+  SB_DCHECK_EQ(result, 0);
 }
 
 void DispmanxElement::ChangeSource(const DispmanxResource& new_src) {

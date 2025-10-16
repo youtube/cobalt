@@ -49,8 +49,7 @@ class MaximumPlayerConfigurationExplorer {
       const std::vector<SbPlayerTestConfig>& player_configs,
       int max_instances_per_config,
       int max_total_instances,
-      starboard::testing::FakeGraphicsContextProvider*
-          fake_graphics_context_provider);
+      starboard::FakeGraphicsContextProvider* fake_graphics_context_provider);
   ~MaximumPlayerConfigurationExplorer();
 
   std::vector<SbPlayerMultiplePlayerTestConfig> CalculateMaxTestConfigs();
@@ -77,8 +76,7 @@ class MaximumPlayerConfigurationExplorer {
   const std::vector<SbPlayerTestConfig> player_configs_;
   const int max_instances_per_config_;
   const int max_total_instances_;
-  starboard::testing::FakeGraphicsContextProvider*
-      fake_graphics_context_provider_;
+  starboard::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   std::vector<std::vector<PlayerInstance>> player_instances_;
 

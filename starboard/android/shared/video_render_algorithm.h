@@ -17,7 +17,7 @@
 
 #include <list>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 
@@ -44,7 +44,8 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
                             double playback_rate);
 
    private:
-    jobject j_video_frame_release_time_helper_ = nullptr;
+    base::android::ScopedJavaGlobalRef<jobject>
+        j_video_frame_release_time_helper_;
   };
 
   MediaCodecVideoDecoder* video_decoder_ = nullptr;

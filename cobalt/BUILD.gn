@@ -49,6 +49,12 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
+  if (use_crashpad) {
+    deps += [
+      "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
+      "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
+    ]
+  }
 }
 
 group("cobalt_browsertests") {
@@ -73,6 +79,7 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
@@ -89,7 +96,6 @@ if (!is_android) {
 
     data_deps = [
       "//cobalt/shell:pak",
-      "//components/crash/core/app:chrome_crashpad_handler",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
   }
@@ -118,9 +124,17 @@ source_set("common") {
     ]
   }
 
+  if (use_evergreen) {
+    sources += [
+      "browser/loader_app_metrics.cc",
+      "browser/loader_app_metrics.h",
+    ]
+  }
+
+  public_deps = [ "//cobalt/browser" ]
+
   deps = [
     "//base",
-    "//cobalt/browser",
     "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",
@@ -181,7 +195,10 @@ test("cobalt_unittests") {
   ]
 
   if (is_starboard) {
-    sources += [ "//cobalt/app/cobalt_switch_defaults_starboard_test.cc" ]
+    sources += [
+      "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
+      "//cobalt/shell/common/device_authentication_test.cc",
+    ]
   }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]

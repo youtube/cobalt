@@ -132,6 +132,10 @@ component("events_base") {
     }
   }
 
+  if (is_starboard) {
+    sources += [ "keycodes/keyboard_code_conversion_starboard.cc" ]
+  }
+
   if (is_mac) {
     sources += [
       "keycodes/keyboard_code_conversion_mac.h",
@@ -700,6 +704,11 @@ if (use_blink) {
       }
     } else {
       data_deps = [ "//third_party/mesa_headers" ]
+    }
+
+    if (is_starboard) {
+      sources += [ "keycodes/keyboard_code_conversion_starboard_unittest.cc" ]
+      deps += [ "//starboard:starboard_headers_only" ]
     }
 
     if (use_ozone) {

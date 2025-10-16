@@ -16,6 +16,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
@@ -129,7 +130,6 @@ StarboardRenderer::StarboardRenderer(
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
-      set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
@@ -143,7 +143,6 @@ StarboardRenderer::StarboardRenderer(
 {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  DCHECK(set_bounds_helper_);
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -369,7 +368,6 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
 
 void StarboardRenderer::SetPlaybackRate(double playback_rate) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
   if (playback_rate < 0.0) {
     LOG(INFO) << "StarboardRenderer::SetPlaybackRate(): invalid playback rate "
               << playback_rate << '.';
@@ -479,8 +477,10 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
-  set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
-                                output_rect.width(), output_rect.height());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  output_rect_ = output_rect;
+
+  ApplyPendingBounds();
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -581,7 +581,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       audio_config, audio_mime_type, video_config, video_mime_type,
       // TODO(b/326497953): Support suspend/resume.
       // TODO(b/326508279): Support background mode.
-      kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
+      kSbWindowInvalid, drm_system_, this,
       // TODO(b/326497953): Support suspend/resume.
       false,
       // TODO(b/326825450): Revisit 360 videos.
@@ -607,6 +607,8 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    ApplyPendingBounds();
+
     const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
     switch (output_mode) {
       case kSbPlayerOutputModeDecodeToTexture:
@@ -647,6 +649,14 @@ void StarboardRenderer::CreatePlayerBridge() {
       "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
       " SbPlayerBridge - \"" +
           error_message + "\""));
+}
+
+void StarboardRenderer::ApplyPendingBounds() {
+  if (!player_bridge_ || !output_rect_) {
+    return;
+  }
+
+  player_bridge_->SetBounds(*output_rect_);
 }
 
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {

@@ -152,8 +152,7 @@ MaximumPlayerConfigurationExplorer::MaximumPlayerConfigurationExplorer(
     const std::vector<SbPlayerTestConfig>& player_configs,
     int max_instances_per_config,
     int max_total_instances,
-    starboard::testing::FakeGraphicsContextProvider*
-        fake_graphics_context_provider)
+    starboard::FakeGraphicsContextProvider* fake_graphics_context_provider)
     : player_configs_(player_configs),
       max_instances_per_config_(max_instances_per_config),
       max_total_instances_(max_total_instances),
@@ -164,8 +163,10 @@ MaximumPlayerConfigurationExplorer::MaximumPlayerConfigurationExplorer(
   SB_DCHECK_GT(max_total_instances_, 0);
   SB_DCHECK(fake_graphics_context_provider_);
   SB_DCHECK_EQ(player_instances_.size(), player_configs_.size());
-  SB_DCHECK(player_configs_.size() <= 7 && max_instances_per_config_ <= 7)
-      << "Exploring configs with that size may be a time-consuming process.";
+  SB_DCHECK_LE(player_configs_.size(), 7U)
+      << "High number of player configs may be time-consuming to explore.";
+  SB_DCHECK_LE(max_instances_per_config_, 7)
+      << "High max instances per config may be time-consuming to explore.";
 }
 
 MaximumPlayerConfigurationExplorer::~MaximumPlayerConfigurationExplorer() {
@@ -228,8 +229,8 @@ bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
       instances.push_back(instance);
     }
 
-    SB_DCHECK(instances.size() ==
-              static_cast<unsigned long>(configs_to_create[i]));
+    SB_DCHECK_EQ(instances.size(),
+                 static_cast<unsigned long>(configs_to_create[i]));
   }
   return true;
 }
@@ -241,7 +242,8 @@ MaximumPlayerConfigurationExplorer::CreatePlayerInstance(
   const char* video_filename = config.video_filename;
   SbPlayerOutputMode output_mode = config.output_mode;
   const char* key_system = config.key_system;
-  SB_DCHECK(video_filename && strlen(video_filename) > 0);
+  SB_DCHECK(video_filename);
+  SB_DCHECK_GT(strlen(video_filename), 0U);
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture ||
             output_mode == kSbPlayerOutputModePunchOut);
   SB_DCHECK(key_system);

@@ -88,6 +88,7 @@ AudioRendererPcm::AudioRendererPcm(
   SB_DCHECK(decoder_);
   SB_DCHECK_GT(min_frames_per_append_, 0);
   SB_DCHECK_GE(max_cached_frames_, min_frames_per_append_ * 2);
+  SB_CHECK(audio_renderer_sink_);
 
   frame_buffers_[0] = &frame_buffer_[0];
 
@@ -103,6 +104,10 @@ AudioRendererPcm::~AudioRendererPcm() {
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
   SB_CHECK(BelongsToCurrentThread());
+
+  // Stop audio renderer sink before destroying members, in order to
+  // prevent the callback called during destruction.
+  audio_renderer_sink_->Stop();
 }
 
 void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
@@ -302,6 +307,8 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
       return seeking_to_time_;
     }
 
+    // |frames_consumed_by_sink_since_last_get_current_time_| could include
+    // silence frames if overflow audio samples are allowed.
     if (frames_consumed_by_sink_since_last_get_current_time_ > 0) {
       audio_frame_tracker_.RecordPlayedFrames(
           frames_consumed_by_sink_since_last_get_current_time_);
@@ -325,6 +332,14 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
+#if BUILDFLAG(IS_ANDROID)
+    if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
+      // A simple workaround to handle silence frames for tunnel mode player.
+      // |playback_rate| is ignored as tunnel mode doesn't support
+      // vsp.
+      frames_played += audio_frame_tracker_.GetOverflowedFrames();
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
     media_time =
         seeking_to_time_ + frames_played * 1'000'000LL / samples_per_second;
     if (media_time < last_media_time_) {
@@ -472,6 +487,17 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
     if (non_silence_frames_consumed != 0) {
       frames_consumed_set_at_ = system_time_on_consume_frames;
     }
+
+#if BUILDFLAG(IS_ANDROID)
+    if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
+      auto silence_frames_consumed =
+          frames_consumed_on_sink_thread_ - non_silence_frames_consumed;
+      frames_consumed_by_sink_since_last_get_current_time_ +=
+          silence_frames_consumed;
+      frames_consumed_set_at_ = system_time_on_consume_frames;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
+
     consume_frames_called_ = true;
     frames_consumed_on_sink_thread_ = 0;
   }

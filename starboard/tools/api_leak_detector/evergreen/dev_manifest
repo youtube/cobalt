@@ -25,17 +25,14 @@ ftell
 ftello
 fwrite
 getc
-getrlimit
 localeconv
 newlocale
 prctl
 printf
 puts
 rewind
-sched_getaffinity
 sdallocx
 setlocale
-setpriority
 setvbuf
 stderr
 stdin

@@ -26,7 +26,7 @@ int64_t g_log_sleep_time = 0;  // microseconds
 
 namespace starboard {
 
-void LogInit(const starboard::CommandLine& command_line) {
+void LogInit(const CommandLine& command_line) {
   if (command_line.HasSwitch(kLogSleepTimeSwitch)) {
     g_log_sleep_time =
         atol(command_line.GetSwitchValue(kLogSleepTimeSwitch).c_str());

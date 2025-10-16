@@ -171,10 +171,10 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      HandlerResult result,
                                      const std::string& error_message) {
-  SB_DCHECK(!result.success);
+  SB_DCHECK(!result);
   std::string complete_error_message = error_message;
-  if (!result.error_message.empty()) {
-    complete_error_message += " Error: " + result.error_message;
+  if (!result.error().empty()) {
+    complete_error_message += " Error: " + result.error();
   }
 
   SB_LOG(WARNING) << "Encountered player error " << error
@@ -221,14 +221,15 @@ void PlayerWorker::DoInit() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   Handler::UpdatePlayerErrorCB update_player_error_cb;
-  update_player_error_cb = std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
-                                     HandlerResult{false}, _2);
+  update_player_error_cb =
+      std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
+                Result<void>(Unexpected(std::string())), _2);
   HandlerResult result = handler_->Init(
       player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),
       std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
       update_player_error_cb);
-  if (result.success) {
+  if (result) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
     UpdatePlayerError(kSbPlayerErrorDecode, result,
@@ -258,7 +259,7 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
   pending_video_buffers_.clear();
 
   HandlerResult result = handler_->Seek(seek_to_time, ticket);
-  if (!result.success) {
+  if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed seek.");
     return;
   }
@@ -301,15 +302,15 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   int samples_written;
   HandlerResult result =
       handler_->WriteSamples(input_buffers, &samples_written);
-  if (!result.success) {
+  if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to write sample.");
     return;
   }
   if (static_cast<size_t>(samples_written) == input_buffers.size()) {
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
-    SB_DCHECK(samples_written >= 0 &&
-              static_cast<size_t>(samples_written) <= input_buffers.size());
+    SB_DCHECK_GE(samples_written, 0);
+    SB_DCHECK_LE(static_cast<size_t>(samples_written), input_buffers.size());
 
     [[maybe_unused]] size_t num_of_pending_buffers =
         input_buffers.size() - samples_written;
@@ -371,7 +372,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 
   HandlerResult result = handler_->WriteEndOfStream(sample_type);
-  if (!result.success) {
+  if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result,
                       "Failed to write end of stream.");
   }
@@ -380,7 +381,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
 void PlayerWorker::DoSetBounds(Bounds bounds) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   HandlerResult result = handler_->SetBounds(bounds);
-  if (!result.success) {
+  if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to set bounds.");
   }
 }
@@ -389,7 +390,7 @@ void PlayerWorker::DoSetPause(bool pause) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   HandlerResult result = handler_->SetPause(pause);
-  if (!result.success) {
+  if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to set pause.");
   }
 }
@@ -398,7 +399,7 @@ void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   HandlerResult result = handler_->SetPlaybackRate(playback_rate);
-  if (!result.success) {
+  if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result,
                       "Failed to set playback rate.");
   }

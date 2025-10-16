@@ -25,8 +25,8 @@
 
 namespace nplb {
 
+using ::starboard::FakeGraphicsContextProvider;
 using ::starboard::VideoDmpReader;
-using ::starboard::testing::FakeGraphicsContextProvider;
 
 using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
 using AudioSamplesDescriptor = GroupedSamples::AudioSamplesDescriptor;
@@ -526,10 +526,10 @@ void SbPlayerTestFixture::WriteAudioSamples(
   SB_DCHECK(audio_dmp_reader_);
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
-  SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                                    player_, kSbMediaTypeAudio));
-  SB_DCHECK(static_cast<size_t>(start_index + samples_to_write + 1) <
-            audio_dmp_reader_->number_of_audio_buffers());
+  SB_DCHECK_LE(samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                                     player_, kSbMediaTypeAudio));
+  SB_DCHECK_LT(static_cast<size_t>(start_index + samples_to_write + 1),
+               audio_dmp_reader_->number_of_audio_buffers());
   SB_DCHECK(discarded_duration_from_front == 0 || samples_to_write == 1);
   SB_DCHECK(discarded_duration_from_back == 0 || samples_to_write == 1);
 
@@ -554,11 +554,11 @@ void SbPlayerTestFixture::WriteVideoSamples(int start_index,
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
   SB_DCHECK(SbPlayerIsValid(player_));
-  SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                                    player_, kSbMediaTypeVideo));
+  SB_DCHECK_LE(samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                                     player_, kSbMediaTypeVideo));
   SB_DCHECK(video_dmp_reader_);
-  SB_DCHECK(static_cast<size_t>(start_index + samples_to_write) <
-            video_dmp_reader_->number_of_video_buffers());
+  SB_DCHECK_LT(static_cast<size_t>(start_index + samples_to_write),
+               video_dmp_reader_->number_of_video_buffers());
 
   CallSbPlayerWriteSamples(player_, kSbMediaTypeVideo, video_dmp_reader_.get(),
                            start_index, samples_to_write);

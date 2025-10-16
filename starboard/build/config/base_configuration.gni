@@ -72,9 +72,7 @@ declare_args() {
   #   "system_gles2" - Use the system implementation of EGL + GLES2. The
   #                    headers and libraries must be on the system include and
   #                    link paths.
-  #   "glimp"  - Cobalt's own EGL + GLES2 implementation. This requires a
-  #              valid Glimp implementation for the platform.
-  #   "angle"  - A DirectX-to-OpenGL adaptation layer. This requires a valid
+  #   "angle"  - Use ANGLE's EGL + GLES2 implementation. This requires a valid
   #              ANGLE implementation for the platform.
   gl_type = "system_gles2"
 
@@ -151,4 +149,11 @@ declare_args() {
   # all unused symbols and nplb fails to link.
   # TODO: b/297808555 Remove this flag after nplb is fixed
   sb_has_unused_symbol_issue = false
+
+  # Platforms can set this to true in order to build and use a real crashpad
+  # implementation. If false, crashpad either won't be built or a stub
+  # implementation will be built and used.
+  # TODO: b/406511608 - remove once crashpad builds and behaves as expected on
+  # all platforms.
+  use_crashpad = false
 }

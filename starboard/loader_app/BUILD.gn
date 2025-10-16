@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/config/os_definitions.gni")
 import("//third_party/protobuf/proto_library.gni")
 
 _common_loader_app_sources = [
@@ -41,7 +40,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:sabi_string",
     ]
 
-    if (enable_cobalt_hermetic_hacks) {
+    if (!use_crashpad) {
       public_deps -= [ "//starboard/crashpad_wrapper" ]
       public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
@@ -291,8 +290,8 @@ static_library("slot_management") {
     "//third_party/jsoncpp:jsoncpp",
   ]
 
-  if (sb_is_evergreen_compatible && !enable_cobalt_hermetic_hacks &&
-      current_toolchain == starboard_toolchain) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
+      use_crashpad) {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

@@ -36,7 +36,6 @@
 namespace starboard {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -84,7 +83,6 @@ class PlayerComponentsTest
 
     unique_ptr<PlayerComponents::Factory> factory =
         PlayerComponents::Factory::Create();
-    string error_message;
     if (audio_reader_ && video_reader_) {
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
@@ -94,13 +92,13 @@ class PlayerComponentsTest
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+          factory->CreateComponents(creation_parameters).value();
     } else if (audio_reader_) {
       // Audio only
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info());
       player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+          factory->CreateComponents(creation_parameters).value();
     } else {
       // Video only
       ASSERT_TRUE(video_reader_);
@@ -111,7 +109,7 @@ class PlayerComponentsTest
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+          factory->CreateComponents(creation_parameters).value();
     }
     ASSERT_TRUE(player_components_);
 
@@ -726,9 +724,8 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
           CreateParam(audio_files[j], video_params[i], max_video_input_size));
     }
   }
-  SB_DCHECK(supported_parameters.size() < 50)
-      << "There're " << supported_parameters.size()
-      << " tests added. It may take too long time to run and result in timeout";
+  SB_DCHECK_LT(supported_parameters.size(), 50)
+      << "Running the tests may take too long and result in a timeout.";
 
   for (size_t i = 0; i < audio_files.size(); i++) {
     if (PlayerComponents::Factory::OutputModeSupported(
