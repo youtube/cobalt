@@ -1085,9 +1085,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 
   if (audio) {
     if (ESDescriptor::IsAAC(runs_->audio_description().esds.object_type)) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      frame_buf.assign(buf, buf + sample_size);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
       heap_frame_buf = PrepareAACBuffer(runs_->audio_description().esds.aac,
                                         {buf, buf + sample_size}, &subsamples);
@@ -1131,17 +1128,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (frame_buf.empty()) {
-    stream_buf = StreamParserBuffer::CopyFrom(
-        base::span<const uint8_t>{buf, buf + sample_size}, is_keyframe,
-        buffer_type, runs_->track_id());
-  } else {
-    stream_buf = StreamParserBuffer::CopyFrom(
-        base::span<const uint8_t>{&frame_buf[0], frame_buf.size()},
-        is_keyframe, buffer_type, runs_->track_id());
-  }
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
       stream_buf = StreamParserBuffer::FromExternalMemory(
@@ -1162,17 +1148,28 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       stream_buf = StreamParserBuffer::CopyFrom(buf_span, is_keyframe,
                                                 buffer_type, runs_->track_id());
     } else if (frame_buf.empty()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_buf = StreamParserBuffer::CopyFrom(
+          base::span<const uint8_t>{&heap_frame_buf[0], heap_frame_buf.size()},
+          is_keyframe, buffer_type, runs_->track_id());
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf =
           StreamParserBuffer::FromArray(std::move(heap_frame_buf), is_keyframe,
                                         buffer_type, runs_->track_id());
 
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     } else {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_buf = StreamParserBuffer::CopyFrom(
+          base::span<const uint8_t>{&frame_buf[0], frame_buf.size()},
+          is_keyframe, buffer_type, runs_->track_id());
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf = StreamParserBuffer::FromExternalMemory(
           std::make_unique<ExternalMemoryAdapter>(std::move(frame_buf)),
           is_keyframe, buffer_type, runs_->track_id());
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));
