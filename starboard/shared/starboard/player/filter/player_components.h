@@ -163,7 +163,7 @@ class PlayerComponents {
     struct VideoComponents {
       std::unique_ptr<VideoDecoder> decoder;
       std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
-      scoped_refptr<VideoRendererSink>* renderer_sink;
+      scoped_refptr<VideoRendererSink> renderer_sink;
     };
     struct MediaComponents {
       AudioComponents audio;
