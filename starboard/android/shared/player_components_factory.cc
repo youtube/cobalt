@@ -405,7 +405,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       if (video_decoder_impl) {
         components.video.render_algorithm =
             video_decoder_impl->GetRenderAlgorithm();
-        *components.video.renderer_sink = video_decoder_impl->GetSink();
+        components.video.renderer_sink = video_decoder_impl->GetSink();
         components.video.decoder.reset(video_decoder_impl.release());
       } else {
         return Failure("Failed to create video decoder: " + error_message);
