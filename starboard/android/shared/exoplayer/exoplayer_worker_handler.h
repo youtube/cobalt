@@ -30,14 +30,8 @@
 
 namespace starboard {
 
-using ::starboard::EndedCB;
-using ::starboard::ErrorCB;
-using starboard::JobQueue;
-using ::starboard::PrerolledCB;
-using Handler = starboard::PlayerWorker::Handler;
-using HandlerResult = starboard::PlayerWorker::Handler::HandlerResult;
-
-class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
+class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
+                               private JobQueue::JobOwner {
  public:
   explicit ExoPlayerWorkerHandler(const SbPlayerCreationParam* creation_param);
 
@@ -54,8 +48,8 @@ class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
   HandlerResult SetPause(bool pause) override;
   HandlerResult SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-
   HandlerResult SetBounds(const Bounds& bounds) override { return {true}; }
+
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void Stop() override;
 
@@ -68,22 +62,22 @@ class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
     return kSbDecodeTargetInvalid;
   }
 
-  std::unique_ptr<ExoPlayerBridge> bridge_;
-
   SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaInfoCB update_media_info_cb_;
   GetPlayerStateCB get_player_state_cb_;
   UpdatePlayerStateCB update_player_state_cb_;
   UpdatePlayerErrorCB update_player_error_cb_;
 
+  const AudioStreamInfo audio_stream_info_;
+  const VideoStreamInfo video_stream_info_;
+
   bool paused_ = false;
   double playback_rate_ = 1.0;
   double volume_ = 1.0;
   JobQueue::JobToken update_job_token_;
-  std::function<void()> update_job_;
+  const std::function<void()> update_job_;
 
-  const starboard::AudioStreamInfo audio_stream_info_;
-  const starboard::VideoStreamInfo video_stream_info_;
+  const std::unique_ptr<ExoPlayerBridge> bridge_;
 };
 
 }  // namespace starboard

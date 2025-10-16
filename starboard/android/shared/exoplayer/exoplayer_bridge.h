@@ -21,7 +21,6 @@
 #include <string>
 
 #include "base/android/jni_android.h"
-#include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/media.h"
@@ -29,20 +28,8 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
-
-using base::android::ScopedJavaGlobalRef;
-using starboard::EndedCB;
-using starboard::ErrorCB;
-using starboard::VideoSurfaceHolder;
-using PrerolledCB = ::starboard::PrerolledCB;
-using InputBuffer = ::starboard::InputBuffer;
-using InputBuffers = ::starboard::InputBuffers;
-using AudioStreamInfo = ::starboard::AudioStreamInfo;
-using VideoStreamInfo = ::starboard::VideoStreamInfo;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
@@ -82,35 +69,34 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
                   const VideoStreamInfo& video_stream_info);
   ~ExoPlayerBridge();
 
-  void SetCallbacks(const ErrorCB& error_cb,
-                    const PrerolledCB& prerolled_cb,
-                    const EndedCB& ended_cb);
+  void SetCallbacks(ErrorCB error_cb,
+                    PrerolledCB prerolled_cb,
+                    EndedCB ended_cb);
 
   void Seek(int64_t seek_to_timestamp);
   void WriteSamples(const InputBuffers& input_buffers);
   void WriteEndOfStream(SbMediaType stream_type);
-  bool Play();
-  bool Pause();
-  bool Stop();
-  bool SetVolume(double volume);
-  bool SetPlaybackRate(const double playback_rate);
+  void Play() const;
+  void Pause() const;
+  void Stop() const;
+  void SetVolume(double volume) const;
+  void SetPlaybackRate(const double playback_rate);
 
-  int GetDroppedFrames();
-  int64_t GetCurrentMediaTime(MediaInfo& info);
+  int GetDroppedFrames() const;
+  int64_t GetCurrentMediaTime(MediaInfo& info) const;
 
   // Native callbacks.
-  void OnInitialized(JNIEnv* env);
-  void OnReady(JNIEnv* env);
+  void OnInitialized(JNIEnv*);
+  void OnReady(JNIEnv*);
   void OnError(JNIEnv* env, jstring error_message);
-  void SetPlayingStatus(JNIEnv* env, jboolean isPlaying);
-
-  void OnPlayerPrerolled();
+  void OnBuffering(JNIEnv*);
+  void SetPlayingStatus(JNIEnv*, jboolean isPlaying);
   void OnPlaybackEnded(JNIEnv*);
 
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
 
-  bool IsEndOfStreamWritten(SbMediaType type) {
+  bool IsEndOfStreamWritten(SbMediaType type) const {
     return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
   }
 
@@ -124,18 +110,16 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
  private:
   void InitExoplayer();
 
-  void TearDownExoPlayer();
-
-  ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
-  ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
-  ScopedJavaGlobalRef<jobject> j_audio_media_source_;
-  ScopedJavaGlobalRef<jobject> j_video_media_source_;
-  ScopedJavaGlobalRef<jobject> j_sample_data_;
-  ScopedJavaGlobalRef<jobject> j_output_surface_;
+  base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
+  base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_audio_media_source_;
+  base::android::ScopedJavaGlobalRef<jobject> j_video_media_source_;
+  base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
+  base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
 
   bool error_occurred_ = false;
-  starboard::AudioStreamInfo audio_stream_info_;
-  starboard::VideoStreamInfo video_stream_info_;
+  const AudioStreamInfo audio_stream_info_;
+  const VideoStreamInfo video_stream_info_;
 
   int64_t seek_time_ = 0;
   bool is_playing_ = false;
@@ -145,14 +129,16 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   // Signaled once player initialization is complete.
   std::condition_variable initialized_cv_;
+  bool initialized_ = false;
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
   bool playback_ended_ = false;
-  double playback_rate_ = 0.0;
+  double playback_rate_ = 1.0;
   bool seeking_ = false;
+  bool underflow_ = false;
 };
 
 }  // namespace starboard
