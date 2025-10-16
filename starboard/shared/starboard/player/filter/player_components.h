@@ -161,8 +161,8 @@ class PlayerComponents {
       std::unique_ptr<AudioRendererSink> renderer_sink;
     };
     struct VideoComponents {
-      std::unique_ptr<VideoDecoder> decoder,
-          std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
+      std::unique_ptr<VideoDecoder> decoder;
+      std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
       scoped_refptr<VideoRendererSink>* renderer_sink;
     };
     struct MediaComponents {

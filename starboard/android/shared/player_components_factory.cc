@@ -237,15 +237,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         std::move(audio_renderer), std::move(video_renderer));
   }
 
-  bool CreateSubComponents(
-      const CreationParameters& creation_parameters,
-      std::unique_ptr<AudioDecoder>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::unique_ptr<VideoDecoder>* video_decoder,
-      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) override {
-    SB_CHECK(error_message);
+  Result<MediaComponents> CreateSubComponents(
+      const CreationParameters& creation_parameters) override {
+    MediaComponents components;
 
     const std::string audio_mime =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
@@ -254,9 +248,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid()) {
-        *error_message =
-            "Invalid audio MIME: '" + std::string(audio_mime) + "'";
-        return false;
+        return Failure("Invalid audio MIME: '" + std::string(audio_mime) + "'");
       }
     }
 
@@ -268,9 +260,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (!video_mime.empty()) {
       if (!video_mime_type.is_valid() ||
           !video_mime_type.ValidateBoolParameter("tunnelmode")) {
-        *error_message =
-            "Invalid video MIME: '" + std::string(video_mime) + "'";
-        return false;
+        return Failure("Invalid video MIME: '" + std::string(video_mime) + "'");
       }
     }
 
@@ -345,9 +335,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " audio decoder during Reset().";
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      SB_DCHECK(audio_decoder);
-      SB_DCHECK(audio_renderer_sink);
-
       const bool enable_platform_opus_decoder =
           FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
@@ -380,28 +367,25 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
-      *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
+      components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
           enable_reset_audio_decoder);
 
       if (tunnel_mode_audio_session_id != -1) {
-        *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
+        components.audio.renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters);
-        if (!*audio_renderer_sink) {
+        if (!components.audio.renderer_sink) {
           tunnel_mode_audio_session_id = -1;
         }
       }
-      if (!*audio_renderer_sink) {
-        *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>();
+      if (!components.audio.renderer_sink) {
+        components.audio.renderer_sink =
+            std::make_unique<AudioRendererSinkAndroid>();
       }
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      SB_DCHECK(video_decoder);
-      SB_DCHECK(video_render_algorithm);
-      SB_DCHECK(video_renderer_sink);
-      SB_DCHECK(error_message);
       // Set max_video_input_size with a positive value to overwrite
       // MediaFormat.KEY_MAX_INPUT_SIZE. Use 0 as default value.
       int max_video_input_size = creation_parameters.max_video_input_size();
@@ -413,22 +397,22 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
+      std::string error_message;
       std::unique_ptr<MediaCodecVideoDecoder> video_decoder_impl =
           CreateVideoDecoder(creation_parameters, tunnel_mode_audio_session_id,
                              force_secure_pipeline_under_tunnel_mode,
-                             max_video_input_size, error_message);
+                             max_video_input_size, &error_message);
       if (video_decoder_impl) {
-        *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
-        *video_renderer_sink = video_decoder_impl->GetSink();
-        video_decoder->reset(video_decoder_impl.release());
+        components.video.render_algorithm =
+            video_decoder_impl->GetRenderAlgorithm();
+        *components.video.renderer_sink = video_decoder_impl->GetSink();
+        components.video.decoder.reset(video_decoder_impl.release());
       } else {
-        video_decoder->reset();
-        *video_renderer_sink = NULL;
-        return false;
+        return Failure("Failed to create video decoder: " + error_message);
       }
     }
 
-    return true;
+    return components;
   }
 
   void GetAudioRendererParams(const CreationParameters& creation_parameters,

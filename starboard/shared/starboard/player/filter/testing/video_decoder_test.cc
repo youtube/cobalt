@@ -157,11 +157,13 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 
-            std::string error_message;
-            ASSERT_TRUE(factory->CreateSubComponents(
-                creation_parameters, nullptr, nullptr, &video_decoders[i],
-                &video_render_algorithms[i], &video_renderer_sinks[i],
-                &error_message));
+            auto result = factory->CreateSubComponents(creation_parameters);
+            ASSERT_TRUE(result.has_value()) << result.error();
+            video_decoders[i] = std::move(result.value().video.decoder);
+            video_render_algorithms[i] =
+                std::move(result.value().video.render_algorithm);
+            video_renderer_sinks[i] =
+                std::move(*result.value().video.renderer_sink);
             ASSERT_TRUE(video_decoders[i]);
 
             if (video_renderer_sinks[i]) {
