@@ -115,9 +115,55 @@ class VideoCodecCapability : public CodecCapability {
   const Range supported_frame_rates_;
 };
 
+class DrmCapabilitiesProvider {
+ public:
+  virtual ~DrmCapabilitiesProvider() = default;
+  virtual bool IsWidevineSupported() = 0;
+  virtual bool IsCbcsSchemeSupported() = 0;
+};
+
+class HdrCapabilitiesProvider {
+ public:
+  virtual ~HdrCapabilitiesProvider() = default;
+  virtual std::set<SbMediaTransferId> GetSupportedHdrTransferIds() = 0;
+};
+
+class PassthroughCapabilitiesProvider {
+ public:
+  virtual ~PassthroughCapabilitiesProvider() = default;
+  virtual bool IsPassthroughSupported(SbMediaAudioCodec codec) = 0;
+};
+
+class AudioConfigurationProvider {
+ public:
+  virtual ~AudioConfigurationProvider() = default;
+  virtual std::vector<SbMediaAudioConfiguration> GetAudioConfigurations() = 0;
+};
+
+class CodecCapabilitiesProvider {
+ public:
+  virtual ~CodecCapabilitiesProvider() = default;
+  virtual std::map<std::string,
+                   std::vector<std::unique_ptr<AudioCodecCapability>>>
+  GetAudioCodecCapabilities() = 0;
+  virtual std::map<std::string,
+                   std::vector<std::unique_ptr<VideoCodecCapability>>>
+  GetVideoCodecCapabilities() = 0;
+};
+
 class MediaCapabilitiesCache {
  public:
   static MediaCapabilitiesCache* GetInstance();
+
+  static std::unique_ptr<MediaCapabilitiesCache> CreateForTest(
+      std::unique_ptr<DrmCapabilitiesProvider> drm_capabilities_provider,
+      std::unique_ptr<HdrCapabilitiesProvider> hdr_capabilities_provider,
+      std::unique_ptr<PassthroughCapabilitiesProvider>
+          passthrough_capabilities_provider,
+      std::unique_ptr<AudioConfigurationProvider> audio_configuration_provider,
+      std::unique_ptr<CodecCapabilitiesProvider> codec_capabilities_provider);
+
+  ~MediaCapabilitiesCache() = default;
 
   bool IsWidevineSupported();
   bool IsCbcsSchemeSupported();
@@ -158,17 +204,31 @@ class MediaCapabilitiesCache {
 
  private:
   MediaCapabilitiesCache();
-  ~MediaCapabilitiesCache() {}
+  MediaCapabilitiesCache(
+      std::unique_ptr<DrmCapabilitiesProvider> drm_capabilities_provider,
+      std::unique_ptr<HdrCapabilitiesProvider> hdr_capabilities_provider,
+      std::unique_ptr<PassthroughCapabilitiesProvider>
+          passthrough_capabilities_provider,
+      std::unique_ptr<AudioConfigurationProvider> audio_configuration_provider,
+      std::unique_ptr<CodecCapabilitiesProvider> codec_capabilities_provider);
 
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
 
   void UpdateMediaCapabilities_Locked();
-  void LoadAudioConfigurations_Locked();
-  void LoadCodecInfos_Locked();
 
   std::mutex mutex_;
 
+  // Providers for abstracting data sources.
+  const std::unique_ptr<DrmCapabilitiesProvider> drm_capabilities_provider_;
+  const std::unique_ptr<HdrCapabilitiesProvider> hdr_capabilities_provider_;
+  const std::unique_ptr<PassthroughCapabilitiesProvider>
+      passthrough_capabilities_provider_;
+  const std::unique_ptr<AudioConfigurationProvider>
+      audio_configuration_provider_;
+  const std::unique_ptr<CodecCapabilitiesProvider> codec_capabilities_provider_;
+
+  // Cached data.
   std::set<SbMediaTransferId> supported_transfer_ids_;
   std::map<SbMediaAudioCodec, bool> passthrough_supportabilities_;
 

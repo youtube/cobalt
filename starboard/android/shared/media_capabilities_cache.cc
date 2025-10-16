@@ -85,66 +85,149 @@ void ConvertStringToLowerCase(std::string* str) {
   }
 }
 
-bool GetIsWidevineSupported() {
-  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
-}
-
-bool GetIsCbcsSupported() {
-  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
-}
-
-std::set<SbMediaTransferId> GetSupportedHdrTypes() {
-  std::set<SbMediaTransferId> supported_transfer_ids;
-
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
-      StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
-
-  if (!j_supported_hdr_types) {
-    // Failed to get supported hdr types.
-    SB_LOG(ERROR) << "Failed to load supported hdr types.";
-    return std::set<SbMediaTransferId>();
+class DrmCapabilitiesProviderImpl : public DrmCapabilitiesProvider {
+  bool IsWidevineSupported() override {
+    return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
   }
+  bool IsCbcsSchemeSupported() override {
+    return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
+  }
+};
 
-  jsize length = env->GetArrayLength(j_supported_hdr_types.obj());
-  jint* numbers =
-      env->GetIntArrayElements(j_supported_hdr_types.obj(), nullptr);
-  for (int i = 0; i < length; i++) {
-    switch (numbers[i]) {
-      case HDR_TYPE_DOLBY_VISION:
-        continue;
-      case HDR_TYPE_HDR10:
-        supported_transfer_ids.insert(kSbMediaTransferIdSmpteSt2084);
-        continue;
-      case HDR_TYPE_HLG:
-        supported_transfer_ids.insert(kSbMediaTransferIdAribStdB67);
-        continue;
-      case HDR_TYPE_HDR10_PLUS:
-        continue;
+class HdrCapabilitiesProviderImpl : public HdrCapabilitiesProvider {
+  std::set<SbMediaTransferId> GetSupportedHdrTransferIds() override {
+    std::set<SbMediaTransferId> supported_transfer_ids;
+
+    JNIEnv* env = AttachCurrentThread();
+    ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
+        StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
+
+    if (!j_supported_hdr_types) {
+      // Failed to get supported hdr types.
+      SB_LOG(ERROR) << "Failed to load supported hdr types.";
+      return std::set<SbMediaTransferId>();
     }
-  }
-  env->ReleaseIntArrayElements(j_supported_hdr_types.obj(), numbers, 0);
 
-  return supported_transfer_ids;
-}
+    jsize length = env->GetArrayLength(j_supported_hdr_types.obj());
+    jint* numbers =
+        env->GetIntArrayElements(j_supported_hdr_types.obj(), nullptr);
+    for (int i = 0; i < length; i++) {
+      switch (numbers[i]) {
+        case HDR_TYPE_DOLBY_VISION:
+          continue;
+        case HDR_TYPE_HDR10:
+          supported_transfer_ids.insert(kSbMediaTransferIdSmpteSt2084);
+          continue;
+        case HDR_TYPE_HLG:
+          supported_transfer_ids.insert(kSbMediaTransferIdAribStdB67);
+          continue;
+        case HDR_TYPE_HDR10_PLUS:
+          continue;
+      }
+    }
+    env->ReleaseIntArrayElements(j_supported_hdr_types.obj(), numbers, 0);
 
-bool GetIsPassthroughSupported(SbMediaAudioCodec codec) {
-  SbMediaAudioCodingType coding_type;
-  switch (codec) {
-    case kSbMediaAudioCodecAc3:
-      coding_type = kSbMediaAudioCodingTypeAc3;
-      break;
-    case kSbMediaAudioCodecEac3:
-      coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus;
-      break;
-    default:
-      return false;
+    return supported_transfer_ids;
   }
-  int encoding = GetAudioFormatSampleType(coding_type);
-  JNIEnv* env = AttachCurrentThread();
-  return AudioOutputManager::GetInstance()->HasPassthroughSupportFor(env,
-                                                                     encoding);
-}
+};
+
+class PassthroughCapabilitiesProviderImpl
+    : public PassthroughCapabilitiesProvider {
+  bool IsPassthroughSupported(SbMediaAudioCodec codec) override {
+    SbMediaAudioCodingType coding_type;
+    switch (codec) {
+      case kSbMediaAudioCodecAc3:
+        coding_type = kSbMediaAudioCodingTypeAc3;
+        break;
+      case kSbMediaAudioCodecEac3:
+        coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus;
+        break;
+      default:
+        return false;
+    }
+    int encoding = GetAudioFormatSampleType(coding_type);
+    JNIEnv* env = AttachCurrentThread();
+    return AudioOutputManager::GetInstance()->HasPassthroughSupportFor(
+        env, encoding);
+  }
+};
+
+class AudioConfigurationProviderImpl : public AudioConfigurationProvider {
+  std::vector<SbMediaAudioConfiguration> GetAudioConfigurations() override {
+    std::vector<SbMediaAudioConfiguration> audio_configurations;
+    // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations.
+    // The limit here is to avoid infinite loop and also match
+    // SbPlayerBridge::GetAudioConfigurations().
+    const int kMaxAudioConfigurations = 32;
+    SbMediaAudioConfiguration configuration;
+    JNIEnv* env = AttachCurrentThread();
+    while (audio_configurations.size() < kMaxAudioConfigurations &&
+           AudioOutputManager::GetInstance()->GetAudioConfiguration(
+               env, audio_configurations.size(), &configuration)) {
+      audio_configurations.push_back(configuration);
+    }
+    return audio_configurations;
+  }
+};
+
+class CodecCapabilitiesProviderImpl : public CodecCapabilitiesProvider {
+  std::map<std::string, std::vector<std::unique_ptr<AudioCodecCapability>>>
+  GetAudioCodecCapabilities() override {
+    std::map<std::string, std::vector<std::unique_ptr<AudioCodecCapability>>>
+        audio_codec_capabilities_map;
+    JNIEnv* env = AttachCurrentThread();
+    ScopedJavaLocalRef<jobjectArray> j_codec_infos =
+        Java_MediaCodecUtil_getAllCodecCapabilityInfos(env);
+    jsize length = env->GetArrayLength(j_codec_infos.obj());
+    for (int i = 0; i < length; i++) {
+      ScopedJavaLocalRef<jobject> j_codec_info(
+          env, env->GetObjectArrayElement(j_codec_infos.obj(), i));
+      SB_CHECK(j_codec_info);
+
+      ScopedJavaLocalRef<jobject> j_audio_capabilities =
+          Java_CodecCapabilityInfo_getAudioCapabilities(env, j_codec_info);
+      if (j_audio_capabilities) {
+        ScopedJavaLocalRef<jstring> j_mime_type =
+            Java_CodecCapabilityInfo_getMimeType(env, j_codec_info);
+        std::string mime_type = ConvertJavaStringToUTF8(env, j_mime_type.obj());
+        ConvertStringToLowerCase(&mime_type);
+        audio_codec_capabilities_map[mime_type].push_back(
+            std::make_unique<AudioCodecCapability>(env, j_codec_info,
+                                                   j_audio_capabilities));
+      }
+    }
+    return audio_codec_capabilities_map;
+  }
+
+  std::map<std::string, std::vector<std::unique_ptr<VideoCodecCapability>>>
+  GetVideoCodecCapabilities() override {
+    std::map<std::string, std::vector<std::unique_ptr<VideoCodecCapability>>>
+        video_codec_capabilities_map;
+    JNIEnv* env = AttachCurrentThread();
+    ScopedJavaLocalRef<jobjectArray> j_codec_infos =
+        Java_MediaCodecUtil_getAllCodecCapabilityInfos(env);
+    jsize length = env->GetArrayLength(j_codec_infos.obj());
+    for (int i = 0; i < length; i++) {
+      ScopedJavaLocalRef<jobject> j_codec_info(
+          env, env->GetObjectArrayElement(j_codec_infos.obj(), i));
+      SB_CHECK(j_codec_info);
+
+      ScopedJavaLocalRef<jobject> j_video_capabilities =
+          Java_CodecCapabilityInfo_getVideoCapabilities(env, j_codec_info);
+      if (j_video_capabilities) {
+        ScopedJavaLocalRef<jstring> j_mime_type =
+            Java_CodecCapabilityInfo_getMimeType(env, j_codec_info);
+        std::string mime_type = ConvertJavaStringToUTF8(env, j_mime_type.obj());
+        ConvertStringToLowerCase(&mime_type);
+        video_codec_capabilities_map[mime_type].push_back(
+            std::make_unique<VideoCodecCapability>(env, j_codec_info,
+                                                   j_video_capabilities));
+      }
+    }
+    return video_codec_capabilities_map;
+  }
+};
+
 }  // namespace
 
 CodecCapability::CodecCapability(JNIEnv* env,
@@ -237,9 +320,54 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
                             MediaCapabilitiesCache::GetInstance)
 
+std::unique_ptr<MediaCapabilitiesCache> MediaCapabilitiesCache::CreateForTest(
+    std::unique_ptr<DrmCapabilitiesProvider> drm_capabilities_provider,
+    std::unique_ptr<HdrCapabilitiesProvider> hdr_capabilities_provider,
+    std::unique_ptr<PassthroughCapabilitiesProvider>
+        passthrough_capabilities_provider,
+    std::unique_ptr<AudioConfigurationProvider> audio_configuration_provider,
+    std::unique_ptr<CodecCapabilitiesProvider> codec_capabilities_provider) {
+  return std::unique_ptr<MediaCapabilitiesCache>(
+      new MediaCapabilitiesCache(std::move(drm_capabilities_provider),
+                                 std::move(hdr_capabilities_provider),
+                                 std::move(passthrough_capabilities_provider),
+                                 std::move(audio_configuration_provider),
+                                 std::move(codec_capabilities_provider)));
+}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache()
+    : MediaCapabilitiesCache(
+          std::make_unique<DrmCapabilitiesProviderImpl>(),
+          std::make_unique<HdrCapabilitiesProviderImpl>(),
+          std::make_unique<PassthroughCapabilitiesProviderImpl>(),
+          std::make_unique<AudioConfigurationProviderImpl>(),
+          std::make_unique<CodecCapabilitiesProviderImpl>()) {
+  // Enable mime and key system caches.
+  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache(
+    std::unique_ptr<DrmCapabilitiesProvider> drm_capabilities_provider,
+    std::unique_ptr<HdrCapabilitiesProvider> hdr_capabilities_provider,
+    std::unique_ptr<PassthroughCapabilitiesProvider>
+        passthrough_capabilities_provider,
+    std::unique_ptr<AudioConfigurationProvider> audio_configuration_provider,
+    std::unique_ptr<CodecCapabilitiesProvider> codec_capabilities_provider)
+    : drm_capabilities_provider_(std::move(drm_capabilities_provider)),
+      hdr_capabilities_provider_(std::move(hdr_capabilities_provider)),
+      passthrough_capabilities_provider_(
+          std::move(passthrough_capabilities_provider)),
+      audio_configuration_provider_(std::move(audio_configuration_provider)),
+      codec_capabilities_provider_(std::move(codec_capabilities_provider)) {
+  // Enable mime and key system caches.
+  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+}
+
 bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
-    return GetIsWidevineSupported();
+    return drm_capabilities_provider_->IsWidevineSupported();
   }
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
@@ -248,7 +376,7 @@ bool MediaCapabilitiesCache::IsWidevineSupported() {
 
 bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
   if (!is_enabled_) {
-    return GetIsCbcsSupported();
+    return drm_capabilities_provider_->IsCbcsSchemeSupported();
   }
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
@@ -258,7 +386,8 @@ bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
 bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
     SbMediaTransferId transfer_id) {
   if (!is_enabled_) {
-    std::set<SbMediaTransferId> supported_transfer_ids = GetSupportedHdrTypes();
+    std::set<SbMediaTransferId> supported_transfer_ids =
+        hdr_capabilities_provider_->GetSupportedHdrTransferIds();
     return supported_transfer_ids.find(transfer_id) !=
            supported_transfer_ids.end();
   }
@@ -270,7 +399,7 @@ bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
 
 bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   if (!is_enabled_) {
-    return GetIsPassthroughSupported(codec);
+    return passthrough_capabilities_provider_->IsPassthroughSupported(codec);
   }
   // IsPassthroughSupported() caches the results of previous quiries, and does
   // not rely on LazyInitialize(), which is different from other functions.
@@ -279,7 +408,8 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   if (iter != passthrough_supportabilities_.end()) {
     return iter->second;
   }
-  bool supported = GetIsPassthroughSupported(codec);
+  bool supported =
+      passthrough_capabilities_provider_->IsPassthroughSupported(codec);
   passthrough_supportabilities_[codec] = supported;
   return supported;
 }
@@ -420,12 +550,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   return "";
 }
 
-MediaCapabilitiesCache::MediaCapabilitiesCache() {
-  // Enable mime and key system caches.
-  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
-  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
-}
-
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   if (capabilities_is_dirty_.exchange(false)) {
     // We use a different cache strategy (load and cache) for passthrough
@@ -435,69 +559,16 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
     audio_codec_capabilities_map_.clear();
     video_codec_capabilities_map_.clear();
     audio_configurations_.clear();
-    is_widevine_supported_ = GetIsWidevineSupported();
-    is_cbcs_supported_ = GetIsCbcsSupported();
-    supported_transfer_ids_ = GetSupportedHdrTypes();
-    LoadCodecInfos_Locked();
-    LoadAudioConfigurations_Locked();
-  }
-}
-
-void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
-  SB_CHECK(audio_codec_capabilities_map_.empty());
-  SB_CHECK(video_codec_capabilities_map_.empty());
-
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobjectArray> j_codec_infos =
-      Java_MediaCodecUtil_getAllCodecCapabilityInfos(env);
-  jsize length = env->GetArrayLength(j_codec_infos.obj());
-  // Note: Codec infos are sorted by the framework such that the best
-  // decoders come first.
-  // This order is maintained in the cache.
-  for (int i = 0; i < length; i++) {
-    ScopedJavaLocalRef<jobject> j_codec_info(
-        env, env->GetObjectArrayElement(j_codec_infos.obj(), i));
-    SB_CHECK(j_codec_info);
-
-    ScopedJavaLocalRef<jstring> j_mime_type =
-        Java_CodecCapabilityInfo_getMimeType(env, j_codec_info);
-    std::string mime_type = ConvertJavaStringToUTF8(env, j_mime_type.obj());
-    // Convert the mime type to lower case.
-    ConvertStringToLowerCase(&mime_type);
-
-    ScopedJavaLocalRef<jobject> j_audio_capabilities =
-        Java_CodecCapabilityInfo_getAudioCapabilities(env, j_codec_info);
-    if (j_audio_capabilities) {
-      // Found an audio decoder.
-      audio_codec_capabilities_map_[mime_type].push_back(
-          std::make_unique<AudioCodecCapability>(env, j_codec_info,
-                                                 j_audio_capabilities));
-      continue;
-    }
-    ScopedJavaLocalRef<jobject> j_video_capabilities =
-        Java_CodecCapabilityInfo_getVideoCapabilities(env, j_codec_info);
-    if (j_video_capabilities) {
-      // Found a video decoder.
-      video_codec_capabilities_map_[mime_type].push_back(
-          std::make_unique<VideoCodecCapability>(env, j_codec_info,
-                                                 j_video_capabilities));
-    }
-  }
-}
-
-void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
-  SB_CHECK(audio_configurations_.empty());
-
-  // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
-  // limit here is to avoid infinite loop and also match
-  // SbPlayerBridge::GetAudioConfigurations().
-  const int kMaxAudioConfigurations = 32;
-  SbMediaAudioConfiguration configuration;
-  JNIEnv* env = AttachCurrentThread();
-  while (audio_configurations_.size() < kMaxAudioConfigurations &&
-         AudioOutputManager::GetInstance()->GetAudioConfiguration(
-             env, audio_configurations_.size(), &configuration)) {
-    audio_configurations_.push_back(configuration);
+    is_widevine_supported_ = drm_capabilities_provider_->IsWidevineSupported();
+    is_cbcs_supported_ = drm_capabilities_provider_->IsCbcsSchemeSupported();
+    supported_transfer_ids_ =
+        hdr_capabilities_provider_->GetSupportedHdrTransferIds();
+    audio_codec_capabilities_map_ =
+        codec_capabilities_provider_->GetAudioCodecCapabilities();
+    video_codec_capabilities_map_ =
+        codec_capabilities_provider_->GetVideoCodecCapabilities();
+    audio_configurations_ =
+        audio_configuration_provider_->GetAudioConfigurations();
   }
 }
 
