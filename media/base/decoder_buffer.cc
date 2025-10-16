@@ -60,7 +60,7 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 
 // --- Starboard-specific Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
-  if (size_ > 0) {
+  if (size_ >= 0) {
     Initialize(DemuxerStream::UNKNOWN);
   }
 }
