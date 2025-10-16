@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include "starboard/microphone.h"
+
+#include <cstdint>
+
 #include "starboard/nplb/microphone_helpers.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

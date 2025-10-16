@@ -19,8 +19,12 @@
 #ifndef STARBOARD_TIME_ZONE_H_
 #define STARBOARD_TIME_ZONE_H_
 
+// This is not to break RDK build on CI.
+// RDK build needs transitive include for <limits.>
+// http://go/paste/4934318501789696
+#include <limits.h>
+
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
