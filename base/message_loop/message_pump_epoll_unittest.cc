@@ -228,7 +228,7 @@ void WriteFDWrapper(const int fd,
                     const char* buf,
                     int size,
                     WaitableEvent* event) {
-  ASSERT_TRUE(WriteFileDescriptor(fd, StringPiece(buf, size)));
+  ASSERT_TRUE(WriteFileDescriptor(fd, std::string_view(buf, size)));
 }
 
 // Tests that MessagePumpEpoll quits immediately when it is quit from
