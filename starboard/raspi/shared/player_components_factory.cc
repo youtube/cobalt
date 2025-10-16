@@ -72,7 +72,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               creation_parameters.player());
     }
 
-    return components;
+    return Result<MediaComponents>(std::move(components));
   }
 };
 
