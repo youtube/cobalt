@@ -124,10 +124,6 @@ class MediaCodecBridge {
       SbMediaVideoCodec video_codec,
       // `width_hint` and `height_hint` are used to create the Android video
       // format, which don't have to be directly related to the resolution of
-      // the video. `max_width` and `max_height` are used to query the max
-      // resolutions the platform can decode.
-      // Both of them have to be set at the same time (i.e. we cannot set one of
-      // them without the other), which will be checked in the function.
       int width_hint,
       int height_hint,
       int fps,

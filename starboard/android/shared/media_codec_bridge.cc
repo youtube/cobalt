@@ -234,8 +234,9 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
 
   if (decoder_name.empty()) {
     return Failure(
-        std::string("Failed to find decoder: mime=") + std::string(mime) +
-        ", mustSupportSecure=" + std::string(to_string(!!j_media_crypto)));
+        FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
+                     static_cast<const char*>(mime),
+                     starboard::to_string(!!j_media_crypto).data()));
   }
 
   JNIEnv* env = AttachCurrentThread();

@@ -149,10 +149,10 @@ MediaCodecDecoder::MediaCodecDecoder(
       force_big_endian_hdr_metadata, max_video_input_size);
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
-  }
-  if (!media_codec_bridge_) {
+  } else {
+    *error_message = media_codec_bridge.error();
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
-                  << (media_codec_bridge ? "" : media_codec_bridge.error());
+                  << *error_message;
   }
 }
 
