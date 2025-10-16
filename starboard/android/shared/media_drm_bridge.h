@@ -56,8 +56,8 @@ class MediaDrmBridge {
   };
 
   struct OperationResult {
-    const DrmOperationStatus status;
-    const std::string error_message;
+    DrmOperationStatus status = DRM_OPERATION_STATUS_SUCCESS;
+    std::string error_message;
 
     bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
   };
@@ -83,7 +83,7 @@ class MediaDrmBridge {
   OperationResult CreateSessionWithAppProvisioning(int ticket,
                                                    std::string_view init_data,
                                                    std::string_view mime) const;
-  void GenerateProvisionRequest() const;
+  std::string GenerateProvisionRequest() const;
   OperationResult ProvideProvisionResponse(std::string_view response) const;
 
   OperationResult UpdateSession(int ticket,
@@ -103,9 +103,6 @@ class MediaDrmBridge {
       JNIEnv* env,
       const base::android::JavaParamRef<jbyteArray>& session_id,
       const base::android::JavaParamRef<jobjectArray>& key_information);
-  void OnProvisioningRequestMessage(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jbyteArray>& message);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
