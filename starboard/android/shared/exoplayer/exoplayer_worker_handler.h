@@ -62,13 +62,14 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
     return kSbDecodeTargetInvalid;
   }
 
-  const std::unique_ptr<ExoPlayerBridge> bridge_;
-
   SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaInfoCB update_media_info_cb_;
   GetPlayerStateCB get_player_state_cb_;
   UpdatePlayerStateCB update_player_state_cb_;
   UpdatePlayerErrorCB update_player_error_cb_;
+
+  const AudioStreamInfo audio_stream_info_;
+  const VideoStreamInfo video_stream_info_;
 
   bool paused_ = false;
   double playback_rate_ = 1.0;
@@ -76,8 +77,7 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
   JobQueue::JobToken update_job_token_;
   const std::function<void()> update_job_;
 
-  const AudioStreamInfo audio_stream_info_;
-  const VideoStreamInfo video_stream_info_;
+  const std::unique_ptr<ExoPlayerBridge> bridge_;
 };
 
 }  // namespace starboard

@@ -129,7 +129,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   // Signaled once player initialization is complete.
   std::condition_variable initialized_cv_;
   bool initialized_ = false;
