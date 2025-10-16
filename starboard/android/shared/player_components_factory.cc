@@ -215,12 +215,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      std::string error_message;
-      std::unique_ptr<MediaCodecVideoDecoder> video_decoder =
-          CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
-                             kForceSecurePipelineUnderTunnelMode,
-                             max_video_input_size, &error_message);
-      if (video_decoder) {
+      auto video_decoder_result = CreateVideoDecoder(
+          creation_parameters, kTunnelModeAudioSessionId,
+          kForceSecurePipelineUnderTunnelMode, max_video_input_size);
+      if (video_decoder_result) {
+        auto video_decoder = std::move(video_decoder_result.value());
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
         auto media_time_provider = audio_renderer.get();
@@ -230,7 +229,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
       } else {
-        return Failure("Failed to create video decoder: " + error_message);
+        return Failure("Failed to create video decoder: " +
+                       video_decoder_result.error());
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
@@ -239,8 +239,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
   Result<MediaComponents> CreateSubComponents(
       const CreationParameters& creation_parameters) override {
-    MediaComponents components;
-
     const std::string audio_mime =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
             ? creation_parameters.audio_mime()
@@ -334,6 +332,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
 
+    MediaComponents components;
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       const bool enable_platform_opus_decoder =
           FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
@@ -397,18 +397,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
-      std::string error_message;
-      std::unique_ptr<MediaCodecVideoDecoder> video_decoder_impl =
-          CreateVideoDecoder(creation_parameters, tunnel_mode_audio_session_id,
-                             force_secure_pipeline_under_tunnel_mode,
-                             max_video_input_size, &error_message);
-      if (video_decoder_impl) {
+      auto video_decoder_result = CreateVideoDecoder(
+          creation_parameters, tunnel_mode_audio_session_id,
+          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
+      if (video_decoder_result) {
+        auto video_decoder_impl = std::move(video_decoder_result.value());
         components.video.render_algorithm =
             video_decoder_impl->GetRenderAlgorithm();
         components.video.renderer_sink = video_decoder_impl->GetSink();
-        components.video.decoder.reset(video_decoder_impl.release());
+        components.video.decoder = std::move(video_decoder_impl);
       } else {
-        return Failure("Failed to create video decoder: " + error_message);
+        return Failure("Failed to create video decoder: " +
+                       video_decoder_result.error());
       }
     }
 
@@ -440,12 +440,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
   }
 
-  std::unique_ptr<MediaCodecVideoDecoder> CreateVideoDecoder(
+  NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateVideoDecoder(
       const CreationParameters& creation_parameters,
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
-      int max_video_input_size,
-      std::string* error_message) {
+      int max_video_input_size) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
@@ -481,6 +480,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+    std::string error_message;
     auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -490,15 +490,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        error_message);
-    if ((*error_message).empty() &&
+        &error_message);
+    if (error_message.empty() &&
         (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
          video_decoder->is_decoder_created())) {
       return video_decoder;
     }
-    *error_message =
-        "Failed to create video decoder with error: " + *error_message;
-    return nullptr;
+    return Failure("Failed to create video decoder with error: " +
+                   error_message);
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
