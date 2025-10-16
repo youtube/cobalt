@@ -379,11 +379,18 @@ void DrmSystem::OnKeyStatusChange(
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
   SB_CHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
+  std::string eme_session_id([this, session_id] {
+    if (kEnableAppProvisioning) {
+      std::lock_guard lock(mutex_);
+      return session_id_mapper_->GetEmeSessionId(session_id);
+    }
+    return session_id;
+  }());
+
   {
-    std::string session_id_str(session_id);
     std::lock_guard scoped_lock(mutex_);
-    if (cached_drm_key_ids_[session_id_str] != drm_key_ids) {
-      cached_drm_key_ids_[session_id_str] = drm_key_ids;
+    if (cached_drm_key_ids_[eme_session_id] != drm_key_ids) {
+      cached_drm_key_ids_[eme_session_id] = drm_key_ids;
       if (hdcp_lost_) {
         CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
         return;
@@ -391,8 +398,8 @@ void DrmSystem::OnKeyStatusChange(
     }
   }
 
-  key_statuses_changed_callback_(this, context_, session_id.data(),
-                                 session_id.size(),
+  key_statuses_changed_callback_(this, context_, eme_session_id.data(),
+                                 eme_session_id.size(),
                                  static_cast<int>(drm_key_ids.size()),
                                  drm_key_ids.data(), drm_key_statuses.data());
 }
