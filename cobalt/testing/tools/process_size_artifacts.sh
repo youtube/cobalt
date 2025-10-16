@@ -4,14 +4,14 @@ set -x
 
 # echo "artifact dir structure"
 # ls -d "$artifact_dir"/*/*/*/
-# for artifact_dir in size_artifacts/size_artifacts_*; do
-#   if [[ -d "$artifact_dir" ]]; then
-#     # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
-#     PLATFORM=$(basename "$artifact_dir" | sed -n 's/size_artifacts_\(.*\)_gold/\1/p')
-for artifact_dir in out/evergreen-arm-hardfp-rdk_gold/; do
+for artifact_dir in size_artifacts/size_artifacts_*; do
   if [[ -d "$artifact_dir" ]]; then
     # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
-    PLATFORM=evergreen-arm-hardfp-rdk
+    PLATFORM=$(basename "$artifact_dir" | sed -n 's/size_artifacts_\(.*\)_gold/\1/p')
+# for artifact_dir in out/evergreen-arm-hardfp-rdk_gold/; do
+#   if [[ -d "$artifact_dir" ]]; then
+#     # Extract platform from directory name like size_artifacts_evergreen-arm-hardfp-raspi_gold
+#     PLATFORM=evergreen-arm-hardfp-rdk
     CONFIG=gold
 
     if [[ -z "$PLATFORM" ]]; then
@@ -44,7 +44,7 @@ for artifact_dir in out/evergreen-arm-hardfp-rdk_gold/; do
 
     echo "Running Check binary size for $PLATFORM"
     chmod +x "$RUNNER_PATH"
-    (cd "$TARGET_DIR" && ./bin/run_cobalt_sizes > "${SIZES_PATH}")
+    "$RUNNER_PATH"
 
     echo "Running Compare binary size for $PLATFORM"
     python3 cobalt/testing/tools/compare_sizes.py \

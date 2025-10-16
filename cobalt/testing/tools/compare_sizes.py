@@ -1,4 +1,4 @@
-"""Compares the current size of libcobalt.so-stripped with a reference size."""
+"""Compares the current size of libcobalt.so with a reference size."""
 
 import json
 import sys
@@ -52,8 +52,10 @@ def main():
         file=sys.stderr)
     sys.exit(1)
 
-  print(f'Current stripped size: {current_size} bytes')
-  print(f'Reference stripped size: {reference_size} bytes')
+  print(f'Current stripped size: {current_size} bytes ('
+        f'{current_size / 1000000:.2f} MB)')
+  print(f'Reference stripped size: {reference_size} bytes ('
+        f'{reference_size / 1000000:.2f} MB)')
 
   if current_size > reference_size:
     print(

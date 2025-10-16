@@ -56,6 +56,9 @@ group("gn_all") {
       "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
     ]
   }
+  if (use_evergreen) {
+    deps += [ ":cobalt_sizes" ]
+  }
 }
 
 group("cobalt_browsertests") {
