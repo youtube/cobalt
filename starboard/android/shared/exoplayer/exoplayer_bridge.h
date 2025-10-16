@@ -65,25 +65,25 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
     double playback_rate;
   };
 
-  ExoPlayerBridge(const starboard::AudioStreamInfo& audio_stream_info,
-                  const starboard::VideoStreamInfo& video_stream_info);
+  ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
+                  const VideoStreamInfo& video_stream_info);
   ~ExoPlayerBridge();
 
-  void SetCallbacks(const starboard::ErrorCB& error_cb,
-                    const starboard::PrerolledCB& prerolled_cb,
-                    const starboard::EndedCB& ended_cb);
+  void SetCallbacks(ErrorCB error_cb,
+                    PrerolledCB prerolled_cb,
+                    EndedCB ended_cb);
 
   void Seek(int64_t seek_to_timestamp);
-  void WriteSamples(const starboard::InputBuffers& input_buffers);
+  void WriteSamples(const InputBuffers& input_buffers);
   void WriteEndOfStream(SbMediaType stream_type);
-  void Play();
-  void Pause();
-  void Stop();
-  void SetVolume(double volume);
+  void Play() const;
+  void Pause() const;
+  void Stop() const;
+  void SetVolume(double volume) const;
   void SetPlaybackRate(const double playback_rate);
 
-  int GetDroppedFrames();
-  int64_t GetCurrentMediaTime(MediaInfo& info);
+  int GetDroppedFrames() const;
+  int64_t GetCurrentMediaTime(MediaInfo& info) const;
 
   // Native callbacks.
   void OnInitialized(JNIEnv*);
@@ -96,7 +96,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
 
-  bool IsEndOfStreamWritten(SbMediaType type) {
+  bool IsEndOfStreamWritten(SbMediaType type) const {
     return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
   }
 
@@ -118,20 +118,21 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
 
   bool error_occurred_ = false;
-  starboard::AudioStreamInfo audio_stream_info_;
-  starboard::VideoStreamInfo video_stream_info_;
+  const AudioStreamInfo audio_stream_info_;
+  const VideoStreamInfo video_stream_info_;
 
   int64_t seek_time_ = 0;
   bool is_playing_ = false;
   bool ended_ = false;
 
-  starboard::ErrorCB error_cb_;
-  starboard::PrerolledCB prerolled_cb_;
-  starboard::EndedCB ended_cb_;
+  ErrorCB error_cb_;
+  PrerolledCB prerolled_cb_;
+  EndedCB ended_cb_;
 
   std::mutex mutex_;
   // Signaled once player initialization is complete.
   std::condition_variable initialized_cv_;
+  bool initialized_ = false;
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
   bool playback_ended_ = false;
