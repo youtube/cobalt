@@ -136,7 +136,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
   bool playback_ended_ = false;
-  double playback_rate_ = 0.0;
+  double playback_rate_ = 1.0;
   bool seeking_ = false;
   bool underflow_ = false;
 };
