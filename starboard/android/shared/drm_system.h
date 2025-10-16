@@ -143,13 +143,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   ThreadChecker thread_checker_;
 
-  // Manages the mapping between the CDM session ID in the C++ layer and the
+  // Manages the mapping between the EME session ID in the C++ layer and the
   // MediaDrm session ID in the Java layer. Most of the time, we can use the
-  // MediaDrm session ID as the CDM session ID. However, there are some cases
-  // where we cannot, as the lifecycle of the CDM session ID can diverge from
+  // MediaDrm session ID as the EME session ID. However, there are some cases
+  // where we cannot, as the lifecycle of the EME session ID can diverge from
   // the MediaDrm session ID's lifecycle. For example, when a device isn't
   // provisioned, we can't get a MediaDrm session ID (which can be generated
-  // only after provisioning). In such scenarios, `DrmSystem` still needs a CDM
+  // only after provisioning). In such scenarios, `DrmSystem` still needs an EME
   // session ID to interact with the Cobalt CDM module.
   const std::unique_ptr<DrmSessionIdMapper>
       session_id_mapper_;  //  Guarded by |mutex_|.

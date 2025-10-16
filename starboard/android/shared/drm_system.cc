@@ -244,7 +244,11 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
                                                   media_drm_session_id]() {
     if (!media_drm_session_id) {
       SB_LOG(INFO) << " >  Handles the given key as provision response.";
-      return media_drm_bridge_->ProvideProvisionResponse(key);
+      auto result = media_drm_bridge_->ProvideProvisionResponse(key);
+      if (result.ok()) {
+        HandlePendingRequests();
+      }
+      return result;
     }
 
     return media_drm_bridge_->UpdateSession(ticket, key, *media_drm_session_id);
@@ -256,10 +260,6 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
       this, context_, ticket,
       result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
       result.error_message.c_str(), session_id.data(), session_id.size());
-
-  if (result.ok()) {
-    HandlePendingRequests();
-  }
 }
 
 void DrmSystem::HandlePendingRequests() {
@@ -324,22 +324,22 @@ void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
                                 std::string_view session_id,
                                 std::string_view content) {
-  std::string cdm_session_id_str;
-  std::string_view cdm_session_id;
+  std::string eme_session_id_str;
+  std::string_view eme_session_id;
   if (kEnableAppProvisioning) {
     std::lock_guard lock(mutex_);
     if (session_id_mapper_->IsMediaDrmSessionIdForProvisioningRequired()) {
       session_id_mapper_->RegisterMediaDrmSessionIdForProvisioning(session_id);
     }
-    cdm_session_id_str = session_id_mapper_->GetEmeSessionId(session_id);
-    cdm_session_id = cdm_session_id_str;
+    eme_session_id_str = session_id_mapper_->GetEmeSessionId(session_id);
+    eme_session_id = eme_session_id_str;
   } else {
-    cdm_session_id = session_id;
+    eme_session_id = session_id;
   }
 
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            request_type, /*error_message=*/nullptr,
-                           cdm_session_id.data(), cdm_session_id.size(),
+                           eme_session_id.data(), eme_session_id.size(),
                            content.data(), content.size(), kNoUrl);
 }
 
@@ -347,23 +347,23 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
   SB_CHECK(kEnableAppProvisioning);
 
   SB_LOG(INFO) << __func__;
-  std::string cdm_session_id;
+  std::string eme_session_id;
   int ticket;
   {
     std::lock_guard lock(mutex_);
     SB_CHECK(!deferred_session_update_requests_.empty())
         << "Provisioning request is sent, even though there is no pending "
            "session update request.";
-    cdm_session_id = session_id_mapper_->GetBridgeEmeSessionId();
-    SB_CHECK(!cdm_session_id.empty());
+    eme_session_id = session_id_mapper_->CreateOrGetBridgeEmeSessionId();
+    SB_CHECK(!eme_session_id.empty());
     ticket = deferred_session_update_requests_.front()->ReleaseTicket();
   }
 
   SB_LOG(INFO) << "Return provision request using pending ticket=" << ticket;
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            kSbDrmSessionRequestTypeIndividualizationRequest,
-                           /*error_message=*/nullptr, cdm_session_id.data(),
-                           cdm_session_id.size(), content.data(),
+                           /*error_message=*/nullptr, eme_session_id.data(),
+                           eme_session_id.size(), content.data(),
                            content.size(), kNoUrl);
 }
 

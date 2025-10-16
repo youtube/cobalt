@@ -39,14 +39,12 @@ class DrmSessionIdMapper {
   // 2. If no mapping is found, it returns the input |eme_session_id| itself.
   std::string_view GetMediaDrmSessionId(std::string_view eme_session_id) const;
 
-  std::string GetBridgeEmeSessionId();
+  std::string CreateOrGetBridgeEmeSessionId();
   bool IsMediaDrmSessionIdForProvisioningRequired() const;
   void RegisterMediaDrmSessionIdForProvisioning(
       std::string_view media_drm_session_id);
 
  private:
-  static std::string GenerateBridgeSessionId();
-
   struct SessionIdMap {
     const std::string eme_id;
     std::string media_drm_id;

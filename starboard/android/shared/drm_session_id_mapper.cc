@@ -21,12 +21,14 @@
 
 namespace starboard {
 
-DrmSessionIdMapper::DrmSessionIdMapper() = default;
-
-std::string DrmSessionIdMapper::GenerateBridgeSessionId() {
+namespace {
+std::string GenerateBridgeSessionId() {
   static std::atomic<int> counter = 0;
   return "cobalt.sid." + std::to_string(counter++);
 }
+}  // namespace
+
+DrmSessionIdMapper::DrmSessionIdMapper() = default;
 
 std::string_view DrmSessionIdMapper::GetEmeSessionId(
     std::string_view media_drm_session_id) const {
@@ -46,7 +48,7 @@ std::string_view DrmSessionIdMapper::GetMediaDrmSessionId(
   return eme_session_id;
 }
 
-std::string DrmSessionIdMapper::GetBridgeEmeSessionId() {
+std::string DrmSessionIdMapper::CreateOrGetBridgeEmeSessionId() {
   if (bridge_session_id_map_.has_value()) {
     SB_LOG(INFO) << __func__ << " re-used exising bridge session id="
                  << bridge_session_id_map_->eme_id;
