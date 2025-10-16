@@ -65,3 +65,5 @@ rtc_use_h264 = false
 
 # Enable widevine for encrypted media playback.
 enable_widevine = true
+
+generate_about_credits = false

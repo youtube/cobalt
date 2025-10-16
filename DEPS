@@ -164,7 +164,8 @@ vars = {
   'checkout_clang_coverage_tools': False,
 
   # Fetch the pgo profiles to optimize official builds.
-  'checkout_pgo_profiles': False,
+  # Cobalt: Set to True for android official builds.
+  'checkout_pgo_profiles': True,
 
   # Fetch clang-tidy into the same bin/ directory as our clang binary.
   'checkout_clang_tidy': False,
