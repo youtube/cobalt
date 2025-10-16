@@ -52,9 +52,9 @@ FILE *__fdopen(int fd, const char *mode)
 	f->seek = __stdio_seek;
 	f->close = __stdio_close;
 
-	#if defined(STARBOARD)
-	f->lock = __init_file_lock(
-			f);  // Starboard apps are typicall multithreaded, require locking.
+#if defined(STARBOARD)
+	f->lock = 0; // Starboard apps are typicall multithreaded, require locking.
+	__init_file_lock(f);
 #else
 	if (!libc.threaded) f->lock = -1;
 #endif

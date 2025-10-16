@@ -420,6 +420,7 @@ static_library("c_internal") {
     "src/starboard/exit/abort.c",
     "src/starboard/internal/init_musl.c",
     "src/starboard/internal/stdio_init.c",
+    "src/starboard/internal/stdio_stub.c",
     "src/starboard/misc/ioctl.c",
     "src/starboard/misc/syscall_helper.c",
     "src/starboard/statfs/statfs_stub.c",
@@ -578,6 +579,7 @@ static_library("c_internal") {
     "src/unistd/sleep.c",
     "src/unistd/usleep.c",
   ]
+
   if (musl_arch == "i386" || musl_arch == "x86_64" || musl_arch == "aarch64") {
     sources += [
       "src/fenv/$musl_arch/fenv.s",

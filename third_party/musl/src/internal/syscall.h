@@ -28,18 +28,18 @@ hidden long __syscall_ret(unsigned long),
 	             syscall_arg_t, syscall_arg_t, syscall_arg_t);
 
 #if defined(STARBOARD)
-// Map syscall/__syscall/syscall_cp/__syscall_cp to `libc_wrapper_SYS_foo`.
+// Map __syscall/syscall_cp/__syscall_cp calls to `libc_wrapper_SYS_foo`.
 //
 // libc functions typically return -1 in case of an error and set errno to a
 // positive value that specifies the error that has occurred.
-// 
+//
 // Linux syscalls do not set errno for the calling program. Instead, they return
 // the error value as a negative value in the range -4095...-1.
 //
 // Function calls from musl to syscall() expect the libc return value and errno
 // value conventions while function calls to __syscall() expect the kernel
 // return value convention.
-// 
+//
 // On Starboard, we call the libc functions instead of directly calling the
 // syscall. As a result, we can directly use the wrapper for musl calls to
 // syscall() but have to do a return value mapping and to errno conversion
@@ -47,20 +47,23 @@ hidden long __syscall_ret(unsigned long),
 //
 // The sycall_cp() and  __syscall_cp() functions are equivalent to the syscall()
 // and __syscall() functions, with the difference being for cancelable system
-// calls in combination with musl's pthread_cancel() implementation. Since 
+// calls in combination with musl's pthread_cancel() implementation. Since
 // Starboard does not use the latter, we can imply map them onto the regular
 // syscall implementations.
 //
 // Unimplemented syscall functions can be detected from their undefined
 // symbol references for names starting with the prefix "libc_wrapper_".
 //
+// A similar mapping is implemented for syscall() calls for both musl internal 
+// and external use in starboard/internal/bits/syscall_impl.h.
+//
+// The  libc_wrapper_() functions available in Starboard are declared in
+// starboard/include/syscall_arch.h
+//
 // Note: This does not currently provide support for calls to
 // socketcall() or socketcall_cp(). They appear to only used by musl to
 // implement certain socket functions that are included as library symbols in
 // Starboard.
-// 
-// Note: The available libc_wrapper_() functions for Starboard are declared in 
-// starboard/include/syscall_arch.h
 
 // Convert libc return value and errno to kernel return value.
 hidden long __libc_to_syscall_ret(unsigned long r);

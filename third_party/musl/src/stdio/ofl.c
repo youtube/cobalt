@@ -5,23 +5,17 @@
 static FILE *ofl_head;
 
 #if defined(STARBOARD)
-#include <pthread.h>
-static pthread_mutex_t __ofl_mutex;
+static StarboardPthreadCondMutex __ofl_lock_cond_mutex;
+StarboardPthreadCondMutex *const ofl_lock = &__ofl_lock_cond_mutex;
+
 static pthread_once_t __ofl_once = PTHREAD_ONCE_INIT;
-
 static void __ofl_init(void) {
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&__ofl_mutex, &attr);
-	pthread_mutexattr_destroy(&attr);
+	__cond_mutex_pair_init(ofl_lock);
 }
-
-static pthread_mutex_t* const ofl_lock = &__ofl_mutex;
 #else
 static volatile int ofl_lock[1];
 volatile int *const __stdio_ofl_lockptr = ofl_lock;
-#endif
+#endif  // defined(STARBOARD)
 
 FILE **__ofl_lock()
 {
