@@ -232,12 +232,12 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
   SB_CHECK(kEnableAppProvisioning);
 
   const auto media_drm_session_id =
-      [this, &session_id]() -> std::optional<std::string_view> {
+      [this, &session_id]() -> std::optional<std::string> {
     std::lock_guard lock(mutex_);
     if (!deferred_session_update_requests_.empty()) {
       return std::nullopt;
     }
-    return session_id_mapper_->GetMediaDrmSessionId(session_id);
+    return std::string(session_id_mapper_->GetMediaDrmSessionId(session_id));
   }();
 
   bool provisioning_ok = false;
@@ -294,9 +294,9 @@ void DrmSystem::CloseSession(const void* session_id_data, int session_id_size) {
   }
 
   if (kEnableAppProvisioning) {
-    std::string_view media_drm_session_id = [this, &session_id] {
+    std::string media_drm_session_id = [this, &session_id] {
       std::lock_guard lock(mutex_);
-      return session_id_mapper_->GetMediaDrmSessionId(session_id);
+      return std::string(session_id_mapper_->GetMediaDrmSessionId(session_id));
     }();
     if (media_drm_session_id.empty()) {
       // Skip closing the session because it's a provisioning session, which
