@@ -115,10 +115,35 @@ class VideoCodecCapability : public CodecCapability {
   const Range supported_frame_rates_;
 };
 
+typedef std::vector<std::unique_ptr<AudioCodecCapability>>
+    AudioCodecCapabilities;
+typedef std::vector<std::unique_ptr<VideoCodecCapability>>
+    VideoCodecCapabilities;
+
+class MediaCapabilitiesProvider {
+ public:
+  virtual ~MediaCapabilitiesProvider() = default;
+  virtual bool IsWidevineSupported() = 0;
+  virtual bool IsCbcsSchemeSupported() = 0;
+  virtual std::set<SbMediaTransferId> GetSupportedHdrTypes() = 0;
+  virtual bool GetIsPassthroughSupported(SbMediaAudioCodec codec) = 0;
+  virtual bool GetAudioConfiguration(
+      int index,
+      SbMediaAudioConfiguration* configuration) = 0;
+  virtual void GetCodecCapabilities(
+      std::map<std::string, AudioCodecCapabilities>& audio_codec_capabilities,
+      std::map<std::string, VideoCodecCapabilities>&
+          video_codec_capabilities) = 0;
+};
+
 class MediaCapabilitiesCache {
  public:
   static MediaCapabilitiesCache* GetInstance();
 
+  static std::unique_ptr<MediaCapabilitiesCache> CreateForTest(
+      std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider);
+
+  ~MediaCapabilitiesCache() = default;
   bool IsWidevineSupported();
   bool IsCbcsSchemeSupported();
 
@@ -158,24 +183,23 @@ class MediaCapabilitiesCache {
 
  private:
   MediaCapabilitiesCache();
-  ~MediaCapabilitiesCache() {}
+  MediaCapabilitiesCache(
+      std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider);
 
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
 
   void UpdateMediaCapabilities_Locked();
   void LoadAudioConfigurations_Locked();
-  void LoadCodecInfos_Locked();
 
   std::mutex mutex_;
 
+  // Provider for abstracting data sources. This must be non-null.
+  const std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider_;
+
+  // Cached data.
   std::set<SbMediaTransferId> supported_transfer_ids_;
   std::map<SbMediaAudioCodec, bool> passthrough_supportabilities_;
-
-  typedef std::vector<std::unique_ptr<AudioCodecCapability>>
-      AudioCodecCapabilities;
-  typedef std::vector<std::unique_ptr<VideoCodecCapability>>
-      VideoCodecCapabilities;
 
   std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities_map_;
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
