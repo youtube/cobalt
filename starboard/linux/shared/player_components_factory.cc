@@ -146,9 +146,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           });
       if (creation_parameters.output_mode() ==
           kSbPlayerOutputModeDecodeToTexture) {
-        components.video.renderer_sink = NULL;
+        components.video.renderer_sink = nullptr;
       } else {
-        *components.video.renderer_sink =
+        components.video.renderer_sink =
             make_scoped_refptr<PunchoutVideoRendererSink>(
                 creation_parameters.player(), kVideoSinkRenderIntervalUsec);
       }
