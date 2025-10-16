@@ -1,5 +1,31 @@
 [
   {
+    "hexsha": "12aa635d15ad32cfee8215d57d212ab1e1329602",
+    "original_hexsha": "d9c99c03dfe88c5d65f65dbcc00d6394fc65a6f0",
+    "author": "Eric Zhang",
+    "datetime": "2025-10-16T10:21:08-07:00",
+    "summary": "Fix linearize_main to use START_COMMIT. (#7554)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "1378e73c4acc05f2769718ebcb090ec540ff2740",
+    "original_hexsha": "04a2fc95f31be7809f0e1767212373069347c272",
+    "author": "Hao",
+    "datetime": "2025-10-16T16:16:57+00:00",
+    "summary": "Refactor ShellContentClient into ShellContentClient and ShellContentTestClient (#7567)",
+    "stats": {
+      "files": 13,
+      "insertions": 191,
+      "deletions": 133
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "2c8349a61c48393703efc3863f1a756a2e19329c",
     "original_hexsha": "579e3d32f6810ea55d898c3997f4230febca3698",
     "author": "Hao",
