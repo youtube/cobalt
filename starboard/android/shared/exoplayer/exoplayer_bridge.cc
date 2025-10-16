@@ -143,7 +143,7 @@ void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
-  SB_CHECK_EQ(input_buffers.size(), 1)
+  SB_CHECK_EQ(input_buffers.size(), 1U)
       << "ExoPlayer can only write 1 sample at a time, received "
       << input_buffers.size() << " samples.";
 
