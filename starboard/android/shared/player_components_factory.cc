@@ -226,8 +226,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         auto media_time_provider = audio_renderer.get();
 
         video_renderer = std::make_unique<VideoRendererImpl>(
-            std::move(video_decoder), media_time_provider,
-            std::move(video_render_algorithm), video_renderer_sink);
+            std::unique_ptr<VideoDecoder>(std::move(video_decoder)),
+            media_time_provider, std::move(video_render_algorithm),
+            video_renderer_sink);
       } else {
         return Failure("Failed to create video decoder: " + error_message);
       }
