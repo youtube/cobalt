@@ -412,8 +412,10 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
-    "common/test_shell_switches.cc",
-    "common/test_shell_switches.h",
+    "common/shell_content_test_client.cc",
+    "common/shell_content_test_client.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
   ]
@@ -427,8 +429,8 @@ static_library("cobalt_shell_test_lib") {
   if (shell_use_toolkit_views) {
     if (use_aura) {
       sources += [
-        "browser/test_shell_platform_delegate.cc",
-        "browser/test_shell_platform_delegate.h",
+        "browser/shell_test_platform_delegate.cc",
+        "browser/shell_test_platform_delegate.h",
       ]
 
       public_deps += [ "//ui/views:test_support" ]

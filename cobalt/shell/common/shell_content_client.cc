@@ -27,10 +27,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 namespace content {
 
 ShellContentClient::ShellContentClient() {}
@@ -38,26 +34,6 @@ ShellContentClient::ShellContentClient() {}
 ShellContentClient::~ShellContentClient() {}
 
 std::u16string ShellContentClient::GetLocalizedString(int message_id) {
-#if defined(RUN_BROWSER_TESTS)
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    switch (message_id) {
-      case IDS_FORM_OTHER_DATE_LABEL:
-        return u"<<OtherDate>>";
-      case IDS_FORM_OTHER_MONTH_LABEL:
-        return u"<<OtherMonth>>";
-      case IDS_FORM_OTHER_WEEK_LABEL:
-        return u"<<OtherWeek>>";
-      case IDS_FORM_CALENDAR_CLEAR:
-        return u"<<Clear>>";
-      case IDS_FORM_CALENDAR_TODAY:
-        return u"<<Today>>";
-      case IDS_FORM_THIS_MONTH_LABEL:
-        return u"<<ThisMonth>>";
-      case IDS_FORM_THIS_WEEK_LABEL:
-        return u"<<ThisWeek>>";
-    }
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
   return l10n_util::GetStringUTF16(message_id);
 }
 

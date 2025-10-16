@@ -14,8 +14,8 @@
 
 // Defines all the "cobalt_shell" command-line switches for browser tests.
 
-#ifndef COBALT_TESTING_BROWSER_TESTS_COMMON_TEST_SHELL_SWITCHES_H_
-#define COBALT_TESTING_BROWSER_TESTS_COMMON_TEST_SHELL_SWITCHES_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_TEST_SWITCHES_H_
+#define COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_TEST_SWITCHES_H_
 
 #include "build/build_config.h"
 
@@ -25,14 +25,14 @@ namespace test_switches {
 // and debugging of web tests that rely on it.
 extern const char kExposeInternalsForTesting[];
 
-// Runs Content Shell in web test mode, injecting test-only behaviour for
+// Runs Cobalt Shell in web test mode, injecting test-only behaviour for
 // blink web tests.
 extern const char kRunWebTests[];
 
 // Helper that returns true if kRunWebTests is present in the command line,
-// meaning Content Shell is running in web test mode.
+// meaning Cobalt Shell is running in web test mode.
 bool IsRunWebTestsSwitchPresent();
 
 }  // namespace test_switches
 
-#endif  // COBALT_TESTING_BROWSER_TESTS_COMMON_TEST_SHELL_SWITCHES_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_TEST_SWITCHES_H_
