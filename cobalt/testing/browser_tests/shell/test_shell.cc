@@ -16,7 +16,7 @@
 
 #include "base/command_line.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/testing/browser_tests/common/test_shell_switches.h"
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
@@ -61,7 +61,7 @@ Shell* TestShell::CreateNewWindow(
     const gfx::Size& initial_size) {
   WebContents::CreateParams create_params(browser_context, site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          test_switches::kForcePresentationReceiverForTesting)) {
+          switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
   }
   std::unique_ptr<WebContents> web_contents =

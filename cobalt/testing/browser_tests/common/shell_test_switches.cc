@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/testing/browser_tests/common/test_shell_switches.h"
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 
 #include "base/command_line.h"
 
