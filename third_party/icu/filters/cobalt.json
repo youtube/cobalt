@@ -6,6 +6,7 @@
 // "es", "fr", "pt", and zh", and in certain cases, "it", "ro", and "sr" as
 // well.
 
+{
 // To use implicithan for Collation UCAData.
   "collationUCAData": "implicithan",
 // Based on the ICU63 version of
