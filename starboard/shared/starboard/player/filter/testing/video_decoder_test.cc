@@ -163,7 +163,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             video_render_algorithms[i] =
                 std::move(result.value().video.render_algorithm);
             video_renderer_sinks[i] =
-                std::move(*result.value().video.renderer_sink);
+                std::move(result.value().video.renderer_sink);
             ASSERT_TRUE(video_decoders[i]);
 
             if (video_renderer_sinks[i]) {
