@@ -197,7 +197,7 @@ PlayerComponents::Factory::CreateComponents(
   audio_renderer_sink = std::move(components.audio.renderer_sink);
   video_decoder = std::move(components.video.decoder);
   video_render_algorithm = std::move(components.video.render_algorithm);
-  video_renderer_sink = std::move(*components.video.renderer_sink);
+  video_renderer_sink = std::move(components.video.renderer_sink);
 
   std::unique_ptr<MediaTimeProviderImpl> media_time_provider_impl;
   std::unique_ptr<AudioRendererPcm> audio_renderer;
