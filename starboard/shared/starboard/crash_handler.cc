@@ -51,10 +51,8 @@ void RegisterSetStringCallback(SetStringCallback callback) {
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
-    kCobaltExtensionCrashHandlerName,
-    3,
-    &OverrideCrashpadAnnotations,
-    &SetString,
+    kCobaltExtensionCrashHandlerName, 3,
+    &OverrideCrashpadAnnotations,     &SetString,
     &RegisterSetStringCallback,
 };
 
