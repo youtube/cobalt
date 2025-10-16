@@ -141,7 +141,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
 
       components.video.render_algorithm =
-          std::make_unique<VideoRenderAlgorithmImpl>([]() {
+          std::make_unique<VideoRenderAlgorithmImpl>([] {
             return 60.;  // default refresh rate
           });
       if (creation_parameters.output_mode() ==

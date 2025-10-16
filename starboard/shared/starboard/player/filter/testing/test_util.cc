@@ -235,10 +235,10 @@ bool CreateAudioComponents(
   } else {
     factory = PlayerComponents::Factory::Create();
   }
-  auto result = factory->CreateSubComponents(creation_parameters);
-  if (result.has_value()) {
-    *audio_decoder = std::move(result.value().audio.decoder);
-    *audio_renderer_sink = std::move(result.value().audio.renderer_sink);
+  auto sub_components = factory->CreateSubComponents(creation_parameters);
+  if (sub_components) {
+    *audio_decoder = std::move(sub_components->audio.decoder);
+    *audio_renderer_sink = std::move(sub_components->audio.renderer_sink);
     SB_CHECK(*audio_decoder);
     return true;
   }

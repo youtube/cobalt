@@ -215,22 +215,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      auto video_decoder_result = CreateVideoDecoder(
+      auto video_decoder = CreateVideoDecoder(
           creation_parameters, kTunnelModeAudioSessionId,
           kForceSecurePipelineUnderTunnelMode, max_video_input_size);
-      if (video_decoder_result) {
-        auto video_decoder = std::move(video_decoder_result.value());
+      if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
         auto media_time_provider = audio_renderer.get();
 
         video_renderer = std::make_unique<VideoRendererImpl>(
-            std::unique_ptr<VideoDecoder>(std::move(video_decoder)),
+            std::unique_ptr<VideoDecoder>(std::move(video_decoder.value())),
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
       } else {
         return Failure("Failed to create video decoder: " +
-                       video_decoder_result.error());
+                       video_decoder.error());
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
