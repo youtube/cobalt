@@ -81,10 +81,17 @@ class Expected {
   }
 
   Expected(const Expected& other) : has_value_(other.has_value_) {
-    if (has_value_) {
-      new (&storage_.value_) T(other.storage_.value_);
+    if constexpr (std::is_copy_constructible_v<T> &&
+                  std::is_copy_constructible_v<E>) {
+      if (has_value_) {
+        new (&storage_.value_) T(other.storage_.value_);
+      } else {
+        new (&storage_.error_) E(other.storage_.error_);
+      }
     } else {
-      new (&storage_.error_) E(other.storage_.error_);
+      // This branch should not be taken for non-copyable types,
+      // but needs to be valid for the compiler.
+      SB_NOTREACHED();
     }
   }
 
@@ -105,21 +112,28 @@ class Expected {
   }
 
   Expected& operator=(const Expected& other) {
-    if (this == &other) {
-      return *this;
+    if constexpr (std::is_copy_constructible_v<T> &&
+                  std::is_copy_assignable_v<T> &&
+                  std::is_copy_constructible_v<E> &&
+                  std::is_copy_assignable_v<E>) {
+      if (this == &other) {
+        return *this;
+      }
+      if (has_value_ && other.has_value_) {
+        storage_.value_ = other.storage_.value_;
+      } else if (!has_value_ && !other.has_value_) {
+        storage_.error_ = other.storage_.error_;
+      } else if (has_value_ && !other.has_value_) {
+        storage_.value_.~T();
+        new (&storage_.error_) E(other.storage_.error_);
+      } else {  // !has_value_ && other.has_value_
+        storage_.error_.~E();
+        new (&storage_.value_) T(other.storage_.value_);
+      }
+      has_value_ = other.has_value_;
+    } else {
+      SB_NOTREACHED();
     }
-    if (has_value_ && other.has_value_) {
-      storage_.value_ = other.storage_.value_;
-    } else if (!has_value_ && !other.has_value_) {
-      storage_.error_ = other.storage_.error_;
-    } else if (has_value_ && !other.has_value_) {
-      storage_.value_.~T();
-      new (&storage_.error_) E(other.storage_.error_);
-    } else {  // !has_value_ && other.has_value_
-      storage_.error_.~E();
-      new (&storage_.value_) T(other.storage_.value_);
-    }
-    has_value_ = other.has_value_;
     return *this;
   }
 
