@@ -412,9 +412,8 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
-    # TODO(b/428999732): move test switches files to cobalt/testing.
-    "//cobalt/shell/common/shell_test_switches.cc",
-    "//cobalt/shell/common/shell_test_switches.h",
+    "common/test_shell_switches.cc",
+    "common/test_shell_switches.h",
     "shell/test_shell.cc",
     "shell/test_shell.h",
   ]
