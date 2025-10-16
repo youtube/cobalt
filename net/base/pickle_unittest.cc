@@ -28,7 +28,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
-#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"  // nogncheck
 
 namespace net {
 
