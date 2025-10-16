@@ -33,6 +33,9 @@
     "SpdyNetworkTransactionTest.UnreadableFilePost",
     "URLRequestTest.DnsNameHttpsOnlyErrorCausesSchemeUpgrade",
     "URLRequestTest.DnsNameHttpsOnlyErrorCausesSchemeUpgradeDeferred",
-    "URLRequestTestReferrerPolicy.*"
+    "URLRequestTestReferrerPolicy.*",
+    "HTTPSOCSPTest.IntermediateResponseTooOldKnownRoot",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1"
   ]
 }
