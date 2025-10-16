@@ -15,8 +15,9 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 
+#include <cstddef>
+
 #include "starboard/media.h"
-#include "starboard/types.h"
 
 namespace media {
 

@@ -15,10 +15,11 @@
 #ifndef COBALT_SHELL_COMMON_DEVICE_AUTHENTICATION_H_
 #define COBALT_SHELL_COMMON_DEVICE_AUTHENTICATION_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace content {

@@ -19,10 +19,11 @@
 #ifndef STARBOARD_INPUT_H_
 #define STARBOARD_INPUT_H_
 
+#include <stdbool.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/key.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 #ifdef __cplusplus

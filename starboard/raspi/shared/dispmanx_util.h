@@ -17,6 +17,7 @@
 
 #include <bcm_host.h>
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 
@@ -25,7 +26,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

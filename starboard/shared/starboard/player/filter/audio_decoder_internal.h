@@ -23,7 +23,6 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

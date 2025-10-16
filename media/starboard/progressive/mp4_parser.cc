@@ -16,6 +16,8 @@
 
 #include <inttypes.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -23,7 +25,6 @@
 // TODO(cobalt, b/377295011): remove the nogncheck annotation.
 #include "media/formats/mp4/es_descriptor.h"  // nogncheck
 #include "media/starboard/progressive/endian_util.h"
-#include "starboard/types.h"
 
 namespace media {
 

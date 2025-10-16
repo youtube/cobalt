@@ -16,7 +16,6 @@
 #define STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_
 
 #include "starboard/shared/internal_only.h"
-#include "starboard/types.h"
 
 namespace {
 // A simple helper to test success results.

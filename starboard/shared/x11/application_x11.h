@@ -17,6 +17,7 @@
 
 #include <X11/Xlib.h>
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -29,7 +30,6 @@
 #include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 namespace starboard {
