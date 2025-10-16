@@ -57,6 +57,8 @@ _CHROMIUM_PLATFORMS = [
 ]
 _COBALT_STARBOARD_PLATFORMS = [
     'evergreen-arm-hardfp-raspi',
+    'evergreen-arm-softfp',
+    'evergreen-arm64',
     'evergreen-arm-hardfp-rdk',
     'evergreen-x64',
     'linux-x64x11',

@@ -27,7 +27,6 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -84,9 +83,6 @@ ApplicationAndroid::ApplicationAndroid(
 ApplicationAndroid::~ApplicationAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
-
-  // Detaches JNI, no more JNI calls after this.
-  JniOnThreadShutdown();
 }
 
 void JNI_CobaltSystemConfigChangeReceiver_DateTimeConfigurationChanged(

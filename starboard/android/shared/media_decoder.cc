@@ -70,6 +70,13 @@ const char* GetDecoderName(SbMediaType media_type) {
   return media_type == kSbMediaTypeAudio ? "audio_decoder" : "video_decoder";
 }
 
+template <typename T>
+std::string to_string(const T& v) {
+  std::ostringstream oss;
+  oss << v;
+  return oss.str();
+}
+
 }  // namespace
 
 MediaCodecDecoder::MediaCodecDecoder(Host* host,
@@ -682,8 +689,9 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
 
-  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
-  SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_size();
+  std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();
+  SB_LOG(INFO) << __func__ << " > resolution="
+               << (frame_size ? to_string(frame_size->display_size) : "(n/a)");
 
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
