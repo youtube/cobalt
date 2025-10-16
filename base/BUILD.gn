@@ -1068,15 +1068,17 @@ component("base") {
     "//build/config/compiler:compiler_buildflags",
     "//third_party/modp_b64",
   ]
-  if (!is_nacl && (!is_cobalt || !_should_build_for_platform)) {
+  if (!is_nacl) {
     # Used by metrics/crc32, except on NaCl builds.
     deps += [ "//third_party/zlib" ]
 
+    if (!is_cobalt || !_should_build_for_platform) {
     # NaCl does not support Rust.
     deps += [
       ":rust_logger",
       "//third_party/rust/serde_json_lenient/v0_2/wrapper",
     ]
+    }
   }
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
