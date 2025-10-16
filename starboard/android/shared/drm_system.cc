@@ -101,9 +101,9 @@ void DrmSystem::Run() {
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
-  if (!kEnableAppProvisioning) {
-    Join();
-  }
+  // |Thread| requires a call to |Join()|, regardless of whether |Start()| was
+  // executed.
+  Join();
 }
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
