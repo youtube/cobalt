@@ -11,15 +11,9 @@
 
 #define UNGET 8
 
-#if defined(STARBOARD)
-#define FFINALLOCK(f) ((f)->lock != -1 ? __lockfile((f)) : 0)
-#define FLOCK(f) int __need_unlock = ((f)->lock != -1 ? __lockfile((f)) : 0)
-#define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
-#else
 #define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FLOCK(f) int __need_unlock = ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
-#endif  // defined(STARBOARD)
 
 
 #define F_PERM 1
@@ -48,11 +42,13 @@ struct _IO_FILE {
 	long lockcount;
 	int mode;
 #if defined(STARBOARD)
-	// A |lock| value of -1 means don't use locking.
-	// A |lock| value of 0 means needs initialization.
-	// Otherwise, |lock| points to |_lock|.
-	volatile intptr_t lock;
-	StarboardPthreadCondMutexPair _lock;
+	// To implement futex behavior with pthreads we need additional data, which
+	// is held in StarboardPthreadCondMutex. A union with an int is used here,
+	// allowing existing code using the int member to remain unchanged.
+	union {
+		volatile int lock;
+		StarboardPthreadCondMutex cond_mutex;
+	};
 #else
 	volatile int lock;
 #endif
@@ -68,17 +64,14 @@ struct _IO_FILE {
 };
 
 #if defined(STARBOARD)
-static inline uintptr_t __init_file_lock(struct _IO_FILE* f) {
-	if (f->lock == 0) {
-		__cond_mutex_pair_init(&f->_lock);
-	}
-	return (uintptr_t)&f->_lock;
+static inline void __init_file_lock(struct _IO_FILE* f) {
+	if (f->lock < 0) return;
+	__cond_mutex_pair_init(&f->cond_mutex);
 }
 
-static inline uintptr_t __destroy_file_lock(struct _IO_FILE* f) {
-	if (!f->lock || f->lock == -1) return (uintptr_t)&f->_lock;
-	__cond_mutex_pair_destroy(&f->_lock);
-	return 0;
+static void __destroy_file_lock(struct _IO_FILE* f) {
+	if (f->lock < 0) return;
+	__cond_mutex_pair_destroy(&f->cond_mutex);
 }
 
 // File read and write functions that initialize the mutex and cond variable

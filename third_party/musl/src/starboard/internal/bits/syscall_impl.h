@@ -15,7 +15,7 @@
 #ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_IMPL_H_
 #define THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_IMPL_H_
 
-// Map syscall/__syscall/syscall_cp/__syscall_cp to `libc_wrapper_SYS_foo`.
+// Map syscall to `libc_wrapper_SYS_foo`.
 //
 // On Starboard, we have separate implementations for each function callable
 // with syscall. As a result, we can expand the syscall argument in a macro and
@@ -24,7 +24,7 @@
 // Unimplemented syscall functions can be detected from their undefined
 // symbol references for names starting with the prefix "libc_wrapper_".
 //
-// Note: The available libc_wrapper_() functions for Starboard are declared in
+// Note: The  libc_wrapper_() functions available in Starboard are declared in
 // starboard/include/syscall_arch.h
 
 #include "syscall_arch.h"
