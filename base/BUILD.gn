@@ -121,6 +121,12 @@ if (is_fuchsia) {
 
 _build_date_header = "$target_gen_dir/generated_build_date.h"
 
+if (is_cobalt) {
+  _should_build_for_platform =
+      (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) ||
+      current_toolchain == native_target
+}
+
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
   # ldflags in GN aren't automatically inherited.
@@ -1062,7 +1068,7 @@ component("base") {
     "//build/config/compiler:compiler_buildflags",
     "//third_party/modp_b64",
   ]
-  if (!is_nacl) {
+  if (!is_nacl && (!is_cobalt || !_should_build_for_platform)) {
     # Used by metrics/crc32, except on NaCl builds.
     deps += [ "//third_party/zlib" ]
 
@@ -1106,7 +1112,7 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-  if (!is_nacl) {
+  if (!is_nacl && (!is_cobalt || !_should_build_for_platform)) {
     sources += [
       "containers/span_rust.h",
       "strings/string_view_rust.h",
@@ -1785,6 +1791,13 @@ component("base") {
     if (use_allocator_shim) {
       public_deps += [ "allocator/partition_allocator:allocator_shim" ]
     }
+
+    if (is_cobalt && _should_build_for_platform) {
+      sources -= [
+        "logging/rust_log_integration.cc",
+        "logging/rust_log_integration.h",
+      ]
+    }
   }
 
   if (is_starboard) {
@@ -1826,8 +1839,6 @@ component("base") {
       "posix/can_lower_nice_to.cc",
       "posix/can_lower_nice_to.h",
       "profiler/module_cache_posix.cc",
-      "profiler/stack_base_address_posix.cc",
-      "profiler/stack_base_address_posix.h",
       "profiler/stack_copier_signal.cc",
       "profiler/stack_copier_signal.h",
       "profiler/thread_delegate_posix.cc",
@@ -2822,7 +2833,7 @@ buildflag_header("protected_memory_buildflags") {
   header_dir = "base/memory"
 
   protected_memory_enabled = !is_component_build && is_clang &&
-                             (is_win || is_linux || is_android || is_mac)
+                             (is_win || is_linux || is_android || is_mac) && !is_cobalt_hermetic_build
 
   flags = [ "PROTECTED_MEMORY_ENABLED=$protected_memory_enabled" ]
 }
@@ -3885,7 +3896,7 @@ test("base_unittests") {
     deps += [ "allocator/partition_allocator/src/partition_alloc:unittests" ]
   }
 
-  if (!is_nacl) {
+  if (!is_nacl && (!is_cobalt || !_should_build_for_platform)) {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
 
