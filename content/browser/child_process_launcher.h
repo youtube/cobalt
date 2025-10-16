@@ -335,7 +335,7 @@ class CONTENT_EXPORT ChildProcessLauncher
   void OnReceivedTaskPort(base::ProcessHandle process_handle) override;
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   void SetProcessPriorityImpl(base::Process::Priority priority);
 #endif
 

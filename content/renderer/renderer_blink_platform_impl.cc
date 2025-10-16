@@ -275,7 +275,7 @@ std::string RendererBlinkPlatformImpl::GetNameForHistogram(const char* name) {
                             : std::string{name};
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 void RendererBlinkPlatformImpl::SetThreadType(base::PlatformThreadId thread_id,
                                               base::ThreadType thread_type) {
   // TODO: both of the usages of this method could just be switched to use

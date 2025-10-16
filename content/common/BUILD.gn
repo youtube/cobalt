@@ -391,12 +391,14 @@ source_set("common") {
       ":sandbox_support_linux",
       "//media/gpu:buildflags",
       "//sandbox/linux:sandbox_services",
-      "//sandbox/linux:seccomp_bpf",
       "//sandbox/policy:chromecast_sandbox_allowlist_buildflags",
       "//third_party/fontconfig",
     ]
     if (use_v4l2_codec) {
       deps += [ "//media/gpu/v4l2" ]
+    }
+    if (use_seccomp_bpf) {
+      deps += [ "//sandbox/linux:seccomp_bpf" ]
     }
   }
 
