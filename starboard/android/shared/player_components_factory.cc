@@ -490,13 +490,16 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_big_endian_hdr_metadata, max_video_input_size,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         &error_message);
-    if (error_message.empty() &&
-        (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
-         video_decoder->is_decoder_created())) {
-      return video_decoder;
+    if (!error_message.empty()) {
+      return Failure("Failed to create video decoder with error: " +
+                     error_message);
     }
-    return Failure("Failed to create video decoder with error: " +
-                   error_message);
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecAv1 &&
+        !video_decoder->is_decoder_created()) {
+      return Failure(
+          "Video decoder was not created, but no error message was provided.");
+    }
+    return video_decoder;
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
