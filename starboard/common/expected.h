@@ -80,6 +80,8 @@ class Expected {
     new (&storage_.error_) E(std::move(unexpected.error()));
   }
 
+  // Copy constructor. Conditionally deleted if T or E are not
+  // copy-constructible.
   Expected(const Expected& other) : has_value_(other.has_value_) {
     if (has_value_) {
       new (&storage_.value_) T(other.storage_.value_);
@@ -87,7 +89,14 @@ class Expected {
       new (&storage_.error_) E(other.storage_.error_);
     }
   }
+  template <typename T_ = T,
+            typename E_ = E,
+            std::enable_if_t<!(std::is_copy_constructible<T_>::value &&
+                               std::is_copy_constructible<E_>::value),
+                             int> = 0>
+  Expected(const Expected& other) = delete;
 
+  // Move constructor.
   Expected(Expected&& other) : has_value_(other.has_value_) {
     if (has_value_) {
       new (&storage_.value_) T(std::move(other.storage_.value_));
@@ -104,6 +113,8 @@ class Expected {
     }
   }
 
+  // Copy assignment operator. Conditionally deleted if T or E are not
+  // copy-assignable.
   Expected& operator=(const Expected& other) {
     if (this == &other) {
       return *this;
@@ -122,7 +133,14 @@ class Expected {
     has_value_ = other.has_value_;
     return *this;
   }
+  template <typename T_ = T,
+            typename E_ = E,
+            std::enable_if_t<!(std::is_copy_assignable<T_>::value &&
+                               std::is_copy_assignable<E_>::value),
+                             int> = 0>
+  Expected& operator=(const Expected& other) = delete;
 
+  // Move assignment operator.
   Expected& operator=(Expected&& other) {
     if (this == &other) {
       return *this;
