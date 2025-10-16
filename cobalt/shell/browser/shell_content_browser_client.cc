@@ -751,6 +751,10 @@ void ShellContentBrowserClient::ConfigureNetworkContextParamsForShell(
 
 void ShellContentBrowserClient::GetHyphenationDictionary(
     base::OnceCallback<void(const base::FilePath&)> callback) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Investigate if we can remove this function or need to implement it.
+  NOTIMPLEMENTED();
+#else
   // If we have the source tree, return the dictionary files in the tree.
   base::FilePath dir;
   if (base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &dir)) {
@@ -760,6 +764,7 @@ void ShellContentBrowserClient::GetHyphenationDictionary(
     std::move(callback).Run(dir);
   }
   // No need to callback if there were no dictionaries.
+#endif
 }
 
 bool ShellContentBrowserClient::HasErrorPage(int http_status_code) {
