@@ -134,15 +134,6 @@ config("platform_configuration") {
     "rt",
   ]
 
-  if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
-    ldflags += [
-      "-static-libstdc++",
-
-      # TODO(b/371589344#comment2) Revisit if static-libstdc++ is needed.
-      "-Wno-unused-command-line-argument",
-    ]
-  }
-
   defines += [
     # Defined to get format macro constants from <inttypes.h>.
     "__STDC_FORMAT_MACROS",

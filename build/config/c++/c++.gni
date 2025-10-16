@@ -62,7 +62,8 @@ declare_args() {
   # case.
   # We disable that on LibFuzzer builds because it breaks the libfuzzer
   # runtime. See crbug.com/411020147.
-  use_llvm_libatomic = !is_apple && !is_nacl && !use_libfuzzer
+  use_llvm_libatomic = !is_apple && !is_nacl && !use_libfuzzer &&
+                       (!is_cobalt || current_toolchain != starboard_toolchain)
 }
 
 if (use_implicit_libcxx_modules) {

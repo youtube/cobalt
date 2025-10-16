@@ -9,6 +9,7 @@
 #ifndef BASE_THREADING_PLATFORM_THREAD_H_
 #define BASE_THREADING_PLATFORM_THREAD_H_
 
+#include <sched.h>
 #include <stddef.h>
 
 #include <iosfwd>
