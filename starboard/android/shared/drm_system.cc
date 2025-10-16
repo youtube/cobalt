@@ -240,13 +240,15 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
     return session_id_mapper_->GetMediaDrmSessionId(session_id);
   }();
 
+  bool provisioning_ok = false;
   const MediaDrmBridge::OperationResult result = [this, ticket, key,
-                                                  media_drm_session_id]() {
+                                                  media_drm_session_id,
+                                                  &provisioning_ok]() {
     if (!media_drm_session_id) {
       SB_LOG(INFO) << " >  Handles the given key as provision response.";
       auto result = media_drm_bridge_->ProvideProvisionResponse(key);
       if (result.ok()) {
-        HandlePendingRequests();
+        provisioning_ok = true;
       }
       return result;
     }
@@ -260,6 +262,10 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
       this, context_, ticket,
       result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
       result.error_message.c_str(), session_id.data(), session_id.size());
+
+  if (provisioning_ok) {
+    HandlePendingRequests();
+  }
 }
 
 void DrmSystem::HandlePendingRequests() {
@@ -288,7 +294,7 @@ void DrmSystem::CloseSession(const void* session_id_data, int session_id_size) {
   }
 
   if (kEnableAppProvisioning) {
-    std::string_view media_drm_session_id = [this, session_id] {
+    std::string_view media_drm_session_id = [this, &session_id] {
       std::lock_guard lock(mutex_);
       return session_id_mapper_->GetMediaDrmSessionId(session_id);
     }();
