@@ -1,0 +1,30 @@
+--- content/browser/renderer_host/media/media_devices_dispatcher_host.cc
++++ content/browser/renderer_host/media/media_devices_dispatcher_host.cc
+@@ -142,24 +142,15 @@
+   }
+ 
+   MediaDevicesManager::BoolDeviceTypes devices_to_enumerate;
+-<<<<<<< HEAD
+   devices_to_enumerate[static_cast<size_t>(MediaDeviceType::kMediaAudioInput)] =
+       request_audio_input;
++// Starboard doesn't support video input.
++#if !BUILDFLAG(IS_STARBOARD)
+   devices_to_enumerate[static_cast<size_t>(MediaDeviceType::kMediaVideoInput)] =
+       request_video_input;
++#endif
+   devices_to_enumerate[static_cast<size_t>(MediaDeviceType::kMediaAudioOutput)] =
+       request_audio_output;
+-=======
+-  devices_to_enumerate[static_cast<size_t>(
+-      MediaDeviceType::MEDIA_AUDIO_INPUT)] = request_audio_input;
+-// Starboard doesn't support video input.
+-#if !BUILDFLAG(IS_STARBOARD)
+-  devices_to_enumerate[static_cast<size_t>(
+-      MediaDeviceType::MEDIA_VIDEO_INPUT)] = request_video_input;
+-#endif
+-  devices_to_enumerate[static_cast<size_t>(
+-      MediaDeviceType::MEDIA_AUDIO_OUTPUT)] = request_audio_output;
+->>>>>>> 75c95ad2069 (Fix the tracing service (#7552))
+ 
+   media_stream_manager_->media_devices_manager()->EnumerateAndRankDevices(
+       render_frame_host_id_, devices_to_enumerate,

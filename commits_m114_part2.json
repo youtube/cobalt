@@ -1,5 +1,135 @@
 [
   {
+    "hexsha": "2c8349a61c48393703efc3863f1a756a2e19329c",
+    "original_hexsha": "579e3d32f6810ea55d898c3997f4230febca3698",
+    "author": "Hao",
+    "datetime": "2025-10-16T07:53:46+00:00",
+    "summary": " Move shell test switch to testing directory (#7545)",
+    "stats": {
+      "files": 5,
+      "insertions": 79,
+      "deletions": 93
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "75c95ad20690cb5c4260a8d998c1562bbd285af7",
+    "original_hexsha": "62c5dce7a066f87bbded834f129a43ddfec9f1f5",
+    "author": "Yavor Goulishev",
+    "datetime": "2025-10-15T16:38:02-07:00",
+    "summary": "Fix the tracing service (#7552)",
+    "stats": {
+      "files": 6,
+      "insertions": 10,
+      "deletions": 8
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "dc03a9e550ade91f559303683443cb392c29cb18",
+    "original_hexsha": "5b70d82a1350c02a029850ca278b65a35ab1d96c",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-15T14:44:07-07:00",
+    "summary": "starboard: Introduce Result<T> for robust error handling (#7442)",
+    "stats": {
+      "files": 14,
+      "insertions": 768,
+      "deletions": 110
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "5a9771ecff50af543c5dd469294cdd5fe4a7a418",
+    "original_hexsha": "ca969fcbe858a33c7be745813524547301ca640f",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-15T14:03:35-07:00",
+    "summary": "android: Make MediaCodecBridge.GetOutputFormat return null when error happens (#7380)",
+    "stats": {
+      "files": 6,
+      "insertions": 125,
+      "deletions": 180
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "335234a837e843928c601db04f261a4f5fa7f2e2",
+    "original_hexsha": "0585327c463eb78e69da04a9aca04d06e4a600dd",
+    "author": "Niranjan Yardi",
+    "datetime": "2025-10-15T14:01:40-07:00",
+    "summary": "Update to pull from latest RDK (#7543)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 1
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "e046d54a713823a8cd7a6be833e9eb3ea02d1b3d",
+    "original_hexsha": "8aa848c484fc68a5623cec28faa6b42052890bd8",
+    "author": "Sherry Zhou",
+    "datetime": "2025-10-15T09:50:50-07:00",
+    "summary": "cobalt: Tune CC GPU memory settings to reduce footprint (#7527)",
+    "stats": {
+      "files": 2,
+      "insertions": 20,
+      "deletions": 0
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "f4cdc23ecf584413b32991de70297aec482dd56a",
+    "original_hexsha": "66a3b5668475816ea0ece7aaad251a368848f6f6",
+    "author": "Kyujung Youn",
+    "datetime": "2025-10-15T09:43:30-07:00",
+    "summary": "android: Remove legacy JNI helper files (#7532)",
+    "stats": {
+      "files": 14,
+      "insertions": 0,
+      "deletions": 759
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "abc6588c033ab151fbe7eddc36abef82dbf0b065",
+    "original_hexsha": "ef6b4d6beabc1663abf8834b51f50fb6203359d4",
+    "author": "Andrew Savage",
+    "datetime": "2025-10-15T12:27:59-04:00",
+    "summary": "Remove patching instructions from EAP doc (#7547)",
+    "stats": {
+      "files": 1,
+      "insertions": 1,
+      "deletions": 3
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "138ef4c08454f2a05e7bdfe6a6853e81e8dbe26e",
+    "original_hexsha": "9fcda953da864227b1d5db3317640fba85b2a150",
+    "author": "Andrew Savage",
+    "datetime": "2025-10-15T10:55:44-04:00",
+    "summary": "Add Evergreen softfp and arm64 builds (#7426)",
+    "stats": {
+      "files": 18,
+      "insertions": 255,
+      "deletions": 76
+    },
+    "is_linear": true
+  },
+  {
+    "hexsha": "3d95c82b359be6cc850b2e88436459d4f9d407d4",
+    "original_hexsha": "3f42d4316abdbd233b48941faefb625923b76206",
+    "author": "Holden Warriner",
+    "datetime": "2025-10-15T13:57:22+00:00",
+    "summary": "Add custom InsertAnnotationForHandler API from c25 (#7537)",
+    "stats": {
+      "files": 3,
+      "insertions": 104,
+      "deletions": 7
+    },
+    "is_linear": true
+  },
+  {
     "hexsha": "5c97e87f5d16da965e13142f4dc59e93884e914e",
     "original_hexsha": "f97c53f2c95f7e6151c1bd83b69b52ca0de7672c",
     "author": "Hao",

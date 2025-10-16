@@ -1,0 +1,19 @@
+--- cobalt/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java
++++ cobalt/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java
+@@ -40,16 +40,9 @@
+ import java.nio.ByteBuffer;
+ import java.nio.ByteOrder;
+ import java.util.Locale;
+-<<<<<<< HEAD
+-import java.util.Optional;
+ import org.jni_zero.CalledByNative;
+ import org.jni_zero.JNINamespace;
+ import org.jni_zero.NativeMethods;
+-=======
+-import org.chromium.base.annotations.CalledByNative;
+-import org.chromium.base.annotations.JNINamespace;
+-import org.chromium.base.annotations.NativeMethods;
+->>>>>>> 5a9771ecff5 (android: Make MediaCodecBridge.GetOutputFormat return null when error happens (#7380))
+ 
+ /** A wrapper of the MediaCodec class. */
+ @JNINamespace("starboard")

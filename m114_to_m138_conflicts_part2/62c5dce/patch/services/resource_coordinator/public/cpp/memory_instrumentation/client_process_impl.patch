@@ -1,0 +1,18 @@
+--- services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.cc
++++ services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.cc
+@@ -179,15 +179,6 @@
+ }
+ 
+ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
+-<<<<<<< HEAD
+-#if BUILDFLAG(IS_STARBOARD)
+-  LOG(ERROR) << "PerformOSMemoryDump was called, but Starboard does not "
+-             << "support dladdr, which this function's library depends on. "
+-             << "This call will fail.";
+-  std::move(args.callback).Run(false, {});
+-#else
+-=======
+->>>>>>> 75c95ad2069 (Fix the tracing service (#7552))
+   bool global_success = true;
+   base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;
+   for (const base::ProcessId& pid : args.pids) {
