@@ -71,8 +71,8 @@ class DrawQuadPerfTest : public testing::Test {
   }
 
   void CleanUpRenderPass() {
-    render_pass_.reset();
     shared_state_ = nullptr;
+    render_pass_.reset();
   }
 
   void GenerateTextureDrawQuads(int count, std::vector<DrawQuad*>* quads) {
