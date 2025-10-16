@@ -67,6 +67,10 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
+  Expected(const T& value) : has_value_(true) {
+    new (&storage_.value_) T(value);
+  }
+
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
