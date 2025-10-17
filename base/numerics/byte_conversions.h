@@ -6,9 +6,6 @@
 #define BASE_NUMERICS_BYTE_CONVERSIONS_H_
 
 #include <array>
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
-#include <bit>
-#endif
 #include <cstdint>
 #include <cstring>
 #include <span>
@@ -16,6 +13,10 @@
 
 #include "base/numerics/basic_ops_impl.h"
 #include "build/build_config.h"
+
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#include <bit>
+#endif
 
 // Chromium only builds and runs on Little Endian machines.
 static_assert(ARCH_CPU_LITTLE_ENDIAN);
