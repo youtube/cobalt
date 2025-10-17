@@ -4,15 +4,13 @@
 
 package org.chromium.chrome.browser.customtabs;
 
-import static org.junit.Assert.assertTrue;
-
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.view.View;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -22,14 +20,13 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.params.ParameterAnnotations;
 import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.incognito.IncognitoDataTestUtils;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.ui.test.util.RenderTestRule;
 
@@ -38,17 +35,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Instrumentation Render tests for default {@link CustomTabActivity} UI.
- */
+/** Instrumentation Render tests for default {@link CustomTabActivity} UI. */
 @RunWith(ParameterizedRunner.class)
 @ParameterAnnotations.UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@Features.EnableFeatures({ChromeFeatureList.CCT_INCOGNITO})
+@Batch(Batch.PER_CLASS)
 public class IncognitoCustomTabActivityRenderTest {
     @ParameterAnnotations.ClassParameter
     private static final List<ParameterSet> sClassParameter =
-            Arrays.asList(new ParameterSet().name("HTTPS").value(true),
+            Arrays.asList(
+                    new ParameterSet().name("HTTPS").value(true),
                     new ParameterSet().name("HTTP").value(false));
 
     private static final String TEST_PAGE = "/chrome/test/data/android/google.html";
@@ -67,6 +63,7 @@ public class IncognitoCustomTabActivityRenderTest {
     @Rule
     public final RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
+                    .setRevision(5)
                     .setBugComponent(RenderTestRule.Component.UI_BROWSER_MOBILE_CUSTOM_TABS)
                     .build();
 
@@ -74,21 +71,20 @@ public class IncognitoCustomTabActivityRenderTest {
     public void setUp() throws TimeoutException {
         mEmbeddedTestServerRule.setServerUsesHttps(mRunWithHttps);
         mEmbeddedTestServerRule.setServerPort(PORT_NO);
-        prepareCCTIntent();
+        prepareCctIntent();
 
-        // Ensuring native is initialized before we access the CCT_INCOGNITO feature flag.
         IncognitoDataTestUtils.fireAndWaitForCctWarmup();
-        assertTrue(ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_INCOGNITO));
     }
 
     public IncognitoCustomTabActivityRenderTest(boolean runWithHttps) {
         mRunWithHttps = runWithHttps;
     }
 
-    private void prepareCCTIntent() {
+    private void prepareCctIntent() {
         String url = mEmbeddedTestServerRule.getServer().getURL(TEST_PAGE);
-        mIntent = CustomTabsIntentTestUtils.createMinimalIncognitoCustomTabIntent(
-                ApplicationProvider.getApplicationContext(), url);
+        mIntent =
+                CustomTabsIntentTestUtils.createMinimalIncognitoCustomTabIntent(
+                        ApplicationProvider.getApplicationContext(), url);
     }
 
     private void startActivity(String renderTestId, int mScreenOrientation) throws IOException {
@@ -103,18 +99,23 @@ public class IncognitoCustomTabActivityRenderTest {
         startActivity(renderTestId, ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
     }
 
-    @Test
-    @MediumTest
-    @Feature("RenderTest")
-    public void testCCTToolbar() throws IOException {
-        startActivity("default_incognito_cct_toolbar_with_https_" + mRunWithHttps);
+    private String testIdSuffix() {
+        return "_https_" + mRunWithHttps;
     }
 
     @Test
     @MediumTest
     @Feature("RenderTest")
-    public void testCCTToolbarInLandscapeMode() throws IOException {
-        startActivity("default_incognito_cct_toolbar_in_landscape_with_https_" + mRunWithHttps,
+    public void testCctToolbar() throws IOException {
+        startActivity("default_incognito_cct_toolbar_with_https" + testIdSuffix());
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    public void testCctToolbarInLandscapeMode() throws IOException {
+        startActivity(
+                "default_incognito_cct_toolbar_in_landscape_with_https" + testIdSuffix(),
                 ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
     }
 }

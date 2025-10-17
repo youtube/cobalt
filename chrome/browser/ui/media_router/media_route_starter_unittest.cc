@@ -4,8 +4,10 @@
 
 #include "chrome/browser/ui/media_router/media_route_starter.h"
 
+#include <algorithm>
+
 #include "base/json/json_reader.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -31,6 +33,7 @@
 #include "components/media_router/common/route_request_result.h"
 #include "components/media_router/common/test/test_helper.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/sessions/core/session_id.h"
 #include "content/public/browser/presentation_request.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -67,6 +70,10 @@ constexpr char kDefaultOriginUrl[] = "https://default.fakeurl/";
 constexpr char kStartPresentationUrl[] = "https://startpresentrequest.com/";
 constexpr char kStartOriginUrl[] = "https://start.fakeurl/";
 
+constexpr char kRemotePlaybackUrl[] =
+    "remote-playback:media-element?source=encoded_data&video_codec=vp8&audio_"
+    "codec=mp3";
+
 class MockPresentationRequestSourceObserver
     : public PresentationRequestSourceObserver {
  public:
@@ -77,8 +84,9 @@ class MockPresentationRequestSourceObserver
   }
 
   ~MockPresentationRequestSourceObserver() override {
-    if (starter_)
+    if (starter_) {
       starter_->RemovePresentationRequestSourceObserver(this);
+    }
   }
 
   MOCK_METHOD(void, OnSourceUpdated, (std::u16string&));
@@ -169,10 +177,10 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
         ProfileManager::GetActiveUserProfile();
 #else
         ProfileManager::GetLastUsedProfile();
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
     ChromeMediaRouterFactory::GetInstance()->SetTestingFactory(
-        default_profile->GetOriginalProfile(),
-        base::BindRepeating(&MockMediaRouter::Create));
+        default_profile, base::BindRepeating(&MockMediaRouter::Create));
   }
 
   void CreateStarterForDefaultModes() {
@@ -193,7 +201,7 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
     // this to occur).
     ON_CALL(*media_router(), UnregisterMediaSinksObserver(_))
         .WillByDefault([this](MediaSinksObserver* observer) {
-          auto it = base::ranges::find(media_sinks_observers_, observer);
+          auto it = std::ranges::find(media_sinks_observers_, observer);
           if (it != media_sinks_observers_.end()) {
             media_sinks_observers_.erase(it);
           }
@@ -201,13 +209,13 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
     // Handler so MockMediaRouter will respond to requests to create a route.
     // Will construct a RouteRequestResult based on the set result code and
     // then call the handler's callback.
-    ON_CALL(*media_router(), CreateRouteInternal(_, _, _, _, _, _, _))
+    ON_CALL(*media_router(), CreateRouteInternal(_, _, _, _, _, _))
         .WillByDefault([this](const MediaSource::Id& source_id,
                               const MediaSink::Id& sink_id,
                               const url::Origin& origin,
                               content::WebContents* web_contents,
                               MediaRouteResponseCallback& callback,
-                              base::TimeDelta timeout, bool incognito) {
+                              base::TimeDelta timeout) {
           // This indicates the test did not properly set the expected result
           EXPECT_NE(mojom::RouteRequestResultCode::UNKNOWN_ERROR, result_code_);
           std::unique_ptr<RouteRequestResult> result;
@@ -228,7 +236,8 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
   }
   LoggerImpl* logger() { return logger_.get(); }
 
-  const std::vector<MediaSinksObserver*> media_sink_observers() {
+  const std::vector<raw_ptr<MediaSinksObserver, VectorExperimental>>
+  media_sink_observers() {
     return media_sinks_observers_;
   }
 
@@ -259,11 +268,7 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
   }
 
   std::unique_ptr<StartPresentationContext> CreateStartPresentationContext(
-      const content::PresentationRequest& presentation_request,
-      StartPresentationContext::PresentationConnectionCallback success_cb =
-          base::DoNothing(),
-      StartPresentationContext::PresentationConnectionErrorCallback error_cb =
-          base::DoNothing()) {
+      const content::PresentationRequest& presentation_request) {
     return std::make_unique<StartPresentationContext>(
         presentation_request,
         base::BindOnce(&MediaRouteStarterTest::RequestSuccess,
@@ -345,8 +350,9 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
         media_route_starter()->CreateRouteParameters(sink.id(), cast_mode);
     EXPECT_TRUE(params);
 
-    if (cast_mode == MediaCastMode::DESKTOP_MIRROR)
+    if (cast_mode == MediaCastMode::DESKTOP_MIRROR) {
       set_screen_capture_allowed_for_testing(true);
+    }
 
     StartRoute(std::move(params));
   }
@@ -364,7 +370,15 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
     StartRoute(std::move(params));
   }
 
- private:
+  void StartRemotePlayback(const MediaSinkInternal& sink) {
+    UpdateSinks({sink.sink()}, std::vector<url::Origin>());
+
+    auto params = media_route_starter()->CreateRouteParameters(
+        sink.id(), MediaCastMode::REMOTE_PLAYBACK);
+    EXPECT_TRUE(params);
+    StartRoute(std::move(params));
+  }
+
   content::PresentationRequest CreatePresentationRequest(
       const std::string& presentation_url,
       const std::string& origin_url) {
@@ -374,6 +388,7 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
     return presentation_request;
   }
 
+ private:
   void StartRoute(std::unique_ptr<RouteParameters> params) {
     // To demonstrate that MediaRouteResultCallbacks are called
     params->route_result_callbacks.emplace_back(
@@ -383,7 +398,7 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
     EXPECT_CALL(*media_router(),
                 CreateRouteInternal(params->source_id, params->request->sink_id,
                                     params->origin, web_contents(), _,
-                                    params->timeout, params->off_the_record));
+                                    params->timeout));
 
     media_route_starter()->StartRoute(std::move(params));
   }
@@ -407,7 +422,8 @@ class MediaRouteStarterTest : public ChromeRenderViewHostTestHarness {
   std::unique_ptr<TestingProfileManager> profile_manager_;
 
   std::unique_ptr<LoggerImpl> logger_;
-  std::vector<MediaSinksObserver*> media_sinks_observers_;
+  std::vector<raw_ptr<MediaSinksObserver, VectorExperimental>>
+      media_sinks_observers_;
 
   std::unique_ptr<MockWebContentsPresentationManager> presentation_manager_;
 
@@ -625,7 +641,6 @@ TEST_F(MediaRouteStarterTest, CreateRouteParameters_DesktopMirroring) {
   // route_result_callbacks should only be filled in by caller
   EXPECT_EQ(0ul, params->route_result_callbacks.size());
   EXPECT_EQ(base::Seconds(120), params->timeout);
-  EXPECT_FALSE(params->off_the_record);
 }
 
 // Demonstrates that when tab mirroring is available and requested that the
@@ -649,7 +664,6 @@ TEST_F(MediaRouteStarterTest, CreateRouteParameters_TabMirroring) {
   // route_result_callbacks should only be filled in by caller
   EXPECT_EQ(0ul, params->route_result_callbacks.size());
   EXPECT_EQ(base::Seconds(60), params->timeout);
-  EXPECT_FALSE(params->off_the_record);
 }
 
 // Demonstrates that when presentation mode is available for the default
@@ -677,7 +691,6 @@ TEST_F(MediaRouteStarterTest, CreateRouteParameters_WebContentPresentation) {
   // route_result_callbacks should only be filled in by caller
   EXPECT_EQ(0ul, params->route_result_callbacks.size());
   EXPECT_EQ(base::Seconds(20), params->timeout);
-  EXPECT_FALSE(params->off_the_record);
 }
 
 // Demonstrates that when presentation mode is requested and a start
@@ -707,7 +720,6 @@ TEST_F(MediaRouteStarterTest, CreateRouteParameters_StartPresentationContext) {
   // route_result_callbacks should only be filled in by caller
   EXPECT_EQ(0ul, params->route_result_callbacks.size());
   EXPECT_EQ(base::Seconds(20), params->timeout);
-  EXPECT_FALSE(params->off_the_record);
 
   // This is to deal with the error callback in the d'tor that's not part of
   // this test. See the Dtor_* tests below where this case is actually
@@ -813,7 +825,7 @@ TEST_F(MediaRouteStarterTest, StartRoute_WebContentPresentationError) {
 
 // Demonstrates that presentations routes from start presentation contexts are
 // created correctly.
-TEST_F(MediaRouteStarterTest, StartRoute_StartPresentationContext) {
+TEST_F(MediaRouteStarterTest, StartRoute_StartPresentationContext_Cast) {
   auto start_presentation_context =
       CreateStartPresentationContext(start_presentation_request());
 
@@ -831,6 +843,32 @@ TEST_F(MediaRouteStarterTest, StartRoute_StartPresentationContext) {
   EXPECT_EQ(mojom::RouteRequestResultCode::OK,
             route_request_result()->result_code());
   EXPECT_EQ(kStartPresentationUrl, route_request_result()->presentation_url());
+}
+
+TEST_F(MediaRouteStarterTest,
+       StartRoute_StartPresentationContext_RemotePlayback) {
+  auto start_presentation_context = CreateStartPresentationContext(
+      CreatePresentationRequest(kRemotePlaybackUrl, kStartOriginUrl));
+
+  CreateStarter(MediaRouterUIParameters(kDefaultModes, web_contents(),
+                                        std::move(start_presentation_context)));
+
+  set_expected_cast_result(mojom::RouteRequestResultCode::OK);
+
+  EXPECT_CALL(*this, RequestSuccess(_, _, _));
+
+  StartRemotePlayback(cast_sink());
+
+  // TODO(crbug.com/1491212): Update test case once `tab_id` is removed from the
+  // Remote Playback presentation url.
+  EXPECT_EQ(mojom::RouteRequestResultCode::OK,
+            route_request_result()->result_code());
+  EXPECT_EQ(
+      base::StrCat(
+          {kRemotePlaybackUrl, "&tab_id=",
+           base::NumberToString(
+               sessions::SessionTabHelper::IdForTab(web_contents()).id())}),
+      route_request_result()->presentation_url());
 }
 
 // Demonstrates that failures to create presentation routes from start
@@ -854,9 +892,9 @@ TEST_F(MediaRouteStarterTest, StartRoute_StartPresentationContextError) {
 }
 
 TEST_F(MediaRouteStarterTest, GetScreenCapturePermission) {
-  // Screen capturing can only be disallowed on MacOS above a certain version.
+// TODO(crbug.com/40802122): Fix screen-capture tests on macOS.
 #if BUILDFLAG(IS_MAC)
-  bool screen_capture_is_allowed = !base::mac::IsAtLeastOS10_15();
+  bool screen_capture_is_allowed = false;
 #else
   bool screen_capture_is_allowed = true;
 #endif  // BUILDFLAG(IS_MAC)
@@ -881,53 +919,6 @@ TEST_F(MediaRouteStarterTest, GetScreenCapturePermission) {
   EXPECT_EQ(screen_capture_is_allowed,
             MediaRouteStarter::GetScreenCapturePermission(
                 MediaCastMode::DESKTOP_MIRROR));
-}
-
-class MediaRouteStarterIncognitoTest : public MediaRouteStarterTest {
- protected:
-  void SetMediaRouterFactory() override {
-    // We must set the factory on the non-incognito browser context.
-    MediaRouterFactory::GetInstance()->SetTestingFactory(
-        MediaRouteStarterTest::GetBrowserContext(),
-        base::BindRepeating(&MockMediaRouter::Create));
-  }
-
-  content::BrowserContext* GetBrowserContext() override {
-    return static_cast<Profile*>(MediaRouteStarterTest::GetBrowserContext())
-        ->GetPrimaryOTRProfile(/*create_if_needed=*/true);
-  }
-};
-
-// Demonstrates that when tab mirroring is available and requested that the
-// RouteParameters are properly filled out - particularly that the off the
-// record is now true.
-TEST_F(MediaRouteStarterIncognitoTest, CreateRouteParameters_TabMirroring) {
-  CreateStarterForDefaultModes();
-
-  // Add a sink
-  UpdateSinks({cast_sink().sink()}, std::vector<url::Origin>());
-
-  auto params = media_route_starter()->CreateRouteParameters(
-      cast_sink().id(), MediaCastMode::TAB_MIRROR);
-
-  EXPECT_TRUE(params->off_the_record);
-}
-
-// Basically the same as the on the record case, but demonstrates that
-// the incognito parameter is passed into MR.
-TEST_F(MediaRouteStarterIncognitoTest, StartRoute_TabMirroring) {
-  CreateStarterForDefaultModes();
-
-  set_expected_cast_result(mojom::RouteRequestResultCode::OK);
-
-  StartMirroring(cast_sink(), MediaCastMode::TAB_MIRROR);
-
-  EXPECT_EQ(mojom::RouteRequestResultCode::OK,
-            route_request_result()->result_code());
-
-  MediaSource expected_source = MediaSource::ForTab(
-      sessions::SessionTabHelper::IdForTab(web_contents()).id());
-  EXPECT_EQ(expected_source, route_request_result()->route()->media_source());
 }
 
 }  // namespace media_router

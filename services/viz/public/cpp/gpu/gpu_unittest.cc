@@ -14,8 +14,9 @@
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/task_environment.h"
+#include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_info.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -46,10 +47,6 @@ class TestGpuImpl : public mojom::Gpu {
     receivers_.Add(this, std::move(receiver));
   }
 
-  // mojom::Gpu overrides:
-  void CreateGpuMemoryBufferFactory(
-      mojo::PendingReceiver<mojom::GpuMemoryBufferFactory> receiver) override {}
-
   void EstablishGpuChannel(EstablishGpuChannelCallback callback) override {
     if (close_binding_on_request_) {
       // Don't run |callback| and trigger a connection error on the other end.
@@ -66,14 +63,15 @@ class TestGpuImpl : public mojom::Gpu {
     }
 
     std::move(callback).Run(client_id, std::move(handle), gpu::GPUInfo(),
-                            gpu::GpuFeatureInfo());
+                            gpu::GpuFeatureInfo(),
+                            gpu::SharedImageCapabilities());
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void CreateJpegDecodeAccelerator(
       mojo::PendingReceiver<chromeos_camera::mojom::MjpegDecodeAccelerator>
           jda_receiver) override {}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   void CreateVideoEncodeAcceleratorProvider(
       mojo::PendingReceiver<media::mojom::VideoEncodeAcceleratorProvider>

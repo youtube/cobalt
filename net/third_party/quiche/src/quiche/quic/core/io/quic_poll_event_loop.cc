@@ -4,17 +4,23 @@
 
 #include "quiche/quic/core/io/quic_poll_event_loop.h"
 
-#include <poll.h>
-
 #include <algorithm>
 #include <cerrno>
+#include <cmath>
+#include <cstddef>
 #include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
 #include "absl/types/span.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_alarm_factory_proxy.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -38,8 +44,7 @@ QuicSocketEventMask GetEventMask(PollMask poll_mask) {
 
 QuicPollEventLoop::QuicPollEventLoop(QuicClock* clock) : clock_(clock) {}
 
-bool QuicPollEventLoop::RegisterSocket(QuicUdpSocketFd fd,
-                                       QuicSocketEventMask events,
+bool QuicPollEventLoop::RegisterSocket(SocketFd fd, QuicSocketEventMask events,
                                        QuicSocketEventListener* listener) {
   auto [it, success] =
       registrations_.insert({fd, std::make_shared<Registration>()});
@@ -52,12 +57,11 @@ bool QuicPollEventLoop::RegisterSocket(QuicUdpSocketFd fd,
   return true;
 }
 
-bool QuicPollEventLoop::UnregisterSocket(QuicUdpSocketFd fd) {
+bool QuicPollEventLoop::UnregisterSocket(SocketFd fd) {
   return registrations_.erase(fd);
 }
 
-bool QuicPollEventLoop::RearmSocket(QuicUdpSocketFd fd,
-                                    QuicSocketEventMask events) {
+bool QuicPollEventLoop::RearmSocket(SocketFd fd, QuicSocketEventMask events) {
   auto it = registrations_.find(fd);
   if (it == registrations_.end()) {
     return false;
@@ -66,7 +70,7 @@ bool QuicPollEventLoop::RearmSocket(QuicUdpSocketFd fd,
   return true;
 }
 
-bool QuicPollEventLoop::ArtificiallyNotifyEvent(QuicUdpSocketFd fd,
+bool QuicPollEventLoop::ArtificiallyNotifyEvent(SocketFd fd,
                                                 QuicSocketEventMask events) {
   auto it = registrations_.find(fd);
   if (it == registrations_.end()) {
@@ -79,13 +83,13 @@ bool QuicPollEventLoop::ArtificiallyNotifyEvent(QuicUdpSocketFd fd,
 
 void QuicPollEventLoop::RunEventLoopOnce(QuicTime::Delta default_timeout) {
   const QuicTime start_time = clock_->Now();
-  ProcessAlarmsUpTo(start_time);
+  alarms_.ProcessAlarmsUpTo(start_time);
 
   QuicTime::Delta timeout = ComputePollTimeout(start_time, default_timeout);
   ProcessIoEvents(start_time, timeout);
 
   const QuicTime end_time = clock_->Now();
-  ProcessAlarmsUpTo(end_time);
+  alarms_.ProcessAlarmsUpTo(end_time);
 }
 
 QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
@@ -94,10 +98,11 @@ QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
   if (has_artificial_events_pending_) {
     return QuicTime::Delta::Zero();
   }
-  if (alarms_.empty()) {
+  std::optional<QuicTime> next_alarm = alarms_.GetNextUpcomingAlarm();
+  if (!next_alarm.has_value()) {
     return default_timeout;
   }
-  QuicTime end_time = std::min(now + default_timeout, alarms_.begin()->first);
+  QuicTime end_time = std::min(now + default_timeout, *next_alarm);
   if (end_time < now) {
     // We only run a single pass of processing alarm callbacks per
     // RunEventLoopOnce() call.  If an alarm schedules another alarm in the past
@@ -117,11 +122,13 @@ int QuicPollEventLoop::PollWithRetries(absl::Span<pollfd> fds,
     poll_result =
         PollSyscall(fds.data(), fds.size(), static_cast<int>(timeout_ms));
 
-    // Retry if EINTR happens.
-    bool is_eintr = poll_result < 0 && errno == EINTR;
-    if (!is_eintr) {
+    // Stop if there are events or a non-EINTR error.
+    bool done = poll_result > 0 || (poll_result < 0 && errno != EINTR);
+    if (done) {
       break;
     }
+    // Poll until `clock_` shows the timeout was exceeded.
+    // PollSyscall uses a system clock internally that may run faster.
     QuicTime now = clock_->Now();
     if (now >= timeout_at) {
       break;
@@ -168,7 +175,7 @@ void QuicPollEventLoop::ProcessIoEvents(QuicTime start_time,
 }
 
 void QuicPollEventLoop::DispatchIoEvent(std::vector<ReadyListEntry>& ready_list,
-                                        QuicUdpSocketFd fd, PollMask mask) {
+                                        SocketFd fd, PollMask mask) {
   auto it = registrations_.find(fd);
   if (it == registrations_.end()) {
     QUIC_BUG(poll returned an unregistered fd) << fd;
@@ -177,10 +184,10 @@ void QuicPollEventLoop::DispatchIoEvent(std::vector<ReadyListEntry>& ready_list,
   Registration& registration = *it->second;
 
   mask |= GetPollMask(registration.artificially_notify_at_next_iteration);
-  registration.artificially_notify_at_next_iteration = QuicSocketEventMask();
-
   // poll() always returns certain classes of events even if not requested.
-  mask &= GetPollMask(registration.events);
+  mask &= GetPollMask(registration.events |
+                      registration.artificially_notify_at_next_iteration);
+  registration.artificially_notify_at_next_iteration = QuicSocketEventMask();
   if (!mask) {
     return;
   }
@@ -202,62 +209,16 @@ void QuicPollEventLoop::RunReadyCallbacks(
   ready_list.clear();
 }
 
-void QuicPollEventLoop::ProcessAlarmsUpTo(QuicTime time) {
-  // Determine which alarm callbacks needs to be run.
-  std::vector<std::weak_ptr<Alarm*>> alarms_to_call;
-  while (!alarms_.empty() && alarms_.begin()->first <= time) {
-    auto& [deadline, schedule_handle_weak] = *alarms_.begin();
-    alarms_to_call.push_back(std::move(schedule_handle_weak));
-    alarms_.erase(alarms_.begin());
-  }
-  // Actually run those callbacks.
-  for (std::weak_ptr<Alarm*>& schedule_handle_weak : alarms_to_call) {
-    std::shared_ptr<Alarm*> schedule_handle = schedule_handle_weak.lock();
-    if (!schedule_handle) {
-      // The alarm has been cancelled and might not even exist anymore.
-      continue;
-    }
-    (*schedule_handle)->DoFire();
-  }
-  // Clean up all of the alarms in the front that have been cancelled.
-  while (!alarms_.empty()) {
-    if (alarms_.begin()->second.expired()) {
-      alarms_.erase(alarms_.begin());
-    } else {
-      break;
-    }
-  }
-}
-
-QuicAlarm* QuicPollEventLoop::AlarmFactory::CreateAlarm(
-    QuicAlarm::Delegate* delegate) {
-  return new Alarm(loop_, QuicArenaScopedPtr<QuicAlarm::Delegate>(delegate));
-}
-
-QuicArenaScopedPtr<QuicAlarm> QuicPollEventLoop::AlarmFactory::CreateAlarm(
-    QuicArenaScopedPtr<QuicAlarm::Delegate> delegate,
-    QuicConnectionArena* arena) {
-  if (arena != nullptr) {
-    return arena->New<Alarm>(loop_, std::move(delegate));
-  }
-  return QuicArenaScopedPtr<QuicAlarm>(new Alarm(loop_, std::move(delegate)));
-}
-
-QuicPollEventLoop::Alarm::Alarm(
-    QuicPollEventLoop* loop, QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
-    : QuicAlarm(std::move(delegate)), loop_(loop) {}
-
-void QuicPollEventLoop::Alarm::SetImpl() {
-  current_schedule_handle_ = std::make_shared<Alarm*>(this);
-  loop_->alarms_.insert({deadline(), current_schedule_handle_});
-}
-
-void QuicPollEventLoop::Alarm::CancelImpl() {
-  current_schedule_handle_.reset();
-}
-
 std::unique_ptr<QuicAlarmFactory> QuicPollEventLoop::CreateAlarmFactory() {
-  return std::make_unique<AlarmFactory>(this);
+  return std::make_unique<QuicAlarmFactoryProxy>(&alarms_);
+}
+
+int QuicPollEventLoop::PollSyscall(pollfd* fds, size_t nfds, int timeout) {
+#if defined(_WIN32)
+  return WSAPoll(fds, nfds, timeout);
+#else
+  return ::poll(fds, nfds, timeout);
+#endif  // defined(_WIN32)
 }
 
 }  // namespace quic

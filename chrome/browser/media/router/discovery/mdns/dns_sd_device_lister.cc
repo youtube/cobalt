@@ -37,7 +37,7 @@ DnsSdDeviceLister::DnsSdDeviceLister(
 {
 }
 
-DnsSdDeviceLister::~DnsSdDeviceLister() {}
+DnsSdDeviceLister::~DnsSdDeviceLister() = default;
 
 void DnsSdDeviceLister::Discover() {
 #if BUILDFLAG(ENABLE_SERVICE_DISCOVERY)
@@ -71,6 +71,10 @@ void DnsSdDeviceLister::OnDeviceRemoved(const std::string& service_type,
 void DnsSdDeviceLister::OnDeviceCacheFlushed(const std::string& service_type) {
   delegate_->ServicesFlushed(device_lister_->service_type());
   device_lister_->DiscoverNewDevices();
+}
+
+void DnsSdDeviceLister::OnPermissionRejected() {
+  delegate_->ServicesPermissionRejected();
 }
 
 }  // namespace media_router

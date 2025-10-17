@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include <queue>
 #include <string>
 #include <vector>
 
@@ -32,9 +31,8 @@ namespace content {
 class BrowserPpapiHost;
 class PepperFileIOHost;
 
-class CONTENT_EXPORT PepperFileSystemBrowserHost
-    : public ppapi::host::ResourceHost,
-      public base::SupportsWeakPtr<PepperFileSystemBrowserHost> {
+class CONTENT_EXPORT PepperFileSystemBrowserHost final
+    : public ppapi::host::ResourceHost {
  public:
   // Creates a new PepperFileSystemBrowserHost for a file system of a given
   // |type|. The host must be opened before use.
@@ -86,6 +84,10 @@ class CONTENT_EXPORT PepperFileSystemBrowserHost
 
   static scoped_refptr<storage::FileSystemContext>
   GetFileSystemContextFromRenderId(int render_process_id);
+
+  base::WeakPtr<PepperFileSystemBrowserHost> AsWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
 
  private:
   // All interactions with FileSystemContext must occur on the IO thread as
@@ -178,7 +180,8 @@ class CONTENT_EXPORT PepperFileSystemBrowserHost
     // When a PepperFileIOHost calls OpenQuotaFile, we add the id and a
     // non-owning pointer to this map. CloseQuotaFile must be called when before
     // the host is destroyed.
-    typedef std::map<int32_t, PepperFileIOHost*> FileMap;
+    typedef std::map<int32_t, raw_ptr<PepperFileIOHost, CtnExperimental>>
+        FileMap;
     FileMap files_;
 
     // Thread that this object is constructed on.
@@ -225,7 +228,7 @@ class CONTENT_EXPORT PepperFileSystemBrowserHost
   // When a PepperFileIOHost calls OpenQuotaFile, we add the id and a non-owning
   // pointer to this map. CloseQuotaFile must be called when before the host is
   // destroyed.
-  typedef std::map<int32_t, PepperFileIOHost*> FileMap;
+  typedef std::map<int32_t, raw_ptr<PepperFileIOHost, CtnExperimental>> FileMap;
   FileMap files_;
   int64_t reserved_quota_;
   bool reserving_quota_;

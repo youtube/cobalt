@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "ash/constants/ash_features.h"
 #include "base/json/json_reader.h"
-#include "base/json/json_string_value_serializer.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -40,7 +45,7 @@ base::Value ConvertVpnStringToValue(const std::string& str,
   if (type == base::Value::Type::STRING)
     return base::Value(str);
 
-  absl::optional<base::Value> value = base::JSONReader::Read(str);
+  std::optional<base::Value> value = base::JSONReader::Read(str);
   if (!value || value->type() != type)
     return base::Value(type);
 
@@ -50,7 +55,7 @@ base::Value ConvertVpnStringToValue(const std::string& str,
 // Returns the string value of |key| from |dict| if found, or the empty string
 // otherwise.
 std::string FindStringKeyOrEmpty(const base::Value::Dict& dict,
-                                 base::StringPiece key) {
+                                 std::string_view key) {
   const std::string* value = dict.FindString(key);
   return value ? *value : std::string();
 }
@@ -200,14 +205,12 @@ class ShillToONCTranslator {
   // for debugging.
   std::string GetName();
 
-  raw_ptr<const base::Value::Dict, ExperimentalAsh> shill_dictionary_;
+  raw_ptr<const base::Value::Dict> shill_dictionary_;
   ::onc::ONCSource onc_source_;
-  raw_ptr<const chromeos::onc::OncValueSignature, ExperimentalAsh>
-      onc_signature_;
-  raw_ptr<const FieldTranslationEntry, ExperimentalAsh>
-      field_translation_table_;
+  raw_ptr<const chromeos::onc::OncValueSignature> onc_signature_;
+  raw_ptr<const FieldTranslationEntry> field_translation_table_;
   base::Value::Dict onc_object_;
-  raw_ptr<const NetworkState, ExperimentalAsh> network_state_;
+  raw_ptr<const NetworkState> network_state_;
 };
 
 base::Value::Dict ShillToONCTranslator::CreateTranslatedONCObject() {
@@ -456,7 +459,7 @@ void ShillToONCTranslator::TranslateVPN() {
     provider_type_dictionary = onc_provider_type;
   }
 
-  absl::optional<bool> save_credentials =
+  std::optional<bool> save_credentials =
       shill_dictionary_->FindBool(shill::kSaveCredentialsProperty);
   if (onc_provider_type != ::onc::vpn::kThirdPartyVpn &&
       onc_provider_type != ::onc::vpn::kArcVpn && save_credentials) {
@@ -483,13 +486,6 @@ void ShillToONCTranslator::TranslateWiFiWithState() {
       *shill_dictionary_, false /* verbose_logging */, &unknown_encoding);
   if (!unknown_encoding && !ssid.empty())
     onc_object_.Set(::onc::wifi::kSSID, ssid);
-
-  absl::optional<bool> link_monitor_disable =
-      shill_dictionary_->FindBool(shill::kLinkMonitorDisableProperty);
-  if (link_monitor_disable) {
-    onc_object_.Set(::onc::wifi::kAllowGatewayARPPolling,
-                    !*link_monitor_disable);
-  }
 
   CopyPropertiesAccordingToSignature();
   TranslateAndAddNestedObject(::onc::wifi::kEAP);
@@ -617,6 +613,10 @@ void ShillToONCTranslator::TranslateApnProperties() {
                            kApnIpTypeTranslationTable,
                            ::onc::cellular_apn::kIpType);
 
+  TranslateWithTableAndSet(shill::kApnSourceProperty,
+                           kApnSourceTranslationTable,
+                           ::onc::cellular_apn::kSource);
+
   const std::string shill_apn_types =
       FindStringKeyOrEmpty(*shill_dictionary_, shill::kApnTypesProperty);
 
@@ -624,6 +624,7 @@ void ShillToONCTranslator::TranslateApnProperties() {
   // i.e. "DEFAULT,IA,DEFAULT" -> ["Default", "Attach"].
   bool contains_default = false;
   bool contains_attach = false;
+  bool contains_tether = false;
   for (const auto& apn_type :
        base::SplitStringPiece(shill_apn_types,
                               /*separators=*/",", base::TRIM_WHITESPACE,
@@ -632,6 +633,8 @@ void ShillToONCTranslator::TranslateApnProperties() {
       contains_default = true;
     } else if (apn_type == shill::kApnTypeIA) {
       contains_attach = true;
+    } else if (apn_type == shill::kApnTypeDun) {
+      contains_tether = true;
     } else {
       NET_LOG(ERROR) << "APN has an invalid APN type:" << apn_type;
     }
@@ -643,7 +646,12 @@ void ShillToONCTranslator::TranslateApnProperties() {
   if (contains_attach) {
     apn_types.Append(::onc::cellular_apn::kApnTypeAttach);
   }
-  DCHECK(!apn_types.empty()) << "APN must have at least one APN type";
+  if (contains_tether) {
+    apn_types.Append(::onc::cellular_apn::kApnTypeTether);
+  }
+  if (apn_types.empty()) {
+    NET_LOG(ERROR) << "APN must have at least one APN type";
+  }
   onc_object_.Set(::onc::cellular_apn::kApnTypes, std::move(apn_types));
 }
 
@@ -685,7 +693,7 @@ void ShillToONCTranslator::TranslateNetworkWithState() {
 
   if (network_state_) {
     // Only visible networks set RestrictedConnectivity, and only if true.
-    auto portal_state = network_state_->GetPortalState();
+    auto portal_state = network_state_->portal_state();
     if (network_state_->IsConnectedState() &&
         portal_state != NetworkState::PortalState::kUnknown &&
         portal_state != NetworkState::PortalState::kOnline) {
@@ -768,10 +776,10 @@ void ShillToONCTranslator::TranslateNetworkWithState() {
   const std::string* proxy_config_str =
       shill_dictionary_->FindString(shill::kProxyConfigProperty);
   if (proxy_config_str && !proxy_config_str->empty()) {
-    absl::optional<base::Value::Dict> proxy_config =
+    std::optional<base::Value::Dict> proxy_config =
         chromeos::onc::ReadDictionaryFromJson(*proxy_config_str);
     if (proxy_config.has_value()) {
-      absl::optional<base::Value::Dict> proxy_settings =
+      std::optional<base::Value::Dict> proxy_settings =
           ConvertProxyConfigToOncProxySettings(proxy_config.value());
       if (proxy_settings) {
         onc_object_.Set(::onc::network_config::kProxySettings,
@@ -780,7 +788,7 @@ void ShillToONCTranslator::TranslateNetworkWithState() {
     }
   }
 
-  absl::optional<double> traffic_counter_reset_time =
+  std::optional<double> traffic_counter_reset_time =
       shill_dictionary_->FindDouble(shill::kTrafficCounterResetTimeProperty);
   if (traffic_counter_reset_time.has_value()) {
     onc_object_.Set(::onc::network_config::kTrafficCounterResetTime,
@@ -797,7 +805,8 @@ void ShillToONCTranslator::TranslateIPConfig() {
       shill_ip_method == shill::kTypeDHCP) {
     type = ::onc::ipconfig::kIPv4;
   } else if (shill_ip_method == shill::kTypeIPv6 ||
-             shill_ip_method == shill::kTypeDHCP6) {
+             shill_ip_method == shill::kTypeDHCP6 ||
+             shill_ip_method == shill::kTypeSLAAC) {
     type = ::onc::ipconfig::kIPv6;
   } else {
     return;  // Ignore unhandled IPConfig types, e.g. bootp, zeroconf, ppp
@@ -885,14 +894,21 @@ void ShillToONCTranslator::TranslateEap() {
 
   if (subject_alternative_name_match) {
     base::Value::List deserialized_dicts;
-    std::string error_msg;
     for (const base::Value& san : *subject_alternative_name_match) {
-      JSONStringValueDeserializer deserializer(san.GetString());
-      auto deserialized_dict =
-          deserializer.Deserialize(/*error_code=*/nullptr, &error_msg);
-      if (!deserialized_dict) {
+      const std::string* san_string = san.GetIfString();
+      if (!san_string) {
+        LOG(ERROR) << "SAN entry is not a string: " << san;
+        continue;
+      }
+      base::JSONReader::Result deserialized_dict =
+          base::JSONReader::ReadAndReturnValueWithError(*san_string);
+      if (!deserialized_dict.has_value()) {
         LOG(ERROR) << "failed to deserialize " << san << " with error "
-                   << error_msg;
+                   << deserialized_dict.error().ToString();
+        continue;
+      }
+      if (!deserialized_dict->is_dict()) {
+        LOG(ERROR) << "failed to deserialize " << san << " as a dictionary";
         continue;
       }
       deserialized_dicts.Append(std::move(*deserialized_dict));

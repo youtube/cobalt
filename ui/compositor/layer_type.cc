@@ -4,11 +4,13 @@
 
 #include "ui/compositor/layer_type.h"
 
+#include <string_view>
+
 #include "base/notreached.h"
 
 namespace ui {
 
-base::StringPiece LayerTypeToString(LayerType type) {
+std::string_view LayerTypeToString(LayerType type) {
   switch (type) {
     case LayerType::LAYER_NOT_DRAWN:
       return "not_drawn";
@@ -20,7 +22,6 @@ base::StringPiece LayerTypeToString(LayerType type) {
       return "nine_patch";
   }
   NOTREACHED();
-  return {};
 }
 
 }  // namespace ui

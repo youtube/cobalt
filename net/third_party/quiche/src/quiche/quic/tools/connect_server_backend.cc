@@ -15,9 +15,9 @@
 #include "quiche/quic/tools/connect_tunnel.h"
 #include "quiche/quic/tools/connect_udp_tunnel.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -25,7 +25,7 @@ namespace {
 
 void SendErrorResponse(QuicSimpleServerBackend::RequestHandler* request_handler,
                        absl::string_view error_code) {
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":status"] = error_code;
   QuicBackendResponse response;
   response.set_headers(std::move(headers));
@@ -62,14 +62,14 @@ bool ConnectServerBackend::InitializeBackend(const std::string&) {
 bool ConnectServerBackend::IsBackendInitialized() const { return true; }
 
 void ConnectServerBackend::SetSocketFactory(SocketFactory* socket_factory) {
-  QUICHE_DCHECK_NE(socket_factory_, socket_factory);
+  QUICHE_DCHECK(socket_factory);
   QUICHE_DCHECK(connect_tunnels_.empty());
   QUICHE_DCHECK(connect_udp_tunnels_.empty());
   socket_factory_ = socket_factory;
 }
 
 void ConnectServerBackend::FetchResponseFromBackend(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     const std::string& request_body, RequestHandler* request_handler) {
   // Not a CONNECT request, so send to `non_connect_backend_`.
   non_connect_backend_->FetchResponseFromBackend(request_headers, request_body,
@@ -77,7 +77,7 @@ void ConnectServerBackend::FetchResponseFromBackend(
 }
 
 void ConnectServerBackend::HandleConnectHeaders(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     RequestHandler* request_handler) {
   QUICHE_DCHECK(request_headers.contains(":method") &&
                 request_headers.find(":method")->second == "CONNECT");
@@ -93,7 +93,8 @@ void ConnectServerBackend::HandleConnectHeaders(
   if (!request_headers.contains(":protocol")) {
     // normal CONNECT
     auto [tunnel_it, inserted] = connect_tunnels_.emplace(
-        request_handler->stream_id(),
+        std::make_pair(request_handler->connection_id(),
+                       request_handler->stream_id()),
         std::make_unique<ConnectTunnel>(request_handler, socket_factory_,
                                         acceptable_connect_destinations_));
     QUICHE_DCHECK(inserted);
@@ -102,7 +103,8 @@ void ConnectServerBackend::HandleConnectHeaders(
   } else if (request_headers.find(":protocol")->second == "connect-udp") {
     // CONNECT-UDP
     auto [tunnel_it, inserted] = connect_udp_tunnels_.emplace(
-        request_handler->stream_id(),
+        std::make_pair(request_handler->connection_id(),
+                       request_handler->stream_id()),
         std::make_unique<ConnectUdpTunnel>(request_handler, socket_factory_,
                                            server_label_,
                                            acceptable_connect_udp_targets_));
@@ -122,9 +124,11 @@ void ConnectServerBackend::HandleConnectData(absl::string_view data,
   // Expect ConnectUdpTunnels to register a datagram visitor, causing the
   // stream to process data as capsules.  HandleConnectData() should therefore
   // never be called for streams with a ConnectUdpTunnel.
-  QUICHE_DCHECK(!connect_udp_tunnels_.contains(request_handler->stream_id()));
+  QUICHE_DCHECK(!connect_udp_tunnels_.contains(std::make_pair(
+      request_handler->connection_id(), request_handler->stream_id())));
 
-  auto tunnel_it = connect_tunnels_.find(request_handler->stream_id());
+  auto tunnel_it = connect_tunnels_.find(std::make_pair(
+      request_handler->connection_id(), request_handler->stream_id()));
   if (tunnel_it == connect_tunnels_.end()) {
     // If tunnel not found, perhaps it's something being handled for
     // non-CONNECT. Possible because this method could be called for anything
@@ -146,13 +150,15 @@ void ConnectServerBackend::HandleConnectData(absl::string_view data,
 
 void ConnectServerBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  auto tunnel_it = connect_tunnels_.find(request_handler->stream_id());
+  auto tunnel_it = connect_tunnels_.find(std::make_pair(
+      request_handler->connection_id(), request_handler->stream_id()));
   if (tunnel_it != connect_tunnels_.end()) {
     tunnel_it->second->OnClientStreamClose();
     connect_tunnels_.erase(tunnel_it);
   }
 
-  auto udp_tunnel_it = connect_udp_tunnels_.find(request_handler->stream_id());
+  auto udp_tunnel_it = connect_udp_tunnels_.find(std::pair(
+      request_handler->connection_id(), request_handler->stream_id()));
   if (udp_tunnel_it != connect_udp_tunnels_.end()) {
     udp_tunnel_it->second->OnClientStreamClose();
     connect_udp_tunnels_.erase(udp_tunnel_it);

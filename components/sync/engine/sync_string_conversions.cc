@@ -22,7 +22,6 @@ const char* ConnectionStatusToString(ConnectionStatus status) {
   }
 
   NOTREACHED();
-  return "INVALID_CONNECTION_STATUS";
 }
 
 const char* PassphraseTypeToString(PassphraseType type) {
@@ -35,7 +34,6 @@ const char* PassphraseTypeToString(PassphraseType type) {
   }
 
   NOTREACHED();
-  return "INVALID_PASSPHRASE_TYPE";
 }
 
 #undef ENUM_CASE

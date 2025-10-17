@@ -6,7 +6,9 @@
 #define UI_BASE_X_X11_OS_EXCHANGE_DATA_PROVIDER_H_
 
 #include <stdint.h>
+
 #include <map>
+#include <string_view>
 
 #include "base/component_export.h"
 #include "base/files/file_path.h"
@@ -19,6 +21,10 @@
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/gfx/image/image_skia.h"
 #include "url/gurl.h"
+
+namespace x11 {
+class Connection;
+}
 
 namespace ui {
 
@@ -62,36 +68,36 @@ class COMPONENT_EXPORT(UI_BASE_X) XOSExchangeDataProvider
 
   // Overridden from OSExchangeDataProvider:
   std::unique_ptr<OSExchangeDataProvider> Clone() const override;
-  void MarkOriginatedFromRenderer() override;
-  bool DidOriginateFromRenderer() const override;
+  void MarkRendererTaintedFromOrigin(const url::Origin& origin) override;
+  bool IsRendererTainted() const override;
+  std::optional<url::Origin> GetRendererTaintedOrigin() const override;
   void MarkAsFromPrivileged() override;
   bool IsFromPrivileged() const override;
-  void SetString(const std::u16string& data) override;
-  void SetURL(const GURL& url, const std::u16string& title) override;
+  void SetString(std::u16string_view data) override;
+  void SetURL(const GURL& url, std::u16string_view title) override;
   void SetFilename(const base::FilePath& path) override;
   void SetFilenames(const std::vector<FileInfo>& filenames) override;
   void SetPickledData(const ClipboardFormatType& format,
                       const base::Pickle& pickle) override;
-  bool GetString(std::u16string* data) const override;
-  bool GetURLAndTitle(FilenameToURLPolicy policy,
-                      GURL* url,
-                      std::u16string* title) const override;
-  bool GetFilename(base::FilePath* path) const override;
-  bool GetFilenames(std::vector<FileInfo>* filenames) const override;
-  bool GetPickledData(const ClipboardFormatType& format,
-                      base::Pickle* pickle) const override;
+  std::optional<std::u16string> GetString() const override;
+  std::optional<UrlInfo> GetURLAndTitle(
+      FilenameToURLPolicy policy) const override;
+  std::optional<std::vector<GURL>> GetURLs(
+      FilenameToURLPolicy policy) const override;
+  std::optional<std::vector<FileInfo>> GetFilenames() const override;
+  std::optional<base::Pickle> GetPickledData(
+      const ClipboardFormatType& format) const override;
   bool HasString() const override;
   bool HasURL(FilenameToURLPolicy policy) const override;
   bool HasFile() const override;
   bool HasCustomFormat(const ClipboardFormatType& format) const override;
   void SetFileContents(const base::FilePath& filename,
                        const std::string& file_contents) override;
-  bool GetFileContents(base::FilePath* filename,
-                       std::string* file_contents) const override;
+  std::optional<FileContentsInfo> GetFileContents() const override;
   bool HasFileContents() const override;
 
   void SetHtml(const std::u16string& html, const GURL& base_url) override;
-  bool GetHtml(std::u16string* html, GURL* base_url) const override;
+  std::optional<HtmlInfo> GetHtml() const override;
   bool HasHtml() const override;
   void SetDragImage(const gfx::ImageSkia& image,
                     const gfx::Vector2d& cursor_offset) override;
@@ -116,10 +122,6 @@ class COMPONENT_EXPORT(UI_BASE_X) XOSExchangeDataProvider
   }
   SelectionOwner& selection_owner() const { return selection_owner_; }
 
-  // Returns true if |formats_| contains a string format and the string can be
-  // parsed as a URL.
-  bool GetPlainTextURL(GURL* url) const;
-
   // Returns the targets in |format_map_|.
   std::vector<x11::Atom> GetTargets() const;
 
@@ -133,7 +135,7 @@ class COMPONENT_EXPORT(UI_BASE_X) XOSExchangeDataProvider
   gfx::Vector2d drag_image_offset_;
 
   // Our X11 state.
-  raw_ptr<x11::Connection> connection_;
+  raw_ref<x11::Connection> connection_;
   x11::Window x_root_window_;
 
   // In X11, because the IPC parts of drag operations are implemented by

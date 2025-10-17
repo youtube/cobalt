@@ -11,8 +11,8 @@
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/preloading/preloading.h"
 #include "content/browser/preloading/preloading_config.h"
+#include "content/common/features.h"
 #include "content/public/browser/preloading.h"
-#include "content/public/common/content_features.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "testing/gtest/include/gtest/gtest-param-test.h"
@@ -26,7 +26,12 @@ const PreloadingPredictor kPredictors[] = {
     preloading_predictor::kUrlPointerDownOnAnchor,
     preloading_predictor::kUrlPointerHoverOnAnchor,
     preloading_predictor::kLinkRel,
+    preloading_predictor::kBackGestureNavigation,
+    preloading_predictor::kPreloadingHeuristicsMLModel,
     content_preloading_predictor::kSpeculationRules,
+    content_preloading_predictor::kMouseBackButton,
+    content_preloading_predictor::kSpeculationRulesFromIsolatedWorld,
+    content_preloading_predictor::kSpeculationRulesFromAutoSpeculationRules,
 };
 
 const PreloadingType kTypes[] = {
@@ -35,7 +40,8 @@ const PreloadingType kTypes[] = {
     PreloadingType::kNoStatePrefetch,
 };
 
-const char* kUmaTriggerOutcome = "Preloading.%s.Attempt.%s.TriggeringOutcome";
+constexpr char kUmaTriggerOutcome[] =
+    "Preloading.%s.Attempt.%s.TriggeringOutcome";
 
 }  // namespace
 
@@ -47,7 +53,8 @@ TEST_P(PreloadingAttemptImplRecordUMATest, TestHistogramRecordedCorrectly) {
   const auto predictor = ::testing::get<0>(test_param);
   const auto preloading_type = ::testing::get<1>(test_param);
   auto attempt = std::make_unique<PreloadingAttemptImpl>(
-      predictor, preloading_type, /*triggered_primary_page_source_id=*/0,
+      predictor, predictor, preloading_type,
+      /*triggered_primary_page_source_id=*/0,
       /*url_match_predicate=*/
       PreloadingData::GetSameURLMatcher(GURL("http://example.com/")),
       /*sampling_seed=*/1ul);
@@ -112,6 +119,7 @@ TEST_F(PreloadingAttemptUKMTest, NoSampling) {
 
   PreloadingAttemptImpl attempt(
       preloading_predictor::kUrlPointerDownOnAnchor,
+      preloading_predictor::kUrlPointerDownOnAnchor,
       PreloadingType::kPreconnect, ukm::AssignNewSourceId(),
       PreloadingData::GetSameURLMatcher(GURL("http://example.com/")),
       /*sampling_seed=*/1ul);
@@ -121,7 +129,7 @@ TEST_F(PreloadingAttemptUKMTest, NoSampling) {
 
   // Make sure the attempt is recorded, with a sampling_likelihood of 1,000,000.
   EXPECT_EQ(ukm_recorder()->GetEntriesByName(entry_name).size(), 1ul);
-  auto* entry = ukm_recorder()->GetEntriesByName(entry_name)[0];
+  auto* entry = ukm_recorder()->GetEntriesByName(entry_name)[0].get();
   ukm_recorder()->EntryHasMetric(
       entry, ukm::builders::Preloading_Attempt_PreviousPrimaryPage::
                  kSamplingLikelihoodName);
@@ -146,6 +154,7 @@ TEST_F(PreloadingAttemptUKMTest, SampledOut) {
   config.ParseConfig();
 
   PreloadingAttemptImpl attempt(
+      preloading_predictor::kUrlPointerDownOnAnchor,
       preloading_predictor::kUrlPointerDownOnAnchor,
       PreloadingType::kPreconnect, ukm::AssignNewSourceId(),
       PreloadingData::GetSameURLMatcher(GURL("http://example.com/")),

@@ -55,11 +55,10 @@ declare_args() {
   sysroot = ""
   gcc_toolchain = ""
   ar = "ar"
-  linker = ""
+  linker = ""  # If left to "" uses the default linker (Linux:bfd, Mac:ld64).
   strip = ""
 
   if (is_linux_host) {
-    linker = "gold"
     if (linux_llvm_objcopy != "") {
       # If we are using the hermetic clang toolchain llvm-objcopy from there as
       # it works with Linux-arm cross toolchains. The |_llvm_strip_wrapper| is
@@ -129,6 +128,8 @@ declare_args() {
     _target_triplet = "arm-linux-gnueabihf"
     _default_target_sysroot =
         rebase_path("//buildtools/debian_sid_arm-sysroot", root_build_dir)
+  } else if (target_os == "linux" && target_cpu == "riscv64") {
+    _target_triplet = "riscv64-linux-gnu"
   } else if (target_os == "linux" && target_cpu == "x64") {
     _target_triplet = "x86_64-linux-gnu"
   } else if (target_os == "linux" && target_cpu == "x86") {
@@ -147,6 +148,8 @@ declare_args() {
     _target_triplet = "i686-linux-android"
   } else if (target_os == "android" && target_cpu == "x64") {
     _target_triplet = "x86_64-linux-android"
+  } else if (target_os == "qnx" && target_cpu == "arm64") {
+    _target_triplet = "ntoaarch64"
   } else {
     assert(
         false,
@@ -158,6 +161,9 @@ declare_args() {
   if (sysroot != "") {
     # If the user specifies a sysroot, use that for both host and target.
     target_sysroot = sysroot
+  } else if (is_qnx) {
+    # Do not set any sysroot for QNX.
+    target_sysroot = ""
   } else {
     # If no explicit sysroot has been set, use the guessed sysroot from the ones
     # pulled by //tools/install-build-deps (only for Linux).
@@ -167,11 +173,7 @@ declare_args() {
 
 declare_args() {
   target_strip = ""
-  if (is_linux || is_android) {
-    target_linker = "gold"
-  } else {
-    target_linker = ""
-  }
+  target_linker = ""
 
   if (!is_cross_compiling || is_perfetto_build_generator ||
       is_system_compiler) {
@@ -183,11 +185,17 @@ declare_args() {
   } else {
     target_ar = "ar"
     if (is_android) {
-      target_ar = "$android_toolchain_root/bin/$android_abi_target-ar"
+      target_ar = "$android_llvm_dir/bin/llvm-ar"
       target_cc = "$android_llvm_dir/bin/clang"
       target_cxx = "$android_llvm_dir/bin/clang++"
       target_linker = "$android_llvm_dir/bin/ld.lld"
-      target_strip = "$android_toolchain_root/bin/$android_abi_target-strip"
+      target_strip = "$android_llvm_dir/bin/llvm-strip"
+    } else if (is_qnx) {
+      target_ar = "${_target_triplet}-ar"
+      target_cc = "qcc -V8.3.0,gcc_${_target_triplet}le"
+      target_cxx = "q++ -V8.3.0,gcc_${_target_triplet}le_cxx"
+      target_linker = "${_target_triplet}-ld"
+      target_strip = "${_target_triplet}-strip"
     } else {
       assert(_target_triplet != "",
              "target_triplet must be non-empty when cross-compiling")
@@ -205,6 +213,7 @@ declare_args() {
         target_ar = "${_target_triplet}-ar"
         target_cc = "${_target_triplet}-gcc"
         target_cxx = "${_target_triplet}-g++"
+        target_strip = "${_target_triplet}-strip"
       }
     }
   }
@@ -251,7 +260,12 @@ template("gcc_like_toolchain") {
 
     tool("cc") {
       depfile = "{{output}}.d"
-      command = "$cc_wrapper $cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} ${external_cflags} -c {{source}} -o {{output}}"
+      if (is_qnx) {
+        depfile_args = "-Wp,-MMD,$depfile -Wp,-MF,$depfile"
+      } else {
+        depfile_args = "-MMD -MF $depfile"
+      }
+      command = "$cc_wrapper $cc $depfile_args {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} ${external_cflags} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       outputs =
           [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
@@ -260,7 +274,12 @@ template("gcc_like_toolchain") {
 
     tool("cxx") {
       depfile = "{{output}}.d"
-      command = "$cc_wrapper $cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}  ${external_cflags} ${external_cxxflags} -c {{source}} -o {{output}}"
+      if (is_qnx) {
+        depfile_args = "-Wp,-MMD,$depfile -Wp,-MF,$depfile"
+      } else {
+        depfile_args = "-MMD -MF $depfile"
+      }
+      command = "$cc_wrapper $cxx $depfile_args {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}  ${external_cflags} ${external_cxxflags} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       outputs =
           [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
@@ -269,7 +288,12 @@ template("gcc_like_toolchain") {
 
     tool("asm") {
       depfile = "{{output}}.d"
-      command = "$cc_wrapper $cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{asmflags}} -c {{source}} -o {{output}}"
+      if (is_qnx) {
+        depfile_args = "-Wp,-MMD,$depfile -Wp,-MF,$depfile"
+      } else {
+        depfile_args = "-MMD -MF $depfile"
+      }
+      command = "$cc_wrapper $cc $depfile_args {{defines}} {{include_dirs}} {{asmflags}} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       outputs =
           [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
@@ -295,11 +319,13 @@ template("gcc_like_toolchain") {
     tool("solink") {
       soname = "{{target_output_name}}{{output_extension}}"
       unstripped_so = "{{root_out_dir}}/$soname"
+      rspfile = "$unstripped_so.rsp"
+      rspfile_content = "{{inputs}}"
       rpath = "-Wl,-soname,$soname"
       if (is_mac) {
         rpath = "-Wl,-install_name,@rpath/$soname"
       }
-      command = "$cc_wrapper $cxx $ld_arg -shared {{ldflags}} ${external_ldflags} {{inputs}} {{solibs}} {{libs}} $rpath -o $unstripped_so"
+      command = "$cc_wrapper $cxx $ld_arg -shared {{ldflags}} ${external_ldflags} @$rspfile {{solibs}} {{libs}} $rpath -o $unstripped_so"
       outputs = [ unstripped_so ]
       output_prefix = "lib"
       default_output_extension = ".so"
@@ -314,7 +340,9 @@ template("gcc_like_toolchain") {
     tool("link") {
       unstripped_exe =
           "{{root_out_dir}}/{{target_output_name}}{{output_extension}}"
-      command = "$cc_wrapper $cxx $ld_arg {{ldflags}} ${external_ldflags} {{inputs}} {{solibs}} {{libs}} -o $unstripped_exe"
+      rspfile = "$unstripped_exe.rsp"
+      rspfile_content = "{{inputs}}"
+      command = "$cc_wrapper $cxx $ld_arg {{ldflags}} ${external_ldflags} @$rspfile {{solibs}} {{libs}} -o $unstripped_exe"
       outputs = [ unstripped_exe ]
       description = "link $unstripped_exe"
       if (strip != "") {
@@ -395,14 +423,29 @@ gcc_like_toolchain("gcc_like_host") {
                                  ])
 }
 
-gcc_like_toolchain("wasm") {
-  # emsdk_dir and em_config are defined in wasm.gni.
-  cpu = host_cpu
-  os = host_os
-  ar = "$emsdk_dir/emscripten/emar --em-config $em_config"
-  cc = "$emsdk_dir/emscripten/emcc --em-config $em_config"
-  cxx = "$emsdk_dir/emscripten/em++ --em-config $em_config"
-  strip = ""
+# The 32 and 64 bit wasm toolchains are configured identically, but differ in
+# the fact that is_wasm_memory64=true (in gn_vars.gni, which looks at the
+# current_toolchain) conditions cflags and ldflags. We actually need different
+# toolchains because the same .cc files will be build twice for each wasm
+# bitness, and they need different output paths.
+template("wasm_toolchain") {
+  gcc_like_toolchain(target_name) {
+    forward_variables_from(invoker, "*")
+
+    # emsdk_dir and em_config are defined in wasm.gni.
+    cpu = host_cpu
+    os = host_os
+    ar = "$emsdk_dir/emscripten/emar --em-config $em_config"
+    cc = "$emsdk_dir/emscripten/emcc --em-config $em_config"
+    cxx = "$emsdk_dir/emscripten/em++ --em-config $em_config"
+    strip = ""
+  }
+}
+
+# Istantiates both wasm toolchains.
+wasm_toolchain("wasm") {
+}
+wasm_toolchain("wasm_memory64") {
 }
 
 # This is used both for MSVC anc clang-cl. clang-cl cmdline interface pretends
@@ -411,6 +454,11 @@ toolchain("msvc") {
   lib_switch = ""
   lib_dir_switch = "/LIBPATH:"
   sys_lib_flags = string_join(" ", win_msvc_sys_lib_flags)
+  external_cflags = string_join(" ",
+                                [
+                                  extra_cflags,
+                                  extra_host_cflags,
+                                ])
 
   # Note: /showIncludes below is required for ninja, to build a complete
   # dependency graph for headers. Removing it breaks incremental builds.
@@ -418,7 +466,7 @@ toolchain("msvc") {
   tool("cc") {
     precompiled_header_type = "msvc"
     pdbname = "{{target_out_dir}}/{{label_name}}_c.pdb"
-    command = "$cc_wrapper $cc /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+    command = "$cc_wrapper $cc /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} ${external_cflags} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" /guard:cf /ZH:SHA_256"
     depsformat = "msvc"
     outputs =
         [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.obj" ]
@@ -428,7 +476,7 @@ toolchain("msvc") {
   tool("cxx") {
     precompiled_header_type = "msvc"
     pdbname = "{{target_out_dir}}/{{label_name}}_c.pdb"
-    command = "$cc_wrapper $cxx /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+    command = "$cc_wrapper $cxx /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} ${external_cflags} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" /guard:cf /ZH:SHA_256"
     depsformat = "msvc"
     outputs =
         [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.obj" ]
@@ -488,8 +536,7 @@ toolchain("msvc") {
     pdbname = "$exename.pdb"
     rspfile = "$exename.rsp"
 
-    command =
-        "$linker /nologo /OUT:$exename ${sys_lib_flags} /PDB:$pdbname @$rspfile"
+    command = "$linker /nologo /guard:cf /DYNAMICBASE /OUT:$exename ${sys_lib_flags} /DEBUG /PDB:$pdbname @$rspfile"
     default_output_extension = ".exe"
     default_output_dir = "{{root_out_dir}}"
     outputs = [ exename ]

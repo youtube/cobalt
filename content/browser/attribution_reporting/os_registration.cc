@@ -4,23 +4,34 @@
 
 #include "content/browser/attribution_reporting/os_registration.h"
 
+#include <optional>
 #include <utility>
+#include <vector>
 
+#include "base/check.h"
+#include "components/attribution_reporting/os_registration.h"
 #include "content/browser/attribution_reporting/attribution_input_event.h"
 #include "content/browser/attribution_reporting/attribution_reporting.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
+#include "content/public/browser/global_routing_id.h"
 #include "url/origin.h"
 
 namespace content {
 
 OsRegistration::OsRegistration(
-    GURL registration_url,
+    std::vector<attribution_reporting::OsRegistrationItem> items,
     url::Origin top_level_origin,
-    absl::optional<AttributionInputEvent> input_event)
-    : registration_url(std::move(registration_url)),
+    std::optional<AttributionInputEvent> input_event,
+    bool is_within_fenced_frame,
+    GlobalRenderFrameHostId render_frame_id,
+    attribution_reporting::Registrar registrar)
+    : registration_items(std::move(items)),
       top_level_origin(std::move(top_level_origin)),
-      input_event(std::move(input_event)) {}
+      input_event(std::move(input_event)),
+      is_within_fenced_frame(is_within_fenced_frame),
+      render_frame_id(render_frame_id),
+      registrar(registrar) {
+  CHECK(!this->registration_items.empty());
+}
 
 OsRegistration::~OsRegistration() = default;
 
@@ -32,11 +43,10 @@ OsRegistration::OsRegistration(OsRegistration&&) = default;
 
 OsRegistration& OsRegistration::operator=(OsRegistration&&) = default;
 
-attribution_reporting::mojom::OsRegistrationType OsRegistration::GetType()
-    const {
+attribution_reporting::mojom::RegistrationType OsRegistration::GetType() const {
   return input_event.has_value()
-             ? attribution_reporting::mojom::OsRegistrationType::kSource
-             : attribution_reporting::mojom::OsRegistrationType::kTrigger;
+             ? attribution_reporting::mojom::RegistrationType::kSource
+             : attribution_reporting::mojom::RegistrationType::kTrigger;
 }
 
 }  // namespace content

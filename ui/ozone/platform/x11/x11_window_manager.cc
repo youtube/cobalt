@@ -79,7 +79,7 @@ void X11WindowManager::RemoveWindow(X11Window* window) {
   if (widget == gfx::kNullAcceleratedWidget) {
     DCHECK(it == windows_.end());
   } else {
-    DCHECK(it != windows_.end());
+    CHECK(it != windows_.end());
     if (window_mouse_currently_on_ == it->second)
       window_mouse_currently_on_ = nullptr;
     windows_.erase(it);

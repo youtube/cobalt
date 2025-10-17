@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "base/command_line.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
@@ -25,7 +25,8 @@ SharesheetService* SharesheetServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 SharesheetServiceFactory* SharesheetServiceFactory::GetInstance() {
-  return base::Singleton<SharesheetServiceFactory>::get();
+  static base::NoDestructor<SharesheetServiceFactory> instance;
+  return instance.get();
 }
 
 SharesheetServiceFactory::SharesheetServiceFactory()
@@ -36,13 +37,17 @@ SharesheetServiceFactory::SharesheetServiceFactory()
               // Some tests need the service to exist in guest profiles.
               .WithGuest(ProfileSelection::kOffTheRecordOnly)
               .WithSystem(ProfileSelection::kNone)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
               .Build()) {
   DependsOn(apps::AppServiceProxyFactory::GetInstance());
 }
 
 SharesheetServiceFactory::~SharesheetServiceFactory() = default;
 
-KeyedService* SharesheetServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SharesheetServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
@@ -56,7 +61,7 @@ KeyedService* SharesheetServiceFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
-  return new SharesheetService(profile);
+  return std::make_unique<SharesheetService>(profile);
 }
 
 bool SharesheetServiceFactory::ServiceIsCreatedWithBrowserContext() const {

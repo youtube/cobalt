@@ -39,8 +39,7 @@ class RaggedRangeOpModel : public SingleOpModel {
  public:
   static TensorType GetType();
 
-  RaggedRangeOpModel(const std::vector<T>& start,
-                     const std::vector<T>& limits,
+  RaggedRangeOpModel(const std::vector<T>& start, const std::vector<T>& limits,
                      const std::vector<T>& deltas) {
     const TensorType value_type = GetType();
     std::vector<std::vector<int>> shapes;
@@ -62,8 +61,8 @@ class RaggedRangeOpModel : public SingleOpModel {
     PopulateTensor(input_deltas_, deltas);
   }
 
-  std::vector<int32> GetSplits() {
-    return ExtractVector<int32>(output_splits_);
+  std::vector<int32_t> GetSplits() {
+    return ExtractVector<int32_t>(output_splits_);
   }
   std::vector<T> GetValues() const { return ExtractVector<T>(output_values_); }
 
@@ -77,7 +76,7 @@ class RaggedRangeOpModel : public SingleOpModel {
 };
 
 template <>
-TensorType RaggedRangeOpModel<int32>::GetType() {
+TensorType RaggedRangeOpModel<int32_t>::GetType() {
   return TensorType_INT32;
 }
 
@@ -87,9 +86,9 @@ TensorType RaggedRangeOpModel<float>::GetType() {
 }
 
 TEST(RaggedRangeOpTest, IntValues) {
-  RaggedRangeOpModel<int32> model({0, 5, 8, 5},    // Starts.
-                                  {8, 7, 8, 1},    // Limits.
-                                  {2, 1, 1, -1});  // Deltas.
+  RaggedRangeOpModel<int32_t> model({0, 5, 8, 5},    // Starts.
+                                    {8, 7, 8, 1},    // Limits.
+                                    {2, 1, 1, -1});  // Deltas.
   ASSERT_EQ(model.Invoke(), kTfLiteOk);
 
   EXPECT_THAT(model.GetSplits(),
@@ -111,9 +110,9 @@ TEST(RaggedRangeOpTest, FloatValues) {
 }
 
 TEST(RaggedRangeOpTest, BroadcastDelta) {
-  RaggedRangeOpModel<int32> model({0, 5, 8},  // Starts.
-                                  {8, 7, 8},  // Limits.
-                                  {1});       // Deltas.
+  RaggedRangeOpModel<int32_t> model({0, 5, 8},  // Starts.
+                                    {8, 7, 8},  // Limits.
+                                    {1});       // Deltas.
   ASSERT_EQ(model.Invoke(), kTfLiteOk);
 
   EXPECT_THAT(model.GetSplits(),
@@ -123,9 +122,9 @@ TEST(RaggedRangeOpTest, BroadcastDelta) {
 }
 
 TEST(RaggedRangeOpTest, BroadcastStartDeltas) {
-  RaggedRangeOpModel<int32> model({0},      // Starts.
-                                  {10},     // Limits.
-                                  {2, 1});  // Deltas.
+  RaggedRangeOpModel<int32_t> model({0},      // Starts.
+                                    {10},     // Limits.
+                                    {2, 1});  // Deltas.
   ASSERT_EQ(model.Invoke(), kTfLiteOk);
 
   EXPECT_THAT(model.GetSplits(),
@@ -136,16 +135,16 @@ TEST(RaggedRangeOpTest, BroadcastStartDeltas) {
 }
 
 TEST(RaggedRangeOpTest, BadDeltas) {
-  RaggedRangeOpModel<int32> model({0, 5, 8, 5},   // Starts.
-                                  {8, 7, 7, 9},   // Limits.
-                                  {0, 1, 1, 1});  // Deltas.
+  RaggedRangeOpModel<int32_t> model({0, 5, 8, 5},   // Starts.
+                                    {8, 7, 7, 9},   // Limits.
+                                    {0, 1, 1, 1});  // Deltas.
   EXPECT_EQ(model.Invoke(), kTfLiteError);
 }
 
 TEST(RaggedRangeOpTest, ZeroRange) {
-  RaggedRangeOpModel<int32> model({0, 7},   // Starts.
-                                  {8, 5},   // Limits.
-                                  {1, 1});  // Deltas.
+  RaggedRangeOpModel<int32_t> model({0, 7},   // Starts.
+                                    {8, 5},   // Limits.
+                                    {1, 1});  // Deltas.
   ASSERT_EQ(model.Invoke(), kTfLiteOk);
   EXPECT_THAT(model.GetSplits(), testing::UnorderedElementsAreArray({0, 8, 8}));
   EXPECT_THAT(model.GetValues(),

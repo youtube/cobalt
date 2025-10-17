@@ -17,8 +17,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chromeos/ash/services/ime/decoder/decoder_engine.h"
 #include "chromeos/ash/services/ime/decoder/system_engine.h"
+#include "chromeos/ash/services/ime/input_method_user_data_service_impl.h"
 #include "chromeos/ash/services/ime/public/cpp/shared_lib/interfaces.h"
 #include "chromeos/ash/services/ime/public/mojom/ime_service.mojom.h"
+#include "chromeos/ash/services/ime/public/mojom/input_method_user_data.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -73,6 +75,9 @@ class ImeService : public mojom::ImeService,
       mojo::PendingRemote<mojom::PlatformAccessProvider> provider) override;
   void BindInputEngineManager(
       mojo::PendingReceiver<mojom::InputEngineManager> receiver) override;
+  void BindInputMethodUserDataService(
+      mojo::PendingReceiver<mojom::InputMethodUserDataService> receiver)
+      override;
 
   // mojom::InputEngineManager overrides:
   void ConnectToImeEngine(
@@ -103,7 +108,8 @@ class ImeService : public mojom::ImeService,
   void SimpleDownloadFinishedV2(SimpleDownloadCallbackV2 callback,
                                 const std::string& url_str,
                                 const base::FilePath& file);
-  const MojoSystemThunks* GetMojoSystemThunks() override;
+  const void* Unused4() override;
+  const MojoSystemThunks2* GetMojoSystemThunks2() override;
 
   // To be called before attempting to initialise a new backend connection, to
   // ensure there is one and only one such connection at any point in time.
@@ -115,18 +121,18 @@ class ImeService : public mojom::ImeService,
   // For the duration of this ImeService's lifetime, there should be one and
   // only one of these backend connections (represented as "engine" instances)
   // at any point in time.
-  // TODO(b/214153032): Rename to better reflect what these represent:
-  //     decoder_engine_     --> proto_mode_shared_lib_engine_
-  //     system_engine_      --> mojo_mode_shared_lib_engine_
-  std::unique_ptr<DecoderEngine> decoder_engine_;
-  std::unique_ptr<SystemEngine> system_engine_;
+  std::unique_ptr<DecoderEngine> proto_mode_shared_lib_engine_;
+  std::unique_ptr<SystemEngine> mojo_mode_shared_lib_engine_;
+
+  // InputMethodUserDataService runs independently of the DecoderEngine and
+  // SystemEngine, and is always connected after binding.
+  std::unique_ptr<InputMethodUserDataServiceImpl> input_method_user_data_api_;
 
   // Platform delegate for access to privilege resources.
   mojo::Remote<mojom::PlatformAccessProvider> platform_access_;
   mojo::ReceiverSet<mojom::InputEngineManager> manager_receivers_;
 
-  raw_ptr<ImeSharedLibraryWrapper, ExperimentalAsh> ime_shared_library_ =
-      nullptr;
+  raw_ptr<ImeSharedLibraryWrapper> ime_shared_library_ = nullptr;
 
   std::unique_ptr<FieldTrialParamsRetriever> field_trial_params_retriever_;
 };

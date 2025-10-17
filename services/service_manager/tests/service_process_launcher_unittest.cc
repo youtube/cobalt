@@ -5,6 +5,7 @@
 #include "services/service_manager/service_process_launcher.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/command_line.h"
@@ -17,7 +18,6 @@
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "services/service_manager/public/mojom/service.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace service_manager {
 namespace {
@@ -69,19 +69,19 @@ class ServiceProcessLauncherDelegateImpl
 };
 
 // TODO(qsr): Multiprocess service manager tests are not supported on android.
-// TODO(crbug.com/1288830): Flakes on all platforms.
+// TODO(crbug.com/40817146): Flakes on all platforms.
 TEST(ServiceProcessLauncherTest, DISABLED_StartJoin) {
   base::test::TaskEnvironment task_environment;
 
   // The test executable is a data_deps and thus generated test data.
   base::FilePath test_service_path;
-  base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT, &test_service_path);
+  base::PathService::Get(base::DIR_OUT_TEST_DATA_ROOT, &test_service_path);
   test_service_path = test_service_path.AppendASCII(kTestServiceName)
                           .AddExtension(kServiceExtension);
 
   ServiceProcessLauncherDelegateImpl service_process_launcher_delegate;
-  absl::optional<ServiceProcessLauncher> launcher(
-      absl::in_place, &service_process_launcher_delegate, test_service_path);
+  std::optional<ServiceProcessLauncher> launcher(
+      std::in_place, &service_process_launcher_delegate, test_service_path);
   base::RunLoop run_loop;
   launcher->Start(
       Identity(), sandbox::mojom::Sandbox::kNoSandbox,
@@ -109,8 +109,8 @@ TEST(ServiceProcessLauncherTest, FailToLaunchProcess) {
   base::FilePath test_service_path(FILE_PATH_LITERAL("rockot@_rules.service"));
 
   ServiceProcessLauncherDelegateImpl service_process_launcher_delegate;
-  absl::optional<ServiceProcessLauncher> launcher(
-      absl::in_place, &service_process_launcher_delegate, test_service_path);
+  std::optional<ServiceProcessLauncher> launcher(
+      std::in_place, &service_process_launcher_delegate, test_service_path);
   base::RunLoop run_loop;
   launcher->Start(Identity(), sandbox::mojom::Sandbox::kNoSandbox,
                   base::BindOnce(&ProcessReadyCallbackAdapter,

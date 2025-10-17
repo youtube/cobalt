@@ -5,12 +5,15 @@
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 
 #include <stddef.h>
+
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/containers/flat_map.h"
@@ -22,6 +25,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_manager.h"
 #include "chrome/browser/web_applications/test/web_app_icon_test_utils.h"
 #include "chrome/browser/web_applications/web_app.h"
@@ -32,18 +36,16 @@
 #include "components/services/app_service/public/cpp/icon_info.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
 #include "components/services/app_service/public/cpp/share_target.h"
-#include "components/services/app_service/public/cpp/url_handler_info.h"
 #include "mojo/public/cpp/bindings/struct_ptr.h"
+#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
-#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-shared.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
@@ -52,17 +54,6 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(IS_WIN)
-#include "base/test/bind.h"
-#include "base/test/gmock_callback_support.h"
-#include "chrome/browser/web_applications/test/mock_os_integration_manager.h"
-#include "chrome/common/chrome_features.h"
-#include "components/webapps/browser/installable/installable_metrics.h"
-#include "content/public/test/browser_task_environment.h"
-#include "testing/gmock/include/gmock/gmock-actions.h"
-#include "testing/gmock/include/gmock/gmock.h"
-
-#endif
 namespace web_app {
 
 using Purpose = blink::mojom::ManifestImageResource_Purpose;
@@ -95,6 +86,23 @@ GURL StartUrl() {
   return GURL("https://www.example.com/index.html");
 }
 
+// Returns a stack-allocated WebAppInstallInfo with `StartUrl()` as the
+// start_url and manifest_id. Needed to migrate existing tests from the default
+// constructor. Prefer to instead use
+// WebAppInstallInfo::CreateWithStartUrlForTesting when adding new tests.
+WebAppInstallInfo CreateWebAppInstallInfo() {
+  return WebAppInstallInfo(GenerateManifestIdFromStartUrlOnly(StartUrl()),
+                           StartUrl());
+}
+
+// Returns a stack-allocated WebAppInstallInfo. Needed to migrate existing tests
+// from the default constructor. Prefer to instead use
+// WebAppInstallInfo::CreateWithStartUrlForTesting when adding new tests.
+WebAppInstallInfo CreateWebAppInstallInfoFromStartUrl(const GURL& start_url) {
+  return WebAppInstallInfo(GenerateManifestIdFromStartUrlOnly(start_url),
+                           start_url);
+}
+
 }  // namespace
 
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
@@ -103,17 +111,20 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
                                  blink::features::kWebAppManifestLockScreen},
                                 /*disabled_features=*/{});
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info =
+      CreateWebAppInstallInfoFromStartUrl(GURL("http://www.notchromium.org"));
   web_app_info.title = kAlternativeAppTestTitle;
-  web_app_info.start_url = GURL("http://www.notchromium.org");
   apps::IconInfo info;
   const GURL kAppIcon1("fav1.png");
   info.url = kAppIcon1;
   web_app_info.manifest_icons.push_back(info);
 
   blink::mojom::Manifest manifest;
+  const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
+  manifest.manifest_url = kAppManifestUrl;
   const GURL kAppUrl("http://www.chromium.org/index.html");
   manifest.start_url = kAppUrl;
+  manifest.id = kAppUrl;
   manifest.scope = kAppUrl.GetWithoutFilename();
   manifest.short_name = kAppTestShortName;
 
@@ -139,14 +150,6 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
   }
 
   {
-    auto url_handler = blink::mojom::ManifestUrlHandler::New();
-    url_handler->origin =
-        url::Origin::Create(GURL("https://url_handlers_origin.com/"));
-    url_handler->has_origin_wildcard = false;
-    manifest.url_handlers.push_back(std::move(url_handler));
-  }
-
-  {
     auto scope_extension = blink::mojom::ManifestScopeExtension::New();
     scope_extension->origin =
         url::Origin::Create(GURL("https://scope_extensions_origin.com/"));
@@ -155,15 +158,23 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
   }
 
   {
-    blink::ParsedPermissionsPolicyDeclaration declaration;
-    declaration.feature = blink::mojom::PermissionsPolicyFeature::kFullscreen;
-    declaration.allowed_origins = {blink::OriginWithPossibleWildcards(
-        url::Origin::Create(GURL("https://www.example.com")),
-        /*has_subdomain_wildcard=*/false)};
+    network::ParsedPermissionsPolicyDeclaration declaration;
+    declaration.feature = network::mojom::PermissionsPolicyFeature::kFullscreen;
+    declaration.allowed_origins = {
+        *network::OriginWithPossibleWildcards::FromOrigin(
+            url::Origin::Create(GURL("https://www.example.com")))};
     declaration.matches_all_origins = false;
     declaration.matches_opaque_src = false;
 
     manifest.permissions_policy.push_back(std::move(declaration));
+  }
+
+  {
+    blink::Manifest::RelatedApplication related_app;
+    related_app.platform = u"platform";
+    related_app.url = GURL("http://www.example.com");
+    related_app.id = u"id";
+    manifest.related_applications.push_back(std::move(related_app));
   }
 
   {
@@ -172,10 +183,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
     manifest.note_taking = blink::mojom::ManifestNoteTaking::New();
   }
 
-  const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_EQ(kAppTestShortName, web_app_info.title);
-  EXPECT_EQ(kAppUrl, web_app_info.start_url);
+  EXPECT_EQ(kAppUrl, web_app_info.start_url());
   EXPECT_EQ(kAppUrl.GetWithoutFilename(), web_app_info.scope);
   EXPECT_EQ(DisplayMode::kBrowser, web_app_info.display_mode);
   EXPECT_TRUE(web_app_info.display_override.empty());
@@ -226,7 +236,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
     manifest.note_taking = std::move(note_taking);
   }
 
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_EQ(kAppTestTitle, web_app_info.title);
   EXPECT_EQ(DisplayMode::kMinimalUi, web_app_info.display_mode);
   ASSERT_EQ(2u, web_app_info.display_override.size());
@@ -255,13 +265,6 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
   EXPECT_EQ(protocol_handler.protocol, "mailto");
   EXPECT_EQ(protocol_handler.url, GURL("http://example.com/handle=%s"));
 
-  // Check URL handlers were updated.
-  EXPECT_EQ(1u, web_app_info.url_handlers.size());
-  auto url_handler = web_app_info.url_handlers[0];
-  EXPECT_EQ(url_handler.origin,
-            url::Origin::Create(GURL("https://url_handlers_origin.com/")));
-  EXPECT_FALSE(url_handler.has_origin_wildcard);
-
   // Check scope extensions were updated.
   EXPECT_EQ(1u, web_app_info.scope_extensions.size());
   auto scope_extension = *web_app_info.scope_extensions.begin();
@@ -279,23 +282,31 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest) {
   EXPECT_EQ(1u, web_app_info.permissions_policy.size());
   auto declaration = web_app_info.permissions_policy[0];
   EXPECT_EQ(declaration.feature,
-            blink::mojom::PermissionsPolicyFeature::kFullscreen);
+            network::mojom::PermissionsPolicyFeature::kFullscreen);
   EXPECT_EQ(1u, declaration.allowed_origins.size());
   EXPECT_EQ("https://www.example.com",
             declaration.allowed_origins[0].Serialize());
   EXPECT_FALSE(declaration.matches_all_origins);
   EXPECT_FALSE(declaration.matches_opaque_src);
+
+  // Check related applications were updated.
+  ASSERT_EQ(1u, web_app_info.related_applications.size());
+  auto related_app = web_app_info.related_applications[0];
+  EXPECT_EQ(u"platform", related_app.platform);
+  EXPECT_EQ(GURL("http://www.example.com"), related_app.url);
+  EXPECT_EQ(u"id", related_app.id);
 }
 
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_EmptyName) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info =
+      CreateWebAppInstallInfoFromStartUrl(GURL("https://url.com"));
 
   blink::mojom::Manifest manifest;
-  manifest.name = absl::nullopt;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
+  manifest.name = std::nullopt;
   manifest.short_name = kAppTestShortName;
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_EQ(kAppTestShortName, web_app_info.title);
 }
 
@@ -303,6 +314,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_EmptyName) {
 // manifest.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_MaskableIcon) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   blink::Manifest::ImageResource icon;
   icon.src = GURL("fav1.png");
   // Produces 2 separate manifest_icons.
@@ -314,10 +326,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_MaskableIcon) {
   // Produces 1 icon_info.
   icon.purpose = {Purpose::MONOCHROME};
   manifest.icons.push_back(icon);
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_EQ(4u, web_app_info.manifest_icons.size());
   std::map<IconPurpose, int> purpose_to_count;
   for (const auto& icon_info : web_app_info.manifest_icons) {
@@ -331,25 +342,26 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_MaskableIcon) {
 TEST(WebAppInstallUtils,
      UpdateWebAppInfoFromManifest_MaskableIconOnly_UsesManifestIcons) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   blink::Manifest::ImageResource icon;
   icon.src = GURL("fav1.png");
   icon.purpose = {Purpose::MASKABLE};
   manifest.icons.push_back(icon);
   // WebAppInstallInfo has existing icons (simulating found in page metadata).
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   apps::IconInfo icon_info;
   web_app_info.manifest_icons.push_back(icon_info);
   web_app_info.manifest_icons.push_back(icon_info);
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   // Metadata icons are replaced by manifest icon.
   EXPECT_EQ(1U, web_app_info.manifest_icons.size());
 }
 
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_ShareTarget) {
   blink::mojom::Manifest manifest;
-  WebAppInstallInfo web_app_info;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
+  auto web_app_info = CreateWebAppInstallInfo();
 
   {
     blink::Manifest::ShareTarget share_target;
@@ -369,8 +381,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_ShareTarget) {
     manifest.share_target = std::move(share_target);
   }
 
-  const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
   {
     EXPECT_TRUE(web_app_info.share_target.has_value());
@@ -401,7 +412,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_ShareTarget) {
     manifest.share_target = std::move(share_target);
   }
 
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
   {
     EXPECT_TRUE(web_app_info.share_target.has_value());
@@ -416,8 +427,8 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_ShareTarget) {
     EXPECT_TRUE(share_target.params.files.empty());
   }
 
-  manifest.share_target = absl::nullopt;
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  manifest.share_target = std::nullopt;
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_FALSE(web_app_info.share_target.has_value());
 }
 
@@ -426,17 +437,19 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestWithShortcuts) {
   base::test::ScopedFeatureList feature_list(
       blink::features::kFileHandlingIcons);
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info =
+      CreateWebAppInstallInfoFromStartUrl(GURL("http://www.notchromium.org"));
   web_app_info.title = kAlternativeAppTestTitle;
-  web_app_info.start_url = GURL("http://www.notchromium.org");
   apps::IconInfo info;
   const GURL kAppIcon1("fav1.png");
   info.url = kAppIcon1;
   web_app_info.manifest_icons.push_back(info);
 
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   const GURL kAppUrl("http://www.chromium.org/index.html");
   manifest.start_url = kAppUrl;
+  manifest.id = kAppUrl;
   manifest.scope = kAppUrl.GetWithoutFilename();
   manifest.short_name = kAppTestShortName;
 
@@ -462,14 +475,6 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestWithShortcuts) {
   }
 
   {
-    auto url_handler = blink::mojom::ManifestUrlHandler::New();
-    url_handler->origin =
-        url::Origin::Create(GURL("https://url_handlers_origin.com/"));
-    url_handler->has_origin_wildcard = true;
-    manifest.url_handlers.push_back(std::move(url_handler));
-  }
-
-  {
     auto scope_extension = blink::mojom::ManifestScopeExtension::New();
     scope_extension->origin =
         url::Origin::Create(GURL("https://scope_extensions_origin.com/"));
@@ -479,10 +484,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestWithShortcuts) {
 
   WebAppInstallInfo web_app_info_original{web_app_info.Clone()};
 
-  const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_EQ(kAppTestShortName, web_app_info.title);
-  EXPECT_EQ(kAppUrl, web_app_info.start_url);
+  EXPECT_EQ(kAppUrl, web_app_info.start_url());
   EXPECT_EQ(kAppUrl.GetWithoutFilename(), web_app_info.scope);
   EXPECT_EQ(DisplayMode::kBrowser, web_app_info.display_mode);
 
@@ -541,7 +545,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestWithShortcuts) {
 
   manifest.shortcuts.push_back(shortcut_item);
 
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_EQ(kAppTestTitle, web_app_info.title);
   EXPECT_EQ(DisplayMode::kMinimalUi, web_app_info.display_mode);
   // Sanity check that original copy was not changed.
@@ -592,13 +596,6 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestWithShortcuts) {
   EXPECT_EQ(protocol_handler.protocol, "mailto");
   EXPECT_EQ(protocol_handler.url, GURL("http://example.com/handle=%s"));
 
-  // Check URL handlers were updated.
-  EXPECT_EQ(1u, web_app_info.url_handlers.size());
-  auto url_handler = web_app_info.url_handlers[0];
-  EXPECT_EQ(url_handler.origin,
-            url::Origin::Create(GURL("https://url_handlers_origin.com/")));
-  EXPECT_TRUE(url_handler.has_origin_wildcard);
-
   // Check scope extensions were updated.
   EXPECT_EQ(1u, web_app_info.scope_extensions.size());
   auto scope_extension = *web_app_info.scope_extensions.begin();
@@ -610,6 +607,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestWithShortcuts) {
 // Tests that we limit the number of shortcut menu items.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyShortcuts) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   const unsigned kMaxShortcuts = 10U;
   for (unsigned int i = 1; i <= kMaxShortcuts + 1; ++i) {
     blink::Manifest::ShortcutItem shortcut_item;
@@ -618,9 +616,8 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyShortcuts) {
     manifest.shortcuts.push_back(shortcut_item);
   }
   EXPECT_LT(kMaxShortcuts, manifest.shortcuts.size());
-  WebAppInstallInfo web_app_info;
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  auto web_app_info = CreateWebAppInstallInfo();
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
   EXPECT_EQ(kMaxShortcuts, web_app_info.shortcuts_menu_item_infos.size());
 }
@@ -628,6 +625,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyShortcuts) {
 // Tests that we limit the number of icons declared by a site.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyIcons) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   for (unsigned int i = 0; i < kNumTestIcons; ++i) {
     blink::Manifest::ImageResource icon;
     icon.src = GURL("fav1.png");
@@ -635,10 +633,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyIcons) {
     icon.sizes.emplace_back(i, i);
     manifest.icons.push_back(std::move(icon));
   }
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   ASSERT_GT(kNumTestIcons, web_app_info.manifest_icons.size());
   EXPECT_EQ(20U, web_app_info.manifest_icons.size());
 }
@@ -651,6 +648,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyIcons) {
 // each.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyShortcutIcons) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
+  manifest.start_url = GURL("http://www.chromium.org/");
+  manifest.id = GURL("http://www.chromium.org/");
   const unsigned kNumShortcuts = 5;
 
   for (unsigned int i = 0; i < kNumShortcuts; ++i) {
@@ -668,9 +668,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyShortcutIcons) {
 
     manifest.shortcuts.push_back(std::move(shortcut_item));
   }
-  WebAppInstallInfo web_app_info;
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  WebAppInstallInfo web_app_info = CreateWebAppInfoFromManifest(manifest);
 
   std::vector<WebAppShortcutsMenuItemInfo::Icon> all_icons;
   for (const auto& shortcut : web_app_info.shortcuts_menu_item_infos) {
@@ -686,6 +684,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestTooManyShortcutIcons) {
 // Tests that we limit the size of icons declared by a site.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestIconsTooLarge) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   for (int size = 1023; size <= 1026; ++size) {
     blink::Manifest::ImageResource icon;
     icon.src = GURL("fav1.png");
@@ -694,10 +693,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestIconsTooLarge) {
     manifest.icons.push_back(std::move(icon));
   }
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   // Icons exceeding size 1024 are discarded.
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
   // Only the early icons are within the size limit.
   EXPECT_EQ(2U, web_app_info.manifest_icons.size());
@@ -709,6 +707,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestIconsTooLarge) {
 // Tests that we limit the size of shortcut icons declared by a site.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestShortcutIconsTooLarge) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   for (int size = 1023; size <= 1026; ++size) {
     blink::Manifest::ShortcutItem shortcut_item;
     shortcut_item.name = kShortcutItemTestName + base::NumberToString16(size);
@@ -723,10 +722,9 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestShortcutIconsTooLarge) {
     manifest.shortcuts.push_back(shortcut_item);
   }
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   // Icons exceeding size 1024 are discarded.
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
   std::vector<WebAppShortcutsMenuItemInfo::Icon> all_icons;
   for (const auto& shortcut : web_app_info.shortcuts_menu_item_infos) {
@@ -744,11 +742,13 @@ TEST(WebAppInstallUtils,
   base::test::ScopedFeatureList feature_list(
       blink::features::kWebAppManifestLockScreen);
 
-  WebAppInstallInfo install_info;
+  auto install_info = CreateWebAppInstallInfo();
 
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   const GURL kAppUrl("http://www.chromium.org/index.html");
   manifest.start_url = kAppUrl;
+  manifest.id = kAppUrl;
   manifest.scope = kAppUrl.GetWithoutFilename();
 
   {
@@ -765,10 +765,9 @@ TEST(WebAppInstallUtils,
     manifest.note_taking = std::move(note_taking);
   }
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &install_info);
+  UpdateWebAppInfoFromManifest(manifest, &install_info);
 
-  EXPECT_EQ(kAppUrl, install_info.start_url);
+  EXPECT_EQ(kAppUrl, install_info.start_url());
   EXPECT_TRUE(install_info.lock_screen_start_url.is_empty());
   EXPECT_TRUE(install_info.note_taking_new_note_url.is_empty());
 }
@@ -779,11 +778,13 @@ TEST(WebAppInstallUtils,
   feature_list.InitAndDisableFeature(
       blink::features::kWebAppManifestLockScreen);
 
-  WebAppInstallInfo install_info;
+  auto install_info = CreateWebAppInstallInfo();
 
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   const GURL kAppUrl("http://www.chromium.org/index.html");
   manifest.start_url = kAppUrl;
+  manifest.id = kAppUrl;
   manifest.scope = kAppUrl.GetWithoutFilename();
 
   {
@@ -793,17 +794,16 @@ TEST(WebAppInstallUtils,
     manifest.lock_screen = std::move(lock_screen);
   }
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &install_info);
+  UpdateWebAppInfoFromManifest(manifest, &install_info);
 
-  EXPECT_EQ(kAppUrl, install_info.start_url);
+  EXPECT_EQ(kAppUrl, install_info.start_url());
   EXPECT_TRUE(install_info.lock_screen_start_url.is_empty());
 }
 
 // Tests that SkBitmaps associated with shortcut item icons are populated in
 // their own map in web_app_info.
 TEST(WebAppInstallUtils, PopulateShortcutItemIcons) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   WebAppShortcutsMenuItemInfo::Icon icon;
 
   const GURL kIconUrl1("http://www.chromium.org/shortcuts/icon1.png");
@@ -858,7 +858,7 @@ TEST(WebAppInstallUtils, PopulateShortcutItemIcons) {
 // Tests that when PopulateOtherItemIcons is called with no shortcut icon
 // urls specified, no data is written to shortcuts_menu_item_infos.
 TEST(WebAppInstallUtils, PopulateShortcutItemIconsNoShortcutIcons) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   IconsMap icons_map;
   std::vector<SkBitmap> bmp1 = {CreateSquareIcon(32, SK_ColorWHITE)};
   std::vector<SkBitmap> bmp2 = {CreateSquareIcon(32, SK_ColorBLUE)};
@@ -886,7 +886,7 @@ TEST(WebAppInstallUtils, PopulateProductIcons_MaskableIcons) {
   icons_map.emplace(kIconUrl2, bmp2);
 
   // Construct |web_app_info| to pass icon infos.
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   web_app_info.title = u"App Name";
   apps::IconInfo info;
   // Icon at URL 1 has both kAny and kMaskable purpose.
@@ -920,7 +920,7 @@ TEST(WebAppInstallUtils, PopulateProductIcons_MaskableIconsOnly) {
   icons_map.emplace(kIconUrl1, bmp1);
 
   // Construct |web_app_info| to pass icon infos.
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   web_app_info.title = u"App Name";
   apps::IconInfo info;
   info.url = kIconUrl1;
@@ -937,10 +937,11 @@ TEST(WebAppInstallUtils, PopulateProductIcons_MaskableIconsOnly) {
 }
 
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_InvalidManifestUrl) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("foo");
 
-  UpdateWebAppInfoFromManifest(manifest, GURL("foo"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_TRUE(web_app_info.manifest_url.is_empty());
 }
 
@@ -948,7 +949,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_InvalidManifestUrl) {
 // app icon or shortcut icon data in web_app_info, and kDesktopPWAShortcutsMenu
 // feature enabled, web_app_info.icon_bitmaps_any is correctly populated.
 TEST(WebAppInstallUtils, PopulateProductIconsNoWebAppIconData_WithShortcuts) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   web_app_info.title = u"App Name";
 
   IconsMap icons_map;
@@ -965,7 +966,7 @@ TEST(WebAppInstallUtils, PopulateProductIconsNoWebAppIconData_WithShortcuts) {
 
 TEST(WebAppInstallUtils, PopulateProductIcons_IsGeneratedIcon) {
   {
-    WebAppInstallInfo web_app_info;
+    auto web_app_info = CreateWebAppInstallInfo();
     web_app_info.title = u"App Name";
 
     IconsMap icons_map;
@@ -976,7 +977,7 @@ TEST(WebAppInstallUtils, PopulateProductIcons_IsGeneratedIcon) {
     EXPECT_TRUE(ContainsOneIconOfEachSize(web_app_info.icon_bitmaps.any));
   }
   {
-    WebAppInstallInfo web_app_info;
+    auto web_app_info = CreateWebAppInstallInfo();
     web_app_info.title = u"App Name";
 
     IconsMap icons_map;
@@ -993,7 +994,7 @@ TEST(WebAppInstallUtils, PopulateProductIcons_IsGeneratedIcon) {
       EXPECT_EQ(SK_ColorCYAN, bitmap_any.second.getColor(0, 0));
   }
   {
-    WebAppInstallInfo web_app_info;
+    auto web_app_info = CreateWebAppInstallInfo();
     web_app_info.title = u"App Name";
 
     IconsMap icons_map;
@@ -1013,7 +1014,8 @@ TEST(WebAppInstallUtils, PopulateProductIcons_IsGeneratedIcon) {
 
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_Translations) {
   blink::mojom::Manifest manifest;
-  WebAppInstallInfo web_app_info;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
+  auto web_app_info = CreateWebAppInstallInfo();
 
   {
     blink::Manifest::TranslationItem item;
@@ -1037,8 +1039,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_Translations) {
     manifest.translations[u"language 3"] = std::move(item);
   }
 
-  const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
-  UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
   EXPECT_EQ(3u, web_app_info.translations.size());
   EXPECT_EQ(web_app_info.translations["language 1"].name, "name 1");
@@ -1058,24 +1059,21 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_Translations) {
 
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_TabStrip) {
   blink::mojom::Manifest manifest;
-  WebAppInstallInfo web_app_info;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
+  auto web_app_info = CreateWebAppInstallInfo();
 
   {
     TabStrip tab_strip;
     tab_strip.home_tab = TabStrip::Visibility::kAbsent;
-    tab_strip.new_tab_button = TabStrip::Visibility::kAuto;
     manifest.tab_strip = std::move(tab_strip);
 
-    const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
-    UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+    UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
     EXPECT_TRUE(web_app_info.tab_strip.has_value());
-    EXPECT_EQ(absl::get<TabStrip::Visibility>(
-                  web_app_info.tab_strip.value().home_tab),
-              TabStrip::Visibility::kAbsent);
-    EXPECT_EQ(absl::get<TabStrip::Visibility>(
-                  web_app_info.tab_strip.value().new_tab_button),
-              TabStrip::Visibility::kAuto);
+    EXPECT_EQ(
+        std::get<TabStrip::Visibility>(web_app_info.tab_strip.value().home_tab),
+        TabStrip::Visibility::kAbsent);
+    EXPECT_FALSE(web_app_info.tab_strip.value().new_tab_button.url.has_value());
   }
 
   {
@@ -1094,22 +1092,19 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_TabStrip) {
     tab_strip.new_tab_button = new_tab_button_params;
     manifest.tab_strip = std::move(tab_strip);
 
-    const GURL kAppManifestUrl("http://www.chromium.org/manifest.json");
-    UpdateWebAppInfoFromManifest(manifest, kAppManifestUrl, &web_app_info);
+    UpdateWebAppInfoFromManifest(manifest, &web_app_info);
 
     EXPECT_TRUE(web_app_info.tab_strip.has_value());
-    EXPECT_EQ(absl::get<blink::Manifest::HomeTabParams>(
+    EXPECT_EQ(std::get<blink::Manifest::HomeTabParams>(
                   web_app_info.tab_strip.value().home_tab)
                   .icons.size(),
               1u);
-    EXPECT_EQ(absl::get<blink::Manifest::HomeTabParams>(
+    EXPECT_EQ(std::get<blink::Manifest::HomeTabParams>(
                   web_app_info.tab_strip.value().home_tab)
                   .icons[0]
                   .src,
               kAppIcon);
-    EXPECT_EQ(absl::get<blink::Manifest::NewTabButtonParams>(
-                  web_app_info.tab_strip.value().new_tab_button)
-                  .url,
+    EXPECT_EQ(web_app_info.tab_strip.value().new_tab_button.url,
               GURL("https://www.example.com/"));
   }
 }
@@ -1118,6 +1113,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifest_TabStrip) {
 // exceed the maximum allowed size.
 TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestHomeTabIcons_TabStrip) {
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   TabStrip tab_strip;
   tab_strip.home_tab = web_app::TabStrip::Visibility::kAuto;
   blink::Manifest::HomeTabParams home_tab_params;
@@ -1131,12 +1127,11 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestHomeTabIcons_TabStrip) {
   tab_strip.home_tab = home_tab_params;
   manifest.tab_strip = std::move(tab_strip);
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_TRUE(web_app_info.tab_strip.has_value());
-  const auto& home_tab = absl::get<blink::Manifest::HomeTabParams>(
+  const auto& home_tab = std::get<blink::Manifest::HomeTabParams>(
       web_app_info.tab_strip.value().home_tab);
   EXPECT_EQ(2U, home_tab.icons.size());
 }
@@ -1144,7 +1139,7 @@ TEST(WebAppInstallUtils, UpdateWebAppInfoFromManifestHomeTabIcons_TabStrip) {
 // Tests that when PopulateOtherItemIcons is called with no home tab icon
 // urls specified, no data is written to other_icon_bitmaps.
 TEST(WebAppInstallUtils, PopulateHomeTabIconsNoHomeTabIcons_TabStrip) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
   IconsMap icons_map;
   std::vector<SkBitmap> bmp1 = {CreateSquareIcon(32, SK_ColorWHITE)};
   std::vector<SkBitmap> bmp2 = {CreateSquareIcon(32, SK_ColorBLUE)};
@@ -1164,9 +1159,10 @@ TEST(WebAppInstallUtils, PopulateHomeTabIconsNoHomeTabIcons_TabStrip) {
 // Tests that SkBitmaps associated with home tab icons are populated in
 // their own map in web_app_info.
 TEST(WebAppInstallUtils, PopulateHomeTabIcons_TabStrip) {
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
 
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   TabStrip tab_strip;
   tab_strip.home_tab = web_app::TabStrip::Visibility::kAuto;
   blink::Manifest::HomeTabParams home_tab_params;
@@ -1195,10 +1191,9 @@ TEST(WebAppInstallUtils, PopulateHomeTabIcons_TabStrip) {
   tab_strip.home_tab = home_tab_params;
   manifest.tab_strip = std::move(tab_strip);
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_TRUE(web_app_info.tab_strip.has_value());
-  const auto& home_tab = absl::get<blink::Manifest::HomeTabParams>(
+  const auto& home_tab = std::get<blink::Manifest::HomeTabParams>(
       web_app_info.tab_strip.value().home_tab);
   EXPECT_EQ(2U, home_tab.icons.size());
 
@@ -1218,6 +1213,143 @@ TEST(WebAppInstallUtils, PopulateHomeTabIcons_TabStrip) {
   // Icons that are too big and icons that exist in icons_map, but are not in
   // web_app_info.tab_strip are filtered out.
   EXPECT_EQ(1U, web_app_info.other_icon_bitmaps.size());
+}
+
+// Tests proper parsing of ManifestImageResource icons from the manifest into
+// |icons_with_size_any| based on the absence of a size parameter.
+TEST(WebAppInstallUtils, PopulateAnyIconsCorrectlyManifestParsingSVGOnly) {
+  WebAppFileHandlerManager::SetIconsSupportedByOsForTesting(/*value=*/true);
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({blink::features::kFileHandlingIcons}, {});
+
+  auto web_app_info = CreateWebAppInstallInfo();
+  // Generate expected data structure for |icons_with_size_any|.
+  IconsWithSizeAny expected_icon_metadata;
+
+  const GURL manifest_icon_no_size_url(
+      "https://www.example.com/manifest_image_no_size.svg");
+  const GURL manifest_icon_size_url(
+      "https://www.example.com/manifest_image_size.svg");
+  const GURL file_handling_no_size_url(
+      "https://www.example.com/file_handling_no_size.svg");
+  const GURL file_handling_size_url(
+      "https://www.example.com/file_handling_size.png");
+  const GURL shortcut_icon_no_size_url(
+      "https://www.example.com/shortcut_menu_icon_no_size.svg");
+  const GURL shortcut_icon_size_url(
+      "https://www.example.com/shortcut_menu_icon_size.svg");
+  const GURL tab_strip_icon_no_size_url(
+      "https://www.example.com/tab_strip_icon_no_size.svg");
+  const GURL tab_strip_icon_size_url(
+      "https://www.example.com/tab_strip_icon_size.jpg");
+
+  blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("https://www.random_manifest.com");
+
+  // Sample manifest icons, one with a size specified, one without.
+  blink::Manifest::ImageResource manifest_icon_no_size;
+  manifest_icon_no_size.src = manifest_icon_no_size_url;
+  manifest_icon_no_size.sizes = {{0, 0}, {196, 196}};
+  manifest_icon_no_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::ANY,
+      blink::mojom::ManifestImageResource_Purpose::MONOCHROME};
+  manifest.icons.push_back(std::move(manifest_icon_no_size));
+
+  // Set up the expected icon metadata for manifest icons.
+  expected_icon_metadata.manifest_icons[IconPurpose::ANY] =
+      manifest_icon_no_size_url;
+  expected_icon_metadata.manifest_icons[IconPurpose::MONOCHROME] =
+      manifest_icon_no_size_url;
+  expected_icon_metadata.manifest_icon_provided_sizes.emplace(196, 196);
+
+  blink::Manifest::ImageResource manifest_icon_size;
+  manifest_icon_size.src = manifest_icon_size_url;
+  manifest_icon_size.sizes = {{24, 24}};
+  manifest_icon_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::ANY};
+  manifest.icons.push_back(std::move(manifest_icon_size));
+  expected_icon_metadata.manifest_icon_provided_sizes.emplace(24, 24);
+
+  // Sample file handler with no size specified for icons.
+  auto file_handler = blink::mojom::ManifestFileHandler::New();
+  file_handler->action = GURL("https://www.action.com/");
+  file_handler->name = u"Random File";
+  file_handler->accept[u"text/html"] = {u".html"};
+
+  blink::Manifest::ImageResource file_handling_icon_no_size;
+  file_handling_icon_no_size.src = file_handling_no_size_url;
+  file_handling_icon_no_size.sizes = {{0, 0}};
+  file_handling_icon_no_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::MASKABLE};
+  file_handler->icons.push_back(std::move(file_handling_icon_no_size));
+
+  // Set up the expected icon metadata for file handling icons.
+  expected_icon_metadata.file_handling_icons[IconPurpose::MASKABLE] =
+      file_handling_no_size_url;
+
+  blink::Manifest::ImageResource file_handling_icon_size;
+  file_handling_icon_size.src = file_handling_size_url;
+  file_handling_icon_size.sizes = {{64, 64}};
+  file_handling_icon_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::MONOCHROME};
+  file_handler->icons.push_back(std::move(file_handling_icon_size));
+  manifest.file_handlers.push_back(std::move(file_handler));
+  expected_icon_metadata.file_handling_icon_provided_sizes.emplace(64, 64);
+
+  // Sample shortcut menu item info with no size specified for icons.
+  blink::Manifest::ShortcutItem shortcut_item;
+  shortcut_item.name = u"Shortcut Name";
+  shortcut_item.url = GURL("https://www.example.com");
+
+  blink::Manifest::ImageResource shortcut_icon_no_size;
+  shortcut_icon_no_size.src = shortcut_icon_no_size_url;
+  shortcut_icon_no_size.sizes = {{0, 0}, {512, 512}};
+  shortcut_icon_no_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::ANY};
+  shortcut_item.icons.push_back(std::move(shortcut_icon_no_size));
+
+  // Set up the expected icon metadata for shortcut menu icons.
+  expected_icon_metadata.shortcut_menu_icons[IconPurpose::ANY] =
+      shortcut_icon_no_size_url;
+  expected_icon_metadata.shortcut_menu_icons_provided_sizes.emplace(512, 512);
+
+  blink::Manifest::ImageResource shortcut_icon_with_size;
+  shortcut_icon_with_size.src = shortcut_icon_size_url;
+  shortcut_icon_with_size.sizes = {{48, 48}};
+  shortcut_icon_with_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::MASKABLE};
+  shortcut_item.icons.push_back(std::move(shortcut_icon_with_size));
+  manifest.shortcuts.push_back(std::move(shortcut_item));
+  expected_icon_metadata.shortcut_menu_icons_provided_sizes.emplace(48, 48);
+
+  // Sample home tab strip metadata with no size specified for icons.
+  TabStrip tab_strip;
+  blink::Manifest::HomeTabParams home_tab_params;
+
+  blink::Manifest::ImageResource tab_strip_icon_no_size;
+  tab_strip_icon_no_size.src = tab_strip_icon_no_size_url;
+  tab_strip_icon_no_size.sizes = {{0, 0}};
+  tab_strip_icon_no_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::MONOCHROME};
+  home_tab_params.icons.push_back(std::move(tab_strip_icon_no_size));
+
+  blink::Manifest::ImageResource tab_strip_icon_size;
+  tab_strip_icon_size.src = tab_strip_icon_size_url;
+  tab_strip_icon_size.sizes = {{16, 16}};
+  tab_strip_icon_size.purpose = {
+      blink::mojom::ManifestImageResource_Purpose::ANY};
+  home_tab_params.icons.push_back(std::move(tab_strip_icon_size));
+  tab_strip.home_tab = std::move(home_tab_params);
+  manifest.tab_strip = std::move(tab_strip);
+
+  // Set up the expected icon metadata for home tab icons.
+  expected_icon_metadata.home_tab_icons[IconPurpose::MONOCHROME] =
+      tab_strip_icon_no_size_url;
+  expected_icon_metadata.home_tab_icon_provided_sizes.emplace(16, 16);
+
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
+
+  ASSERT_EQ(expected_icon_metadata, web_app_info.icons_with_size_any);
 }
 
 class FileHandlersFromManifestTest : public ::testing::TestWithParam<bool> {
@@ -1289,8 +1421,10 @@ TEST_P(FileHandlersFromManifestTest, Basic) {
   std::vector<blink::mojom::ManifestFileHandlerPtr> manifest_file_handlers =
       CreateManifestFileHandlers(6);
 
-  apps::FileHandlers file_handlers =
-      CreateFileHandlersFromManifest(manifest_file_handlers, GetStartUrl());
+  auto web_app_info = CreateWebAppInstallInfo();
+  PopulateFileHandlerInfoFromManifest(manifest_file_handlers, GetStartUrl(),
+                                      &web_app_info);
+  const apps::FileHandlers& file_handlers = web_app_info.file_handlers;
   ASSERT_EQ(file_handlers.size(), 6U);
   for (unsigned i = 0; i < 6U; ++i) {
     EXPECT_EQ(file_handlers[i].action, MakeActionUrl(i));
@@ -1332,9 +1466,9 @@ TEST_P(FileHandlersFromManifestTest, PopulateFileHandlerIcons) {
 
   std::vector<blink::mojom::ManifestFileHandlerPtr> manifest_file_handlers =
       CreateManifestFileHandlers(1);
-  WebAppInstallInfo web_app_info;
-  web_app_info.file_handlers =
-      CreateFileHandlersFromManifest(manifest_file_handlers, GetStartUrl());
+  auto web_app_info = CreateWebAppInstallInfo();
+  PopulateFileHandlerInfoFromManifest(manifest_file_handlers, GetStartUrl(),
+                                      &web_app_info);
 
   const GURL first_image_url = MakeImageUrl(0);
   const GURL second_image_url = MakeImageUrlForSecondImage(0);
@@ -1377,18 +1511,19 @@ TEST_P(FileHandlersFromManifestTest, PopulateFileHandlerIcons) {
   // The metadata we expect to be saved after icons are finished downloading and
   // processing. Note that the icon sizes saved to `apps::FileHandler::icons`
   // match downloaded sizes, not those specified in the manifest.
-  struct {
+  struct Expectations {
     GURL expected_url;
     apps::IconInfo::SquareSizePx expected_size;
     apps::IconInfo::Purpose expected_purpose;
-  } expectations[] = {
+  };
+  auto expectations = std::to_array<Expectations>({
       {first_image_url, 17, apps::IconInfo::Purpose::kAny},
       {first_image_url, 29, apps::IconInfo::Purpose::kAny},
       {second_image_url, 79, apps::IconInfo::Purpose::kAny},
       {second_image_url, 134, apps::IconInfo::Purpose::kAny},
       {second_image_url, 79, apps::IconInfo::Purpose::kMaskable},
       {second_image_url, 134, apps::IconInfo::Purpose::kMaskable},
-  };
+  });
 
   const size_t num_expectations =
       sizeof(expectations) / sizeof(expectations[0]);
@@ -1410,10 +1545,11 @@ TEST_P(FileHandlersFromManifestTest, PopulateFileHandlingAndHomeTabIcons) {
     return;
   }
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
 
   // Put icons in for the home tab
   blink::mojom::Manifest manifest;
+  manifest.manifest_url = GURL("http://www.chromium.org/manifest.json");
   TabStrip tab_strip;
   tab_strip.home_tab = web_app::TabStrip::Visibility::kAuto;
   blink::Manifest::HomeTabParams home_tab_params;
@@ -1444,18 +1580,17 @@ TEST_P(FileHandlersFromManifestTest, PopulateFileHandlingAndHomeTabIcons) {
   tab_strip.home_tab = home_tab_params;
   manifest.tab_strip = std::move(tab_strip);
 
-  UpdateWebAppInfoFromManifest(
-      manifest, GURL("http://www.chromium.org/manifest.json"), &web_app_info);
+  UpdateWebAppInfoFromManifest(manifest, &web_app_info);
   EXPECT_TRUE(web_app_info.tab_strip.has_value());
-  const auto& home_tab = absl::get<blink::Manifest::HomeTabParams>(
+  const auto& home_tab = std::get<blink::Manifest::HomeTabParams>(
       web_app_info.tab_strip.value().home_tab);
   EXPECT_EQ(2U, home_tab.icons.size());
 
   // Put icons in for file handlers
   std::vector<blink::mojom::ManifestFileHandlerPtr> manifest_file_handlers =
       CreateManifestFileHandlers(1);
-  web_app_info.file_handlers =
-      CreateFileHandlersFromManifest(manifest_file_handlers, GetStartUrl());
+  PopulateFileHandlerInfoFromManifest(manifest_file_handlers, GetStartUrl(),
+                                      &web_app_info);
 
   const GURL kFileHandlerIconUrl1 = MakeImageUrlForSecondImage(0);
   const GURL kFileHandlerIconUrl2 = MakeImageUrl(0);
@@ -1512,17 +1647,19 @@ TEST_P(FileHandlersFromManifestTest, PopulateFileHandlingAndHomeTabIcons) {
   // The metadata we expect to be saved after icons are finished downloading and
   // processing. Note that the icon sizes saved to `apps::FileHandler::icons`
   // match downloaded sizes, not those specified in the manifest.
-  struct {
+  struct Expectations {
     GURL expected_url;
     apps::IconInfo::SquareSizePx expected_size;
     apps::IconInfo::Purpose expected_purpose;
-  } expectations[] = {
+  };
+  auto expectations = std::to_array<Expectations>({
       {kFileHandlerIconUrl2, 17, apps::IconInfo::Purpose::kAny},
       {kFileHandlerIconUrl2, 29, apps::IconInfo::Purpose::kAny},
       {kFileHandlerIconUrl1, 79, apps::IconInfo::Purpose::kAny},
       {kFileHandlerIconUrl1, 134, apps::IconInfo::Purpose::kAny},
       {kFileHandlerIconUrl1, 79, apps::IconInfo::Purpose::kMaskable},
-      {kFileHandlerIconUrl1, 134, apps::IconInfo::Purpose::kMaskable}};
+      {kFileHandlerIconUrl1, 134, apps::IconInfo::Purpose::kMaskable},
+  });
 
   const size_t num_expectations =
       sizeof(expectations) / sizeof(expectations[0]);
@@ -1542,7 +1679,7 @@ TEST(WebAppInstallUtils, DuplicateIconDownloadURLs) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures({blink::features::kFileHandlingIcons}, {});
 
-  WebAppInstallInfo web_app_info;
+  auto web_app_info = CreateWebAppInstallInfo();
 
   // manifest icons
   {
@@ -1658,163 +1795,24 @@ TEST(WebAppInstallUtils, DuplicateIconDownloadURLs) {
     web_app_info.file_handlers.push_back(file_handler);
   }
 
-  base::flat_set<GURL> download_urls = GetValidIconUrlsToDownload(web_app_info);
+  IconUrlSizeSet download_urls = GetValidIconUrlsToDownload(web_app_info);
 
   const size_t download_urls_size = 8;
   EXPECT_EQ(download_urls_size, download_urls.size());
   for (size_t i = 0; i < download_urls_size; i++) {
     std::string url_str = "http://www.chromium.org/image/icon" +
                           base::NumberToString(i + 1) + ".png";
-    EXPECT_EQ(1u, download_urls.count(GURL(url_str)));
+    EXPECT_EQ(1u, download_urls.count(IconUrlWithSize::CreateForUnspecifiedSize(
+                      GURL(url_str))));
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(, FileHandlersFromManifestTest, testing::Bool());
 
-#if BUILDFLAG(IS_WIN)
-using RegisterOsSettingsTest = testing::Test;
-
-TEST_F(RegisterOsSettingsTest, MaybeRegisterOsUninstall) {
-  content::BrowserTaskEnvironment task_environment;
-
-  // MaybeRegisterOsUninstall
-  // Scenario 1.
-  // web app sources: kDefault, kPolicy
-  // removed source: kPolicy
-  // check web_app.CanUserUninstallWebApp is false
-  // check RegisterWebAppOsUninstallation is called
-  const AppId app_id = "test";
-  testing::StrictMock<MockOsIntegrationManager> manager;
-  // InstallOsHooks from MaybeRegisterOsUninstall
-  // sets only kUninstallationViaOsSettings that will async call from
-  // InstallOsHooks. Test ends before async is called so we test against
-  // InstallOsHooks.
-  EXPECT_CALL(manager, MacAppShimOnAppInstalledForProfile(app_id)).Times(1);
-  EXPECT_CALL(manager, RegisterWebAppOsUninstallation(app_id, testing::_))
-      .Times(1);
-  EXPECT_CALL(manager, Synchronize(app_id, testing::_, testing::_))
-      .WillOnce(base::test::RunOnceCallback<1>());
-
-  // Scenario 1.
-  auto web_app = std::make_unique<WebApp>(app_id);
-  web_app->AddSource(WebAppManagement::kDefault);
-  web_app->AddSource(WebAppManagement::kPolicy);
-  EXPECT_FALSE(web_app->CanUserUninstallWebApp());
-
-  base::RunLoop run_loop;
-  MaybeRegisterOsUninstall(
-      web_app.get(), WebAppManagement::kPolicy, manager,
-      base::BindLambdaForTesting(
-          [&](OsHooksErrors os_hooks_errors) { run_loop.Quit(); }));
-  run_loop.Run();
-}
-
-TEST_F(RegisterOsSettingsTest, MaybeRegisterOsSettings_NoRegistration) {
-  // MaybeRegisterOsUninstall
-  // Scenario 2.
-  // web app sources: kSync, kPolicy
-  // removed source: kSync
-  // check web_app.CanUserUninstallWebApp is false
-  // check RegisterWebAppOsUninstallation is not called
-
-  // Scenario 3.
-  // web app sources: kDefault, kSync, kWewbAppStore
-  // removed source: kSync
-  // check web_app.CanUserUninstallWebApp is true
-  // check RegisterWebAppOsUninstallation is not called
-  const AppId app_id = "test";
-  testing::StrictMock<MockOsIntegrationManager> manager;
-  // InstallOsHooks from MaybeRegisterOsUninstall
-  // sets only kUninstallationViaOsSettings that will async call from
-  // InstallOsHooks. Test ends before async is called so we test against
-  // InstallOsHooks.
-  EXPECT_CALL(manager, RegisterWebAppOsUninstallation(app_id, testing::_))
-      .Times(0);
-
-  // Scenario 2.
-  auto web_app = std::make_unique<WebApp>(app_id);
-  web_app->AddSource(WebAppManagement::kSync);
-  web_app->AddSource(WebAppManagement::kPolicy);
-  EXPECT_FALSE(web_app->CanUserUninstallWebApp());
-  MaybeRegisterOsUninstall(web_app.get(), WebAppManagement::kSync, manager,
-                           base::DoNothing());
-
-  // Scenario 3.
-  auto web_app2 = std::make_unique<WebApp>(app_id);
-  web_app2->AddSource(WebAppManagement::kDefault);
-  web_app2->AddSource(WebAppManagement::kSync);
-  web_app2->AddSource(WebAppManagement::kWebAppStore);
-  EXPECT_TRUE(web_app2->CanUserUninstallWebApp());
-  MaybeRegisterOsUninstall(web_app2.get(), WebAppManagement::kDefault, manager,
-                           base::DoNothing());
-}
-
-TEST_F(RegisterOsSettingsTest, MaybeUnregisterOsUninstall) {
-  content::BrowserTaskEnvironment task_environment;
-
-  // MaybeUnregisterOsUninstall
-  // Scenario 1.
-  // web app sources: kDefault
-  // added source: kPolicy
-  // check web_app.CanUserUninstallWebApp is false
-  // check UnregisterWebAppOsUninstallation is called
-  const AppId app_id = "test";
-  testing::StrictMock<MockOsIntegrationManager> manager;
-  // InstallOsHooks from MaybeRegisterOsUninstall
-  // sets only kUninstallationViaOsSettings that will async call from
-  // InstallOsHooks. Test ends before async is called so we test against
-  // InstallOsHooks.
-  EXPECT_CALL(manager, Synchronize(app_id, testing::_, testing::_)).Times(1);
-  EXPECT_CALL(manager, UnregisterWebAppOsUninstallation(app_id)).Times(1);
-
-  // Scenario 1.
-  auto web_app = std::make_unique<WebApp>(app_id);
-  web_app->AddSource(WebAppManagement::kDefault);
-  EXPECT_TRUE(web_app->CanUserUninstallWebApp());
-  MaybeUnregisterOsUninstall(web_app.get(), WebAppManagement::kPolicy, manager);
-}
-
-TEST_F(RegisterOsSettingsTest, MaybeUnregisterOsSettings_NoUnregistration) {
-  // MaybeUnregisterOsUninstall
-  // Scenario 2.
-  // web app sources: kSync, kPolicy
-  // added source: kSync
-  // check web_app.CanUserUninstallWebApp is false
-  // check UnregisterWebAppOsUninstallation is not called
-
-  // Scenario 3.
-  // web app sources: kSync
-  // added source: kSync
-  // check web_app.CanUserUninstallWebApp is true
-  // check UnregisterWebAppOsUninstallation is not called
-  const AppId app_id = "test";
-  testing::StrictMock<MockOsIntegrationManager> manager;
-  // InstallOsHooks from MaybeRegisterOsUninstall
-  // sets only kUninstallationViaOsSettings that will async call from
-  // InstallOsHooks. Test ends before async is called so we test against
-  // InstallOsHooks.
-  EXPECT_CALL(manager, UnregisterWebAppOsUninstallation(app_id)).Times(0);
-
-  // Scenario 2.
-  auto web_app = std::make_unique<WebApp>(app_id);
-  web_app->AddSource(WebAppManagement::kPolicy);
-  EXPECT_FALSE(web_app->CanUserUninstallWebApp());
-  MaybeUnregisterOsUninstall(web_app.get(), WebAppManagement::kSync, manager);
-
-  // Scenario 3.
-  auto web_app2 = std::make_unique<WebApp>(app_id);
-  web_app2->AddSource(WebAppManagement::kSync);
-  EXPECT_TRUE(web_app2->CanUserUninstallWebApp());
-  MaybeUnregisterOsUninstall(web_app2.get(), WebAppManagement::kDefault,
-                             manager);
-}
-
-#endif  // BUILDFLAG(IS_WIN)
-
 TEST(WebAppInstallUtils, SetWebAppManifestFields_Summary) {
-  WebAppInstallInfo web_app_info;
-  web_app_info.start_url = GURL("https://www.chromium.org/index.html");
-  web_app_info.scope = web_app_info.start_url.GetWithoutFilename();
+  GURL start_url("https://www.chromium.org/index.html");
+  auto web_app_info = CreateWebAppInstallInfoFromStartUrl(start_url);
+  web_app_info.scope = web_app_info.start_url().GetWithoutFilename();
   web_app_info.title = u"App Name";
   web_app_info.description = u"App Description";
   web_app_info.theme_color = SK_ColorCYAN;
@@ -1822,8 +1820,8 @@ TEST(WebAppInstallUtils, SetWebAppManifestFields_Summary) {
   web_app_info.background_color = SK_ColorMAGENTA;
   web_app_info.dark_mode_background_color = SK_ColorBLACK;
 
-  const AppId app_id =
-      GenerateAppId(/*manifest_id=*/absl::nullopt, web_app_info.start_url);
+  const webapps::AppId app_id = GenerateAppId(/*manifest_id_path=*/std::nullopt,
+                                              web_app_info.start_url());
   auto web_app = std::make_unique<WebApp>(app_id);
   SetWebAppManifestFields(web_app_info, *web_app);
 
@@ -1839,10 +1837,10 @@ TEST(WebAppInstallUtils, SetWebAppManifestFields_Summary) {
   EXPECT_TRUE(web_app->dark_mode_background_color().has_value());
   EXPECT_EQ(*web_app->dark_mode_background_color(), SK_ColorBLACK);
 
-  web_app_info.theme_color = absl::nullopt;
-  web_app_info.dark_mode_theme_color = absl::nullopt;
-  web_app_info.background_color = absl::nullopt;
-  web_app_info.dark_mode_background_color = absl::nullopt;
+  web_app_info.theme_color = std::nullopt;
+  web_app_info.dark_mode_theme_color = std::nullopt;
+  web_app_info.background_color = std::nullopt;
+  web_app_info.dark_mode_background_color = std::nullopt;
   SetWebAppManifestFields(web_app_info, *web_app);
   EXPECT_FALSE(web_app->theme_color().has_value());
   EXPECT_FALSE(web_app->dark_mode_theme_color().has_value());
@@ -1851,13 +1849,12 @@ TEST(WebAppInstallUtils, SetWebAppManifestFields_Summary) {
 }
 
 TEST(WebAppInstallUtils, SetWebAppManifestFields_ShareTarget) {
-  WebAppInstallInfo web_app_info;
-  web_app_info.start_url = StartUrl();
-  web_app_info.scope = web_app_info.start_url.GetWithoutFilename();
+  auto web_app_info = CreateWebAppInstallInfoFromStartUrl(StartUrl());
+  web_app_info.scope = web_app_info.start_url().GetWithoutFilename();
   web_app_info.title = u"App Name";
 
-  const AppId app_id =
-      GenerateAppId(/*manifest_id=*/absl::nullopt, web_app_info.start_url);
+  const webapps::AppId app_id = GenerateAppId(/*manifest_id_path=*/std::nullopt,
+                                              web_app_info.start_url());
   auto web_app = std::make_unique<WebApp>(app_id);
 
   {
@@ -1920,7 +1917,7 @@ TEST(WebAppInstallUtils, SetWebAppManifestFields_ShareTarget) {
     EXPECT_TRUE(share_target.params.files.empty());
   }
 
-  web_app_info.share_target = absl::nullopt;
+  web_app_info.share_target = std::nullopt;
   SetWebAppManifestFields(web_app_info, *web_app);
   EXPECT_FALSE(web_app->share_target().has_value());
 }

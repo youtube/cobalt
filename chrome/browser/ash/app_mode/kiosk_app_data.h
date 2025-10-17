@@ -6,15 +6,18 @@
 #define CHROME_BROWSER_ASH_APP_MODE_KIOSK_APP_DATA_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_data_base.h"
+#include "chrome/browser/extensions/cws_item_service.pb.h"
 #include "chrome/browser/extensions/webstore_data_fetcher_delegate.h"
 #include "components/account_id/account_id.h"
+#include "ui/gfx/image/image_skia.h"
 #include "url/gurl.h"
 
 class Profile;
@@ -48,7 +51,7 @@ class KioskAppData : public KioskAppDataBase,
     kError,    // Failed to load data.
   };
 
-  KioskAppData(KioskAppDataDelegate* delegate,
+  KioskAppData(KioskAppDataDelegate& delegate,
                const std::string& app_id,
                const AccountId& account_id,
                const GURL& update_url,
@@ -83,7 +86,7 @@ class KioskAppData : public KioskAppDataBase,
   void SetStatusForTest(Status status);
 
   static std::unique_ptr<KioskAppData> CreateForTest(
-      KioskAppDataDelegate* delegate,
+      KioskAppDataDelegate& delegate,
       const std::string& app_id,
       const AccountId& account_id,
       const GURL& update_url,
@@ -119,15 +122,15 @@ class KioskAppData : public KioskAppDataBase,
 
   // extensions::WebstoreDataFetcherDelegate overrides:
   void OnWebstoreRequestFailure(const std::string& extension_id) override;
-  void OnWebstoreResponseParseSuccess(
+  void OnFetchItemSnippetParseSuccess(
       const std::string& extension_id,
-      const base::Value::Dict& webstore_data) override;
+      extensions::FetchItemSnippetResponse item_snippet) override;
   void OnWebstoreResponseParseFailure(const std::string& extension_id,
                                       const std::string& error) override;
 
-  // Helper function for testing for the existence of |key| in
-  // |response|. Passes |key|'s content via |value| and returns
-  // true when |key| is present.
+  // Helper function for testing for the existence of `key` in
+  // `response`. Passes `key`'s content via `value` and returns
+  // true when `key` is present.
   bool CheckResponseKeyValue(const std::string& extension_id,
                              const base::Value::Dict& response,
                              const char* key,
@@ -139,9 +142,9 @@ class KioskAppData : public KioskAppDataBase,
 
   void OnCrxLoadFinished(const CrxLoader* crx_loader);
 
-  void OnIconLoadDone(absl::optional<gfx::ImageSkia> icon);
+  void OnIconLoadDone(std::optional<gfx::ImageSkia> icon);
 
-  raw_ptr<KioskAppDataDelegate, ExperimentalAsh> delegate_;  // not owned.
+  const raw_ref<KioskAppDataDelegate> delegate_;
   Status status_;
 
   GURL update_url_;

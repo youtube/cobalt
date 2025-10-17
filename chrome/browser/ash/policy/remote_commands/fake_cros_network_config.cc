@@ -113,10 +113,8 @@ NetworkTypeStatePropertiesPtr NetworkBuilder::CreateTypeStateForType(
       // These are not actual network types, but just shorthands used while
       // filtering.
       NOTREACHED();
-      break;
   }
   NOTREACHED();
-  return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

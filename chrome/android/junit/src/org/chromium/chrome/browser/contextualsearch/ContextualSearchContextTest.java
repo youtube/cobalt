@@ -20,24 +20,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.JniMocker;
 
-/**
- * Tests parts of the ContextualSearchContext class.
- */
+/** Tests parts of the ContextualSearchContext class. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class ContextualSearchContextTest {
     private static final int INVALID = ContextualSearchContext.INVALID_OFFSET;
-    private static final String UTF_8 = "UTF-8";
     private static final String SAMPLE_TEXT =
             "Now Barack Obama is not the best example.  And Clinton is ambiguous.";
     private static final String HOME_COUNTRY = "unused";
     private static final long NATIVE_PTR = 1;
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private ContextualSearchContext mContext;
     private boolean mDidSelectionChange;
 
@@ -48,16 +46,11 @@ public class ContextualSearchContextTest {
         }
     }
 
-    @Rule
-    public JniMocker mocker = new JniMocker();
-
-    @Mock
-    private ContextualSearchContext.Natives mContextJniMock;
+    @Mock private ContextualSearchContext.Natives mContextJniMock;
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
-        mocker.mock(ContextualSearchContextJni.TEST_HOOKS, mContextJniMock);
+        ContextualSearchContextJni.setInstanceForTesting(mContextJniMock);
         when(mContextJniMock.init(any())).thenReturn(NATIVE_PTR);
         mDidSelectionChange = false;
         mContext = new ContextualSearchContextForTest();
@@ -84,12 +77,6 @@ public class ContextualSearchContextTest {
 
     private void setupResolvingTapInBarak() {
         setupTapInBarack();
-        mContext.setResolveProperties(HOME_COUNTRY, true, "", "");
-    }
-
-    private void setupResolvingTapInObama() {
-        int obamaBeforeMOffset = "Now Barack Oba".length();
-        mContext.setSurroundingText(SAMPLE_TEXT, obamaBeforeMOffset, obamaBeforeMOffset);
         mContext.setResolveProperties(HOME_COUNTRY, true, "", "");
     }
 
@@ -139,7 +126,8 @@ public class ContextualSearchContextTest {
         assertFalse(mDidSelectionChange);
 
         simulateSelectWordAroundCaret(-"Ba".length(), "rack".length());
-        assertEquals("Barack".length(),
+        assertEquals(
+                "Barack".length(),
                 mContext.getSelectionEndOffset() - mContext.getSelectionStartOffset());
         assertTrue(mDidSelectionChange);
         assertTrue(mContext.hasValidSelection());
@@ -155,7 +143,8 @@ public class ContextualSearchContextTest {
         assertTrue(mContext.canResolve());
 
         simulateResolve(0, " Obama".length());
-        assertEquals("Barack Obama".length(),
+        assertEquals(
+                "Barack Obama".length(),
                 mContext.getSelectionEndOffset() - mContext.getSelectionStartOffset());
     }
 

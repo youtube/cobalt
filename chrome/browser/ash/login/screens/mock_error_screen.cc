@@ -12,7 +12,7 @@ using ::testing::_;
 MockErrorScreen::MockErrorScreen(base::WeakPtr<ErrorScreenView> view)
     : ErrorScreen(std::move(view)) {}
 
-MockErrorScreen::~MockErrorScreen() {}
+MockErrorScreen::~MockErrorScreen() = default;
 
 void MockErrorScreen::FixCaptivePortal() {
   ErrorScreen::FixCaptivePortal();
@@ -33,5 +33,9 @@ void MockErrorScreen::SetErrorState(NetworkError::ErrorState error_state,
 MockErrorScreenView::MockErrorScreenView() = default;
 
 MockErrorScreenView::~MockErrorScreenView() = default;
+
+base::WeakPtr<ErrorScreenView> MockErrorScreenView::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
 
 }  // namespace ash

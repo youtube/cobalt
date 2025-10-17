@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/renderer/pepper/video_encoder_shim.h"
 
 #include <inttypes.h>
@@ -12,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -88,10 +94,6 @@ void GetVpxCodecParameters(media::VideoCodecProfile codec,
       *cpu_used = kVp9DefaultCpuUsed;
       break;
     default:
-      *vpx_codec = nullptr;
-      *min_quantizer = 0;
-      *max_quantizer = 0;
-      *cpu_used = 0;
       NOTREACHED();
   }
 }
@@ -107,7 +109,8 @@ class VideoEncoderShim::EncoderImpl {
   void Encode(scoped_refptr<media::VideoFrame> frame, bool force_keyframe);
   void UseOutputBitstreamBuffer(media::BitstreamBuffer buffer, uint8_t* mem);
   void RequestEncodingParametersChange(const media::Bitrate& bitrate,
-                                       uint32_t framerate);
+                                       uint32_t framerate,
+                                       const std::optional<gfx::Size>& size);
   void Stop();
 
  private:
@@ -127,7 +130,7 @@ class VideoEncoderShim::EncoderImpl {
     ~BitstreamBuffer() {}
 
     media::BitstreamBuffer buffer;
-    uint8_t* mem;
+    raw_ptr<uint8_t> mem;
   };
 
   void DoEncode();
@@ -258,13 +261,20 @@ void VideoEncoderShim::EncoderImpl::UseOutputBitstreamBuffer(
 
 void VideoEncoderShim::EncoderImpl::RequestEncodingParametersChange(
     const media::Bitrate& bitrate,
-    uint32_t framerate) {
+    uint32_t framerate,
+    const std::optional<gfx::Size>& size) {
   // If this is changed to use variable bitrate encoding, change the mode check
   // to check that the mode matches the current mode.
   if (bitrate.mode() != media::Bitrate::Mode::kConstant) {
     NotifyErrorStatus(media::EncoderStatus::Codes::kEncoderUnsupportedConfig);
     return;
   }
+
+  if (size.has_value()) {
+    NotifyErrorStatus(media::EncoderStatus::Codes::kEncoderUnsupportedConfig);
+    return;
+  }
+
   framerate_ = framerate;
 
   uint32_t bitrate_kbit = bitrate.target_bps() / 1000;
@@ -300,20 +310,21 @@ void VideoEncoderShim::EncoderImpl::DoEncode() {
     vpx_image_t* const result = vpx_img_wrap(
         &vpx_image, VPX_IMG_FMT_I420, frame.frame->visible_rect().width(),
         frame.frame->visible_rect().height(), 1,
-        frame.frame->writable_data(media::VideoFrame::kYPlane));
+        const_cast<uint8_t*>(
+            frame.frame->visible_data(media::VideoFrame::Plane::kY)));
     DCHECK_EQ(result, &vpx_image);
-    vpx_image.planes[VPX_PLANE_Y] =
-        frame.frame->GetWritableVisibleData(media::VideoFrame::kYPlane);
-    vpx_image.planes[VPX_PLANE_U] =
-        frame.frame->GetWritableVisibleData(media::VideoFrame::kUPlane);
-    vpx_image.planes[VPX_PLANE_V] =
-        frame.frame->GetWritableVisibleData(media::VideoFrame::kVPlane);
+    vpx_image.planes[VPX_PLANE_Y] = const_cast<uint8_t*>(
+        frame.frame->visible_data(media::VideoFrame::Plane::kY));
+    vpx_image.planes[VPX_PLANE_U] = const_cast<uint8_t*>(
+        frame.frame->visible_data(media::VideoFrame::Plane::kU));
+    vpx_image.planes[VPX_PLANE_V] = const_cast<uint8_t*>(
+        frame.frame->visible_data(media::VideoFrame::Plane::kV));
     vpx_image.stride[VPX_PLANE_Y] =
-        frame.frame->stride(media::VideoFrame::kYPlane);
+        frame.frame->stride(media::VideoFrame::Plane::kY);
     vpx_image.stride[VPX_PLANE_U] =
-        frame.frame->stride(media::VideoFrame::kUPlane);
+        frame.frame->stride(media::VideoFrame::Plane::kU);
     vpx_image.stride[VPX_PLANE_V] =
-        frame.frame->stride(media::VideoFrame::kVPlane);
+        frame.frame->stride(media::VideoFrame::Plane::kV);
 
     vpx_codec_flags_t flags = 0;
     if (frame.force_keyframe)
@@ -409,25 +420,27 @@ VideoEncoderShim::GetSupportedProfiles() {
   return profiles;
 }
 
-bool VideoEncoderShim::Initialize(
+media::EncoderStatus VideoEncoderShim::Initialize(
     const media::VideoEncodeAccelerator::Config& config,
     media::VideoEncodeAccelerator::Client* client,
     std::unique_ptr<media::MediaLog> media_log) {
   DCHECK(RenderThreadImpl::current());
   DCHECK_EQ(client, host_);
 
-  if (config.input_format != media::PIXEL_FORMAT_I420)
-    return false;
+  if (config.input_format != media::PIXEL_FORMAT_I420) {
+    return {media::EncoderStatus::Codes::kEncoderInitializationError};
+  }
 
   if (config.output_profile != media::VP8PROFILE_ANY &&
-      config.output_profile != media::VP9PROFILE_PROFILE0)
-    return false;
+      config.output_profile != media::VP9PROFILE_PROFILE0) {
+    return {media::EncoderStatus::Codes::kEncoderInitializationError};
+  }
 
   media_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&VideoEncoderShim::EncoderImpl::Initialize,
                                 base::Unretained(encoder_impl_.get()), config));
 
-  return true;
+  return {media::EncoderStatus::Codes::kOk};
 }
 
 void VideoEncoderShim::Encode(scoped_refptr<media::VideoFrame> frame,
@@ -452,14 +465,15 @@ void VideoEncoderShim::UseOutputBitstreamBuffer(media::BitstreamBuffer buffer) {
 
 void VideoEncoderShim::RequestEncodingParametersChange(
     const media::Bitrate& bitrate,
-    uint32_t framerate) {
+    uint32_t framerate,
+    const std::optional<gfx::Size>& size) {
   DCHECK(RenderThreadImpl::current());
 
   media_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(
           &VideoEncoderShim::EncoderImpl::RequestEncodingParametersChange,
-          base::Unretained(encoder_impl_.get()), bitrate, framerate));
+          base::Unretained(encoder_impl_.get()), bitrate, framerate, size));
 }
 
 void VideoEncoderShim::Destroy() {

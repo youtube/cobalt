@@ -1,18 +1,20 @@
 #!/usr/bin/env vpython3
-# Copyright 2021 The Chromium Authors. All rights reserved.
+# Copyright 2021 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import base64
+from email.message import EmailMessage
 import os
 from typing import Any
 import unittest
-import unittest.mock as mock
+from unittest import mock
 import urllib.error
 
-from flake_suppressor import gpu_expectations
-
+# vpython-provided modules.
 from pyfakefs import fake_filesystem_unittest  # pylint:disable=import-error
+
+from flake_suppressor import gpu_expectations
 
 
 class GetExpectationFileForSuiteUnittest(unittest.TestCase):
@@ -25,7 +27,7 @@ class GetExpectationFileForSuiteUnittest(unittest.TestCase):
         gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
         'pixel_expectations.txt')
     actual_filepath = self.expectations.GetExpectationFileForSuite(
-        'pixel_integration_test', tuple(['webgl-version-2']))
+        'pixel_integration_test', tuple())
     self.assertEqual(actual_filepath, expected_filepath)
 
   def testOverrideExpectationFile(self) -> None:
@@ -34,25 +36,7 @@ class GetExpectationFileForSuiteUnittest(unittest.TestCase):
         gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
         'info_collection_expectations.txt')
     actual_filepath = self.expectations.GetExpectationFileForSuite(
-        'info_collection_test', tuple(['webgl-version-2']))
-    self.assertEqual(actual_filepath, expected_filepath)
-
-  def testWebGl1Conformance(self) -> None:
-    """Tests that a WebGL 1 expectation file is found properly."""
-    expected_filepath = os.path.join(
-        gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
-        'webgl_conformance_expectations.txt')
-    actual_filepath = self.expectations.GetExpectationFileForSuite(
-        'webgl_conformance_integration_test', tuple([]))
-    self.assertEqual(actual_filepath, expected_filepath)
-
-  def testWebGl2Conformance(self) -> None:
-    """Tests that a WebGL 2 expectation file is found properly."""
-    expected_filepath = os.path.join(
-        gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
-        'webgl2_conformance_expectations.txt')
-    actual_filepath = self.expectations.GetExpectationFileForSuite(
-        'webgl_conformance_integration_test', tuple(['webgl-version-2']))
+        'info_collection_test', tuple())
     self.assertEqual(actual_filepath, expected_filepath)
 
 
@@ -88,7 +72,7 @@ mode type hash bar_tests.txt"""
       elif url.endswith('bar_tests.txt?format=TEXT'):
         text = 'bar_tests.txt content'
       else:
-        self.fail('Given unhandled URL %s' % url)
+        self.fail(f'Given unhandled URL {url}')
       request_result.text = base64.b64encode(text.encode('utf-8'))
       return request_result
 
@@ -110,7 +94,8 @@ mode type hash bar_tests.txt"""
     """Tests that getting a non-200 status code back results in a failure."""
 
     def SideEffect(_: Any) -> None:
-      raise urllib.error.HTTPError('url', 404, 'No exist :(', {}, None)
+      raise urllib.error.HTTPError('url', 404, 'No exist :(', EmailMessage(),
+                                   None)
 
     self._get_mock.side_effect = SideEffect
     with self.assertRaises(urllib.error.HTTPError):
@@ -126,13 +111,15 @@ class GetLocalCheckoutExpectationFileContentsUnittest(
   def testBasic(self) -> None:
     """Tests basic functionality."""
     os.makedirs(gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY)
-    with open(
-        os.path.join(gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
-                     'foo.txt'), 'w') as outfile:
+    with open(os.path.join(gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
+                           'foo.txt'),
+              'w',
+              encoding='utf-8') as outfile:
       outfile.write('foo.txt contents')
-    with open(
-        os.path.join(gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
-                     'bar.txt'), 'w') as outfile:
+    with open(os.path.join(gpu_expectations.ABSOLUTE_EXPECTATION_FILE_DIRECTORY,
+                           'bar.txt'),
+              'w',
+              encoding='utf-8') as outfile:
       outfile.write('bar.txt contents')
     foo_txt = os.path.join(gpu_expectations.RELATIVE_EXPECTATION_FILE_DIRECTORY,
                            'foo.txt')

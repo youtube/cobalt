@@ -7,11 +7,19 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+
 #include "rtc_base/event_tracer.h"
 
+#include <stdio.h>
+
+#include "rtc_base/trace_event.h"
+
+#if defined(RTC_USE_PERFETTO)
+#include "rtc_base/trace_categories.h"
+#include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+#else
 #include <inttypes.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <atomic>
@@ -28,20 +36,26 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
-#include "rtc_base/trace_event.h"
-
-// This is a guesstimate that should be enough in most cases.
-static const size_t kEventLoggerArgsStrBufferInitialSize = 256;
-static const size_t kTraceArgBufferLength = 32;
+#endif
 
 namespace webrtc {
 
 namespace {
 
+#if !defined(RTC_USE_PERFETTO)
 GetCategoryEnabledPtr g_get_category_enabled_ptr = nullptr;
 AddTraceEventPtr g_add_trace_event_ptr = nullptr;
+#endif
 
 }  // namespace
+
+#if defined(RTC_USE_PERFETTO)
+void RegisterPerfettoTrackEvents() {
+  if (perfetto::Tracing::IsInitialized()) {
+    TrackEvent::Register();
+  }
+}
+#else
 
 void SetupEventTracer(GetCategoryEnabledPtr get_category_enabled_ptr,
                       AddTraceEventPtr add_trace_event_ptr) {
@@ -73,10 +87,26 @@ void EventTracer::AddTraceEvent(char phase,
                           arg_names, arg_types, arg_values, flags);
   }
 }
+#endif
 
-}  // namespace webrtc
+#if defined(RTC_USE_PERFETTO)
+// TODO(bugs.webrtc.org/15917): Implement for perfetto.
+namespace tracing {
+void SetupInternalTracer(bool enable_all_categories) {}
+bool StartInternalCapture(absl::string_view filename) {
+  return false;
+}
+void StartInternalCaptureToFile(FILE* file) {}
+void StopInternalCapture() {}
+void ShutdownInternalTracer() {}
 
-namespace rtc {
+}  // namespace tracing
+#else
+
+// This is a guesstimate that should be enough in most cases.
+static const size_t kEventLoggerArgsStrBufferInitialSize = 256;
+static const size_t kTraceArgBufferLength = 32;
+
 namespace tracing {
 namespace {
 
@@ -96,8 +126,8 @@ class EventLogger final {
                      const unsigned char* arg_types,
                      const unsigned long long* arg_values,
                      uint64_t timestamp,
-                     int pid,
-                     rtc::PlatformThreadId thread_id) {
+                     int /* pid */,
+                     PlatformThreadId thread_id) {
     std::vector<TraceArg> args(num_args);
     for (int i = 0; i < num_args; ++i) {
       TraceArg& arg = args[i];
@@ -114,7 +144,7 @@ class EventLogger final {
         arg.value.as_string = str_copy;
       }
     }
-    webrtc::MutexLock lock(&mutex_);
+    MutexLock lock(&mutex_);
     trace_events_.push_back(
         {name, category_enabled, phase, args, timestamp, 1, thread_id});
   }
@@ -123,15 +153,14 @@ class EventLogger final {
   // https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
   void Log() {
     RTC_DCHECK(output_file_);
-    static constexpr webrtc::TimeDelta kLoggingInterval =
-        webrtc::TimeDelta::Millis(100);
+    static constexpr TimeDelta kLoggingInterval = TimeDelta::Millis(100);
     fprintf(output_file_, "{ \"traceEvents\": [\n");
     bool has_logged_event = false;
     while (true) {
       bool shutting_down = shutdown_event_.Wait(kLoggingInterval);
       std::vector<TraceEvent> events;
       {
-        webrtc::MutexLock lock(&mutex_);
+        MutexLock lock(&mutex_);
         trace_events_.swap(events);
       }
       std::string args_str;
@@ -191,7 +220,7 @@ class EventLogger final {
     output_file_ = file;
     output_file_owned_ = owned;
     {
-      webrtc::MutexLock lock(&mutex_);
+      MutexLock lock(&mutex_);
       // Since the atomic fast-path for adding events to the queue can be
       // bypassed while the logging thread is shutting down there may be some
       // stale events in the queue, hence the vector needs to be cleared to not
@@ -206,12 +235,14 @@ class EventLogger final {
     // Finally start, everything should be set up now.
     logging_thread_ =
         PlatformThread::SpawnJoinable([this] { Log(); }, "EventTracingThread");
-    TRACE_EVENT_INSTANT0("webrtc", "EventLogger::Start");
+    TRACE_EVENT_INSTANT0("webrtc", "EventLogger::Start",
+                         TRACE_EVENT_SCOPE_GLOBAL);
   }
 
   void Stop() {
     RTC_DCHECK(thread_checker_.IsCurrent());
-    TRACE_EVENT_INSTANT0("webrtc", "EventLogger::Stop");
+    TRACE_EVENT_INSTANT0("webrtc", "EventLogger::Stop",
+                         TRACE_EVENT_SCOPE_GLOBAL);
     // Try to stop. Abort if we're not currently logging.
     int one = 1;
     if (g_event_logging_active.compare_exchange_strong(one, 0))
@@ -251,7 +282,7 @@ class EventLogger final {
     std::vector<TraceArg> args;
     uint64_t timestamp;
     int pid;
-    rtc::PlatformThreadId tid;
+    PlatformThreadId tid;
   };
 
   static std::string TraceArgValueAsString(TraceArg arg) {
@@ -314,11 +345,11 @@ class EventLogger final {
     return output;
   }
 
-  webrtc::Mutex mutex_;
+  Mutex mutex_;
   std::vector<TraceEvent> trace_events_ RTC_GUARDED_BY(mutex_);
-  rtc::PlatformThread logging_thread_;
-  rtc::Event shutdown_event_;
-  webrtc::SequenceChecker thread_checker_;
+  PlatformThread logging_thread_;
+  Event shutdown_event_;
+  SequenceChecker thread_checker_;
   FILE* output_file_ = nullptr;
   bool output_file_owned_ = false;
 };
@@ -344,19 +375,19 @@ const unsigned char* InternalEnableAllCategories(const char* name) {
 void InternalAddTraceEvent(char phase,
                            const unsigned char* category_enabled,
                            const char* name,
-                           unsigned long long id,
+                           unsigned long long /* id */,
                            int num_args,
                            const char** arg_names,
                            const unsigned char* arg_types,
                            const unsigned long long* arg_values,
-                           unsigned char flags) {
+                           unsigned char /* flags */) {
   // Fast path for when event tracing is inactive.
   if (g_event_logging_active.load() == 0)
     return;
 
-  g_event_logger.load()->AddTraceEvent(
-      name, category_enabled, phase, num_args, arg_names, arg_types, arg_values,
-      rtc::TimeMicros(), 1, rtc::CurrentThreadId());
+  g_event_logger.load()->AddTraceEvent(name, category_enabled, phase, num_args,
+                                       arg_names, arg_types, arg_values,
+                                       TimeMicros(), 1, CurrentThreadId());
 }
 
 }  // namespace
@@ -365,9 +396,9 @@ void SetupInternalTracer(bool enable_all_categories) {
   EventLogger* null_logger = nullptr;
   RTC_CHECK(
       g_event_logger.compare_exchange_strong(null_logger, new EventLogger()));
-  webrtc::SetupEventTracer(enable_all_categories ? InternalEnableAllCategories
-                                                 : InternalGetCategoryEnabled,
-                           InternalAddTraceEvent);
+  SetupEventTracer(enable_all_categories ? InternalEnableAllCategories
+                                         : InternalGetCategoryEnabled,
+                   InternalAddTraceEvent);
 }
 
 void StartInternalCaptureToFile(FILE* file) {
@@ -405,8 +436,11 @@ void ShutdownInternalTracer() {
   RTC_DCHECK(old_logger);
   RTC_CHECK(g_event_logger.compare_exchange_strong(old_logger, nullptr));
   delete old_logger;
-  webrtc::SetupEventTracer(nullptr, nullptr);
+  SetupEventTracer(nullptr, nullptr);
 }
 
 }  // namespace tracing
-}  // namespace rtc
+
+#endif  // defined(RTC_USE_PERFETTO)
+
+}  // namespace webrtc

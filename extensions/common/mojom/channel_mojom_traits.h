@@ -28,7 +28,6 @@ struct EnumTraits<extensions::mojom::Channel, version_info::Channel> {
         return extensions::mojom::Channel::kStable;
     }
     NOTREACHED();
-    return extensions::mojom::Channel::kUnknown;
   }
 
   static bool FromMojom(extensions::mojom::Channel input,
@@ -51,8 +50,6 @@ struct EnumTraits<extensions::mojom::Channel, version_info::Channel> {
         return true;
     }
     NOTREACHED();
-    *out = version_info::Channel::UNKNOWN;
-    return false;
   }
 };
 

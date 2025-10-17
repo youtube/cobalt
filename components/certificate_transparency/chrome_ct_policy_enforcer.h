@@ -6,7 +6,9 @@
 #define COMPONENTS_CERTIFICATE_TRANSPARENCY_CHROME_CT_POLICY_ENFORCER_H_
 
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -16,20 +18,27 @@
 #include "base/time/clock.h"
 #include "base/time/time.h"
 #include "net/cert/ct_policy_enforcer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "services/network/public/mojom/ct_log_info.mojom.h"
 
 namespace certificate_transparency {
 
 struct COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) OperatorHistoryEntry {
   // Name of the current operator for the log.
-  std::string current_operator_;
+  std::string current_operator;
   // Vector of previous operators (if any) for the log, represented as pairs of
   // operator name and time when they stopped operating the log.
-  std::vector<std::pair<std::string, base::Time>> previous_operators_;
+  std::vector<std::pair<std::string, base::Time>> previous_operators;
 
   OperatorHistoryEntry();
   ~OperatorHistoryEntry();
   OperatorHistoryEntry(const OperatorHistoryEntry& other);
+};
+
+struct COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) LogInfo {
+  // Operator history for this log.
+  OperatorHistoryEntry operator_history;
+  // Type of the log.
+  network::mojom::CTLogInfo::LogType log_type;
 };
 
 // A CTPolicyEnforcer that enforces the "Certificate Transparency in Chrome"
@@ -45,123 +54,83 @@ class COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) ChromeCTPolicyEnforcer
  public:
   // |logs| is a list of Certificate Transparency logs.  Data about each log is
   // needed to apply Chrome's policies. |disqualified_logs| is a map of log ID
-  // to disqualification date.  |operated_by_google_logs| is a list of log IDs
-  // operated by Google.  (Log IDs are the SHA-256 hash of the log's DER-encoded
-  // SubjectPublicKeyInfo.)  |log_list_date| is the time at which the other two
-  // arguments were generated.  Both lists of logs must be sorted by log ID.
+  // to disqualification date.  (Log IDs are the SHA-256 hash of the log's
+  // DER-encoded SubjectPublicKeyInfo.)  |log_list_date| is the time at which
+  // the other two arguments were generated.  Both lists of logs must be sorted
+  // by log ID. |log_info| contains operator history and log types of the logs.
   ChromeCTPolicyEnforcer(
       base::Time log_list_date,
       std::vector<std::pair<std::string, base::Time>> disqualified_logs,
-      std::vector<std::string> operated_by_google_logs,
-      std::map<std::string, OperatorHistoryEntry> log_operator_history);
-
-  ~ChromeCTPolicyEnforcer() override;
+      std::map<std::string, LogInfo> log_info,
+      bool enable_static_ct_api_enforcement);
 
   net::ct::CTPolicyCompliance CheckCompliance(
       net::X509Certificate* cert,
       const net::ct::SCTList& verified_scts,
-      const net::NetLogWithSource& net_log) override;
+      base::Time current_time,
+      const net::NetLogWithSource& net_log) const override;
 
-  // Updates the list of logs used for compliance checks. |disqualified_logs| is
-  // a map of log ID to disqualification date.  |operated_by_google_logs| is a
-  // list of log IDs operated by Google
-  void UpdateCTLogList(
-      base::Time update_time,
-      std::vector<std::pair<std::string, base::Time>> disqualified_logs,
-      std::vector<std::string> operated_by_google_logs,
-      std::map<std::string, OperatorHistoryEntry> log_operator_history);
+  std::optional<base::Time> GetLogDisqualificationTime(
+      std::string_view log_id) const override;
 
-  void SetClockForTesting(const base::Clock* clock) { clock_ = clock; }
+  bool IsCtEnabled() const override;
 
-  // TODO(https://crbug.com/999240): These are exposed to allow end-to-end
+  // TODO(crbug.com/41479068): These are exposed to allow end-to-end
   // testing by higher layers (i.e. that the ChromeCTPolicyEnforcer is
   // correctly constructed). When either this issue or https://crbug.com/848277
   // are fixed, the configuration can be tested independently, and these can
   // be removed.
-  const std::vector<std::string>& operated_by_google_logs_for_testing() {
-    return operated_by_google_logs_;
-  }
   const std::vector<std::pair<std::string, base::Time>>&
   disqualified_logs_for_testing() {
     return disqualified_logs_;
   }
 
-  const std::map<std::string, OperatorHistoryEntry>&
-  operator_history_for_testing() {
-    return log_operator_history_;
+  const std::map<std::string, LogInfo>& log_info_for_testing() const {
+    return log_info_;
   }
 
-  void SetCTLogListAlwaysTimelyForTesting(bool always_timely) {
-    ct_log_list_always_timely_for_testing_ = always_timely;
-  }
-
-  void SetOperatorHistoryForTesting(
-      std::map<std::string, OperatorHistoryEntry> log_operator_history) {
-    log_operator_history_ = std::move(log_operator_history);
-  }
-
-  void SetValidGoogleLogForTesting(const std::string& google_log) {
-    valid_google_log_for_testing_ = google_log;
-  }
-
-  void SetDisqualifiedLogForTesting(
-      const std::pair<std::string, base::Time>& disqualified_log) {
-    disqualified_log_for_testing_ = disqualified_log;
-  }
+ protected:
+  ~ChromeCTPolicyEnforcer() override;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(ChromeCTPolicyEnforcerTestBothPolicies,
+  FRIEND_TEST_ALL_PREFIXES(ChromeCTPolicyEnforcerTest,
                            IsLogDisqualifiedTimestamp);
-  FRIEND_TEST_ALL_PREFIXES(ChromeCTPolicyEnforcerTestBothPolicies,
+  FRIEND_TEST_ALL_PREFIXES(ChromeCTPolicyEnforcerTest,
                            IsLogDisqualifiedReturnsFalseOnUnknownLog);
+
   // Returns true if the log identified by |log_id| (the SHA-256 hash of the
   // log's DER-encoded SPKI) has been disqualified, and sets
   // |*disqualification_date| to the date of disqualification. Any SCTs that
   // are embedded in certificates issued after |*disqualification_date| should
   // not be trusted, nor contribute to any uniqueness or freshness
-  bool IsLogDisqualified(base::StringPiece log_id,
+  bool IsLogDisqualified(std::string_view log_id,
+                         base::Time current_time,
                          base::Time* disqualification_date) const;
 
-  // Returns true if the log identified by |log_id| (the SHA-256 hash of the
-  // log's DER-encoded SPKI) is operated by Google.
-  bool IsLogOperatedByGoogle(base::StringPiece log_id) const;
-
   // Returns true if the supplied log data are fresh enough.
-  bool IsLogDataTimely() const;
+  bool IsLogDataTimely(base::Time current_time) const;
 
   net::ct::CTPolicyCompliance CheckCTPolicyCompliance(
       const net::X509Certificate& cert,
-      const net::ct::SCTList& verified_scts) const;
+      const net::ct::SCTList& verified_scts,
+      base::Time current_time) const;
 
-  std::string GetOperatorForLog(std::string log_id, base::Time timestamp) const;
+  std::string GetOperatorForLog(const std::string& log_id,
+                                base::Time timestamp) const;
+
+  network::mojom::CTLogInfo::LogType GetLogType(
+      const std::string& log_id) const;
 
   // Map of SHA-256(SPKI) to log disqualification date.
-  std::vector<std::pair<std::string, base::Time>> disqualified_logs_;
+  const std::vector<std::pair<std::string, base::Time>> disqualified_logs_;
 
-  // List of SHA-256(SPKI) for logs operated by Google.
-  std::vector<std::string> operated_by_google_logs_;
+  const std::map<std::string, LogInfo> log_info_;
 
-  std::map<std::string, OperatorHistoryEntry> log_operator_history_;
-
-  raw_ptr<const base::Clock> clock_;
-
-  // The time at which |disqualified_logs_| and |operated_by_google_logs_| were
+  // The time at which |disqualified_logs_| and |log_operator_history_| were
   // generated.
-  base::Time log_list_date_;
+  const base::Time log_list_date_;
 
-  // If set, the CT log list will be considered timely regardless of its last
-  // update time.
-  bool ct_log_list_always_timely_for_testing_ = false;
-
-  // If set, this log ID will be considered a valid, Google operated log.
-  // Calling UpdateCTLogList clears this value if set.
-  absl::optional<std::string> valid_google_log_for_testing_;
-
-  // If set, this log ID will be considered a disqualified log, effective at the
-  // specified time.
-  // Calling UpdateCTLogList clears this value if set.
-  absl::optional<std::pair<std::string, base::Time>>
-      disqualified_log_for_testing_;
+  const bool enable_static_ct_api_enforcement_;
 };
 
 }  // namespace certificate_transparency

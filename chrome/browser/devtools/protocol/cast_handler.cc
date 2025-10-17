@@ -4,15 +4,15 @@
 
 #include "chrome/browser/devtools/protocol/cast_handler.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/ui/media_router/media_router_ui_helper.h"
 #include "components/media_router/browser/media_router.h"
 #include "components/media_router/browser/media_router_factory.h"
-#include "components/media_router/browser/presentation/presentation_service_delegate_impl.h"
+#include "components/media_router/browser/presentation/controller_presentation_service_delegate_impl.h"
 #include "components/media_router/common/media_source.h"
 #include "components/media_router/common/mojom/media_router.mojom.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -92,11 +92,11 @@ Response CastHandler::SetSinkToUse(const std::string& in_sink_name) {
   Response init_response = EnsureInitialized();
   if (!init_response.IsSuccess())
     return init_response;
-  media_router::PresentationServiceDelegateImpl::GetOrCreateForWebContents(
-      web_contents_)
-      ->set_start_presentation_cb(
-          base::BindRepeating(&CastHandler::StartPresentation,
-                              weak_factory_.GetWeakPtr(), in_sink_name));
+  media_router::ControllerPresentationServiceDelegateImpl::
+      GetOrCreateForWebContents(web_contents_)
+          ->set_start_presentation_cb(
+              base::BindRepeating(&CastHandler::StartPresentation,
+                                  weak_factory_.GetWeakPtr(), in_sink_name));
   return Response::Success();
 }
 
@@ -122,8 +122,7 @@ void CastHandler::StartDesktopMirroring(
       base::BindOnce(&CastHandler::OnDesktopMirroringStarted,
                      weak_factory_.GetWeakPtr(), std::move(callback)),
       media_router::GetRouteRequestTimeout(
-          media_router::MediaCastMode::DESKTOP_MIRROR),
-      web_contents_->GetBrowserContext()->IsOffTheRecord());
+          media_router::MediaCastMode::DESKTOP_MIRROR));
 }
 
 void CastHandler::StartTabMirroring(
@@ -147,8 +146,7 @@ void CastHandler::StartTabMirroring(
       base::BindOnce(&CastHandler::OnTabMirroringStarted,
                      weak_factory_.GetWeakPtr(), std::move(callback)),
       media_router::GetRouteRequestTimeout(
-          media_router::MediaCastMode::TAB_MIRROR),
-      web_contents_->GetBrowserContext()->IsOffTheRecord());
+          media_router::MediaCastMode::TAB_MIRROR));
 }
 
 Response CastHandler::StopCasting(const std::string& in_sink_name) {
@@ -166,7 +164,7 @@ Response CastHandler::StopCasting(const std::string& in_sink_name) {
   return Response::Success();
 }
 
-Response CastHandler::Enable(protocol::Maybe<std::string> in_presentation_url) {
+Response CastHandler::Enable(std::optional<std::string> in_presentation_url) {
   Response init_response = EnsureInitialized();
   if (!init_response.IsSuccess())
     return init_response;
@@ -233,13 +231,12 @@ void CastHandler::StartPresentation(
       base::BindOnce(&CastHandler::OnPresentationStarted,
                      weak_factory_.GetWeakPtr(), std::move(context)),
       media_router::GetRouteRequestTimeout(
-          media_router::MediaCastMode::PRESENTATION),
-      web_contents_->GetBrowserContext()->IsOffTheRecord());
+          media_router::MediaCastMode::PRESENTATION));
 }
 
 media_router::MediaSink::Id CastHandler::GetSinkIdByName(
     const std::string& sink_name) const {
-  auto it = base::ranges::find(
+  auto it = std::ranges::find(
       sinks_, sink_name, [](const media_router::MediaSinkWithCastModes& sink) {
         return sink.sink.name();
       });
@@ -249,12 +246,12 @@ media_router::MediaSink::Id CastHandler::GetSinkIdByName(
 MediaRoute::Id CastHandler::GetRouteIdForSink(
     const media_router::MediaSink::Id& sink_id) const {
   const auto& routes = routes_observer_->routes();
-  auto it = base::ranges::find(routes, sink_id, &MediaRoute::media_sink_id);
+  auto it = std::ranges::find(routes, sink_id, &MediaRoute::media_sink_id);
   return it == routes.end() ? MediaRoute::Id() : it->media_route_id();
 }
 
 void CastHandler::StartObservingForSinks(
-    protocol::Maybe<std::string> presentation_url) {
+    std::optional<std::string> presentation_url) {
   media_router::MediaSource mirroring_source(media_router::MediaSource::ForTab(
       sessions::SessionTabHelper::IdForTab(web_contents_).id()));
   url::Origin origin = url::Origin();
@@ -264,11 +261,11 @@ void CastHandler::StartObservingForSinks(
   query_result_manager_->SetSourcesForCastMode(
       media_router::MediaCastMode::TAB_MIRROR, {mirroring_source}, origin);
 
-  if (presentation_url.isJust()) {
+  if (presentation_url.has_value()) {
     url::Origin frame_origin =
         web_contents_->GetPrimaryMainFrame()->GetLastCommittedOrigin();
     std::vector<media_router::MediaSource> sources = {
-        media_router::MediaSource(presentation_url.fromJust())};
+        media_router::MediaSource(presentation_url.value())};
     query_result_manager_->SetSourcesForCastMode(
         media_router::MediaCastMode::PRESENTATION, sources, frame_origin);
   }
@@ -280,9 +277,9 @@ void CastHandler::SendSinkUpdate() {
 
   auto protocol_sinks = std::make_unique<protocol::Array<Sink>>();
   for (const media_router::MediaSinkWithCastModes& sink_with_modes : sinks_) {
-    auto route_it = base::ranges::find(routes_observer_->routes(),
-                                       sink_with_modes.sink.id(),
-                                       &MediaRoute::media_sink_id);
+    auto route_it =
+        std::ranges::find(routes_observer_->routes(), sink_with_modes.sink.id(),
+                          &MediaRoute::media_sink_id);
     std::string session = route_it == routes_observer_->routes().end()
                               ? std::string()
                               : route_it->description();

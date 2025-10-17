@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <algorithm>
 #include <limits>
 #include <memory>
 
+#include "base/containers/span.h"
 #include "base/pickle.h"
 #include "components/sessions/core/session_command.h"
 
@@ -38,8 +44,8 @@ bool SessionCommand::GetPayload(void* dest, size_t count) const {
   return true;
 }
 
-std::unique_ptr<base::Pickle> SessionCommand::PayloadAsPickle() const {
-  return std::make_unique<base::Pickle>(contents(), static_cast<int>(size()));
+base::Pickle SessionCommand::PayloadAsPickle() const {
+  return base::Pickle::WithUnownedBuffer(base::as_byte_span(contents_));
 }
 
 }  // namespace sessions

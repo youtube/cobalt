@@ -4,6 +4,9 @@
 
 #include "third_party/blink/renderer/platform/loader/fetch/data_pipe_bytes_consumer.h"
 
+#include <string_view>
+
+#include "base/containers/span.h"
 #include "base/task/single_thread_task_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/loader/testing/bytes_consumer_test_reader.h"
@@ -27,13 +30,13 @@ TEST_F(DataPipeBytesConsumerTest, TwoPhaseRead) {
   ASSERT_EQ(mojo::CreateDataPipe(nullptr, producer_handle, consumer_handle),
             MOJO_RESULT_OK);
 
-  const std::string kData = "Such hospitality. I'm underwhelmed.";
-  uint32_t write_size = static_cast<uint32_t>(kData.size());
-
-  MojoResult rv = producer_handle->WriteData(kData.c_str(), &write_size,
-                                             MOJO_WRITE_DATA_FLAG_NONE);
+  const std::string_view kData = "Such hospitality. I'm underwhelmed.";
+  size_t actually_written_bytes = 0;
+  MojoResult rv = producer_handle->WriteData(base::as_byte_span(kData),
+                                             MOJO_WRITE_DATA_FLAG_NONE,
+                                             actually_written_bytes);
   ASSERT_EQ(MOJO_RESULT_OK, rv);
-  ASSERT_EQ(kData.size(), write_size);
+  ASSERT_EQ(kData.size(), actually_written_bytes);
 
   // Close the producer so the consumer will reach the kDone state after
   // completion is signaled below.
@@ -46,7 +49,7 @@ TEST_F(DataPipeBytesConsumerTest, TwoPhaseRead) {
   auto result = MakeGarbageCollected<BytesConsumerTestReader>(consumer)->Run(
       task_runner_.get());
   EXPECT_EQ(Result::kDone, result.first);
-  EXPECT_EQ(kData, String(result.second.data(), result.second.size()).Utf8());
+  EXPECT_EQ(kData, String(result.second).Utf8());
 }
 
 TEST_F(DataPipeBytesConsumerTest, TwoPhaseRead_SignalError) {
@@ -55,13 +58,13 @@ TEST_F(DataPipeBytesConsumerTest, TwoPhaseRead_SignalError) {
   ASSERT_EQ(mojo::CreateDataPipe(nullptr, producer_handle, consumer_handle),
             MOJO_RESULT_OK);
 
-  const std::string kData = "Such hospitality. I'm underwhelmed.";
-  uint32_t write_size = static_cast<uint32_t>(kData.size());
-
-  MojoResult rv = producer_handle->WriteData(kData.c_str(), &write_size,
-                                             MOJO_WRITE_DATA_FLAG_NONE);
+  const std::string_view kData = "Such hospitality. I'm underwhelmed.";
+  size_t actually_written_bytes = 0;
+  MojoResult rv = producer_handle->WriteData(base::as_byte_span(kData),
+                                             MOJO_WRITE_DATA_FLAG_NONE,
+                                             actually_written_bytes);
   ASSERT_EQ(MOJO_RESULT_OK, rv);
-  ASSERT_EQ(kData.size(), write_size);
+  ASSERT_EQ(kData.size(), actually_written_bytes);
 
   producer_handle.reset();
 
@@ -94,21 +97,19 @@ TEST_F(DataPipeBytesConsumerTest, EndOfPipeBeforeComplete) {
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   producer_handle.reset();
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
   notifier->SignalComplete();
   EXPECT_EQ(PublicState::kClosed, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kDone, rv);
 }
 
@@ -124,20 +125,18 @@ TEST_F(DataPipeBytesConsumerTest, CompleteBeforeEndOfPipe) {
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   notifier->SignalComplete();
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   producer_handle.reset();
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kDone, rv);
   EXPECT_EQ(PublicState::kClosed, consumer->GetPublicState());
 }
@@ -157,21 +156,19 @@ TEST_F(DataPipeBytesConsumerTest, EndOfPipeBeforeError) {
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   producer_handle.reset();
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
   notifier->SignalError(BytesConsumer::Error());
   EXPECT_EQ(PublicState::kErrored, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kError, rv);
 }
 
@@ -185,30 +182,29 @@ TEST_F(DataPipeBytesConsumerTest, SignalSizeBeforeRead) {
   DataPipeBytesConsumer* consumer = MakeGarbageCollected<DataPipeBytesConsumer>(
       task_runner_, std::move(readable), &notifier);
 
-  constexpr char kData[] = "hello";
-  uint32_t write_size = 5;
+  const std::string_view kData = "hello";
+  size_t actually_written_bytes = 0;
   MojoResult write_result =
-      writable->WriteData(kData, &write_size, MOJO_WRITE_DATA_FLAG_NONE);
+      writable->WriteData(base::as_byte_span(kData), MOJO_WRITE_DATA_FLAG_NONE,
+                          actually_written_bytes);
   ASSERT_EQ(MOJO_RESULT_OK, write_result);
-  ASSERT_EQ(5u, write_size);
+  ASSERT_EQ(5u, actually_written_bytes);
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
   notifier->SignalSize(5);
 
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kOk, rv);
-  EXPECT_EQ(available, 5u);
+  EXPECT_EQ(buffer.size(), 5u);
 
   rv = consumer->EndRead(2);
   ASSERT_EQ(Result::kOk, rv);
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kOk, rv);
-  EXPECT_EQ(available, 3u);
+  EXPECT_EQ(buffer.size(), 3u);
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
   rv = consumer->EndRead(3);
@@ -230,14 +226,13 @@ TEST_F(DataPipeBytesConsumerTest, SignalExcessSizeBeforeEndOfData) {
 
   notifier->SignalSize(1);
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kShouldWait, rv);
 
   writable.reset();
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kError, rv);
 
   EXPECT_EQ(PublicState::kErrored, consumer->GetPublicState());
@@ -257,14 +252,13 @@ TEST_F(DataPipeBytesConsumerTest, SignalExcessSizeAfterEndOfData) {
 
   writable.reset();
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kShouldWait, rv);
 
   notifier->SignalSize(1);
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kError, rv);
 
   EXPECT_EQ(PublicState::kErrored, consumer->GetPublicState());
@@ -281,21 +275,20 @@ TEST_F(DataPipeBytesConsumerTest, SignalSizeAfterRead) {
   DataPipeBytesConsumer* consumer = MakeGarbageCollected<DataPipeBytesConsumer>(
       task_runner_, std::move(readable), &notifier);
 
-  constexpr char kData[] = "hello";
-  uint32_t write_size = 5;
+  const std::string_view kData = "hello";
+  size_t actually_written_bytes = 0;
   MojoResult write_result =
-      writable->WriteData(kData, &write_size, MOJO_WRITE_DATA_FLAG_NONE);
+      writable->WriteData(base::as_byte_span(kData), MOJO_WRITE_DATA_FLAG_NONE,
+                          actually_written_bytes);
   ASSERT_EQ(MOJO_RESULT_OK, write_result);
-  ASSERT_EQ(5u, write_size);
+  ASSERT_EQ(5u, actually_written_bytes);
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   ASSERT_EQ(Result::kOk, rv);
-  EXPECT_EQ(available, 5u);
+  EXPECT_EQ(buffer.size(), 5u);
 
   rv = consumer->EndRead(5);
   ASSERT_EQ(Result::kOk, rv);
@@ -317,20 +310,18 @@ TEST_F(DataPipeBytesConsumerTest, ErrorBeforeEndOfPipe) {
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   notifier->SignalError(BytesConsumer::Error());
   EXPECT_EQ(PublicState::kErrored, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kError, rv);
 
   producer_handle.reset();
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kError, rv);
   EXPECT_EQ(PublicState::kErrored, consumer->GetPublicState());
 }
@@ -349,23 +340,21 @@ TEST_F(DataPipeBytesConsumerTest, DrainPipeBeforeComplete) {
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   mojo::ScopedDataPipeConsumerHandle drained = consumer->DrainAsDataPipe();
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
   notifier->SignalComplete();
   EXPECT_EQ(PublicState::kClosed, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kDone, rv);
 }
 
@@ -381,22 +370,20 @@ TEST_F(DataPipeBytesConsumerTest, CompleteBeforeDrainPipe) {
 
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-
-  Result rv = consumer->BeginRead(&buffer, &available);
+  base::span<const char> buffer;
+  Result rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   notifier->SignalComplete();
   EXPECT_EQ(PublicState::kReadableOrWaiting, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kShouldWait, rv);
 
   mojo::ScopedDataPipeConsumerHandle drained = consumer->DrainAsDataPipe();
   EXPECT_EQ(PublicState::kClosed, consumer->GetPublicState());
 
-  rv = consumer->BeginRead(&buffer, &available);
+  rv = consumer->BeginRead(buffer);
   EXPECT_EQ(Result::kDone, rv);
   EXPECT_EQ(PublicState::kClosed, consumer->GetPublicState());
 }

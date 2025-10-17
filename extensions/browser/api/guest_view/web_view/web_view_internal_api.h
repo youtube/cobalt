@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -16,12 +15,15 @@
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/guest_view/web_view/web_ui/web_ui_url_fetcher.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
+#include "extensions/browser/url_fetcher.h"
+
+class SkBitmap;
 
 namespace base {
 class TaskRunner;
 }
 
-// WARNING: WebViewInternal could be loaded in an unblessed context, thus any
+// WARNING: WebViewInternal could be loaded in an unprivileged context, thus any
 // new APIs must extend WebViewInternalExtensionFunction or
 // WebViewInternalExecuteCodeFunction which do a process ID check to prevent
 // abuse by normal renderer processes.
@@ -29,13 +31,16 @@ namespace extensions {
 
 class WebViewInternalExtensionFunction : public ExtensionFunction {
  public:
-  WebViewInternalExtensionFunction() {}
+  WebViewInternalExtensionFunction() = default;
 
  protected:
-  ~WebViewInternalExtensionFunction() override {}
+  ~WebViewInternalExtensionFunction() override = default;
   bool PreRunValidation(std::string* error) override;
 
-  raw_ptr<WebViewGuest, DanglingUntriaged> guest_ = nullptr;
+  WebViewGuest& GetGuest();
+
+ private:
+  int instance_id_ = 0;
 };
 
 class WebViewInternalCaptureVisibleRegionFunction
@@ -57,6 +62,7 @@ class WebViewInternalCaptureVisibleRegionFunction
   // ExtensionFunction:
   ResponseAction Run() override;
   void GetQuotaLimitHeuristics(QuotaLimitHeuristics* heuristics) const override;
+  bool ShouldSkipQuotaLimiting() const override;
 
  private:
   // extensions::WebContentsCaptureClient:
@@ -69,7 +75,7 @@ class WebViewInternalCaptureVisibleRegionFunction
   void EncodeBitmapOnWorkerThread(
       scoped_refptr<base::TaskRunner> reply_task_runner,
       const SkBitmap& bitmap);
-  void OnBitmapEncodedOnUIThread(bool success, std::string base64_result);
+  void OnBitmapEncodedOnUIThread(std::optional<std::string> base64_result);
 
   std::string GetErrorMessage(CaptureResult result);
 
@@ -98,6 +104,15 @@ class WebViewInternalNavigateFunction
 class WebViewInternalExecuteCodeFunction
     : public extensions::ExecuteCodeFunction {
  public:
+  // This is called when a file URL request is complete.
+  // Parameters:
+  // - whether the request is success.
+  // - If yes, the content of the file.
+  // This callback should match the associated LoadFileCallback types
+  // specified in WebUIURLFetcher and ControlledFrameEmbedderURLFetcher.
+  using LoadFileCallback =
+      base::OnceCallback<void(bool, std::unique_ptr<std::string>)>;
+
   WebViewInternalExecuteCodeFunction();
 
   WebViewInternalExecuteCodeFunction(
@@ -108,7 +123,7 @@ class WebViewInternalExecuteCodeFunction
  protected:
   ~WebViewInternalExecuteCodeFunction() override;
 
-  // Initialize |details_| if it hasn't already been.
+  // Initialize `details_` if it hasn't already been.
   InitResult Init() override;
   bool ShouldInsertCSS() const override;
   bool ShouldRemoveCSS() const override;
@@ -116,16 +131,17 @@ class WebViewInternalExecuteCodeFunction
   // Guarded by a process ID check.
   extensions::ScriptExecutor* GetScriptExecutor(std::string* error) final;
   bool IsWebView() const override;
+  int GetRootFrameId() const override;
   const GURL& GetWebViewSrc() const override;
   bool LoadFile(const std::string& file, std::string* error) override;
 
  private:
-  // Loads a file url on WebUI.
-  bool LoadFileForWebUI(const std::string& file_src,
-                        WebUIURLFetcher::WebUILoadFileCallback callback);
-  void DidLoadFileForWebUI(const std::string& file,
-                           bool success,
-                           std::unique_ptr<std::string> data);
+  // Loads a file url in embedders such as WebUI and Controlled Frame.
+  bool LoadFileForEmbedder(const std::string& file_src,
+                           LoadFileCallback callback);
+  void DidLoadFileForEmbedder(const std::string& file,
+                              bool success,
+                              std::unique_ptr<std::string> data);
 
   // Contains extension resource built from path of file which is
   // specified in JSON arguments.
@@ -135,7 +151,7 @@ class WebViewInternalExecuteCodeFunction
 
   GURL guest_src_;
 
-  std::unique_ptr<WebUIURLFetcher> url_fetcher_;
+  std::unique_ptr<URLFetcher> url_fetcher_;
 };
 
 class WebViewInternalExecuteScriptFunction

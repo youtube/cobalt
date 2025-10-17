@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 
 #include <stdint.h>
@@ -85,13 +90,12 @@ GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
   if (!shared_memory_region.IsValid())
     return gfx::GpuMemoryBufferHandle();
 
-  gfx::GpuMemoryBufferHandle handle;
+  gfx::GpuMemoryBufferHandle handle(std::move(shared_memory_region));
   handle.type = gfx::SHARED_MEMORY_BUFFER;
   handle.id = id;
   handle.offset = 0;
   handle.stride = static_cast<uint32_t>(
       gfx::RowSizeForBufferFormat(size.width(), format, 0));
-  handle.region = std::move(shared_memory_region);
   return handle;
 }
 
@@ -103,7 +107,7 @@ GpuMemoryBufferImplSharedMemory::CreateFromHandle(
     gfx::BufferFormat format,
     gfx::BufferUsage usage,
     DestructionCallback callback) {
-  DCHECK(handle.region.IsValid());
+  DCHECK(handle.region().IsValid());
 
   size_t minimum_stride = 0;
   if (!gfx::RowSizeForBufferFormatChecked(size.width(), format, 0,
@@ -140,14 +144,16 @@ GpuMemoryBufferImplSharedMemory::CreateFromHandle(
     return nullptr;
   }
 
-  if (min_buffer_size_with_offset > handle.region.GetSize()) {
+  if (min_buffer_size_with_offset > handle.region().GetSize()) {
     return nullptr;
   }
 
+  const gfx::GpuMemoryBufferId id = handle.id;
+  const uint32_t offset = handle.offset;
+  const uint32_t stride = handle.stride;
   return base::WrapUnique(new GpuMemoryBufferImplSharedMemory(
-      handle.id, size, format, usage, std::move(callback),
-      std::move(handle.region), base::WritableSharedMemoryMapping(),
-      handle.offset, handle.stride));
+      id, size, format, usage, std::move(callback), std::move(handle).region(),
+      base::WritableSharedMemoryMapping(), offset, stride));
 }
 
 // static
@@ -162,13 +168,13 @@ bool GpuMemoryBufferImplSharedMemory::IsUsageSupported(gfx::BufferUsage usage) {
     case gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE:
     case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
     case gfx::BufferUsage::SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::PROTECTED_SCANOUT:
     case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
     case gfx::BufferUsage::SCANOUT_VEA_CPU_READ:
     case gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE:
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -212,7 +218,6 @@ bool GpuMemoryBufferImplSharedMemory::IsSizeValidForFormat(
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -272,12 +277,10 @@ gfx::GpuMemoryBufferType GpuMemoryBufferImplSharedMemory::GetType() const {
 
 gfx::GpuMemoryBufferHandle GpuMemoryBufferImplSharedMemory::CloneHandle()
     const {
-  gfx::GpuMemoryBufferHandle handle;
-  handle.type = gfx::SHARED_MEMORY_BUFFER;
+  gfx::GpuMemoryBufferHandle handle(shared_memory_region_.Duplicate());
   handle.id = id_;
   handle.offset = offset_;
   handle.stride = stride_;
-  handle.region = shared_memory_region_.Duplicate();
   return handle;
 }
 

@@ -14,8 +14,6 @@
 #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 
-using testing::Mock;
-
 namespace blink {
 
 class CanvasRenderingAPIUkmMetricsTest : public PageTestBase {
@@ -26,7 +24,8 @@ class CanvasRenderingAPIUkmMetricsTest : public PageTestBase {
     PageTestBase::SetUp();
     GetDocument().documentElement()->setInnerHTML(
         "<body><canvas id='c'></canvas></body>");
-    canvas_element_ = To<HTMLCanvasElement>(GetDocument().getElementById("c"));
+    canvas_element_ =
+        To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
     UpdateAllLifecyclePhasesForTest();
   }
 
@@ -38,7 +37,7 @@ class CanvasRenderingAPIUkmMetricsTest : public PageTestBase {
     auto entries = recorder_.GetEntriesByName(
         ukm::builders::ClientRenderingAPI::kEntryName);
     EXPECT_EQ(1ul, entries.size());
-    auto* entry = entries[0];
+    auto* entry = entries[0].get();
     ukm::TestUkmRecorder::ExpectEntryMetric(
         entry, ukm::builders::ClientRenderingAPI::kCanvas_RenderingContextName,
         static_cast<int>(expected_value));

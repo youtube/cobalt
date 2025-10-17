@@ -8,13 +8,19 @@
 
 namespace blink {
 
-absl::optional<double> NumberPropertyFunctions::GetInitialNumber(
+std::optional<double> NumberPropertyFunctions::GetInitialNumber(
     const CSSProperty& property,
     const ComputedStyle& initial_style) {
   return GetNumber(property, initial_style);
 }
 
-absl::optional<double> NumberPropertyFunctions::GetNumber(
+std::optional<double> NumberPropertyFunctions::GetInitialPercentage(
+    const CSSProperty& property,
+    const ComputedStyle& initial_style) {
+  return GetPercentage(property, initial_style);
+}
+
+std::optional<double> NumberPropertyFunctions::GetNumber(
     const CSSProperty& property,
     const ComputedStyle& style) {
   switch (property.PropertyID()) {
@@ -32,6 +38,8 @@ absl::optional<double> NumberPropertyFunctions::GetNumber(
       return style.Order();
     case CSSPropertyID::kOrphans:
       return style.Orphans();
+    case CSSPropertyID::kReadingOrder:
+      return style.ReadingOrder();
     case CSSPropertyID::kShapeImageThreshold:
       return style.ShapeImageThreshold();
     case CSSPropertyID::kStopOpacity:
@@ -42,47 +50,56 @@ absl::optional<double> NumberPropertyFunctions::GetNumber(
       return style.StrokeOpacity();
     case CSSPropertyID::kWidows:
       return style.Widows();
-
-    case CSSPropertyID::kFontSizeAdjust:
-      if (!style.HasFontSizeAdjust())
-        return absl::optional<double>();
-      return style.FontSizeAdjust().Value();
     case CSSPropertyID::kColumnCount:
-      if (style.HasAutoColumnCount())
-        return absl::optional<double>();
+      if (style.HasAutoColumnCount()) {
+        return std::optional<double>();
+      }
       return style.ColumnCount();
     case CSSPropertyID::kZIndex:
-      if (style.HasAutoZIndex())
-        return absl::optional<double>();
+      if (style.HasAutoZIndex()) {
+        return std::optional<double>();
+      }
       return style.ZIndex();
-
-    case CSSPropertyID::kTextSizeAdjust: {
-      const TextSizeAdjust& text_size_adjust = style.GetTextSizeAdjust();
-      if (text_size_adjust.IsAuto())
-        return absl::optional<double>();
-      return text_size_adjust.Multiplier() * 100;
-    }
 
     case CSSPropertyID::kLineHeight: {
       const Length& length = style.SpecifiedLineHeight();
       // Numbers are represented by percentages.
-      if (!length.IsPercent())
-        return absl::optional<double>();
-      double value = length.Value();
+      if (!length.IsPercent()) {
+        return std::optional<double>();
+      }
+      double value = length.Percent();
       // -100% represents the keyword "normal".
-      if (value == -100)
-        return absl::optional<double>();
+      if (value == -100) {
+        return std::optional<double>();
+      }
       return value / 100;
     }
 
     case CSSPropertyID::kTabSize: {
-      if (!style.GetTabSize().IsSpaces())
-        return absl::nullopt;
+      if (!style.GetTabSize().IsSpaces()) {
+        return std::nullopt;
+      }
       return style.GetTabSize().float_value_;
     }
 
     default:
-      return absl::optional<double>();
+      return std::optional<double>();
+  }
+}
+
+std::optional<double> NumberPropertyFunctions::GetPercentage(
+    const CSSProperty& property,
+    const ComputedStyle& style) {
+  switch (property.PropertyID()) {
+    case CSSPropertyID::kTextSizeAdjust: {
+      const TextSizeAdjust& text_size_adjust = style.GetTextSizeAdjust();
+      if (text_size_adjust.IsAuto()) {
+        return std::optional<double>();
+      }
+      return text_size_adjust.Multiplier() * 100;
+    }
+    default:
+      return std::optional<double>();
   }
 }
 
@@ -100,14 +117,12 @@ double NumberPropertyFunctions::ClampNumber(const CSSProperty& property,
 
     case CSSPropertyID::kFillOpacity:
     case CSSPropertyID::kOpacity:
-      return ClampTo<float>(value, 0, nextafterf(1, 0));
+      return ClampTo<float>(value, 0, 1);
 
     case CSSPropertyID::kFlexGrow:
     case CSSPropertyID::kFlexShrink:
-    case CSSPropertyID::kFontSizeAdjust:
     case CSSPropertyID::kLineHeight:
     case CSSPropertyID::kTabSize:
-    case CSSPropertyID::kTextSizeAdjust:
       return ClampTo<float>(value, 0);
 
     case CSSPropertyID::kOrphans:
@@ -118,12 +133,23 @@ double NumberPropertyFunctions::ClampNumber(const CSSProperty& property,
       return ClampTo<uint16_t>(round(value), 1);
 
     case CSSPropertyID::kOrder:
+    case CSSPropertyID::kReadingOrder:
     case CSSPropertyID::kZIndex:
       return ClampTo<int>(RoundHalfTowardsPositiveInfinity(value));
 
     default:
       NOTREACHED();
-      return value;
+  }
+}
+
+double NumberPropertyFunctions::ClampPercentage(const CSSProperty& property,
+                                                double value) {
+  switch (property.PropertyID()) {
+    case CSSPropertyID::kLineHeight:
+    case CSSPropertyID::kTextSizeAdjust:
+      return ClampTo<float>(value, 0);
+    default:
+      NOTREACHED();
   }
 }
 
@@ -159,6 +185,9 @@ bool NumberPropertyFunctions::SetNumber(const CSSProperty& property,
     case CSSPropertyID::kOrphans:
       builder.SetOrphans(value);
       return true;
+    case CSSPropertyID::kReadingOrder:
+      builder.SetReadingOrder(value);
+      return true;
     case CSSPropertyID::kShapeImageThreshold:
       builder.SetShapeImageThreshold(value);
       return true;
@@ -174,14 +203,24 @@ bool NumberPropertyFunctions::SetNumber(const CSSProperty& property,
     case CSSPropertyID::kColumnCount:
       builder.SetColumnCount(value);
       return true;
-    case CSSPropertyID::kTextSizeAdjust:
-      builder.SetTextSizeAdjust(value / 100.);
-      return true;
     case CSSPropertyID::kWidows:
       builder.SetWidows(value);
       return true;
     case CSSPropertyID::kZIndex:
       builder.SetZIndex(value);
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool NumberPropertyFunctions::SetPercentage(const CSSProperty& property,
+                                            ComputedStyleBuilder& builder,
+                                            double value) {
+  DCHECK_EQ(value, ClampPercentage(property, value));
+  switch (property.PropertyID()) {
+    case CSSPropertyID::kTextSizeAdjust:
+      builder.SetTextSizeAdjust(value / 100.);
       return true;
     default:
       return false;

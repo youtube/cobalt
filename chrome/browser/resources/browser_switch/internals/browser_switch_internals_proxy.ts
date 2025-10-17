@@ -1,7 +1,7 @@
 // Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import '../strings.m.js';
+import '/strings.m.js';
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 
@@ -45,19 +45,19 @@ export interface BrowserSwitchInternalsProxy {
    */
   isBrowserSwitcherEnabled(): Promise<boolean>;
 
-  // TODO(crbug.com/1258133): Add documentation.
+  // TODO(crbug.com/40200942): Add documentation.
   getDecision(url: string): Promise<Decision>;
 
-  // TODO(crbug.com/1258133): Add documentation.
+  // TODO(crbug.com/40200942): Add documentation.
   getAllRulesets(): Promise<RuleSetList>;
 
-  // TODO(crbug.com/1258133): Add documentation.
+  // TODO(crbug.com/40200942): Add documentation.
   getTimestamps(): Promise<TimestampPair>;
 
-  // TODO(crbug.com/1258133): Add documentation.
+  // TODO(crbug.com/40200942): Add documentation.
   getRulesetSources(): Promise<RulesetSources>;
 
-  // TODO(crbug.com/1258133): Add documentation.
+  // TODO(crbug.com/40200942): Add documentation.
   refreshXml(): void;
 }
 

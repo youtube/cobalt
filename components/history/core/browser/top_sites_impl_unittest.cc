@@ -34,9 +34,8 @@
 #include "components/history/core/test/test_history_database.h"
 #include "components/history/core/test/wait_top_sites_loaded_observer.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "components/prefs/testing_pref_service.h"
+#include "components/search_engines/search_engines_test_environment.h"
 #include "components/search_engines/template_url.h"
-#include "components/search_engines/template_url_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -109,21 +108,20 @@ class TopSitesQuerier {
 
 class TopSitesImplTest : public HistoryUnitTestBase {
  public:
-  TopSitesImplTest() {}
+  TopSitesImplTest() = default;
 
   TopSitesImplTest(const TopSitesImplTest&) = delete;
   TopSitesImplTest& operator=(const TopSitesImplTest&) = delete;
 
   void SetUp() override {
     ASSERT_TRUE(scoped_temp_dir_.CreateUniqueTempDir());
-    pref_service_ = std::make_unique<TestingPrefServiceSimple>();
-    TopSitesImpl::RegisterPrefs(pref_service_->registry());
+    TopSitesImpl::RegisterPrefs(
+        search_engines_test_environment_.pref_service().registry());
     history_service_ = std::make_unique<HistoryService>(
         nullptr, std::unique_ptr<VisitDelegate>());
     ASSERT_TRUE(history_service_->Init(
         TestHistoryDatabaseParamsForPath(scoped_temp_dir_.GetPath())));
 
-    template_url_service_ = std::make_unique<TemplateURLService>(nullptr, 0);
     // Add the fallback default search provider to the TemplateURLService as the
     // user selected default provider so that it gets a valid unique identifier.
     auto* default_provider = template_url_service()->Add(
@@ -138,7 +136,6 @@ class TopSitesImplTest : public HistoryUnitTestBase {
     DestroyTopSites();
     history_service_->Shutdown();
     history_service_.reset();
-    pref_service_.reset();
   }
 
   // Forces top sites to load top sites from history, then recreates top sites.
@@ -161,7 +158,7 @@ class TopSitesImplTest : public HistoryUnitTestBase {
   HistoryService* history_service() { return history_service_.get(); }
 
   TemplateURLService* template_url_service() {
-    return template_url_service_.get();
+    return search_engines_test_environment_.template_url_service();
   }
 
   const TemplateURL* default_search_provider() {
@@ -254,8 +251,9 @@ class TopSitesImplTest : public HistoryUnitTestBase {
     prepopulated_pages.push_back(
         PrepopulatedPage(GURL(kPrepopulatedPageURL), std::u16string(), -1, 0));
     top_sites_impl_ = new TopSitesImpl(
-        pref_service_.get(), history_service_.get(), template_url_service(),
-        prepopulated_pages, base::BindRepeating(MockCanAddURLToHistory));
+        &search_engines_test_environment_.pref_service(),
+        history_service_.get(), template_url_service(), prepopulated_pages,
+        base::BindRepeating(MockCanAddURLToHistory));
     top_sites_impl_->Init(scoped_temp_dir_.GetPath().Append(kTopSitesFilename));
   }
 
@@ -279,9 +277,8 @@ class TopSitesImplTest : public HistoryUnitTestBase {
 
   base::ScopedTempDir scoped_temp_dir_;
 
-  std::unique_ptr<TestingPrefServiceSimple> pref_service_;
+  search_engines::SearchEnginesTestEnvironment search_engines_test_environment_;
   std::unique_ptr<HistoryService> history_service_;
-  std::unique_ptr<TemplateURLService> template_url_service_;
   scoped_refptr<TopSitesImpl> top_sites_impl_;
 
   // To cancel HistoryService tasks.
@@ -293,7 +290,7 @@ class TopSitesImplTest : public HistoryUnitTestBase {
 
 class MockTopSitesObserver : public TopSitesObserver {
  public:
-  MockTopSitesObserver() {}
+  MockTopSitesObserver() = default;
 
   MockTopSitesObserver(const MockTopSitesObserver&) = delete;
   MockTopSitesObserver& operator=(const MockTopSitesObserver&) = delete;
@@ -436,23 +433,29 @@ TEST_F(TopSitesImplTest, GetMostVisitedURLsAndQueries) {
 
     ASSERT_EQ(1, querier.number_of_callbacks());
 
-    // 2 top sites + 2 prepopulated URLs.
-    // Note that even with the repeatable queries feature disabled, up to 1
-    // search results page URL may be shown in the top sites.
-    ASSERT_EQ(2u + GetPrepopulatedPages().size(), querier.urls().size());
-    ASSERT_NO_FATAL_FAILURE(ContainsPrepopulatePages(querier, 2));
-    EXPECT_EQ(srp_2, querier.urls()[0].url);
-    EXPECT_EQ(news, querier.urls()[1].url);
+    // 1 top site + 2 prepopulated URLs.
+    // Note that search results page URLs are filtered out from the top sites.
+    ASSERT_EQ(1u + GetPrepopulatedPages().size(), querier.urls().size());
+    ASSERT_NO_FATAL_FAILURE(ContainsPrepopulatePages(querier, 1));
+    EXPECT_EQ(news, querier.urls()[0].url);
 
     histogram_tester.ExpectTotalCount("History.TopSites.QueryFromHistoryTime",
                                       1);
-    histogram_tester.ExpectTotalCount("History.QueryMostVisitedURLsTime", 1);
     histogram_tester.ExpectTotalCount("History.QueryMostRepeatedQueriesTimeV2",
                                       0);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.0.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.1.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.2.Local", 0);
   }
   {
     base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(kOrganicRepeatableQueries);
+    feature_list.InitAndEnableFeatureWithParameters(
+        kOrganicRepeatableQueries,
+        {{kRepeatableQueriesIgnoreDuplicateVisits.name, "false"},
+         {kRepeatableQueriesMinVisitCount.name, "1"}});
     base::HistogramTester histogram_tester;
 
     RefreshTopSitesAndRecreate();
@@ -472,15 +475,22 @@ TEST_F(TopSitesImplTest, GetMostVisitedURLsAndQueries) {
 
     histogram_tester.ExpectTotalCount("History.TopSites.QueryFromHistoryTime",
                                       1);
-    histogram_tester.ExpectTotalCount("History.QueryMostVisitedURLsTime", 1);
     histogram_tester.ExpectTotalCount("History.QueryMostRepeatedQueriesTimeV2",
                                       1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.0.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.1.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.2.Local", 0);
   }
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndEnableFeatureWithParameters(
         kOrganicRepeatableQueries,
-        {{kPrivilegeRepeatableQueries.name, "true"}});
+        {{kPrivilegeRepeatableQueries.name, "true"},
+         {kRepeatableQueriesIgnoreDuplicateVisits.name, "false"},
+         {kRepeatableQueriesMinVisitCount.name, "1"}});
     base::HistogramTester histogram_tester;
 
     RefreshTopSitesAndRecreate();
@@ -499,15 +509,23 @@ TEST_F(TopSitesImplTest, GetMostVisitedURLsAndQueries) {
 
     histogram_tester.ExpectTotalCount("History.TopSites.QueryFromHistoryTime",
                                       1);
-    histogram_tester.ExpectTotalCount("History.QueryMostVisitedURLsTime", 1);
     histogram_tester.ExpectTotalCount("History.QueryMostRepeatedQueriesTimeV2",
                                       1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.0.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.1.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.2.Local", 0);
   }
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndEnableFeatureWithParameters(
-        kOrganicRepeatableQueries, {{kPrivilegeRepeatableQueries.name, "true"},
-                                    {kMaxNumRepeatableQueries.name, "1"}});
+        kOrganicRepeatableQueries,
+        {{kPrivilegeRepeatableQueries.name, "true"},
+         {kMaxNumRepeatableQueries.name, "1"},
+         {kRepeatableQueriesIgnoreDuplicateVisits.name, "false"},
+         {kRepeatableQueriesMinVisitCount.name, "1"}});
     base::HistogramTester histogram_tester;
 
     RefreshTopSitesAndRecreate();
@@ -525,9 +543,14 @@ TEST_F(TopSitesImplTest, GetMostVisitedURLsAndQueries) {
 
     histogram_tester.ExpectTotalCount("History.TopSites.QueryFromHistoryTime",
                                       1);
-    histogram_tester.ExpectTotalCount("History.QueryMostVisitedURLsTime", 1);
     histogram_tester.ExpectTotalCount("History.QueryMostRepeatedQueriesTimeV2",
                                       1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.0.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.1.Local", 1);
+    histogram_tester.ExpectTotalCount(
+        "NewTabPage.MostVisited.DeciScore.2.Local", 0);
   }
 }
 

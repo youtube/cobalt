@@ -6,17 +6,22 @@ package org.chromium.chrome.browser.download;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Denotes a given option for directory selection; includes name, location, and space.
- */
+/** Denotes a given option for directory selection; includes name, location, and space. */
+@NullMarked
 public class DirectoryOption {
     // Type to track user's selection of directory option. This enum is used in histogram and must
     // match DownloadLocationDirectoryType in enums.xml, so don't delete or reuse values.
-    @IntDef({DownloadLocationDirectoryType.DEFAULT, DownloadLocationDirectoryType.ADDITIONAL,
-            DownloadLocationDirectoryType.ERROR})
+    @IntDef({
+        DownloadLocationDirectoryType.DEFAULT,
+        DownloadLocationDirectoryType.ADDITIONAL,
+        DownloadLocationDirectoryType.ERROR
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface DownloadLocationDirectoryType {
         int DEFAULT = 0;
@@ -26,38 +31,35 @@ public class DirectoryOption {
         int NUM_ENTRIES = 3;
     }
 
-    /**
-     * Name of the current download directory.
-     */
-    public String name;
+    /** Name of the current download directory. */
+    public @Nullable String name;
 
-    /**
-     * The absolute path of the download location.
-     */
-    public final String location;
+    /** The absolute path of the download location. */
+    public final @Nullable String location;
 
-    /**
-     * The available space in this download directory.
-     */
+    /** The available space in this download directory. */
     public final long availableSpace;
 
-    /**
-     * The total disk space of the partition.
-     */
+    /** The total disk space of the partition. */
     public final long totalSpace;
 
-    /**
-     * The type of the directory option.
-     */
+    /** The type of the directory option. */
     public final @DownloadLocationDirectoryType int type;
 
-    public DirectoryOption(String name, String location, long availableSpace, long totalSpace,
+    public DirectoryOption(
+            @Nullable String name,
+            @Nullable String location,
+            long availableSpace,
+            long totalSpace,
             @DownloadLocationDirectoryType int type) {
         this(location, availableSpace, totalSpace, type);
         this.name = name;
     }
 
-    public DirectoryOption(String location, long availableSpace, long totalSpace,
+    public DirectoryOption(
+            @Nullable String location,
+            long availableSpace,
+            long totalSpace,
             @DownloadLocationDirectoryType int type) {
         this.location = location;
         this.availableSpace = availableSpace;
@@ -67,8 +69,9 @@ public class DirectoryOption {
 
     @Override
     public Object clone() {
-        DirectoryOption directoryOption = new DirectoryOption(
-                this.name, this.location, this.availableSpace, this.totalSpace, this.type);
+        DirectoryOption directoryOption =
+                new DirectoryOption(
+                        this.name, this.location, this.availableSpace, this.totalSpace, this.type);
         return directoryOption;
     }
 }

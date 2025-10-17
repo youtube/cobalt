@@ -67,12 +67,17 @@ class VKMSTest : public testing::Test {
     }
 
     base::RunLoop run_loop;
-    auto callback = base::BindLambdaForTesting([&run_loop](bool success) {
-      EXPECT_TRUE(success) << "Unable to set up displays.";
-      run_loop.Quit();
-    });
-    drm_device_->ConfigureNativeDisplays(
-        params, display::kTestModeset | display::kCommitModeset, callback);
+    auto callback = base::BindLambdaForTesting(
+        [&run_loop](const std::vector<display::DisplayConfigurationParams>&
+                        request_results,
+                    bool success) {
+          EXPECT_TRUE(success) << "Unable to set up displays.";
+          run_loop.Quit();
+        });
+    drm_device_->ConfigureNativeDisplays(params,
+                                         {display::ModesetFlag::kTestModeset,
+                                          display::ModesetFlag::kCommitModeset},
+                                         callback);
     run_loop.Run();
 
     return RefreshDisplays();
@@ -133,8 +138,9 @@ TEST_F(VKMSTest, SinglePlanePageFlip) {
       /*flags=*/0, &buffer, &framebuffer);
 
   auto planes = std::vector<ui::DrmOverlayPlane>();
-  planes.emplace_back(framebuffer,
-                      std::make_unique<gfx::GpuFence>(gfx::GpuFenceHandle()));
+  planes.push_back(ui::DrmOverlayPlane::TestPlane(
+      framebuffer, gfx::ColorSpace::CreateSRGB(),
+      std::make_unique<gfx::GpuFence>(gfx::GpuFenceHandle())));
 
   base::RunLoop run_loop;
   auto submission_callback =

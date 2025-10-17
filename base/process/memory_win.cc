@@ -4,37 +4,18 @@
 
 #include "base/process/memory.h"
 
+#include "partition_alloc/buildflags.h"
+
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+#include "partition_alloc/shim/allocator_shim.h"
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+
 #include <windows.h>  // Must be in front of other Windows header files.
 
 #include <new.h>
 #include <psapi.h>
 #include <stddef.h>
 #include <stdlib.h>
-
-#if defined(__clang__)
-// This global constructor is trivial and non-racy (per being const).
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wglobal-constructors"
-#endif
-
-// malloc_unchecked is required to implement UncheckedMalloc properly.
-// It's provided by allocator_shim_win.cc but since that's not always present,
-// we provide a default that falls back to regular malloc.
-typedef void* (*MallocFn)(size_t);
-extern "C" void* (*const malloc_unchecked)(size_t);
-extern "C" void* (*const malloc_default)(size_t) = &malloc;
-
-#if defined(__clang__)
-#pragma clang diagnostic pop  // -Wglobal-constructors
-#endif
-
-#if defined(_M_IX86)
-#pragma comment(linker, "/alternatename:_malloc_unchecked=_malloc_default")
-#elif defined(_M_X64) || defined(_M_ARM) || defined(_M_ARM64)
-#pragma comment(linker, "/alternatename:malloc_unchecked=malloc_default")
-#else
-#error Unsupported platform
-#endif
 
 namespace base {
 
@@ -43,10 +24,10 @@ namespace {
 // Return a non-0 value to retry the allocation.
 int ReleaseReservationOrTerminate(size_t size) {
   constexpr int kRetryAllocation = 1;
-  if (internal::ReleaseAddressSpaceReservation())
+  if (internal::ReleaseAddressSpaceReservation()) {
     return kRetryAllocation;
+  }
   TerminateBecauseOutOfMemory(size);
-  return 0;
 }
 
 }  // namespace
@@ -62,14 +43,24 @@ void EnableTerminationOnOutOfMemory() {
   _set_new_mode(kCallNewHandlerOnAllocationFailure);
 }
 
-// Implemented using a weak symbol.
 bool UncheckedMalloc(size_t size, void** result) {
-  *result = malloc_unchecked(size);
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+  *result = allocator_shim::UncheckedAlloc(size);
+#else
+  // malloc_unchecked is required to implement UncheckedMalloc properly.
+  // It's provided by allocator_shim_win.cc but since that's not always present,
+  // In the case, use regular malloc instead.
+  *result = malloc(size);
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   return *result != NULL;
 }
 
 void UncheckedFree(void* ptr) {
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+  allocator_shim::UncheckedFree(ptr);
+#else
   free(ptr);
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 }
 
 }  // namespace base

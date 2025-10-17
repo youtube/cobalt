@@ -7,26 +7,35 @@
 #include <set>
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/clock.h"
+#include "base/trace_event/trace_event.h"
 #include "components/reading_list/core/reading_list_model_impl.h"
+#include "components/sync/base/data_type_histogram.h"
+#include "components/sync/base/deletion_origin.h"
+#include "components/sync/model/data_type_local_change_processor.h"
+#include "components/sync/model/data_type_store.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"
-#include "components/sync/model/model_type_change_processor.h"
-#include "components/sync/model/model_type_store.h"
 #include "components/sync/model/mutable_data_batch.h"
-#include "components/sync/protocol/model_type_state.pb.h"
+#include "components/sync/protocol/data_type_state.pb.h"
+#include "components/sync/protocol/data_type_state_helper.h"
 
 ReadingListSyncBridge::ReadingListSyncBridge(
     syncer::StorageType storage_type,
+    syncer::WipeModelUponSyncDisabledBehavior
+        wipe_model_upon_sync_disabled_behavior,
     base::Clock* clock,
-    std::unique_ptr<syncer::ModelTypeChangeProcessor> change_processor)
-    : ModelTypeSyncBridge(std::move(change_processor)),
-      storage_type_(storage_type),
-      clock_(clock) {}
+    std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor)
+    : DataTypeSyncBridge(std::move(change_processor)),
+      storage_type_for_uma_(storage_type),
+      clock_(clock),
+      wipe_model_upon_sync_disabled_behavior_(
+          wipe_model_upon_sync_disabled_behavior) {}
 
 ReadingListSyncBridge::~ReadingListSyncBridge() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -35,11 +44,13 @@ ReadingListSyncBridge::~ReadingListSyncBridge() {
 void ReadingListSyncBridge::ModelReadyToSync(
     ReadingListModelImpl* model,
     std::unique_ptr<syncer::MetadataBatch> sync_metadata_batch) {
+  TRACE_EVENT0("ui", "ReadingListSyncBridge::ModelReadyToSync");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(model);
   DCHECK(!model_);
 
   model_ = model;
+
   change_processor()->ModelReadyToSync(std::move(sync_metadata_batch));
 }
 
@@ -70,6 +81,7 @@ void ReadingListSyncBridge::DidAddOrUpdateEntry(
 
 void ReadingListSyncBridge::DidRemoveEntry(
     const ReadingListEntry& entry,
+    const base::Location& location,
     syncer::MetadataChangeList* metadata_change_list) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -77,7 +89,23 @@ void ReadingListSyncBridge::DidRemoveEntry(
     return;
   }
 
-  change_processor()->Delete(entry.URL().spec(), metadata_change_list);
+  change_processor()->Delete(entry.URL().spec(),
+                             syncer::DeletionOrigin::FromLocation(location),
+                             metadata_change_list);
+}
+
+// IsTrackingMetadata() continues to be true while ApplyDisableSyncChanges() is
+// running, but transitions to false immediately afterwards.
+// ongoing_apply_disable_sync_changes_ is used to cause IsTrackingMetadata()
+// return false slightly earlier, and before related observer notifications are
+// triggered.
+bool ReadingListSyncBridge::IsTrackingMetadata() const {
+  return !ongoing_apply_disable_sync_changes_ &&
+         change_processor()->IsTrackingMetadata();
+}
+
+syncer::StorageType ReadingListSyncBridge::GetStorageTypeForUma() const {
+  return storage_type_for_uma_;
 }
 
 std::unique_ptr<syncer::MetadataChangeList>
@@ -93,11 +121,11 @@ ReadingListSyncBridge::CreateMetadataChangeList() {
 // key. Any local pieces of data that are not present in sync should immediately
 // be Put(...) to the processor before returning. The same MetadataChangeList
 // that was passed into this function can be passed to Put(...) calls.
-// Delete(...) can also be called but should not be needed for most model types.
+// Delete(...) can also be called but should not be needed for most data types.
 // Durable storage writes, if not able to combine all change atomically, should
 // save the metadata after the data changes, so that this merge will be re-
 // driven by sync if is not completely saved during the current run.
-absl::optional<syncer::ModelError> ReadingListSyncBridge::MergeFullSyncData(
+std::optional<syncer::ModelError> ReadingListSyncBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
     syncer::EntityChangeList entity_changes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -125,7 +153,7 @@ absl::optional<syncer::ModelError> ReadingListSyncBridge::MergeFullSyncData(
         model_->GetEntryByURL(entry->URL());
 
     if (!existing_entry) {
-      model_->SyncAddEntry(std::move(entry));
+      model_->AddEntry(std::move(entry), reading_list::ADDED_VIA_SYNC);
     } else {
       ReadingListEntry* merged_entry = model_->SyncMergeEntry(std::move(entry));
 
@@ -179,7 +207,7 @@ absl::optional<syncer::ModelError> ReadingListSyncBridge::MergeFullSyncData(
 // |metadata_change_list| in case when some of the data changes are filtered
 // out, or even be empty in case when a commit confirmation is processed and
 // only the metadata needs to persisted.
-absl::optional<syncer::ModelError>
+std::optional<syncer::ModelError>
 ReadingListSyncBridge::ApplyIncrementalSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
     syncer::EntityChangeList entity_changes) {
@@ -199,6 +227,7 @@ ReadingListSyncBridge::ApplyIncrementalSyncChanges(
 
       // The specifics validity is guaranteed by IsEntityDataValid().
       CHECK(ReadingListEntry::IsSpecificsValid(specifics));
+
       scoped_refptr<ReadingListEntry> entry(
           ReadingListEntry::FromReadingListValidSpecifics(specifics,
                                                           clock_->Now()));
@@ -207,7 +236,7 @@ ReadingListSyncBridge::ApplyIncrementalSyncChanges(
           model_->GetEntryByURL(entry->URL());
 
       if (!existing_entry) {
-        model_->SyncAddEntry(std::move(entry));
+        model_->AddEntry(std::move(entry), reading_list::ADDED_VIA_SYNC);
       } else {
         // Merge the local data and the sync data and store the result.
         model_->SyncMergeEntry(std::move(entry));
@@ -227,8 +256,8 @@ ReadingListSyncBridge::ApplyIncrementalSyncChanges(
   return {};
 }
 
-void ReadingListSyncBridge::GetData(StorageKeyList storage_keys,
-                                    DataCallback callback) {
+std::unique_ptr<syncer::DataBatch> ReadingListSyncBridge::GetDataForCommit(
+    StorageKeyList storage_keys) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto batch = std::make_unique<syncer::MutableDataBatch>();
   for (const std::string& url_string : storage_keys) {
@@ -239,10 +268,11 @@ void ReadingListSyncBridge::GetData(StorageKeyList storage_keys,
     }
   }
 
-  std::move(callback).Run(std::move(batch));
+  return batch;
 }
 
-void ReadingListSyncBridge::GetAllDataForDebugging(DataCallback callback) {
+std::unique_ptr<syncer::DataBatch>
+ReadingListSyncBridge::GetAllDataForDebugging() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto batch = std::make_unique<syncer::MutableDataBatch>();
 
@@ -252,7 +282,7 @@ void ReadingListSyncBridge::GetAllDataForDebugging(DataCallback callback) {
     AddEntryToBatch(batch.get(), *entry);
   }
 
-  std::move(callback).Run(std::move(batch));
+  return batch;
 }
 
 void ReadingListSyncBridge::AddEntryToBatch(syncer::MutableDataBatch* batch,
@@ -269,26 +299,30 @@ void ReadingListSyncBridge::AddEntryToBatch(syncer::MutableDataBatch* batch,
 }
 
 std::string ReadingListSyncBridge::GetClientTag(
-    const syncer::EntityData& entity_data) {
+    const syncer::EntityData& entity_data) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetStorageKey(entity_data);
 }
 
 std::string ReadingListSyncBridge::GetStorageKey(
-    const syncer::EntityData& entity_data) {
+    const syncer::EntityData& entity_data) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return entity_data.specifics.reading_list().entry_id();
 }
 
 void ReadingListSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
-  switch (storage_type_) {
-    case syncer::StorageType::kUnspecified:
-      // Fall back to the default behavior.
-      ModelTypeSyncBridge::ApplyDisableSyncChanges(
+  base::AutoReset<bool> auto_reset_is_sync_stopping(
+      &ongoing_apply_disable_sync_changes_, true);
+  switch (wipe_model_upon_sync_disabled_behavior_) {
+    case syncer::WipeModelUponSyncDisabledBehavior::kNever:
+      CHECK_EQ(storage_type_for_uma_, syncer::StorageType::kUnspecified);
+      // Fall back to the default behavior (delete metadata only).
+      DataTypeSyncBridge::ApplyDisableSyncChanges(
           std::move(delete_metadata_change_list));
       break;
-    case syncer::StorageType::kAccount:
+    case syncer::WipeModelUponSyncDisabledBehavior::kAlways:
+      CHECK_EQ(storage_type_for_uma_, syncer::StorageType::kAccount);
       // For account storage, in addition to sync metadata deletion (which
       // |delete_metadata_change_list| represents), the actual reading list
       // entries need to be deleted. This function does both and is even
@@ -300,7 +334,7 @@ void ReadingListSyncBridge::ApplyDisableSyncChanges(
 
 bool ReadingListSyncBridge::IsEntityDataValid(
     const syncer::EntityData& entity_data) const {
-  CHECK(entity_data.specifics.ByteSize() != 0);
+  CHECK(entity_data.specifics.ByteSizeLong() != 0);
 
   return ReadingListEntry::IsSpecificsValid(
       entity_data.specifics.reading_list());

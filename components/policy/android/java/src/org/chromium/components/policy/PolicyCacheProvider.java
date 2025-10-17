@@ -4,15 +4,22 @@
 
 package org.chromium.components.policy;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.os.Bundle;
+
+import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.Map;
 
-/**
- * {@link PolicyProvider} based on values from {@link PolicyCache}.
- */
+/** {@link PolicyProvider} based on values from {@link PolicyCache}. */
+@NullMarked
 public class PolicyCacheProvider extends PolicyProvider {
-    private Bundle mSettings;
+    private static final String TAG = "PolicyCacheProvider";
+
+    private @Nullable Bundle mSettings;
 
     @Override
     public void refresh() {
@@ -23,7 +30,8 @@ public class PolicyCacheProvider extends PolicyProvider {
             return;
         }
         Bundle settings = new Bundle();
-        for (Map.Entry<String, ?> entry : PolicyCache.get().getAllPolicies().entrySet()) {
+        for (Map.Entry<String, ?> entry :
+                assumeNonNull(PolicyCache.get().getAllPolicies()).entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
             if (value instanceof Integer) {
@@ -44,6 +52,17 @@ public class PolicyCacheProvider extends PolicyProvider {
             assert false : "Invalid policy type from cache";
         }
         mSettings = settings;
-        notifySettingsAvailable(settings);
+        Log.i(TAG, "#refresh() " + mSettings.isEmpty());
+        if (!mSettings.isEmpty()) {
+            // There's a trade off between Java code correctness and native code correctness here.
+            // The native code assumes that policies are ready immediately and does not wait. So
+            // this class attempts to get cached polices to native as fast as possible to improve
+            // correctness. However this decreases Java code correctness, as now the PolicyService
+            // claims to be initialized before real app restrictions are applied. When the settings
+            // are empty, there's no point in pushing these to native. And it's possible we're in a
+            // first run scenario where there are no cached values and sending an early init signal
+            // breaks certain policies.
+            notifySettingsAvailable(settings);
+        }
     }
 }

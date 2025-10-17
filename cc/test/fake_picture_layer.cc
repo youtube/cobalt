@@ -7,18 +7,12 @@
 #include <utility>
 
 #include "cc/test/fake_picture_layer_impl.h"
+#include "cc/test/fake_raster_source.h"
 
 namespace cc {
 
 FakePictureLayer::FakePictureLayer(ContentLayerClient* client)
     : PictureLayer(client) {
-  SetBounds(gfx::Size(1, 1));
-  SetIsDrawable(true);
-}
-
-FakePictureLayer::FakePictureLayer(ContentLayerClient* client,
-                                   std::unique_ptr<RecordingSource> source)
-    : PictureLayer(client, std::move(source)) {
   SetBounds(gfx::Size(1, 1));
   SetIsDrawable(true);
 }
@@ -39,6 +33,18 @@ bool FakePictureLayer::Update() {
   bool updated = PictureLayer::Update();
   update_count_++;
   return updated || always_update_resources_;
+}
+
+bool FakePictureLayer::RequiresSetNeedsDisplayOnHdrHeadroomChange() const {
+  return reraster_on_hdr_change_;
+}
+
+scoped_refptr<RasterSource> FakePictureLayer::CreateRasterSource() const {
+  if (playback_allowed_event_) {
+    return FakeRasterSource::CreateFromRecordingSourceWithWaitable(
+        GetRecordingSourceForTesting(), playback_allowed_event_);
+  }
+  return PictureLayer::CreateRasterSource();
 }
 
 }  // namespace cc

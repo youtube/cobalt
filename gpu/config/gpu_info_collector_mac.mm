@@ -4,15 +4,13 @@
 
 #include "gpu/config/gpu_info_collector.h"
 
-#include "base/mac/scoped_nsobject.h"
+#import <Metal/Metal.h>
+
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
-#include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_utils.h"
-
-#import <Metal/Metal.h>
 
 namespace gpu {
 
@@ -28,7 +26,22 @@ enum class MetalReadWriteTextureSupportTier {
   kMaxValue = kTier2_AdditionalFormats,
 };
 
-void RecordReadWriteMetalTexturesSupportedHistogram() {
+// The enums is used for an UMA histogram so we should never reorder entries or
+// remove unused values.
+enum class MetalFamilyMac {
+  kMac1 = 0,
+  kMac2 = 1,
+  kMaxValue = kMac2,
+};
+
+MetalFamilyMac GetMetalFamilyMac(id<MTLDevice> device) {
+  if ([device supportsFamily:MTLGPUFamilyMac2]) {
+    return MetalFamilyMac::kMac2;
+  }
+  return MetalFamilyMac::kMac1;
+}
+
+void RecordHistograms() {
   // Metal tiers are `MTLReadWriteTextureTier[None|1|2]` which correspond to the
   // integers 0, 1, and 2. The enum `MetalReadWriteTextureSupportTier` was
   // written to use integers one higher than the macOS API constants so that it
@@ -37,9 +50,11 @@ void RecordReadWriteMetalTexturesSupportedHistogram() {
   // perhaps when running in an environment like VMWare?
   NSUInteger best_tier = 0;
 
-  base::scoped_nsobject<NSArray<id<MTLDevice>>> devices(MTLCopyAllDevices());
-  for (id<MTLDevice> device in devices.get()) {
-    best_tier = std::max(best_tier, [device readWriteTextureSupport] + 1);
+  NSArray<id<MTLDevice>>* devices = MTLCopyAllDevices();
+  for (id<MTLDevice> device in devices) {
+    best_tier = std::max(best_tier, device.readWriteTextureSupport + 1);
+
+    UMA_HISTOGRAM_ENUMERATION("Gpu.Metal.FamilyMac", GetMetalFamilyMac(device));
   }
 
   UMA_HISTOGRAM_ENUMERATION(
@@ -69,10 +84,7 @@ bool CollectContextGraphicsInfo(GPUInfo* gpu_info) {
 
   TRACE_EVENT0("gpu", "gpu_info_collector::CollectGraphicsInfo");
 
-  gpu_info->macos_specific_texture_target =
-      gpu::GetPlatformSpecificTextureTarget();
-
-  RecordReadWriteMetalTexturesSupportedHistogram();
+  RecordHistograms();
 
   return CollectGraphicsInfoGL(gpu_info, gl::GetDefaultDisplayEGL());
 }

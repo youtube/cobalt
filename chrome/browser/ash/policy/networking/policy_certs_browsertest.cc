@@ -19,21 +19,18 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/helper.h"
 #include "chrome/browser/ash/login/startup_utils.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/login_or_lock_screen_visible_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
 #include "chrome/browser/ash/policy/login/login_policy_test_base.h"
 #include "chrome/browser/ash/policy/login/signin_profile_extensions_policy_test_base.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/net/nss_service.h"
@@ -42,6 +39,7 @@
 #include "chrome/browser/policy/networking/user_network_configuration_updater_factory.h"
 #include "chrome/browser/policy/profile_policy_connector_builder.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
@@ -51,6 +49,7 @@
 #include "chromeos/ash/components/network/onc/onc_certificate_importer.h"
 #include "chromeos/ash/components/network/onc/onc_certificate_importer_impl.h"
 #include "chromeos/ash/components/network/policy_certificate_provider.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/components/onc/onc_test_utils.h"
 #include "chromeos/test/chromeos_test_utils.h"
 #include "components/onc/onc_constants.h"
@@ -71,7 +70,6 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "crypto/scoped_test_nss_db.h"
-#include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/test_extension_registry_observer.h"
@@ -136,17 +134,17 @@ class WebTrustedCertsChangedObserver
   base::RunLoop run_loop_;
 };
 
-// Allows waiting until the |CertDatabase| notifies its observers that it has
-// changd.
+// Allows waiting until the |CertDatabase| notifies its observers that a client
+// cert change has occurred.
 class CertDatabaseChangedObserver : public net::CertDatabase::Observer {
  public:
-  CertDatabaseChangedObserver() {}
+  CertDatabaseChangedObserver() = default;
 
   CertDatabaseChangedObserver(const CertDatabaseChangedObserver&) = delete;
   CertDatabaseChangedObserver& operator=(const CertDatabaseChangedObserver&) =
       delete;
 
-  void OnCertDBChanged() override { run_loop_.Quit(); }
+  void OnClientCertStoreChanged() override { run_loop_.Quit(); }
 
   void Wait() { run_loop_.Run(); }
 
@@ -306,8 +304,9 @@ int VerifyTestServerCert(
 bool HasSubjectCommonName(CERTCertificate* cert_handle,
                           const std::string& subject_common_name) {
   char* nss_text = CERT_GetCommonName(&cert_handle->subject);
-  if (!nss_text)
+  if (!nss_text) {
     return false;
+  }
 
   const bool result = subject_common_name == nss_text;
   PORT_Free(nss_text);
@@ -422,10 +421,9 @@ class PolicyProvidedCertsDeviceLocalAccountTest
 
   ash::EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
 
-  const AccountId device_local_account_id_ =
-      AccountId::FromUserEmail(GenerateDeviceLocalAccountUserId(
-          kDeviceLocalAccountId,
-          DeviceLocalAccount::TYPE_PUBLIC_SESSION));
+  const AccountId device_local_account_id_ = AccountId::FromUserEmail(
+      GenerateDeviceLocalAccountUserId(kDeviceLocalAccountId,
+                                       DeviceLocalAccountType::kPublicSession));
 
   MockConfigurationPolicyProvider user_policy_provider_;
   UserPolicyCertsHelper user_policy_certs_helper_;
@@ -463,7 +461,7 @@ class PolicyProvidedCertsPublicSessionTest
     // Login into the public session.
     auto* controller = ash::ExistingUserController::current_controller();
     ASSERT_TRUE(controller);
-    ash::UserContext user_context(user_manager::USER_TYPE_PUBLIC_ACCOUNT,
+    ash::UserContext user_context(user_manager::UserType::kPublicAccount,
                                   device_local_account_id_);
     controller->Login(user_context, ash::SigninSpecifics());
   }
@@ -496,7 +494,7 @@ class PolicyProvidedCertsOnUserSessionInitTest : public LoginPolicyTestBase {
       const PolicyProvidedCertsOnUserSessionInitTest&) = delete;
 
  protected:
-  PolicyProvidedCertsOnUserSessionInitTest() {}
+  PolicyProvidedCertsOnUserSessionInitTest() = default;
 
   void GetPolicySettings(em::CloudPolicySettings* policy) const override {
     std::string user_policy_blob = GetTestCertsFileContents(kRootCaCertOnc);
@@ -533,8 +531,8 @@ IN_PROC_BROWSER_TEST_F(PolicyProvidedCertsOnUserSessionInitTest,
 // Testing policy-provided client cert import.
 class PolicyProvidedClientCertsTest : public DevicePolicyCrosBrowserTest {
  protected:
-  PolicyProvidedClientCertsTest() {}
-  ~PolicyProvidedClientCertsTest() override {}
+  PolicyProvidedClientCertsTest() = default;
+  ~PolicyProvidedClientCertsTest() override = default;
 
   void SetUpInProcessBrowserTestFixture() override {
     // Set up the mock policy provider.
@@ -581,7 +579,7 @@ IN_PROC_BROWSER_TEST_F(PolicyProvidedClientCertsTest, ClientCertsImported) {
       IsCertInNSSDatabase(browser()->profile(), kClientCertSubjectCommonName));
 }
 
-// TODO(https://crbug.com/874937): Add a test case for a kiosk session.
+// TODO(crbug.com/40589684): Add a test case for a kiosk session.
 
 // Class for testing policy-provided extensions in the sign-in profile.
 // Sets a device policy which applies the |kRootCaCert| for
@@ -637,22 +635,20 @@ class PolicyProvidedCertsForSigninExtensionTest
     signin_profile_ = GetInitialProfile();
     ASSERT_TRUE(ash::ProfileHelper::IsSigninProfile(signin_profile_));
 
-    extensions::ExtensionHostTestHelper extension_1_observer(
-        signin_profile_, kSigninScreenExtension1);
-    extension_1_observer.RestrictToType(
-        extensions::mojom::ViewType::kExtensionBackgroundPage);
-    extensions::ExtensionHostTestHelper extension_2_observer(
-        signin_profile_, kSigninScreenExtension2);
-    extension_2_observer.RestrictToType(
-        extensions::mojom::ViewType::kExtensionBackgroundPage);
+    extensions::ExtensionRegistry* extension_registry =
+        extensions::ExtensionRegistry::Get(signin_profile_);
+    extensions::TestExtensionRegistryObserver extension_1_observer(
+        extension_registry, kSigninScreenExtension1);
+    extensions::TestExtensionRegistryObserver extension_2_observer(
+        extension_registry, kSigninScreenExtension2);
 
     AddExtensionForForceInstallation(kSigninScreenExtension1,
                                      kSigninScreenExtension1UpdateManifestPath);
     AddExtensionForForceInstallation(kSigninScreenExtension2,
                                      kSigninScreenExtension2UpdateManifestPath);
 
-    extension_1_observer.WaitForHostCompletedFirstLoad();
-    extension_2_observer.WaitForHostCompletedFirstLoad();
+    extension_1_observer.WaitForExtensionLoaded();
+    extension_2_observer.WaitForExtensionLoaded();
   }
 
   content::StoragePartition* GetStoragePartitionForSigninExtension(
@@ -661,7 +657,7 @@ class PolicyProvidedCertsForSigninExtensionTest
         extension_id, signin_profile_, /*can_create=*/false);
   }
 
-  raw_ptr<Profile, ExperimentalAsh> signin_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> signin_profile_ = nullptr;
   scoped_refptr<net::X509Certificate> server_cert_;
 
  private:
@@ -670,29 +666,29 @@ class PolicyProvidedCertsForSigninExtensionTest
   base::Value::Dict BuildONCForExtensionScopedCertificate(
       const std::string& x509_contents,
       const std::string& extension_id) {
-    base::Value::Dict onc_cert_scope;
-    onc_cert_scope.Set(onc::scope::kType, onc::scope::kExtension);
-    onc_cert_scope.Set(onc::scope::kId, extension_id);
+    auto onc_cert_scope = base::Value::Dict()
+                              .Set(onc::scope::kType, onc::scope::kExtension)
+                              .Set(onc::scope::kId, extension_id);
 
-    base::Value::List onc_cert_trust_bits;
-    onc_cert_trust_bits.Append(onc::certificate::kWeb);
+    auto onc_cert_trust_bits =
+        base::Value::List().Append(onc::certificate::kWeb);
 
-    base::Value::Dict onc_certificate;
-    onc_certificate.Set(onc::certificate::kGUID, base::Value("guid"));
-    onc_certificate.Set(onc::certificate::kType, onc::certificate::kAuthority);
-    onc_certificate.Set(onc::certificate::kX509, x509_contents);
-    onc_certificate.Set(onc::certificate::kScope, std::move(onc_cert_scope));
-    onc_certificate.Set(onc::certificate::kTrustBits,
-                        std::move(onc_cert_trust_bits));
+    auto onc_certificate =
+        base::Value::Dict()
+            .Set(onc::certificate::kGUID, base::Value("guid"))
+            .Set(onc::certificate::kType, onc::certificate::kAuthority)
+            .Set(onc::certificate::kX509, x509_contents)
+            .Set(onc::certificate::kScope, std::move(onc_cert_scope))
+            .Set(onc::certificate::kTrustBits, std::move(onc_cert_trust_bits));
 
-    base::Value::List onc_certificates;
-    onc_certificates.Append(std::move(onc_certificate));
+    auto onc_certificates =
+        base::Value::List().Append(std::move(onc_certificate));
 
-    base::Value::Dict onc_dict;
-    onc_dict.Set(onc::toplevel_config::kCertificates,
-                 std::move(onc_certificates));
-    onc_dict.Set(onc::toplevel_config::kType,
-                 onc::toplevel_config::kUnencryptedConfiguration);
+    auto onc_dict = base::Value::Dict()
+                        .Set(onc::toplevel_config::kCertificates,
+                             std::move(onc_certificates))
+                        .Set(onc::toplevel_config::kType,
+                             onc::toplevel_config::kUnencryptedConfiguration);
 
     return onc_dict;
   }

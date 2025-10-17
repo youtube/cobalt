@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/inspector_protocol/crdtp/test_platform.h"
-
-#include "base/test/values_test_util.h"
 #include "third_party/inspector_protocol/crdtp/chromium/protocol_traits.h"
+
+#include "base/json/json_reader.h"
+#include "base/test/values_test_util.h"
+#include "third_party/inspector_protocol/crdtp/json.h"
+#include "third_party/inspector_protocol/crdtp/test_platform.h"
 
 namespace crdtp {
 
@@ -55,7 +57,7 @@ TEST(ProtocolTraits, BinaryBasic) {
   constexpr uint8_t data[] = {'H', 'e', 'l', 'l', 'o', ',', 0,
                               'w', 'o', 'r', 'l', 'd', '!', 0x80};
   const std::vector<uint8_t> data_vec(std::cbegin(data), std::cend(data));
-  Binary binary = Binary::fromSpan(data, sizeof data);
+  Binary binary = Binary::fromSpan(data);
   EXPECT_THAT(binary.toBase64(), Eq("SGVsbG8sAHdvcmxkIYA="));
   EXPECT_THAT(MakeVector(binary), Eq(data_vec));
   EXPECT_THAT(MakeVector(Binary::fromVector(data_vec)), Eq(data_vec));
@@ -72,7 +74,7 @@ TEST(ProtocolTraits, BinaryBasic) {
 TEST(ProtocolTraits, BinarySerialization) {
   constexpr uint8_t data[] = {'H', 'e', 'l', 'l', 'o', ',', 0,
                               'w', 'o', 'r', 'l', 'd', '!', 0x80};
-  Binary binary = Binary::fromSpan(data, sizeof data);
+  Binary binary = Binary::fromSpan(data);
 
   EXPECT_THAT(MakeVector(RoundTrip(binary)), Eq(MakeVector(binary)));
 }
@@ -151,6 +153,26 @@ TEST(ProtocolTraits, DictValueSerialization) {
               IsJson(base::Value(dict.Clone())));
   EXPECT_THAT(RoundTrip(base::Value(dict.Clone())),
               IsJson(base::Value(dict.Clone())));
+}
+
+TEST(ProtocolTraits, DictValueJSONConversion) {
+  base::Value::Dict dict;
+
+  dict.Set("int", 42);
+  dict.Set("double", 2.718281828459045);
+  dict.Set("string", "foo");
+  dict.Set("list", base::Value(MakeList("bar", 42)));
+  dict.Set("null", base::Value());
+  dict.Set("dict", dict.Clone());
+
+  std::vector<uint8_t> bytes;
+  ProtocolTypeTraits<base::Value::Dict>::Serialize(dict, &bytes);
+
+  std::string json;
+  json::ConvertCBORToJSON(SpanFrom(bytes), &json);
+
+  EXPECT_THAT(base::JSONReader::ReadDict(json),
+              testing::Optional(base::test::DictionaryHasValues(dict)));
 }
 
 }  // namespace

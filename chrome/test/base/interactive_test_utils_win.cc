@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/test/base/interactive_test_utils.h"
 
 #include <windows.h>
@@ -20,7 +25,6 @@
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/test/base/interactive_test_utils_aura.h"
 #include "chrome/test/base/process_lineage_win.h"
 #include "chrome/test/base/save_desktop_snapshot.h"
@@ -33,20 +37,13 @@
 namespace ui_test_utils {
 
 void HideNativeWindow(gfx::NativeWindow window) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  HideNativeWindowAura(window);
-#else
   HWND hwnd = window->GetHost()->GetAcceleratedWidget();
   ::ShowWindow(hwnd, SW_HIDE);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
 bool ShowAndFocusNativeWindow(gfx::NativeWindow window) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  ShowAndFocusNativeWindowAura(window);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   window->Show();
-  // Always make sure the window hosting ash is visible and focused.
+  // Always make sure the window is visible and focused.
   HWND hwnd = window->GetHost()->GetAcceleratedWidget();
 
   ::ShowWindow(hwnd, SW_SHOW);

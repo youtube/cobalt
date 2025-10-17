@@ -13,6 +13,7 @@
 #include "net/socket/tcp_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "remoting/protocol/stun_tcp_packet_processor.h"
+#include "third_party/webrtc/rtc_base/time_utils.h"
 
 namespace remoting::protocol {
 
@@ -56,11 +57,11 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
             "approaches to manage this feature."
         })");
 
-rtc::SocketAddress GetAddress(
+webrtc::SocketAddress GetAddress(
     int (net::StreamSocket::*getAddressFn)(net::IPEndPoint*) const,
     const net::StreamSocket* socket) {
   net::IPEndPoint ip_endpoint;
-  rtc::SocketAddress address;
+  webrtc::SocketAddress address;
   if (!socket) {
     LOG(WARNING) << "Socket does not exist. Empty address will be returned.";
     return address;
@@ -81,7 +82,7 @@ rtc::SocketAddress GetAddress(
 
 StreamPacketSocket::PendingPacket::PendingPacket(
     scoped_refptr<net::DrainableIOBuffer> data,
-    rtc::PacketOptions options)
+    webrtc::AsyncSocketPacketOptions options)
     : data(data), options(options) {}
 
 StreamPacketSocket::PendingPacket::PendingPacket(const PendingPacket&) =
@@ -111,28 +112,20 @@ bool StreamPacketSocket::Init(std::unique_ptr<net::StreamSocket> socket,
 }
 
 bool StreamPacketSocket::InitClientTcp(
-    const rtc::SocketAddress& local_address,
-    const rtc::SocketAddress& remote_address,
-    const rtc::ProxyInfo& proxy_info,
-    const std::string& user_agent,
-    const rtc::PacketSocketTcpOptions& tcp_options) {
-  if (proxy_info.type != rtc::PROXY_NONE) {
-    // TODO(yuweih): Add support for proxied connections.
-    NOTIMPLEMENTED();
-    return false;
-  }
-
+    const webrtc::SocketAddress& local_address,
+    const webrtc::SocketAddress& remote_address,
+    const webrtc::PacketSocketTcpOptions& tcp_options) {
   int tls_opts =
-      tcp_options.opts & (rtc::PacketSocketFactory::OPT_TLS |
-                          rtc::PacketSocketFactory::OPT_TLS_FAKE |
-                          rtc::PacketSocketFactory::OPT_TLS_INSECURE);
+      tcp_options.opts & (webrtc::PacketSocketFactory::OPT_TLS |
+                          webrtc::PacketSocketFactory::OPT_TLS_FAKE |
+                          webrtc::PacketSocketFactory::OPT_TLS_INSECURE);
 
   if (tls_opts) {
     NOTIMPLEMENTED();
     return false;
   }
 
-  if (!(tcp_options.opts & rtc::PacketSocketFactory::OPT_STUN)) {
+  if (!(tcp_options.opts & webrtc::PacketSocketFactory::OPT_STUN)) {
     // Currently only STUN/TURN packet is supported.
     // TODO(yuweih): Add support for P2P TCP connections.
     NOTIMPLEMENTED();
@@ -173,17 +166,17 @@ bool StreamPacketSocket::InitClientTcp(
   return Init(std::move(socket), StunTcpPacketProcessor::GetInstance());
 }
 
-rtc::SocketAddress StreamPacketSocket::GetLocalAddress() const {
+webrtc::SocketAddress StreamPacketSocket::GetLocalAddress() const {
   return GetAddress(&net::StreamSocket::GetLocalAddress, socket_.get());
 }
 
-rtc::SocketAddress StreamPacketSocket::GetRemoteAddress() const {
+webrtc::SocketAddress StreamPacketSocket::GetRemoteAddress() const {
   return GetAddress(&net::StreamSocket::GetPeerAddress, socket_.get());
 }
 
 int StreamPacketSocket::Send(const void* data,
                              size_t data_size,
-                             const rtc::PacketOptions& options) {
+                             const webrtc::AsyncSocketPacketOptions& options) {
   if (state_ != STATE_CONNECTED) {
     SetError(ENOTCONN);
     return -1;
@@ -207,10 +200,11 @@ int StreamPacketSocket::Send(const void* data,
   return data_size;
 }
 
-int StreamPacketSocket::SendTo(const void* data,
-                               size_t data_size,
-                               const rtc::SocketAddress& address,
-                               const rtc::PacketOptions& options) {
+int StreamPacketSocket::SendTo(
+    const void* data,
+    size_t data_size,
+    const webrtc::SocketAddress& address,
+    const webrtc::AsyncSocketPacketOptions& options) {
   if (state_ != STATE_CONNECTED || address != GetRemoteAddress()) {
     LOG(ERROR) << "The socket is not connected to the remote address.";
     SetError(ENOTCONN);
@@ -229,57 +223,56 @@ int StreamPacketSocket::Close() {
   return 0;
 }
 
-rtc::AsyncPacketSocket::State StreamPacketSocket::GetState() const {
+webrtc::AsyncPacketSocket::State StreamPacketSocket::GetState() const {
   return state_;
 }
 
-int StreamPacketSocket::GetOption(rtc::Socket::Option option, int* value) {
+int StreamPacketSocket::GetOption(webrtc::Socket::Option option, int* value) {
   // This method is never called by libjingle.
   NOTIMPLEMENTED();
   return -1;
 }
 
-int StreamPacketSocket::SetOption(rtc::Socket::Option option, int value) {
+int StreamPacketSocket::SetOption(webrtc::Socket::Option option, int value) {
   if (!socket_) {
     NOTREACHED();
-    return -1;
   }
 
   switch (option) {
-    case rtc::Socket::OPT_DONTFRAGMENT:
+    case webrtc::Socket::OPT_DONTFRAGMENT:
       NOTIMPLEMENTED();
       return -1;
 
-    case rtc::Socket::OPT_RCVBUF: {
+    case webrtc::Socket::OPT_RCVBUF: {
       int net_error = socket_->SetReceiveBufferSize(value);
       return (net_error == net::OK) ? 0 : -1;
     }
 
-    case rtc::Socket::OPT_SNDBUF: {
+    case webrtc::Socket::OPT_SNDBUF: {
       int net_error = socket_->SetSendBufferSize(value);
       return (net_error == net::OK) ? 0 : -1;
     }
 
-    case rtc::Socket::OPT_NODELAY:
+    case webrtc::Socket::OPT_NODELAY:
       // Should call TCPClientSocket::SetNoDelay directly.
       NOTREACHED();
-      return -1;
 
-    case rtc::Socket::OPT_IPV6_V6ONLY:
+    case webrtc::Socket::OPT_IPV6_V6ONLY:
       NOTIMPLEMENTED();
       return -1;
 
-    case rtc::Socket::OPT_DSCP:
+    case webrtc::Socket::OPT_DSCP:
       NOTIMPLEMENTED();
       return -1;
 
-    case rtc::Socket::OPT_RTP_SENDTIME_EXTN_ID:
+    case webrtc::Socket::OPT_RTP_SENDTIME_EXTN_ID:
       NOTIMPLEMENTED();
+      return -1;
+
+    default:
+      NOTIMPLEMENTED() << "Unexpected socket option: " << option;
       return -1;
   }
-
-  NOTREACHED();
-  return -1;
 }
 
 int StreamPacketSocket::GetError() const {
@@ -310,9 +303,9 @@ void StreamPacketSocket::DoWrite() {
     if (packet.data->BytesConsumed() == 0) {
       // Only apply packet options when we are about to send the head of the
       // packet.
-      packet_processor_->ApplyPacketOptions(
-          reinterpret_cast<uint8_t*>(packet.data->data()), packet.data->size(),
-          packet.options.packet_time_params);
+      packet_processor_->ApplyPacketOptions(packet.data->bytes(),
+                                            packet.data->size(),
+                                            packet.options.packet_time_params);
     }
     int result = socket_->Write(
         packet.data.get(), packet.data->BytesRemaining(),
@@ -342,9 +335,13 @@ bool StreamPacketSocket::HandleWriteResult(int result) {
   PendingPacket& packet = send_queue_.front();
   packet.data->DidConsume(result);
   if (packet.data->BytesRemaining() == 0) {
-    SignalSentPacket(
-        this, rtc::SentPacket(packet.options.packet_id, rtc::TimeMillis()));
+    // Pop the queue before SignalSentPacket just in case SignalSentPacket
+    // ends up reentrant. This is a speculative fix for a hardening crash when
+    // send_queue_.pop_front() was called after SignalSentPacket.
+    const webrtc::SentPacketInfo sent_packet(packet.options.packet_id,
+                                             webrtc::TimeMillis());
     send_queue_.pop_front();
+    SignalSentPacket(this, sent_packet);
   }
   return true;
 }
@@ -393,26 +390,26 @@ bool StreamPacketSocket::HandleReadResult(int result) {
   }
 
   read_buffer_->set_offset(read_buffer_->offset() + result);
-  uint8_t* head = reinterpret_cast<uint8_t*>(read_buffer_->StartOfBuffer());
-  int pos = 0;
-  while (pos < read_buffer_->offset()) {
+  base::span<uint8_t> span = read_buffer_->span_before_offset();
+  while (!span.empty()) {
     size_t bytes_consumed = 0;
-    auto packet = packet_processor_->Unpack(
-        head + pos, read_buffer_->offset() - pos, &bytes_consumed);
+    auto packet =
+        packet_processor_->Unpack(span.data(), span.size(), &bytes_consumed);
     if (packet) {
-      SignalReadPacket(this, packet->data(), packet->size(), GetRemoteAddress(),
-                       rtc::TimeMicros());
+      NotifyPacketReceived(webrtc::ReceivedIpPacket(
+          webrtc::MakeArrayView(packet->bytes(), packet->size()),
+          GetRemoteAddress(), webrtc::Timestamp::Micros(webrtc::TimeMicros())));
     }
     if (!bytes_consumed) {
       break;
     }
-    pos += bytes_consumed;
+    span = span.subspan(bytes_consumed);
   }
   // We've consumed all complete packets from the buffer; now move any remaining
   // bytes to the head of the buffer and set offset to reflect this.
-  if (pos && pos <= read_buffer_->offset()) {
-    memmove(head, head + pos, read_buffer_->offset() - pos);
-    read_buffer_->set_offset(read_buffer_->offset() - pos);
+  if (!span.empty()) {
+    read_buffer_->everything().copy_prefix_from(span);
+    read_buffer_->set_offset(span.size());
   }
 
   return true;

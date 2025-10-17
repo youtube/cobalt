@@ -32,21 +32,22 @@ BluetoothChooserContextFactory::GetForProfileIfExists(Profile* profile) {
 BluetoothChooserContextFactory::BluetoothChooserContextFactory()
     : ProfileKeyedServiceFactory(
           "BluetoothChooserContext",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HostContentSettingsMapFactory::GetInstance());
 }
 
 BluetoothChooserContextFactory::~BluetoothChooserContextFactory() = default;
 
-KeyedService* BluetoothChooserContextFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+BluetoothChooserContextFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new permissions::BluetoothChooserContext(context);
-}
-
-void BluetoothChooserContextFactory::BrowserContextShutdown(
-    content::BrowserContext* context) {
-  auto* bluetooth_chooser_context =
-      GetForProfileIfExists(Profile::FromBrowserContext(context));
-  if (bluetooth_chooser_context)
-    bluetooth_chooser_context->FlushScheduledSaveSettingsCalls();
+  return std::make_unique<permissions::BluetoothChooserContext>(context);
 }

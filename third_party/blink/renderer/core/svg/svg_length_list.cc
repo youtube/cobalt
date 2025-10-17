@@ -20,6 +20,7 @@
 
 #include "third_party/blink/renderer/core/svg/svg_length_list.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/core/svg/svg_parser_utilities.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
@@ -36,12 +37,6 @@ SVGLengthList* SVGLengthList::Clone() const {
   return ret;
 }
 
-SVGPropertyBase* SVGLengthList::CloneForAnimation(const String& value) const {
-  auto* ret = MakeGarbageCollected<SVGLengthList>(mode_);
-  ret->SetValueAsString(value);
-  return ret;
-}
-
 template <typename CharType>
 SVGParsingError SVGLengthList::ParseInternal(const CharType* ptr,
                                              const CharType* end) {
@@ -50,10 +45,10 @@ SVGParsingError SVGLengthList::ParseInternal(const CharType* ptr,
     const CharType* start = ptr;
     // TODO(shanmuga.m): Enable calc for SVGLengthList
     while (ptr < end && *ptr != ',' && !IsHTMLSpace<CharType>(*ptr))
-      ptr++;
+      UNSAFE_TODO(ptr++);
     if (ptr == start)
       break;
-    String value_string(start, static_cast<wtf_size_t>(ptr - start));
+    String value_string(UNSAFE_TODO(base::span(start, ptr)));
     if (value_string.empty())
       break;
 
@@ -74,8 +69,8 @@ SVGParsingError SVGLengthList::SetValueAsString(const String& value) {
   if (value.empty())
     return SVGParseStatus::kNoError;
 
-  return WTF::VisitCharacters(value, [&](const auto* chars, unsigned length) {
-    return ParseInternal(chars, chars + length);
+  return WTF::VisitCharacters(value, [&](auto chars) {
+    return ParseInternal(chars.data(), chars.data() + chars.size());
   });
 }
 

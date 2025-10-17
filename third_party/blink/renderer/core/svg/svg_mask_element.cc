@@ -23,7 +23,6 @@
 
 #include "third_party/blink/renderer/core/svg/svg_mask_element.h"
 
-#include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_resource_masker.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_length.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -70,14 +69,7 @@ SVGMaskElement::SVGMaskElement(Document& document)
                           SVGAnimatedEnumeration<SVGUnitTypes::SVGUnitType>>(
           this,
           svg_names::kMaskContentUnitsAttr,
-          SVGUnitTypes::kSvgUnitTypeUserspaceonuse)) {
-  AddToPropertyMap(x_);
-  AddToPropertyMap(y_);
-  AddToPropertyMap(width_);
-  AddToPropertyMap(height_);
-  AddToPropertyMap(mask_units_);
-  AddToPropertyMap(mask_content_units_);
-}
+          SVGUnitTypes::kSvgUnitTypeUserspaceonuse)) {}
 
 void SVGMaskElement::Trace(Visitor* visitor) const {
   visitor->Trace(x_);
@@ -90,28 +82,6 @@ void SVGMaskElement::Trace(Visitor* visitor) const {
   SVGTests::Trace(visitor);
 }
 
-void SVGMaskElement::CollectStyleForPresentationAttribute(
-    const QualifiedName& name,
-    const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
-  SVGAnimatedPropertyBase* property = PropertyFromAttribute(name);
-  if (property == x_) {
-    AddPropertyToPresentationAttributeStyle(style, property->CssPropertyId(),
-                                            x_->CssValue());
-  } else if (property == y_) {
-    AddPropertyToPresentationAttributeStyle(style, property->CssPropertyId(),
-                                            y_->CssValue());
-  } else if (property == width_) {
-    AddPropertyToPresentationAttributeStyle(style, property->CssPropertyId(),
-                                            width_->CssValue());
-  } else if (property == height_) {
-    AddPropertyToPresentationAttributeStyle(style, property->CssPropertyId(),
-                                            height_->CssValue());
-  } else {
-    SVGElement::CollectStyleForPresentationAttribute(name, value, style);
-  }
-}
-
 void SVGMaskElement::SvgAttributeChanged(
     const SvgAttributeChangedParams& params) {
   const QualifiedName& attr_name = params.name;
@@ -122,20 +92,14 @@ void SVGMaskElement::SvgAttributeChanged(
   if (is_length_attr || attr_name == svg_names::kMaskUnitsAttr ||
       attr_name == svg_names::kMaskContentUnitsAttr ||
       SVGTests::IsKnownAttribute(attr_name)) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
-
     if (is_length_attr) {
-      InvalidateSVGPresentationAttributeStyle();
-      SetNeedsStyleRecalc(
-          kLocalStyleChange,
-          StyleChangeReasonForTracing::FromAttribute(attr_name));
-      UpdateRelativeLengthsInformation();
+      UpdatePresentationAttributeStyle(params.property);
     }
 
     auto* layout_object = To<LayoutSVGResourceContainer>(GetLayoutObject());
-    if (layout_object)
-      layout_object->InvalidateCacheAndMarkForLayout();
-
+    if (layout_object) {
+      layout_object->InvalidateCache();
+    }
     return;
   }
 
@@ -148,9 +112,9 @@ void SVGMaskElement::ChildrenChanged(const ChildrenChange& change) {
   if (change.ByParser())
     return;
 
-  if (LayoutObject* object = GetLayoutObject()) {
-    object->SetNeedsLayoutAndFullPaintInvalidation(
-        layout_invalidation_reason::kChildChanged);
+  auto* layout_object = To<LayoutSVGResourceContainer>(GetLayoutObject());
+  if (layout_object) {
+    layout_object->InvalidateCache();
   }
 }
 
@@ -162,6 +126,46 @@ bool SVGMaskElement::SelfHasRelativeLengths() const {
   return x_->CurrentValue()->IsRelative() || y_->CurrentValue()->IsRelative() ||
          width_->CurrentValue()->IsRelative() ||
          height_->CurrentValue()->IsRelative();
+}
+
+SVGAnimatedPropertyBase* SVGMaskElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kXAttr) {
+    return x_.Get();
+  } else if (attribute_name == svg_names::kYAttr) {
+    return y_.Get();
+  } else if (attribute_name == svg_names::kWidthAttr) {
+    return width_.Get();
+  } else if (attribute_name == svg_names::kHeightAttr) {
+    return height_.Get();
+  } else if (attribute_name == svg_names::kMaskUnitsAttr) {
+    return mask_units_.Get();
+  } else if (attribute_name == svg_names::kMaskContentUnitsAttr) {
+    return mask_content_units_.Get();
+  } else {
+    SVGAnimatedPropertyBase* ret;
+    if (ret = SVGTests::PropertyFromAttribute(attribute_name); ret) {
+      return ret;
+    }
+    return SVGElement::PropertyFromAttribute(attribute_name);
+  }
+}
+
+void SVGMaskElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{
+      x_.Get(),      y_.Get(),          width_.Get(),
+      height_.Get(), mask_units_.Get(), mask_content_units_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGTests::SynchronizeAllSVGAttributes();
+  SVGElement::SynchronizeAllSVGAttributes();
+}
+
+void SVGMaskElement::CollectExtraStyleForPresentationAttribute(
+    HeapVector<CSSPropertyValue, 8>& style) {
+  auto pres_attrs = std::to_array<const SVGAnimatedPropertyBase*>(
+      {x_.Get(), y_.Get(), width_.Get(), height_.Get()});
+  AddAnimatedPropertiesToPresentationAttributeStyle(pres_attrs, style);
+  SVGElement::CollectExtraStyleForPresentationAttribute(style);
 }
 
 }  // namespace blink

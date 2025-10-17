@@ -14,40 +14,13 @@
 #include "base/functional/callback.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/idle_dialog.h"
+#include "components/enterprise/idle/action_type.h"
 #include "content/public/browser/browsing_data_remover.h"
 
 class Profile;
 
 namespace enterprise_idle {
-
-// Action types supported by IdleTimeoutActions.
-//
-// Actions run in order, based on their numerical value. Lower values run first.
-// Keep this enum sorted by priority.
-enum class ActionType {
-#if !BUILDFLAG(IS_ANDROID)
-  kCloseBrowsers = 0,
-  kShowProfilePicker = 1,
-#endif  // !BUILDFLAG(IS_ANDROID)
-  kClearBrowsingHistory = 2,
-  kClearDownloadHistory = 3,
-  kClearCookiesAndOtherSiteData = 4,
-  kClearCachedImagesAndFiles = 5,
-  kClearPasswordSignin = 6,
-  kClearAutofill = 7,
-  kClearSiteSettings = 8,
-  kClearHostedAppData = 9,
-  kReloadPages = 10,
-};
-
-// A mapping of names to enums, for the ConfigurationPolicyHandler to make
-// conversions.
-struct ActionTypeMapEntry {
-  const char* name;
-  ActionType action_type;
-};
-extern const ActionTypeMapEntry kActionTypeMap[];
-extern const size_t kActionTypeMapSize;
 
 // An action that should Run() when a given event happens. See *Actions
 // policies, e.g. IdleTimeoutActions.
@@ -109,8 +82,12 @@ class ActionFactory {
 
   ActionFactory();
 
-  raw_ptr<content::BrowsingDataRemover> browsing_data_remover_for_testing_;
+  raw_ptr<content::BrowsingDataRemover, DanglingUntriaged>
+      browsing_data_remover_for_testing_;
 };
+
+IdleDialog::ActionSet ActionsToActionSet(
+    const base::flat_set<ActionType>& action_types);
 
 }  // namespace enterprise_idle
 

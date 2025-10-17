@@ -27,7 +27,6 @@ bool BackgroundSyncRegistration::IsFiring() const {
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace content

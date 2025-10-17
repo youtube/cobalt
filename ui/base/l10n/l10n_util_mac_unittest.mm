@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/l10n/l10n_util_mac.h"
 
 #import <Foundation/Foundation.h>
@@ -11,7 +16,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-typedef PlatformTest L10nUtilMacTest;
+using L10nUtilMacTest = PlatformTest;
 
 TEST_F(L10nUtilMacTest, FixUpWindowsStyleLabel) {
   struct TestData {

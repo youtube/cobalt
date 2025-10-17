@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.password_check.helper;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -12,11 +14,11 @@ import android.provider.Browser;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.IntentUtils;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.password_check.CompromisedCredential;
 import org.chromium.chrome.browser.password_check.PasswordChangeType;
 import org.chromium.chrome.browser.password_check.PasswordCheckComponentUi;
 import org.chromium.chrome.browser.password_check.PasswordCheckUkmRecorder;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
 
 import java.util.Objects;
 
@@ -24,30 +26,30 @@ import java.util.Objects;
  * Helper to launch apps, settings screens, or Chrome Custom tabs that enable the user to change a
  * compromised password.
  */
+@NullMarked
 public class PasswordCheckChangePasswordHelper {
     private final Context mContext;
-    private final SettingsLauncher mSettingsLauncher;
     private final PasswordCheckComponentUi.CustomTabIntentHelper mCustomTabIntentHelper;
     private final PasswordCheckComponentUi.TrustedIntentHelper mTrustedIntentHelper;
 
-    public PasswordCheckChangePasswordHelper(Context context, SettingsLauncher settingsLauncher,
+    public PasswordCheckChangePasswordHelper(
+            Context context,
             PasswordCheckComponentUi.CustomTabIntentHelper customTabIntentHelper,
             PasswordCheckComponentUi.TrustedIntentHelper trustedIntentHelper) {
         mContext = context;
-        mSettingsLauncher = settingsLauncher;
         mCustomTabIntentHelper = customTabIntentHelper;
         mTrustedIntentHelper = trustedIntentHelper;
     }
 
     /**
      * Launches an app (if available) or a CCT with the site the given credential was used on.
+     *
      * @param credential A {@link CompromisedCredential}.
      */
     public void launchAppOrCctWithChangePasswordUrl(CompromisedCredential credential) {
         if (!canManuallyChangeCredential(credential)) return;
-        // TODO(crbug.com/1092444): Always launch the URL if possible and let Android handle the
-        // match to open it.
-        IntentUtils.safeStartActivity(mContext,
+        IntentUtils.safeStartActivity(
+                mContext,
                 credential.getAssociatedApp().isEmpty()
                         ? buildIntent(
                                 credential.getPasswordChangeUrl(), PasswordChangeType.MANUAL_CHANGE)
@@ -64,8 +66,10 @@ public class PasswordCheckChangePasswordHelper {
     }
 
     private Intent getPackageLaunchIntent(String packageName) {
-        return Objects.requireNonNull(mContext).getPackageManager().getLaunchIntentForPackage(
-                packageName);
+        return assumeNonNull(
+                Objects.requireNonNull(mContext)
+                        .getPackageManager()
+                        .getLaunchIntentForPackage(packageName));
     }
 
     /**
@@ -79,11 +83,13 @@ public class PasswordCheckChangePasswordHelper {
         CustomTabsIntent customTabIntent =
                 new CustomTabsIntent.Builder().setShowTitle(true).build();
         customTabIntent.intent.setData(Uri.parse(initialUrl));
-        Intent intent = mCustomTabIntentHelper.createCustomTabActivityIntent(
-                mContext, customTabIntent.intent);
+        Intent intent =
+                mCustomTabIntentHelper.createCustomTabActivityIntent(
+                        mContext, customTabIntent.intent);
         intent.setPackage(mContext.getPackageName());
         intent.putExtra(Browser.EXTRA_APPLICATION_ID, mContext.getPackageName());
-        intent.putExtra(PasswordCheckUkmRecorder.PASSWORD_CHECK_PACKAGE
+        intent.putExtra(
+                PasswordCheckUkmRecorder.PASSWORD_CHECK_PACKAGE
                         + PasswordCheckUkmRecorder.PASSWORD_CHANGE_TYPE,
                 passwordChangeType);
         mTrustedIntentHelper.addTrustedIntentExtras(intent);

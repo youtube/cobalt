@@ -41,7 +41,7 @@ class AutoAdvancingVirtualTimeDomainTest : public testing::Test {
 
     scheduler_helper_->AddTaskTimeObserver(&test_task_time_observer_);
     task_queue_ = scheduler_helper_->DefaultNonMainThreadTaskQueue();
-    initial_time_ = base::Time::FromJsTime(100000.0);
+    initial_time_ = base::Time::FromSecondsSinceUnixEpoch(100);
     initial_time_ticks_ = base::TimeTicks() + base::Milliseconds(5);
     auto_advancing_time_domain_ =
         std::make_unique<AutoAdvancingVirtualTimeDomain>(
@@ -50,6 +50,8 @@ class AutoAdvancingVirtualTimeDomainTest : public testing::Test {
   }
 
   void TearDown() override {
+    scheduler_helper_->RemoveTaskTimeObserver(&test_task_time_observer_);
+    task_queue_ = scheduler_helper_->DefaultNonMainThreadTaskQueue();
     task_queue_->ShutdownTaskQueue();
     scheduler_helper_->ResetTimeDomain();
   }
@@ -153,7 +155,7 @@ TEST_F(AutoAdvancingVirtualTimeDomainTest, TaskStarvationCountResets) {
 }
 
 TEST_F(AutoAdvancingVirtualTimeDomainTest, BaseTimeOverriden) {
-  base::Time initial_time = base::Time::FromJsTime(100000.0);
+  base::Time initial_time = base::Time::FromSecondsSinceUnixEpoch(100);
   EXPECT_EQ(base::Time::Now(), initial_time);
 
   // Make time advance.

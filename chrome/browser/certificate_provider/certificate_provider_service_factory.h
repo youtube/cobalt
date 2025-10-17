@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 namespace content {
@@ -34,13 +34,13 @@ class CertificateProviderServiceFactory : public ProfileKeyedServiceFactory {
       const CertificateProviderServiceFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<CertificateProviderServiceFactory>;
+  friend base::NoDestructor<CertificateProviderServiceFactory>;
 
   CertificateProviderServiceFactory();
 
   // BrowserContextKeyedServiceFactory:
   bool ServiceIsNULLWhileTesting() const override;
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

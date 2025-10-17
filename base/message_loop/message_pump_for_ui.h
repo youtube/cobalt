@@ -34,14 +34,13 @@ namespace base {
 // Windows defines it as-is.
 using MessagePumpForUI = MessagePumpForUI;
 #elif BUILDFLAG(IS_ANDROID)
-// Android defines it as-is.
-using MessagePumpForUI = MessagePumpForUI;
+using MessagePumpForUI = MessagePumpAndroid;
 #elif BUILDFLAG(IS_STARBOARD)
 using MessagePumpForUI = MessagePumpUIStarboard;
 #elif BUILDFLAG(IS_APPLE)
 // MessagePumpForUI isn't bound to a specific impl on Mac. While each impl can
-// be represented by a plain MessagePump: MessagePumpMac::Create() must be used
-// to instantiate the right impl.
+// be represented by a plain MessagePump: message_pump_apple::Create() must be
+// used to instantiate the right impl.
 using MessagePumpForUI = MessagePump;
 #elif BUILDFLAG(IS_NACL) || BUILDFLAG(IS_AIX)
 // Currently NaCl and AIX don't have a MessagePumpForUI.

@@ -7,7 +7,7 @@ module payments.mojom;
 
 import "components/payments/mojom/payment_request_data.mojom";
 import "mojo/public/mojom/base/time.mojom";
-import "third_party/blink/public/mojom/payments/payment_credential.mojom";
+import "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 import "third_party/blink/public/mojom/webauthn/authenticator.mojom";
@@ -29,16 +29,8 @@ struct PaymentResponse {
   string? shipping_option;
   PayerDetail payer;
 
-  SecurePaymentConfirmationResponse? secure_payment_confirmation;
-};
-
-// A response for the "secure-payment-confirmation" payment method. A subset of
-// blink.mojom.GetAssertionAuthenticatorResponse.
-struct SecurePaymentConfirmationResponse {
-  blink.mojom.CommonCredentialInfo credential_info;
-  array<uint8> signature;
-  blink.mojom.AuthenticatorAttachment authenticator_attachment;
-  array<uint8>? user_handle;
+  // The assertion for secure payment confirmation.
+  blink.mojom.GetAssertionAuthenticatorResponse? get_assertion_authenticator_response;
 };
 
 struct PayerDetail {
@@ -56,6 +48,7 @@ enum PaymentErrorReason {
   INVALID_DATA_FROM_RENDERER,
   NOT_ALLOWED_ERROR,
   USER_OPT_OUT,
+  USER_ACTIVATION_REQUIRED,
 };
 
 enum CanMakePaymentQueryResult {
@@ -170,10 +163,29 @@ struct SecurePaymentConfirmationRequest {
   // The relying party ID that must match the relying party of a credential.
   string rp_id;
 
+  // Webauthn extensions to be set on the credential request.
+  blink.mojom.AuthenticationExtensionsClientInputs? extensions;
+
+  // Specifies the types of algorithms that may be used for creating the
+  // browser bound keys that the relying party would accept. If empty a default
+  // is used instead.
+  array<blink.mojom.PublicKeyCredentialParameters> browser_bound_pub_key_cred_params;
+
   // Whether or not to render an 'opt out' experience on the browser-hosted UX,
   // which allows the user to indicate to the RP that they wish to remove any
   // RP-stored information.
   bool show_opt_out;
+
+  // Experimental members that allow specifying information about the card
+  // network and issuer, including icons for both. These are controlled by the
+  // SecurePaymentConfirmationNetworkAndIssuerIcons Blink runtime feature.
+  NetworkOrIssuerInformation? network_info;
+  NetworkOrIssuerInformation? issuer_info;
+};
+
+struct NetworkOrIssuerInformation {
+  string name;
+  url.mojom.Url icon;
 };
 
 struct PaymentMethodData {
@@ -230,10 +242,6 @@ struct PaymentDetails {
   string? id;
 
   string? stringified_payment_method_errors;
-
-  // Whether the execution context of the payment request has the
-  // PaymentHandlerMinimalHeaderUX feature enabled, e.g. via origin trial.
-  bool payment_handler_minimal_header_ux_enabled = false;
 };
 
 enum PaymentShippingType {
@@ -275,7 +283,9 @@ interface PaymentRequest {
   // into PaymentRequest.show(), so Chrome should disregard the initial payment
   // details and show a spinner until the promise resolves with the correct
   // payment details. The payment details will be updated with UpdateWith().
-  Show(bool wait_for_updated_details);
+  // |had_user_activation|: Whether a user activation was consumed with this
+  // Show() call.
+  Show(bool wait_for_updated_details, bool had_user_activation);
 
   // Updates the payment details in response to (1) new shipping address or
   // shipping option, or (2) the resolution of show()'s PaymentDetailsUpdate

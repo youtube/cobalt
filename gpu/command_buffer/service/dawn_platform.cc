@@ -2,13 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/command_buffer/service/dawn_platform.h"
 
+#include "base/metrics/histogram.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_arguments.h"
 #include "base/trace_event/trace_event.h"
 #include "gpu/command_buffer/service/dawn_caching_interface.h"
+#include "gpu/config/gpu_finch_features.h"
 
 namespace gpu::webgpu {
 
@@ -59,7 +69,7 @@ class AsyncWorkerTaskPool : public dawn::platform::WorkerTaskPool {
     std::unique_ptr<AsyncWaitableEvent> waitable_event =
         std::make_unique<AsyncWaitableEvent>();
     base::ThreadPool::PostTask(
-        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
         base::BindOnce(&RunWorkerTask, callback, user_data,
                        waitable_event->GetWaitableEventImpl()));
     return waitable_event;
@@ -76,11 +86,42 @@ class AsyncWorkerTaskPool : public dawn::platform::WorkerTaskPool {
   }
 };
 
+void RecordDelayedUMA(scoped_refptr<DawnPlatform::CacheCountsMap> cache_map,
+                      std::string uma_prefix) {
+  base::AutoLock autolock(cache_map->lock);
+  for (auto [uma_name, cache_counts] : cache_map->counts) {
+    if (uma_name.find("Hit") != std::string::npos) {
+      base::UmaHistogramCounts10000(
+          uma_prefix + uma_name + ".Counts.90SecondsPostStartup",
+          cache_counts.cache_hit_count);
+    } else {
+      CHECK(uma_name.find("Miss") != std::string::npos);
+      base::UmaHistogramCounts10000(
+          uma_prefix + uma_name + ".Counts.90SecondsPostStartup",
+          cache_counts.cache_miss_count);
+    }
+  }
+}
+
 }  // anonymous namespace
 
+DawnPlatform::CacheCountsMap::CacheCountsMap() = default;
+DawnPlatform::CacheCountsMap::~CacheCountsMap() = default;
+
 DawnPlatform::DawnPlatform(
-    std::unique_ptr<DawnCachingInterface> dawn_caching_interface)
-    : dawn_caching_interface_(std::move(dawn_caching_interface)) {}
+    std::unique_ptr<DawnCachingInterface> dawn_caching_interface,
+    const char* uma_prefix,
+    bool record_cache_count_uma)
+    : dawn_caching_interface_(std::move(dawn_caching_interface)),
+      uma_prefix_(uma_prefix),
+      cache_map_(base::MakeRefCounted<CacheCountsMap>()),
+      startup_time_(base::TimeTicks::Now()) {
+  if (record_cache_count_uma) {
+    base::ThreadPool::PostDelayedTask(
+        FROM_HERE, base::BindOnce(&RecordDelayedUMA, cache_map_, uma_prefix_),
+        base::Seconds(90));
+  }
+}
 
 DawnPlatform::~DawnPlatform() = default;
 
@@ -121,10 +162,71 @@ uint64_t DawnPlatform::AddTraceEvent(
   uint64_t result = 0;
   static_assert(sizeof(base::trace_event::TraceEventHandle) <= sizeof(result),
                 "TraceEventHandle must be at most the size of uint64_t");
-  static_assert(std::is_pod<base::trace_event::TraceEventHandle>(),
-                "TraceEventHandle must be memcpy'able");
+  static_assert(
+      std::is_trivial_v<base::trace_event::TraceEventHandle> &&
+          std::is_standard_layout_v<base::trace_event::TraceEventHandle>,
+      "TraceEventHandle must be memcpy'able");
   memcpy(&result, &handle, sizeof(base::trace_event::TraceEventHandle));
   return result;
+}
+
+void DawnPlatform::HistogramCacheCountHelper(std::string name,
+                                             int sample,
+                                             int min,
+                                             int max,
+                                             int bucketCount) {
+  if (name.find("Cache") != std::string::npos) {
+    base::AutoLock autolock(cache_map_->lock);
+    auto& cache_counts = cache_map_->counts[name];
+    if (name.find("Hit") != std::string::npos) {
+      ++cache_counts.cache_hit_count;
+    } else {
+      CHECK(name.find("Miss") != std::string::npos);
+      ++cache_counts.cache_miss_count;
+    }
+
+    if (base::TimeTicks::Now() - startup_time_ <= base::Seconds(90)) {
+      base::UmaHistogramCustomCounts(
+          uma_prefix_ + name + ".90SecondsPostStartup", sample, min, max,
+          bucketCount);
+    }
+  }
+}
+
+void DawnPlatform::HistogramCustomCounts(const char* name,
+                                         int sample,
+                                         int min,
+                                         int max,
+                                         int bucketCount) {
+  base::UmaHistogramCustomCounts(uma_prefix_ + name, sample, min, max,
+                                 bucketCount);
+  HistogramCacheCountHelper(name, sample, min, max, bucketCount);
+}
+
+void DawnPlatform::HistogramCustomCountsHPC(const char* name,
+                                            int sample,
+                                            int min,
+                                            int max,
+                                            int bucketCount) {
+  if (base::TimeTicks::IsHighResolution()) {
+    base::UmaHistogramCustomCounts(uma_prefix_ + name, sample, min, max,
+                                   bucketCount);
+    HistogramCacheCountHelper(name, sample, min, max, bucketCount);
+  }
+}
+
+void DawnPlatform::HistogramEnumeration(const char* name,
+                                        int sample,
+                                        int boundaryValue) {
+  base::UmaHistogramExactLinear(uma_prefix_ + name, sample, boundaryValue);
+}
+
+void DawnPlatform::HistogramSparse(const char* name, int sample) {
+  base::UmaHistogramSparse(uma_prefix_ + name, sample);
+}
+
+void DawnPlatform::HistogramBoolean(const char* name, bool sample) {
+  base::UmaHistogramBoolean(uma_prefix_ + name, sample);
 }
 
 dawn::platform::CachingInterface* DawnPlatform::GetCachingInterface() {
@@ -134,6 +236,21 @@ dawn::platform::CachingInterface* DawnPlatform::GetCachingInterface() {
 std::unique_ptr<dawn::platform::WorkerTaskPool>
 DawnPlatform::CreateWorkerTaskPool() {
   return std::make_unique<AsyncWorkerTaskPool>();
+}
+
+bool DawnPlatform::IsFeatureEnabled(dawn::platform::Features feature) {
+  switch (feature) {
+    case dawn::platform::Features::kWebGPUUseDXC:
+      // (crbug.com/362247692): Feature is enabled by default.
+      return true;
+    case dawn::platform::Features::kWebGPUUseTintIR:
+      return base::FeatureList::IsEnabled(features::kWebGPUUseTintIR);
+    case dawn::platform::Features::kWebGPUUseVulkanMemoryModel:
+      return base::FeatureList::IsEnabled(
+          features::kWebGPUUseVulkanMemoryModel);
+    default:
+      return false;
+  }
 }
 
 }  // namespace gpu::webgpu

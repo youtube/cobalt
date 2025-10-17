@@ -9,7 +9,6 @@
 #include "base/functional/bind.h"
 #include "base/i18n/message_formatter.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
@@ -132,7 +131,6 @@ void UpdateRequiredNotification::Show(NotificationType type,
   std::u16string button = GetButtonText(type);
   if (title.empty() || body.empty() || button.empty()) {
     NOTREACHED();
-    return;
   }
 
   DisplayNotification(title, body, button,
@@ -174,8 +172,8 @@ void UpdateRequiredNotification::Close(bool by_user) {
 }
 
 void UpdateRequiredNotification::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index,
+    const std::optional<std::u16string>& reply) {
   // |button_index| may be empty if the notification body was clicked.
   if (!button_index)
     return;

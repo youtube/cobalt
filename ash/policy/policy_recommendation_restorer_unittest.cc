@@ -12,6 +12,7 @@
 #include "ash/test/ash_test_base.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "components/prefs/pref_notifier_impl.h"
 #include "components/prefs/testing_pref_store.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -28,26 +29,26 @@ class PolicyRecommendationRestorerTest : public NoSessionAshTestBase {
 
  protected:
   PolicyRecommendationRestorerTest()
-      : recommended_prefs_(new TestingPrefStore),
+      : recommended_prefs_(base::MakeRefCounted<TestingPrefStore>()),
         prefs_(new sync_preferences::TestingPrefServiceSyncable(
-            /*managed_prefs=*/new TestingPrefStore,
-            /*supervised_user_prefs=*/new TestingPrefStore,
-            /*extension_prefs=*/new TestingPrefStore,
-            /*standalone_browser_prefs=*/new TestingPrefStore,
-            /*user_prefs=*/new TestingPrefStore,
+            /*managed_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*supervised_user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*extension_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
             recommended_prefs_,
-            new user_prefs::PrefRegistrySyncable,
-            new PrefNotifierImpl)) {}
+            base::MakeRefCounted<user_prefs::PrefRegistrySyncable>(),
+            std::make_unique<PrefNotifierImpl>())) {}
   ~PolicyRecommendationRestorerTest() override = default;
 
   // NoSessionAshTestBase override:
   void SetUp() override {
-    TestSessionControllerClient::DisableAutomaticallyProvideSigninPref();
+    set_create_signin_pref_service(false);
     NoSessionAshTestBase::SetUp();
 
     // Register sigin prefs but not connected to pref service yet. This allows
     // us set pref values before ash connects to pref service for testing.
-    RegisterSigninProfilePrefs(prefs_->registry(), true /* for_test */);
+    RegisterSigninProfilePrefs(prefs_->registry(), /*country=*/"",
+                               /*for_test=*/true);
 
     restorer_ = Shell::Get()->policy_recommendation_restorer();
   }
@@ -148,11 +149,12 @@ class PolicyRecommendationRestorerTest : public NoSessionAshTestBase {
     return true;
   }
 
-  raw_ptr<PolicyRecommendationRestorer, ExperimentalAsh> restorer_ = nullptr;
+  raw_ptr<PolicyRecommendationRestorer, DanglingUntriaged> restorer_ = nullptr;
 
   // Ownerships are passed to SessionController.
-  raw_ptr<TestingPrefStore, ExperimentalAsh> recommended_prefs_;
-  raw_ptr<sync_preferences::TestingPrefServiceSyncable, ExperimentalAsh> prefs_;
+  scoped_refptr<TestingPrefStore> recommended_prefs_;
+  raw_ptr<sync_preferences::TestingPrefServiceSyncable, DanglingUntriaged>
+      prefs_;
 };
 
 // Verifies that when no recommended values have been set, |restorer_| does not
@@ -239,7 +241,7 @@ TEST_F(PolicyRecommendationRestorerTest,
   SetUserSettings();
 
   ConnectToSigninPrefService();
-  SimulateUserLogin("user@test.com");
+  SimulateUserLogin({"user@test.com"});
 
   VerifyPrefFollowsUser(prefs::kAccessibilityLargeCursorEnabled,
                         base::Value(true));
@@ -349,7 +351,7 @@ TEST_F(PolicyRecommendationRestorerTest, DoNothingOnSessionStart) {
   ConnectToSigninPrefService();
   SetUserSettings();
 
-  SimulateUserLogin("user@test.com");
+  SimulateUserLogin({"user@test.com"});
   VerifyPrefsFollowUser();
   EXPECT_FALSE(RestoreTimerIsRunning());
 }

@@ -14,10 +14,6 @@
 #include "ui/views/window/frame_buttons.h"
 #include "ui/views/window/non_client_view.h"
 
-namespace gfx {
-class FontList;
-}
-
 namespace views {
 
 class FrameBackground;
@@ -54,14 +50,11 @@ class VIEWS_EXPORT CustomFrameView : public NonClientFrameView {
 
   // Overridden from View:
   void OnPaint(gfx::Canvas* canvas) override;
-  void Layout() override;
-  gfx::Size CalculatePreferredSize() const override;
+  void Layout(PassKey) override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& available_size) const override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
-
-  // Returns the font list to use in the window's title bar.
-  // TODO(https://crbug.com/968860): Move this into the typography provider.
-  static gfx::FontList GetWindowTitleFontList();
 
  private:
   friend class CustomFrameViewTest;

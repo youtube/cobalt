@@ -4,6 +4,7 @@
 
 #include "chrome/browser/lookalikes/safety_tip_web_contents_observer.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -12,6 +13,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
+#include "chrome/browser/lookalikes/lookalike_url_service_factory.h"
 #include "chrome/browser/lookalikes/safety_tip_ui.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/lookalikes/core/lookalike_url_util.h"
@@ -20,7 +22,6 @@
 #include "content/public/common/page_visibility_state.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace {
@@ -63,7 +64,7 @@ void OnSafetyTipClosed(SafetyTipCheckResult result,
   if (action == SafetyTipInteraction::kDismissWithEsc ||
       action == SafetyTipInteraction::kDismissWithClose ||
       action == SafetyTipInteraction::kDismissWithIgnore) {
-    LookalikeUrlService::Get(profile)->SetUserIgnore(url);
+    LookalikeUrlServiceFactory::GetForProfile(profile)->SetUserIgnore(url);
 
     // Record that the user dismissed the safety tip. kDismiss is recorded in
     // all dismiss-like cases, which makes it easier to track overall dismissals
@@ -96,7 +97,7 @@ void RecordPostFlagCheckHistogram(security_state::SafetyTipStatus status) {
 // Records a histogram that embeds the safety tip status along with whether the
 // navigation was initiated cross- or same-origin.
 void RecordSafetyTipStatusWithInitiatorOriginInfo(
-    const absl::optional<url::Origin>& committed_initiator_origin,
+    const std::optional<url::Origin>& committed_initiator_origin,
     const GURL& committed_url,
     const GURL& current_url,
     security_state::SafetyTipStatus status) {
@@ -235,7 +236,7 @@ void SafetyTipWebContentsObserver::MaybeShowSafetyTip(
     return;
   }
 
-  LookalikeUrlService::Get(profile_)->CheckSafetyTipStatus(
+  LookalikeUrlServiceFactory::GetForProfile(profile_)->CheckSafetyTipStatus(
       url, web_contents(),
       base::BindOnce(&SafetyTipWebContentsObserver::HandleSafetyTipCheckResult,
                      weak_factory_.GetWeakPtr(), navigation_source_id,

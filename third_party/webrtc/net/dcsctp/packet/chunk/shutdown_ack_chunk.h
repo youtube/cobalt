@@ -35,8 +35,8 @@ class ShutdownAckChunk : public Chunk, public TLVTrait<ShutdownAckChunkConfig> {
 
   ShutdownAckChunk() {}
 
-  static absl::optional<ShutdownAckChunk> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<ShutdownAckChunk> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;

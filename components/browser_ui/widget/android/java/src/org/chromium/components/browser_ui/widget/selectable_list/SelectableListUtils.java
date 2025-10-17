@@ -9,12 +9,13 @@ import android.text.TextUtils;
 import android.view.View;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.R;
 
 /** A set of utils to be used alongside SelectableListLayout. */
+@NullMarked
 public class SelectableListUtils {
     @IntDef({ContentDescriptionSource.MENU_BUTTON, ContentDescriptionSource.REMOVE_BUTTON})
     public @interface ContentDescriptionSource {
@@ -33,8 +34,11 @@ public class SelectableListUtils {
      * @param source The description source which indicates what kind of accessibility string to
      *         add.
      */
-    public static void setContentDescriptionContext(@NonNull Context context, @NonNull View view,
-            @Nullable String accessibilityContext, @ContentDescriptionSource int source) {
+    public static void setContentDescriptionContext(
+            Context context,
+            View view,
+            @Nullable String accessibilityContext,
+            @ContentDescriptionSource int source) {
         boolean missingContext = TextUtils.isEmpty(accessibilityContext);
         int accessibilityResource = -1;
         switch (source) {
@@ -43,16 +47,18 @@ public class SelectableListUtils {
                         missingContext ? R.string.remove : R.string.accessibility_list_menu_button;
                 break;
             case ContentDescriptionSource.REMOVE_BUTTON:
-                accessibilityResource = missingContext ? R.string.accessibility_toolbar_btn_menu
-                                                       : R.string.accessibility_list_remove_button;
+                accessibilityResource =
+                        missingContext
+                                ? R.string.accessibility_toolbar_btn_menu
+                                : R.string.accessibility_list_remove_button;
                 break;
             default:
                 assert false : "Unsupported ContentDescriptionSource detected!";
                 return;
         }
-        view.setContentDescription(missingContext
-                        ? context.getResources().getString(accessibilityResource)
-                        : context.getResources().getString(
-                                accessibilityResource, accessibilityContext));
+        view.setContentDescription(
+                missingContext
+                        ? context.getString(accessibilityResource)
+                        : context.getString(accessibilityResource, accessibilityContext));
     }
 }

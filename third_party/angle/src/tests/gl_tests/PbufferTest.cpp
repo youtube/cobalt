@@ -62,6 +62,23 @@ class PbufferTest : public ANGLETest<>
                            &surfaceType);
         mSupportsPbuffers = (surfaceType & EGL_PBUFFER_BIT) != 0;
 
+        mPbuffer = createTestPbufferSurface();
+        if (mSupportsPbuffers)
+        {
+            ASSERT_NE(mPbuffer, EGL_NO_SURFACE);
+            ASSERT_EGL_SUCCESS();
+        }
+        else
+        {
+            ASSERT_EQ(mPbuffer, EGL_NO_SURFACE);
+            ASSERT_EGL_ERROR(EGL_BAD_MATCH);
+        }
+        ASSERT_GL_NO_ERROR();
+    }
+
+    EGLSurface createTestPbufferSurface()
+    {
+        EGLWindow *window        = getEGLWindow();
         EGLint bindToTextureRGBA = 0;
         eglGetConfigAttrib(window->getDisplay(), window->getConfig(), EGL_BIND_TO_TEXTURE_RGBA,
                            &bindToTextureRGBA);
@@ -75,20 +92,8 @@ class PbufferTest : public ANGLETest<>
             EGL_NONE,           EGL_NONE,
         };
 
-        mPbuffer =
-            eglCreatePbufferSurface(window->getDisplay(), window->getConfig(), pBufferAttributes);
-        if (mSupportsPbuffers)
-        {
-            ASSERT_NE(mPbuffer, EGL_NO_SURFACE);
-            ASSERT_EGL_SUCCESS();
-        }
-        else
-        {
-            ASSERT_EQ(mPbuffer, EGL_NO_SURFACE);
-            ASSERT_EGL_ERROR(EGL_BAD_MATCH);
-        }
-
-        ASSERT_GL_NO_ERROR();
+        return eglCreatePbufferSurface(window->getDisplay(), window->getConfig(),
+                                       pBufferAttributes);
     }
 
     void testTearDown() override
@@ -102,9 +107,14 @@ class PbufferTest : public ANGLETest<>
     {
         if (mPbuffer)
         {
-            EGLWindow *window = getEGLWindow();
-            eglDestroySurface(window->getDisplay(), mPbuffer);
+            destroyTestPbufferSurface(mPbuffer);
         }
+    }
+
+    void destroyTestPbufferSurface(EGLSurface pbuffer)
+    {
+        EGLWindow *window = getEGLWindow();
+        eglDestroySurface(window->getDisplay(), pbuffer);
     }
 
     void recreatePbufferInSrgbColorspace()
@@ -130,6 +140,18 @@ class PbufferTest : public ANGLETest<>
 
         mPbuffer = eglCreatePbufferSurface(window->getDisplay(), window->getConfig(),
                                            pBufferSrgbAttributes);
+    }
+
+    void drawColorQuad(GLColor color)
+    {
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
+        glUseProgram(program);
+        GLint colorUniformLocation =
+            glGetUniformLocation(program, angle::essl1_shaders::ColorUniform());
+        ASSERT_NE(colorUniformLocation, -1);
+        glUniform4fv(colorUniformLocation, 1, color.toNormalizedVector().data());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0);
+        glUseProgram(0);
     }
 
     GLuint mTextureProgram;
@@ -232,6 +254,333 @@ TEST_P(PbufferTest, BindTexImage)
     glDeleteTextures(1, &texture);
 }
 
+// Test various EGL level cases for eglBindTexImage.
+TEST_P(PbufferTest, BindTexImageAlreadyBound)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // This is being tested
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+    // If buffer is already bound to a texture then an EGL_BAD_ACCESS error is returned.
+    EXPECT_FALSE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    ANGLE_SKIP_TEST_IF(status == GL_FRAMEBUFFER_UNSUPPORTED);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    drawColorQuad(GLColor::magenta);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::magenta);
+
+    destroyPbuffer();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that eglBindTexImage overwriting previous bind works.
+TEST_P(PbufferTest, BindTexImageOverwrite)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // This is being tested: setup a binding that will be overwritten.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    ANGLE_SKIP_TEST_IF(status == GL_FRAMEBUFFER_UNSUPPORTED);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    drawColorQuad(GLColor::magenta);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::magenta);
+
+    EGLSurface otherPbuffer = createTestPbufferSurface();
+    ASSERT_NE(otherPbuffer, EGL_NO_SURFACE);
+    // This is being tested: replace the previous binding.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), otherPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    drawColorQuad(GLColor::yellow);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::yellow);
+
+    destroyTestPbufferSurface(otherPbuffer);
+    destroyPbuffer();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that eglBindTexImage overwriting previous bind works and does not crash on releaseTexImage.
+TEST_P(PbufferTest, BindTexImageOverwriteNoCrashOnReleaseTexImage)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    EXPECT_GL_NO_ERROR();
+
+    EGLSurface otherPbuffer = createTestPbufferSurface();
+    ASSERT_NE(otherPbuffer, EGL_NO_SURFACE);
+
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), otherPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+    EXPECT_TRUE(eglReleaseTexImage(window->getDisplay(), otherPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+    EXPECT_TRUE(eglReleaseTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));  // No-op.
+    ASSERT_EGL_SUCCESS();
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+    EXPECT_TRUE(eglReleaseTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    destroyTestPbufferSurface(otherPbuffer);
+    destroyPbuffer();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that eglBindTexImage pbuffer is unbound when the texture is destroyed.
+TEST_P(PbufferTest, BindTexImageReleaseViaTextureDestroy)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    // Bind to a texture that will be destroyed.
+    {
+        GLTexture texture;
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        GLFramebuffer fbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        EXPECT_GL_NO_ERROR();
+
+        // This is being tested: setup a binding that will be overwritten.
+        EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+        ASSERT_EGL_SUCCESS();
+
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        ANGLE_SKIP_TEST_IF(status == GL_FRAMEBUFFER_UNSUPPORTED);
+        EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+        drawColorQuad(GLColor::magenta);
+        ASSERT_GL_NO_ERROR();
+    }
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // This is being tested.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::magenta);
+
+    destroyPbuffer();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that eglBindTexImage pbuffer is unbound when eglReleaseTexImage is called.
+TEST_P(PbufferTest, BindTexImagePbufferReleaseWhileBoundToFBOColorBuffer)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // This is being tested: setup a binding to a pbuffer that will be unbound.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    ANGLE_SKIP_TEST_IF(status == GL_FRAMEBUFFER_UNSUPPORTED);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    // This is being tested: unbind the pbuffer, detect it via framebuffer status.
+    EXPECT_TRUE(eglReleaseTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, status);
+
+    destroyPbuffer();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that eglBindTexImage pbuffer is bound when the pbuffer is destroyed.
+TEST_P(PbufferTest, BindTexImagePbufferDestroyWhileBound)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // This is being tested: setup a binding to a pbuffer that will be destroyed.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    ANGLE_SKIP_TEST_IF(status == GL_FRAMEBUFFER_UNSUPPORTED);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    drawColorQuad(GLColor::magenta);
+    ASSERT_GL_NO_ERROR();
+
+    // This is being tested: destroy the pbuffer, but the underlying binding still works.
+    destroyPbuffer();
+    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::magenta);
+
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that eglBindTexImage overwrite releases the previous pbuffer if the previous is orphaned.
+TEST_P(PbufferTest, BindTexImageOverwriteReleasesOrphanedPbuffer)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // This is being tested: setup a binding to a pbuffer that will be destroyed.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS();
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    ANGLE_SKIP_TEST_IF(status == GL_FRAMEBUFFER_UNSUPPORTED);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    // Write magenta. This shouldn't be read below.
+    drawColorQuad(GLColor::magenta);
+    ASSERT_GL_NO_ERROR();
+
+    // This is being tested: destroy the pbuffer, but the underlying binding still works.
+    destroyPbuffer();
+    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, status);
+
+    EGLSurface otherPbuffer = createTestPbufferSurface();
+    // This is being tested: bind a new pbuffer. The one orphaned above will now be really
+    // deallocated and we hope some sort of assert fires if something goes wrong.
+    EXPECT_TRUE(eglBindTexImage(window->getDisplay(), otherPbuffer, EGL_BACK_BUFFER));
+
+    // Write yellow.
+    drawColorQuad(GLColor::yellow);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::yellow);
+
+    destroyTestPbufferSurface(otherPbuffer);
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
 // Verify that binding a pbuffer works after using a texture normally.
 TEST_P(PbufferTest, BindTexImageAfterTexImage)
 {
@@ -298,7 +647,7 @@ TEST_P(PbufferTest, ClearAndBindTexImageSrgb)
     ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
     ANGLE_SKIP_TEST_IF(
         !IsEGLDisplayExtensionEnabled(window->getDisplay(), "EGL_KHR_gl_colorspace"));
-    // Possible GLES driver bug on Pixel2 devices: http://anglebug.com/5321
+    // Possible GLES driver bug on Pixel2 devices: http://anglebug.com/42263865
     ANGLE_SKIP_TEST_IF(IsPixel2() && IsOpenGLES());
 
     GLubyte kLinearColor[] = {132, 55, 219, 255};
@@ -371,7 +720,7 @@ TEST_P(PbufferTest, ClearAndBindTexImageSrgbSkipDecode)
     ANGLE_SKIP_TEST_IF(
         !IsEGLDisplayExtensionEnabled(window->getDisplay(), "EGL_KHR_gl_colorspace"));
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_sRGB_decode"));
-    // Possible GLES driver bug on Pixel devices: http://anglebug.com/5321
+    // Possible GLES driver bug on Pixel devices: http://anglebug.com/42263865
     ANGLE_SKIP_TEST_IF((IsPixel2() || IsPixel4()) && IsOpenGLES());
 
     GLubyte kLinearColor[] = {132, 55, 219, 255};
@@ -545,6 +894,82 @@ TEST_P(PbufferTest, BindTexImageAndRedefineTexture)
     glDeleteTextures(1, &texture);
 }
 
+// Bind a Pbuffer, generate mipmap for it, and verify it renders correctly
+TEST_P(PbufferTest, BindTexImageAndGenerateMipmap)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    // Crash in drawQuad. http://anglebug.com/412867392
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    EGLWindow *window = getEGLWindow();
+
+    EGLSurface pbuffer;
+    GLuint texture = 0;
+
+    static EGLint pbufferAttributes[] = {
+        EGL_WIDTH,          2,
+        EGL_HEIGHT,         1,
+        EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
+        EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
+        EGL_MIPMAP_TEXTURE, GL_TRUE,
+        EGL_NONE,
+    };
+
+    pbuffer = eglCreatePbufferSurface(window->getDisplay(), window->getConfig(), pbufferAttributes);
+    ASSERT_EGL_SUCCESS();
+
+    ASSERT_NE(EGL_NO_SURFACE, pbuffer);
+
+    // create texture
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    // bind pbuffer as texture storage
+    eglBindTexImage(window->getDisplay(), pbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_SUCCESS();
+    EXPECT_GL_NO_ERROR();
+
+    unsigned int pixelValue = 0xFFFF00FF;
+    std::vector<unsigned int> pixelData(2, pixelValue);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE, &pixelData[0]);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glViewport(0, 0, 1, 1);
+    // Draw a quad and verify that it is magenta
+    glUseProgram(mTextureProgram);
+    glUniform1i(mTextureUniformLocation, 0);
+
+    drawQuad(mTextureProgram, "position", 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    // Verify that magenta was drawn
+    EXPECT_PIXEL_EQ(0, 0, 255, 0, 255, 255);
+
+    EXPECT_TRUE(eglMakeCurrent(window->getDisplay(), pbuffer, pbuffer, window->getContext()));
+    ASSERT_EGL_SUCCESS();
+    glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify that yellow was drawn to pbuffer
+    EXPECT_PIXEL_EQ(0, 0, 255, 255, 0, 255);
+
+    drawQuad(mTextureProgram, "position", 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    // Verify that the texture color is still magenta (texture is disconnected from pbuffer)
+    EXPECT_PIXEL_EQ(0, 0, 255, 0, 255, 255);
+
+    glDeleteTextures(1, &texture);
+    window->makeCurrent();
+    eglDestroySurface(window->getDisplay(), pbuffer);
+}
+
 // Bind the Pbuffer to a texture, use that texture as Framebuffer color attachment and then
 // destroy framebuffer, texture and Pbuffer.
 TEST_P(PbufferTest, UseAsFramebufferColorThenDestroy)
@@ -610,6 +1035,72 @@ TEST_P(PbufferTest, UseAsFramebufferColorThenDestroy)
     ASSERT_GL_NO_ERROR();
 }
 
+// Bind the Pbuffer to a texture, use that texture as Framebuffer color attachment and then
+// destroy framebuffer, texture and Pbuffer. A bound but released TexImages are destroyed
+// only when the binding is overwritten.
+TEST_P(PbufferTest, UseAsFramebufferColorThenDeferredDestroy)
+{
+    // Test skipped because Pbuffers are not supported or Pbuffer does not support binding to RGBA
+    // textures.
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers || !mSupportsBindTexImage);
+    EGLWindow *window = getEGLWindow();
+    window->makeCurrent();
+
+    // Create a texture and bind the Pbuffer to it
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    EXPECT_GL_NO_ERROR();
+
+    EGLSurface otherPbuffer = createTestPbufferSurface();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_NE(otherPbuffer, EGL_NO_SURFACE);
+
+    eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_SUCCESS();
+    eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+    eglBindTexImage(window->getDisplay(), otherPbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_SUCCESS();
+    eglReleaseTexImage(window->getDisplay(), otherPbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_SUCCESS();
+    eglBindTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_SUCCESS();
+    eglReleaseTexImage(window->getDisplay(), mPbuffer, EGL_BACK_BUFFER);
+    ASSERT_EGL_SUCCESS();
+
+    destroyPbuffer();
+    destroyTestPbufferSurface(otherPbuffer);
+    ASSERT_EGL_SUCCESS();
+
+    // Finish work
+    glFinish();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test the validation errors for bad parameters for eglCreatePbufferSurface
+TEST_P(PbufferTest, NegativeValidationBadAttributes)
+{
+    EGLWindow *window = getEGLWindow();
+    EGLSurface pbufferSurface;
+
+    const EGLint invalidPBufferAttributeList[][3] = {
+        {EGL_MIPMAP_TEXTURE, EGL_MIPMAP_TEXTURE, EGL_NONE},
+        {EGL_LARGEST_PBUFFER, EGL_LARGEST_PBUFFER, EGL_NONE},
+    };
+
+    for (size_t i = 0; i < 2; i++)
+    {
+        pbufferSurface = eglCreatePbufferSurface(window->getDisplay(), window->getConfig(),
+                                                 &invalidPBufferAttributeList[i][0]);
+        ASSERT_EQ(pbufferSurface, EGL_NO_SURFACE);
+        ASSERT_EGL_ERROR(EGL_BAD_ATTRIBUTE);
+    }
+}
+
 // Test that passing colorspace attributes do not generate EGL validation errors
 // when EGL_ANGLE_colorspace_attribute_passthrough extension is supported.
 TEST_P(PbufferColorspaceTest, CreateSurfaceWithColorspace)
@@ -653,6 +1144,105 @@ TEST_P(PbufferColorspaceTest, CreateSurfaceWithColorspace)
     {
         eglDestroySurface(dpy, pbufferSurface);
     }
+}
+
+// Test the implementation for EGL_LARGEST_PBUFFER
+TEST_P(PbufferTest, LargestPbuffer)
+{
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers);
+    ANGLE_SKIP_TEST_IF(!IsARM());
+    EGLWindow *window  = getEGLWindow();
+    EGLDisplay display = window->getDisplay();
+    EGLSurface pbufferSurface;
+
+    EGLint maxPbufferWidth;
+    EGLint maxPbufferHeight;
+    EGLint value;
+    EGLint pBufferAttributes[] = {EGL_WIDTH,           1,         EGL_HEIGHT, 1,
+                                  EGL_LARGEST_PBUFFER, EGL_FALSE, EGL_NONE};
+
+    // Check that eglCreatePbufferSurface can succeed when EGL_LARGEST_PBUFFER is set to EGL_FALSE
+    pbufferSurface = eglCreatePbufferSurface(display, window->getConfig(), pBufferAttributes);
+    ASSERT_NE(pbufferSurface, EGL_NO_SURFACE);
+    ASSERT_EGL_SUCCESS();
+
+    // Cleanup
+    eglDestroySurface(display, pbufferSurface);
+
+    EXPECT_EGL_TRUE(
+        eglGetConfigAttrib(display, window->getConfig(), EGL_MAX_PBUFFER_WIDTH, &maxPbufferWidth));
+    pBufferAttributes[1] = maxPbufferWidth + 1;
+    pBufferAttributes[5] = EGL_TRUE;
+
+    // Check that eglCreatePbufferSurface clamps an EGL_WIDTH that is too large with
+    // EGL_LARGEST_PBUFFER set
+    pbufferSurface = eglCreatePbufferSurface(display, window->getConfig(), pBufferAttributes);
+    ASSERT_NE(pbufferSurface, EGL_NO_SURFACE);
+    ASSERT_EGL_SUCCESS();
+
+    EXPECT_EGL_TRUE(eglQuerySurface(display, pbufferSurface, EGL_WIDTH, &value));
+    ASSERT_EGL_SUCCESS();
+    ASSERT_EQ(value, maxPbufferWidth);
+
+    // Cleanup
+    eglDestroySurface(display, pbufferSurface);
+
+    pBufferAttributes[1] = 1;
+
+    EXPECT_EGL_TRUE(eglGetConfigAttrib(display, window->getConfig(), EGL_MAX_PBUFFER_HEIGHT,
+                                       &maxPbufferHeight));
+    pBufferAttributes[3] = maxPbufferHeight + 1;
+
+    // Check that eglCreatePbufferSurface clamps an EGL_HEIGHT that is too large with
+    // EGL_LARGEST_PBUFFER set
+    pbufferSurface = eglCreatePbufferSurface(display, window->getConfig(), pBufferAttributes);
+    ASSERT_NE(pbufferSurface, EGL_NO_SURFACE);
+    ASSERT_EGL_SUCCESS();
+
+    EXPECT_EGL_TRUE(eglQuerySurface(display, pbufferSurface, EGL_HEIGHT, &value));
+    ASSERT_EGL_SUCCESS();
+    ASSERT_EQ(value, maxPbufferHeight);
+
+    // Cleanup
+    eglDestroySurface(display, pbufferSurface);
+}
+
+// Test the implementation for query format sizes from zero sized pbuffer surface
+TEST_P(PbufferTest, ZeroSizedSurfaceFormatQuery)
+{
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers);
+    EGLWindow *window  = getEGLWindow();
+    EGLDisplay display = window->getDisplay();
+    EGLSurface pbufferSurface;
+
+    EGLint pBufferAttributes[] = {EGL_WIDTH, 0, EGL_HEIGHT, 0, EGL_NONE};
+
+    pbufferSurface = eglCreatePbufferSurface(display, window->getConfig(), pBufferAttributes);
+    ASSERT_NE(pbufferSurface, EGL_NO_SURFACE);
+    ASSERT_EGL_SUCCESS();
+
+    EGLint width, height;
+    EXPECT_EGL_TRUE(eglQuerySurface(display, pbufferSurface, EGL_WIDTH, &width));
+    EXPECT_EGL_TRUE(eglQuerySurface(display, pbufferSurface, EGL_HEIGHT, &height));
+    EXPECT_EQ(width, 0);
+    EXPECT_EQ(height, 0);
+
+    window->makeCurrent(pbufferSurface, pbufferSurface, window->getContext());
+
+    GLint redBits, greenBits, blueBits, alphaBits;
+    glGetIntegerv(GL_RED_BITS, &redBits);
+    glGetIntegerv(GL_GREEN_BITS, &greenBits);
+    glGetIntegerv(GL_BLUE_BITS, &blueBits);
+    glGetIntegerv(GL_ALPHA_BITS, &alphaBits);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_EQ(redBits, 8);
+    EXPECT_EQ(greenBits, 8);
+    EXPECT_EQ(blueBits, 8);
+    EXPECT_EQ(alphaBits, 8);
+
+    // Cleanup
+    window->makeCurrent();
+    eglDestroySurface(display, pbufferSurface);
 }
 
 ANGLE_INSTANTIATE_TEST_ES2(PbufferTest);

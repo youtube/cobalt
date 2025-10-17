@@ -9,6 +9,7 @@
 #include "components/content_settings/core/browser/content_settings_rule.h"
 #include "components/content_settings/core/browser/content_settings_utils.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "extensions/common/extension_id.h"
 
 namespace content_settings {
 
@@ -23,9 +24,20 @@ CustomExtensionProvider::~CustomExtensionProvider() = default;
 
 std::unique_ptr<RuleIterator> CustomExtensionProvider::GetRuleIterator(
     ContentSettingsType content_type,
-    bool incognito) const {
+    bool incognito,
+    const content_settings::PartitionKey& partition_key) const {
   return extensions_settings_->GetRuleIterator(content_type,
                                                incognito);
+}
+
+std::unique_ptr<content_settings::Rule> CustomExtensionProvider::GetRule(
+    const GURL& primary_url,
+    const GURL& secondary_url,
+    ContentSettingsType content_type,
+    bool off_the_record,
+    const content_settings::PartitionKey& partition_key) const {
+  return extensions_settings_->GetRule(primary_url, secondary_url, content_type,
+                                       off_the_record);
 }
 
 bool CustomExtensionProvider::SetWebsiteSetting(
@@ -33,7 +45,8 @@ bool CustomExtensionProvider::SetWebsiteSetting(
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsType content_type,
     base::Value&& value,
-    const ContentSettingConstraints& constraints) {
+    const ContentSettingConstraints& constraints,
+    const content_settings::PartitionKey& partition_key) {
   return false;
 }
 
@@ -43,15 +56,16 @@ void CustomExtensionProvider::ShutdownOnUIThread() {
 }
 
 void CustomExtensionProvider::OnContentSettingChanged(
-    const std::string& extension_id,
+    const extensions::ExtensionId& extension_id,
     bool incognito) {
-  if (incognito_ != incognito)
+  if (incognito_ != incognito) {
     return;
-  // TODO(1245927): Be more concise and use the type/pattern that actually
-  // changed.
+  }
+  // TODO(crbug.com/40196354): Be more concise and use the type/pattern that
+  // actually changed.
   NotifyObservers(ContentSettingsPattern::Wildcard(),
                   ContentSettingsPattern::Wildcard(),
-                  ContentSettingsType::DEFAULT);
+                  ContentSettingsType::DEFAULT, /*partition_key=*/nullptr);
 }
 
 }  // namespace content_settings

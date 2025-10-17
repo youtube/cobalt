@@ -8,6 +8,8 @@
 #include <utility>
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_value.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
@@ -19,7 +21,6 @@
 #include "third_party/blink/renderer/modules/encoding/encoding.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_codec.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
@@ -44,13 +45,14 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
 
   // Implements the type conversion part of the "decode and enqueue a chunk"
   // algorithm.
-  ScriptPromise Transform(v8::Local<v8::Value> chunk,
-                          TransformStreamDefaultController* controller,
-                          ExceptionState& exception_state) override {
+  ScriptPromise<IDLUndefined> Transform(
+      v8::Local<v8::Value> chunk,
+      TransformStreamDefaultController* controller,
+      ExceptionState& exception_state) override {
     auto* buffer_source = V8BufferSource::Create(script_state_->GetIsolate(),
                                                  chunk, exception_state);
     if (exception_state.HadException())
-      return ScriptPromise();
+      return EmptyPromise();
 
     // This implements the "get a copy of the bytes held by the buffer source"
     // algorithm (https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy).
@@ -58,25 +60,24 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
     if (array_piece.ByteLength() > std::numeric_limits<uint32_t>::max()) {
       exception_state.ThrowRangeError(
           "Buffer size exceeds maximum heap object size.");
-      return ScriptPromise();
+      return EmptyPromise();
     }
-    DecodeAndEnqueue(static_cast<char*>(array_piece.Data()),
-                     static_cast<uint32_t>(array_piece.ByteLength()),
-                     WTF::FlushBehavior::kDoNotFlush, controller,
-                     exception_state);
-    return ScriptPromise::CastUndefined(script_state_);
+    DecodeAndEnqueue(array_piece.ByteSpan(), WTF::FlushBehavior::kDoNotFlush,
+                     controller, exception_state);
+    return ToResolvedUndefinedPromise(script_state_.Get());
   }
 
   // Implements the "encode and flush" algorithm.
-  ScriptPromise Flush(TransformStreamDefaultController* controller,
-                      ExceptionState& exception_state) override {
-    DecodeAndEnqueue(nullptr, 0u, WTF::FlushBehavior::kDataEOF, controller,
+  ScriptPromise<IDLUndefined> Flush(
+      TransformStreamDefaultController* controller,
+      ExceptionState& exception_state) override {
+    DecodeAndEnqueue({}, WTF::FlushBehavior::kDataEOF, controller,
                      exception_state);
 
-    return ScriptPromise::CastUndefined(script_state_);
+    return ToResolvedUndefinedPromise(script_state_.Get());
   }
 
-  ScriptState* GetScriptState() override { return script_state_; }
+  ScriptState* GetScriptState() override { return script_state_.Get(); }
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(script_state_);
@@ -86,41 +87,43 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
  private:
   // Implements the second part of "decode and enqueue a chunk" as well as the
   // "flush and enqueue" algorithm.
-  void DecodeAndEnqueue(const char* start,
-                        uint32_t length,
+  void DecodeAndEnqueue(base::span<const uint8_t> data,
                         WTF::FlushBehavior flush,
                         TransformStreamDefaultController* controller,
                         ExceptionState& exception_state) {
     const UChar kBOM = 0xFEFF;
 
     bool saw_error = false;
-    String outputChunk =
-        decoder_->Decode(start, length, flush, fatal_, saw_error);
+    String output_chunk = decoder_->Decode(data, flush, fatal_, saw_error);
 
     if (fatal_ && saw_error) {
       exception_state.ThrowTypeError("The encoded data was not valid.");
       return;
     }
 
-    if (outputChunk.empty())
+    if (output_chunk.empty()) {
       return;
+    }
 
     if (!ignore_bom_ && !bom_seen_) {
       bom_seen_ = true;
-      if (encoding_has_bom_removal_ && outputChunk[0] == kBOM) {
-        outputChunk.Remove(0);
-        if (outputChunk.empty())
+      if (encoding_has_bom_removal_ && output_chunk[0] == kBOM) {
+        output_chunk.Remove(0);
+        if (output_chunk.empty()) {
           return;
+        }
       }
     }
 
-    controller->enqueue(script_state_,
-                        ScriptValue::From(script_state_, outputChunk),
-                        exception_state);
+    controller->enqueue(
+        script_state_,
+        ScriptValue(script_state_->GetIsolate(),
+                    V8String(script_state_->GetIsolate(), output_chunk)),
+        exception_state);
   }
 
   static bool EncodingHasBomRemoval(const WTF::TextEncoding& encoding) {
-    String name(encoding.GetName());
+    const AtomicString& name = encoding.GetName();
     return name == "UTF-8" || name == "UTF-16LE" || name == "UTF-16BE";
   }
 
@@ -156,7 +159,7 @@ TextDecoderStream* TextDecoderStream::Create(ScriptState* script_state,
 TextDecoderStream::~TextDecoderStream() = default;
 
 String TextDecoderStream::encoding() const {
-  return String(encoding_.GetName()).LowerASCII();
+  return encoding_.GetName().GetString().LowerASCII();
 }
 
 ReadableStream* TextDecoderStream::readable() const {

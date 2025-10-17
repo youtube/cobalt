@@ -4,10 +4,10 @@
 
 #include "chrome/browser/vr/ui_scene.h"
 
+#include <numbers>
 #include <utility>
 #include <vector>
 
-#include "base/numerics/math_constants.h"
 #include "base/test/gtest_util.h"
 #include "base/values.h"
 #include "chrome/browser/vr/databinding/binding.h"
@@ -18,6 +18,7 @@
 #include "chrome/browser/vr/test/animation_utils.h"
 #include "chrome/browser/vr/test/constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/animation/keyframe/test/animation_utils.h"
 #include "ui/gfx/geometry/transform_util.h"
 #include "ui/gfx/geometry/vector3d_f.h"
 
@@ -42,7 +43,7 @@ size_t NumElementsInSubtree(UiElement* element) {
 
 class AlwaysDirty : public UiElement {
  public:
-  ~AlwaysDirty() override {}
+  ~AlwaysDirty() override = default;
 
   bool OnBeginFrame(const gfx::Transform& head_pose) override { return true; }
 };
@@ -130,14 +131,14 @@ TEST(UiScene, ParentTransformAppliesToChild) {
   element->SetSize(1000, 1000);
 
   element->SetTranslate(6, 1, 0);
-  element->SetRotate(0, 0, 1, 0.5f * base::kPiFloat);
+  element->SetRotate(0, 0, 1, 0.5f * std::numbers::pi_v<float>);
   element->SetScale(3, 3, 1);
   scene.AddUiElement(kRoot, std::move(element));
 
   // Add a child to the parent, with different transformations.
   element = std::make_unique<UiElement>();
   element->SetTranslate(3, 0, 0);
-  element->SetRotate(0, 0, 1, 0.5f * base::kPiFloat);
+  element->SetRotate(0, 0, 1, 0.5f * std::numbers::pi_v<float>);
   element->SetScale(2, 2, 1);
   UiElement* child = element.get();
   parent->AddChild(std::move(element));

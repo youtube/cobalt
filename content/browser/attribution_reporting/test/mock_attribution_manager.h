@@ -8,21 +8,22 @@
 #include <stdint.h>
 
 #include <memory>
-#include <string>
+#include <optional>
+#include <set>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
-#include "components/attribution_reporting/source_registration_error.mojom-forward.h"
-#include "components/attribution_reporting/source_type.mojom-forward.h"
+#include "components/attribution_reporting/registration_header_error.h"
 #include "components/attribution_reporting/suitable_origin.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
+#include "content/browser/attribution_reporting/attribution_reporting.mojom-forward.h"
 #include "content/browser/attribution_reporting/attribution_trigger.h"
+#include "content/browser/attribution_reporting/os_registration.h"
+#include "content/browser/attribution_reporting/process_aggregatable_debug_report_result.mojom-forward.h"
 #include "content/browser/attribution_reporting/send_result.h"
 #include "content/browser/attribution_reporting/storable_source.h"
 #include "content/public/browser/attribution_data_model.h"
@@ -30,20 +31,21 @@
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "content/browser/attribution_reporting/attribution_reporting.mojom-forward.h"
-#include "content/browser/attribution_reporting/os_registration.h"
-#endif
+namespace base {
+class ValueView;
+}  // namespace base
 
 namespace content {
 
+class AggregatableDebugReport;
 class AttributionDataHostManager;
 class AttributionDebugReport;
 class BrowsingDataFilterBuilder;
 class CreateReportResult;
 class StoredSource;
+
+struct SendAggregatableDebugReportResult;
 
 class MockAttributionManager : public AttributionManager {
  public:
@@ -73,9 +75,8 @@ class MockAttributionManager : public AttributionManager {
               (override));
 
   MOCK_METHOD(void,
-              SendReportsForWebUI,
-              (const std::vector<AttributionReport::Id>&,
-               base::OnceClosure done),
+              SendReportForWebUI,
+              (AttributionReport::Id, base::OnceClosure done),
               (override));
 
   MOCK_METHOD(void,
@@ -89,17 +90,8 @@ class MockAttributionManager : public AttributionManager {
               (override));
 
   MOCK_METHOD(void,
-              NotifyFailedSourceRegistration,
-              (const std::string& header_value,
-               const attribution_reporting::SuitableOrigin& source_origin,
-               const attribution_reporting::SuitableOrigin& reporting_origin,
-               attribution_reporting::mojom::SourceType,
-               attribution_reporting::mojom::SourceRegistrationError),
-              (override));
-
-  MOCK_METHOD(void,
               GetAllDataKeys,
-              (base::OnceCallback<void(std::vector<DataKey>)>),
+              (base::OnceCallback<void(std::set<DataKey>)>),
               (override));
 
   MOCK_METHOD(void,
@@ -107,12 +99,26 @@ class MockAttributionManager : public AttributionManager {
               (const DataKey&, base::OnceClosure done),
               (override));
 
-#if BUILDFLAG(IS_ANDROID)
+  MOCK_METHOD(void, HandleOsRegistration, (OsRegistration), (override));
+
   MOCK_METHOD(void,
-              HandleOsRegistration,
-              (OsRegistration, GlobalRenderFrameHostId),
+              SetDebugMode,
+              (std::optional<bool> enabled, base::OnceClosure done),
               (override));
-#endif  // BUILDFLAG(IS_ANDROID)
+
+  MOCK_METHOD(void,
+              ReportRegistrationHeaderError,
+              (attribution_reporting::SuitableOrigin reporting_origin,
+               attribution_reporting::RegistrationHeaderError,
+               const attribution_reporting::SuitableOrigin& context_origin,
+               bool is_within_fenced_frame,
+               GlobalRenderFrameHostId),
+              (override));
+
+  MOCK_METHOD(void,
+              UpdateLastNavigationTime,
+              (base::Time registration_time),
+              (override));
 
   void AddObserver(AttributionObserver*) override;
   void RemoveObserver(AttributionObserver*) override;
@@ -123,34 +129,35 @@ class MockAttributionManager : public AttributionManager {
   void NotifySourceHandled(
       const StorableSource&,
       StorableSource::Result,
-      absl::optional<uint64_t> cleared_debug_key = absl::nullopt);
+      std::optional<uint64_t> cleared_debug_key = std::nullopt);
   void NotifyReportSent(const AttributionReport&,
                         bool is_debug_report,
                         const SendResult&);
   void NotifyTriggerHandled(
-      const AttributionTrigger&,
       const CreateReportResult&,
-      absl::optional<uint64_t> cleared_debug_key = absl::nullopt);
-  void NotifySourceRegistrationFailure(
-      const std::string& header_value,
-      const attribution_reporting::SuitableOrigin& source_origin,
-      const attribution_reporting::SuitableOrigin& reporting_origin,
-      attribution_reporting::mojom::SourceType,
-      attribution_reporting::mojom::SourceRegistrationError);
+      std::optional<uint64_t> cleared_debug_key = std::nullopt);
   void NotifyDebugReportSent(const AttributionDebugReport&,
                              int status,
                              base::Time);
-#if BUILDFLAG(IS_ANDROID)
+  void NotifyAggregatableDebugReportSent(
+      const AggregatableDebugReport&,
+      base::ValueView report_body,
+      attribution_reporting::mojom::ProcessAggregatableDebugReportResult,
+      const SendAggregatableDebugReportResult&);
   void NotifyOsRegistration(const OsRegistration&,
                             bool is_debug_key_allowed,
                             attribution_reporting::mojom::OsRegistrationResult);
-#endif  // BUILDFLAG(IS_ANDROID)
+  void NotifyDebugModeChanged(bool debug_mode);
 
   void SetDataHostManager(std::unique_ptr<AttributionDataHostManager>);
+
+  void SetOnObserverRegistered(base::OnceClosure done);
 
  private:
   std::unique_ptr<AttributionDataHostManager> data_host_manager_;
   base::ObserverList<AttributionObserver, /*check_empty=*/true> observers_;
+
+  base::OnceClosure on_observer_registered_;
 };
 
 }  // namespace content

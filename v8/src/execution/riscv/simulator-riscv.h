@@ -63,13 +63,14 @@ int Compare(const T& a, const T& b) {
 }
 
 // Returns the negative absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_signed_v<T>>>
 T Nabs(T a) {
   return a < 0 ? a : -a;
 }
 
 #if defined(USE_SIMULATOR)
+typedef signed __int128_t __attribute__((__mode__(__TI__)));
+typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
@@ -78,6 +79,10 @@ T Nabs(T a) {
 #include "src/execution/simulator-base.h"
 #include "src/utils/allocation.h"
 #include "src/utils/boxed-float.h"
+
+namespace heap::base {
+class StackVisitor;
+}
 
 namespace v8 {
 namespace internal {
@@ -430,7 +435,7 @@ class Simulator : public SimulatorBase {
   int32_t get_fpu_register_signed_word(int fpureg) const;
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
-  Float32 get_fpu_register_Float32(int fpureg) const;
+  Float32 get_fpu_register_Float32(int fpureg, bool check_nanbox = true) const;
   double get_fpu_register_double(int fpureg) const;
   Float64 get_fpu_register_Float64(int fpureg) const;
 
@@ -525,25 +530,79 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  uintptr_t StackBase() const;
+  // Return central stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kAdditionalStackMargin; }
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
+
+  // Pseudo instruction for switching stack limit
+  void DoSwitchStackLimit(Instruction* instr);
 
   // Executes RISC-V instructions until the PC reaches end_sim_pc.
   void Execute();
 
+  // Only arguments up to 64 bits in size are supported.
+  class CallArgument {
+   public:
+    template <typename T>
+    explicit CallArgument(T argument) {
+      bits_ = 0;
+      DCHECK(sizeof(argument) <= sizeof(bits_));
+      bits_ = ConvertArg(argument);
+      type_ = GP_ARG;
+    }
+    explicit CallArgument(double argument) {
+      DCHECK(sizeof(argument) == sizeof(bits_));
+      memcpy(&bits_, &argument, sizeof(argument));
+      type_ = FP_ARG;
+    }
+    explicit CallArgument(float argument) {
+      auto arg = box_float(argument);
+      memcpy(&bits_, &arg, sizeof(arg));
+      type_ = FP_ARG;
+    }
+    // This indicates the end of the arguments list, so that CallArgument
+    // objects can be passed into varargs functions.
+    static CallArgument End() { return CallArgument(); }
+    int64_t bits() const { return bits_; }
+    bool IsEnd() const { return type_ == NO_ARG; }
+    bool IsGP() const { return type_ == GP_ARG; }
+    bool IsFP() const { return type_ == FP_ARG; }
+
+   private:
+    enum CallArgumentType { GP_ARG, FP_ARG, NO_ARG };
+    // All arguments are aligned to at least 64 bits and we don't support
+    // passing bigger arguments, so the payload size can be fixed at 64 bits.
+    int64_t bits_;
+    CallArgumentType type_;
+    CallArgument() { type_ = NO_ARG; }
+  };
+
   template <typename Return, typename... Args>
   Return Call(Address entry, Args... args) {
+#ifdef V8_TARGET_ARCH_RISCV64
+    // Convert all arguments to CallArgument.
+    CallArgument call_args[] = {CallArgument(args)..., CallArgument::End()};
+    CallImpl(entry, call_args);
+    return ReadReturn<Return>();
+#else
     return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
+#endif
   }
-
   // Alternative: call a 2-argument double function.
   double CallFP(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);
@@ -575,9 +634,24 @@ class Simulator : public SimulatorBase {
     Unpredictable = 0xbadbeaf
   };
 
+#ifdef V8_TARGET_ARCH_RISCV64
+  V8_EXPORT_PRIVATE void CallImpl(Address entry, CallArgument* args);
+  void CallAnyCTypeFunction(Address target_address,
+                            const EncodedCSignature& signature);
+  // Read floating point return values.
+  template <typename T>
+  typename std::enable_if_t<std::is_floating_point_v<T>, T> ReadReturn() {
+    return static_cast<T>(get_fpu_register_double(fa0));
+  }
+  // Read non-float return values.
+  template <typename T>
+  typename std::enable_if_t<!std::is_floating_point_v<T>, T> ReadReturn() {
+    return ConvertReturn<T>(get_register(a0));
+  }
+#else
   V8_EXPORT_PRIVATE intptr_t CallImpl(Address entry, int argument_count,
                                       const intptr_t* arguments);
-
+#endif
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
@@ -594,6 +668,18 @@ class Simulator : public SimulatorBase {
     // FLOAT_DOUBLE,
     // WORD_DWORD
   };
+
+  // "Probe" if an address range can be read. This is currently implemented
+  // by doing a 1-byte read of the last accessed byte, since the assumption is
+  // that if the last byte is accessible, also all lower bytes are accessible
+  // (which holds true for Wasm).
+  // Returns true if the access was successful, false if the access raised a
+  // signal which was then handled by the trap handler (also see
+  // {trap_handler::ProbeMemory}). If the access raises a signal which is not
+  // handled by the trap handler (e.g. because the current PC is not registered
+  // as a protected instruction), the signal will propagate and make the process
+  // crash. If no trap handler is available, this always returns true.
+  bool ProbeMemory(uintptr_t address, uintptr_t access_size);
 
   // RISCV Memory read/write methods
   template <typename T>
@@ -842,8 +928,8 @@ class Simulator : public SimulatorBase {
         if (trace_buf_[i] == '\0') break;
       }
       SNPrintF(trace_buf_.SubVector(i, trace_buf_.length()),
-               "  sew:%s lmul:%s vstart:%lu vl:%lu", rvv_sew_s(), rvv_lmul_s(),
-               rvv_vstart(), rvv_vl());
+               "  sew:%s lmul:%s vstart:%" PRId64 "vl:%" PRId64, rvv_sew_s(),
+               rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
   }
 
@@ -891,7 +977,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOpFMA(Func fn, T dst, T src1, T src2) {
-    static_assert(std::is_floating_point<T>::value);
+    static_assert(std::is_floating_point_v<T>);
     auto alu_out = fn(dst, src1, src2);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
@@ -906,10 +992,10 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp3(Func fn) {
-    static_assert(std::is_floating_point<T>::value);
-    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
-    T src2 = std::is_same<float, T>::value ? frs2() : drs2();
-    T src3 = std::is_same<float, T>::value ? frs3() : drs3();
+    static_assert(std::is_floating_point_v<T>);
+    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+    T src2 = std::is_same_v<float, T> ? frs2() : drs2();
+    T src3 = std::is_same_v<float, T> ? frs3() : drs3();
     auto alu_out = fn(src1, src2, src3);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
@@ -924,9 +1010,9 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp2(Func fn) {
-    static_assert(std::is_floating_point<T>::value);
-    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
-    T src2 = std::is_same<float, T>::value ? frs2() : drs2();
+    static_assert(std::is_floating_point_v<T>);
+    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+    T src2 = std::is_same_v<float, T> ? frs2() : drs2();
     auto alu_out = fn(src1, src2);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2)) {
@@ -940,8 +1026,8 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp1(Func fn) {
-    static_assert(std::is_floating_point<T>::value);
-    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
+    static_assert(std::is_floating_point_v<T>);
+    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
     auto alu_out = fn(src1);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1)) {
@@ -1036,6 +1122,7 @@ class Simulator : public SimulatorBase {
   // Stop helper functions.
   bool IsWatchpoint(reg_t code);
   bool IsTracepoint(reg_t code);
+  bool IsSwitchStackLimit(reg_t code);
   void PrintWatchpoint(reg_t code);
   void HandleStop(reg_t code);
   bool IsStopInstruction(Instruction* instr);
@@ -1091,8 +1178,25 @@ class Simulator : public SimulatorBase {
 #endif
   // Simulator support.
   // Allocate 1MB for stack.
-  size_t stack_size_;
-  char* stack_;
+  uintptr_t stack_;
+  static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+#if V8_TARGET_ARCH_RISCV64
+    size_t stack_size = v8_flags.sim_stack_size * KB;
+#else
+    size_t stack_size = 1 * MB;  // allocate 1MB for stack
+#endif
+    return stack_size + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() {
+    return AllocatedStackSize() - kStackProtectionSize;
+  }
+
+  uintptr_t stack_limit_;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 20 * KB;
+
   bool pc_modified_;
   int64_t icount_;
   sreg_t* watch_address_ = nullptr;

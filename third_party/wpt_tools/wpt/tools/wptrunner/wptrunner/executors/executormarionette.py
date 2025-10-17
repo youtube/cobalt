@@ -3,7 +3,6 @@
 import json
 import os
 import threading
-import time
 import traceback
 import uuid
 
@@ -24,7 +23,8 @@ from .base import (CallbackHandler,
                    WdspecExecutor,
                    get_pages,
                    strip_server)
-from .protocol import (ActionSequenceProtocolPart,
+from .protocol import (AccessibilityProtocolPart,
+                       ActionSequenceProtocolPart,
                        AssertsProtocolPart,
                        BaseProtocolPart,
                        TestharnessProtocolPart,
@@ -43,14 +43,20 @@ from .protocol import (ActionSequenceProtocolPart,
                        SetPermissionProtocolPart,
                        PrintProtocolPart,
                        DebugProtocolPart,
+                       VirtualSensorProtocolPart,
+                       DevicePostureProtocolPart,
+                       VirtualPressureSourceProtocolPart,
+                       DisplayFeaturesProtocolPart,
+                       WebExtensionsProtocolPart,
                        merge_dicts)
 
 
 def do_delayed_imports():
-    global errors, marionette, Addons
+    global errors, marionette, Addons, WebAuthn
 
     from marionette_driver import marionette, errors
     from marionette_driver.addons import Addons
+    from marionette_driver.webauthn import WebAuthn
 
 
 def _switch_to_window(marionette, handle):
@@ -71,6 +77,12 @@ def _switch_to_window(marionette, handle):
     marionette.window = handle
 
 
+class MarionetteCallbackHandler(CallbackHandler):
+    def __init__(self, logger, protocol, test_window):
+        MarionetteCallbackHandler.expected_exc = (errors.MarionetteException,)
+        super().__init__(logger, protocol, test_window)
+
+
 class MarionetteBaseProtocolPart(BaseProtocolPart):
     def __init__(self, parent):
         super().__init__(parent)
@@ -79,9 +91,10 @@ class MarionetteBaseProtocolPart(BaseProtocolPart):
     def setup(self):
         self.marionette = self.parent.marionette
 
-    def execute_script(self, script, asynchronous=False):
+    def execute_script(self, script, asynchronous=False, args=None):
         method = self.marionette.execute_async_script if asynchronous else self.marionette.execute_script
-        return method(script, new_sandbox=False, sandbox=None)
+        script_args = args if args is not None else []
+        return method(script, script_args=script_args, new_sandbox=False, sandbox=None)
 
     def set_timeout(self, timeout):
         """Set the Marionette script timeout.
@@ -92,6 +105,9 @@ class MarionetteBaseProtocolPart(BaseProtocolPart):
         if timeout != self.timeout:
             self.marionette.timeout.script = timeout
             self.timeout = timeout
+
+    def create_window(self, type="tab", **kwargs):
+        return self.marionette.open(type=type, focus=True)["handle"]
 
     @property
     def current_window(self):
@@ -121,8 +137,12 @@ class MarionetteBaseProtocolPart(BaseProtocolPart):
 
         while True:
             try:
-                return self.marionette.execute_async_script("""let callback = arguments[arguments.length - 1];
+                rv = self.marionette.execute_async_script("""let callback = arguments[arguments.length - 1];
 addEventListener("__test_restart", e => {e.preventDefault(); callback(true)})""")
+                # None can be returned if we try to run the script again before we've completed a navigation.
+                # In that case, keep retrying
+                if rv is not None:
+                    return rv
             except errors.NoSuchWindowException:
                 # The window closed
                 break
@@ -218,57 +238,6 @@ class MarionetteTestharnessProtocolPart(TestharnessProtocolPart):
                     pass
             else:
                 break
-
-    def get_test_window(self, window_id, parent, timeout=5):
-        """Find the test window amongst all the open windows.
-        This is assumed to be either the named window or the one after the parent in the list of
-        window handles
-
-        :param window_id: The DOM name of the Window
-        :param parent: The handle of the runner window
-        :param timeout: The time in seconds to wait for the window to appear. This is because in
-                        some implementations there's a race between calling window.open and the
-                        window being added to the list of WebDriver accessible windows."""
-        test_window = None
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            if window_id:
-                try:
-                    # Try this, it's in Level 1 but nothing supports it yet
-                    win_s = self.parent.base.execute_script("return window['%s'];" % self.window_id)
-                    win_obj = json.loads(win_s)
-                    test_window = win_obj["window-fcc6-11e5-b4f8-330a88ab9d7f"]
-                except Exception:
-                    pass
-
-            if test_window is None:
-                handles = self.marionette.window_handles
-                if len(handles) == 2:
-                    test_window = next(iter(set(handles) - {parent}))
-                elif len(handles) > 2 and handles[0] == parent:
-                    # Hope the first one here is the test window
-                    test_window = handles[1]
-
-            if test_window is not None:
-                assert test_window != parent
-                return test_window
-
-            time.sleep(0.1)
-
-        raise Exception("unable to find test window")
-
-    def test_window_loaded(self):
-        """Wait until the page in the new window has been loaded.
-
-        Hereby ignore Javascript execptions that are thrown when
-        the document has been unloaded due to a process change.
-        """
-        while True:
-            try:
-                self.parent.base.execute_script(self.window_loaded_script, asynchronous=True)
-                break
-            except errors.JavascriptException:
-                pass
 
 
 class MarionettePrefsProtocolPart(PrefsProtocolPart):
@@ -379,7 +348,7 @@ class MarionetteStorageProtocolPart(StorageProtocolPart):
             let principal = ssm.createContentPrincipal(uri, {});
             let qms = Components.classes["@mozilla.org/dom/quota-manager-service;1"]
                                 .getService(Components.interfaces.nsIQuotaManagerService);
-            qms.clearStoragesForPrincipal(principal, "default", null, true);
+            qms.clearStoragesForOriginPrefix(principal, "default");
             """ % url
         with self.marionette.using_context(self.marionette.CONTEXT_CHROME):
             self.marionette.execute_script(script)
@@ -482,8 +451,11 @@ class MarionetteWindowProtocolPart(WindowProtocolPart):
         return self.marionette.minimize_window()
 
     def set_rect(self, rect):
-        self.marionette.set_window_rect(rect["x"], rect["y"], rect["height"], rect["width"])
+        self.marionette.set_window_rect(
+            rect.get("x"), rect.get("y"), rect.get("height"), rect.get("width"))
 
+    def get_rect(self):
+        return self.marionette.window_rect
 
 class MarionetteActionSequenceProtocolPart(ActionSequenceProtocolPart):
     def setup(self):
@@ -532,7 +504,9 @@ class MarionetteCoverageProtocolPart(CoverageProtocolPart):
             return
 
         script = """
-            const {PerTestCoverageUtils} = ChromeUtils.import("chrome://remote/content/marionette/PerTestCoverageUtils.jsm");
+            const {PerTestCoverageUtils} = ChromeUtils.importESModule(
+                "chrome://remote/content/marionette/PerTestCoverageUtils.sys.mjs"
+            );
             return PerTestCoverageUtils.enabled;
             """
         with self.marionette.using_context(self.marionette.CONTEXT_CHROME):
@@ -542,7 +516,9 @@ class MarionetteCoverageProtocolPart(CoverageProtocolPart):
         script = """
             var callback = arguments[arguments.length - 1];
 
-            const {PerTestCoverageUtils} = ChromeUtils.import("chrome://remote/content/marionette/PerTestCoverageUtils.jsm");
+            const {PerTestCoverageUtils} = ChromeUtils.importESModule(
+                "chrome://remote/content/marionette/PerTestCoverageUtils.sys.mjs"
+            );
             PerTestCoverageUtils.beforeTest().then(callback, callback);
             """
         with self.marionette.using_context(self.marionette.CONTEXT_CHROME):
@@ -562,7 +538,9 @@ class MarionetteCoverageProtocolPart(CoverageProtocolPart):
         script = """
             var callback = arguments[arguments.length - 1];
 
-            const {PerTestCoverageUtils} = ChromeUtils.import("chrome://remote/content/marionette/PerTestCoverageUtils.jsm");
+            const {PerTestCoverageUtils} = ChromeUtils.importESModule(
+                "chrome://remote/content/marionette/PerTestCoverageUtils.sys.mjs"
+            );
             PerTestCoverageUtils.afterTest().then(callback, callback);
             """
         with self.marionette.using_context(self.marionette.CONTEXT_CHROME):
@@ -583,28 +561,28 @@ class MarionetteGenerateTestReportProtocolPart(GenerateTestReportProtocolPart):
 
 class MarionetteVirtualAuthenticatorProtocolPart(VirtualAuthenticatorProtocolPart):
     def setup(self):
-        self.marionette = self.parent.marionette
+        self.webauthn = WebAuthn(self.parent.marionette)
 
     def add_virtual_authenticator(self, config):
-        raise NotImplementedError("add_virtual_authenticator not yet implemented")
+        return self.webauthn.add_virtual_authenticator(config)
 
     def remove_virtual_authenticator(self, authenticator_id):
-        raise NotImplementedError("remove_virtual_authenticator not yet implemented")
+        self.webauthn.remove_virtual_authenticator(authenticator_id)
 
     def add_credential(self, authenticator_id, credential):
-        raise NotImplementedError("add_credential not yet implemented")
+        self.webauthn.add_credential(authenticator_id, credential)
 
     def get_credentials(self, authenticator_id):
-        raise NotImplementedError("get_credentials not yet implemented")
+        return self.webauthn.get_credentials(authenticator_id)
 
     def remove_credential(self, authenticator_id, credential_id):
-        raise NotImplementedError("remove_credential not yet implemented")
+        self.webauthn.remove_credential(authenticator_id, credential_id)
 
     def remove_all_credentials(self, authenticator_id):
-        raise NotImplementedError("remove_all_credentials not yet implemented")
+        self.webauthn.remove_all_credentials(authenticator_id)
 
     def set_user_verified(self, authenticator_id, uv):
-        raise NotImplementedError("set_user_verified not yet implemented")
+        self.webauthn.set_user_verified(authenticator_id, uv)
 
 
 class MarionetteSetPermissionProtocolPart(SetPermissionProtocolPart):
@@ -618,8 +596,8 @@ class MarionetteSetPermissionProtocolPart(SetPermissionProtocolPart):
         }
         try:
             self.marionette._send_message("WebDriver:SetPermission", body)
-        except errors.UnsupportedOperationException:
-            raise NotImplementedError("set_permission not yet implemented")
+        except errors.UnsupportedOperationException as e:
+            raise NotImplementedError("set_permission not yet implemented") from e
 
 
 class MarionettePrintProtocolPart(PrintProtocolPart):
@@ -679,11 +657,9 @@ class MarionetteDebugProtocolPart(DebugProtocolPart):
 
     def load_devtools(self):
         with self.marionette.using_context(self.marionette.CONTEXT_CHROME):
-            # Once ESR is 107 is released, we can replace the ChromeUtils.import(DevToolsShim.jsm)
-            # with ChromeUtils.importESModule(DevToolsShim.sys.mjs) in this snippet:
             self.parent.base.execute_script("""
-const { DevToolsShim } = ChromeUtils.import(
-  "chrome://devtools-startup/content/DevToolsShim.jsm"
+const { DevToolsShim } = ChromeUtils.importESModule(
+  "chrome://devtools-startup/content/DevToolsShim.sys.mjs"
 );
 
 const callback = arguments[arguments.length - 1];
@@ -699,6 +675,86 @@ async function loadDevTools() {
 loadDevTools().catch((e) => console.error("Devtools failed to load", e))
               .then(callback);
 """, asynchronous=True)
+
+
+class MarionetteAccessibilityProtocolPart(AccessibilityProtocolPart):
+    def setup(self):
+        self.marionette = self.parent.marionette
+
+    def get_computed_label(self, element):
+        return element.computed_label
+
+    def get_computed_role(self, element):
+        return element.computed_role
+
+
+class MarionetteVirtualSensorProtocolPart(VirtualSensorProtocolPart):
+    def setup(self):
+        self.marionette = self.parent.marionette
+
+    def create_virtual_sensor(self, sensor_type, sensor_params):
+        raise NotImplementedError("create_virtual_sensor not yet implemented")
+
+    def update_virtual_sensor(self, sensor_type, reading):
+        raise NotImplementedError("update_virtual_sensor not yet implemented")
+
+    def remove_virtual_sensor(self, remove_parameters):
+        raise NotImplementedError("remove_virtual_sensor not yet implemented")
+
+    def get_virtual_sensor_information(self, information_parameters):
+        raise NotImplementedError("get_virtual_sensor_information not yet implemented")
+
+
+class MarionetteDevicePostureProtocolPart(DevicePostureProtocolPart):
+    def setup(self):
+        self.marionette = self.parent.marionette
+
+    def set_device_posture(self, posture):
+        raise NotImplementedError("set_device_posture not yet implemented")
+
+    def clear_device_posture(self):
+        raise NotImplementedError("clear_device_posture not yet implemented")
+
+
+class MarionetteVirtualPressureSourceProtocolPart(VirtualPressureSourceProtocolPart):
+    def setup(self):
+        self.marionette = self.parent.marionette
+
+    def create_virtual_pressure_source(self, source_type, metadata):
+        raise NotImplementedError("create_virtual_pressure_source not yet implemented")
+
+    def update_virtual_pressure_source(self, source_type, sample, own_contribution_estimate):
+        raise NotImplementedError("update_virtual_pressure_source not yet implemented")
+
+    def remove_virtual_pressure_source(self, source_type):
+        raise NotImplementedError("remove_virtual_pressure_source not yet implemented")
+
+class MarionetteDisplayFeaturesProtocolPart(DisplayFeaturesProtocolPart):
+    def setup(self):
+        self.marionette = self.parent.marionette
+
+    def set_display_features(self, features):
+        raise NotImplementedError("set_display_features not yet implemented")
+
+    def clear_display_features(self):
+        raise NotImplementedError("clear_display_features not yet implemented")
+
+
+class MarionetteWebExtensionsProtocolPart(WebExtensionsProtocolPart):
+    def setup(self):
+        self.addons = Addons(self.parent.marionette)
+
+    def install_web_extension(self, extension):
+        if extension["type"] == "base64":
+            extension_id = self.addons.install(data=extension["value"], temp=True)
+        else:
+            path = self.parent.test_dir + extension["path"]
+            extension_id = self.addons.install(path, temp=True)
+
+        return {'extension': extension_id}
+
+    def uninstall_web_extension(self, extension_id):
+        return self.addons.uninstall(extension_id)
 
 
 class MarionetteProtocol(Protocol):
@@ -719,7 +775,13 @@ class MarionetteProtocol(Protocol):
                   MarionetteVirtualAuthenticatorProtocolPart,
                   MarionetteSetPermissionProtocolPart,
                   MarionettePrintProtocolPart,
-                  MarionetteDebugProtocolPart]
+                  MarionetteDebugProtocolPart,
+                  MarionetteAccessibilityProtocolPart,
+                  MarionetteVirtualSensorProtocolPart,
+                  MarionetteDevicePostureProtocolPart,
+                  MarionetteVirtualPressureSourceProtocolPart,
+                  MarionetteDisplayFeaturesProtocolPart,
+                  MarionetteWebExtensionsProtocolPart]
 
     def __init__(self, executor, browser, capabilities=None, timeout_multiplier=1, e10s=True, ccov=False):
         do_delayed_imports()
@@ -883,20 +945,25 @@ class MarionetteTestharnessExecutor(TestharnessExecutor):
         self.debug_test = debug_test
 
         self.install_extensions = browser.extensions
+        self.initial_window_size = None
 
         self.original_pref_values = {}
 
         if marionette is None:
             do_delayed_imports()
 
-    def setup(self, runner):
-        super().setup(runner)
+    def setup(self, runner, protocol=None):
+        super().setup(runner, protocol)
         for extension_path in self.install_extensions:
             self.logger.info("Installing extension from %s" % extension_path)
             addons = Addons(self.protocol.marionette)
             addons.install(extension_path)
 
         self.protocol.testharness.load_runner(self.last_environment["protocol"])
+        try:
+            self.initial_window_size = self.protocol.window.get_rect()
+        except Exception:
+            pass
 
     def is_alive(self):
         return self.protocol.is_alive()
@@ -908,6 +975,10 @@ class MarionetteTestharnessExecutor(TestharnessExecutor):
             self.protocol.testharness.load_runner(new_environment["protocol"])
 
     def do_test(self, test):
+        # TODO: followup to do this properly, pass test as state on the CallbackHandler:
+        # https://phabricator.services.mozilla.com/D244400?id=1030480#inline-1369921
+        self.protocol.test_dir = os.path.dirname(test.path)
+
         timeout = (test.timeout * self.timeout_multiplier if self.debug_info is None
                    else None)
 
@@ -933,30 +1004,28 @@ class MarionetteTestharnessExecutor(TestharnessExecutor):
         if success:
             return self.convert_result(test, data, extra=extra)
 
-        return (test.result_cls(extra=extra, *data), [])
+        return (test.make_result(extra=extra, *data), [])
 
     def do_testharness(self, protocol, url, timeout):
-        parent_window = protocol.testharness.close_old_windows(self.last_environment["protocol"])
+        protocol.testharness.close_old_windows(self.last_environment["protocol"])
 
         if self.protocol.coverage.is_enabled:
             self.protocol.coverage.reset()
 
-        format_map = {"url": strip_server(url)}
-
-        protocol.base.execute_script("window.open('about:blank', '%s', 'noopener')" % self.window_id)
-        test_window = protocol.testharness.get_test_window(self.window_id, parent_window,
-                                                           timeout=10 * self.timeout_multiplier)
+        test_window = protocol.base.create_window()
         self.protocol.base.set_window(test_window)
-        protocol.testharness.test_window_loaded()
+        # Restore the window to the initial position
+        if self.browser.supports_window_resize and self.initial_window_size:
+            self.protocol.window.set_rect(self.initial_window_size)
 
         if self.debug_test and self.browser.supports_devtools:
             self.protocol.debug.load_devtools()
 
-        handler = CallbackHandler(self.logger, protocol, test_window)
+        handler = MarionetteCallbackHandler(self.logger, protocol, test_window)
         protocol.marionette.navigate(url)
         while True:
             result = protocol.base.execute_script(
-                self.script_resume % format_map, asynchronous=True)
+                self.script_resume, args=[strip_server(url)], asynchronous=True)
             if result is None:
                 # This can happen if we get an content process crash
                 return None
@@ -994,8 +1063,14 @@ class MarionetteRefTestExecutor(RefTestExecutor):
         self.implementation_kwargs = {}
         if reftest_internal:
             self.implementation_kwargs["screenshot"] = reftest_screenshot
-            self.implementation_kwargs["chrome_scope"] = (browser_version is not None and
-                                                          int(browser_version.split(".")[0]) < 82)
+            self.implementation_kwargs["chrome_scope"] = False
+            # Older versions of Gecko require switching to chrome scope to run refests
+            if browser_version is not None:
+                try:
+                    major_version = int(browser_version.split(".")[0])
+                    self.implementation_kwargs["chrome_scope"] = major_version < 82
+                except ValueError:
+                    pass
         self.close_after_done = close_after_done
         self.has_window = False
         self.original_pref_values = {}
@@ -1005,8 +1080,6 @@ class MarionetteRefTestExecutor(RefTestExecutor):
 
         self.install_extensions = browser.extensions
 
-        with open(os.path.join(here, "reftest.js")) as f:
-            self.script = f.read()
         with open(os.path.join(here, "test-wait.js")) as f:
             self.wait_script = f.read() % {"classname": "reftest-wait"}
 
@@ -1014,8 +1087,8 @@ class MarionetteRefTestExecutor(RefTestExecutor):
         return (InternalRefTestImplementation if reftest_internal
                 else RefTestImplementation)(self)
 
-    def setup(self, runner):
-        super().setup(runner)
+    def setup(self, runner, protocol=None):
+        super().setup(runner, protocol)
         for extension_path in self.install_extensions:
             self.logger.info("Installing extension from %s" % extension_path)
             addons = Addons(self.protocol.marionette)
@@ -1054,10 +1127,19 @@ class MarionetteRefTestExecutor(RefTestExecutor):
                 self.has_window = False
 
             if not self.has_window:
-                self.protocol.base.execute_script(self.script)
-                self.protocol.base.set_window(self.protocol.marionette.window_handles[-1])
+                self.protocol.base.create_window(type="window")
+                # Resize the browser window so that its inner dimensions have
+                # exactly a size of 800x600 pixels, which means ignoring all
+                # visible toolbars and sidebars.
+                offsets = self.protocol.marionette.execute_script("""
+                    return {
+                        width: window.outerWidth - window.innerWidth,
+                        height: window.outerHeight - window.innerHeight,
+                    };
+                """)
+                self.protocol.marionette.set_window_rect(
+                    x=0, y=0, width=800 + offsets["width"], height=600 + offsets["height"])
                 self.has_window = True
-                self.protocol.testharness.test_window_loaded()
 
         if self.protocol.coverage.is_enabled:
             self.protocol.coverage.reset()
@@ -1227,7 +1309,7 @@ class MarionetteCrashtestExecutor(CrashtestExecutor):
         if success:
             return self.convert_result(test, data)
 
-        return (test.result_cls(extra=extra, *data), [])
+        return (test.make_result(extra=extra, *data), [])
 
     def do_crashtest(self, protocol, url, timeout):
         if self.protocol.coverage.is_enabled:
@@ -1268,8 +1350,8 @@ class MarionettePrintRefTestExecutor(MarionetteRefTestExecutor):
                                            debug=debug,
                                            **kwargs)
 
-    def setup(self, runner):
-        super().setup(runner)
+    def setup(self, runner, protocol=None):
+        super().setup(runner, protocol)
         if not isinstance(self.implementation, InternalRefTestImplementation):
             self.protocol.pdf_print.load_runner()
 

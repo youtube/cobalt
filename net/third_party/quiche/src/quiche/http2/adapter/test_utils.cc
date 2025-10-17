@@ -1,11 +1,15 @@
 #include "quiche/http2/adapter/test_utils.h"
 
+#include <cstring>
+#include <optional>
 #include <ostream>
+#include <vector>
 
 #include "absl/strings/str_format.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
+#include "quiche/http2/core/spdy_protocol.h"
+#include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/common/quiche_data_reader.h"
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
 
 namespace http2 {
 namespace adapter {
@@ -14,87 +18,122 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 
-}  // anonymous namespace
-
-TestDataFrameSource::TestDataFrameSource(Http2VisitorInterface& visitor,
-                                         bool has_fin)
-    : visitor_(visitor), has_fin_(has_fin) {}
-
-void TestDataFrameSource::AppendPayload(absl::string_view payload) {
-  QUICHE_CHECK(!end_data_);
-  if (!payload.empty()) {
-    payload_fragments_.push_back(std::string(payload));
-    current_fragment_ = payload_fragments_.front();
-  }
-}
-
-void TestDataFrameSource::EndData() { end_data_ = true; }
-
-std::pair<int64_t, bool> TestDataFrameSource::SelectPayloadLength(
-    size_t max_length) {
-  if (return_error_) {
-    return {DataFrameSource::kError, false};
-  }
-  // The stream is done if there's no more data, or if |max_length| is at least
-  // as large as the remaining data.
-  const bool end_data = end_data_ && (current_fragment_.empty() ||
-                                      (payload_fragments_.size() == 1 &&
-                                       max_length >= current_fragment_.size()));
-  const int64_t length = std::min(max_length, current_fragment_.size());
-  return {length, end_data};
-}
-
-bool TestDataFrameSource::Send(absl::string_view frame_header,
-                               size_t payload_length) {
-  QUICHE_LOG_IF(DFATAL, payload_length > current_fragment_.size())
-      << "payload_length: " << payload_length
-      << " current_fragment_size: " << current_fragment_.size();
-  const std::string concatenated =
-      absl::StrCat(frame_header, current_fragment_.substr(0, payload_length));
-  const int64_t result = visitor_.OnReadyToSend(concatenated);
-  if (result < 0) {
-    // Write encountered error.
-    visitor_.OnConnectionError(ConnectionError::kSendError);
-    current_fragment_ = {};
-    payload_fragments_.clear();
-    return false;
-  } else if (result == 0) {
-    // Write blocked.
-    return false;
-  } else if (static_cast<size_t>(result) < concatenated.size()) {
-    // Probably need to handle this better within this test class.
-    QUICHE_LOG(DFATAL)
-        << "DATA frame not fully flushed. Connection will be corrupt!";
-    visitor_.OnConnectionError(ConnectionError::kSendError);
-    current_fragment_ = {};
-    payload_fragments_.clear();
-    return false;
-  }
-  if (payload_length > 0) {
-    current_fragment_.remove_prefix(payload_length);
-  }
-  if (current_fragment_.empty() && !payload_fragments_.empty()) {
-    payload_fragments_.erase(payload_fragments_.begin());
-    if (!payload_fragments_.empty()) {
-      current_fragment_ = payload_fragments_.front();
-    }
-  }
-  return true;
-}
-
-std::string EncodeHeaders(const spdy::Http2HeaderBlock& entries) {
+std::string EncodeHeaders(const quiche::HttpHeaderBlock& entries) {
   spdy::HpackEncoder encoder;
   encoder.DisableCompression();
   return encoder.EncodeHeaderBlock(entries);
 }
 
-TestMetadataSource::TestMetadataSource(const spdy::Http2HeaderBlock& entries)
+}  // anonymous namespace
+
+TestVisitor::DataFrameHeaderInfo TestVisitor::OnReadyToSendDataForStream(
+    Http2StreamId stream_id, size_t max_length) {
+  auto it = data_map_.find(stream_id);
+  if (it == data_map_.end()) {
+    QUICHE_DVLOG(1) << "Source not in map; returning blocked.";
+    return {0, false, false};
+  }
+  DataPayload& payload = it->second;
+  if (payload.return_error) {
+    QUICHE_DVLOG(1) << "Simulating error response for stream " << stream_id;
+    return {DataFrameSource::kError, false, false};
+  }
+  const absl::string_view prefix = payload.data.GetPrefix();
+  const size_t frame_length = std::min(max_length, prefix.size());
+  const bool is_final_fragment = payload.data.Read().size() <= 1;
+  const bool end_data =
+      payload.end_data && is_final_fragment && frame_length == prefix.size();
+  const bool end_stream = payload.end_stream && end_data;
+  return {static_cast<int64_t>(frame_length), end_data, end_stream};
+}
+
+bool TestVisitor::SendDataFrame(Http2StreamId stream_id,
+                                absl::string_view frame_header,
+                                size_t payload_bytes) {
+  // Sends the frame header.
+  const int64_t frame_result = OnReadyToSend(frame_header);
+  if (frame_result < 0 ||
+      static_cast<size_t>(frame_result) != frame_header.size()) {
+    return false;
+  }
+  auto it = data_map_.find(stream_id);
+  if (it == data_map_.end()) {
+    if (payload_bytes > 0) {
+      // No bytes available to send; error condition.
+      return false;
+    } else {
+      return true;
+    }
+  }
+  DataPayload& payload = it->second;
+  absl::string_view frame_payload = payload.data.GetPrefix();
+  if (frame_payload.size() < payload_bytes) {
+    // Not enough bytes available to send; error condition.
+    return false;
+  }
+  frame_payload = frame_payload.substr(0, payload_bytes);
+  // Sends the frame payload.
+  const int64_t payload_result = OnReadyToSend(frame_payload);
+  if (payload_result < 0 ||
+      static_cast<size_t>(payload_result) != frame_payload.size()) {
+    return false;
+  }
+  payload.data.RemovePrefix(payload_bytes);
+  return true;
+}
+
+void TestVisitor::AppendPayloadForStream(Http2StreamId stream_id,
+                                         absl::string_view payload) {
+  // Allocates and appends a chunk of memory to hold `payload`, in case the test
+  // is depending on specific DATA frame boundaries.
+  auto char_data = std::unique_ptr<char[]>(new char[payload.size()]);
+  std::copy(payload.begin(), payload.end(), char_data.get());
+  data_map_[stream_id].data.Append(std::move(char_data), payload.size());
+}
+
+void TestVisitor::SetEndData(Http2StreamId stream_id, bool end_stream) {
+  DataPayload& payload = data_map_[stream_id];
+  payload.end_data = true;
+  payload.end_stream = end_stream;
+}
+
+void TestVisitor::SimulateError(Http2StreamId stream_id) {
+  DataPayload& payload = data_map_[stream_id];
+  payload.return_error = true;
+}
+
+std::pair<int64_t, bool> TestVisitor::PackMetadataForStream(
+    Http2StreamId stream_id, uint8_t* dest, size_t dest_len) {
+  auto it = outbound_metadata_map_.find(stream_id);
+  if (it == outbound_metadata_map_.end()) {
+    return {-1, false};
+  }
+  const size_t to_copy = std::min(it->second.size(), dest_len);
+  auto* src = reinterpret_cast<uint8_t*>(it->second.data());
+  std::copy(src, src + to_copy, dest);
+  it->second = it->second.substr(to_copy);
+  if (it->second.empty()) {
+    outbound_metadata_map_.erase(it);
+    return {to_copy, true};
+  }
+  return {to_copy, false};
+}
+
+void TestVisitor::AppendMetadataForStream(
+    Http2StreamId stream_id, const quiche::HttpHeaderBlock& payload) {
+  outbound_metadata_map_.insert({stream_id, EncodeHeaders(payload)});
+}
+
+TestMetadataSource::TestMetadataSource(const quiche::HttpHeaderBlock& entries)
     : encoded_entries_(EncodeHeaders(entries)) {
   remaining_ = encoded_entries_;
 }
 
 std::pair<int64_t, bool> TestMetadataSource::Pack(uint8_t* dest,
                                                   size_t dest_len) {
+  if (fail_when_packing_) {
+    return {-1, false};
+  }
   const size_t copied = std::min(dest_len, remaining_.size());
   std::memcpy(dest, remaining_.data(), copied);
   remaining_.remove_prefix(copied);
@@ -104,7 +143,7 @@ std::pair<int64_t, bool> TestMetadataSource::Pack(uint8_t* dest,
 namespace {
 
 using TypeAndOptionalLength =
-    std::pair<spdy::SpdyFrameType, absl::optional<size_t>>;
+    std::pair<spdy::SpdyFrameType, std::optional<size_t>>;
 
 std::ostream& operator<<(
     std::ostream& os,
@@ -152,7 +191,7 @@ class SpdyControlFrameMatcher
   }
 
   bool MatchAndExplainOneFrame(spdy::SpdyFrameType expected_type,
-                               absl::optional<size_t> expected_length,
+                               std::optional<size_t> expected_length,
                                quiche::QuicheDataReader* reader,
                                testing::MatchResultListener* listener) const {
     uint32_t payload_length;
@@ -203,18 +242,18 @@ class SpdyControlFrameMatcher
 }  // namespace
 
 testing::Matcher<absl::string_view> EqualsFrames(
-    std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+    std::vector<std::pair<spdy::SpdyFrameType, std::optional<size_t>>>
         types_and_lengths) {
   return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
 }
 
 testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<spdy::SpdyFrameType> types) {
-  std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+  std::vector<std::pair<spdy::SpdyFrameType, std::optional<size_t>>>
       types_and_lengths;
   types_and_lengths.reserve(types.size());
   for (spdy::SpdyFrameType type : types) {
-    types_and_lengths.push_back({type, absl::nullopt});
+    types_and_lengths.push_back({type, std::nullopt});
   }
   return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
 }

@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/network/onc/onc_translation_tables.h"
 
 #include <cstddef>
 
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "chromeos/ash/components/network/network_type_pattern.h"
 #include "chromeos/ash/components/network/tether_constants.h"
 #include "components/onc/onc_constants.h"
@@ -137,9 +142,7 @@ const FieldTranslationEntry wireguard_peer_fields[] = {
      shill::kWireGuardPeerPersistentKeepalive},
     {nullptr}};
 
-const FieldTranslationEntry arc_vpn_fields[] = {
-    {::onc::arc_vpn::kTunnelChrome, shill::kArcVpnTunnelChromeProperty},
-    {nullptr}};
+const FieldTranslationEntry arc_vpn_fields[] = {{nullptr}};
 
 const FieldTranslationEntry verify_x509_fields[] = {
     {::onc::verify_x509::kName, shill::kOpenVPNVerifyX509NameProperty},
@@ -164,6 +167,7 @@ const FieldTranslationEntry wifi_fields[] = {
     {::onc::wifi::kAutoConnect, shill::kAutoConnectProperty},
     {::onc::wifi::kBSSID, shill::kWifiBSsid},
     {::onc::wifi::kBSSIDAllowlist, shill::kWifiBSSIDAllowlist},
+    {::onc::wifi::kBSSIDRequested, shill::kWifiBSSIDRequested},
     // This dictionary is converted during translation, see onc_translator_*.
     // { ::onc::wifi::kEAP, shill::kEap*},
     {::onc::wifi::kFrequency, shill::kWifiFrequency},
@@ -290,11 +294,15 @@ const FieldTranslationEntry static_or_saved_ipconfig_fields[] = {
     {::onc::ipconfig::kSearchDomains, shill::kSearchDomainsProperty},
     {::onc::ipconfig::kIncludedRoutes, shill::kIncludedRoutesProperty},
     {::onc::ipconfig::kExcludedRoutes, shill::kExcludedRoutesProperty},
+    {::onc::ipconfig::kMTU, shill::kMtuProperty},
     {nullptr}};
 
 struct OncValueTranslationEntry {
-  const chromeos::onc::OncValueSignature* onc_signature;
-  const FieldTranslationEntry* field_translation_table;
+  // These fields are not raw_ptr<>s because each layer of pointer only ever
+  // points to statically-allocated data which is never freed, and thus can
+  // never dangle.
+  RAW_PTR_EXCLUSION const chromeos::onc::OncValueSignature* onc_signature;
+  RAW_PTR_EXCLUSION const FieldTranslationEntry* field_translation_table;
 };
 
 const OncValueTranslationEntry onc_value_translation_table[] = {
@@ -329,9 +337,12 @@ const OncValueTranslationEntry onc_value_translation_table[] = {
     {nullptr}};
 
 struct NestedShillDictionaryEntry {
-  const chromeos::onc::OncValueSignature* onc_signature;
+  // These fields are not raw_ptr<>s because each layer of pointer only ever
+  // points to statically-allocated data which is never freed, and thus can
+  // never dangle.
+  RAW_PTR_EXCLUSION const chromeos::onc::OncValueSignature* onc_signature;
   // nullptr terminated list of Shill property keys.
-  const char* const* shill_property_path;
+  RAW_PTR_EXCLUSION const char* const* shill_property_path;
 };
 
 const char* cellular_apn_path_entries[] = {shill::kCellularApnProperty,
@@ -456,6 +467,19 @@ const StringTranslationEntry kApnIpTypeTranslationTable[] = {
     {::onc::cellular_apn::kIpTypeIpv4Ipv6, shill::kApnIpTypeV4V6},
     {nullptr}};
 
+const StringTranslationEntry kApnSourceTranslationTable[] = {
+    {::onc::cellular_apn::kSourceModem, shill::kApnSourceModem},
+    {::onc::cellular_apn::kSourceModb, shill::kApnSourceMoDb},
+    {::onc::cellular_apn::kSourceAdmin, shill::kApnSourceAdmin},
+    {::onc::cellular_apn::kSourceUi, shill::kApnSourceUi},
+    {nullptr}};
+
+const StringTranslationEntry kCheckCaptivePortalTranslationTable[] = {
+    {::onc::check_captive_portal::kFalse, "false"},
+    {::onc::check_captive_portal::kHTTPOnly, "http-only"},
+    {::onc::check_captive_portal::kTrue, "true"},
+    {nullptr}};
+
 // This must contain only Shill Device properties and no Service properties.
 // For Service properties see cellular_fields.
 const FieldTranslationEntry kCellularDeviceTable[] = {
@@ -501,7 +525,7 @@ const FieldTranslationEntry* GetFieldTranslationTable(
 }
 
 const StringTranslationEntry* GetEapInnerTranslationTableForShillOuter(
-    base::StringPiece shill_eap_outer) {
+    std::string_view shill_eap_outer) {
   if (shill_eap_outer == shill::kEapMethodPEAP) {
     return eap_peap_inner_table;
   }
@@ -513,7 +537,7 @@ const StringTranslationEntry* GetEapInnerTranslationTableForShillOuter(
 }
 
 const StringTranslationEntry* GetEapInnerTranslationTableForOncOuter(
-    base::StringPiece onc_eap_outer) {
+    std::string_view onc_eap_outer) {
   if (onc_eap_outer == ::onc::eap::kPEAP) {
     return eap_peap_inner_table;
   }

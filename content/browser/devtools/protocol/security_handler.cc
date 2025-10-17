@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/contains.h"
+#include "base/strings/string_number_conversions.h"
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/renderer_host/back_forward_cache_disable.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -76,6 +78,10 @@ void SecurityHandler::FlushPendingCertificateErrorNotifications() {
   cert_error_callbacks_.clear();
 }
 
+bool SecurityHandler::IsIgnoreCertificateErrorsSet() const {
+  return cert_error_override_mode_ == CertErrorOverrideMode::kIgnoreAll;
+}
+
 bool SecurityHandler::NotifyCertificateError(int cert_error,
                                              const GURL& request_url,
                                              CertErrorCallback handler) {
@@ -124,9 +130,9 @@ Response SecurityHandler::Disable() {
 
 Response SecurityHandler::HandleCertificateError(int event_id,
                                                  const String& action) {
-  if (cert_error_callbacks_.find(event_id) == cert_error_callbacks_.end()) {
+  if (!base::Contains(cert_error_callbacks_, event_id)) {
     return Response::ServerError(
-        String("Unknown event id: " + std::to_string(event_id)));
+        String("Unknown event id: " + base::NumberToString(event_id)));
   }
   content::CertificateRequestResultType type =
       content::CERTIFICATE_REQUEST_RESULT_TYPE_CANCEL;
@@ -148,9 +154,10 @@ Response SecurityHandler::SetOverrideCertificateErrors(bool override) {
   if (override) {
     if (!enabled_)
       return Response::ServerError("Security domain not enabled");
-    if (cert_error_override_mode_ == CertErrorOverrideMode::kIgnoreAll)
+    if (cert_error_override_mode_ == CertErrorOverrideMode::kIgnoreAll) {
       return Response::ServerError(
           "Certificate errors are already being ignored.");
+    }
     cert_error_override_mode_ = CertErrorOverrideMode::kHandleEvents;
   } else {
     cert_error_override_mode_ = CertErrorOverrideMode::kDisabled;

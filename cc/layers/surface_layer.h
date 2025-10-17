@@ -59,25 +59,25 @@ class CC_EXPORT SurfaceLayer : public Layer {
 
   void SetIsReflection(bool is_reflection);
 
-  void SetMayContainVideo(bool may_contain_video);
+  void SetOverrideChildPaintFlags(bool override_child_paint_flags);
+
+  using Layer::SetMayContainVideo;
 
   // Layer overrides.
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
+  bool RequiresSetNeedsDisplayOnHdrHeadroomChange() const override;
   void SetLayerTreeHost(LayerTreeHost* host) override;
-  void PushPropertiesTo(LayerImpl* layer,
-                        const CommitState& commit_state,
-                        const ThreadUnsafeCommitState& unsafe_state) override;
 
   const viz::SurfaceId& surface_id() const {
     return surface_range_.Read(*this).end();
   }
 
-  const absl::optional<viz::SurfaceId>& oldest_acceptable_fallback() const {
+  const std::optional<viz::SurfaceId>& oldest_acceptable_fallback() const {
     return surface_range_.Read(*this).start();
   }
 
-  absl::optional<uint32_t> deadline_in_frames() const {
+  std::optional<uint32_t> deadline_in_frames() const {
     return deadline_in_frames_.Read(*this);
   }
 
@@ -86,15 +86,20 @@ class CC_EXPORT SurfaceLayer : public Layer {
   explicit SurfaceLayer(UpdateSubmissionStateCB);
   bool HasDrawableContent() const override;
 
+  void PushDirtyPropertiesTo(
+      LayerImpl* layer,
+      uint8_t dirty_flag,
+      const CommitState& commit_state,
+      const ThreadUnsafeCommitState& unsafe_state) override;
+
  private:
   ~SurfaceLayer() override;
 
   ProtectedSequenceWritable<UpdateSubmissionStateCB>
       update_submission_state_callback_;
 
-  ProtectedSequenceReadable<bool> may_contain_video_;
   ProtectedSequenceReadable<viz::SurfaceRange> surface_range_;
-  ProtectedSequenceWritable<absl::optional<uint32_t>> deadline_in_frames_;
+  ProtectedSequenceWritable<std::optional<uint32_t>> deadline_in_frames_;
 
   ProtectedSequenceReadable<bool> stretch_content_to_fill_bounds_;
 
@@ -114,6 +119,14 @@ class CC_EXPORT SurfaceLayer : public Layer {
 
   // This surface layer is reflecting the root surface of another display.
   ProtectedSequenceReadable<bool> is_reflection_;
+
+  // If true, then this layer should override its child layer's PaintFlags.
+  // This is used for SurfaceLayers where the child layer is in the same DOM.
+  ProtectedSequenceWritable<bool> override_child_paint_flags_{false};
+
+  // Keep track when we change LayerTreeHosts as SurfaceLayerImpl needs to know
+  // in order to keep the visibility callback state consistent.
+  ProtectedSequenceWritable<bool> callback_layer_tree_host_changed_;
 };
 
 }  // namespace cc

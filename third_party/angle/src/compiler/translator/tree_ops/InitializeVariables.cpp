@@ -8,6 +8,7 @@
 
 #include "angle_gl.h"
 #include "common/debug.h"
+#include "common/hash_containers.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/StaticType.h"
 #include "compiler/translator/SymbolTable.h"
@@ -189,65 +190,42 @@ void InsertInitCode(TCompiler *compiler,
                     bool highPrecisionSupported)
 {
     TIntermSequence *mainBody = FindMainBody(root)->getSequence();
-    for (const ShaderVariable &var : variables)
+    for (const TVariable *var : variables)
     {
-        // Note that tempVariableName will reference a short-lived char array here - that's fine
-        // since we're only using it to find symbols.
-        ImmutableString tempVariableName(var.name.c_str(), var.name.length());
-
         TIntermTyped *initializedSymbol = nullptr;
-        if (var.isBuiltIn() && !symbolTable->findUserDefined(tempVariableName))
+
+        if (var->symbolType() == SymbolType::Empty)
         {
+            // Must be a nameless interface block.
+            ASSERT(var->getType().getInterfaceBlock() != nullptr);
+            ASSERT(!var->getType().getInterfaceBlock()->name().empty());
+
+            const TInterfaceBlock *block = var->getType().getInterfaceBlock();
+            for (const TField *field : block->fields())
+            {
+                initializedSymbol = ReferenceGlobalVariable(field->name(), *symbolTable);
+
+                TIntermSequence initCode;
+                CreateInitCode(initializedSymbol, canUseLoopsToInitialize, highPrecisionSupported,
+                               &initCode, symbolTable);
+                mainBody->insert(mainBody->begin(), initCode.begin(), initCode.end());
+            }
+
+            // All done with the interface block
+            continue;
+        }
+
+        const TQualifier qualifier = var->getType().getQualifier();
+
+        initializedSymbol = new TIntermSymbol(var);
+        if (qualifier == EvqFragData &&
+            !IsExtensionEnabled(extensionBehavior, TExtension::EXT_draw_buffers))
+        {
+            // If GL_EXT_draw_buffers is disabled, only the 0th index of gl_FragData can be
+            // written to.
             initializedSymbol =
-                ReferenceBuiltInVariable(tempVariableName, *symbolTable, shaderVersion);
-            if (initializedSymbol->getQualifier() == EvqFragData &&
-                !IsExtensionEnabled(extensionBehavior, TExtension::EXT_draw_buffers))
-            {
-                // If GL_EXT_draw_buffers is disabled, only the 0th index of gl_FragData can be
-                // written to.
-                // TODO(oetuaho): This is a bit hacky and would be better to remove, if we came up
-                // with a good way to do it. Right now "gl_FragData" in symbol table is initialized
-                // to have the array size of MaxDrawBuffers, and the initialization happens before
-                // the shader sets the extensions it is using.
-                initializedSymbol =
-                    new TIntermBinary(EOpIndexDirect, initializedSymbol, CreateIndexNode(0));
-            }
-            else if (initializedSymbol->getQualifier() == EvqClipDistance ||
-                     initializedSymbol->getQualifier() == EvqCullDistance)
-            {
-                // The built-in may have been implicitly resized.
-                initializedSymbol =
-                    new TIntermSymbol(&FindSymbolNode(root, tempVariableName)->variable());
-            }
+                new TIntermBinary(EOpIndexDirect, initializedSymbol, CreateIndexNode(0));
         }
-        else
-        {
-            if (tempVariableName != "")
-            {
-                initializedSymbol = ReferenceGlobalVariable(tempVariableName, *symbolTable);
-            }
-            else
-            {
-                // Must be a nameless interface block.
-                ASSERT(var.structOrBlockName != "");
-                const TSymbol *symbol = symbolTable->findGlobal(var.structOrBlockName);
-                ASSERT(symbol && symbol->isInterfaceBlock());
-                const TInterfaceBlock *block = static_cast<const TInterfaceBlock *>(symbol);
-
-                for (const TField *field : block->fields())
-                {
-                    initializedSymbol = ReferenceGlobalVariable(field->name(), *symbolTable);
-
-                    TIntermSequence initCode;
-                    CreateInitCode(initializedSymbol, canUseLoopsToInitialize,
-                                   highPrecisionSupported, &initCode, symbolTable);
-                    mainBody->insert(mainBody->begin(), initCode.begin(), initCode.end());
-                }
-                // Already inserted init code in this case
-                continue;
-            }
-        }
-        ASSERT(initializedSymbol != nullptr);
 
         TIntermSequence initCode;
         CreateInitCode(initializedSymbol, canUseLoopsToInitialize, highPrecisionSupported,
@@ -256,7 +234,24 @@ void InsertInitCode(TCompiler *compiler,
     }
 }
 
-class InitializeLocalsTraverser : public TIntermTraverser
+TFunction *CloneFunctionHeader(TSymbolTable *symbolTable, const TFunction *function)
+{
+    TFunction *newFunction =
+        new TFunction(symbolTable, function->name(), function->symbolType(),
+                      &function->getReturnType(), function->isKnownToNotHaveSideEffects());
+
+    if (function->isDefined())
+    {
+        newFunction->setDefined();
+    }
+    if (function->hasPrototypeDeclaration())
+    {
+        newFunction->setHasPrototypeDeclaration();
+    }
+    return newFunction;
+}
+
+class InitializeLocalsTraverser final : public TIntermTraverser
 {
   public:
     InitializeLocalsTraverser(int shaderVersion,
@@ -268,6 +263,46 @@ class InitializeLocalsTraverser : public TIntermTraverser
           mCanUseLoopsToInitialize(canUseLoopsToInitialize),
           mHighPrecisionSupported(highPrecisionSupported)
     {}
+
+    void collectUnnamedOutFunctions(TIntermBlock &root)
+    {
+        TIntermSequence &sequence = *root.getSequence();
+        const size_t count        = sequence.size();
+        for (size_t i = 0; i < count; ++i)
+        {
+            const TIntermFunctionDefinition *functionDefinition =
+                sequence[i]->getAsFunctionDefinition();
+            if (!functionDefinition)
+            {
+                continue;
+            }
+            const TFunction *function = functionDefinition->getFunction();
+            TFunction *newFunction    = nullptr;
+            for (size_t p = 0; p < function->getParamCount(); ++p)
+            {
+                const TVariable *param = function->getParam(p);
+                const TType &type      = param->getType();
+                if (param->symbolType() == SymbolType::Empty)
+                {
+                    if (!newFunction)
+                    {
+                        newFunction                   = CloneFunctionHeader(mSymbolTable, function);
+                        mFunctionsToReplace[function] = newFunction;
+                        for (size_t z = 0; z < p; ++z)
+                        {
+                            newFunction->addParameter(function->getParam(z));
+                        }
+                    }
+                    param = new TVariable(mSymbolTable, kEmptyImmutableString, &type,
+                                          SymbolType::AngleInternal, param->extensions());
+                }
+                if (newFunction)
+                {
+                    newFunction->addParameter(param);
+                }
+            }
+        }
+    }
 
   protected:
     bool visitDeclaration(Visit visit, TIntermDeclaration *node) override
@@ -315,7 +350,22 @@ class InitializeLocalsTraverser : public TIntermTraverser
                 }
             }
         }
-        return false;
+        // Must recurse in the cases which had initializers, because the initializiers might
+        // call the function that was rewritten.
+        return true;
+    }
+
+    void visitFunctionPrototype(TIntermFunctionPrototype *node) override
+    {
+        if (getParentNode()->getAsFunctionDefinition() != nullptr)
+        {
+            return;
+        }
+        auto it = mFunctionsToReplace.find(node->getFunction());
+        if (it != mFunctionsToReplace.end())
+        {
+            queueReplacement(new TIntermFunctionPrototype(it->second), OriginalNode::IS_DROPPED);
+        }
     }
 
     bool visitFunctionDefinition(Visit visit, TIntermFunctionDefinition *node) override
@@ -326,6 +376,16 @@ class InitializeLocalsTraverser : public TIntermTraverser
         TIntermSequence initCode;
 
         const TFunction *function = node->getFunction();
+        auto it                   = mFunctionsToReplace.find(function);
+        if (it != mFunctionsToReplace.end())
+        {
+            function                                   = it->second;
+            TIntermFunctionPrototype *newPrototypeNode = new TIntermFunctionPrototype(function);
+            TIntermFunctionDefinition *newNode =
+                new TIntermFunctionDefinition(newPrototypeNode, node->getBody());
+            queueReplacement(newNode, OriginalNode::IS_DROPPED);
+        }
+
         for (size_t paramIndex = 0; paramIndex < function->getParamCount(); ++paramIndex)
         {
             const TVariable *paramVariable = function->getParam(paramIndex);
@@ -349,10 +409,28 @@ class InitializeLocalsTraverser : public TIntermTraverser
         return true;
     }
 
+    bool visitAggregate(Visit visit, TIntermAggregate *node) override
+    {
+        const TFunction *function = node->getFunction();
+        if (function != nullptr)
+        {
+            auto it = mFunctionsToReplace.find(function);
+            if (it != mFunctionsToReplace.end())
+            {
+                const TFunction *target = it->second;
+                TIntermAggregate *newNode =
+                    TIntermAggregate::CreateFunctionCall(*target, node->getSequence());
+                queueReplacement(newNode, OriginalNode::IS_DROPPED);
+            }
+        }
+        return true;
+    }
+
   private:
     int mShaderVersion;
     bool mCanUseLoopsToInitialize;
     bool mHighPrecisionSupported;
+    angle::HashMap<const TFunction *, TFunction *> mFunctionsToReplace;
 };
 
 }  // namespace
@@ -376,6 +454,7 @@ bool InitializeUninitializedLocals(TCompiler *compiler,
 {
     InitializeLocalsTraverser traverser(shaderVersion, symbolTable, canUseLoopsToInitialize,
                                         highPrecisionSupported);
+    traverser.collectUnnamedOutFunctions(*root);
     root->traverse(&traverser);
     return traverser.updateTree(compiler, root);
 }

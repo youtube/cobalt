@@ -7,16 +7,14 @@
 #import <string>
 
 #import "base/functional/bind.h"
+#import "base/memory/raw_ptr.h"
 #import "base/memory/ref_counted_memory.h"
 #import "base/strings/string_util.h"
 #import "base/strings/utf_string_conversions.h"
 #import "ios/web/public/web_client.h"
 #import "ui/base/webui/jstemplate_builder.h"
+#import "ui/base/webui/resource_path.h"
 #import "ui/base/webui/web_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
@@ -60,7 +58,7 @@ class WebUIIOSDataSourceImpl::InternalDataSource : public URLDataSourceIOS {
   }
 
  private:
-  WebUIIOSDataSourceImpl* parent_;
+  raw_ptr<WebUIIOSDataSourceImpl> parent_;
 };
 
 WebUIIOSDataSourceImpl::WebUIIOSDataSourceImpl(const std::string& source_name)
@@ -128,6 +126,13 @@ void WebUIIOSDataSourceImpl::AddResourcePath(const std::string& path,
   path_to_idr_map_[path] = resource_id;
 }
 
+void WebUIIOSDataSourceImpl::AddResourcePaths(
+    base::span<const webui::ResourcePath> paths) {
+  for (const auto& path : paths) {
+    AddResourcePath(path.path, path.id);
+  }
+}
+
 void WebUIIOSDataSourceImpl::SetDefaultResource(int resource_id) {
   default_resource_ = resource_id;
 }
@@ -146,27 +151,33 @@ std::string WebUIIOSDataSourceImpl::GetSource() const {
 }
 
 std::string WebUIIOSDataSourceImpl::GetMimeType(const std::string& path) const {
-  if (base::EndsWith(path, ".js", base::CompareCase::INSENSITIVE_ASCII))
+  if (base::EndsWith(path, ".js", base::CompareCase::INSENSITIVE_ASCII)) {
     return "application/javascript";
+  }
 
-  if (base::EndsWith(path, ".json", base::CompareCase::INSENSITIVE_ASCII))
+  if (base::EndsWith(path, ".json", base::CompareCase::INSENSITIVE_ASCII)) {
     return "application/json";
+  }
 
-  if (base::EndsWith(path, ".pdf", base::CompareCase::INSENSITIVE_ASCII))
+  if (base::EndsWith(path, ".pdf", base::CompareCase::INSENSITIVE_ASCII)) {
     return "application/pdf";
+  }
 
-  if (base::EndsWith(path, ".css", base::CompareCase::INSENSITIVE_ASCII))
+  if (base::EndsWith(path, ".css", base::CompareCase::INSENSITIVE_ASCII)) {
     return "text/css";
+  }
 
-  if (base::EndsWith(path, ".svg", base::CompareCase::INSENSITIVE_ASCII))
+  if (base::EndsWith(path, ".svg", base::CompareCase::INSENSITIVE_ASCII)) {
     return "image/svg+xml";
+  }
 
   return "text/html";
 }
 
 void WebUIIOSDataSourceImpl::EnsureLoadTimeDataDefaultsAdded() {
-  if (load_time_data_defaults_added_)
+  if (load_time_data_defaults_added_) {
     return;
+  }
 
   load_time_data_defaults_added_ = true;
   base::Value::Dict defaults;

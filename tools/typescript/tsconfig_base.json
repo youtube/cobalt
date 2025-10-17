@@ -2,7 +2,6 @@
   "compilerOptions": {
     "module": "ESNext",
     "target": "ESNext",
-    "useDefineForClassFields": false,
 
     "noEmitOnError": true,
     "pretty": true,
@@ -14,8 +13,10 @@
     "noImplicitReturns": true,
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "preserveSymlinks": true,
     "strict": true,
 
     "typeRoots": [

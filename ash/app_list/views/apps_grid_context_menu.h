@@ -9,7 +9,8 @@
 
 #include "ash/ash_export.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/context_menu_controller.h"
 
 namespace views {
@@ -20,12 +21,16 @@ class MenuRunner;
 
 namespace ash {
 
-// This class is the context menu controller used by AppsGridView, responsible
-// for building, running the menu and executing the commands.
+// This class is the context menu controller used by AppsGridView and
+// AppCollectionsPage, responsible for building, running the menu and executing
+// the commands.
 class ASH_EXPORT AppsGridContextMenu : public ui::SimpleMenuModel::Delegate,
                                        public views::ContextMenuController {
  public:
-  AppsGridContextMenu();
+  // The types of grids where this menu could be shown.
+  enum class GridType { kAppsGrid, kAppsCollectionsGrid };
+
+  explicit AppsGridContextMenu(GridType grid_type);
   AppsGridContextMenu(const AppsGridContextMenu&) = delete;
   AppsGridContextMenu& operator=(const AppsGridContextMenu&) = delete;
   ~AppsGridContextMenu() override;
@@ -49,9 +54,10 @@ class ASH_EXPORT AppsGridContextMenu : public ui::SimpleMenuModel::Delegate,
 
  private:
   // views::ContextMenuController:
-  void ShowContextMenuForViewImpl(views::View* source,
-                                  const gfx::Point& point,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
 
   // Builds and saves a SimpleMenuModel to `context_menu_model_`;
   void BuildMenuModel();
@@ -68,12 +74,15 @@ class ASH_EXPORT AppsGridContextMenu : public ui::SimpleMenuModel::Delegate,
   std::unique_ptr<views::MenuRunner> menu_runner_;
 
   // The root menu item view of `context_menu_model_`. Cached for testing.
-  raw_ptr<views::MenuItemView, ExperimentalAsh> root_menu_item_view_ = nullptr;
+  raw_ptr<views::MenuItemView> root_menu_item_view_ = nullptr;
 
   // Whether the owner view is currently touch dragging, in which case touch
   // events will be forwarded from the context menu to the owner view (so the
   // view can transition from showing a context menu to item drag).
   bool owner_touch_dragging_ = false;
+
+  // The grid in which this menu is shown.
+  GridType grid_type_ = GridType::kAppsGrid;
 };
 
 }  // namespace ash

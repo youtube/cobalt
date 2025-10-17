@@ -1,20 +1,20 @@
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [1200, 900],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow DIV class='composited flipped'",
+      "name": "LayoutBlockFlow DIV class='composited flipped'",
       "bounds": [375, 300],
       "contentsOpaque": true,
       "backgroundColor": "#C0C0C0",
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow DIV class='composited box'",
+      "name": "LayoutBlockFlow DIV class='composited box'",
       "position": [-142, 0],
       "bounds": [292, 150],
       "backgroundColor": "#0000FF",

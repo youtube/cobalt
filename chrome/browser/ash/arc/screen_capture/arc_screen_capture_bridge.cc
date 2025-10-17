@@ -7,8 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
 #include "ash/shell.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -17,7 +15,10 @@
 #include "base/system/sys_info.h"
 #include "chrome/browser/ash/arc/screen_capture/arc_screen_capture_session.h"
 #include "chrome/browser/media/webrtc/desktop_media_list_ash.h"
+#include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 
 namespace {
 constexpr char kChromeOSReleaseTrack[] = "CHROMEOS_RELEASE_TRACK";
@@ -62,7 +63,7 @@ ArcScreenCaptureBridge::PendingCaptureParams::PendingCaptureParams(
       display_name(display_name),
       callback(std::move(callback)) {}
 
-ArcScreenCaptureBridge::PendingCaptureParams::~PendingCaptureParams() {}
+ArcScreenCaptureBridge::PendingCaptureParams::~PendingCaptureParams() = default;
 
 ArcScreenCaptureBridge::GrantedCaptureParams::GrantedCaptureParams(
     const std::string& display_name,
@@ -72,7 +73,7 @@ ArcScreenCaptureBridge::GrantedCaptureParams::GrantedCaptureParams(
       desktop_id(desktop_id),
       enable_notification(enable_notification) {}
 
-ArcScreenCaptureBridge::GrantedCaptureParams::~GrantedCaptureParams() {}
+ArcScreenCaptureBridge::GrantedCaptureParams::~GrantedCaptureParams() = default;
 
 ArcScreenCaptureBridge::ArcScreenCaptureBridge(content::BrowserContext* context,
                                                ArcBridgeService* bridge_service)
@@ -89,15 +90,17 @@ void ArcScreenCaptureBridge::RequestPermission(
     const std::string& package_name,
     RequestPermissionCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  std::unique_ptr<DesktopMediaPicker> picker = DesktopMediaPicker::Create();
+  std::unique_ptr<DesktopMediaPicker> picker =
+      DesktopMediaPicker::Create(nullptr);
   std::vector<std::unique_ptr<DesktopMediaList>> source_lists;
   source_lists.emplace_back(
       std::make_unique<DesktopMediaListAsh>(DesktopMediaList::Type::kScreen));
   const std::u16string display_name16 = base::UTF8ToUTF16(display_name);
-  DesktopMediaPicker::Params picker_params;
+  DesktopMediaPicker::Params picker_params{
+      DesktopMediaPicker::Params::RequestSource::kArcScreenCapture};
   picker_params.context = ash::Shell::GetRootWindowForDisplayId(
       display::Screen::GetScreen()->GetPrimaryDisplay().id());
-  picker_params.modality = ui::ModalType::MODAL_TYPE_SYSTEM;
+  picker_params.modality = ui::mojom::ModalType::kSystem;
   picker_params.app_name = display_name16;
   picker_params.target_name = display_name16;
   if (pending_permissions_map_.find(package_name) !=
@@ -194,10 +197,10 @@ void ArcScreenCaptureBridge::OpenSession(
     return;
   }
 
-  // TODO(crbug.com/955171): Remove this temporary conversion to InterfacePtr
+  // TODO(crbug.com/41454219): Remove this temporary conversion to InterfacePtr
   // once OpenSession callback from
-  // //ash/components/arc/mojom/screen_capture.mojom could take pending_remote
-  // directly. Refer to crrev.com/c/1868870.
+  // //chromeos/ash/experiences/arc/mojom/screen_capture.mojom could take
+  // pending_remote directly. Refer to crrev.com/c/1868870.
   mojo::PendingRemote<mojom::ScreenCaptureSession>
       screen_capture_session_remote(ArcScreenCaptureSession::Create(
           std::move(notifier), found->second.display_name,

@@ -11,12 +11,14 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/mojom/choosers/color_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "content/public/browser/native_web_keyboard_event.h"
+#include "components/input/native_web_keyboard_event.h"
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -26,6 +28,7 @@
 class GURL;
 
 namespace content {
+class ColorChooser;
 class FileSelectListener;
 class JavaScriptDialogManager;
 class Shell;
@@ -90,9 +93,9 @@ class ShellPlatformDelegate {
   virtual std::unique_ptr<JavaScriptDialogManager>
   CreateJavaScriptDialogManager(Shell* shell);
 
-  // Requests handling of locking the mouse. This returns true if the request
-  // has been handled, otherwise false.
-  virtual bool HandleRequestToLockMouse(Shell* shell,
+  // Requests handling of locking the mouse pointer. This returns true if the
+  // request has been handled, otherwise false.
+  virtual bool HandlePointerLockRequest(Shell* shell,
                                         WebContents* web_contents,
                                         bool user_gesture,
                                         bool last_unlocked_by_target);
@@ -104,6 +107,14 @@ class ShellPlatformDelegate {
   // Destroy the Shell. Returns true if the ShellPlatformDelegate did the
   // destruction. Returns false if the Shell should destroy itself.
   virtual bool DestroyShell(Shell* shell);
+
+  // Called when color chooser should open. Returns the opened color chooser.
+  // Returns nullptr if we failed to open the color chooser. The color chooser
+  // is supported/required for Android or iOS.
+  virtual std::unique_ptr<ColorChooser> OpenColorChooser(
+      WebContents* web_contents,
+      SkColor color,
+      const std::vector<blink::mojom::ColorSuggestionPtr>& suggestions);
 
   // Called when a file selection is to be done.
   // This function is responsible for calling listener->FileSelected() or
@@ -126,7 +137,7 @@ class ShellPlatformDelegate {
 
   virtual bool HandleKeyboardEvent(Shell* shell,
                                    WebContents* source,
-                                   const NativeWebKeyboardEvent& event);
+                                   const input::NativeWebKeyboardEvent& event);
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)

@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ash/bluetooth/debug_logs_manager_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/ash/bluetooth/debug_logs_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
@@ -52,7 +52,8 @@ DebugLogsManager* DebugLogsManagerFactory::GetForProfile(Profile* profile) {
 
 // static
 DebugLogsManagerFactory* DebugLogsManagerFactory::GetInstance() {
-  return base::Singleton<DebugLogsManagerFactory>::get();
+  static base::NoDestructor<DebugLogsManagerFactory> instance;
+  return instance.get();
 }
 
 DebugLogsManagerFactory::DebugLogsManagerFactory()
@@ -60,16 +61,20 @@ DebugLogsManagerFactory::DebugLogsManagerFactory()
           "DebugLogsManagerFactory",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 DebugLogsManagerFactory::~DebugLogsManagerFactory() = default;
 
-KeyedService* DebugLogsManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+DebugLogsManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
@@ -77,7 +82,7 @@ KeyedService* DebugLogsManagerFactory::BuildServiceInstanceFor(
   if (!ProfileHelper::Get()->IsPrimaryProfile(profile))
     return nullptr;
 
-  return new DebugLogsManagerService(profile);
+  return std::make_unique<DebugLogsManagerService>(profile);
 }
 
 bool DebugLogsManagerFactory::ServiceIsCreatedWithBrowserContext() const {

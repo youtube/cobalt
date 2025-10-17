@@ -4,6 +4,7 @@
 
 #include "ui/views/controls/button/image_button.h"
 
+#include <string>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -16,6 +17,7 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/scoped_canvas.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -45,27 +47,34 @@ ImageButton::ImageButton(PressedCallback callback)
 
 ImageButton::~ImageButton() = default;
 
+void ToggleImageButton::UpdateAccessibleCheckedState() {
+  // Use the visual pressed image as a cue for making this control into an
+  // accessible toggle button.
+  if ((toggled_ && !images_[ButtonState::STATE_NORMAL].IsEmpty()) ||
+      (!toggled_ && !alternate_images_[ButtonState::STATE_NORMAL].IsEmpty())) {
+    GetViewAccessibility().SetCheckedState(
+        toggled_ ? ax::mojom::CheckedState::kTrue
+                 : ax::mojom::CheckedState::kFalse);
+  } else {
+    GetViewAccessibility().RemoveCheckedState();
+  }
+}
+
 gfx::ImageSkia ImageButton::GetImage(ButtonState state) const {
   return images_[state].Rasterize(GetColorProvider());
 }
 
-void ImageButton::SetImage(ButtonState for_state, const gfx::ImageSkia* image) {
-  SetImage(for_state, image ? *image : gfx::ImageSkia());
-}
-
-void ImageButton::SetImage(ButtonState for_state, const gfx::ImageSkia& image) {
-  SetImageModel(for_state, ui::ImageModel::FromImageSkia(image));
-}
-
 void ImageButton::SetImageModel(ButtonState for_state,
                                 const ui::ImageModel& image_model) {
-  if (for_state == STATE_HOVERED)
+  if (for_state == STATE_HOVERED) {
     SetAnimateOnStateChange(!image_model.IsEmpty());
-  const gfx::Size old_preferred_size = GetPreferredSize();
+  }
+  const gfx::Size old_preferred_size = GetPreferredSize({});
   images_[for_state] = image_model;
 
-  if (old_preferred_size != GetPreferredSize())
+  if (old_preferred_size != GetPreferredSize({})) {
     PreferredSizeChanged();
+  }
 
   // Even if |for_state| isn't the current state this image could be painted;
   // see |GetImageToPaint()|. So, always repaint.
@@ -94,15 +103,17 @@ ImageButton::VerticalAlignment ImageButton::GetImageVerticalAlignment() const {
 }
 
 void ImageButton::SetImageHorizontalAlignment(HorizontalAlignment h_alignment) {
-  if (GetImageHorizontalAlignment() == h_alignment)
+  if (GetImageHorizontalAlignment() == h_alignment) {
     return;
+  }
   h_alignment_ = h_alignment;
   OnPropertyChanged(&h_alignment_, kPropertyEffectsPaint);
 }
 
 void ImageButton::SetImageVerticalAlignment(VerticalAlignment v_alignment) {
-  if (GetImageVerticalAlignment() == v_alignment)
+  if (GetImageVerticalAlignment() == v_alignment) {
     return;
+  }
   v_alignment_ = v_alignment;
   OnPropertyChanged(&v_alignment_, kPropertyEffectsPaint);
 }
@@ -112,8 +123,9 @@ gfx::Size ImageButton::GetMinimumImageSize() const {
 }
 
 void ImageButton::SetMinimumImageSize(const gfx::Size& size) {
-  if (GetMinimumImageSize() == size)
+  if (GetMinimumImageSize() == size) {
     return;
+  }
   minimum_image_size_ = size;
   OnPropertyChanged(&minimum_image_size_, kPropertyEffectsPreferredSizeChanged);
 }
@@ -121,10 +133,12 @@ void ImageButton::SetMinimumImageSize(const gfx::Size& size) {
 ////////////////////////////////////////////////////////////////////////////////
 // ImageButton, View overrides:
 
-gfx::Size ImageButton::CalculatePreferredSize() const {
+gfx::Size ImageButton::CalculatePreferredSize(
+    const SizeBounds& available_size) const {
   gfx::Size size(kDefaultWidth, kDefaultHeight);
-  if (!images_[STATE_NORMAL].IsEmpty())
+  if (!images_[STATE_NORMAL].IsEmpty()) {
     size = images_[STATE_NORMAL].Size();
+  }
 
   size.SetToMax(GetMinimumImageSize());
 
@@ -159,19 +173,14 @@ std::unique_ptr<ImageButton> ImageButton::CreateIconButton(
     PressedCallback callback,
     const gfx::VectorIcon& icon,
     const std::u16string& accessible_name,
-    MaterialIconStyle icon_style) {
-  const int kSmallIconSize = 14;
+    MaterialIconStyle icon_style,
+    std::optional<gfx::Insets> insets) {
+  const int kSmallIconSize = 16;
   const int kLargeIconSize = 20;
   int icon_size = (icon_style == MaterialIconStyle::kLarge) ? kLargeIconSize
                                                             : kSmallIconSize;
-  // Icon images have padding between the image and image border. To account
-  // for that padding, add a general padding value. This value might be
-  // incorrect depending on the icon image.
-  icon_size +=
-      LayoutProvider::Get()->GetDistanceMetric(DISTANCE_VECTOR_ICON_PADDING);
-
   std::unique_ptr<ImageButton> icon_button =
-      std::make_unique<ImageButton>(callback);
+      std::make_unique<ImageButton>(std::move(callback));
   icon_button->SetImageModel(
       ButtonState::STATE_NORMAL,
       ui::ImageModel::FromVectorIcon(icon, ui::kColorIcon, icon_size));
@@ -186,11 +195,13 @@ std::unique_ptr<ImageButton> ImageButton::CreateIconButton(
       ui::ImageModel::FromVectorIcon(icon, ui::kColorIconDisabled, icon_size));
 
   const gfx::Insets target_insets =
-      LayoutProvider::Get()->GetInsetsMetric(InsetsMetric::INSETS_ICON_BUTTON);
+      insets.has_value() ? insets.value()
+                         : LayoutProvider::Get()->GetInsetsMetric(
+                               InsetsMetric::INSETS_ICON_BUTTON);
   icon_button->SetBorder(views::CreateEmptyBorder(target_insets));
 
   const int kSmallIconButtonSize = 24;
-  const int kLargeIconButtonSize = 32;
+  const int kLargeIconButtonSize = 28;
   int button_size = (icon_style == MaterialIconStyle::kLarge)
                         ? kLargeIconButtonSize
                         : kSmallIconButtonSize;
@@ -210,7 +221,8 @@ std::unique_ptr<ImageButton> ImageButton::CreateIconButton(
           },
           icon_button.get()));
 
-  icon_button->SetAccessibleName(accessible_name);
+  icon_button->GetViewAccessibility().SetName(accessible_name);
+  icon_button->SetTooltipText(accessible_name);
 
   return icon_button;
 }
@@ -257,6 +269,16 @@ gfx::ImageSkia ImageButton::GetImageToPaint() {
   return !img.isNull() ? img : images_[STATE_NORMAL].Rasterize(color_provider);
 }
 
+void ToggleImageButton::UpdateAccessibleRoleIfNeeded() {
+  if ((toggled_ && !images_[ButtonState::STATE_NORMAL].IsEmpty()) ||
+      (!toggled_ && !alternate_images_[ButtonState::STATE_NORMAL].IsEmpty())) {
+    GetViewAccessibility().SetRole(ax::mojom::Role::kToggleButton);
+    return;
+  }
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kButton);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // ImageButton, private:
 
@@ -265,25 +287,28 @@ const gfx::Point ImageButton::ComputeImagePaintPosition(
   HorizontalAlignment h_alignment = GetImageHorizontalAlignment();
   VerticalAlignment v_alignment = GetImageVerticalAlignment();
   if (draw_image_mirrored_) {
-    if (h_alignment == ALIGN_RIGHT)
+    if (h_alignment == ALIGN_RIGHT) {
       h_alignment = ALIGN_LEFT;
-    else if (h_alignment == ALIGN_LEFT)
+    } else if (h_alignment == ALIGN_LEFT) {
       h_alignment = ALIGN_RIGHT;
+    }
   }
 
   const gfx::Rect rect = GetContentsBounds();
 
   int x = 0;
-  if (h_alignment == ALIGN_CENTER)
+  if (h_alignment == ALIGN_CENTER) {
     x = (rect.width() - image.width()) / 2;
-  else if (h_alignment == ALIGN_RIGHT)
+  } else if (h_alignment == ALIGN_RIGHT) {
     x = rect.width() - image.width();
+  }
 
   int y = 0;
-  if (v_alignment == ALIGN_MIDDLE)
+  if (v_alignment == ALIGN_MIDDLE) {
     y = (rect.height() - image.height()) / 2;
-  else if (v_alignment == ALIGN_BOTTOM)
+  } else if (v_alignment == ALIGN_BOTTOM) {
     y = rect.height() - image.height();
+  }
 
   return rect.origin() + gfx::Vector2d(x, y);
 }
@@ -292,7 +317,10 @@ const gfx::Point ImageButton::ComputeImagePaintPosition(
 // ToggleImageButton, public:
 
 ToggleImageButton::ToggleImageButton(PressedCallback callback)
-    : ImageButton(std::move(callback)) {}
+    : ImageButton(std::move(callback)) {
+  UpdateAccessibleCheckedState();
+  UpdateTooltipText();
+}
 
 ToggleImageButton::~ToggleImageButton() = default;
 
@@ -301,15 +329,20 @@ bool ToggleImageButton::GetToggled() const {
 }
 
 void ToggleImageButton::SetToggled(bool toggled) {
-  if (toggled == toggled_)
+  if (toggled == toggled_) {
     return;
+  }
 
-  for (int i = 0; i < STATE_COUNT; ++i)
+  for (size_t i = 0; i < STATE_COUNT; ++i) {
     std::swap(images_[i], alternate_images_[i]);
+  }
   toggled_ = toggled;
 
+  UpdateAccessibleCheckedState();
   OnPropertyChanged(&toggled_, kPropertyEffectsPaint);
-  NotifyAccessibilityEvent(ax::mojom::Event::kCheckedStateChanged, true);
+  UpdateAccessibleRoleIfNeeded();
+  UpdateAccessibleName();
+  UpdateTooltipText();
 }
 
 void ToggleImageButton::SetToggledImage(ButtonState image_state,
@@ -323,11 +356,14 @@ void ToggleImageButton::SetToggledImageModel(
     const ui::ImageModel& image_model) {
   if (toggled_) {
     images_[image_state] = image_model;
-    if (GetState() == image_state)
+    if (GetState() == image_state) {
       SchedulePaint();
+    }
   } else {
     alternate_images_[image_state] = image_model;
   }
+  UpdateAccessibleCheckedState();
+  UpdateAccessibleRoleIfNeeded();
 }
 
 void ToggleImageButton::SetToggledBackground(std::unique_ptr<Background> b) {
@@ -340,9 +376,15 @@ std::u16string ToggleImageButton::GetToggledTooltipText() const {
 }
 
 void ToggleImageButton::SetToggledTooltipText(const std::u16string& tooltip) {
-  if (tooltip == toggled_tooltip_text_)
+  if (tooltip == toggled_tooltip_text_) {
+    // This call is needed to ensure that the tooltip text is correctly updated
+    // even if `SetTooltipText` is explicitly called during toggle on state.
+    UpdateTooltipText();
     return;
+  }
   toggled_tooltip_text_ = tooltip;
+  UpdateAccessibleName();
+  UpdateTooltipText();
   OnPropertyChanged(&toggled_tooltip_text_, kPropertyEffectsNone);
 }
 
@@ -351,9 +393,11 @@ std::u16string ToggleImageButton::GetToggledAccessibleName() const {
 }
 
 void ToggleImageButton::SetToggledAccessibleName(const std::u16string& name) {
-  if (name == toggled_accessible_name_)
+  if (name == toggled_accessible_name_) {
     return;
+  }
   toggled_accessible_name_ = name;
+  UpdateAccessibleName();
   OnPropertyChanged(&toggled_accessible_name_, kPropertyEffectsNone);
 }
 
@@ -361,8 +405,9 @@ void ToggleImageButton::SetToggledAccessibleName(const std::u16string& name) {
 // ToggleImageButton, ImageButton overrides:
 
 gfx::ImageSkia ToggleImageButton::GetImage(ButtonState image_state) const {
-  if (toggled_)
+  if (toggled_) {
     return alternate_images_[image_state].Rasterize(GetColorProvider());
+  }
   return images_[image_state].Rasterize(GetColorProvider());
 }
 
@@ -372,10 +417,13 @@ void ToggleImageButton::SetImageModel(ButtonState image_state,
     alternate_images_[image_state] = image_model;
   } else {
     images_[image_state] = image_model;
-    if (GetState() == image_state)
+    if (GetState() == image_state) {
       SchedulePaint();
+    }
   }
   PreferredSizeChanged();
+  UpdateAccessibleCheckedState();
+  UpdateAccessibleRoleIfNeeded();
 }
 
 void ToggleImageButton::OnPaintBackground(gfx::Canvas* canvas) {
@@ -390,40 +438,48 @@ void ToggleImageButton::OnPaintBackground(gfx::Canvas* canvas) {
 ////////////////////////////////////////////////////////////////////////////////
 // ToggleImageButton, View overrides:
 
-std::u16string ToggleImageButton::GetTooltipText(const gfx::Point& p) const {
-  return (!toggled_ || toggled_tooltip_text_.empty())
-             ? Button::GetTooltipText(p)
-             : toggled_tooltip_text_;
+void ToggleImageButton::OnTooltipTextChanged(
+    const std::u16string& old_tooltip) {
+  untoggled_tooltip_text_ = GetTooltipText();
 }
 
-void ToggleImageButton::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  ImageButton::GetAccessibleNodeData(node_data);
-  if (!toggled_)
-    return;
-
-  if (!toggled_accessible_name_.empty()) {
-    node_data->SetName(toggled_accessible_name_);
-  } else if (!toggled_tooltip_text_.empty()) {
-    node_data->SetName(toggled_tooltip_text_);
-  }
-
-  // Use the visual pressed image as a cue for making this control into an
-  // accessible toggle button.
-  if ((toggled_ && !images_[ButtonState::STATE_NORMAL].IsEmpty()) ||
-      (!toggled_ && !alternate_images_[ButtonState::STATE_NORMAL].IsEmpty())) {
-    node_data->role = ax::mojom::Role::kToggleButton;
-    node_data->SetCheckedState(toggled_ ? ax::mojom::CheckedState::kTrue
-                                        : ax::mojom::CheckedState::kFalse);
+void ToggleImageButton::UpdateAccessibleName() {
+  if (toggled_) {
+    if (!toggled_accessible_name_.empty()) {
+      GetViewAccessibility().SetName(toggled_accessible_name_);
+    } else if (!toggled_tooltip_text_.empty()) {
+      GetViewAccessibility().SetName(toggled_tooltip_text_);
+    }
+  } else {
+    GetViewAccessibility().SetName(GetTooltipText());
   }
 }
 
-BEGIN_METADATA(ImageButton, Button)
+void ToggleImageButton::UpdateTooltipText() {
+  if (toggled_ && !toggled_tooltip_text_.empty()) {
+    std::u16string previous_tooltip_text = GetTooltipText();
+    SetTooltipText(toggled_tooltip_text_);
+    untoggled_tooltip_text_ = previous_tooltip_text;
+  } else {
+    SetTooltipText(untoggled_tooltip_text_);
+  }
+
+  UpdateAccessibleName();
+
+  // This corner case was needed to be handled separately.
+  if (GetViewAccessibility().GetCachedName() == GetTooltipText() &&
+      GetViewAccessibility().GetCachedDescription() == GetTooltipText()) {
+    GetViewAccessibility().RemoveDescription();
+  }
+}
+
+BEGIN_METADATA(ImageButton)
 ADD_PROPERTY_METADATA(HorizontalAlignment, ImageHorizontalAlignment)
 ADD_PROPERTY_METADATA(VerticalAlignment, ImageVerticalAlignment)
 ADD_PROPERTY_METADATA(gfx::Size, MinimumImageSize)
 END_METADATA
 
-BEGIN_METADATA(ToggleImageButton, ImageButton)
+BEGIN_METADATA(ToggleImageButton)
 ADD_PROPERTY_METADATA(bool, Toggled)
 ADD_PROPERTY_METADATA(std::unique_ptr<Background>, ToggledBackground)
 ADD_PROPERTY_METADATA(std::u16string, ToggledTooltipText)

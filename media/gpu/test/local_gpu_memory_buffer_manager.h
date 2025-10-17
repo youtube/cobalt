@@ -11,8 +11,7 @@
 #include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/buffer_types.h"
-
-struct gbm_device;
+#include "ui/gfx/linux/scoped_gbm_device.h"
 
 namespace gfx {
 class GpuMemoryBuffer;
@@ -47,9 +46,7 @@ class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
       base::OnceCallback<void(bool)> callback) override;
-  bool CopyGpuMemoryBufferSync(
-      gfx::GpuMemoryBufferHandle buffer_handle,
-      base::UnsafeSharedMemoryRegion memory_region) override;
+  bool IsConnected() override;
 
   // Imports a DmaBuf as a GpuMemoryBuffer to be able to map it. The
   // GBM_BO_USE_SW_READ_OFTEN usage is specified so that the user of the
@@ -66,7 +63,7 @@ class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
                                  gfx::BufferUsage usage);
 
  private:
-  raw_ptr<gbm_device, ExperimentalAsh> gbm_device_;
+  ui::ScopedGbmDevice gbm_device_;
 };
 
 }  // namespace media

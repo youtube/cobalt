@@ -7,12 +7,14 @@
 
 #include <memory>
 
+#include "content/browser/webid/identity_registry.h"
 #include "content/public/browser/identity_request_dialog_controller.h"
 #include "content/public/test/content_browser_test_content_browser_client.h"
 
 namespace content {
 
-class MDocProvider;
+class DigitalIdentityProvider;
+class IdentityRegistryDelegate;
 
 // Implements ContentBrowserClient to allow calls out to the Chrome layer to
 // be stubbed for tests.
@@ -27,22 +29,35 @@ class WebIdTestContentBrowserClient
       const WebIdTestContentBrowserClient&) = delete;
 
   std::unique_ptr<IdentityRequestDialogController>
-  CreateIdentityRequestDialogController() override;
+  CreateIdentityRequestDialogController(WebContents* web_contents) override;
 
-  std::unique_ptr<MDocProvider> CreateMDocProvider() override;
+  std::unique_ptr<DigitalIdentityProvider> CreateDigitalIdentityProvider()
+      override;
 
   // This needs to be called once for every WebID invocation. If there is a
   // need in future to generate these in sequence then a callback can be used.
   void SetIdentityRequestDialogController(
       std::unique_ptr<IdentityRequestDialogController> controller);
 
-  void SetMDocProvider(std::unique_ptr<MDocProvider> provider);
+  void SetDigitalIdentityProvider(
+      std::unique_ptr<DigitalIdentityProvider> provider);
 
-  MDocProvider* GetMDocProviderForTests() { return test_mdoc_provider_.get(); }
+  void SetIdentityRegistry(WebContents* web_contents,
+                           base::WeakPtr<IdentityRegistryDelegate> delegate,
+                           const GURL& config_url);
+
+  IdentityRequestDialogController*
+  GetIdentityRequestDialogControllerForTests() {
+    return test_dialog_controller_.get();
+  }
+
+  DigitalIdentityProvider* GetDigitalIdentityProviderForTests() {
+    return test_digital_identity_provider_.get();
+  }
 
  private:
   std::unique_ptr<IdentityRequestDialogController> test_dialog_controller_;
-  std::unique_ptr<MDocProvider> test_mdoc_provider_;
+  std::unique_ptr<DigitalIdentityProvider> test_digital_identity_provider_;
 };
 
 }  // namespace content

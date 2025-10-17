@@ -4,6 +4,7 @@
 
 #include "base/threading/scoped_thread_priority.h"
 
+#include "base/test/gtest_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
@@ -24,7 +25,7 @@ namespace {
 
 static ThreadType kAllThreadTypes[] = {
     ThreadType::kRealtimeAudio, ThreadType::kDisplayCritical,
-    ThreadType::kCompositing, ThreadType::kDefault, ThreadType::kBackground};
+    ThreadType::kDefault, ThreadType::kBackground};
 
 static_assert(static_cast<int>(ThreadType::kBackground) == 0,
               "kBackground isn't lowest");
@@ -35,10 +36,13 @@ class ScopedThreadPriorityTest : public testing::Test {
  protected:
   void SetUp() override {
     // Ensures the default thread priority is set.
+    PlatformThread::SetCurrentThreadType(ThreadType::kDefault);
     ASSERT_EQ(ThreadPriorityForTest::kNormal,
               PlatformThread::GetCurrentThreadPriorityForTest());
   }
 };
+
+using ScopedThreadPriorityDeathTest = ScopedThreadPriorityTest;
 
 #if BUILDFLAG(IS_WIN)
 void FunctionThatBoostsPriorityOnFirstInvoke(
@@ -60,13 +64,15 @@ void FunctionThatBoostsPriorityOnEveryInvoke() {
 
 TEST_F(ScopedThreadPriorityTest, BasicTest) {
   for (auto from : kAllThreadTypes) {
-    if (!PlatformThread::CanChangeThreadType(ThreadType::kDefault, from))
+    if (!PlatformThread::CanChangeThreadType(ThreadType::kDefault, from)) {
       continue;
+    }
     for (auto to : kAllThreadTypes) {
       // ThreadType::kRealtimeAudio is not a valid |target_thread_type| for
       // ScopedBoostPriority.
-      if (to == ThreadType::kRealtimeAudio)
+      if (to == ThreadType::kRealtimeAudio) {
         continue;
+      }
       Thread thread("ScopedThreadPriorityTest");
       thread.StartWithOptions(Thread::Options(from));
       thread.WaitUntilThreadStarted();
@@ -89,6 +95,12 @@ TEST_F(ScopedThreadPriorityTest, BasicTest) {
               from, to));
     }
   }
+}
+
+TEST_F(ScopedThreadPriorityDeathTest, NoRealTime) {
+  EXPECT_CHECK_DEATH({
+    ScopedBoostPriority scoped_boost_priority(ThreadType::kRealtimeAudio);
+  });
 }
 
 TEST_F(ScopedThreadPriorityTest, WithoutPriorityBoost) {

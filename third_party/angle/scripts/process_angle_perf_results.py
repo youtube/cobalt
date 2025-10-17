@@ -71,7 +71,7 @@ def _upload_perf_results(json_to_upload, name, configuration_name, build_propert
         '--buildername',
         build_properties['buildername'],
         '--buildnumber',
-        build_properties['buildnumber'],
+        str(build_properties['buildnumber']),
         '--name',
         name,
         '--configuration-name',
@@ -464,13 +464,12 @@ def _upload_individual(benchmark_name, directories, configuration_name, build_pr
         results_size_in_mib = os.path.getsize(results_filename) / (2**20)
         logging.info('Uploading perf results from %s benchmark (size %s Mib)' %
                      (benchmark_name, results_size_in_mib))
-        with open(output_json_file, 'w') as oj:
-            upload_return_code = _upload_perf_results(results_filename, benchmark_name,
-                                                      configuration_name, build_properties, oj)
-            upload_end_time = time.time()
-            print_duration(('%s upload time' % (benchmark_name)), upload_begin_time,
-                           upload_end_time)
-            return (benchmark_name, upload_return_code == 0)
+        upload_return_code = _upload_perf_results(results_filename, benchmark_name,
+                                                  configuration_name, build_properties,
+                                                  output_json_file)
+        upload_end_time = time.time()
+        print_duration(('%s upload time' % (benchmark_name)), upload_begin_time, upload_end_time)
+        return (benchmark_name, upload_return_code == 0)
     finally:
         shutil.rmtree(tmpfile_dir)
 
@@ -690,7 +689,7 @@ def _write_perf_data_to_logfile(benchmark_name, output_file, configuration_name,
         if upload_failure:
             logdog_dict[base_benchmark_name]['ref_upload_failed'] = 'True'
     else:
-        # TODO(jmadill): Figure out if we can get a dashboard URL here. http://anglebug.com/6090
+        # TODO(jmadill): Figure out if we can get a dashboard URL here. http://anglebug.com/40096778
         # logdog_dict[base_benchmark_name]['dashboard_url'] = (
         #     upload_results_to_perf_dashboard.GetDashboardUrl(benchmark_name, configuration_name,
         #                                                      RESULTS_URL,

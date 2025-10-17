@@ -19,7 +19,7 @@
 #include "components/dbus/properties/success_barrier_callback.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/models/menu_model.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace {
 
@@ -118,6 +118,9 @@ DbusMenu::ScopedMethodResponse::ScopedMethodResponse(
       reader_(method_call_) {}
 
 DbusMenu::ScopedMethodResponse::~ScopedMethodResponse() {
+  // Reset method_call_, it may no longer be valid after Run().
+  method_call_ = nullptr;
+
   std::move(response_sender_).Run(std::move(response_));
 }
 
@@ -291,9 +294,9 @@ void DbusMenu::OnAboutToShowGroup(ScopedMethodResponse* response) {
   }
 
   // IDs of updates needed (none).
-  response->Writer().AppendArrayOfInt32s(nullptr, 0);
+  response->Writer().AppendArrayOfInt32s({});
   // Invalid IDs.
-  response->Writer().AppendArrayOfInt32s(id_errors.data(), id_errors.size());
+  response->Writer().AppendArrayOfInt32s(id_errors);
 }
 
 void DbusMenu::OnEvent(ScopedMethodResponse* response) {
@@ -320,7 +323,7 @@ void DbusMenu::OnEventGroup(ScopedMethodResponse* response) {
     }
   }
 
-  response->Writer().AppendArrayOfInt32s(id_errors.data(), id_errors.size());
+  response->Writer().AppendArrayOfInt32s(id_errors);
 }
 
 void DbusMenu::OnGetGroupProperties(ScopedMethodResponse* response) {

@@ -6,15 +6,23 @@
 
 #include <stddef.h>
 
+#include <optional>
+
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
 #include "ui/base/ime/ash/mock_component_extension_ime_manager_delegate.h"
 
 namespace ash {
 namespace input_method {
+
 namespace {
+
+using ::testing::Eq;
+using ::testing::Optional;
+using ::testing::Property;
 
 class ComponentExtensionIMEManagerTest : public testing::Test {
  public:
@@ -90,7 +98,7 @@ class ComponentExtensionIMEManagerTest : public testing::Test {
     ext3.id = "ext3_id_xxxxxxxxxxxxxxxxxxxxxxxx";
     ext3.description = "ext3_description";
     ext3.options_page_url =
-    GURL("chrome-extension://" + ext3.id + "/options.html");
+        GURL("chrome-extension://" + ext3.id + "/options.html");
     ext3.path = base::FilePath("ext3_file_path");
 
     ComponentExtensionEngine ext3_engine1;
@@ -125,7 +133,7 @@ class ComponentExtensionIMEManagerTest : public testing::Test {
   }
 
  protected:
-  raw_ptr<MockComponentExtensionIMEManagerDelegate, ExperimentalAsh>
+  raw_ptr<MockComponentExtensionIMEManagerDelegate, DanglingUntriaged>
       mock_delegate_;
   std::unique_ptr<ComponentExtensionIMEManager> component_ext_mgr_;
   std::vector<ComponentExtensionIME> ime_list_;
@@ -136,8 +144,7 @@ TEST_F(ComponentExtensionIMEManagerTest, LoadComponentExtensionIMETest) {
     for (size_t j = 0; j < ime_list_[i].engines.size(); ++j) {
       const std::string input_method_id =
           extension_ime_util::GetComponentInputMethodID(
-              ime_list_[i].id,
-              ime_list_[i].engines[j].engine_id);
+              ime_list_[i].id, ime_list_[i].engines[j].engine_id);
       component_ext_mgr_->LoadComponentExtensionIME(nullptr /* profile */,
                                                     input_method_id);
       EXPECT_EQ(ime_list_[i].id, mock_delegate_->last_loaded_extension_id());
@@ -185,6 +192,54 @@ TEST_F(ComponentExtensionIMEManagerTest, GetAllIMEAsInputMethodDescriptor) {
       EXPECT_TRUE(d.id().find("vkd_") != std::string::npos);
     }
   }
+}
+
+TEST_F(ComponentExtensionIMEManagerTest,
+       GetAllIMEAsInputMethodDescriptorHandwriting) {
+  ime_list_.clear();
+
+  {
+    ComponentExtensionIME ext;
+    ext.id = "ext_id_xxxxxxxxxxxxxxxxxxxxxxxxx";
+    {
+      ComponentExtensionEngine engine;
+      engine.engine_id = "nonempty_handwriting";
+      engine.handwriting_language = "en";
+      ext.engines.push_back(std::move(engine));
+    }
+
+    {
+      ComponentExtensionEngine engine;
+      engine.engine_id = "empty_handwriting";
+      engine.handwriting_language = "";
+      ext.engines.push_back(std::move(engine));
+    }
+
+    {
+      ComponentExtensionEngine engine;
+      engine.engine_id = "missing_handwriting";
+      ext.engines.push_back(std::move(engine));
+    }
+
+    ime_list_.push_back(std::move(ext));
+  }
+
+  auto delegate = std::make_unique<MockComponentExtensionIMEManagerDelegate>();
+  mock_delegate_ = delegate.get();
+  mock_delegate_->set_ime_list(ime_list_);
+  component_ext_mgr_ =
+      std::make_unique<ComponentExtensionIMEManager>(std::move(delegate));
+
+  InputMethodDescriptors descriptors =
+      component_ext_mgr_->GetAllIMEAsInputMethodDescriptor();
+
+  EXPECT_THAT(descriptors,
+              ElementsAre(Property(&InputMethodDescriptor::handwriting_language,
+                                   Optional(Eq("en"))),
+                          Property(&InputMethodDescriptor::handwriting_language,
+                                   Optional(Eq(""))),
+                          Property(&InputMethodDescriptor::handwriting_language,
+                                   std::nullopt)));
 }
 
 }  // namespace

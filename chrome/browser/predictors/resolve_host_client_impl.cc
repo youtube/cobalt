@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/common/task_annotator.h"
@@ -54,23 +55,28 @@ ResolveHostClientImpl::~ResolveHostClientImpl() = default;
 void ResolveHostClientImpl::OnComplete(
     int result,
     const net::ResolveErrorInfo& resolve_error_info,
-    const absl::optional<net::AddressList>& resolved_addresses,
-    const absl::optional<net::HostResolverEndpointResults>&
+    const std::optional<net::AddressList>& resolved_addresses,
+    const std::optional<net::HostResolverEndpointResults>&
         endpoint_results_with_metadata) {
   UMA_HISTOGRAM_TIMES("Navigation.Preconnect.ResolveHostLatency",
                       base::TimeTicks::Now() - resolve_host_start_time_);
 
   auto* task = base::TaskAnnotator::CurrentTaskForThread();
+  if (!task) {
+    // The `task` can be null in base::ScopedMockTimeMessageLoopTaskRunner scope
+    // in test.
+    CHECK_IS_TEST();
+  }
   // As this method is executed as a callback from a Mojo call, it should be
   // executed via RunTask() and thus have a non-delayed PendingTask associated
   // with it.
-  DCHECK(task);
-  DCHECK(task->delayed_run_time.is_null());
+  DCHECK(!task || task->delayed_run_time.is_null());
 
   // The task will have a null |queue_time| if run synchronously (this happens
   // in unit tests, for example).
-  base::TimeTicks queue_time =
-      !task->queue_time.is_null() ? task->queue_time : base::TimeTicks::Now();
+  base::TimeTicks queue_time = (task && !task->queue_time.is_null())
+                                   ? task->queue_time
+                                   : base::TimeTicks::Now();
   UMA_HISTOGRAM_TIMES("Navigation.Preconnect.ResolveHostCallbackQueueingTime",
                       base::TimeTicks::Now() - queue_time);
 

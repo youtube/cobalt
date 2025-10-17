@@ -29,4 +29,12 @@ bool BrowserSyncedTabDelegate::IsPlaceholderTab() const {
   return false;
 }
 
+std::unique_ptr<sync_sessions::SyncedTabDelegate>
+BrowserSyncedTabDelegate::ReadPlaceholderTabSnapshotIfItShouldSync(
+    sync_sessions::SyncSessionsClient* sessions_client) {
+  NOTREACHED()
+      << "ReadPlaceholderTabSnapshotIfItShouldSync is not supported on "
+         "desktop platforms.";
+}
+
 WEB_CONTENTS_USER_DATA_KEY_IMPL(BrowserSyncedTabDelegate);

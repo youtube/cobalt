@@ -4,13 +4,14 @@
 
 package org.chromium.chrome.browser.lifecycle;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * Implement this interface and register in {@link ActivityLifecycleDispatcher} to get notified of
  * native having been loaded.
  */
+@NullMarked
 public interface NativeInitObserver extends LifecycleObserver {
-    /**
-     * Called when the native library has finished loading.
-     */
+    /** Called when the native library has finished loading. */
     void onFinishNativeInitialization();
 }

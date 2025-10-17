@@ -5,13 +5,14 @@
 #ifndef CHROME_BROWSER_ASH_ARC_INPUT_OVERLAY_UI_ACTION_VIEW_H_
 #define CHROME_BROWSER_ASH_ARC_INPUT_OVERLAY_UI_ACTION_VIEW_H_
 
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ash/arc/input_overlay/actions/action.h"
 #include "chrome/browser/ash/arc/input_overlay/constants.h"
-#include "chrome/browser/ash/arc/input_overlay/display_overlay_controller.h"
-#include "chrome/browser/ash/arc/input_overlay/ui/action_edit_button.h"
-#include "chrome/browser/ash/arc/input_overlay/ui/action_label.h"
-#include "chrome/browser/ash/arc/input_overlay/ui/touch_point.h"
+#include "chrome/browser/ash/arc/input_overlay/db/proto/app_data.pb.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/views/view.h"
@@ -19,13 +20,20 @@
 namespace arc::input_overlay {
 
 class Action;
-class ActionEditButton;
+class ActionLabel;
+class ArrowContainer;
+class DisplayOverlayController;
+class InputElement;
+class RepositionController;
+class TouchPoint;
 
 // Represents the default label index. Default -1 means all the index.
-constexpr int kDefaultLabelIndex = -1;
+inline constexpr int kDefaultLabelIndex = -1;
 
 // ActionView is the view for each action.
 class ActionView : public views::View {
+  METADATA_HEADER(ActionView, views::View)
+
  public:
   ActionView(Action* action,
              DisplayOverlayController* display_overlay_controller);
@@ -35,67 +43,70 @@ class ActionView : public views::View {
 
   // Each type of the actions sets view content differently.
   virtual void SetViewContent(BindingOption binding_option) = 0;
-  // Each type of the actions acts differently on key binding change.
-  virtual void OnKeyBindingChange(ActionLabel* action_label,
-                                  ui::DomCode code) = 0;
   virtual void OnBindingToKeyboard() = 0;
   virtual void OnBindingToMouse(std::string mouse_action) = 0;
   // Each type of the actions shows different edit menu.
-  virtual void OnMenuEntryPressed() = 0;
   virtual void AddTouchPoint() = 0;
 
+  // Called when associated action is updated.
+  void OnActionInputBindingUpdated();
+  // Called when window/content bounds are changed.
+  void OnContentBoundsSizeChanged();
+
   // TODO(cuicuiruan): Remove virtual for post MVP once edit menu is ready for
-  // |ActionMove|.
-  // If |editing_label| == nullptr, set display mode for all the |ActionLabel|
-  // child views, otherwise, only set the display mode for |editing_label|.
+  // `ActionMove`.
+  // If `editing_label` == nullptr, set display mode for all the `ActionLabel`
+  // child views, otherwise, only set the display mode for `editing_label`.
   virtual void SetDisplayMode(const DisplayMode mode,
                               ActionLabel* editing_label = nullptr);
 
   // Set position from its center position.
   void SetPositionFromCenterPosition(const gfx::PointF& center_position);
-  // Get edit menu position in parent's bounds.
-  gfx::Point GetEditMenuPosition(gfx::Size menu_size);
-  void RemoveEditMenu();
-  // Show error message for action. If |ax_annouce| is true, ChromeVox
-  // annouces the |message| directly. Otherwise, |message| is added as the
-  // description of |editing_label|.
-  void ShowErrorMsg(const base::StringPiece& message,
-                    ActionLabel* editing_label,
-                    bool ax_annouce);
-  // Show info/edu message.
-  void ShowInfoMsg(const base::StringPiece& message,
-                   ActionLabel* editing_label);
-  void ShowFocusInfoMsg(const base::StringPiece& message, views::View* view);
+  void ShowFocusInfoMsg(std::string_view message, views::View* view);
   void RemoveMessage();
-  // Change binding for |action| binding to |input_element| and set
-  // |kEditedSuccess| on |action_label| if |action_label| is not nullptr.
-  // Otherwise, set |kEditedSuccess| to all |ActionLabel|.
+  // Change binding for `action` binding to `input_element` and set
+  // `kEditedSuccess` on `action_label` if `action_label` is not nullptr.
+  // Otherwise, set `kEditedSuccess` to all `ActionLabel`.
   void ChangeInputBinding(Action* action,
                           ActionLabel* action_label,
                           std::unique_ptr<InputElement> input_element);
-  // Reset binding to its previous binding before entering to the edit mode.
-  void OnResetBinding();
-  // Return true if it needs to show error message and also shows error message.
-  // Otherwise, don't show any error message and return false.
-  bool ShouldShowErrorMsg(ui::DomCode code,
-                          ActionLabel* editing_label = nullptr);
-  // Reacts to child label focus change.
-  void OnChildLabelUpdateFocus(ActionLabel* child, bool focus);
 
-  bool ApplyMousePressed(const ui::MouseEvent& event);
-  bool ApplyMouseDragged(const ui::MouseEvent& event);
+  // Set the action view to be not new, for the action label.
+  void RemoveNewState();
+
+  void ApplyMousePressed(const ui::MouseEvent& event);
+  void ApplyMouseDragged(const ui::MouseEvent& event);
   void ApplyMouseReleased(const ui::MouseEvent& event);
   void ApplyGestureEvent(ui::GestureEvent* event);
   bool ApplyKeyPressed(const ui::KeyEvent& event);
   bool ApplyKeyReleased(const ui::KeyEvent& event);
 
+  void ShowButtonOptionsMenu();
+
+  // Callbacks related to reposition operations.
+  void OnDraggingCallback();
+  void OnMouseDragEndCallback();
+  void OnGestureDragEndCallback();
+  void OnKeyPressedCallback();
+  void OnKeyReleasedCallback();
+
   void SetTouchPointCenter(const gfx::Point& touch_point_center);
   gfx::Point GetTouchCenterInWindow() const;
 
+  // Returns the `attached_view` position and update the attached_view.
+  gfx::Point CalculateAttachViewPositionInRootWindow(
+      const gfx::Rect& available_bounds,
+      const gfx::Point& window_content_origin,
+      ArrowContainer* attached_view) const;
+
+  // views::View:
+  void AddedToWidget() override;
+
   Action* action() { return action_; }
-  const std::vector<ActionLabel*>& labels() const { return labels_; }
+  const std::vector<raw_ptr<ActionLabel, VectorExperimental>>& labels() const {
+    return labels_;
+  }
   TouchPoint* touch_point() { return touch_point_; }
-  void set_editable(bool editable) { editable_ = editable; }
   DisplayOverlayController* display_overlay_controller() {
     return display_overlay_controller_;
   }
@@ -104,7 +115,7 @@ class ActionView : public views::View {
   }
   int unbind_label_index() { return unbind_label_index_; }
 
-  absl::optional<gfx::Point> touch_point_center() const {
+  std::optional<gfx::Point> touch_point_center() const {
     return touch_point_center_;
   }
 
@@ -114,59 +125,34 @@ class ActionView : public views::View {
   void AddTouchPoint(ActionType action_type);
 
   // Reference to the action of this UI.
-  raw_ptr<Action> action_ = nullptr;
+  raw_ptr<Action, DanglingUntriaged> action_ = nullptr;
   // Reference to the owner class.
   const raw_ptr<DisplayOverlayController> display_overlay_controller_ = nullptr;
-  // Some types are not supported to edit.
-  bool editable_ = false;
-  // Three-dot button to show the |ActionEditMenu|.
-  raw_ptr<ActionEditButton> menu_entry_ = nullptr;
   // Labels for mapping hints.
-  std::vector<ActionLabel*> labels_;
+  std::vector<raw_ptr<ActionLabel, VectorExperimental>> labels_;
   // Current display mode.
   DisplayMode current_display_mode_ = DisplayMode::kNone;
   // Local center position of the touch point view.
-  absl::optional<gfx::Point> touch_point_center_;
-  // TODO(cuicuirunan): Enable or remove this after MVP.
-  bool show_edit_button_ = false;
+  std::optional<gfx::Point> touch_point_center_;
 
   // Touch point only shows up in the edit mode for users to align the position.
-  // This view owns the touch point as one of its children and |touch_point_|
+  // This view owns the touch point as one of its children and `touch_point_`
   // is for quick access.
-  raw_ptr<TouchPoint> touch_point_ = nullptr;
+  raw_ptr<TouchPoint, DanglingUntriaged> touch_point_ = nullptr;
   DisplayMode display_mode_ = DisplayMode::kView;
 
-  // TODO(b/260937747): Update or remove when removing flags
-  // |kArcInputOverlayAlphaV2| or |kArcInputOverlayBeta|.
-  bool allow_reposition_;
-
  private:
-  void AddEditButton();
-  void RemoveEditButton();
-
-  void RemoveTrashButton();
-  void OnTrashButtonPressed();
+  friend class ActionViewTest;
+  friend class OverlayViewTestBase;
 
   void RemoveTouchPoint();
 
-  // Drag operations.
-  void OnDragStart(const ui::LocatedEvent& event);
-  bool OnDragUpdate(const ui::LocatedEvent& event);
-  void OnDragEnd();
+  void SetRepositionController();
 
-  void ChangePositionBinding(const gfx::Point& point);
+  std::unique_ptr<RepositionController> reposition_controller_;
 
   // By default, no label is unbound.
   int unbind_label_index_ = kDefaultLabelIndex;
-  // The position when starting to drag.
-  gfx::Point start_drag_event_pos_;
-
-  // TODO(b/250900717): Update when the final UX/UI is ready.
-  raw_ptr<views::ImageButton> trash_button_ = nullptr;
-
-  // Corresponding to |kArcInputOverlayBeta| flag to turn on/off the editor
-  // feature of adding or removing actions.
-  bool beta_;
 };
 
 }  // namespace arc::input_overlay

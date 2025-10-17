@@ -17,6 +17,10 @@
 #include "chromeos/ash/services/secure_channel/public/cpp/shared/connection_priority.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel.mojom.h"
 
+namespace ash::timer_factory {
+class TimerFactory;
+}  // namespace ash::timer_factory
+
 namespace device {
 class BluetoothAdapter;
 }
@@ -47,20 +51,8 @@ class SecureChannelImpl : public mojom::SecureChannel,
                           public ActiveConnectionManager::Delegate,
                           public PendingConnectionManager::Delegate {
  public:
-  class Factory {
-   public:
-    static std::unique_ptr<mojom::SecureChannel> Create(
-        scoped_refptr<device::BluetoothAdapter> bluetooth_adapter);
-    static void SetFactoryForTesting(Factory* test_factory);
-
-   protected:
-    virtual ~Factory();
-    virtual std::unique_ptr<mojom::SecureChannel> CreateInstance(
-        scoped_refptr<device::BluetoothAdapter> bluetooth_adapter) = 0;
-
-   private:
-    static Factory* test_factory_;
-  };
+  explicit SecureChannelImpl(
+      scoped_refptr<device::BluetoothAdapter> bluetooth_adapter);
 
   SecureChannelImpl(const SecureChannelImpl&) = delete;
   SecureChannelImpl& operator=(const SecureChannelImpl&) = delete;
@@ -68,9 +60,6 @@ class SecureChannelImpl : public mojom::SecureChannel,
   ~SecureChannelImpl() override;
 
  private:
-  explicit SecureChannelImpl(
-      scoped_refptr<device::BluetoothAdapter> bluetooth_adapter);
-
   enum class InvalidRemoteDeviceReason {
     kInvalidPublicKey,
     kInvalidPsk,
@@ -117,7 +106,9 @@ class SecureChannelImpl : public mojom::SecureChannel,
       const std::string& feature,
       ConnectionMedium connection_medium,
       ConnectionPriority connection_priority,
-      mojo::PendingRemote<mojom::ConnectionDelegate> delegate) override;
+      mojo::PendingRemote<mojom::ConnectionDelegate> delegate,
+      mojo::PendingRemote<mojom::SecureChannelStructuredMetricsLogger>
+          secure_channel_structured_metrics_logger) override;
   void SetNearbyConnector(
       mojo::PendingRemote<mojom::NearbyConnector> nearby_connector) override;
   void GetLastSeenTimestamp(const std::string& remote_device_id,
@@ -176,13 +167,13 @@ class SecureChannelImpl : public mojom::SecureChannel,
   // Validates |device| and adds it to the |remote_device_cache_| if it is
   // valid. If it is not valid, the reason is provided as a return type, and the
   // device is not added to the cache.
-  absl::optional<InvalidRemoteDeviceReason> AddDeviceToCacheIfPossible(
+  std::optional<InvalidRemoteDeviceReason> AddDeviceToCacheIfPossible(
       ApiFunctionName api_fn_name,
       const multidevice::RemoteDevice& device,
       ConnectionMedium connection_medium);
 
   scoped_refptr<device::BluetoothAdapter> bluetooth_adapter_;
-  std::unique_ptr<TimerFactory> timer_factory_;
+  std::unique_ptr<ash::timer_factory::TimerFactory> timer_factory_;
   std::unique_ptr<multidevice::RemoteDeviceCache> remote_device_cache_;
   std::unique_ptr<BluetoothHelper> bluetooth_helper_;
   std::unique_ptr<BleSynchronizerBase> ble_synchronizer_;

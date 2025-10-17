@@ -5,7 +5,6 @@
 #include "ui/message_center/views/message_popup_view.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -15,6 +14,7 @@
 #include "ui/message_center/public/cpp/message_center_constants.h"
 #include "ui/message_center/views/message_popup_collection.h"
 #include "ui/message_center/views/message_view.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/widget/widget.h"
 
@@ -22,7 +22,7 @@
 #include "ui/views/widget/desktop_aura/desktop_native_widget_aura.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ui/aura/window.h"
 #include "ui/aura/window_targeter.h"
 #endif
@@ -38,11 +38,21 @@ MessagePopupView::MessagePopupView(MessageView* message_view,
   set_suppress_default_focus_handling();
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
-  if (!message_view_->IsManuallyExpandedOrCollapsed())
+  CHECK(message_view_) << "MessagePopupView requires a message_view";
+  if (!message_view_->IsManuallyExpandedOrCollapsed()) {
     message_view_->SetExpanded(message_view_->IsAutoExpandingAllowed());
-  AddChildView(message_view_.get());
+  }
+  AddChildViewRaw(message_view_.get());
 
   SetNotifyEnterExitOnChild(true);
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kAlertDialog);
+  GetViewAccessibility().SetRoleDescription(
+      message_view_->GetViewAccessibility().GetRoleDescription());
+  UpdateAccessibleName(message_view_->GetViewAccessibility().GetCachedName());
+  message_view_->SetUpdatedNameCallback(
+      base::BindRepeating(&MessagePopupView::OnMessageViewNameUpdated,
+                          weak_ptr_factory_.GetWeakPtr()));
 }
 
 MessagePopupView::MessagePopupView(MessagePopupCollection* popup_collection)
@@ -51,6 +61,8 @@ MessagePopupView::MessagePopupView(MessagePopupCollection* popup_collection)
       a11y_feedback_on_init_(false) {
   set_suppress_default_focus_handling();
   SetLayoutManager(std::make_unique<views::FillLayout>());
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kAlertDialog);
 }
 
 MessagePopupView::~MessagePopupView() {
@@ -59,30 +71,53 @@ MessagePopupView::~MessagePopupView() {
     focus_manager_->RemoveFocusChangeListener(this);
 }
 
+void MessagePopupView::UpdateAccessibleName(
+    const std::u16string& new_name) const {
+  if (new_name.empty()) {
+    GetViewAccessibility().SetName(
+        std::u16string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+  } else {
+    GetViewAccessibility().SetName(new_name);
+  }
+}
+
+void MessagePopupView::OnMessageViewNameUpdated(
+    bool should_make_spoken_feedback_for_popup_updates) {
+  const std::u16string old_name = GetViewAccessibility().GetCachedName();
+  const std::u16string new_name =
+      message_view_->GetViewAccessibility().GetCachedName();
+  UpdateAccessibleName(new_name);
+
+  if (should_make_spoken_feedback_for_popup_updates) {
+    if (!new_name.empty() && old_name != new_name) {
+      NotifyAccessibilityEventDeprecated(ax::mojom::Event::kAlert, true);
+    }
+  }
+}
+
 void MessagePopupView::UpdateContents(const Notification& notification) {
-  if (!IsWidgetValid())
+  if (!IsWidgetValid()) {
     return;
-  ui::AXNodeData old_data;
-  message_view_->GetAccessibleNodeData(&old_data);
+  }
   message_view_->UpdateWithNotification(notification);
   popup_collection_->NotifyPopupResized();
-  if (notification.rich_notification_data()
-          .should_make_spoken_feedback_for_popup_updates) {
-    ui::AXNodeData new_data;
-    message_view_->GetAccessibleNodeData(&new_data);
+}
 
-    const std::string& new_name =
-        new_data.GetStringAttribute(ax::mojom::StringAttribute::kName);
-    const std::string& old_name =
-        old_data.GetStringAttribute(ax::mojom::StringAttribute::kName);
-    if (new_name.empty()) {
-      new_data.SetNameFrom(ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
-      return;
-    }
-
-    if (old_name != new_name)
-      NotifyAccessibilityEvent(ax::mojom::Event::kAlert, true);
+void MessagePopupView::UpdateContentsForChildNotification(
+    const std::string& notification_id,
+    const Notification& notification) {
+  if (!IsWidgetValid()) {
+    return;
   }
+
+  auto* child_notification_view = static_cast<MessageView*>(
+      message_view_->FindGroupNotificationView(notification_id));
+  if (!child_notification_view) {
+    return;
+  }
+
+  child_notification_view->UpdateWithNotification(notification);
+  popup_collection_->NotifyPopupResized();
 }
 
 #if !BUILDFLAG(IS_APPLE)
@@ -113,12 +148,12 @@ void MessagePopupView::AutoCollapse() {
   message_view_->SetExpanded(false);
 }
 
-void MessagePopupView::Show() {
-  views::Widget::InitParams params(views::Widget::InitParams::TYPE_POPUP);
+std::unique_ptr<views::Widget> MessagePopupView::Show() {
+  views::Widget::InitParams params(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
   params.z_order = ui::ZOrderLevel::kFloatingWindow;
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   // Make the widget explicitly activatable as TYPE_POPUP is not activatable by
   // default but we need focus for the inline reply textarea.
   params.activatable = views::Widget::InitParams::Activatable::kYes;
@@ -127,8 +162,9 @@ void MessagePopupView::Show() {
   params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
 #endif
   params.delegate = this;
-  views::Widget* widget = new views::Widget();
-  popup_collection_->ConfigureWidgetInitParamsForContainer(widget, &params);
+  auto widget = std::make_unique<views::Widget>();
+  popup_collection_->ConfigureWidgetInitParamsForContainer(widget.get(),
+                                                           &params);
   widget->set_focus_on_creation(false);
 
 #if BUILDFLAG(IS_WIN)
@@ -136,12 +172,12 @@ void MessagePopupView::Show() {
   // not the Ash desktop (since there is already another toast contents view
   // there.
   if (!params.parent)
-    params.native_widget = new views::DesktopNativeWidgetAura(widget);
+    params.native_widget = new views::DesktopNativeWidgetAura(widget.get());
 #endif
 
   widget->Init(std::move(params));
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // On Chrome OS, notification pop-ups are shown in the
   // `SettingBubbleContainer`, together with other shelf pod bubbles. This
   // widget would inherit the parent's window targeter by default. But it is not
@@ -158,17 +194,15 @@ void MessagePopupView::Show() {
   widget->ShowInactive();
 
   if (a11y_feedback_on_init_)
-    NotifyAccessibilityEvent(ax::mojom::Event::kAlert, true);
+    NotifyAccessibilityEventDeprecated(ax::mojom::Event::kAlert, true);
+
+  return widget;
 }
 
 void MessagePopupView::Close() {
-  if (!GetWidget()) {
-    DeleteDelegate();
-    return;
-  }
-
-  if (!GetWidget()->IsClosed())
+  if (GetWidget() && !GetWidget()->IsClosed()) {
     GetWidget()->CloseNow();
+  }
 }
 
 void MessagePopupView::OnDidChangeFocus(views::View* before, views::View* now) {
@@ -188,14 +222,6 @@ void MessagePopupView::OnMouseExited(const ui::MouseEvent& event) {
 
 void MessagePopupView::ChildPreferredSizeChanged(views::View* child) {
   popup_collection_->NotifyPopupResized();
-}
-
-void MessagePopupView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  // TODO(pbos): Consider removing the test-only constructor that has
-  // `message_view_` as nullptr.
-  if (message_view_)
-    message_view_->GetAccessibleNodeData(node_data);
-  node_data->role = ax::mojom::Role::kAlertDialog;
 }
 
 void MessagePopupView::OnDisplayChanged() {
@@ -227,6 +253,7 @@ void MessagePopupView::AddedToWidget() {
   if (focus_manager_) {
     focus_manager_->AddFocusChangeListener(this);
   }
+  view_added_to_widget_ = true;
 }
 
 void MessagePopupView::RemovedFromWidget() {
@@ -239,7 +266,7 @@ bool MessagePopupView::IsWidgetValid() const {
   return GetWidget() && !GetWidget()->IsClosed();
 }
 
-BEGIN_METADATA(MessagePopupView, views::WidgetDelegateView)
+BEGIN_METADATA(MessagePopupView)
 END_METADATA
 
 }  // namespace message_center

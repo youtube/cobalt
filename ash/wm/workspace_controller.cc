@@ -17,9 +17,7 @@
 #include "ash/wm/window_animations.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/workspace/backdrop_controller.h"
-#include "ash/wm/workspace/workspace_event_handler.h"
 #include "ash/wm/workspace/workspace_layout_manager.h"
-#include "ui/aura/window.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/wm/core/window_animations.h"
@@ -32,8 +30,7 @@ ASH_EXPORT extern const aura::WindowProperty<ash::WorkspaceController*>* const
 DEFINE_UI_CLASS_PROPERTY_TYPE(ash::WorkspaceController*)
 
 DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(ash::WorkspaceController,
-                                   kWorkspaceController,
-                                   nullptr)
+                                   kWorkspaceController)
 
 namespace ash {
 namespace {
@@ -49,9 +46,9 @@ const int kInitialAnimationDurationMS = 200;
 
 WorkspaceController::WorkspaceController(aura::Window* viewport)
     : viewport_(viewport),
-      event_handler_(std::make_unique<WorkspaceEventHandler>(viewport)),
-      layout_manager_(viewport_->SetLayoutManager(
-          std::make_unique<WorkspaceLayoutManager>(viewport))) {
+      event_handler_(std::make_unique<WorkspaceEventHandler>(viewport)) {
+  viewport_->SetLayoutManager(
+      std::make_unique<WorkspaceLayoutManager>(viewport));
   viewport_->AddObserver(this);
   ::wm::SetWindowVisibilityAnimationTransition(viewport_, ::wm::ANIMATE_NONE);
 }
@@ -62,6 +59,10 @@ WorkspaceController::~WorkspaceController() {
 
   viewport_->RemoveObserver(this);
   viewport_->SetLayoutManager(nullptr);
+}
+
+WorkspaceLayoutManager* WorkspaceController::layout_manager() {
+  return static_cast<WorkspaceLayoutManager*>(viewport_->layout_manager());
 }
 
 WorkspaceWindowState WorkspaceController::GetWindowState() const {
@@ -131,7 +132,6 @@ void WorkspaceController::OnWindowDestroying(aura::Window* window) {
   viewport_ = nullptr;
   // Destroy |event_handler_| too as it depends upon |window|.
   event_handler_.reset();
-  layout_manager_ = nullptr;
 }
 
 void SetWorkspaceController(

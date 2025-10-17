@@ -11,6 +11,8 @@ namespace content {
 void DevToolsManagerDelegate::Inspect(DevToolsAgentHost* agent_host) {
 }
 
+void DevToolsManagerDelegate::Activate(DevToolsAgentHost* agent_host) {}
+
 std::string DevToolsManagerDelegate::GetTargetType(WebContents* wc) {
   return std::string();
 }
@@ -28,13 +30,15 @@ bool DevToolsManagerDelegate::AllowInspectingRenderFrameHost(
   return true;
 }
 
-DevToolsAgentHost::List DevToolsManagerDelegate::RemoteDebuggingTargets() {
+DevToolsAgentHost::List DevToolsManagerDelegate::RemoteDebuggingTargets(
+    DevToolsManagerDelegate::TargetType target_type) {
   return DevToolsAgentHost::GetOrCreateAll();
 }
 
 scoped_refptr<DevToolsAgentHost> DevToolsManagerDelegate::CreateNewTarget(
     const GURL& url,
-    bool for_tab) {
+    DevToolsManagerDelegate::TargetType target_type,
+    bool new_window) {
   return nullptr;
 }
 

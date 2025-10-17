@@ -8,6 +8,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -16,36 +17,37 @@
 namespace blink {
 
 class GPU;
+class GPUAdapterInfo;
+class GPUDevice;
 class GPUDeviceDescriptor;
+class GPURequestAdapterOptions;
 class GPUSupportedFeatures;
 class GPUSupportedLimits;
-class ScriptPromiseResolver;
 
-class GPUAdapter final : public ScriptWrappable, public DawnObjectBase {
+class GPUAdapter final : public ScriptWrappable, DawnObject<wgpu::Adapter> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   GPUAdapter(GPU* gpu,
-             WGPUAdapter handle,
-             scoped_refptr<DawnControlClientHolder> dawn_control_client);
+             wgpu::Adapter handle,
+             scoped_refptr<DawnControlClientHolder> dawn_control_client,
+             const GPURequestAdapterOptions* options);
 
   GPUAdapter(const GPUAdapter&) = delete;
   GPUAdapter& operator=(const GPUAdapter&) = delete;
 
   void Trace(Visitor* visitor) const override;
 
-  GPU* gpu() const { return gpu_; }
+  GPU* gpu() const { return gpu_.Get(); }
   GPUSupportedFeatures* features() const;
-  GPUSupportedLimits* limits() const { return limits_; }
+  GPUSupportedLimits* limits() const { return limits_.Get(); }
+  GPUAdapterInfo* info() const;
   bool isFallbackAdapter() const;
-  WGPUBackendType backendType() const;
+  wgpu::BackendType backendType() const;
   bool SupportsMultiPlanarFormats() const;
 
-  ScriptPromise requestDevice(ScriptState* script_state,
-                              GPUDeviceDescriptor* descriptor);
-
-  ScriptPromise requestAdapterInfo(ScriptState* script_state,
-                                   const Vector<String>& unmask_hints);
+  ScriptPromise<GPUDevice> requestDevice(ScriptState* script_state,
+                                         GPUDeviceDescriptor* descriptor);
 
   // Console warnings should generally be attributed to a GPUDevice, but in
   // cases where there is no device warnings can be surfaced here. It's expected
@@ -54,27 +56,44 @@ class GPUAdapter final : public ScriptWrappable, public DawnObjectBase {
   void AddConsoleWarning(ExecutionContext* execution_context,
                          const char* message);
 
- private:
-  void OnRequestDeviceCallback(ScriptState* script_state,
-                               ScriptPromiseResolver* resolver,
-                               const GPUDeviceDescriptor* descriptor,
-                               WGPURequestDeviceStatus status,
-                               WGPUDevice dawn_device,
-                               const char* error_message);
+  GPUAdapterInfo* CreateAdapterInfoForAdapter();
 
-  WGPUAdapter handle_;
+  bool IsXRCompatible() const { return is_xr_compatible_; }
+
+ private:
+  void OnRequestDeviceCallback(GPUDevice* device,
+                               const GPUDeviceDescriptor* descriptor,
+                               ScriptPromiseResolver<GPUDevice>* resolver,
+                               wgpu::RequestDeviceStatus status,
+                               wgpu::Device dawn_device,
+                               wgpu::StringView error_message);
+
+  void SetLabelImpl(const String&) override {
+    // There isn't a wgpu::Adapter::SetLabel, just skip.
+  }
+
   Member<GPU> gpu_;
   bool is_fallback_adapter_;
-  WGPUBackendType backend_type_;
+  wgpu::BackendType backend_type_;
+  wgpu::AdapterType adapter_type_;
   bool is_consumed_ = false;
+  bool is_xr_compatible_ = false;
   Member<GPUSupportedLimits> limits_;
   Member<GPUSupportedFeatures> features_;
+  Member<GPUAdapterInfo> info_;
 
   String vendor_;
   String architecture_;
   String device_;
   String description_;
+  uint32_t subgroup_min_size_;
+  uint32_t subgroup_max_size_;
   String driver_;
+  std::optional<uint32_t> d3d_shader_model_;
+  std::optional<uint32_t> vk_driver_version_;
+  wgpu::PowerPreference power_preference_;
+  wgpu::AdapterPropertiesMemoryHeaps memory_heaps_ = {};
+  wgpu::AdapterPropertiesSubgroupMatrixConfigs subgroup_matrix_configs_ = {};
 
   static constexpr int kMaxAllowedConsoleWarnings = 50;
   int allowed_console_warnings_remaining_ = kMaxAllowedConsoleWarnings;

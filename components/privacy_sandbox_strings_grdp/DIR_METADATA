@@ -1,5 +1,0 @@
-monorail {
-  component: "UI>Settings>Privacy"
-}
-
-team_email: "chrome-friendly-settings@google.com"

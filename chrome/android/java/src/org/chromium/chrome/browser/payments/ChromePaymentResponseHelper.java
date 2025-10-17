@@ -6,10 +6,12 @@ package org.chromium.chrome.browser.payments;
 
 import androidx.annotation.Nullable;
 
+import org.chromium.chrome.browser.autofill.AddressNormalizerFactory;
+import org.chromium.chrome.browser.autofill.AutofillAddress;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.NormalizedAddressRequestDelegate;
 import org.chromium.chrome.browser.autofill.PhoneNumberUtil;
+import org.chromium.components.autofill.AddressNormalizer.NormalizedAddressRequestDelegate;
+import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.EditableOption;
 import org.chromium.components.payments.PayerData;
 import org.chromium.components.payments.PaymentAddressTypeConverter;
@@ -19,13 +21,10 @@ import org.chromium.payments.mojom.PayerDetail;
 import org.chromium.payments.mojom.PaymentOptions;
 import org.chromium.payments.mojom.PaymentResponse;
 
-/**
- * The helper class to create and prepare a PaymentResponse.
- */
+/** The helper class to create and prepare a PaymentResponse. */
 public class ChromePaymentResponseHelper
         implements NormalizedAddressRequestDelegate, PaymentResponseHelperInterface {
-    @Nullable
-    private final AutofillContact mSelectedContact;
+    @Nullable private final AutofillContact mSelectedContact;
     private final PaymentApp mSelectedPaymentApp;
     private final PaymentOptions mPaymentOptions;
     private final PaymentResponse mPaymentResponse;
@@ -36,16 +35,22 @@ public class ChromePaymentResponseHelper
     private PayerData mPayerDataFromPaymentApp;
 
     /**
-     * Builds a helper to contruct and fill a PaymentResponse.
+     * Builds a helper to construct and fill a PaymentResponse.
+     *
      * @param selectedShippingAddress The shipping address picked by the user.
-     * @param selectedShippingOption  The shipping option picked by the user.
-     * @param selectedContact         The contact info picked by the user, can be null.
-     * @param selectedPaymentApp      The payment app picked by the user.
-     * @param paymentOptions          The paymentOptions of the corresponding payment request.
+     * @param selectedShippingOption The shipping option picked by the user.
+     * @param selectedContact The contact info picked by the user, can be null.
+     * @param selectedPaymentApp The payment app picked by the user.
+     * @param paymentOptions The paymentOptions of the corresponding payment request.
+     * @param personalDataManager The context appropriate PersonalDataManager reference.
      */
-    public ChromePaymentResponseHelper(EditableOption selectedShippingAddress,
-            EditableOption selectedShippingOption, @Nullable AutofillContact selectedContact,
-            PaymentApp selectedPaymentApp, PaymentOptions paymentOptions) {
+    public ChromePaymentResponseHelper(
+            EditableOption selectedShippingAddress,
+            EditableOption selectedShippingOption,
+            @Nullable AutofillContact selectedContact,
+            PaymentApp selectedPaymentApp,
+            PaymentOptions paymentOptions,
+            PersonalDataManager personalDataManager) {
         mPaymentResponse = new PaymentResponse();
         mPaymentResponse.payer = new PayerDetail();
 
@@ -74,7 +79,7 @@ public class ChromePaymentResponseHelper
             assert mSelectedShippingAddress.isComplete();
 
             // Record the use of the profile.
-            PersonalDataManager.getInstance().recordAndLogProfileUse(
+            personalDataManager.recordAndLogProfileUse(
                     mSelectedShippingAddress.getProfile().getGUID());
 
             mPaymentResponse.shippingAddress = mSelectedShippingAddress.toPaymentAddress();
@@ -82,14 +87,17 @@ public class ChromePaymentResponseHelper
             // The shipping address needs to be normalized before sending the response to the
             // merchant.
             mIsWaitingForShippingNormalization = true;
-            PersonalDataManager.getInstance().normalizeAddress(
-                    mSelectedShippingAddress.getProfile(), this);
+            AddressNormalizerFactory.getInstance()
+                    .normalizeAddress(mSelectedShippingAddress.getProfile(), this);
         }
     }
 
     @Override
-    public void generatePaymentResponse(String methodName, String stringifiedDetails,
-            PayerData payerData, PaymentResponseResultCallback resultCallback) {
+    public void generatePaymentResponse(
+            String methodName,
+            String stringifiedDetails,
+            PayerData payerData,
+            PaymentResponseResultCallback resultCallback) {
         mResultCallback = resultCallback;
         mPaymentResponse.methodName = methodName;
         mPaymentResponse.stringifiedDetails = stringifiedDetails;

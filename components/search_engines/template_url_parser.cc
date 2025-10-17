@@ -7,6 +7,8 @@
 #include <string.h>
 
 #include <algorithm>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -14,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "components/search_engines/search_terms_data.h"
 #include "components/search_engines/template_url.h"
@@ -51,6 +54,9 @@ const char kHTMLType[] = "text/html";
 
 // Mime type for as you type suggestions.
 const char kSuggestionType[] = "application/x-suggestions+json";
+
+// Short name and keyword string lengths are capped for security.
+constexpr size_t kMaxNameLength = 1024;
 
 // Returns true if input_encoding contains a valid input encoding string. This
 // doesn't verify that we have a valid encoding for the string, just that the
@@ -167,62 +173,66 @@ class SafeTemplateURLParser {
 
 void SafeTemplateURLParser::OnXmlParseComplete(
     data_decoder::DataDecoder::ValueOrError value_or_error) {
-  if (!value_or_error.has_value()) {
-    DLOG(ERROR) << "Failed to parse XML: " << value_or_error.error();
-    std::move(callback_).Run(nullptr);
-    return;
-  }
+  std::move(callback_).Run([&]() -> std::unique_ptr<TemplateURL> {
+    ASSIGN_OR_RETURN(const base::Value root, std::move(value_or_error),
+                     [](std::string error) -> std::unique_ptr<TemplateURL> {
+                       DLOG(ERROR)
+                           << "Failed to parse XML: " << std::move(error);
+                       return nullptr;
+                     });
 
-  const base::Value& root = *value_or_error;
-
-  // Get the namespaces used in the XML document, which will be used
-  // to access nodes by tag name in GetChildElementsByTag().
-  if (const base::Value::Dict* namespaces = root.GetDict().FindDict(
-          data_decoder::mojom::XmlParser::kNamespacesKey)) {
-    for (auto item : *namespaces) {
-      namespaces_.push_back(item.first);
+    // Get the namespaces used in the XML document, which will be used
+    // to access nodes by tag name in GetChildElementsByTag().
+    if (const base::Value::Dict* namespaces = root.GetDict().FindDict(
+            data_decoder::mojom::XmlParser::kNamespacesKey)) {
+      for (auto item : *namespaces) {
+        namespaces_.push_back(item.first);
+      }
     }
-  }
-  if (namespaces_.empty())
-    namespaces_.emplace_back();
+    if (namespaces_.empty()) {
+      namespaces_.emplace_back();
+    }
 
-  std::string root_tag;
-  if (!data_decoder::GetXmlElementTagName(root, &root_tag) ||
-      (root_tag != kOpenSearchDescriptionElement &&
-       root_tag != kFirefoxSearchDescriptionElement)) {
-    DLOG(ERROR) << "Unexpected root tag: " << root_tag;
-    std::move(callback_).Run(nullptr);
-    return;
-  }
+    std::string root_tag;
+    if (!data_decoder::GetXmlElementTagName(root, &root_tag) ||
+        (root_tag != kOpenSearchDescriptionElement &&
+         root_tag != kFirefoxSearchDescriptionElement)) {
+      DLOG(ERROR) << "Unexpected root tag: " << root_tag;
+      return nullptr;
+    }
 
-  // The only required element is the URL.
-  std::vector<const base::Value*> urls;
-  if (!GetChildElementsByTag(root, kURLElement, &urls)) {
-    std::move(callback_).Run(nullptr);
-    return;
-  }
-  ParseURLs(urls);
+    // The only required element is the URL.
+    std::vector<const base::Value*> urls;
+    if (!GetChildElementsByTag(root, kURLElement, &urls)) {
+      return nullptr;
+    }
+    ParseURLs(urls);
 
-  std::vector<const base::Value*> images;
-  if (GetChildElementsByTag(root, kImageElement, &images))
-    ParseImages(images);
+    std::vector<const base::Value*> images;
+    if (GetChildElementsByTag(root, kImageElement, &images)) {
+      ParseImages(images);
+    }
 
-  std::vector<const base::Value*> encodings;
-  if (GetChildElementsByTag(root, kInputEncodingElement, &encodings))
-    ParseEncodings(encodings);
+    std::vector<const base::Value*> encodings;
+    if (GetChildElementsByTag(root, kInputEncodingElement, &encodings)) {
+      ParseEncodings(encodings);
+    }
 
-  std::vector<const base::Value*> aliases;
-  if (GetChildElementsByTag(root, kAliasElement, &aliases))
-    ParseAliases(aliases);
+    std::vector<const base::Value*> aliases;
+    if (GetChildElementsByTag(root, kAliasElement, &aliases)) {
+      ParseAliases(aliases);
+    }
 
-  std::vector<const base::Value*> short_names;
-  if (GetChildElementsByTag(root, kShortNameElement, &short_names)) {
-    std::string name;
-    if (data_decoder::GetXmlElementText(*short_names.back(), &name))
-      data_.SetShortName(base::UTF8ToUTF16(name));
-  }
+    std::vector<const base::Value*> short_names;
+    if (GetChildElementsByTag(root, kShortNameElement, &short_names)) {
+      std::string name;
+      if (data_decoder::GetXmlElementText(*short_names.back(), &name)) {
+        data_.SetShortName(base::UTF8ToUTF16(name));
+      }
+    }
 
-  std::move(callback_).Run(FinalizeTemplateURL());
+    return FinalizeTemplateURL();
+  }());
 }
 
 void SafeTemplateURLParser::ParseURLs(
@@ -371,7 +381,7 @@ void SafeTemplateURLParser::ParseAliases(
 }
 
 std::unique_ptr<TemplateURL> SafeTemplateURLParser::FinalizeTemplateURL() {
-  // TODO(https://crbug.com/18107): Support engines that use POST.
+  // TODO(crbug.com/40304654): Support engines that use POST.
   if (method_ == POST || !IsHTTPRef(data_.url()) ||
       !IsHTTPRef(data_.suggestions_url)) {
     DLOG(ERROR) << "POST URLs are not supported";
@@ -403,6 +413,14 @@ std::unique_ptr<TemplateURL> SafeTemplateURLParser::FinalizeTemplateURL() {
       (!template_url->suggestions_url().empty() &&
        !template_url->suggestions_url_ref().IsValid(*search_terms_data_))) {
     DLOG(ERROR) << "Template URL is not valid";
+    return nullptr;
+  }
+
+  // To avoid potential downstream issues when using the data (for example
+  // crossing IPC for presentation in search engines UI), data that exceeds
+  // the limit is not finalized and accepted.
+  if (template_url->data().short_name().length() > kMaxNameLength ||
+      template_url->data().keyword().length() > kMaxNameLength) {
     return nullptr;
   }
 

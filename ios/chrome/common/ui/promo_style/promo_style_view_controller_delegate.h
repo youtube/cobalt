@@ -27,8 +27,14 @@
 // Invoked when the top left question mark button is tapped.
 - (void)didTapLearnMoreButton;
 
+// Invoked when the top right dismiss button is tapped.
+- (void)didTapDismissButton;
+
 // Invoked when a link in the disclaimer is tapped.
 - (void)didTapURLInDisclaimer:(NSURL*)URL;
+
+// Invoked when the view controller has been dismissed.
+- (void)didDismissViewController;
 
 @end
 

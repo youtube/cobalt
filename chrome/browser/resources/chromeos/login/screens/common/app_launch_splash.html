@@ -88,16 +88,17 @@ found in the LICENSE file.
     <div id="appName">[[appName]]</div>
     <div id="appUrl">[[appUrl]]</div>
   </div>
-  <div id="launchText">[[launchText]]</div>
+  <div id="launchText" role="status" aria-live="polite">[[launchText]]</div>
   <div id="configNetworkContainer" class="faded">
     <a id="configNetwork" class="oobe-local-link"
-          is="action-link" on-click='onConfigNetwork_'>
+        is="action-link" on-click="onConfigNetwork"
+        aria-label="[[i18nDynamic(locale, 'configureNetwork')]]">
       [[i18nDynamic(locale, 'configureNetwork')]]
     </a>
   </div>
-  <throbber-notice>
+  <throbber-notice hidden$="[[!showThrobber]]">
   </throbber-notice>
 </div>
-<p id="shortcutInfo">
+<p id="shortcutInfo" role="note" aria-live="polite">
   [[i18nDynamic(locale, 'shortcutInfo')]]
 </p>

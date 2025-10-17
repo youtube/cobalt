@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/bookmarks/browser/bookmark_node.h"
@@ -110,7 +111,9 @@ struct BookmarkNodeData {
 
   // Created a BookmarkNodeData populated from the arguments.
   explicit BookmarkNodeData(const BookmarkNode* node);
-  explicit BookmarkNodeData(const std::vector<const BookmarkNode*>& nodes);
+  explicit BookmarkNodeData(
+      const std::vector<raw_ptr<const BookmarkNode, VectorExperimental>>&
+          nodes);
 
   ~BookmarkNodeData();
 
@@ -121,13 +124,15 @@ struct BookmarkNodeData {
   static bool ClipboardContainsBookmarks();
 
   // Reads bookmarks from the given vector.
-  bool ReadFromVector(const std::vector<const BookmarkNode*>& nodes);
+  bool ReadFromVector(
+      const std::vector<raw_ptr<const BookmarkNode, VectorExperimental>>&
+          nodes);
 
   // Creates a single-bookmark DragData from url/title pair.
   bool ReadFromTuple(const GURL& url, const std::u16string& title);
 
   // Writes bookmarks to the specified clipboard.
-  void WriteToClipboard();
+  void WriteToClipboard(bool is_off_the_record);
 
   // Reads bookmarks from the specified clipboard. Prefers data written via
   // WriteToClipboard() but will also attempt to read a plain bookmark.
@@ -137,7 +142,7 @@ struct BookmarkNodeData {
   // Writes elements to data. If there is only one element and it is a URL
   // the URL and title are written to the clipboard in a format other apps can
   // use.
-  // |profile_path| is used to identify which profile the data came from. Use an
+  // `profile_path` is used to identify which profile the data came from. Use an
   // empty path to indicate that the data is not associated with any profile.
   void Write(const base::FilePath& profile_path,
              ui::OSExchangeData* data) const;
@@ -147,11 +152,11 @@ struct BookmarkNodeData {
 #endif
 
 #if !BUILDFLAG(IS_APPLE)
-  // Writes the data for a drag to |pickle|.
+  // Writes the data for a drag to `pickle`.
   void WriteToPickle(const base::FilePath& profile_path,
                      base::Pickle* pickle) const;
 
-  // Reads the data for a drag from a |pickle|.
+  // Reads the data for a drag from a `pickle`.
   bool ReadFromPickle(base::Pickle* pickle);
 #endif
 
@@ -159,7 +164,7 @@ struct BookmarkNodeData {
   // created from the same profile then the nodes from the model are returned.
   // If the nodes can't be found (may have been deleted), an empty vector is
   // returned.
-  std::vector<const BookmarkNode*> GetNodes(
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> GetNodes(
       BookmarkModel* model,
       const base::FilePath& profile_path) const;
 
@@ -180,7 +185,7 @@ struct BookmarkNodeData {
   // Clears the data.
   void Clear();
 
-  // Sets |profile_path_|. This is useful for the constructors/readers that
+  // Sets `profile_path_`. This is useful for the constructors/readers that
   // don't set it. This should only be called if the profile path is not
   // already set.
   void SetOriginatingProfilePath(const base::FilePath& profile_path);

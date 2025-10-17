@@ -2,34 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/threading/thread_restrictions.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/printing/cups_print_job_manager_factory.h"
-#include "chrome/browser/ash/printing/cups_printers_manager_factory.h"
-#include "chrome/browser/ash/printing/printer_configurer.h"
-#include "chrome/browser/ash/printing/test_cups_print_job_manager.h"
-#include "chrome/browser/ash/printing/test_cups_printers_manager.h"
-#include "chrome/browser/ash/printing/test_printer_configurer.h"
-#include "chrome/browser/extensions/api/printing/fake_print_job_controller_ash.h"
+#include <optional>
+#include <string>
+
 #include "chrome/browser/extensions/api/printing/print_job_submitter.h"
-#include "chrome/browser/extensions/api/printing/printing_api.h"
-#include "chrome/browser/extensions/api/printing/printing_api_handler.h"
+#include "chrome/browser/extensions/api/printing/printing_test_utils.h"
 #include "chrome/browser/extensions/extension_apitest.h"
-#include "chrome/browser/extensions/policy_test_utils.h"
-#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/printing/local_printer_utils_chromeos.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/test/base/ui_test_utils.h"
-#include "chromeos/printing/printer_configuration.h"
 #include "content/public/test/browser_test.h"
-#include "extensions/common/constants.h"
-#include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
-#include "printing/backend/print_backend.h"
-#include "printing/backend/test_print_backend.h"
-#include "printing/mojom/print.mojom.h"
+#include "printing/printing_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace extensions {
@@ -37,143 +20,99 @@ namespace extensions {
 namespace {
 
 constexpr char kId[] = "id";
-
-constexpr int kHorizontalDpi = 300;
-constexpr int kVerticalDpi = 400;
-constexpr int kMediaSizeWidth = 210000;
-constexpr int kMediaSizeHeight = 297000;
-constexpr char kMediaSizeVendorId[] = "iso_a4_210x297mm";
-
-std::unique_ptr<KeyedService> BuildTestCupsPrintJobManager(
-    content::BrowserContext* context) {
-  return std::make_unique<ash::TestCupsPrintJobManager>(
-      Profile::FromBrowserContext(context));
-}
-
-std::unique_ptr<KeyedService> BuildTestCupsPrintersManager(
-    content::BrowserContext* context) {
-  return std::make_unique<ash::TestCupsPrintersManager>();
-}
-
-std::unique_ptr<printing::PrinterSemanticCapsAndDefaults>
-ConstructPrinterCapabilities() {
-  auto capabilities =
-      std::make_unique<printing::PrinterSemanticCapsAndDefaults>();
-  capabilities->color_model = printing::mojom::ColorModel::kColor;
-  capabilities->duplex_modes.push_back(printing::mojom::DuplexMode::kSimplex);
-  capabilities->copies_max = 2;
-  capabilities->dpis.emplace_back(kHorizontalDpi, kVerticalDpi);
-  printing::PrinterSemanticCapsAndDefaults::Paper paper;
-  paper.vendor_id = kMediaSizeVendorId;
-  paper.size_um = gfx::Size(kMediaSizeWidth, kMediaSizeHeight);
-  capabilities->papers.push_back(paper);
-  capabilities->collate_capable = true;
-  return capabilities;
-}
+constexpr char kName[] = "name";
 
 }  // namespace
 
-class PrintingApiTest : public ExtensionApiTest,
-                        public testing::WithParamInterface<bool> {
+// TODO(crbug.com/308709702): Remove the bool param from this as soon as
+// the `kPrintingMarginsAndScale` feature is enabled by default. At the moment,
+// this is used to run the same test with and without the feature enabled.
+class PrintingApiTestBase
+    : public ExtensionApiTest,
+      public testing::WithParamInterface<std::tuple<bool, ExtensionType>> {
  public:
-  PrintingApiTest() = default;
-  ~PrintingApiTest() override = default;
+  void SetUp() override {
+    if (GetEnableMarginAndScale()) {
+      feature_list_.InitAndEnableFeature(
+          printing::features::kApiPrintingMarginsAndScale);
+    } else {
+      feature_list_.InitAndDisableFeature(
+          printing::features::kApiPrintingMarginsAndScale);
+    }
+    ExtensionApiTest::SetUp();
+  }
 
-  PrintingApiTest(const PrintingApiTest&) = delete;
-  PrintingApiTest& operator=(const PrintingApiTest&) = delete;
+  void SetUpOnMainThread() override {
+    ExtensionApiTest::SetUpOnMainThread();
+    PrintJobSubmitter::SkipConfirmationDialogForTesting();
+  }
 
  protected:
-  void SetUpInProcessBrowserTestFixture() override {
-    create_services_subscription_ =
-        BrowserContextDependencyManager::GetInstance()
-            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
-                &PrintingApiTest::OnWillCreateBrowserContextServices,
-                base::Unretained(this)));
-    ash::PrinterConfigurer::SetPrinterConfigurerForTesting(
-        std::make_unique<ash::TestPrinterConfigurer>());
-    test_print_backend_ = base::MakeRefCounted<printing::TestPrintBackend>();
-    printing::PrintBackend::SetPrintBackendForTesting(
-        test_print_backend_.get());
-    ExtensionApiTest::SetUpInProcessBrowserTestFixture();
-  }
+  bool GetEnableMarginAndScale() const { return std::get<0>(GetParam()); }
+  ExtensionType GetExtensionType() const { return std::get<1>(GetParam()); }
 
-  ash::TestCupsPrintJobManager* GetPrintJobManager() {
-    return static_cast<ash::TestCupsPrintJobManager*>(
-        ash::CupsPrintJobManagerFactory::GetForBrowserContext(
-            browser()->profile()));
-  }
-
-  ash::TestCupsPrintersManager* GetPrintersManager() {
-    return static_cast<ash::TestCupsPrintersManager*>(
-        ash::CupsPrintersManagerFactory::GetForBrowserContext(
-            browser()->profile()));
-  }
-
-  void AddAvailablePrinter(
-      const std::string& printer_id,
-      std::unique_ptr<printing::PrinterSemanticCapsAndDefaults> capabilities) {
-    GetPrintersManager()->AddPrinter(chromeos::Printer(printer_id),
-                                     chromeos::PrinterClass::kEnterprise);
-    chromeos::CupsPrinterStatus status(printer_id);
-    status.AddStatusReason(
-        chromeos::CupsPrinterStatus::CupsPrinterStatusReason::Reason::
-            kPrinterUnreachable,
-        chromeos::CupsPrinterStatus::CupsPrinterStatusReason::Severity::kError);
-    GetPrintersManager()->SetPrinterStatus(status);
-    test_print_backend_->AddValidPrinter(printer_id, std::move(capabilities),
-                                         nullptr);
-  }
-
-  void RunTest(const char* html_test_page) {
-    TestExtensionDir dir;
-
-    {
-      // Prepare test files.
-      base::ScopedAllowBlockingForTesting allow_blocking;
-      base::CopyDirectory(test_data_dir_.AppendASCII("printing"),
-                          dir.UnpackedPath(), /*recursive=*/false);
-      base::CopyFile(
-          test_data_dir_.AppendASCII("printing")
-              .AppendASCII(IsChromeApp() ? "manifest_chrome_app.json"
-                                         : "manifest_extension.json"),
-          dir.UnpackedPath().AppendASCII(extensions::kManifestFilename));
-    }
-
-    auto run_options = IsChromeApp()
+  void RunTest(const char* html_test_page, bool expect_success = true) {
+    auto dir = CreatePrintingExtension(GetExtensionType());
+    auto run_options = GetExtensionType() == ExtensionType::kChromeApp
                            ? RunOptions{.custom_arg = html_test_page,
                                         .launch_as_platform_app = true}
                            : RunOptions({.extension_url = html_test_page});
-    ASSERT_TRUE(RunExtensionTest(dir.UnpackedPath(), run_options, {}));
+    ASSERT_EQ(RunExtensionTest(dir->UnpackedPath(), run_options, {}),
+              expect_success);
   }
 
  private:
-  bool IsChromeApp() const { return GetParam(); }
-
-  void OnWillCreateBrowserContextServices(content::BrowserContext* context) {
-    ash::CupsPrintJobManagerFactory::GetInstance()->SetTestingFactory(
-        context, base::BindRepeating(&BuildTestCupsPrintJobManager));
-    ash::CupsPrintersManagerFactory::GetInstance()->SetTestingFactory(
-        context, base::BindRepeating(&BuildTestCupsPrintersManager));
-  }
-
-  base::CallbackListSubscription create_services_subscription_;
-
-  scoped_refptr<printing::TestPrintBackend> test_print_backend_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
+class PrintingApiTest : public PrintingApiTestBase {
+ public:
+  void PreRunTestOnMainThread() override {
+    PrintingApiTestBase::PreRunTestOnMainThread();
+    helper_->Init(browser()->profile());
+  }
+
+  void TearDownOnMainThread() override {
+    helper_.reset();
+    PrintingApiTestBase::TearDownOnMainThread();
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    PrintingApiTestBase::SetUpInProcessBrowserTestFixture();
+    helper_ = std::make_unique<PrintingTestHelper>();
+  }
+
+ protected:
+  void AddPrinterWithSemanticCaps(
+      const std::string& printer_id,
+      const std::string& printer_display_name,
+      std::unique_ptr<printing::PrinterSemanticCapsAndDefaults> caps) {
+    helper_->AddAvailablePrinter(printer_id, printer_display_name,
+                                 std::move(caps));
+  }
+
+ private:
+  std::unique_ptr<PrintingTestHelper> helper_;
+};
+
+using PrintingPromiseApiTest = PrintingApiTest;
+
 IN_PROC_BROWSER_TEST_P(PrintingApiTest, GetPrinters) {
-  chromeos::Printer printer = chromeos::Printer(kId);
-  printer.set_display_name("name");
-  GetPrintersManager()->AddPrinter(printer, chromeos::PrinterClass::kSaved);
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
 
   RunTest("get_printers.html");
 }
 
 IN_PROC_BROWSER_TEST_P(PrintingApiTest, GetPrinterInfo) {
-  AddAvailablePrinter(
-      kId, std::make_unique<printing::PrinterSemanticCapsAndDefaults>());
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
 
   RunTest("get_printer_info.html");
+
+  // Expect failure/success depending on whether the feature is enabled or not.
+  // TODO(crbug.com/308709702): Remove this and merge two files once the feature
+  // is enabled by default.
+  const bool expect_success = GetEnableMarginAndScale();
+  RunTest("get_printer_info_margin_and_scale.html", expect_success);
 }
 
 // Verifies that:
@@ -186,15 +125,79 @@ IN_PROC_BROWSER_TEST_P(PrintingApiTest, GetPrinterInfo) {
 IN_PROC_BROWSER_TEST_P(PrintingApiTest, SubmitJob) {
   ASSERT_TRUE(StartEmbeddedTestServer());
 
-  AddAvailablePrinter(kId, ConstructPrinterCapabilities());
-  PrintingAPIHandler* handler = PrintingAPIHandler::Get(browser()->profile());
-  handler->SetPrintJobControllerForTesting(
-      std::make_unique<FakePrintJobControllerAsh>(GetPrintJobManager(),
-                                                  GetPrintersManager()));
-  base::AutoReset<bool> skip_confirmation_dialog_reset(
-      PrintJobSubmitter::SkipConfirmationDialogForTesting());
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
 
   RunTest("submit_job.html");
+}
+
+IN_PROC_BROWSER_TEST_P(PrintingApiTest, SubmitJobWithMarginsAndScale) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
+
+  RunTest("submit_job_margins_and_scale.html");
+}
+
+IN_PROC_BROWSER_TEST_P(PrintingApiTest, SubmitJobWithUnsupportedMargins) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  // If the feature is disabled, the test must succeed regardless of the margins
+  // used.
+  // TODO(crbug.com/308709702): Remove this and expect the test to always fail
+  // once the feature is enabled by default as provided margins in this test
+  // are not supported by the setup printer.
+  const bool expect_success = !GetEnableMarginAndScale();
+
+  auto caps = ConstructPrinterCapabilities();
+  std::vector<printing::PrinterSemanticCapsAndDefaults::Paper> papers;
+  // Override papers with custom margins.
+  for (const auto& paper : caps->papers) {
+    papers.emplace_back(paper.display_name(), paper.vendor_id(),
+                        paper.size_um(), paper.printable_area_um(),
+                        paper.max_height_um(), paper.has_borderless_variant(),
+                        printing::PaperMargins(2340, 1234, 1234, 1234));
+  }
+  caps->papers = std::move(papers);
+  AddPrinterWithSemanticCaps(kId, kName, std::move(caps));
+
+  RunTest("submit_job_margins_and_scale.html", expect_success);
+}
+
+IN_PROC_BROWSER_TEST_P(PrintingApiTest, SubmitJobWithUnsupportedScale) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  // If the feature is disabled, the test must succeed regardless of the scale
+  // used.
+  // TODO(crbug.com/308709702): Remove this and expect the test to always fail
+  // once the feature is enabled by default as provided scale in this test
+  // is not supported by the setup printer.
+  const bool expect_success = !GetEnableMarginAndScale();
+
+  auto caps = ConstructPrinterCapabilities();
+  // Override with custom scaling type different from defined in the js/html
+  // file of the test.
+  caps->print_scaling_types = {printing::mojom::PrintScalingType::kFill};
+  caps->print_scaling_type_default = printing::mojom::PrintScalingType::kFill;
+  AddPrinterWithSemanticCaps(kId, kName, std::move(caps));
+
+  RunTest("submit_job_margins_and_scale.html", expect_success);
+}
+
+// As above, but tests using promise based API calls.
+IN_PROC_BROWSER_TEST_P(PrintingPromiseApiTest, SubmitJob) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
+
+  RunTest("submit_job_promise.html");
+}
+
+IN_PROC_BROWSER_TEST_P(PrintingPromiseApiTest, SubmitJobWithMarginsAndScale) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
+
+  RunTest("submit_job_promise_margins_and_scale.html");
 }
 
 // Verifies that:
@@ -203,18 +206,33 @@ IN_PROC_BROWSER_TEST_P(PrintingApiTest, SubmitJob) {
 IN_PROC_BROWSER_TEST_P(PrintingApiTest, CancelJob) {
   ASSERT_TRUE(StartEmbeddedTestServer());
 
-  AddAvailablePrinter(kId, ConstructPrinterCapabilities());
-  PrintingAPIHandler* handler = PrintingAPIHandler::Get(browser()->profile());
-  handler->SetPrintJobControllerForTesting(
-      std::make_unique<FakePrintJobControllerAsh>(GetPrintJobManager(),
-                                                  GetPrintersManager()));
-  base::AutoReset<bool> skip_confirmation_dialog_reset(
-      PrintJobSubmitter::SkipConfirmationDialogForTesting());
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
 
   RunTest("cancel_job.html");
 }
 
-// |true| for Chrome App, |false| for Extension.
-INSTANTIATE_TEST_SUITE_P(/**/, PrintingApiTest, testing::Bool());
+IN_PROC_BROWSER_TEST_P(PrintingApiTest, GetJobStatus) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  AddPrinterWithSemanticCaps(kId, kName, ConstructPrinterCapabilities());
+
+  RunTest("get_print_job_status.html");
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    /**/,
+    PrintingApiTest,
+    testing::Combine(testing::Bool(),
+                     testing::Values(ExtensionType::kChromeApp,
+                                     ExtensionType::kExtensionMV2,
+                                     ExtensionType::kExtensionMV3)));
+
+// We only run the promise based tests for MV3 extensions as promise based API
+// calls are only exposed to MV3.
+INSTANTIATE_TEST_SUITE_P(
+    /**/,
+    PrintingPromiseApiTest,
+    testing::Combine(testing::Bool(),
+                     testing::Values(ExtensionType::kExtensionMV3)));
 
 }  // namespace extensions

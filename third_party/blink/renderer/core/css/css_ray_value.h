@@ -8,6 +8,10 @@
 #include "third_party/blink/renderer/core/css/css_value.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 
+namespace WTF {
+class String;
+}  // namespace WTF
+
 namespace blink {
 
 class CSSIdentifierValue;
@@ -19,13 +23,17 @@ class CSSRayValue : public CSSValue {
  public:
   CSSRayValue(const CSSPrimitiveValue& angle,
               const CSSIdentifierValue& size,
-              const CSSIdentifierValue* contain);
+              const CSSIdentifierValue* contain,
+              const CSSValue* center_x,
+              const CSSValue* center_y);
 
   const CSSPrimitiveValue& Angle() const { return *angle_; }
   const CSSIdentifierValue& Size() const { return *size_; }
   const CSSIdentifierValue* Contain() const { return contain_.Get(); }
+  const CSSValue* CenterX() const { return center_x_.Get(); }
+  const CSSValue* CenterY() const { return center_y_.Get(); }
 
-  String CustomCSSText() const;
+  WTF::String CustomCSSText() const;
 
   bool Equals(const CSSRayValue&) const;
 
@@ -35,6 +43,8 @@ class CSSRayValue : public CSSValue {
   Member<const CSSPrimitiveValue> angle_;
   Member<const CSSIdentifierValue> size_;
   Member<const CSSIdentifierValue> contain_;
+  Member<const CSSValue> center_x_;
+  Member<const CSSValue> center_y_;
 };
 
 }  // namespace cssvalue

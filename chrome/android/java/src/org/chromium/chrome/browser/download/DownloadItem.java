@@ -4,8 +4,9 @@
 
 package org.chromium.chrome.browser.download;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.chrome.browser.profiles.OTRProfileID;
+import org.jni_zero.CalledByNative;
+
+import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.components.download.DownloadState;
 import org.chromium.components.download.ResumeMode;
 import org.chromium.components.offline_items_collection.ContentId;
@@ -23,7 +24,7 @@ import org.chromium.components.offline_items_collection.OfflineItemState;
  */
 public class DownloadItem {
     private final ContentId mContentId = new ContentId();
-    private boolean mUseAndroidDownloadManager;
+    private final boolean mUseAndroidDownloadManager;
     private DownloadInfo mDownloadInfo;
     private long mDownloadId = DownloadConstants.INVALID_DOWNLOAD_ID;
     private long mStartTime;
@@ -167,7 +168,7 @@ public class DownloadItem {
         offlineItem.url = downloadInfo.getUrl();
         offlineItem.originalUrl = downloadInfo.getOriginalUrl();
         offlineItem.isOffTheRecord = downloadInfo.isOffTheRecord();
-        offlineItem.otrProfileId = OTRProfileID.serialize(downloadInfo.getOTRProfileId());
+        offlineItem.otrProfileId = OtrProfileId.serialize(downloadInfo.getOtrProfileId());
         offlineItem.mimeType = downloadInfo.getMimeType();
         offlineItem.progress = downloadInfo.getProgress();
         offlineItem.timeRemainingMs = downloadInfo.getTimeRemainingInMillis();
@@ -182,21 +183,25 @@ public class DownloadItem {
         offlineItem.canRename = item.getDownloadInfo().state() == DownloadState.COMPLETE;
         switch (downloadInfo.state()) {
             case DownloadState.IN_PROGRESS:
-                offlineItem.state = downloadInfo.isPaused() ? OfflineItemState.PAUSED
-                                                            : OfflineItemState.IN_PROGRESS;
+                offlineItem.state =
+                        downloadInfo.isPaused()
+                                ? OfflineItemState.PAUSED
+                                : OfflineItemState.IN_PROGRESS;
                 break;
             case DownloadState.COMPLETE:
-                offlineItem.state = downloadInfo.getBytesReceived() == 0
-                        ? OfflineItemState.FAILED
-                        : OfflineItemState.COMPLETE;
+                offlineItem.state =
+                        downloadInfo.getBytesReceived() == 0
+                                ? OfflineItemState.FAILED
+                                : OfflineItemState.COMPLETE;
                 break;
             case DownloadState.CANCELLED:
                 offlineItem.state = OfflineItemState.CANCELLED;
                 break;
             case DownloadState.INTERRUPTED:
                 @ResumeMode
-                int resumeMode = DownloadUtils.getResumeMode(
-                        downloadInfo.getUrl().getSpec(), downloadInfo.getFailState());
+                int resumeMode =
+                        DownloadUtils.getResumeMode(
+                                downloadInfo.getUrl().getSpec(), downloadInfo.getFailState());
                 if (resumeMode == ResumeMode.INVALID || resumeMode == ResumeMode.USER_RESTART) {
                     // Fail but can restart from the beginning. The UI should let the user to retry.
                     offlineItem.state = OfflineItemState.INTERRUPTED;
@@ -244,8 +249,11 @@ public class DownloadItem {
     }
 
     @CalledByNative
-    private static DownloadItem createDownloadItem(DownloadInfo downloadInfo, long startTimestamp,
-            long endTimestamp, boolean hasBeenExternallyRemoved) {
+    private static DownloadItem createDownloadItem(
+            DownloadInfo downloadInfo,
+            long startTimestamp,
+            long endTimestamp,
+            boolean hasBeenExternallyRemoved) {
         DownloadItem downloadItem = new DownloadItem(false, downloadInfo);
         downloadItem.setStartTime(startTimestamp);
         downloadItem.setEndTime(endTimestamp);

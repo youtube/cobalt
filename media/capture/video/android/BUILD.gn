@@ -7,11 +7,14 @@ import("//build/config/android/rules.gni")
 import("//build/config/arm.gni")
 import("//build/config/ui.gni")
 import("//media/media_options.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 assert(is_android)
 
 source_set("android") {
   sources = [
+    "camera_availability_observer.cc",
+    "camera_availability_observer.h",
     "photo_capabilities.cc",
     "photo_capabilities.h",
     "video_capture_device_android.cc",
@@ -33,6 +36,7 @@ source_set("android") {
 
 generate_jni("capture_jni_headers") {
   sources = [
+    "java/src/org/chromium/media/CameraAvailabilityObserver.java",
     "java/src/org/chromium/media/PhotoCapabilities.java",
     "java/src/org/chromium/media/VideoCapture.java",
     "java/src/org/chromium/media/VideoCaptureFactory.java",
@@ -51,15 +55,18 @@ java_cpp_enum("media_java_enums_srcjar") {
 android_library("capture_java") {
   deps = [
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
   ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 
-  srcjar_deps = [ ":media_java_enums_srcjar" ]
+  srcjar_deps = [
+    ":capture_jni_headers",
+    ":media_java_enums_srcjar",
+  ]
 
   sources = [
+    "java/src/org/chromium/media/CameraAvailabilityObserver.java",
     "java/src/org/chromium/media/PhotoCapabilities.java",
     "java/src/org/chromium/media/VideoCapture.java",
     "java/src/org/chromium/media/VideoCaptureCamera.java",

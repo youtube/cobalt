@@ -5,25 +5,526 @@
 #ifndef V8_LOGGING_RUNTIME_CALL_STATS_H_
 #define V8_LOGGING_RUNTIME_CALL_STATS_H_
 
+#include <optional>
+
+// These includes are needed for the macro lists defining the
+// RuntimeCallCounterId enum, and for the dummy types defined below.
 #include "src/base/macros.h"
+#include "src/builtins/builtins-definitions.h"
+#include "src/init/heap-symbols.h"
+#include "src/runtime/runtime.h"
 
 #ifdef V8_RUNTIME_CALL_STATS
 
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/builtins/builtins-definitions.h"
 #include "src/execution/thread-id.h"
-#include "src/init/heap-symbols.h"
 #include "src/logging/tracing-flags.h"
-#include "src/runtime/runtime.h"
 #include "src/tracing/traced-value.h"
 #include "src/tracing/tracing-category-observer.h"
 
 #endif  // V8_RUNTIME_CALL_STATS
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+#define FOR_EACH_GC_COUNTER(V) \
+  TRACER_SCOPES(V)             \
+  TRACER_BACKGROUND_SCOPES(V)
+
+#define FOR_EACH_API_COUNTER(V)                            \
+  V(AccessorPair_New)                                      \
+  V(ArrayBuffer_Cast)                                      \
+  V(ArrayBuffer_Detach)                                    \
+  V(ArrayBuffer_MaybeNew)                                  \
+  V(ArrayBuffer_New)                                       \
+  V(ArrayBuffer_NewBackingStore)                           \
+  V(ArrayBuffer_BackingStore_Reallocate)                   \
+  V(Array_CloneElementAt)                                  \
+  V(Array_Iterate)                                         \
+  V(Array_New)                                             \
+  V(BigInt64Array_New)                                     \
+  V(BigInt_NewFromWords)                                   \
+  V(BigIntObject_BigIntValue)                              \
+  V(BigIntObject_New)                                      \
+  V(BigUint64Array_New)                                    \
+  V(BooleanObject_BooleanValue)                            \
+  V(BooleanObject_New)                                     \
+  V(Context_DeepFreeze)                                    \
+  V(Context_New)                                           \
+  V(Context_NewRemoteContext)                              \
+  V(DataView_New)                                          \
+  V(Date_New)                                              \
+  V(Date_Parse)                                            \
+  V(Debug_Call)                                            \
+  V(debug_GetPrivateMembers)                               \
+  V(DictionaryTemplate_New)                                \
+  V(DictionaryTemplate_NewInstance)                        \
+  V(Error_New)                                             \
+  V(Exception_CaptureStackTrace)                           \
+  V(External_New)                                          \
+  V(Float16Array_New)                                      \
+  V(Float32Array_New)                                      \
+  V(Float64Array_New)                                      \
+  V(Function_Call)                                         \
+  V(Function_New)                                          \
+  V(Function_FunctionProtoToString)                        \
+  V(Function_NewInstance)                                  \
+  V(FunctionTemplate_GetFunction)                          \
+  V(FunctionTemplate_New)                                  \
+  V(FunctionTemplate_NewRemoteInstance)                    \
+  V(FunctionTemplate_NewWithCache)                         \
+  V(FunctionTemplate_NewWithFastHandler)                   \
+  V(CppHeapExternal_New)                                   \
+  V(Int16Array_New)                                        \
+  V(Int32Array_New)                                        \
+  V(Int8Array_New)                                         \
+  V(Isolate_DateTimeConfigurationChangeNotification)       \
+  V(Isolate_LocaleConfigurationChangeNotification)         \
+  V(Isolate_ValidateAndCanonicalizeUnicodeLocaleId)        \
+  V(JSON_Parse)                                            \
+  V(JSON_Stringify)                                        \
+  V(Map_AsArray)                                           \
+  V(Map_Clear)                                             \
+  V(Map_Delete)                                            \
+  V(Map_Get)                                               \
+  V(Map_Has)                                               \
+  V(Map_New)                                               \
+  V(Map_Set)                                               \
+  V(Message_GetEndColumn)                                  \
+  V(Message_GetLineNumber)                                 \
+  V(Message_GetSourceLine)                                 \
+  V(Message_GetStartColumn)                                \
+  V(Module_Evaluate)                                       \
+  V(Module_InstantiateModule)                              \
+  V(Module_SetSyntheticModuleExport)                       \
+  V(NumberObject_New)                                      \
+  V(NumberObject_NumberValue)                              \
+  V(Object_CallAsConstructor)                              \
+  V(Object_CallAsFunction)                                 \
+  V(Object_CreateDataProperty)                             \
+  V(Object_DefineOwnProperty)                              \
+  V(Object_DefineProperty)                                 \
+  V(Object_Delete)                                         \
+  V(Object_DeleteProperty)                                 \
+  V(Object_ForceSet)                                       \
+  V(Object_Get)                                            \
+  V(Object_GetOwnPropertyDescriptor)                       \
+  V(Object_GetOwnPropertyNames)                            \
+  V(Object_GetPropertyAttributes)                          \
+  V(Object_GetPropertyNames)                               \
+  V(Object_GetRealNamedProperty)                           \
+  V(Object_GetRealNamedPropertyAttributes)                 \
+  V(Object_GetRealNamedPropertyAttributesInPrototypeChain) \
+  V(Object_GetRealNamedPropertyInPrototypeChain)           \
+  V(Object_Has)                                            \
+  V(Object_HasOwnProperty)                                 \
+  V(Object_HasRealIndexedProperty)                         \
+  V(Object_HasRealNamedCallbackProperty)                   \
+  V(Object_HasRealNamedProperty)                           \
+  V(Object_IsCodeLike)                                     \
+  V(Object_New)                                            \
+  V(Object_ObjectProtoToString)                            \
+  V(Object_Set)                                            \
+  V(Object_SetAccessor)                                    \
+  V(Object_SetIntegrityLevel)                              \
+  V(Object_SetPrivate)                                     \
+  V(Object_SetPrototype)                                   \
+  V(ObjectTemplate_New)                                    \
+  V(ObjectTemplate_NewInstance)                            \
+  V(Object_ToArrayIndex)                                   \
+  V(Object_ToBigInt)                                       \
+  V(Object_ToDetailString)                                 \
+  V(Object_ToInt32)                                        \
+  V(Object_ToInteger)                                      \
+  V(Object_ToNumber)                                       \
+  V(Object_ToNumeric)                                      \
+  V(Object_ToObject)                                       \
+  V(Object_ToPrimitive)                                    \
+  V(Object_ToString)                                       \
+  V(Object_ToUint32)                                       \
+  V(Persistent_New)                                        \
+  V(Private_New)                                           \
+  V(Promise_Catch)                                         \
+  V(Promise_Chain)                                         \
+  V(Promise_HasRejectHandler)                              \
+  V(Promise_Resolver_New)                                  \
+  V(Promise_Resolver_Reject)                               \
+  V(Promise_Resolver_Resolve)                              \
+  V(Promise_Result)                                        \
+  V(Promise_Status)                                        \
+  V(Promise_Then)                                          \
+  V(Proxy_New)                                             \
+  V(RangeError_New)                                        \
+  V(ReferenceError_New)                                    \
+  V(RegExp_Exec)                                           \
+  V(RegExp_New)                                            \
+  V(ScriptCompiler_Compile)                                \
+  V(ScriptCompiler_CompileFunction)                        \
+  V(ScriptCompiler_CompileUnbound)                         \
+  V(Script_Run)                                            \
+  V(Set_Add)                                               \
+  V(Set_AsArray)                                           \
+  V(Set_Clear)                                             \
+  V(Set_Delete)                                            \
+  V(Set_Has)                                               \
+  V(Set_New)                                               \
+  V(SharedArrayBuffer_New)                                 \
+  V(SharedArrayBuffer_NewBackingStore)                     \
+  V(String_Concat)                                         \
+  V(String_NewExternalOneByte)                             \
+  V(String_NewExternalTwoByte)                             \
+  V(String_NewFromOneByte)                                 \
+  V(String_NewFromTwoByte)                                 \
+  V(String_NewFromUtf8)                                    \
+  V(String_NewFromUtf8Literal)                             \
+  V(StringObject_New)                                      \
+  V(StringObject_StringValue)                              \
+  V(String_Write)                                          \
+  V(String_WriteUtf8)                                      \
+  V(Symbol_New)                                            \
+  V(SymbolObject_New)                                      \
+  V(SymbolObject_SymbolValue)                              \
+  V(SyntaxError_New)                                       \
+  V(TracedGlobal_New)                                      \
+  V(TryCatch_StackTrace)                                   \
+  V(TypeError_New)                                         \
+  V(Uint16Array_New)                                       \
+  V(Uint32Array_New)                                       \
+  V(Uint8Array_New)                                        \
+  V(Uint8ClampedArray_New)                                 \
+  V(UnboundModuleScript_GetSourceMappingURL)               \
+  V(UnboundModuleScript_GetSourceURL)                      \
+  V(UnboundScript_GetColumnNumber)                         \
+  V(UnboundScript_GetId)                                   \
+  V(UnboundScript_GetLineNumber)                           \
+  V(UnboundScript_GetName)                                 \
+  V(UnboundScript_GetSourceMappingURL)                     \
+  V(UnboundScript_GetSourceURL)                            \
+  V(ValueDeserializer_ReadHeader)                          \
+  V(ValueDeserializer_ReadValue)                           \
+  V(ValueSerializer_WriteValue)                            \
+  V(Value_Equals)                                          \
+  V(Value_InstanceOf)                                      \
+  V(Value_Int32Value)                                      \
+  V(Value_IntegerValue)                                    \
+  V(Value_NumberValue)                                     \
+  V(Value_TypeOf)                                          \
+  V(Value_Uint32Value)                                     \
+  V(WasmCompileError_New)                                  \
+  V(WasmLinkError_New)                                     \
+  V(WasmSuspendError_New)                                  \
+  V(WasmRuntimeError_New)                                  \
+  V(WeakMap_Delete)                                        \
+  V(WeakMap_Get)                                           \
+  V(WeakMap_New)                                           \
+  V(WeakMap_Set)
+
+#define ADD_THREAD_SPECIFIC_COUNTER(V, Prefix, Suffix) \
+  V(Prefix##Suffix)                                    \
+  V(Prefix##Background##Suffix)
+
+#define FOR_EACH_THREAD_SPECIFIC_COUNTER(V)                                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Analyse)                            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Eval)                               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Function)                           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Ignition)                           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, IgnitionFinalization)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, CompileTask)                        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateFPRegisters)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateSimd128Registers)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BitcastElision)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FrameElision)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmInlining)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmLowering)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopExitElimination)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                       \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PairingOptimization)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulateReferenceMaps)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintTurboshaftGraph)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolveControlFlow)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolvePhis)                       \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
+                              ScheduledEffectControlLinearization)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ScheduledMachineLowering)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Scheduling)                        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifyLoops)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBlockInstrumentation)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBuildGraph)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
+                              TurboshaftCodeEliminationAndSimplification)     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaBranchElimination)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmInJSInlining)        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
+                              TurboshaftCsaEarlyMachineOptimization)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaEffectsComputation)   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLateEscapeAnalysis)   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLoadElimination)      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaMemoryOptimization)   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDebugFeatureLowering)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
+                              TurboshaftDecompressionOptimization)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftGrowableStacks)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftInstructionSelection)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftInt64Lowering)           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftLateOptimization)        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftLoopPeeling)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftLoopUnrolling)           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftMachineLowering)         \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftMaglevGraphBuilding)     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
+                              TurboshaftSimplificationAndNormalization)       \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftOptimize)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftProfileApplication)      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftSpecialRPOScheduling)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftStoreStoreElimination)   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTagUntagLowering)        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTypeAssertions)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTypedOptimizations)      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmDeadCodeElimination) \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmGCOptimize)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmOptimize)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmDebugMemoryLowering) \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmLowering)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmRevec)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmSimd)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                       \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopPeeling)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmJSLowering)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                        \
+                                                                              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, Program)                              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, ArrowFunctionLiteral)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, WithVariableResolution)
+
+#define FOR_EACH_MANUAL_COUNTER(V)             \
+  V(AccessorGetterCallback)                    \
+  V(AccessorSetterCallback)                    \
+  V(ArrayLengthGetter)                         \
+  V(ArrayLengthSetter)                         \
+  V(BoundFunctionLengthGetter)                 \
+  V(BoundFunctionNameGetter)                   \
+  V(CodeGenerationFromStringsCallbacks)        \
+  V(CompileBackgroundBaseline)                 \
+  V(CompileBackgroundBaselineBuild)            \
+  V(CompileBackgroundBaselinePreVisit)         \
+  V(CompileBackgroundBaselineVisit)            \
+  V(CompileBaseline)                           \
+  V(CompileBaselineBuild)                      \
+  V(CompileBaselineFinalization)               \
+  V(CompileBaselinePreVisit)                   \
+  V(CompileBaselineVisit)                      \
+  V(CompileCollectSourcePositions)             \
+  V(CompileDeserialize)                        \
+  V(CompileEnqueueOnDispatcher)                \
+  V(CompileFinalizeBackgroundCompileTask)      \
+  V(CompileFinishNowOnDispatcher)              \
+  V(CompileGetFromOptimizedCodeMap)            \
+  V(CompilePublishBackgroundFinalization)      \
+  V(CompileSerialize)                          \
+  V(CompileWaitForDispatcher)                  \
+  V(ConfigureInstance)                         \
+  V(CreateApiFunction)                         \
+  V(Debugger)                                  \
+  V(DebuggerCallback)                          \
+  V(DeoptimizeCode)                            \
+  V(DeserializeContext)                        \
+  V(DeserializeIsolate)                        \
+  V(FinalizationRegistryCleanupFromTask)       \
+  V(FunctionCallback)                          \
+  V(FunctionArgumentsGetter)                   \
+  V(FunctionCallerGetter)                      \
+  V(FunctionLengthGetter)                      \
+  V(FunctionPrototypeGetter)                   \
+  V(FunctionPrototypeSetter)                   \
+  V(GCEpilogueCallback)                        \
+  V(GCPrologueCallback)                        \
+  V(GC_Custom_AllAvailableGarbage)             \
+  V(GC_Custom_IncrementalMarkingObserver)      \
+  V(GC_Custom_SlowAllocateRaw)                 \
+  V(Genesis)                                   \
+  V(GetCompatibleReceiver)                     \
+  V(GetMoreDataCallback)                       \
+  V(IndexedDefinerCallback)                    \
+  V(IndexedDeleterCallback)                    \
+  V(IndexedDescriptorCallback)                 \
+  V(IndexedEnumeratorCallback)                 \
+  V(IndexedGetterCallback)                     \
+  V(IndexedQueryCallback)                      \
+  V(IndexedSetterCallback)                     \
+  V(InstantiateFunction)                       \
+  V(InstantiateObject)                         \
+  V(Invoke)                                    \
+  V(InvokeApiFunction)                         \
+  V(InvokeApiInterruptCallbacks)               \
+  V(IsCompatibleReceiver)                      \
+  V(IsCompatibleReceiverMap)                   \
+  V(IsTemplateFor)                             \
+  V(JS_Execution)                              \
+  V(Map_SetPrototype)                          \
+  V(Map_TransitionToAccessorProperty)          \
+  V(Map_TransitionToDataProperty)              \
+  V(MessageListenerCallback)                   \
+  V(NamedDefinerCallback)                      \
+  V(NamedDeleterCallback)                      \
+  V(NamedDescriptorCallback)                   \
+  V(NamedEnumeratorCallback)                   \
+  V(NamedGetterCallback)                       \
+  V(NamedQueryCallback)                        \
+  V(NamedSetterCallback)                       \
+  V(ObjectVerify)                              \
+  V(Object_DeleteProperty)                     \
+  V(OptimizeBackgroundMaglev)                  \
+  V(OptimizeBackgroundTurbofan)                \
+  V(OptimizeCode)                              \
+  V(OptimizeConcurrentFinalize)                \
+  V(OptimizeConcurrentFinalizeMaglev)          \
+  V(OptimizeConcurrentPrepare)                 \
+  V(OptimizeFinalizePipelineJob)               \
+  V(OptimizeHeapBrokerInitialization)          \
+  V(OptimizeRevectorizer)                      \
+  V(OptimizeSerialization)                     \
+  V(OptimizeSerializeMetadata)                 \
+  V(OptimizeSynchronous)                       \
+  V(OptimizeSynchronousMaglev)                 \
+  V(ParseEval)                                 \
+  V(ParseFunction)                             \
+  V(PropertyCallback)                          \
+  V(PrototypeMap_TransitionToAccessorProperty) \
+  V(PrototypeMap_TransitionToDataProperty)     \
+  V(PrototypeObject_DeleteProperty)            \
+  V(ReconfigureToDataProperty)                 \
+  V(SnapshotDecompress)                        \
+  V(StringLengthGetter)                        \
+  V(TestCounter1)                              \
+  V(TestCounter2)                              \
+  V(TestCounter3)                              \
+  V(UpdateProtector)                           \
+  V(WrappedFunctionLengthGetter)               \
+  V(WrappedFunctionNameGetter)
+
+#define FOR_EACH_HANDLER_COUNTER(V)               \
+  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
+  V(KeyedLoadIC_LoadElementDH)                    \
+  V(KeyedLoadIC_LoadIndexedInterceptorStub)       \
+  V(KeyedLoadIC_LoadIndexedStringDH)              \
+  V(KeyedLoadIC_SlowStub)                         \
+  V(KeyedStoreIC_ElementsTransitionAndStoreStub)  \
+  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)   \
+  V(KeyedStoreIC_SlowStub)                        \
+  V(KeyedStoreIC_StoreElementStub)                \
+  V(KeyedStoreIC_StoreFastElementStub)            \
+  V(LoadGlobalIC_LoadScriptContextField)          \
+  V(LoadGlobalIC_SlowStub)                        \
+  V(LoadIC_FunctionPrototypeStub)                 \
+  V(LoadIC_HandlerCacheHit_Accessor)              \
+  V(LoadIC_LoadAccessorDH)                        \
+  V(LoadIC_LoadAccessorFromPrototypeDH)           \
+  V(LoadIC_LoadApiGetterFromPrototypeDH)          \
+  V(LoadIC_LoadCallback)                          \
+  V(LoadIC_LoadConstantDH)                        \
+  V(LoadIC_LoadConstantFromPrototypeDH)           \
+  V(LoadIC_LoadFieldDH)                           \
+  V(LoadIC_LoadFieldFromPrototypeDH)              \
+  V(LoadIC_LoadGlobalDH)                          \
+  V(LoadIC_LoadGlobalFromPrototypeDH)             \
+  V(LoadIC_LoadIntegerIndexedExoticDH)            \
+  V(LoadIC_LoadInterceptorDH)                     \
+  V(LoadIC_LoadInterceptorFromPrototypeDH)        \
+  V(LoadIC_LoadNativeDataPropertyDH)              \
+  V(LoadIC_LoadNativeDataPropertyFromPrototypeDH) \
+  V(LoadIC_LoadNonexistentDH)                     \
+  V(LoadIC_LoadNonMaskingInterceptorDH)           \
+  V(LoadIC_LoadNormalDH)                          \
+  V(LoadIC_LoadNormalFromPrototypeDH)             \
+  V(LoadIC_NonReceiver)                           \
+  V(LoadIC_SlowStub)                              \
+  V(LoadIC_StringLength)                          \
+  V(LoadIC_StringWrapperLength)                   \
+  V(StoreGlobalIC_SlowStub)                       \
+  V(StoreGlobalIC_StoreScriptContextField)        \
+  V(StoreIC_HandlerCacheHit_Accessor)             \
+  V(StoreIC_NonReceiver)                          \
+  V(StoreIC_SlowStub)                             \
+  V(StoreIC_StoreAccessorDH)                      \
+  V(StoreIC_StoreAccessorOnPrototypeDH)           \
+  V(StoreIC_StoreApiSetterOnPrototypeDH)          \
+  V(StoreIC_StoreFieldDH)                         \
+  V(StoreIC_StoreGlobalDH)                        \
+  V(StoreIC_StoreGlobalTransitionDH)              \
+  V(StoreIC_StoreInterceptorStub)                 \
+  V(StoreIC_StoreNativeDataPropertyDH)            \
+  V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
+  V(StoreIC_StoreNormalDH)                        \
+  V(StoreIC_StoreTransitionDH)                    \
+  V(StoreInArrayLiteralIC_SlowStub)
+
+enum class RuntimeCallCounterId {
+// clang-format off
+#define CALL_RUNTIME_COUNTER(name) kGC_##name,
+  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_RUNTIME_COUNTER(name) k##name,
+  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize, ...) kRuntime_##name,
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name, Argc) kBuiltin_##name,
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) kAPI_##name,
+  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) kHandler_##name,
+  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define THREAD_SPECIFIC_COUNTER(name) k##name,
+  FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER)
+#undef THREAD_SPECIFIC_COUNTER
+  kNumberOfCounters,
+  // clang-format on
+};
 
 #ifdef V8_RUNTIME_CALL_STATS
 
@@ -124,470 +625,6 @@ class RuntimeCallTimer final {
   base::TimeDelta elapsed_;
 };
 
-#define FOR_EACH_GC_COUNTER(V) \
-  TRACER_SCOPES(V)             \
-  TRACER_BACKGROUND_SCOPES(V)
-
-#define FOR_EACH_API_COUNTER(V)                            \
-  V(AccessorPair_New)                                      \
-  V(ArrayBuffer_Cast)                                      \
-  V(ArrayBuffer_Detach)                                    \
-  V(ArrayBuffer_New)                                       \
-  V(ArrayBuffer_NewBackingStore)                           \
-  V(ArrayBuffer_BackingStore_Reallocate)                   \
-  V(Array_CloneElementAt)                                  \
-  V(Array_New)                                             \
-  V(BigInt64Array_New)                                     \
-  V(BigInt_NewFromWords)                                   \
-  V(BigIntObject_BigIntValue)                              \
-  V(BigIntObject_New)                                      \
-  V(BigUint64Array_New)                                    \
-  V(BooleanObject_BooleanValue)                            \
-  V(BooleanObject_New)                                     \
-  V(Context_DeepFreeze)                                    \
-  V(Context_New)                                           \
-  V(Context_NewRemoteContext)                              \
-  V(DataView_New)                                          \
-  V(Date_New)                                              \
-  V(Date_NumberValue)                                      \
-  V(Debug_Call)                                            \
-  V(debug_GetPrivateMembers)                               \
-  V(Error_New)                                             \
-  V(External_New)                                          \
-  V(Float32Array_New)                                      \
-  V(Float64Array_New)                                      \
-  V(Function_Call)                                         \
-  V(Function_New)                                          \
-  V(Function_FunctionProtoToString)                        \
-  V(Function_NewInstance)                                  \
-  V(FunctionTemplate_GetFunction)                          \
-  V(FunctionTemplate_New)                                  \
-  V(FunctionTemplate_NewRemoteInstance)                    \
-  V(FunctionTemplate_NewWithCache)                         \
-  V(FunctionTemplate_NewWithFastHandler)                   \
-  V(Int16Array_New)                                        \
-  V(Int32Array_New)                                        \
-  V(Int8Array_New)                                         \
-  V(Isolate_DateTimeConfigurationChangeNotification)       \
-  V(Isolate_LocaleConfigurationChangeNotification)         \
-  V(JSON_Parse)                                            \
-  V(JSON_Stringify)                                        \
-  V(Map_AsArray)                                           \
-  V(Map_Clear)                                             \
-  V(Map_Delete)                                            \
-  V(Map_Get)                                               \
-  V(Map_Has)                                               \
-  V(Map_New)                                               \
-  V(Map_Set)                                               \
-  V(Message_GetEndColumn)                                  \
-  V(Message_GetLineNumber)                                 \
-  V(Message_GetSourceLine)                                 \
-  V(Message_GetStartColumn)                                \
-  V(Module_Evaluate)                                       \
-  V(Module_InstantiateModule)                              \
-  V(Module_SetSyntheticModuleExport)                       \
-  V(NumberObject_New)                                      \
-  V(NumberObject_NumberValue)                              \
-  V(Object_CallAsConstructor)                              \
-  V(Object_CallAsFunction)                                 \
-  V(Object_CreateDataProperty)                             \
-  V(Object_DefineOwnProperty)                              \
-  V(Object_DefineProperty)                                 \
-  V(Object_Delete)                                         \
-  V(Object_DeleteProperty)                                 \
-  V(Object_ForceSet)                                       \
-  V(Object_Get)                                            \
-  V(Object_GetOwnPropertyDescriptor)                       \
-  V(Object_GetOwnPropertyNames)                            \
-  V(Object_GetPropertyAttributes)                          \
-  V(Object_GetPropertyNames)                               \
-  V(Object_GetRealNamedProperty)                           \
-  V(Object_GetRealNamedPropertyAttributes)                 \
-  V(Object_GetRealNamedPropertyAttributesInPrototypeChain) \
-  V(Object_GetRealNamedPropertyInPrototypeChain)           \
-  V(Object_Has)                                            \
-  V(Object_HasOwnProperty)                                 \
-  V(Object_HasRealIndexedProperty)                         \
-  V(Object_HasRealNamedCallbackProperty)                   \
-  V(Object_HasRealNamedProperty)                           \
-  V(Object_IsCodeLike)                                     \
-  V(Object_New)                                            \
-  V(Object_ObjectProtoToString)                            \
-  V(Object_Set)                                            \
-  V(Object_SetAccessor)                                    \
-  V(Object_SetIntegrityLevel)                              \
-  V(Object_SetPrivate)                                     \
-  V(Object_SetPrototype)                                   \
-  V(ObjectTemplate_New)                                    \
-  V(ObjectTemplate_NewInstance)                            \
-  V(Object_ToArrayIndex)                                   \
-  V(Object_ToBigInt)                                       \
-  V(Object_ToDetailString)                                 \
-  V(Object_ToInt32)                                        \
-  V(Object_ToInteger)                                      \
-  V(Object_ToNumber)                                       \
-  V(Object_ToObject)                                       \
-  V(Object_ToString)                                       \
-  V(Object_ToUint32)                                       \
-  V(Persistent_New)                                        \
-  V(Private_New)                                           \
-  V(Promise_Catch)                                         \
-  V(Promise_Chain)                                         \
-  V(Promise_HasRejectHandler)                              \
-  V(Promise_Resolver_New)                                  \
-  V(Promise_Resolver_Reject)                               \
-  V(Promise_Resolver_Resolve)                              \
-  V(Promise_Result)                                        \
-  V(Promise_Status)                                        \
-  V(Promise_Then)                                          \
-  V(Proxy_New)                                             \
-  V(RangeError_New)                                        \
-  V(ReferenceError_New)                                    \
-  V(RegExp_Exec)                                           \
-  V(RegExp_New)                                            \
-  V(ScriptCompiler_Compile)                                \
-  V(ScriptCompiler_CompileFunction)                        \
-  V(ScriptCompiler_CompileUnbound)                         \
-  V(Script_Run)                                            \
-  V(Set_Add)                                               \
-  V(Set_AsArray)                                           \
-  V(Set_Clear)                                             \
-  V(Set_Delete)                                            \
-  V(Set_Has)                                               \
-  V(Set_New)                                               \
-  V(SharedArrayBuffer_New)                                 \
-  V(SharedArrayBuffer_NewBackingStore)                     \
-  V(String_Concat)                                         \
-  V(String_NewExternalOneByte)                             \
-  V(String_NewExternalTwoByte)                             \
-  V(String_NewFromOneByte)                                 \
-  V(String_NewFromTwoByte)                                 \
-  V(String_NewFromUtf8)                                    \
-  V(String_NewFromUtf8Literal)                             \
-  V(StringObject_New)                                      \
-  V(StringObject_StringValue)                              \
-  V(String_Write)                                          \
-  V(String_WriteUtf8)                                      \
-  V(Symbol_New)                                            \
-  V(SymbolObject_New)                                      \
-  V(SymbolObject_SymbolValue)                              \
-  V(SyntaxError_New)                                       \
-  V(TracedGlobal_New)                                      \
-  V(TryCatch_StackTrace)                                   \
-  V(TypeError_New)                                         \
-  V(Uint16Array_New)                                       \
-  V(Uint32Array_New)                                       \
-  V(Uint8Array_New)                                        \
-  V(Uint8ClampedArray_New)                                 \
-  V(UnboundModuleScript_GetSourceMappingURL)               \
-  V(UnboundModuleScript_GetSourceURL)                      \
-  V(UnboundScript_GetColumnNumber)                         \
-  V(UnboundScript_GetId)                                   \
-  V(UnboundScript_GetLineNumber)                           \
-  V(UnboundScript_GetName)                                 \
-  V(UnboundScript_GetSourceMappingURL)                     \
-  V(UnboundScript_GetSourceURL)                            \
-  V(ValueDeserializer_ReadHeader)                          \
-  V(ValueDeserializer_ReadValue)                           \
-  V(ValueSerializer_WriteValue)                            \
-  V(Value_Equals)                                          \
-  V(Value_InstanceOf)                                      \
-  V(Value_Int32Value)                                      \
-  V(Value_IntegerValue)                                    \
-  V(Value_NumberValue)                                     \
-  V(Value_TypeOf)                                          \
-  V(Value_Uint32Value)                                     \
-  V(WasmCompileError_New)                                  \
-  V(WasmLinkError_New)                                     \
-  V(WasmRuntimeError_New)                                  \
-  V(WeakMap_Delete)                                        \
-  V(WeakMap_Get)                                           \
-  V(WeakMap_New)                                           \
-  V(WeakMap_Set)
-
-#define ADD_THREAD_SPECIFIC_COUNTER(V, Prefix, Suffix) \
-  V(Prefix##Suffix)                                    \
-  V(Prefix##Background##Suffix)
-
-#define FOR_EACH_THREAD_SPECIFIC_COUNTER(V)                                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Analyse)                          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Eval)                             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Function)                         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Ignition)                         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, IgnitionFinalization)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, CompileTask)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateFPRegisters)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateSIMD128Registers)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BitcastElision)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BranchConditionDuplication)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ControlFlowOptimization)         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAEarlyOptimization)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAOptimization)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecompressionOptimization)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FrameElision)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmInlining)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmLowering)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierPopulateReferenceMaps)    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition) \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopExitElimination)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MachineOperatorOptimization)     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulatePointerMaps)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintTurboshaftGraph)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolveControlFlow)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolvePhis)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                  \
-                              ScheduledEffectControlLinearization)          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ScheduledMachineLowering)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Scheduling)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifyLoops)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBuildGraph)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDeadCodeElimination)   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                  \
-                              TurboshaftDecompressionOptimization)          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftLateOptimization)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftMachineLowering)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftOptimize)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftRecreateSchedule)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTagUntagLowering)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTypeAssertions)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTypedOptimizations)    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopPeeling)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                      \
-                                                                            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, Program)                            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, ArrowFunctionLiteral)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, WithVariableResolution)
-
-#define FOR_EACH_MANUAL_COUNTER(V)             \
-  V(AccessorGetterCallback)                    \
-  V(AccessorSetterCallback)                    \
-  V(ArrayLengthGetter)                         \
-  V(ArrayLengthSetter)                         \
-  V(BoundFunctionLengthGetter)                 \
-  V(BoundFunctionNameGetter)                   \
-  V(CodeGenerationFromStringsCallbacks)        \
-  V(CompileBackgroundBaselinePreVisit)         \
-  V(CompileBackgroundBaselineVisit)            \
-  V(CompileBaseline)                           \
-  V(CompileBaselineFinalization)               \
-  V(CompileBaselinePreVisit)                   \
-  V(CompileBaselineVisit)                      \
-  V(CompileCollectSourcePositions)             \
-  V(CompileDeserialize)                        \
-  V(CompileEnqueueOnDispatcher)                \
-  V(CompileFinalizeBackgroundCompileTask)      \
-  V(CompileFinishNowOnDispatcher)              \
-  V(CompileGetFromOptimizedCodeMap)            \
-  V(CompilePublishBackgroundFinalization)      \
-  V(CompileSerialize)                          \
-  V(CompileWaitForDispatcher)                  \
-  V(ConfigureInstance)                         \
-  V(CreateApiFunction)                         \
-  V(Debugger)                                  \
-  V(DebuggerCallback)                          \
-  V(DeoptimizeCode)                            \
-  V(DeserializeContext)                        \
-  V(DeserializeIsolate)                        \
-  V(FinalizationRegistryCleanupFromTask)       \
-  V(FunctionCallback)                          \
-  V(FunctionLengthGetter)                      \
-  V(FunctionPrototypeGetter)                   \
-  V(FunctionPrototypeSetter)                   \
-  V(GCEpilogueCallback)                        \
-  V(GCPrologueCallback)                        \
-  V(GC_Custom_AllAvailableGarbage)             \
-  V(GC_Custom_IncrementalMarkingObserver)      \
-  V(GC_Custom_SlowAllocateRaw)                 \
-  V(Genesis)                                   \
-  V(GetCompatibleReceiver)                     \
-  V(GetMoreDataCallback)                       \
-  V(IndexedDefinerCallback)                    \
-  V(IndexedDeleterCallback)                    \
-  V(IndexedDescriptorCallback)                 \
-  V(IndexedEnumeratorCallback)                 \
-  V(IndexedGetterCallback)                     \
-  V(IndexedQueryCallback)                      \
-  V(IndexedSetterCallback)                     \
-  V(InstantiateFunction)                       \
-  V(InstantiateObject)                         \
-  V(Invoke)                                    \
-  V(InvokeApiFunction)                         \
-  V(InvokeApiInterruptCallbacks)               \
-  V(IsCompatibleReceiver)                      \
-  V(IsCompatibleReceiverMap)                   \
-  V(IsTemplateFor)                             \
-  V(JS_Execution)                              \
-  V(Map_SetPrototype)                          \
-  V(Map_TransitionToAccessorProperty)          \
-  V(Map_TransitionToDataProperty)              \
-  V(MessageListenerCallback)                   \
-  V(NamedDefinerCallback)                      \
-  V(NamedDeleterCallback)                      \
-  V(NamedDescriptorCallback)                   \
-  V(NamedEnumeratorCallback)                   \
-  V(NamedGetterCallback)                       \
-  V(NamedQueryCallback)                        \
-  V(NamedSetterCallback)                       \
-  V(ObjectVerify)                              \
-  V(Object_DeleteProperty)                     \
-  V(OptimizeBackgroundDispatcherJob)           \
-  V(OptimizeCode)                              \
-  V(OptimizeConcurrentFinalize)                \
-  V(OptimizeConcurrentFinalizeMaglev)          \
-  V(OptimizeConcurrentPrepare)                 \
-  V(OptimizeFinalizePipelineJob)               \
-  V(OptimizeHeapBrokerInitialization)          \
-  V(OptimizeNonConcurrent)                     \
-  V(OptimizeNonConcurrentMaglev)               \
-  V(OptimizeBackgroundMaglev)                  \
-  V(OptimizeRevectorizer)                      \
-  V(OptimizeSerialization)                     \
-  V(OptimizeSerializeMetadata)                 \
-  V(ParseEval)                                 \
-  V(ParseFunction)                             \
-  V(PropertyCallback)                          \
-  V(PrototypeMap_TransitionToAccessorProperty) \
-  V(PrototypeMap_TransitionToDataProperty)     \
-  V(PrototypeObject_DeleteProperty)            \
-  V(ReconfigureToDataProperty)                 \
-  V(SnapshotDecompress)                        \
-  V(StringLengthGetter)                        \
-  V(TestCounter1)                              \
-  V(TestCounter2)                              \
-  V(TestCounter3)                              \
-  V(UpdateProtector)                           \
-  V(WrappedFunctionLengthGetter)               \
-  V(WrappedFunctionNameGetter)
-
-#define FOR_EACH_HANDLER_COUNTER(V)               \
-  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
-  V(KeyedLoadIC_LoadElementDH)                    \
-  V(KeyedLoadIC_LoadIndexedInterceptorStub)       \
-  V(KeyedLoadIC_LoadIndexedStringDH)              \
-  V(KeyedLoadIC_SlowStub)                         \
-  V(KeyedStoreIC_ElementsTransitionAndStoreStub)  \
-  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)   \
-  V(KeyedStoreIC_SlowStub)                        \
-  V(KeyedStoreIC_StoreElementStub)                \
-  V(KeyedStoreIC_StoreFastElementStub)            \
-  V(LoadGlobalIC_LoadScriptContextField)          \
-  V(LoadGlobalIC_SlowStub)                        \
-  V(LoadIC_FunctionPrototypeStub)                 \
-  V(LoadIC_HandlerCacheHit_Accessor)              \
-  V(LoadIC_LoadAccessorDH)                        \
-  V(LoadIC_LoadAccessorFromPrototypeDH)           \
-  V(LoadIC_LoadApiGetterFromPrototypeDH)          \
-  V(LoadIC_LoadCallback)                          \
-  V(LoadIC_LoadConstantDH)                        \
-  V(LoadIC_LoadConstantFromPrototypeDH)           \
-  V(LoadIC_LoadFieldDH)                           \
-  V(LoadIC_LoadFieldFromPrototypeDH)              \
-  V(LoadIC_LoadGlobalDH)                          \
-  V(LoadIC_LoadGlobalFromPrototypeDH)             \
-  V(LoadIC_LoadIntegerIndexedExoticDH)            \
-  V(LoadIC_LoadInterceptorDH)                     \
-  V(LoadIC_LoadInterceptorFromPrototypeDH)        \
-  V(LoadIC_LoadNativeDataPropertyDH)              \
-  V(LoadIC_LoadNativeDataPropertyFromPrototypeDH) \
-  V(LoadIC_LoadNonexistentDH)                     \
-  V(LoadIC_LoadNonMaskingInterceptorDH)           \
-  V(LoadIC_LoadNormalDH)                          \
-  V(LoadIC_LoadNormalFromPrototypeDH)             \
-  V(LoadIC_NonReceiver)                           \
-  V(LoadIC_SlowStub)                              \
-  V(LoadIC_StringLength)                          \
-  V(LoadIC_StringWrapperLength)                   \
-  V(StoreGlobalIC_SlowStub)                       \
-  V(StoreGlobalIC_StoreScriptContextField)        \
-  V(StoreIC_HandlerCacheHit_Accessor)             \
-  V(StoreIC_NonReceiver)                          \
-  V(StoreIC_SlowStub)                             \
-  V(StoreIC_StoreAccessorDH)                      \
-  V(StoreIC_StoreAccessorOnPrototypeDH)           \
-  V(StoreIC_StoreApiSetterOnPrototypeDH)          \
-  V(StoreIC_StoreFieldDH)                         \
-  V(StoreIC_StoreGlobalDH)                        \
-  V(StoreIC_StoreGlobalTransitionDH)              \
-  V(StoreIC_StoreInterceptorStub)                 \
-  V(StoreIC_StoreNativeDataPropertyDH)            \
-  V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
-  V(StoreIC_StoreNormalDH)                        \
-  V(StoreIC_StoreTransitionDH)                    \
-  V(StoreInArrayLiteralIC_SlowStub)
-
-enum RuntimeCallCounterId {
-#define CALL_RUNTIME_COUNTER(name) kGC_##name,
-  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name) k##name,
-      FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
-          FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kBuiltin_##name,
-              BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kAPI_##name,
-                  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kHandler_##name,
-                      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-#define THREAD_SPECIFIC_COUNTER(name) k##name,
-                          FOR_EACH_THREAD_SPECIFIC_COUNTER(
-                              THREAD_SPECIFIC_COUNTER)
-#undef THREAD_SPECIFIC_COUNTER
-                              kNumberOfCounters,
-};
-
 class RuntimeCallStats final {
  public:
   enum ThreadType { kMainIsolateThread, kWorkerThread };
@@ -639,8 +676,9 @@ class RuntimeCallStats final {
     DCHECK(HasThreadSpecificCounterVariants(id));
     // All thread specific counters are laid out with the main thread variant
     // first followed by the background variant.
+    int idInt = static_cast<int>(id);
     return thread_type_ == kWorkerThread
-               ? static_cast<RuntimeCallCounterId>(id + 1)
+               ? static_cast<RuntimeCallCounterId>(idInt + 1)
                : id;
   }
 
@@ -692,7 +730,7 @@ class WorkerThreadRuntimeCallStats final {
  private:
   base::Mutex mutex_;
   std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
-  base::Optional<base::Thread::LocalStorageKey> tls_key_;
+  std::optional<base::Thread::LocalStorageKey> tls_key_;
   // Since this is for creating worker thread runtime-call stats, record the
   // main thread ID to ensure we never create a worker RCS table for the main
   // thread.
@@ -797,7 +835,6 @@ class WorkerThreadRuntimeCallStatsScope {
 
 #endif  // RUNTIME_CALL_STATS
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_LOGGING_RUNTIME_CALL_STATS_H_

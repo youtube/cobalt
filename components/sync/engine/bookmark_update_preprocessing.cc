@@ -6,6 +6,7 @@
 
 #include <array>
 
+#include "base/base64.h"
 #include "base/containers/span.h"
 #include "base/hash/sha1.h"
 #include "base/logging.h"
@@ -15,6 +16,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/uuid.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/hash_util.h"
 #include "components/sync/base/unique_position.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
@@ -28,6 +30,7 @@ namespace {
 // Used in metric "Sync.BookmarkGUIDSource2". These values are persisted to
 // logs. Entries should not be renumbered and numeric values should never be
 // reused.
+// LINT.IfChange(BookmarkGUIDSource)
 enum class BookmarkGuidSource {
   // UUID came from specifics.
   kSpecifics = 0,
@@ -46,6 +49,7 @@ enum class BookmarkGuidSource {
   kLeftEmptyPossiblyForClientTag = 4,
   kMaxValue = kLeftEmptyPossiblyForClientTag,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:BookmarkGUIDSource)
 
 inline void LogGuidSource(BookmarkGuidSource source) {
   base::UmaHistogramEnumeration("Sync.BookmarkGUIDSource2", source);
@@ -87,14 +91,33 @@ std::string InferGuidForLegacyBookmark(
 
   const std::string unique_tag =
       base::StrCat({originator_cache_guid, originator_client_item_id});
-  const base::SHA1Digest hash =
-      base::SHA1HashSpan(base::as_bytes(base::make_span(unique_tag)));
+  const base::SHA1Digest hash = base::SHA1Hash(base::as_byte_span(unique_tag));
 
   static_assert(base::kSHA1Length >= 16, "16 bytes needed to infer UUID");
 
-  const std::string guid = ComputeUuidFromBytes(base::make_span(hash));
+  const std::string guid = ComputeUuidFromBytes(base::span(hash));
   DCHECK(base::Uuid::ParseLowercase(guid).is_valid());
   return guid;
+}
+
+// Legacy method to calculate unique position suffix for the bookmarks which did
+// not have client tag hash.
+UniquePosition::Suffix GenerateUniquePositionSuffixForBookmark(
+    const std::string& originator_cache_guid,
+    const std::string& originator_client_item_id) {
+  // Blank PB with just the field in it has termination symbol,
+  // handy for delimiter.
+  sync_pb::EntitySpecifics serialized_type;
+  AddDefaultFieldValue(BOOKMARKS, &serialized_type);
+  std::string hash_input;
+  serialized_type.AppendToString(&hash_input);
+  hash_input.append(originator_cache_guid + originator_client_item_id);
+  UniquePosition::Suffix suffix;
+  std::string suffix_str =
+      base::Base64Encode(base::SHA1Hash(base::as_byte_span(hash_input)));
+  CHECK_EQ(suffix.size(), suffix_str.size());
+  std::ranges::copy(suffix_str, suffix.begin());
+  return suffix;
 }
 
 sync_pb::UniquePosition GetUniquePositionFromSyncEntity(
@@ -103,12 +126,12 @@ sync_pb::UniquePosition GetUniquePositionFromSyncEntity(
     return update_entity.unique_position();
   }
 
-  std::string suffix;
+  UniquePosition::Suffix suffix;
   if (update_entity.has_originator_cache_guid() &&
       update_entity.has_originator_client_item_id()) {
-    suffix =
-        GenerateSyncableBookmarkHash(update_entity.originator_cache_guid(),
-                                     update_entity.originator_client_item_id());
+    suffix = GenerateUniquePositionSuffixForBookmark(
+        update_entity.originator_cache_guid(),
+        update_entity.originator_client_item_id());
   } else {
     suffix = UniquePosition::RandomSuffix();
   }
@@ -167,7 +190,7 @@ void AdaptTypeForBookmark(const sync_pb::SyncEntity& update_entity,
   }
   // Remaining cases should be unreachable today. In case SyncEntity.folder gets
   // removed in the future, with legacy data still being around prior to M94,
-  // infer folderness based on the present of field |url| (only populated for
+  // infer folderness based on the present of field `url` (only populated for
   // URL bookmarks).
   specifics->mutable_bookmark()->set_type(
       specifics->bookmark().has_url() ? sync_pb::BookmarkSpecifics::URL

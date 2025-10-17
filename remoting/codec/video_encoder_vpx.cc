@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/codec/video_encoder_vpx.h"
 
 #include <utility>
@@ -135,13 +140,13 @@ void SetVp9CodecOptions(vpx_codec_ctx_t* codec) {
 void FreeImageIfMismatched(bool use_i444,
                            const webrtc::DesktopSize& size,
                            std::unique_ptr<vpx_image_t>* out_image,
-                           std::unique_ptr<uint8_t[]>* out_image_buffer) {
+                           base::HeapArray<uint8_t>* out_image_buffer) {
   if (*out_image) {
     const vpx_img_fmt_t desired_fmt =
         use_i444 ? VPX_IMG_FMT_I444 : VPX_IMG_FMT_I420;
     if (!size.equals(webrtc::DesktopSize((*out_image)->w, (*out_image)->h)) ||
         (*out_image)->fmt != desired_fmt) {
-      out_image_buffer->reset();
+      *out_image_buffer = base::HeapArray<uint8_t>::Uninit(0);
       out_image->reset();
     }
   }
@@ -150,9 +155,9 @@ void FreeImageIfMismatched(bool use_i444,
 void CreateImage(bool use_i444,
                  const webrtc::DesktopSize& size,
                  std::unique_ptr<vpx_image_t>* out_image,
-                 std::unique_ptr<uint8_t[]>* out_image_buffer) {
+                 base::HeapArray<uint8_t>* out_image_buffer) {
   DCHECK(!size.is_empty());
-  DCHECK(!*out_image_buffer);
+  DCHECK(out_image_buffer->empty());
   DCHECK(!*out_image);
 
   std::unique_ptr<vpx_image_t> image(new vpx_image_t());
@@ -194,14 +199,15 @@ void CreateImage(bool use_i444,
 
   // Allocate a YUV buffer large enough for the aligned data & padding.
   const int buffer_size = y_stride * y_rows + 2 * uv_stride * uv_rows;
-  std::unique_ptr<uint8_t[]> image_buffer(new uint8_t[buffer_size]);
+  auto image_buffer = base::HeapArray<uint8_t>::Uninit(buffer_size);
 
   // Reset image value to 128 so we just need to fill in the y plane.
-  memset(image_buffer.get(), 128, buffer_size);
+  memset(image_buffer.data(), 128, buffer_size);
 
   // Fill in the information for |image_|.
   unsigned char* uchar_buffer =
-      reinterpret_cast<unsigned char*>(image_buffer.get());
+      reinterpret_cast<unsigned char*>(image_buffer.data());
+
   image->planes[0] = uchar_buffer;
   image->planes[1] = image->planes[0] + y_stride * y_rows;
   image->planes[2] = image->planes[1] + uv_stride * uv_rows;
@@ -270,7 +276,7 @@ std::unique_ptr<VideoPacket> VideoEncoderVpx::Encode(
   vpx_active_map_t act_map;
   act_map.rows = active_map_size_.height();
   act_map.cols = active_map_size_.width();
-  act_map.active_map = active_map_.get();
+  act_map.active_map = active_map_.data();
   if (vpx_codec_control(codec_.get(), VP8E_SET_ACTIVEMAP, &act_map)) {
     LOG(ERROR) << "Unable to apply active map";
   }
@@ -342,8 +348,8 @@ void VideoEncoderVpx::Configure(const webrtc::DesktopSize& size) {
   active_map_size_ = webrtc::DesktopSize(
       (size.width() + kMacroBlockSize - 1) / kMacroBlockSize,
       (size.height() + kMacroBlockSize - 1) / kMacroBlockSize);
-  active_map_.reset(
-      new uint8_t[active_map_size_.width() * active_map_size_.height()]);
+  active_map_ = base::HeapArray<uint8_t>::Uninit(active_map_size_.width() *
+                                                 active_map_size_.height());
 
   // TODO(wez): Remove this hack once VPX can handle frame size reconfiguration.
   // See https://code.google.com/p/webm/issues/detail?id=912.
@@ -469,14 +475,13 @@ void VideoEncoderVpx::PrepareImage(const webrtc::DesktopFrame& frame,
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
 void VideoEncoderVpx::SetActiveMapFromRegion(
     const webrtc::DesktopRegion& updated_region) {
   // Clear active map first.
-  memset(active_map_.get(), 0,
+  memset(active_map_.data(), 0,
          active_map_size_.width() * active_map_size_.height());
 
   // Mark updated areas active.
@@ -490,7 +495,7 @@ void VideoEncoderVpx::SetActiveMapFromRegion(
     DCHECK_LT(right, active_map_size_.width());
     DCHECK_LT(bottom, active_map_size_.height());
 
-    uint8_t* map = active_map_.get() + top * active_map_size_.width();
+    uint8_t* map = active_map_.data() + top * active_map_size_.width();
     for (int y = top; y <= bottom; ++y) {
       for (int x = left; x <= right; ++x) {
         map[x] = 1;
@@ -502,7 +507,7 @@ void VideoEncoderVpx::SetActiveMapFromRegion(
 
 void VideoEncoderVpx::UpdateRegionFromActiveMap(
     webrtc::DesktopRegion* updated_region) {
-  const uint8_t* map = active_map_.get();
+  const uint8_t* map = active_map_.data();
   for (int y = 0; y < active_map_size_.height(); ++y) {
     for (int x0 = 0; x0 < active_map_size_.width();) {
       int x1 = x0;

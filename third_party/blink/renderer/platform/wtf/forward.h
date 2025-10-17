@@ -42,13 +42,13 @@ class Vector;
 class AtomicString;
 class CaseMap;
 class OrdinalNumber;
+class SegmentedBuffer;
 class SharedBuffer;
 class String;
 class StringBuilder;
 class StringImpl;
 class StringView;
 class TextOffsetMap;
-class TextStream;
 
 }  // namespace WTF
 
@@ -56,6 +56,7 @@ using WTF::Vector;
 
 using WTF::AtomicString;
 using WTF::CaseMap;
+using WTF::SegmentedBuffer;
 using WTF::SharedBuffer;
 using WTF::String;
 using WTF::StringBuffer;

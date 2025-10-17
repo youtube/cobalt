@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
 
@@ -14,28 +15,13 @@ namespace media {
 class MockGpuVideoAcceleratorFactories;
 }  // namespace media
 
-namespace viz {
-class TestSharedImageInterface;
-}  // namespace viz
-
 namespace gpu {
 struct Capabilities;
-}
+struct SharedImageCapabilities;
+class TestSharedImageInterface;
+}  // namespace gpu
 
 namespace blink {
-
-class FakeGpuMemoryBufferSupport : public gpu::GpuMemoryBufferSupport {
- public:
-  std::unique_ptr<gpu::GpuMemoryBufferImpl> CreateGpuMemoryBufferImplFromHandle(
-      gfx::GpuMemoryBufferHandle handle,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      gpu::GpuMemoryBufferImpl::DestructionCallback callback,
-      gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager = nullptr,
-      scoped_refptr<base::UnsafeSharedMemoryPool> pool = nullptr,
-      base::span<uint8_t> premapped_memory = base::span<uint8_t>()) override;
-};
 
 class TestingPlatformSupportForGpuMemoryBuffer
     : public IOTaskRunnerTestingPlatformSupport {
@@ -45,12 +31,14 @@ class TestingPlatformSupportForGpuMemoryBuffer
   media::GpuVideoAcceleratorFactories* GetGpuFactories() override;
 
   void SetGpuCapabilities(gpu::Capabilities* capabilities);
+  void SetSharedImageCapabilities(
+      const gpu::SharedImageCapabilities& capabilities);
 
  private:
-  std::unique_ptr<viz::TestSharedImageInterface> sii_;
+  scoped_refptr<gpu::TestSharedImageInterface> sii_;
   std::unique_ptr<media::MockGpuVideoAcceleratorFactories> gpu_factories_;
   base::Thread media_thread_;
-  gpu::Capabilities* capabilities_ = nullptr;
+  raw_ptr<gpu::Capabilities> capabilities_ = nullptr;
 };
 
 }  // namespace blink

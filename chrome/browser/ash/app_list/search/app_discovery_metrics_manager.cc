@@ -4,15 +4,18 @@
 
 #include "chrome/browser/ash/app_list/search/app_discovery_metrics_manager.h"
 
+#include <utility>
+
 #include "ash/public/cpp/app_list/app_list_metrics.h"
 #include "chrome/browser/ash/app_list/search/common/types_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chromeos/ash/components/string_matching/fuzzy_tokenized_string_match.h"
 #include "chromeos/ash/components/string_matching/tokenized_string.h"
 #include "components/metrics/structured/structured_events.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_utils.h"
+#include "components/metrics/structured/structured_metrics_client.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_utils.h"
 
 namespace app_list {
 
@@ -51,21 +54,22 @@ void AppDiscoveryMetricsManager::OnOpenResult(ChromeSearchResult* result,
   std::string app_id = IsAppSyncEnabled() ? result->id() : "";
   std::u16string app_title = IsAppSyncEnabled() ? result->title() : u"";
 
-  cros_events::AppDiscovery_AppLauncherResultOpened()
-      .SetAppId(app_id)
-      .SetAppName(std::string(app_title.begin(), app_title.end()))
-      .SetFuzzyStringMatch(string_match_score)
-      .SetResultCategory(result->metrics_type())
-      .Record();
+  metrics::structured::StructuredMetricsClient::Record(
+      std::move(cros_events::AppDiscovery_AppLauncherResultOpened()
+                    .SetAppId(app_id)
+                    .SetAppName(std::string(app_title.begin(), app_title.end()))
+                    .SetFuzzyStringMatch(string_match_score)
+                    .SetResultCategory(result->metrics_type())));
 }
 
 void AppDiscoveryMetricsManager::OnLauncherOpen() {
-  cros_events::AppDiscovery_LauncherOpen().Record();
+  metrics::structured::StructuredMetricsClient::Record(
+      std::move(cros_events::AppDiscovery_LauncherOpen()));
 }
 
 bool AppDiscoveryMetricsManager::IsAppSyncEnabled() {
   switch (syncer::GetUploadToGoogleState(
-      SyncServiceFactory::GetForProfile(profile_), syncer::ModelType::APPS)) {
+      SyncServiceFactory::GetForProfile(profile_), syncer::DataType::APPS)) {
     case syncer::UploadState::NOT_ACTIVE:
       return false;
     case syncer::UploadState::INITIALIZING:

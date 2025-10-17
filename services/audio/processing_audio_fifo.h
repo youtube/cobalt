@@ -5,9 +5,10 @@
 #ifndef SERVICES_AUDIO_PROCESSING_AUDIO_FIFO_H_
 #define SERVICES_AUDIO_PROCESSING_AUDIO_FIFO_H_
 
+#include <string_view>
+
 #include "base/functional/callback_forward.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -35,10 +36,9 @@ class ProcessingAudioFifo {
       base::RepeatingCallback<void(const media::AudioBus&,
                                    base::TimeTicks,
                                    double,
-                                   bool,
                                    const media::AudioGlitchInfo&)>;
 
-  using LogCallback = base::RepeatingCallback<void(base::StringPiece)>;
+  using LogCallback = base::RepeatingCallback<void(std::string_view)>;
 
   // |processing_callback| will only be called back on the processing thread.
   ProcessingAudioFifo(const media::AudioParameters& input_params,
@@ -59,7 +59,6 @@ class ProcessingAudioFifo {
   void PushData(const media::AudioBus* audio_bus,
                 base::TimeTicks capture_time,
                 double volume,
-                bool key_pressed,
                 const media::AudioGlitchInfo& audio_glitch_info);
 
   // Starts the processing thread. Cannot be called more than once.
@@ -82,7 +81,8 @@ class ProcessingAudioFifo {
   class StatsReporter;
   struct CaptureData;
 
-  void StartInternal(base::WaitableEvent* new_data_captured);
+  void StartInternal(base::WaitableEvent* new_data_captured,
+                     base::Thread::Options options);
   void StopProcessingLoop();
 
   void ProcessAudioLoop(base::WaitableEvent* new_data_captured);

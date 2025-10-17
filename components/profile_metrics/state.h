@@ -7,36 +7,6 @@
 
 namespace profile_metrics {
 
-// State for a profile avatar, documenting what Chrome UI exactly shows.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class AvatarState {
-  // All SignedIn* states denote having a primary account (incl. unconsented,
-  // not necessarily syncing).
-  kSignedInGaia =
-      0,  // User has the avatar from GAIA (the default for signed-in users).
-  kSignedInModern = 1,    // User has explicitly selected a modern avatar.
-  kSignedInOld = 2,       // User has explicitly selected an old avatar.
-  kSignedOutDefault = 3,  // Grey silhouette.
-  kSignedOutModern = 4,   // User has explicitly selected a modern avatar.
-  kSignedOutOld = 5,      // User has explicitly selected an old avatar.
-  kMaxValue = kSignedOutOld
-};
-
-// State for a profile name, documenting what Chrome UI exactly shows.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class NameState {
-  kGaiaName = 0,            // The name of the user from Gaia.
-  kGaiaAndCustomName = 1,   // The name of the user from Gaia and the custom
-                            // local name specified by the user.
-  kGaiaAndDefaultName = 2,  // Chrome shows "Person X" alongside the Gaia name
-                            // because it is needed to resolve ambiguity.
-  kCustomName = 3,   // Only a custom name of the profile specified by the user.
-  kDefaultName = 4,  // Only "Person X" since there's nothing better.
-  kMaxValue = kDefaultName
-};
-
 // Type of the unconsented primary account in a profile.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -67,6 +37,10 @@ enum class AllAccountsNames {
 // suffix.
 enum class StateSuffix {
   kAll,                 // Recorded for all clients and all their profiles.
+  kAllManagedDevice,    // Recorded for all clients on a managed device and all
+                        // their profiles.
+  kAllUnmanagedDevice,  // Recorded for all clients on an unmanaged device and
+                        // all their profiles.
   kActiveMultiProfile,  // Recorded for multi-profile users with >=2 active
                         // profiles, for all their profiles.
   kLatentMultiProfile,  // Recorded for multi-profile users with one active
@@ -78,14 +52,8 @@ enum class StateSuffix {
                               // profiles.
   kSingleProfile,  // Recorded for single-profile users for their single
                    // profile.
-  kUponDeletion    // Recorded whenever a profile gets deleted.
+  kUponDeletion,   // Recorded whenever a profile gets deleted.
 };
-
-// Records the state of profile's avatar.
-void LogProfileAvatar(AvatarState avatar_state, StateSuffix suffix);
-
-// Records the state of profile's name.
-void LogProfileName(NameState name_state, StateSuffix suffix);
 
 // Records the state of profile's UPA.
 void LogProfileAccountType(UnconsentedPrimaryAccountType account_type,

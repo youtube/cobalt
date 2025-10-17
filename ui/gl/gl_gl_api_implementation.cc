@@ -4,6 +4,7 @@
 
 #include "ui/gl/gl_gl_api_implementation.h"
 
+#include <array>
 #include <vector>
 
 #include "base/command_line.h"
@@ -56,7 +57,6 @@ static inline GLenum GetTexInternalFormat(const GLVersionInfo* version,
           break;
         default:
           NOTREACHED();
-          break;
       }
       return gl_internal_format;
     } else if (internal_format == GL_RG_EXT) {
@@ -73,13 +73,12 @@ static inline GLenum GetTexInternalFormat(const GLVersionInfo* version,
           break;
         default:
           NOTREACHED();
-          break;
       }
       return gl_internal_format;
     }
   }
 
-  if (version->IsAtLeastGL(2, 1) || version->IsAtLeastGLES(3, 0)) {
+  if (version->IsAtLeastGLES(3, 0)) {
     switch (internal_format) {
       case GL_SRGB_EXT:
         gl_internal_format = GL_SRGB8;
@@ -105,18 +104,6 @@ static inline GLenum GetTexInternalFormat(const GLVersionInfo* version,
       case GL_RGB:
         gl_internal_format = GL_RGB32F;
         break;
-      case GL_LUMINANCE_ALPHA:
-        if (!version->is_es)
-          gl_internal_format = GL_LUMINANCE_ALPHA32F_ARB;
-        break;
-      case GL_LUMINANCE:
-        if (!version->is_es)
-          gl_internal_format = GL_LUMINANCE32F_ARB;
-        break;
-      case GL_ALPHA:
-        if (!version->is_es)
-          gl_internal_format = GL_ALPHA32F_ARB;
-        break;
       default:
         // We can't assert here because if the client context is ES3,
         // all sized internal_format will reach here.
@@ -130,18 +117,6 @@ static inline GLenum GetTexInternalFormat(const GLVersionInfo* version,
       case GL_RGB:
         gl_internal_format = GL_RGB16F;
         break;
-      case GL_LUMINANCE_ALPHA:
-        if (!version->is_es)
-          gl_internal_format = GL_LUMINANCE_ALPHA16F_ARB;
-        break;
-      case GL_LUMINANCE:
-        if (!version->is_es)
-          gl_internal_format = GL_LUMINANCE16F_ARB;
-        break;
-      case GL_ALPHA:
-        if (!version->is_es)
-          gl_internal_format = GL_ALPHA16F_ARB;
-        break;
       default:
         break;
     }
@@ -153,7 +128,7 @@ static inline GLenum GetTexInternalFormat(const GLVersionInfo* version,
 static inline GLenum GetTexFormat(const GLVersionInfo* version, GLenum format) {
   GLenum gl_format = format;
 
-  if (version->IsAtLeastGL(2, 1) || version->IsAtLeastGLES(3, 0)) {
+  if (version->IsAtLeastGLES(3, 0)) {
     switch (format) {
       case GL_SRGB_EXT:
         gl_format = GL_RGB;
@@ -172,20 +147,15 @@ static inline GLenum GetTexFormat(const GLVersionInfo* version, GLenum format) {
 static inline GLenum GetPixelType(const GLVersionInfo* version,
                                   GLenum type,
                                   GLenum format) {
-  if (!version->is_es2) {
-    if (type == GL_HALF_FLOAT_OES) {
-      if (version->is_es) {
-        // For ES3+, use HALF_FLOAT instead of HALF_FLOAT_OES whenever possible.
-        switch (format) {
-          case GL_LUMINANCE:
-          case GL_LUMINANCE_ALPHA:
-          case GL_ALPHA:
-            return type;
-          default:
-            break;
-        }
-      }
-      return GL_HALF_FLOAT;
+  if (!version->is_es2 && type == GL_HALF_FLOAT_OES) {
+    // For ES3+, use HALF_FLOAT instead of HALF_FLOAT_OES whenever possible.
+    switch (format) {
+      case GL_LUMINANCE:
+      case GL_LUMINANCE_ALPHA:
+      case GL_ALPHA:
+        return type;
+      default:
+        return GL_HALF_FLOAT;
     }
   }
   return type;
@@ -194,10 +164,6 @@ static inline GLenum GetPixelType(const GLVersionInfo* version,
 }  // anonymous namespace
 
 GLenum GetInternalFormat(const GLVersionInfo* version, GLenum internal_format) {
-  if (!version->is_es) {
-    if (internal_format == GL_BGRA_EXT || internal_format == GL_BGRA8_EXT)
-      return GL_RGBA8;
-  }
   if (version->is_es3 && version->is_mesa) {
     // Mesa bug workaround: Mipmapping does not work when using GL_BGRA_EXT
     if (internal_format == GL_BGRA_EXT)
@@ -211,6 +177,20 @@ void InitializeStaticGLBindingsGL() {
   g_no_context_current_gl->Api = new NoContextGLApi;
 }
 
+CurrentGL*& ThreadLocalCurrentGL() {
+  thread_local CurrentGL* current_gl = nullptr;
+  return current_gl;
+}
+
+CurrentGL* GetThreadLocalCurrentGL() {
+  // This prevents mutation of the thread local CurrentGL pointer.
+  return ThreadLocalCurrentGL();
+}
+
+void SetThreadLocalCurrentGL(CurrentGL* current) {
+  ThreadLocalCurrentGL() = current ? current : g_no_context_current_gl;
+}
+
 void ClearBindingsGL() {
   if (g_no_context_current_gl) {
     delete g_no_context_current_gl->Api;
@@ -219,8 +199,7 @@ void ClearBindingsGL() {
     delete g_no_context_current_gl;
     g_no_context_current_gl = nullptr;
   }
-
-  GetGlContextForCurrentThread() = nullptr;
+  ThreadLocalCurrentGL() = nullptr;
 }
 
 bool SetNullDrawGLBindingsEnabled(bool enabled) {
@@ -231,10 +210,6 @@ bool SetNullDrawGLBindingsEnabled(bool enabled) {
 
 bool GetNullDrawBindingsEnabled() {
   return g_null_draw_bindings_enabled;
-}
-
-void SetCurrentGL(CurrentGL* current) {
-  GetGlContextForCurrentThread() = current ? current : g_no_context_current_gl;
 }
 
 GLApi::GLApi() = default;
@@ -301,21 +276,6 @@ void RealGLApi::glTexImage2DFn(GLenum target,
   GLenum gl_format = GetTexFormat(version_.get(), format);
   GLenum gl_type = GetPixelType(version_.get(), type, format);
 
-  // TODO(yizhou): Check if cubemap, 3d texture or texture2d array has the same
-  // bug on intel mac.
-  if (!version_->is_angle && gl_workarounds_.reset_teximage2d_base_level &&
-      target == GL_TEXTURE_2D) {
-    GLint base_level = 0;
-    GLApiBase::glGetTexParameterivFn(target, GL_TEXTURE_BASE_LEVEL,
-                                     &base_level);
-    if (base_level) {
-      GLApiBase::glTexParameteriFn(target, GL_TEXTURE_BASE_LEVEL, 0);
-      GLApiBase::glTexImage2DFn(target, level, gl_internal_format, width,
-                                height, border, gl_format, gl_type, pixels);
-      GLApiBase::glTexParameteriFn(target, GL_TEXTURE_BASE_LEVEL, base_level);
-      return;
-    }
-  }
   GLApiBase::glTexImage2DFn(target, level, gl_internal_format, width, height,
                             border, gl_format, gl_type, pixels);
 }
@@ -426,21 +386,6 @@ void RealGLApi::glClearFn(GLbitfield mask) {
   }
 }
 
-void RealGLApi::glClearColorFn(GLclampf red,
-                               GLclampf green,
-                               GLclampf blue,
-                               GLclampf alpha) {
-  if (!version_->is_angle && gl_workarounds_.clear_to_zero_or_one_broken &&
-      (1 == red || 0 == red) && (1 == green || 0 == green) &&
-      (1 == blue || 0 == blue) && (1 == alpha || 0 == alpha)) {
-    if (1 == alpha)
-      alpha = 2;
-    else
-      alpha = -1;
-  }
-  GLApiBase::glClearColorFn(red, green, blue, alpha);
-}
-
 void RealGLApi::glDrawArraysFn(GLenum mode, GLint first, GLsizei count) {
   if (!g_null_draw_bindings_enabled) {
     GLApiBase::glDrawArraysFn(mode, first, count);
@@ -464,7 +409,7 @@ void RealGLApi::glClearDepthFn(GLclampd depth) {
   // OpenGL ES only has glClearDepthf, forward the parameters from glClearDepth.
   // Many mock tests expect only glClearDepth is called so don't make the
   // interception when testing with mocks.
-  if (version_->is_es && GetGLImplementation() != kGLImplementationMockGL) {
+  if (GetGLImplementation() != kGLImplementationMockGL) {
     DCHECK(driver_->fn.glClearDepthfFn);
     GLApiBase::glClearDepthfFn(static_cast<GLclampf>(depth));
   } else {
@@ -477,7 +422,7 @@ void RealGLApi::glDepthRangeFn(GLclampd z_near, GLclampd z_far) {
   // OpenGL ES only has glDepthRangef, forward the parameters from glDepthRange.
   // Many mock tests expect only glDepthRange is called so don't make the
   // interception when testing with mocks.
-  if (version_->is_es && GetGLImplementation() != kGLImplementationMockGL) {
+  if (GetGLImplementation() != kGLImplementationMockGL) {
     DCHECK(driver_->fn.glDepthRangefFn);
     GLApiBase::glDepthRangefFn(static_cast<GLclampf>(z_near),
                                static_cast<GLclampf>(z_far));
@@ -490,8 +435,8 @@ void RealGLApi::glDepthRangeFn(GLclampd z_near, GLclampd z_far) {
 void RealGLApi::glUseProgramFn(GLuint program) {
   ShaderTracking* shader_tracking = ShaderTracking::GetInstance();
   if (shader_tracking) {
-    std::vector<char> buffers[2];
-    char* strings[2] = {nullptr, nullptr};
+    std::array<std::vector<char>, 2> buffers;
+    std::array<char*, 2> strings = {};
     if (program) {
       // The following only works with ANGLE backend because ANGLE makes sure
       // a program's shaders are not actually deleted and source can still be
@@ -500,8 +445,8 @@ void RealGLApi::glUseProgramFn(GLuint program) {
       // Also, in theory, different shaders can be attached to the program
       // after the last link, but for now, ignore such corner case patterns.
       GLsizei count = 0;
-      GLuint shaders[2] = {0};
-      glGetAttachedShadersFn(program, 2, &count, shaders);
+      std::array<GLuint, 2> shaders = {};
+      glGetAttachedShadersFn(program, 2, &count, shaders.data());
       for (GLsizei ii = 0; ii < std::min(2, count); ++ii) {
         buffers[ii].resize(ShaderTracking::kMaxShaderSize);
         glGetShaderSourceFn(shaders[ii], ShaderTracking::kMaxShaderSize,
@@ -519,24 +464,11 @@ void RealGLApi::InitializeFilteredExtensionsIfNeeded() {
   if (filtered_exts_.size())
     return;
   DCHECK(filtered_exts_str_.empty());
-  if (WillUseGLGetStringForExtensions(this)) {
-    filtered_exts_str_ = FilterGLExtensionList(
-        reinterpret_cast<const char*>(GLApiBase::glGetStringFn(GL_EXTENSIONS)),
-        disabled_exts_);
-    filtered_exts_ = base::SplitString(
-        filtered_exts_str_, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  } else {
-    GLint num_extensions = 0;
-    GLApiBase::glGetIntegervFn(GL_NUM_EXTENSIONS, &num_extensions);
-    for (GLint i = 0; i < num_extensions; ++i) {
-      const char* gl_extension = reinterpret_cast<const char*>(
-          GLApiBase::glGetStringiFn(GL_EXTENSIONS, i));
-      DCHECK(gl_extension);
-      if (!base::Contains(disabled_exts_, gl_extension))
-        filtered_exts_.push_back(gl_extension);
-    }
-    filtered_exts_str_ = base::JoinString(filtered_exts_, " ");
-  }
+  filtered_exts_str_ = FilterGLExtensionList(
+      reinterpret_cast<const char*>(GLApiBase::glGetStringFn(GL_EXTENSIONS)),
+      disabled_exts_);
+  filtered_exts_ = base::SplitString(
+      filtered_exts_str_, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 }
 
 void RealGLApi::SetDisabledExtensions(const std::string& disabled_extensions) {
@@ -553,10 +485,6 @@ void RealGLApi::SetDisabledExtensions(const std::string& disabled_extensions) {
 void RealGLApi::ClearCachedGLExtensions() {
   filtered_exts_.clear();
   filtered_exts_str_.clear();
-}
-
-void RealGLApi::set_gl_workarounds(const GLWorkarounds& workarounds) {
-  gl_workarounds_ = workarounds;
 }
 
 void RealGLApi::set_version(std::unique_ptr<GLVersionInfo> version) {

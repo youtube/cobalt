@@ -13,23 +13,15 @@ import org.chromium.chrome.browser.browserservices.ui.controller.Verifier;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifier;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifierFactory;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.components.embedder_support.util.Origin;
-import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-import javax.inject.Inject;
-
-/**
- * Provides Trusted Web Activity specific behaviour for the {@link CurrentPageVerifier}.
- */
-@ActivityScope
+/** Provides Trusted Web Activity specific behaviour for the {@link CurrentPageVerifier}. */
 public class TwaVerifier implements Verifier, DestroyObserver {
     /** The Digital Asset Link relationship used for Trusted Web Activities. */
     private static final int RELATIONSHIP = CustomTabsService.RELATION_HANDLE_ALL_URLS;
@@ -40,32 +32,29 @@ public class TwaVerifier implements Verifier, DestroyObserver {
     /**
      * Origins that we have yet to call OriginVerifier#start on.
      *
-     * This value will be {@code null} until {@link #getPendingOrigins} is called (you can just use
-     * getPendingOrigins to get a ensured non-null value).
+     * <p>This value will be {@code null} until {@link #getPendingOrigins} is called (you can just
+     * use getPendingOrigins to get a ensured non-null value).
      */
-    @Nullable
-    private Set<Origin> mPendingOrigins;
+    @Nullable private Set<Origin> mPendingOrigins;
+
     private boolean mDestroyed;
 
-    /**
-     * All the origins that have been successfully verified.
-     */
-    private Set<Origin> mVerifiedOrigins = new HashSet<>();
+    /** All the origins that have been successfully verified. */
+    private final Set<Origin> mVerifiedOrigins = new HashSet<>();
 
-    @Inject
-    public TwaVerifier(ActivityLifecycleDispatcher lifecycleDispatcher,
+    public TwaVerifier(
+            ActivityLifecycleDispatcher lifecycleDispatcher,
             BrowserServicesIntentDataProvider intentDataProvider,
-            ChromeOriginVerifierFactory originVerifierFactory,
-            CustomTabActivityTabProvider tabProvider,
             ClientPackageNameProvider clientPackageNameProvider,
-            ExternalAuthUtils externalAuthUtils) {
+            CustomTabActivityTabProvider tabProvider) {
         mIntentDataProvider = intentDataProvider;
 
         // TODO(peconn): See if we can get rid of the dependency on Web Contents.
         WebContents webContents =
                 tabProvider.getTab() != null ? tabProvider.getTab().getWebContents() : null;
-        mOriginVerifier = originVerifierFactory.create(
-                clientPackageNameProvider.get(), RELATIONSHIP, webContents, externalAuthUtils);
+        mOriginVerifier =
+                ChromeOriginVerifierFactory.create(
+                        clientPackageNameProvider.get(), RELATIONSHIP, webContents);
 
         lifecycleDispatcher.register(this);
     }
@@ -82,14 +71,16 @@ public class TwaVerifier implements Verifier, DestroyObserver {
 
         Promise<Boolean> promise = new Promise<>();
         if (getPendingOrigins().contains(origin)) {
-            mOriginVerifier.start((packageName, unused, verified, online) -> {
-                if (mDestroyed) return;
+            mOriginVerifier.start(
+                    (packageName, unused, verified, online) -> {
+                        if (mDestroyed) return;
 
-                getPendingOrigins().remove(origin);
-                if (verified) mVerifiedOrigins.add(origin);
+                        getPendingOrigins().remove(origin);
+                        if (verified) mVerifiedOrigins.add(origin);
 
-                promise.fulfill(verified);
-            }, origin);
+                        promise.fulfill(verified);
+                    },
+                    origin);
 
         } else {
             promise.fulfill(mOriginVerifier.wasPreviouslyVerified(origin));
@@ -125,22 +116,12 @@ public class TwaVerifier implements Verifier, DestroyObserver {
         // mIntentDataProvider.getUrlToLoad requires native to be loaded.
 
         if (mPendingOrigins == null) {
-            mPendingOrigins = new HashSet<>();
-
-            Origin initialOrigin = Origin.create(mIntentDataProvider.getUrlToLoad());
-            if (initialOrigin != null) mPendingOrigins.add(initialOrigin);
-
-            List<String> additionalOrigins =
-                    mIntentDataProvider.getTrustedWebActivityAdditionalOrigins();
-
-            if (additionalOrigins != null) {
-                for (String originAsString : additionalOrigins) {
-                    Origin origin = Origin.create(originAsString);
-                    if (origin == null) continue;
-
-                    mPendingOrigins.add(origin);
-                }
-            }
+            Set<Origin> trustedOrigins = mIntentDataProvider.getAllTrustedWebActivityOrigins();
+            // This should not be null, since there should be at least one trusted origin for the
+            // TWA's url.
+            assert (trustedOrigins != null && trustedOrigins.size() > 0);
+            // Make a copy of the list since we modify it.
+            mPendingOrigins = new HashSet(trustedOrigins);
         }
 
         return mPendingOrigins;

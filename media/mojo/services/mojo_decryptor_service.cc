@@ -310,7 +310,6 @@ MojoDecoderBufferReader* MojoDecryptorService::GetBufferReader(
   }
 
   NOTREACHED() << "Unexpected stream_type: " << stream_type;
-  return nullptr;
 }
 
 }  // namespace media

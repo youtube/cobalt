@@ -4,11 +4,13 @@
 
 #include "components/password_manager/core/browser/ui/post_save_compromised_helper.h"
 
+#include <algorithm>
+
 #include "base/barrier_closure.h"
 #include "base/feature_list.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "components/password_manager/core/browser/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -20,11 +22,12 @@ namespace password_manager {
 constexpr auto kMaxTimeSinceLastCheck = base::Minutes(30);
 
 PostSaveCompromisedHelper::PostSaveCompromisedHelper(
-    const std::vector<const PasswordForm*>& compromised,
+    const base::span<const PasswordForm> compromised,
     const std::u16string& current_username) {
-  for (const PasswordForm* credential : compromised) {
-    if (credential->username_value == current_username)
-      current_leak_ = *credential;
+  for (const PasswordForm& credential : compromised) {
+    if (credential.username_value == current_username) {
+      current_leak_ = credential;
+    }
   }
 }
 
@@ -43,7 +46,8 @@ void PostSaveCompromisedHelper::AnalyzeLeakedCredentials(
   // If the check was never completed then |kLastTimePasswordCheckCompleted|
   // contains 0.
   if (!last_check_completed ||
-      base::Time::Now() - base::Time::FromDoubleT(last_check_completed) >=
+      base::Time::Now() -
+              base::Time::FromSecondsSinceUnixEpoch(last_check_completed) >=
           kMaxTimeSinceLastCheck) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
@@ -54,8 +58,9 @@ void PostSaveCompromisedHelper::AnalyzeLeakedCredentials(
   callback_ = std::move(callback);
 
   int awaiting_callbacks = 1;
-  if (account_store)
+  if (account_store) {
     awaiting_callbacks++;
+  }
 
   forms_received_ = base::BarrierClosure(
       awaiting_callbacks,
@@ -64,13 +69,14 @@ void PostSaveCompromisedHelper::AnalyzeLeakedCredentials(
           base::Unretained(this)));
 
   profile_store->GetAutofillableLogins(weak_ptr_factory_.GetWeakPtr());
-  if (account_store)
+  if (account_store) {
     account_store->GetAutofillableLogins(weak_ptr_factory_.GetWeakPtr());
+  }
 }
 
 void PostSaveCompromisedHelper::OnGetPasswordStoreResults(
     std::vector<std::unique_ptr<PasswordForm>> results) {
-  base::ranges::move(results, std::back_inserter(passwords_));
+  std::ranges::move(results, std::back_inserter(passwords_));
   forms_received_.Run();
 }
 
@@ -81,11 +87,12 @@ void PostSaveCompromisedHelper::AnalyzeLeakedCredentialsInternal() {
     if (current_leak_ &&
         form->username_value == current_leak_->username_value &&
         form->signon_realm == current_leak_->signon_realm) {
-      if (form->password_issues.empty())
+      if (form->password_issues.empty()) {
         compromised_password_changed = true;
+      }
     }
 
-    if (base::ranges::any_of(form->password_issues, [](const auto& issue) {
+    if (std::ranges::any_of(form->password_issues, [](const auto& issue) {
           return !issue.second.is_muted;
         })) {
       compromised_count_++;

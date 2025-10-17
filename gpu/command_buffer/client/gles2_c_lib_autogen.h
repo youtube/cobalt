@@ -1354,9 +1354,6 @@ void GL_APIENTRY GLES2MemoryBarrierEXT(GLbitfield barriers) {
 void GL_APIENTRY GLES2MemoryBarrierByRegion(GLbitfield barriers) {
   gles2::GetGLContext()->MemoryBarrierByRegion(barriers);
 }
-void GL_APIENTRY GLES2SwapBuffers(GLuint64 swap_id, GLbitfield flags) {
-  gles2::GetGLContext()->SwapBuffers(swap_id, flags);
-}
 GLuint GL_APIENTRY GLES2GetMaxValueInBufferCHROMIUM(GLuint buffer_id,
                                                     GLsizei count,
                                                     GLenum type,
@@ -1411,14 +1408,6 @@ void* GL_APIENTRY GLES2MapTexSubImage2DCHROMIUM(GLenum target,
 }
 void GL_APIENTRY GLES2UnmapTexSubImage2DCHROMIUM(const void* mem) {
   gles2::GetGLContext()->UnmapTexSubImage2DCHROMIUM(mem);
-}
-void GL_APIENTRY GLES2ResizeCHROMIUM(GLuint width,
-                                     GLuint height,
-                                     GLfloat scale_factor,
-                                     GLcolorSpace color_space,
-                                     GLboolean alpha) {
-  gles2::GetGLContext()->ResizeCHROMIUM(width, height, scale_factor,
-                                        color_space, alpha);
 }
 const GLchar* GL_APIENTRY GLES2GetRequestableExtensionsCHROMIUM() {
   return gles2::GetGLContext()->GetRequestableExtensionsCHROMIUM();
@@ -1534,13 +1523,6 @@ GLES2DrawElementsInstancedBaseVertexBaseInstanceANGLE(GLenum mode,
 void GL_APIENTRY GLES2VertexAttribDivisorANGLE(GLuint index, GLuint divisor) {
   gles2::GetGLContext()->VertexAttribDivisorANGLE(index, divisor);
 }
-void GL_APIENTRY GLES2ProduceTextureDirectCHROMIUM(GLuint texture,
-                                                   GLbyte* mailbox) {
-  gles2::GetGLContext()->ProduceTextureDirectCHROMIUM(texture, mailbox);
-}
-GLuint GL_APIENTRY GLES2CreateAndConsumeTextureCHROMIUM(const GLbyte* mailbox) {
-  return gles2::GetGLContext()->CreateAndConsumeTextureCHROMIUM(mailbox);
-}
 void GL_APIENTRY GLES2BindUniformLocationCHROMIUM(GLuint program,
                                                   GLint location,
                                                   const char* name) {
@@ -1563,9 +1545,6 @@ void GL_APIENTRY GLES2LoseContextCHROMIUM(GLenum current, GLenum other) {
 }
 void GL_APIENTRY GLES2DrawBuffersEXT(GLsizei count, const GLenum* bufs) {
   gles2::GetGLContext()->DrawBuffersEXT(count, bufs);
-}
-void GL_APIENTRY GLES2DiscardBackbufferCHROMIUM() {
-  gles2::GetGLContext()->DiscardBackbufferCHROMIUM();
 }
 void GL_APIENTRY GLES2FlushDriverCachesCHROMIUM() {
   gles2::GetGLContext()->FlushDriverCachesCHROMIUM();
@@ -1654,32 +1633,15 @@ void GL_APIENTRY GLES2BeginSharedImageAccessDirectCHROMIUM(GLuint texture,
 void GL_APIENTRY GLES2EndSharedImageAccessDirectCHROMIUM(GLuint texture) {
   gles2::GetGLContext()->EndSharedImageAccessDirectCHROMIUM(texture);
 }
-void GL_APIENTRY
-GLES2ConvertRGBAToYUVAMailboxesINTERNAL(GLenum planes_yuv_color_space,
-                                        GLenum plane_config,
-                                        GLenum subsampling,
-                                        const GLbyte* mailboxes) {
-  gles2::GetGLContext()->ConvertRGBAToYUVAMailboxesINTERNAL(
-      planes_yuv_color_space, plane_config, subsampling, mailboxes);
-}
-void GL_APIENTRY
-GLES2ConvertYUVAMailboxesToRGBINTERNAL(GLenum planes_yuv_color_space,
-                                       GLenum plane_config,
-                                       GLenum subsampling,
-                                       const GLbyte* mailboxes) {
-  gles2::GetGLContext()->ConvertYUVAMailboxesToRGBINTERNAL(
-      planes_yuv_color_space, plane_config, subsampling, mailboxes);
-}
 void GL_APIENTRY GLES2CopySharedImageINTERNAL(GLint xoffset,
                                               GLint yoffset,
                                               GLint x,
                                               GLint y,
                                               GLsizei width,
                                               GLsizei height,
-                                              GLboolean unpack_flip_y,
                                               const GLbyte* mailboxes) {
-  gles2::GetGLContext()->CopySharedImageINTERNAL(
-      xoffset, yoffset, x, y, width, height, unpack_flip_y, mailboxes);
+  gles2::GetGLContext()->CopySharedImageINTERNAL(xoffset, yoffset, x, y, width,
+                                                 height, mailboxes);
 }
 void GL_APIENTRY
 GLES2CopySharedImageToTextureINTERNAL(GLuint texture,
@@ -1690,13 +1652,13 @@ GLES2CopySharedImageToTextureINTERNAL(GLuint texture,
                                       GLint src_y,
                                       GLsizei width,
                                       GLsizei height,
-                                      GLboolean flip_y,
+                                      GLboolean is_dst_origin_top_left,
                                       const GLbyte* src_mailbox) {
   gles2::GetGLContext()->CopySharedImageToTextureINTERNAL(
       texture, target, internal_format, type, src_x, src_y, width, height,
-      flip_y, src_mailbox);
+      is_dst_origin_top_left, src_mailbox);
 }
-void GL_APIENTRY
+GLboolean GL_APIENTRY
 GLES2ReadbackARGBImagePixelsINTERNAL(const GLbyte* mailbox,
                                      const void* dst_color_space,
                                      GLuint dst_color_space_size,
@@ -1710,28 +1672,35 @@ GLES2ReadbackARGBImagePixelsINTERNAL(const GLbyte* mailbox,
                                      GLint src_y,
                                      GLint plane_index,
                                      void* pixels) {
-  gles2::GetGLContext()->ReadbackARGBImagePixelsINTERNAL(
+  return gles2::GetGLContext()->ReadbackARGBImagePixelsINTERNAL(
       mailbox, dst_color_space, dst_color_space_size, dst_size, dst_width,
       dst_height, dst_color_type, dst_alpha_type, dst_row_bytes, src_x, src_y,
       plane_index, pixels);
 }
-void GL_APIENTRY GLES2WritePixelsINTERNAL(const GLbyte* mailbox,
-                                          const void* src_color_space,
-                                          GLuint src_color_space_size,
-                                          GLuint src_size,
-                                          GLuint src_width,
-                                          GLuint src_height,
-                                          GLuint src_sk_color_type,
-                                          GLuint src_sk_alpha_type,
-                                          GLuint src_row_bytes,
-                                          GLint x_offset,
-                                          GLint y_offset,
-                                          GLint plane_index,
-                                          const void* src_pixels) {
-  gles2::GetGLContext()->WritePixelsINTERNAL(
-      mailbox, src_color_space, src_color_space_size, src_size, src_width,
-      src_height, src_sk_color_type, src_sk_alpha_type, src_row_bytes, x_offset,
-      y_offset, plane_index, src_pixels);
+void GL_APIENTRY GLES2WritePixelsYUVINTERNAL(const GLbyte* mailbox,
+                                             GLuint src_size_plane1,
+                                             GLuint src_size_plane2,
+                                             GLuint src_size_plane3,
+                                             GLuint src_size_plane4,
+                                             GLuint src_width,
+                                             GLuint src_height,
+                                             GLuint src_plane_config,
+                                             GLuint src_subsampling,
+                                             GLuint src_datatype,
+                                             GLuint src_row_bytes_plane1,
+                                             GLuint src_row_bytes_plane2,
+                                             GLuint src_row_bytes_plane3,
+                                             GLuint src_row_bytes_plane4,
+                                             const void* src_pixels_plane1,
+                                             const void* src_pixels_plane2,
+                                             const void* src_pixels_plane3,
+                                             const void* src_pixels_plane4) {
+  gles2::GetGLContext()->WritePixelsYUVINTERNAL(
+      mailbox, src_size_plane1, src_size_plane2, src_size_plane3,
+      src_size_plane4, src_width, src_height, src_plane_config, src_subsampling,
+      src_datatype, src_row_bytes_plane1, src_row_bytes_plane2,
+      src_row_bytes_plane3, src_row_bytes_plane4, src_pixels_plane1,
+      src_pixels_plane2, src_pixels_plane3, src_pixels_plane4);
 }
 void GL_APIENTRY GLES2EnableiOES(GLenum target, GLuint index) {
   gles2::GetGLContext()->EnableiOES(target, index);
@@ -1827,6 +1796,17 @@ GLES2GetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
                                                      GLint* params) {
   gles2::GetGLContext()->GetFramebufferPixelLocalStorageParameterivANGLE(
       plane, pname, params);
+}
+void GL_APIENTRY GLES2ClipControlEXT(GLenum origin, GLenum depth) {
+  gles2::GetGLContext()->ClipControlEXT(origin, depth);
+}
+void GL_APIENTRY GLES2PolygonModeANGLE(GLenum face, GLenum mode) {
+  gles2::GetGLContext()->PolygonModeANGLE(face, mode);
+}
+void GL_APIENTRY GLES2PolygonOffsetClampEXT(GLfloat factor,
+                                            GLfloat units,
+                                            GLfloat clamp) {
+  gles2::GetGLContext()->PolygonOffsetClampEXT(factor, units, clamp);
 }
 
 namespace gles2 {
@@ -2913,10 +2893,6 @@ extern const NameToFunc g_gles2_function_table[] = {
         reinterpret_cast<GLES2FunctionPointer>(glMemoryBarrierByRegion),
     },
     {
-        "glSwapBuffers",
-        reinterpret_cast<GLES2FunctionPointer>(glSwapBuffers),
-    },
-    {
         "glGetMaxValueInBufferCHROMIUM",
         reinterpret_cast<GLES2FunctionPointer>(glGetMaxValueInBufferCHROMIUM),
     },
@@ -2959,10 +2935,6 @@ extern const NameToFunc g_gles2_function_table[] = {
     {
         "glUnmapTexSubImage2DCHROMIUM",
         reinterpret_cast<GLES2FunctionPointer>(glUnmapTexSubImage2DCHROMIUM),
-    },
-    {
-        "glResizeCHROMIUM",
-        reinterpret_cast<GLES2FunctionPointer>(glResizeCHROMIUM),
     },
     {
         "glGetRequestableExtensionsCHROMIUM",
@@ -3031,15 +3003,6 @@ extern const NameToFunc g_gles2_function_table[] = {
         reinterpret_cast<GLES2FunctionPointer>(glVertexAttribDivisorANGLE),
     },
     {
-        "glProduceTextureDirectCHROMIUM",
-        reinterpret_cast<GLES2FunctionPointer>(glProduceTextureDirectCHROMIUM),
-    },
-    {
-        "glCreateAndConsumeTextureCHROMIUM",
-        reinterpret_cast<GLES2FunctionPointer>(
-            glCreateAndConsumeTextureCHROMIUM),
-    },
-    {
         "glBindUniformLocationCHROMIUM",
         reinterpret_cast<GLES2FunctionPointer>(glBindUniformLocationCHROMIUM),
     },
@@ -3062,10 +3025,6 @@ extern const NameToFunc g_gles2_function_table[] = {
     {
         "glDrawBuffersEXT",
         reinterpret_cast<GLES2FunctionPointer>(glDrawBuffersEXT),
-    },
-    {
-        "glDiscardBackbufferCHROMIUM",
-        reinterpret_cast<GLES2FunctionPointer>(glDiscardBackbufferCHROMIUM),
     },
     {
         "glFlushDriverCachesCHROMIUM",
@@ -3169,16 +3128,6 @@ extern const NameToFunc g_gles2_function_table[] = {
             glEndSharedImageAccessDirectCHROMIUM),
     },
     {
-        "glConvertRGBAToYUVAMailboxesINTERNAL",
-        reinterpret_cast<GLES2FunctionPointer>(
-            glConvertRGBAToYUVAMailboxesINTERNAL),
-    },
-    {
-        "glConvertYUVAMailboxesToRGBINTERNAL",
-        reinterpret_cast<GLES2FunctionPointer>(
-            glConvertYUVAMailboxesToRGBINTERNAL),
-    },
-    {
         "glCopySharedImageINTERNAL",
         reinterpret_cast<GLES2FunctionPointer>(glCopySharedImageINTERNAL),
     },
@@ -3193,8 +3142,8 @@ extern const NameToFunc g_gles2_function_table[] = {
             glReadbackARGBImagePixelsINTERNAL),
     },
     {
-        "glWritePixelsINTERNAL",
-        reinterpret_cast<GLES2FunctionPointer>(glWritePixelsINTERNAL),
+        "glWritePixelsYUVINTERNAL",
+        reinterpret_cast<GLES2FunctionPointer>(glWritePixelsYUVINTERNAL),
     },
     {
         "glEnableiOES",
@@ -3288,6 +3237,18 @@ extern const NameToFunc g_gles2_function_table[] = {
         "glGetFramebufferPixelLocalStorageParameterivANGLE",
         reinterpret_cast<GLES2FunctionPointer>(
             glGetFramebufferPixelLocalStorageParameterivANGLE),
+    },
+    {
+        "glClipControlEXT",
+        reinterpret_cast<GLES2FunctionPointer>(glClipControlEXT),
+    },
+    {
+        "glPolygonModeANGLE",
+        reinterpret_cast<GLES2FunctionPointer>(glPolygonModeANGLE),
+    },
+    {
+        "glPolygonOffsetClampEXT",
+        reinterpret_cast<GLES2FunctionPointer>(glPolygonOffsetClampEXT),
     },
     {
         nullptr,

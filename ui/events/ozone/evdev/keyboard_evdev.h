@@ -10,18 +10,20 @@
 #include <bitset>
 
 #include "base/component_export.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "ui/events/ozone/evdev/event_device_util.h"
 #include "ui/events/ozone/evdev/event_dispatch_callback.h"
 #include "ui/events/ozone/keyboard/event_auto_repeat_handler.h"
+#include "ui/events/ozone/keyboard/slow_keys_handler.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine.h"
 
 namespace ui {
 
 class EventModifiers;
-enum class DomCode;
+enum class DomCode : uint32_t;
 
 // Keyboard for evdev.
 //
@@ -32,14 +34,16 @@ enum class DomCode;
 class COMPONENT_EXPORT(EVDEV) KeyboardEvdev
     : public EventAutoRepeatHandler::Delegate {
  public:
-  KeyboardEvdev(EventModifiers* modifiers,
-                KeyboardLayoutEngine* keyboard_layout_engine,
-                const EventDispatchCallback& callback);
+  KeyboardEvdev(
+      EventModifiers* modifiers,
+      KeyboardLayoutEngine* keyboard_layout_engine,
+      const EventDispatchCallback& callback,
+      base::RepeatingCallback<void(bool)> any_keys_are_pressed_callback);
 
   KeyboardEvdev(const KeyboardEvdev&) = delete;
   KeyboardEvdev& operator=(const KeyboardEvdev&) = delete;
 
-  ~KeyboardEvdev();
+  virtual ~KeyboardEvdev();
 
   // Handlers for raw key presses & releases.
   //
@@ -68,8 +72,14 @@ class COMPONENT_EXPORT(EVDEV) KeyboardEvdev
                          const base::TimeDelta& interval);
   void GetAutoRepeatRate(base::TimeDelta* delay, base::TimeDelta* interval);
 
+  // Configuration for slow keys.
+  void SetSlowKeysEnabled(bool enabled);
+  bool IsSlowKeysEnabled() const;
+  void SetSlowKeysDelay(base::TimeDelta delay);
+
   // Handle keyboard layout changes.
-  bool SetCurrentLayoutByName(const std::string& layout_name);
+  void SetCurrentLayoutByName(const std::string& layout_name,
+                              base::OnceCallback<void(bool)> callback);
 
  private:
   void UpdateModifier(int modifier_flag, bool down);
@@ -86,6 +96,16 @@ class COMPONENT_EXPORT(EVDEV) KeyboardEvdev
                    int device_id,
                    int flags) override;
 
+  // Adapter function that simply reorders the arguments of OnKeyChange() for
+  // easier partial binding.
+  void OnKeyChangeCallbackAdapter(unsigned int key,
+                                  unsigned int scan_code,
+                                  bool down,
+                                  bool suppress_auto_repeat,
+                                  int device_id,
+                                  int flags,
+                                  base::TimeTicks timestamp);
+
   // Aggregated key state. There is only one bit of state per key; we do not
   // attempt to count presses of the same key on multiple keyboards.
   //
@@ -98,6 +118,8 @@ class COMPONENT_EXPORT(EVDEV) KeyboardEvdev
   // Callback for dispatching events.
   const EventDispatchCallback callback_;
 
+  const base::RepeatingCallback<void(bool)> any_keys_are_pressed_callback_;
+
   // Shared modifier state.
   const raw_ptr<EventModifiers> modifiers_;
 
@@ -106,6 +128,9 @@ class COMPONENT_EXPORT(EVDEV) KeyboardEvdev
 
   // Key repeat handler.
   EventAutoRepeatHandler auto_repeat_handler_;
+
+  // Slow keys handler.
+  SlowKeysHandler slow_keys_handler_;
 
   base::WeakPtrFactory<KeyboardEvdev> weak_ptr_factory_{this};
 };

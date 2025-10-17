@@ -16,19 +16,30 @@
 
 #include <emscripten/emscripten.h>
 
-#include "perfetto/base/logging.h"
-#include "perfetto/trace_processor/trace_processor.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <new>
+
+#include "perfetto/base/compiler.h"
 #include "src/trace_processor/rpc/rpc.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 
 namespace {
+using RpcResponseFn = void(const void*, uint32_t);
+
 Rpc* g_trace_processor_rpc;
 
 // The buffer used to pass the request arguments. The caller (JS) decides how
 // big this buffer should be in the Initialize() call.
 uint8_t* g_req_buf;
+
+PERFETTO_NO_INLINE void OutOfMemoryHandler() {
+  fprintf(stderr, "\nCannot enlarge memory\n");
+  abort();
+}
+
 }  // namespace
 
 // +---------------------------------------------------------------------------+
@@ -37,10 +48,17 @@ uint8_t* g_req_buf;
 extern "C" {
 
 // Returns the address of the allocated request buffer.
-uint8_t* EMSCRIPTEN_KEEPALIVE trace_processor_rpc_init(Rpc::RpcResponseFunction,
-                                                       uint32_t);
-uint8_t* trace_processor_rpc_init(Rpc::RpcResponseFunction resp_function,
+uint8_t* EMSCRIPTEN_KEEPALIVE
+trace_processor_rpc_init(RpcResponseFn* RpcResponseFn, uint32_t);
+uint8_t* trace_processor_rpc_init(RpcResponseFn* resp_function,
                                   uint32_t req_buffer_size) {
+  // Usually OOMs manifest as a failure in dlmalloc() -> sbrk() ->
+  //_emscripten_resize_heap() which aborts itself. However in some rare cases
+  // sbrk() can fail outside of _emscripten_resize_heap and just return null.
+  // When that happens, just abort with the same message that
+  // _emscripten_resize_heap uses, so error_dialog.ts shows a OOM message.
+  std::set_new_handler(&OutOfMemoryHandler);
+
   g_trace_processor_rpc = new Rpc();
 
   // |resp_function| is a JS-bound function passed by wasm_bridge.ts. It will
@@ -60,16 +78,15 @@ void trace_processor_on_rpc_request(uint32_t size) {
 }
 
 }  // extern "C"
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor
 
 int main(int, char**) {
   // This is unused but is needed for the following reasons:
   // - We need the callMain() Emscripten JS helper function for traceconv (but
   //   not for trace_processor).
   // - Newer versions of emscripten require that callMain is explicitly exported
-  //   via EXTRA_EXPORTED_RUNTIME_METHODS = ['callMain'].
-  // - We have one set of EXTRA_EXPORTED_RUNTIME_METHODS for both
+  //   via EXPORTED_RUNTIME_METHODS = ['callMain'].
+  // - We have one set of EXPORTED_RUNTIME_METHODS for both
   //   trace_processor.wasm (which does not need a main()) and traceconv (which
   //   does).
   // - Without this main(), the Wasm bootstrap code will cause a JS error at

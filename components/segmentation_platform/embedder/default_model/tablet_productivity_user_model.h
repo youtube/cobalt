@@ -6,7 +6,6 @@
 #define COMPONENTS_SEGMENTATION_PLATFORM_EMBEDDER_DEFAULT_MODEL_TABLET_PRODUCTIVITY_USER_MODEL_H_
 
 #include "components/segmentation_platform/public/model_provider.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace segmentation_platform {
 
@@ -14,7 +13,7 @@ struct Config;
 
 // Segmentation tablet productivity user model provider. Provides a default
 // model and metadata for the tablet productivity user optimization target.
-class TabletProductivityUserModel : public ModelProvider {
+class TabletProductivityUserModel : public DefaultModelProvider {
  public:
   TabletProductivityUserModel();
   ~TabletProductivityUserModel() override = default;
@@ -27,11 +26,10 @@ class TabletProductivityUserModel : public ModelProvider {
   static std::unique_ptr<Config> GetConfig();
 
   // ModelProvider implementation.
-  void InitAndFetchModel(
-      const ModelUpdatedCallback& model_updated_callback) override;
+  std::unique_ptr<ModelConfig> GetModelConfig() override;
+
   void ExecuteModelWithInput(const ModelProvider::Request& inputs,
                              ExecutionCallback callback) override;
-  bool ModelAvailable() override;
 };
 
 }  // namespace segmentation_platform

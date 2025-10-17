@@ -20,8 +20,7 @@
 #include "chromeos/ash/components/phonehub/proto/phonehub_api.pb.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel_types.mojom.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // CameraRollDownloadManager implementation.
 class CameraRollDownloadManagerImpl
@@ -74,12 +73,11 @@ class CameraRollDownloadManagerImpl
       const base::FilePath& file_path,
       int64_t file_size_bytes,
       CreatePayloadFilesCallback payload_files_callback,
-      absl::optional<secure_channel::mojom::PayloadFilesPtr> payload_files);
+      std::optional<secure_channel::mojom::PayloadFilesPtr> payload_files);
   int CalculateItemTransferRate(const DownloadItem& download_item) const;
 
   const base::FilePath download_path_;
-  raw_ptr<ash::HoldingSpaceKeyedService, ExperimentalAsh>
-      holding_space_keyed_service_;
+  raw_ptr<ash::HoldingSpaceKeyedService> holding_space_keyed_service_;
   // Performs blocking I/O operations for creating and deleting payload files.
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
@@ -89,7 +87,6 @@ class CameraRollDownloadManagerImpl
   base::WeakPtrFactory<CameraRollDownloadManagerImpl> weak_ptr_factory_{this};
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROME_BROWSER_ASH_PHONEHUB_CAMERA_ROLL_DOWNLOAD_MANAGER_IMPL_H_

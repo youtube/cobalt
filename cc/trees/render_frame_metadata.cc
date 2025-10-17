@@ -36,11 +36,7 @@ bool RenderFrameMetadata::operator==(const RenderFrameMetadata& other) const {
          external_page_scale_factor == other.external_page_scale_factor &&
          top_controls_height == other.top_controls_height &&
          top_controls_shown_ratio == other.top_controls_shown_ratio &&
-         previous_surfaces_visual_update_duration ==
-             other.previous_surfaces_visual_update_duration &&
-         current_surface_visual_update_duration ==
-             other.current_surface_visual_update_duration &&
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
          bottom_controls_height == other.bottom_controls_height &&
          bottom_controls_shown_ratio == other.bottom_controls_shown_ratio &&
          top_controls_min_height_offset ==
@@ -55,7 +51,9 @@ bool RenderFrameMetadata::operator==(const RenderFrameMetadata& other) const {
          has_transparent_background == other.has_transparent_background &&
 #endif
          local_surface_id == other.local_surface_id &&
-         new_vertical_scroll_direction == other.new_vertical_scroll_direction;
+         new_vertical_scroll_direction == other.new_vertical_scroll_direction &&
+         primary_main_frame_item_sequence_number ==
+             other.primary_main_frame_item_sequence_number;
 }
 
 bool RenderFrameMetadata::operator!=(const RenderFrameMetadata& other) const {

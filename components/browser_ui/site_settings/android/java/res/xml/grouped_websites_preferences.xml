@@ -18,15 +18,18 @@ found in the LICENSE file.
         android:title="@string/website_settings_usage_category" />
     <org.chromium.components.browser_ui.site_settings.ClearWebsiteStorage
         android:key="clear_data"
-        android:title="@string/webstorage_clear_data_dialog_title"
-        android:positiveButtonText="@string/webstorage_clear_data_dialog_ok_button"
+        android:title="@string/webstorage_delete_data_dialog_title"
+        android:positiveButtonText="@string/webstorage_delete_data_dialog_ok_button"
         android:negativeButtonText="@string/cancel"
         android:widgetLayout="@layout/clear_storage" />
     <PreferenceCategory
-        android:key="related_sites_header"
+        android:key="related_sites"
         android:title="@string/website_settings_related_sites" />
-    <org.chromium.components.browser_ui.settings.TextMessagePreference
-        android:key="related_sites" />
+    <org.chromium.components.browser_ui.settings.ButtonPreference
+        android:key="related_sites_delete_data_button"
+        android:title="@string/site_settings_rws_delete_button_label"
+        app:allowDividerAbove="false"
+        app:allowDividerBelow="true" />
     <PreferenceCategory
         android:key="sites_in_group" />
     <org.chromium.components.browser_ui.settings.ButtonPreference

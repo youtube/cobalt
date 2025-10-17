@@ -135,7 +135,6 @@ uint8_t BluetoothRemoteGattServiceWinrt::ToProtocolError(
   }
 
   NOTREACHED();
-  return 0x00;
 }
 
 BluetoothRemoteGattServiceWinrt::BluetoothRemoteGattServiceWinrt(

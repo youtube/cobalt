@@ -12,9 +12,13 @@
 #include "ash/system/status_area_widget_test_helper.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "base/command_line.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/string_split.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/ash/login/login_manager_test.h"
 #include "chrome/browser/ash/login/login_wizard.h"
@@ -29,12 +33,15 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screens_utils.h"
+#include "chrome/browser/ash/login/test/scoped_policy_update.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/login/test/test_predicate_waiter.h"
 #include "chrome/browser/ash/login/test/user_adding_screen_utils.h"
-#include "chrome/browser/ash/login/ui/login_display_host_webui.h"
+#include "chrome/browser/ash/login/test/user_auth_config.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
+#include "chrome/browser/ui/ash/login/login_display_host_webui.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
@@ -44,18 +51,21 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/userdataauth/fake_userdataauth_client.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/user_manager/known_user.h"
 #include "components/user_manager/user_names.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
+#include "extensions/browser/extension_system.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/events/test/event_generator.h"
 
 namespace ash {
 
@@ -87,6 +97,57 @@ class LoginCursorTest : public OobeBaseTest {
   LoginCursorTest() = default;
   ~LoginCursorTest() override = default;
 };
+
+class WebUiSyslogTest : public OobeBaseTest {
+ public:
+  WebUiSyslogTest() = default;
+  ~WebUiSyslogTest() override = default;
+
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    log_file_path_ = temp_dir_.GetPath().AppendASCII("test.log");
+    OobeBaseTest::SetUp();
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    command_line->AppendSwitch(switches::kEnableOobeTestAPI);
+    command_line->AppendSwitch(::switches::kEnableLogging);
+    command_line->AppendSwitchPath(::switches::kLogFile, log_file_path_);
+    OobeBaseTest::SetUpCommandLine(command_line);
+  }
+
+  void ExpectMessageInLogs(const std::string message) {
+    base::RunLoop().RunUntilIdle();
+    std::string log_content;
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::ReadFileToString(log_file_path_, &log_content))
+        << "Failed to read log file: " << log_file_path_.value();
+    EXPECT_THAT(log_content, testing::HasSubstr(message))
+        << "Log file content:\n"
+        << log_content;
+  }
+
+ private:
+  base::ScopedTempDir temp_dir_;
+  base::FilePath log_file_path_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebUiSyslogTest, ExplicitInvocation) {
+  test::OobeJS().CreateWaiter("window.OobeAPI")->Wait();
+
+  const std::string message = "WEBUI_SYSLOG_MESSAGE_TEST";
+  test::OobeJS().Evaluate(
+      base::StringPrintf("OobeAPI.emitLoginSyslog('%s')", message.c_str()));
+
+  ExpectMessageInLogs(message);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUiSyslogTest, OobeSignalsLoadCompletion) {
+  // Wait for OOBE to load and for logs to be emitted.
+  test::WaitForWelcomeScreen();
+
+  ExpectMessageInLogs("OOBE finished loading");
+}
 
 using LoginSigninTest = LoginManagerTest;
 
@@ -120,9 +181,7 @@ class LoginOnlineCryptohomeError : public LoginManagerTest {
   LoginManagerMixin::TestUserInfo reauth_user_{
       AccountId::FromUserEmailGaiaId(FakeGaiaMixin::kFakeUserEmail,
                                      FakeGaiaMixin::kFakeUserGaiaId),
-      user_manager::USER_TYPE_REGULAR,
-      /* invalid token status to force online signin */
-      user_manager::User::OAUTH2_TOKEN_STATUS_INVALID};
+      test::UserAuthConfig::Create(test::kDefaultAuthSetup).RequireReauth()};
   LoginManagerMixin login_manager_{&mixin_host_, {reauth_user_}};
   FakeGaiaMixin fake_gaia_{&mixin_host_};
 };
@@ -136,7 +195,8 @@ IN_PROC_BROWSER_TEST_F(LoginOnlineCryptohomeError, FatalScreenShown) {
   EXPECT_TRUE(LoginScreenTestApi::IsOobeDialogVisible());
   FakeUserDataAuthClient::Get()->SetNextOperationError(
       FakeUserDataAuthClient::Operation::kStartAuthSession,
-      user_data_auth::CRYPTOHOME_ERROR_MOUNT_FATAL);
+      cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+          user_data_auth::CRYPTOHOME_ERROR_MOUNT_FATAL));
 
   LoginDisplayHost::default_host()
       ->GetOobeUI()
@@ -154,7 +214,8 @@ IN_PROC_BROWSER_TEST_F(LoginOfflineTest, FatalScreenShown) {
   EXPECT_FALSE(LoginScreenTestApi::IsOobeDialogVisible());
   FakeUserDataAuthClient::Get()->SetNextOperationError(
       FakeUserDataAuthClient::Operation::kAuthenticateAuthFactor,
-      user_data_auth::CRYPTOHOME_ERROR_TPM_UPDATE_REQUIRED);
+      cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+          user_data_auth::CRYPTOHOME_ERROR_TPM_UPDATE_REQUIRED));
   LoginScreenTestApi::SubmitPassword(test_account_id_, "password",
                                      /*check_if_submittable=*/false);
   OobeScreenWaiter(SignInFatalErrorView::kScreenId).Wait();
@@ -165,7 +226,8 @@ IN_PROC_BROWSER_TEST_F(LoginOfflineTest, FatalScreenNotShown) {
   EXPECT_FALSE(LoginScreenTestApi::IsOobeDialogVisible());
   FakeUserDataAuthClient::Get()->SetNextOperationError(
       FakeUserDataAuthClient::Operation::kAuthenticateAuthFactor,
-      user_data_auth::CRYPTOHOME_ERROR_AUTHORIZATION_KEY_FAILED);
+      cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+          user_data_auth::CRYPTOHOME_ERROR_AUTHORIZATION_KEY_FAILED));
   LoginScreenTestApi::SubmitPassword(test_account_id_, "password",
                                      /*check_if_submittable=*/false);
   // Inserted RunUntilIdle here to give maximum chances for the dialog to show
@@ -291,12 +353,17 @@ IN_PROC_BROWSER_TEST_F(LoginGuestTest, GuestIsOTR) {
 
 // Verifies the cursor is hidden at startup on login screen.
 IN_PROC_BROWSER_TEST_F(LoginCursorTest, CursorHidden) {
-  OobeScreenWaiter(WelcomeView::kScreenId).Wait();
+  test::WaitForWelcomeScreen();
   // Cursor should be hidden at startup
   EXPECT_FALSE(Shell::Get()->cursor_manager()->IsCursorVisible());
 
   // Cursor should be shown after cursor is moved.
-  EXPECT_TRUE(ui_test_utils::SendMouseMoveSync(gfx::Point()));
+  auto* root = ash::Shell::GetPrimaryRootWindow();
+  LoginDisplayHost* host = LoginDisplayHost::default_host();
+  ASSERT_TRUE(host && host->GetOobeWebContents());
+  auto* window = host->GetOobeWebContents()->GetTopLevelNativeWindow();
+  ui::test::EventGenerator generator(root, window);
+  generator.MoveMouseToCenterOf(window);
   EXPECT_TRUE(Shell::Get()->cursor_manager()->IsCursorVisible());
 
   TestSystemTrayIsVisible();
@@ -313,7 +380,7 @@ IN_PROC_BROWSER_TEST_F(LoginOfflineTest, PRE_AuthOffline) {
 
 IN_PROC_BROWSER_TEST_F(LoginOfflineTest, AuthOffline) {
   network_portal_detector_.SimulateDefaultNetworkState(
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_OFFLINE);
+      NetworkPortalDetectorMixin::NetworkStatus::kOffline);
   offline_login_test_mixin_.GoOffline();
   offline_login_test_mixin_.InitOfflineLogin(test_account_id_,
                                              LoginManagerTest::kPassword);

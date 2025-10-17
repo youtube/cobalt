@@ -11,8 +11,14 @@
 #include "video/encoder_overshoot_detector.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 
+#include "api/units/data_rate.h"
+#include "api/video/video_codec_type.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
@@ -136,13 +142,13 @@ double EncoderOvershootDetector::HandleEncodedFrame(
   return utilization_factor;
 }
 
-absl::optional<double>
-EncoderOvershootDetector::GetNetworkRateUtilizationFactor(int64_t time_ms) {
+std::optional<double> EncoderOvershootDetector::GetNetworkRateUtilizationFactor(
+    int64_t time_ms) {
   CullOldUpdates(time_ms);
 
   // No data points within window, return.
   if (utilization_factors_.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // TODO(sprang): Consider changing from arithmetic mean to some other
@@ -150,13 +156,13 @@ EncoderOvershootDetector::GetNetworkRateUtilizationFactor(int64_t time_ms) {
   return sum_network_utilization_factors_ / utilization_factors_.size();
 }
 
-absl::optional<double> EncoderOvershootDetector::GetMediaRateUtilizationFactor(
+std::optional<double> EncoderOvershootDetector::GetMediaRateUtilizationFactor(
     int64_t time_ms) {
   CullOldUpdates(time_ms);
 
   // No data points within window, return.
   if (utilization_factors_.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return sum_media_utilization_factors_ / utilization_factors_.size();
@@ -266,8 +272,13 @@ void EncoderOvershootDetector::UpdateHistograms() {
       RTC_HISTOGRAMS_COUNTS_10000(index, overshoot_histogram_prefix + "H264",
                                   average_overshoot_percent);
       break;
+    case VideoCodecType::kVideoCodecH265:
+      RTC_HISTOGRAMS_COUNTS_10000(index, rmse_histogram_prefix + "H265",
+                                  bitrate_rmse);
+      RTC_HISTOGRAMS_COUNTS_10000(index, overshoot_histogram_prefix + "H265",
+                                  average_overshoot_percent);
+      break;
     case VideoCodecType::kVideoCodecGeneric:
-    case VideoCodecType::kVideoCodecMultiplex:
       break;
   }
 }

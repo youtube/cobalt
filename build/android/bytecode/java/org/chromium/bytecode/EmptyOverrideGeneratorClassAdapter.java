@@ -7,7 +7,7 @@ package org.chromium.bytecode;
 import static org.objectweb.asm.Opcodes.ACC_ABSTRACT;
 import static org.objectweb.asm.Opcodes.ACC_INTERFACE;
 import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ASM7;
+import static org.objectweb.asm.Opcodes.ASM9;
 import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.IRETURN;
@@ -26,12 +26,17 @@ class EmptyOverrideGeneratorClassAdapter extends ClassVisitor {
 
     public EmptyOverrideGeneratorClassAdapter(
             ClassVisitor cv, ArrayList<MethodDescription> methodsToGenerate) {
-        super(ASM7, cv);
+        super(ASM9, cv);
         mMethodsToGenerate = methodsToGenerate;
     }
 
     @Override
-    public void visit(int version, int access, String name, String signature, String superName,
+    public void visit(
+            int version,
+            int access,
+            String name,
+            String signature,
+            String superName,
             String[] interfaces) {
         super.visit(version, access, name, signature, superName, interfaces);
 
@@ -52,8 +57,9 @@ class EmptyOverrideGeneratorClassAdapter extends ClassVisitor {
                 continue;
             }
 
-            MethodVisitor mv = super.visitMethod(
-                    method.access, method.methodName, method.description, null, null);
+            MethodVisitor mv =
+                    super.visitMethod(
+                            method.access, method.methodName, method.description, null, null);
             writeOverrideCode(mv, method.access, method.methodName, method.description);
         }
 

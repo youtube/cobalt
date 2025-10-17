@@ -9,30 +9,32 @@
  * wallpaper collection id to avoid refetching data unnecessarily.
  */
 
-import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import 'chrome://resources/ash/common/personalization/common.css.js';
+import 'chrome://resources/ash/common/personalization/wallpaper.css.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
-import '../../css/wallpaper.css.js';
+import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import '../../common/icons.html.js';
-import '../../css/common.css.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
-import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
+import type {WallpaperGridItemSelectedEvent} from 'chrome://resources/ash/common/personalization/wallpaper_grid_item_element.js';
+import {isImageDataUrl, isNonEmptyFilePath} from 'chrome://resources/ash/common/sea_pen/sea_pen_utils.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {afterNextRender} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {CurrentWallpaper, WallpaperProviderInterface, WallpaperType} from '../../personalization_app.mojom-webui.js';
+import type {CurrentWallpaper, WallpaperProviderInterface} from '../../personalization_app.mojom-webui.js';
+import {WallpaperType} from '../../personalization_app.mojom-webui.js';
 import {WithPersonalizationStore} from '../personalization_store.js';
-import {isImageDataUrl} from '../utils.js';
 
-import {DefaultImageSymbol, DisplayableImage, kDefaultImageSymbol} from './constants.js';
+import type {DefaultImageSymbol, DisplayableImage} from './constants.js';
+import {kDefaultImageSymbol} from './constants.js';
 import {getTemplate} from './local_images_element.html.js';
-import {getPathOrSymbol, isDefaultImage, isFilePath} from './utils.js';
-import {fetchLocalData, getDefaultImageThumbnail, selectWallpaper} from './wallpaper_controller.js';
-import {WallpaperGridItemSelectedEvent} from './wallpaper_grid_item_element.js';
+import {getPathOrSymbol, isDefaultImage} from './utils.js';
+import {selectWallpaper} from './wallpaper_controller.js';
 import {getWallpaperProvider} from './wallpaper_interface_provider.js';
 
 
-export class LocalImages extends WithPersonalizationStore {
+export class LocalImagesElement extends WithPersonalizationStore {
   static get is() {
     return 'local-images';
   }
@@ -43,13 +45,6 @@ export class LocalImages extends WithPersonalizationStore {
 
   static get properties() {
     return {
-      hidden: {
-        type: Boolean,
-        value: true,
-        reflectToAttribute: true,
-        observer: 'onHiddenChanged_',
-      },
-
       images_: {
         type: Array,
         observer: 'onImagesChanged_',
@@ -77,8 +72,6 @@ export class LocalImages extends WithPersonalizationStore {
     return ['onImageLoaded_(imageData_, imageDataLoading_)'];
   }
 
-  override hidden: boolean;
-
   private wallpaperProvider_: WallpaperProviderInterface;
   private images_: Array<FilePath|DefaultImageSymbol>|null;
   private imageData_: Record<FilePath['path']|DefaultImageSymbol, Url>;
@@ -93,43 +86,30 @@ export class LocalImages extends WithPersonalizationStore {
     this.wallpaperProvider_ = getWallpaperProvider();
   }
 
-  override connectedCallback() {
-    super.connectedCallback();
-    this.watch<LocalImages['images_']>(
-        'images_', state => state.wallpaper.local.images);
-    this.watch<LocalImages['imageData_']>(
-        'imageData_', state => state.wallpaper.local.data);
-    this.watch<LocalImages['imageDataLoading_']>(
-        'imageDataLoading_', state => state.wallpaper.loading.local.data);
-    this.watch<LocalImages['currentSelected_']>(
-        'currentSelected_', state => state.wallpaper.currentSelected);
-    this.watch<LocalImages['pendingSelected_']>(
-        'pendingSelected_', state => state.wallpaper.pendingSelected);
-    this.updateFromStore();
-    getDefaultImageThumbnail(this.wallpaperProvider_, this.getStore());
-    fetchLocalData(this.wallpaperProvider_, this.getStore());
-    window.addEventListener('focus', () => {
-      fetchLocalData(this.wallpaperProvider_, this.getStore());
+  override ready() {
+    super.ready();
+    afterNextRender(this, () => {
+      this.shadowRoot!.getElementById('main')!.focus();
     });
   }
 
-  /**
-   * When iron-list items change while parent element is hidden, iron-list will
-   * render incorrectly. Force another layout to happen by calling iron-resize
-   * when this element is visible again.
-   */
-  private onHiddenChanged_(hidden: boolean) {
-    if (!hidden) {
-      document.title = this.i18n('myImagesLabel');
-      this.shadowRoot!.getElementById('main')!.focus();
-      afterNextRender(this, () => {
-        this.shadowRoot!.querySelector('iron-list')!.fire('iron-resize');
-      });
-    }
+  override connectedCallback() {
+    super.connectedCallback();
+    this.watch<LocalImagesElement['images_']>(
+        'images_', state => state.wallpaper.local.images);
+    this.watch<LocalImagesElement['imageData_']>(
+        'imageData_', state => state.wallpaper.local.data);
+    this.watch<LocalImagesElement['imageDataLoading_']>(
+        'imageDataLoading_', state => state.wallpaper.loading.local.data);
+    this.watch<LocalImagesElement['currentSelected_']>(
+        'currentSelected_', state => state.wallpaper.currentSelected);
+    this.watch<LocalImagesElement['pendingSelected_']>(
+        'pendingSelected_', state => state.wallpaper.pendingSelected);
+    this.updateFromStore();
   }
 
   /** Sets |imagesToDisplay| when a new set of local images loads. */
-  private onImagesChanged_(images: LocalImages['images_']) {
+  private onImagesChanged_(images: LocalImagesElement['images_']) {
     this.imagesToDisplay_ = (images || []).filter(image => {
       const key = getPathOrSymbol(image);
       if (this.imageDataLoading_[key] === false) {
@@ -144,8 +124,8 @@ export class LocalImages extends WithPersonalizationStore {
    * from the list of displayed images if it has failed to load.
    */
   private onImageLoaded_(
-      imageData: LocalImages['imageData_'],
-      imageDataLoading: LocalImages['imageDataLoading_']) {
+      imageData: LocalImagesElement['imageData_'],
+      imageDataLoading: LocalImagesElement['imageDataLoading_']) {
     if (!imageData || !imageDataLoading) {
       return;
     }
@@ -164,8 +144,8 @@ export class LocalImages extends WithPersonalizationStore {
 
   private isImageSelected_(
       image: FilePath|DefaultImageSymbol|null,
-      currentSelected: LocalImages['currentSelected_'],
-      pendingSelected: LocalImages['pendingSelected_']): boolean {
+      currentSelected: LocalImagesElement['currentSelected_'],
+      pendingSelected: LocalImagesElement['pendingSelected_']): boolean {
     if (!image || (!currentSelected && !pendingSelected)) {
       return false;
     }
@@ -176,21 +156,22 @@ export class LocalImages extends WithPersonalizationStore {
            currentSelected.type === WallpaperType.kDefault));
     }
     return (
-        isFilePath(pendingSelected) && image.path === pendingSelected.path ||
+        isNonEmptyFilePath(pendingSelected) &&
+            image.path === pendingSelected.path ||
         !!currentSelected && image.path === currentSelected.key &&
             !pendingSelected);
   }
 
   private getAriaLabel_(
       image: FilePath|DefaultImageSymbol|null,
-      imageDataLoading: LocalImages['imageDataLoading_']): string {
+      imageDataLoading: LocalImagesElement['imageDataLoading_']): string {
     if (this.isImageLoading_(image, imageDataLoading)) {
       return this.i18n('ariaLabelLoading');
     }
     if (isDefaultImage(image)) {
       return this.i18n('defaultWallpaper');
     }
-    if (!isFilePath(image)) {
+    if (!isNonEmptyFilePath(image)) {
       return '';
     }
     const path = image.path;
@@ -199,7 +180,7 @@ export class LocalImages extends WithPersonalizationStore {
 
   private isImageLoading_(
       image: FilePath|DefaultImageSymbol|null,
-      imageDataLoading: LocalImages['imageDataLoading_']): boolean {
+      imageDataLoading: LocalImagesElement['imageDataLoading_']): boolean {
     if (!image || !imageDataLoading) {
       return true;
     }
@@ -212,8 +193,8 @@ export class LocalImages extends WithPersonalizationStore {
 
   private getImageData_(
       image: FilePath|DefaultImageSymbol|null,
-      imageData: LocalImages['imageData_'],
-      imageDataLoading: LocalImages['imageDataLoading_']): Url|null {
+      imageData: LocalImagesElement['imageData_'],
+      imageDataLoading: LocalImagesElement['imageDataLoading_']): Url|null {
     if (!image || this.isImageLoading_(image, imageDataLoading)) {
       return null;
     }
@@ -229,14 +210,14 @@ export class LocalImages extends WithPersonalizationStore {
     if (!image) {
       return '';
     }
-    return isFilePath(image) ? image.path : image.toString();
+    return isNonEmptyFilePath(image) ? image.path : image.toString();
   }
 
   private onImageSelected_(event: WallpaperGridItemSelectedEvent&
                            {model: {item: FilePath | DefaultImageSymbol}}) {
     assert(
         event.model.item === kDefaultImageSymbol ||
-            isFilePath(event.model.item),
+            isNonEmptyFilePath(event.model.item),
         'local image is a file path or default image');
     selectWallpaper(event.model.item, this.wallpaperProvider_, this.getStore());
   }
@@ -246,4 +227,4 @@ export class LocalImages extends WithPersonalizationStore {
   }
 }
 
-customElements.define(LocalImages.is, LocalImages);
+customElements.define(LocalImagesElement.is, LocalImagesElement);

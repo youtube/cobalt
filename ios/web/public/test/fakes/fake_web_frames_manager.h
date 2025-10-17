@@ -5,11 +5,11 @@
 #ifndef IOS_WEB_PUBLIC_TEST_FAKES_FAKE_WEB_FRAMES_MANAGER_H_
 #define IOS_WEB_PUBLIC_TEST_FAKES_FAKE_WEB_FRAMES_MANAGER_H_
 
-#import "ios/web/public/js_messaging/web_frames_manager.h"
-
 #import <map>
 
+#import "base/memory/raw_ptr.h"
 #import "base/observer_list.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 
 namespace web {
 class WebFrame;
@@ -19,10 +19,8 @@ class WebFrame;
 //   2. Create FakeWebFramesManager;
 //   3. Call TestWebState::SetWebFramesManager with FakeWebFramesManager;
 //   4. Manipulate WebFrames:
-//     a. Call FakeWebFramesManager::AddWebFrame then
-//        TestWebState::OnWebFrameDidBecomeAvailable;
-//     b. Call TestWebState::OnWebFrameWillBecomeUnavailable then
-//        FakeWebFramesManager::RemoveWebFrame.
+//     a. Call FakeWebFramesManager::AddWebFrame
+//     b. Call FakeWebFramesManager::RemoveWebFrame.
 class FakeWebFramesManager : public WebFramesManager {
  public:
   FakeWebFramesManager();
@@ -42,7 +40,7 @@ class FakeWebFramesManager : public WebFramesManager {
   // List of pointers to all web frames associated with WebState.
   std::map<std::string, std::unique_ptr<WebFrame>> web_frames_;
   // Reference to the current main web frame.
-  WebFrame* main_web_frame_ = nullptr;
+  raw_ptr<WebFrame> main_web_frame_ = nullptr;
   base::ObserverList<Observer, /*check_empty=*/false> observers_;
 };
 

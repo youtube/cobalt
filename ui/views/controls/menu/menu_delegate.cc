@@ -7,8 +7,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/events/event.h"
 #include "ui/views/controls/menu/menu_config.h"
+#include "ui/views/controls/menu/menu_item_view.h"
 
 namespace views {
 
@@ -26,8 +28,8 @@ const gfx::FontList* MenuDelegate::GetLabelFontList(int id) const {
   return nullptr;
 }
 
-absl::optional<SkColor> MenuDelegate::GetLabelColor(int id) const {
-  return absl::nullopt;
+std::optional<SkColor> MenuDelegate::GetLabelColor(int id) const {
+  return std::nullopt;
 }
 
 std::u16string MenuDelegate::GetTooltipText(
@@ -43,7 +45,7 @@ bool MenuDelegate::GetAccelerator(int id, ui::Accelerator* accelerator) const {
 bool MenuDelegate::ShowContextMenu(MenuItemView* source,
                                    int id,
                                    const gfx::Point& p,
-                                   ui::MenuSourceType source_type) {
+                                   ui::mojom::MenuSourceType source_type) {
   return false;
 }
 
@@ -78,8 +80,15 @@ bool MenuDelegate::ShouldExecuteCommandWithoutClosingMenu(int id,
 
 bool MenuDelegate::IsTriggerableEvent(MenuItemView* source,
                                       const ui::Event& e) {
-  return e.type() == ui::ET_GESTURE_TAP ||
-         e.type() == ui::ET_GESTURE_TAP_DOWN ||
+  // By default, a sub-menu is not triggerable.
+  // Subclass can override this behavior.
+  if (source->GetType() == MenuItemView::Type::kSubMenu) {
+    return false;
+  }
+
+  // Trigger the action by click or click-like event.
+  return e.type() == ui::EventType::kGestureTap ||
+         e.type() == ui::EventType::kGestureTapDown ||
          (e.IsMouseEvent() &&
           (e.flags() & (ui::EF_LEFT_MOUSE_BUTTON | ui::EF_RIGHT_MOUSE_BUTTON)));
 }
@@ -103,16 +112,14 @@ ui::mojom::DragOperation MenuDelegate::GetDropOperation(
     MenuItemView* item,
     const ui::DropTargetEvent& event,
     DropPosition* position) {
-  NOTREACHED_NORETURN()
-      << "If you override CanDrop, you must override this too";
+  NOTREACHED() << "If you override CanDrop, you must override this too";
 }
 
 views::View::DropCallback MenuDelegate::GetDropCallback(
     MenuItemView* menu,
     DropPosition position,
     const ui::DropTargetEvent& event) {
-  NOTREACHED_NORETURN()
-      << "If you override CanDrop, you must override this too";
+  NOTREACHED() << "If you override CanDrop, you must override this too";
 }
 
 bool MenuDelegate::CanDrag(MenuItemView* menu) {
@@ -120,13 +127,11 @@ bool MenuDelegate::CanDrag(MenuItemView* menu) {
 }
 
 void MenuDelegate::WriteDragData(MenuItemView* sender, OSExchangeData* data) {
-  NOTREACHED_NORETURN()
-      << "If you override CanDrag, you must override this too.";
+  NOTREACHED() << "If you override CanDrag, you must override this too.";
 }
 
 int MenuDelegate::GetDragOperations(MenuItemView* sender) {
-  NOTREACHED_NORETURN()
-      << "If you override CanDrag, you must override this too.";
+  NOTREACHED() << "If you override CanDrag, you must override this too.";
 }
 
 bool MenuDelegate::ShouldCloseOnDragComplete() {
@@ -153,6 +158,10 @@ void MenuDelegate::WillHideMenu(MenuItemView* menu) {}
 
 bool MenuDelegate::ShouldTryPositioningBesideAnchor() const {
   return true;
+}
+
+bool MenuDelegate::IsTearingDown() const {
+  return false;
 }
 
 }  // namespace views

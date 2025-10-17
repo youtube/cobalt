@@ -42,7 +42,6 @@ base::FilePath OfflinePagePath(const GURL& url, OfflineFileType type) {
       return directory.Append(kPDFFileName);
   }
   NOTREACHED();
-  return base::FilePath();
 }
 
 base::FilePath OfflineURLAbsolutePathFromRelativePath(

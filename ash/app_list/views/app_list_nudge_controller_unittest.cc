@@ -19,6 +19,7 @@
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "base/functional/callback.h"
 #include "base/test/task_environment.h"
+#include "ui/display/screen.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/wm/core/window_util.h"
 
@@ -27,7 +28,7 @@ namespace ash {
 namespace {
 
 bool IsTabletMode() {
-  return Shell::Get()->tablet_mode_controller()->InTabletMode();
+  return display::Screen::GetScreen()->InTabletMode();
 }
 
 // Returns the number of times the nudge has been shown. Note that the count
@@ -89,7 +90,7 @@ class AppListNudgeControllerTest : public AshTestBase {
 
 TEST_F(AppListNudgeControllerTest, Basic) {
   // Simulate a user login.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
 
   // The reorder nudge should show 3 times to the users.
   ShowAppListAndWait();
@@ -117,7 +118,7 @@ TEST_F(AppListNudgeControllerTest, Basic) {
 
 TEST_F(AppListNudgeControllerTest, StopShowingNudgeAfterReordering) {
   // Simulate a user login.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
 
   // The reorder nudge should show for the first time.
   ShowAppListAndWait();
@@ -143,7 +144,7 @@ TEST_F(AppListNudgeControllerTest, StopShowingNudgeAfterReordering) {
 
 TEST_F(AppListNudgeControllerTest, TabletModeVisibilityTest) {
   // Simulate a user login.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
 
   ShowAppListAndWait();
   EXPECT_TRUE(GetToastContainerView()->IsToastVisible());
@@ -175,14 +176,14 @@ TEST_F(AppListNudgeControllerTest, TabletModeVisibilityTest) {
   // Activate the search box. The nudge will become inactive but the nudge view
   // still exists.
   auto* search_box = GetAppListTestHelper()->GetSearchBoxView();
-  search_box->SetSearchBoxActive(true, ui::ET_MOUSE_PRESSED);
+  search_box->SetSearchBoxActive(true, ui::EventType::kMousePressed);
   // For the case where the nudge is visible but inactive, the count doesn't
   // increment as the nudge is still visible.
   EXPECT_EQ(2, GetReorderNudgeShownCount());
   EXPECT_TRUE(GetToastContainerView()->IsToastVisible());
 
   // Exit the search view. The nudge should be visible and active now.
-  search_box->SetSearchBoxActive(false, ui::ET_MOUSE_PRESSED);
+  search_box->SetSearchBoxActive(false, ui::EventType::kMousePressed);
   EXPECT_TRUE(GetToastContainerView()->IsToastVisible());
   EXPECT_EQ(AppListToastType::kReorderNudge,
             GetToastContainerView()->current_toast());
@@ -198,7 +199,7 @@ TEST_F(AppListNudgeControllerTest, TabletModeVisibilityTest) {
 
 TEST_F(AppListNudgeControllerTest, ReorderNudgeDismissButton) {
   // Simulate a user login.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
 
   ShowAppListAndWait();
   EXPECT_TRUE(GetToastContainerView()->IsToastVisible());
@@ -224,7 +225,7 @@ TEST_F(AppListNudgeControllerTest, ReorderNudgeDismissButton) {
 
 TEST_F(AppListNudgeControllerTest, ReorderUndoCloseButton) {
   // Simulate a user login.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
 
   ShowAppListAndWait();
 

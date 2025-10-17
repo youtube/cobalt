@@ -15,7 +15,9 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 
 namespace ash {
@@ -27,30 +29,25 @@ StopRecordingButtonTray::StopRecordingButtonTray(Shelf* shelf)
           RoundedCornerBehavior::kAllRounded),
       image_view_(tray_container()->AddChildView(
           std::make_unique<views::ImageView>())) {
-  SetPressedCallback(base::BindRepeating([](const ui::Event& event) {
+  SetCallback(base::BindRepeating([](const ui::Event& event) {
     base::RecordAction(base::UserMetricsAction("Tray_StopRecording"));
     CaptureModeController::Get()->EndVideoRecording(
         EndRecordingReason::kStopRecordingButton);
   }));
-
-  image_view_->SetTooltipText(GetAccessibleNameForTray());
+  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
+      IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME));
+  image_view_->SetTooltipText(l10n_util::GetStringUTF16(
+      IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME));
   image_view_->SetHorizontalAlignment(views::ImageView::Alignment::kCenter);
   image_view_->SetVerticalAlignment(views::ImageView::Alignment::kCenter);
   image_view_->SetPreferredSize(gfx::Size(kTrayItemSize, kTrayItemSize));
+  image_view_->SetImage(ui::ImageModel::FromVectorIcon(
+      kCaptureModeCircleStopIcon, kColorAshIconColorAlert));
 }
 
 StopRecordingButtonTray::~StopRecordingButtonTray() = default;
 
-std::u16string StopRecordingButtonTray::GetAccessibleNameForTray() {
-  return l10n_util::GetStringUTF16(
-      IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME);
-}
-
-void StopRecordingButtonTray::OnThemeChanged() {
-  TrayBackgroundView::OnThemeChanged();
-  image_view_->SetImage(gfx::CreateVectorIcon(
-      kCaptureModeCircleStopIcon,
-      GetColorProvider()->GetColor(kColorAshIconColorAlert)));
-}
+BEGIN_METADATA(StopRecordingButtonTray)
+END_METADATA
 
 }  // namespace ash

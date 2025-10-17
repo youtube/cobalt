@@ -21,7 +21,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "ui/base/cursor/cursor_factory.h"
 #include "ui/base/ime/fuchsia/input_method_fuchsia.h"
-#include "ui/display/fake/fake_display_delegate.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
 #include "ui/events/platform/platform_event_source.h"
@@ -34,14 +33,16 @@
 #include "ui/ozone/platform/flatland/flatland_sysmem_buffer_collection.h"
 #include "ui/ozone/platform/flatland/flatland_window.h"
 #include "ui/ozone/platform/flatland/flatland_window_manager.h"
+#include "ui/ozone/platform/flatland/mojom/scenic_gpu_service.mojom.h"
 #include "ui/ozone/platform/flatland/overlay_manager_flatland.h"
-#include "ui/ozone/platform/scenic/mojom/scenic_gpu_service.mojom.h"
 #include "ui/ozone/platform_selection.h"
 #include "ui/ozone/public/gpu_platform_support_host.h"
 #include "ui/ozone/public/input_controller.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/ozone/public/ozone_switches.h"
+#include "ui/ozone/public/stub_input_controller.h"
 #include "ui/ozone/public/system_input_injector.h"
+#include "ui/platform_window/fuchsia/view_ref_pair.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -106,7 +107,7 @@ class OzonePlatformFlatland : public OzonePlatform,
           zx::channel::create(0, &parent_token.value, &child_token.value);
       CHECK_EQ(ZX_OK, status) << "zx_channel_create";
       properties.view_creation_token = std::move(child_token);
-      properties.view_ref_pair = scenic::ViewRefPair::New();
+      properties.view_ref_pair = ::ui::ViewRefPair::New();
       properties.view_controller =
           ::ui::fuchsia::GetFlatlandViewPresenter().Run(
               std::move(parent_token));
@@ -133,7 +134,7 @@ class OzonePlatformFlatland : public OzonePlatform,
   std::unique_ptr<display::NativeDisplayDelegate> CreateNativeDisplayDelegate()
       override {
     NOTIMPLEMENTED();
-    return std::make_unique<display::FakeDisplayDelegate>();
+    return nullptr;
   }
 
   std::unique_ptr<PlatformScreen> CreateScreen() override {
@@ -161,7 +162,7 @@ class OzonePlatformFlatland : public OzonePlatform,
 
     window_manager_ = std::make_unique<FlatlandWindowManager>();
     overlay_manager_ = std::make_unique<StubOverlayManager>();
-    input_controller_ = CreateStubInputController();
+    input_controller_ = std::make_unique<StubInputController>();
     cursor_factory_ = std::make_unique<BitmapCursorFactory>();
 
     flatland_gpu_host_ =
@@ -215,6 +216,8 @@ class OzonePlatformFlatland : public OzonePlatform,
     return FlatlandSysmemBufferCollection::IsNativePixmapConfigSupported(format,
                                                                          usage);
   }
+
+  bool IsWindowCompositingSupported() const override { return true; }
 
  private:
   // Binds main process surface factory to main process FlatlandGpuHost

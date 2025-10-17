@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/nacl/zygote/nacl_fork_delegate_linux.h"
 
 #include <signal.h>
@@ -11,7 +16,9 @@
 #include <sys/socket.h>
 
 #include <memory>
+#include <optional>
 #include <set>
+#include <string>
 
 #include "base/command_line.h"
 #include "base/cpu.h"
@@ -220,8 +227,7 @@ void NaClForkDelegate::Init(const int sandboxdesc,
       };
       const base::CommandLine& current_cmd_line =
           *base::CommandLine::ForCurrentProcess();
-      cmd_line.CopySwitchesFrom(current_cmd_line, kForwardSwitches,
-                                std::size(kForwardSwitches));
+      cmd_line.CopySwitchesFrom(current_cmd_line, kForwardSwitches);
 
       // The command line needs to be tightly controlled to use
       // |helper_bootstrap_exe|. So from now on, argv_to_launch should be
@@ -296,7 +302,7 @@ void NaClForkDelegate::Init(const int sandboxdesc,
   if (IGNORE_EINTR(close(fds[1])) != 0)
     LOG(ERROR) << "close(fds[1]) failed";
   if (status_ == kNaClHelperUnused) {
-    const ssize_t kExpectedLength = strlen(kNaClHelperStartupAck);
+    constexpr ssize_t kExpectedLength = sizeof(kNaClHelperStartupAck) - 1;
     char buf[kExpectedLength];
 
     // Wait for ack from nacl_helper, indicating it is ready to help
@@ -353,7 +359,12 @@ pid_t NaClForkDelegate::Fork(const std::string& process_type,
                              const std::string& channel_id) {
   VLOG(1) << "NaClForkDelegate::Fork";
 
-  DCHECK(fds.size() == kNumPassedFDs);
+  // The metrics shared memory handle may or may not be in |fds|, depending on
+  // whether the feature flag to pass the handle on startup was enabled in the
+  // parent; there should either be kNumPassedFDs or kNumPassedFDs-1 present.
+  // TODO(crbug.com/40109064): Only check for kNumPassedFDs once passing the
+  // metrics shared memory handle on startup is launched.
+  DCHECK(fds.size() == kNumPassedFDs || fds.size() == kNumPassedFDs - 1);
 
   if (status_ != kNaClHelperSuccess) {
     LOG(ERROR) << "Cannot launch NaCl process: nacl_helper failed to start";
@@ -380,7 +391,9 @@ pid_t NaClForkDelegate::Fork(const std::string& process_type,
   }
 
   // Now see if the other end managed to fork.
-  base::Pickle reply_pickle(reply_buf, reply_size);
+  base::Pickle reply_pickle = base::Pickle::WithUnownedBuffer(
+      base::span(reinterpret_cast<uint8_t*>(reply_buf),
+                 base::checked_cast<size_t>(reply_size)));
   base::PickleIterator iter(reply_pickle);
   pid_t nacl_child;
   if (!iter.ReadInt(&nacl_child)) {
@@ -414,7 +427,9 @@ bool NaClForkDelegate::GetTerminationStatus(pid_t pid, bool known_dead,
     return false;
   }
 
-  base::Pickle reply_pickle(reply_buf, reply_size);
+  base::Pickle reply_pickle = base::Pickle::WithUnownedBuffer(
+      base::span(reinterpret_cast<uint8_t*>(reply_buf),
+                 base::checked_cast<size_t>(reply_size)));
   base::PickleIterator iter(reply_pickle);
   int termination_status;
   if (!iter.ReadInt(&termination_status) ||
@@ -439,21 +454,27 @@ bool NaClForkDelegate::GetTerminationStatus(pid_t pid, bool known_dead,
 void NaClForkDelegate::AddPassthroughEnvToOptions(
     base::LaunchOptions* options) {
   std::unique_ptr<base::Environment> env(base::Environment::Create());
-  std::string pass_through_string;
   std::vector<std::string> pass_through_vars;
-  if (env->GetVar(kNaClEnvPassthrough, &pass_through_string)) {
-    pass_through_vars = base::SplitString(
-        pass_through_string, std::string(1, kNaClEnvPassthroughDelimiter),
-        base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+
+  std::optional<std::string> pass_through_string =
+      env->GetVar(kNaClEnvPassthrough);
+  if (pass_through_string.has_value()) {
+    pass_through_vars =
+        base::SplitString(pass_through_string.value(),
+                          std::string(1, kNaClEnvPassthroughDelimiter),
+                          base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   }
+
   pass_through_vars.push_back(kNaClExeStderr);
   pass_through_vars.push_back(kNaClExeStdout);
   pass_through_vars.push_back(kNaClVerbosity);
   pass_through_vars.push_back(sandbox::kSandboxEnvironmentApiRequest);
-  for (size_t i = 0; i < pass_through_vars.size(); ++i) {
-    std::string temp;
-    if (env->GetVar(pass_through_vars[i], &temp))
-      options->environment[pass_through_vars[i]] = temp;
+
+  for (const std::string& var : pass_through_vars) {
+    std::optional<std::string> value = env->GetVar(var);
+    if (value.has_value()) {
+      options->environment[var] = value.value();
+    }
   }
 }
 

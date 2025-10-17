@@ -9,10 +9,6 @@
 #import "base/check.h"
 #import "base/strings/sys_string_conversions.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation OCMockComplexTypeHelper {
   // The represented object.
   OCMockObject* _object;
@@ -73,8 +69,9 @@
 
 - (void)forwardInvocation:(NSInvocation*)invocation {
   SEL selector = [invocation selector];
-  if ([_object respondsToSelector:selector])
+  if ([_object respondsToSelector:selector]) {
     [invocation invokeWithTarget:_object];
+  }
 }
 
 - (NSMethodSignature*)methodSignatureForSelector:(SEL)selector {
@@ -87,8 +84,9 @@
 
 - (BOOL)respondsToSelector:(SEL)selector {
   DCHECK(![_blocks objectForKey:NSStringFromSelector(selector)]);
-  if (selector == @selector(initWithRepresentedObject:))
+  if (selector == @selector(initWithRepresentedObject:)) {
     return YES;
+  }
 
   return [_object respondsToSelector:selector];
 }

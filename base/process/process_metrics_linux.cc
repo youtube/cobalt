@@ -10,31 +10,39 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/cpu.h"
 #include "base/files/dir_reader_posix.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/memory/page_size.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
+#include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/internal_linux.h"
-#include "base/process/process_metrics_iocounters.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/trace_event/base_tracing.h"
+#include "base/types/expected.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 namespace base {
 
@@ -42,118 +50,52 @@ class ScopedAllowBlockingForProcessMetrics : public ScopedAllowBlocking {};
 
 namespace {
 
-void TrimKeyValuePairs(StringPairs* pairs) {
-  for (auto& pair : *pairs) {
-    TrimWhitespaceASCII(pair.first, TRIM_ALL, &pair.first);
-    TrimWhitespaceASCII(pair.second, TRIM_ALL, &pair.second);
-  }
-}
-
 #if BUILDFLAG(IS_CHROMEOS)
 // Read a file with a single number string and return the number as a uint64_t.
 uint64_t ReadFileToUint64(const FilePath& file) {
   std::string file_contents;
-  if (!ReadFileToString(file, &file_contents))
+  if (!ReadFileToString(file, &file_contents)) {
     return 0;
+  }
   TrimWhitespaceASCII(file_contents, TRIM_ALL, &file_contents);
   uint64_t file_contents_uint64 = 0;
-  if (!StringToUint64(file_contents, &file_contents_uint64))
+  if (!StringToUint64(file_contents, &file_contents_uint64)) {
     return 0;
+  }
   return file_contents_uint64;
 }
 #endif
 
-// Read |filename| in /proc/<pid>/, split the entries into key/value pairs, and
-// trim the key and value. On success, return true and write the trimmed
-// key/value pairs into |key_value_pairs|.
-bool ReadProcFileToTrimmedStringPairs(pid_t pid,
-                                      StringPiece filename,
-                                      StringPairs* key_value_pairs) {
-  std::string status_data;
-  FilePath status_file = internal::GetProcPidDir(pid).Append(filename);
-  if (!internal::ReadProcFile(status_file, &status_data))
-    return false;
-  SplitStringIntoKeyValuePairs(status_data, ':', '\n', key_value_pairs);
-  TrimKeyValuePairs(key_value_pairs);
-  return true;
-}
-
-// Read /proc/<pid>/status and return the value for |field|, or 0 on failure.
-// Only works for fields in the form of "Field: value kB".
-size_t ReadProcStatusAndGetFieldAsSizeT(pid_t pid, StringPiece field) {
-  StringPairs pairs;
-  if (!ReadProcFileToTrimmedStringPairs(pid, "status", &pairs))
-    return 0;
-
-  for (const auto& pair : pairs) {
-    const std::string& key = pair.first;
-    const std::string& value_str = pair.second;
-    if (key != field)
-      continue;
-
-    std::vector<StringPiece> split_value_str =
-        SplitStringPiece(value_str, " ", TRIM_WHITESPACE, SPLIT_WANT_ALL);
-    if (split_value_str.size() != 2 || split_value_str[1] != "kB") {
-      NOTREACHED();
-      return 0;
-    }
-    size_t value;
-    if (!StringToSizeT(split_value_str[0], &value)) {
-      NOTREACHED();
-      return 0;
-    }
-    return value;
+// Get the total CPU from a proc stat buffer. Return value is a TimeDelta
+// converted from a number of jiffies on success or an error code if parsing
+// failed.
+base::expected<TimeDelta, ProcessCPUUsageError> ParseTotalCPUTimeFromStats(
+    base::span<std::string_view> proc_stats) {
+  const std::optional<int64_t> utime =
+      internal::GetProcStatsFieldAsOptionalInt64(proc_stats,
+                                                 internal::VM_UTIME);
+  if (utime.value_or(-1) < 0) {
+    return base::unexpected(ProcessCPUUsageError::kSystemError);
   }
-  // This can be reached if the process dies when proc is read -- in that case,
-  // the kernel can return missing fields.
-  return 0;
-}
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
-// Read /proc/<pid>/status and look for |field|. On success, return true and
-// write the value for |field| into |result|.
-// Only works for fields in the form of "field    :     uint_value"
-bool ReadProcStatusAndGetFieldAsUint64(pid_t pid,
-                                       StringPiece field,
-                                       uint64_t* result) {
-  StringPairs pairs;
-  if (!ReadProcFileToTrimmedStringPairs(pid, "status", &pairs))
-    return false;
-
-  for (const auto& pair : pairs) {
-    const std::string& key = pair.first;
-    const std::string& value_str = pair.second;
-    if (key != field)
-      continue;
-
-    uint64_t value;
-    if (!StringToUint64(value_str, &value))
-      return false;
-    *result = value;
-    return true;
+  const std::optional<int64_t> stime =
+      internal::GetProcStatsFieldAsOptionalInt64(proc_stats,
+                                                 internal::VM_STIME);
+  if (stime.value_or(-1) < 0) {
+    return base::unexpected(ProcessCPUUsageError::kSystemError);
   }
-  return false;
-}
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
-
-// Get the total CPU from a proc stat buffer.  Return value is number of jiffies
-// on success or 0 if parsing failed.
-int64_t ParseTotalCPUTimeFromStats(const std::vector<std::string>& proc_stats) {
-  return internal::GetProcStatsFieldAsInt64(proc_stats, internal::VM_UTIME) +
-         internal::GetProcStatsFieldAsInt64(proc_stats, internal::VM_STIME);
+  const TimeDelta cpu_time = internal::ClockTicksToTimeDelta(
+      base::ClampAdd(utime.value(), stime.value()));
+  CHECK(!cpu_time.is_negative());
+  return base::ok(cpu_time);
 }
 
-// Get the total CPU of a single process.  Return value is number of jiffies
-// on success or -1 on error.
-int64_t GetProcessCPU(pid_t pid) {
-  std::string buffer;
-  std::vector<std::string> proc_stats;
-  if (!internal::ReadProcStats(pid, &buffer) ||
-      !internal::ParseProcStats(buffer, &proc_stats)) {
-    return -1;
-  }
-
-  return ParseTotalCPUTimeFromStats(proc_stats);
+size_t GetKbFieldAsSizeT(std::string_view value_str) {
+  std::vector<std::string_view> split_value_str =
+      SplitStringPiece(value_str, " ", TRIM_WHITESPACE, SPLIT_WANT_ALL);
+  CHECK(split_value_str.size() == 2 && split_value_str[1] == "kB");
+  size_t value;
+  CHECK(StringToSizeT(split_value_str[0], &value));
+  return value;
 }
 
 }  // namespace
@@ -164,13 +106,17 @@ std::unique_ptr<ProcessMetrics> ProcessMetrics::CreateProcessMetrics(
   return WrapUnique(new ProcessMetrics(process));
 }
 
-size_t ProcessMetrics::GetResidentSetSize() const {
-  return internal::ReadProcStatsAndGetFieldAsSizeT(process_, internal::VM_RSS) *
-         checked_cast<size_t>(getpagesize());
-}
+base::expected<TimeDelta, ProcessCPUUsageError>
+ProcessMetrics::GetCumulativeCPUUsage() {
+  TRACE_EVENT("base", "GetCumulativeCPUUsage");
+  std::string buffer;
+  std::vector<std::string_view> proc_stats;
+  if (!internal::ReadProcStats(process_, &buffer) ||
+      !internal::ParseProcStats(buffer, &proc_stats)) {
+    return base::unexpected(ProcessCPUUsageError::kSystemError);
+  }
 
-TimeDelta ProcessMetrics::GetCumulativeCPUUsage() {
-  return internal::ClockTicksToTimeDelta(GetProcessCPU(process_));
+  return ParseTotalCPUTimeFromStats(proc_stats);
 }
 
 bool ProcessMetrics::GetCumulativeCPUUsagePerThread(
@@ -183,64 +129,76 @@ bool ProcessMetrics::GetCumulativeCPUUsagePerThread(
         FilePath thread_stat_path = task_path.Append("stat");
 
         std::string buffer;
-        std::vector<std::string> proc_stats;
+        std::vector<std::string_view> proc_stats;
         if (!internal::ReadProcFile(thread_stat_path, &buffer) ||
             !internal::ParseProcStats(buffer, &proc_stats)) {
           return;
         }
 
-        TimeDelta thread_time = internal::ClockTicksToTimeDelta(
-            ParseTotalCPUTimeFromStats(proc_stats));
-        cpu_per_thread.emplace_back(tid, thread_time);
+        const base::expected<TimeDelta, ProcessCPUUsageError> thread_time =
+            ParseTotalCPUTimeFromStats(proc_stats);
+        if (thread_time.has_value()) {
+          cpu_per_thread.emplace_back(tid, thread_time.value());
+        }
       });
 
   return !cpu_per_thread.empty();
 }
 
-// For the /proc/self/io file to exist, the Linux kernel must have
-// CONFIG_TASK_IO_ACCOUNTING enabled.
-bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
-  StringPairs pairs;
-  if (!ReadProcFileToTrimmedStringPairs(process_, "io", &pairs))
-    return false;
-
-  io_counters->OtherOperationCount = 0;
-  io_counters->OtherTransferCount = 0;
-
-  for (const auto& pair : pairs) {
-    const std::string& key = pair.first;
-    const std::string& value_str = pair.second;
-    uint64_t* target_counter = nullptr;
-    if (key == "syscr")
-      target_counter = &io_counters->ReadOperationCount;
-    else if (key == "syscw")
-      target_counter = &io_counters->WriteOperationCount;
-    else if (key == "rchar")
-      target_counter = &io_counters->ReadTransferCount;
-    else if (key == "wchar")
-      target_counter = &io_counters->WriteTransferCount;
-    if (!target_counter)
-      continue;
-    bool converted = StringToUint64(value_str, target_counter);
-    DCHECK(converted);
-  }
-  return true;
-}
-
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-uint64_t ProcessMetrics::GetVmSwapBytes() const {
-  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSwap") * 1024;
+base::expected<ProcessMemoryInfo, ProcessUsageError>
+ProcessMetrics::GetMemoryInfo() const {
+  std::string buffer;
+  std::optional<StringViewPairs> pairs =
+      internal::ReadProcFileToTrimmedStringPairs(process_, "status", &buffer);
+  if (!pairs) {
+    return base::unexpected(ProcessUsageError::kSystemError);
+  }
+  ProcessMemoryInfo dump;
+  for (const auto& [key, value_str] : *pairs) {
+    if (key == "VmSwap") {
+      dump.vm_swap_bytes =
+          static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
+    } else if (key == "VmRSS") {
+      dump.resident_set_bytes =
+          static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
+    } else if (key == "RssAnon") {
+      dump.rss_anon_bytes =
+          static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
+    }
+  }
+  if (dump.rss_anon_bytes != 0) {
+    return dump;
+  }
+  // RssAnon was introduced in Linux 4.5, use /proc/pid/statm as fallback.
+  std::string statm_data;
+  FilePath statm_file = internal::GetProcPidDir(process_).Append("statm");
+  if (!internal::ReadProcFile(statm_file, &statm_data)) {
+    return base::unexpected(ProcessUsageError::kSystemError);
+  }
+  std::vector<std::string_view> values = SplitStringPieceUsingSubstr(
+      statm_data, " ", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
+  CHECK_GE(values.size(), 3U);
+  uint64_t resident_pages = 0;
+  uint64_t shared_pages = 0;
+  CHECK(StringToUint64(values[1], &resident_pages));
+  CHECK(StringToUint64(values[2], &shared_pages));
+  static const size_t page_size = GetPageSize();
+  dump.rss_anon_bytes = (resident_pages - shared_pages) * page_size;
+  return dump;
 }
 
 bool ProcessMetrics::GetPageFaultCounts(PageFaultCounts* counts) const {
   // We are not using internal::ReadStatsFileAndGetFieldAsInt64(), since it
   // would read the file twice, and return inconsistent numbers.
   std::string stats_data;
-  if (!internal::ReadProcStats(process_, &stats_data))
+  if (!internal::ReadProcStats(process_, &stats_data)) {
     return false;
-  std::vector<std::string> proc_stats;
-  if (!internal::ParseProcStats(stats_data, &proc_stats))
+  }
+  std::vector<std::string_view> proc_stats;
+  if (!internal::ParseProcStats(stats_data, &proc_stats)) {
     return false;
+  }
 
   counts->minor =
       internal::GetProcStatsFieldAsInt64(proc_stats, internal::VM_MINFLT);
@@ -256,14 +214,17 @@ int ProcessMetrics::GetOpenFdCount() const {
   FilePath fd_path = internal::GetProcPidDir(process_).Append("fd");
 
   DirReaderPosix dir_reader(fd_path.value().c_str());
-  if (!dir_reader.IsValid())
+  if (!dir_reader.IsValid()) {
     return -1;
+  }
 
   int total_count = 0;
-  for (; dir_reader.Next(); ) {
+  for (; dir_reader.Next();) {
     const char* name = dir_reader.name();
-    if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0)
+    if (UNSAFE_TODO(strcmp(name, ".")) != 0 &&
+        UNSAFE_TODO(strcmp(name, "..")) != 0) {
       ++total_count;
+    }
   }
 
   return total_count;
@@ -274,20 +235,23 @@ int ProcessMetrics::GetOpenFdSoftLimit() const {
   FilePath fd_path = internal::GetProcPidDir(process_).Append("limits");
 
   std::string limits_contents;
-  if (!ReadFileToStringNonBlocking(fd_path, &limits_contents))
+  if (!ReadFileToStringNonBlocking(fd_path, &limits_contents)) {
     return -1;
+  }
 
   for (const auto& line : SplitStringPiece(
            limits_contents, "\n", KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
-    if (!StartsWith(line, "Max open files"))
+    if (!StartsWith(line, "Max open files")) {
       continue;
+    }
 
     auto tokens =
         SplitStringPiece(line, " ", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
     if (tokens.size() > 3) {
       int limit = -1;
-      if (!StringToInt(tokens[3], &limit))
+      if (!StringToInt(tokens[3], &limit)) {
         return -1;
+      }
       return limit;
     }
   }
@@ -303,21 +267,32 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process) : process_(process) {}
 
 size_t GetSystemCommitCharge() {
   SystemMemoryInfoKB meminfo;
-  if (!GetSystemMemoryInfo(&meminfo))
+  if (!GetSystemMemoryInfo(&meminfo)) {
     return 0;
-  return checked_cast<size_t>(meminfo.total - meminfo.free - meminfo.buffers -
-                              meminfo.cached);
+  }
+  return GetSystemCommitChargeFromMeminfo(meminfo);
 }
 
-int ParseProcStatCPU(StringPiece input) {
+size_t GetSystemCommitChargeFromMeminfo(const SystemMemoryInfoKB& meminfo) {
+  // TODO(crbug.com/315988925): This math is incorrect: `cached` can be very
+  // large so that `free` + `buffers` + `cached` > `total`. Replace this with a
+  // more meaningful metric or remove it. In the meantime, convert underflows to
+  // 0 instead of crashing.
+  return ClampedNumeric<size_t>(meminfo.total) - meminfo.free -
+         meminfo.buffers - meminfo.cached;
+}
+
+int ParseProcStatCPU(std::string_view input) {
   // |input| may be empty if the process disappeared somehow.
   // e.g. http://crbug.com/145811.
-  if (input.empty())
+  if (input.empty()) {
     return -1;
+  }
 
   size_t start = input.find_last_of(')');
-  if (start == input.npos)
+  if (start == input.npos) {
     return -1;
+  }
 
   // Number of spaces remaining until reaching utime's index starting after the
   // last ')'.
@@ -331,8 +306,9 @@ int ParseProcStatCPU(StringPiece input) {
     if (--num_spaces_remaining == 0) {
       int utime = 0;
       int stime = 0;
-      if (sscanf(&input.data()[i], "%d %d", &utime, &stime) != 2)
+      if (UNSAFE_TODO(sscanf(&input.data()[i], "%d %d", &utime, &stime)) != 2) {
         return -1;
+      }
 
       return utime + stime;
     }
@@ -427,7 +403,8 @@ Value::Dict SystemMemoryInfoKB::ToDict() const {
   return res;
 }
 
-bool ParseProcMeminfo(StringPiece meminfo_data, SystemMemoryInfoKB* meminfo) {
+bool ParseProcMeminfo(std::string_view meminfo_data,
+                      SystemMemoryInfoKB* meminfo) {
   // The format of /proc/meminfo is:
   //
   // MemTotal:      8235324 kB
@@ -442,9 +419,9 @@ bool ParseProcMeminfo(StringPiece meminfo_data, SystemMemoryInfoKB* meminfo) {
   // least non-zero. So start off with a zero total.
   meminfo->total = 0;
 
-  for (const StringPiece& line : SplitStringPiece(
+  for (std::string_view line : SplitStringPiece(
            meminfo_data, "\n", KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
-    std::vector<StringPiece> tokens = SplitStringPiece(
+    std::vector<std::string_view> tokens = SplitStringPiece(
         line, kWhitespaceASCII, TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
     // HugePages_* only has a number and no suffix so there may not be exactly 3
     // tokens.
@@ -455,49 +432,52 @@ bool ParseProcMeminfo(StringPiece meminfo_data, SystemMemoryInfoKB* meminfo) {
     }
 
     int* target = nullptr;
-    if (tokens[0] == "MemTotal:")
+    if (tokens[0] == "MemTotal:") {
       target = &meminfo->total;
-    else if (tokens[0] == "MemFree:")
+    } else if (tokens[0] == "MemFree:") {
       target = &meminfo->free;
-    else if (tokens[0] == "MemAvailable:")
+    } else if (tokens[0] == "MemAvailable:") {
       target = &meminfo->available;
-    else if (tokens[0] == "Buffers:")
+    } else if (tokens[0] == "Buffers:") {
       target = &meminfo->buffers;
-    else if (tokens[0] == "Cached:")
+    } else if (tokens[0] == "Cached:") {
       target = &meminfo->cached;
-    else if (tokens[0] == "Active(anon):")
+    } else if (tokens[0] == "Active(anon):") {
       target = &meminfo->active_anon;
-    else if (tokens[0] == "Inactive(anon):")
+    } else if (tokens[0] == "Inactive(anon):") {
       target = &meminfo->inactive_anon;
-    else if (tokens[0] == "Active(file):")
+    } else if (tokens[0] == "Active(file):") {
       target = &meminfo->active_file;
-    else if (tokens[0] == "Inactive(file):")
+    } else if (tokens[0] == "Inactive(file):") {
       target = &meminfo->inactive_file;
-    else if (tokens[0] == "SwapTotal:")
+    } else if (tokens[0] == "SwapTotal:") {
       target = &meminfo->swap_total;
-    else if (tokens[0] == "SwapFree:")
+    } else if (tokens[0] == "SwapFree:") {
       target = &meminfo->swap_free;
-    else if (tokens[0] == "Dirty:")
+    } else if (tokens[0] == "Dirty:") {
       target = &meminfo->dirty;
-    else if (tokens[0] == "SReclaimable:")
+    } else if (tokens[0] == "SReclaimable:") {
       target = &meminfo->reclaimable;
+    }
 #if BUILDFLAG(IS_CHROMEOS)
     // Chrome OS has a tweaked kernel that allows querying Shmem, which is
     // usually video memory otherwise invisible to the OS.
-    else if (tokens[0] == "Shmem:")
+    else if (tokens[0] == "Shmem:") {
       target = &meminfo->shmem;
-    else if (tokens[0] == "Slab:")
+    } else if (tokens[0] == "Slab:") {
       target = &meminfo->slab;
+    }
 #endif
-    if (target)
+    if (target) {
       StringToInt(tokens[1], target);
+    }
   }
 
   // Make sure the MemTotal is valid.
   return meminfo->total > 0;
 }
 
-bool ParseProcVmstat(StringPiece vmstat_data, VmStatInfo* vmstat) {
+bool ParseProcVmstat(std::string_view vmstat_data, VmStatInfo* vmstat) {
   // The format of /proc/vmstat is:
   //
   // nr_free_pages 299878
@@ -519,16 +499,18 @@ bool ParseProcVmstat(StringPiece vmstat_data, VmStatInfo* vmstat) {
   bool has_oom_kill = false;
   vmstat->oom_kill = 0;
 
-  for (const StringPiece& line : SplitStringPiece(
+  for (std::string_view line : SplitStringPiece(
            vmstat_data, "\n", KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
-    std::vector<StringPiece> tokens = SplitStringPiece(
-        line, " ", KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY);
-    if (tokens.size() != 2)
+    std::vector<std::string_view> tokens =
+        SplitStringPiece(line, " ", KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY);
+    if (tokens.size() != 2) {
       continue;
+    }
 
     uint64_t val;
-    if (!StringToUint64(tokens[1], &val))
+    if (!StringToUint64(tokens[1], &val)) {
       continue;
+    }
 
     if (tokens[0] == "pswpin") {
       vmstat->pswpin = val;
@@ -573,7 +555,7 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
 
 Value::Dict VmStatInfo::ToDict() const {
   Value::Dict res;
-  // TODO(crbug.com/1334256): Make base::Value able to hold uint64_t and remove
+  // TODO(crbug.com/40228085): Make base::Value able to hold uint64_t and remove
   // casts below.
   res.Set("pswpin", static_cast<int>(pswpin));
   res.Set("pswpout", static_cast<int>(pswpout));
@@ -636,28 +618,32 @@ Value::Dict SystemDiskInfo::ToDict() const {
   return res;
 }
 
-bool IsValidDiskName(StringPiece candidate) {
-  if (candidate.length() < 3)
+bool IsValidDiskName(std::string_view candidate) {
+  if (candidate.length() < 3) {
     return false;
+  }
 
   if (candidate[1] == 'd' &&
       (candidate[0] == 'h' || candidate[0] == 's' || candidate[0] == 'v')) {
     // [hsv]d[a-z]+ case
     for (size_t i = 2; i < candidate.length(); ++i) {
-      if (!islower(candidate[i]))
+      if (!absl::ascii_islower(static_cast<unsigned char>(candidate[i]))) {
         return false;
+      }
     }
     return true;
   }
 
   const char kMMCName[] = "mmcblk";
-  if (!StartsWith(candidate, kMMCName))
+  if (!StartsWith(candidate, kMMCName)) {
     return false;
+  }
 
   // mmcblk[0-9]+ case
   for (size_t i = strlen(kMMCName); i < candidate.length(); ++i) {
-    if (!isdigit(candidate[i]))
+    if (!absl::ascii_isdigit(static_cast<unsigned char>(candidate[i]))) {
       return false;
+    }
   }
   return true;
 }
@@ -673,7 +659,7 @@ bool GetSystemDiskInfo(SystemDiskInfo* diskinfo) {
     return false;
   }
 
-  std::vector<StringPiece> diskinfo_lines = SplitStringPiece(
+  std::vector<std::string_view> diskinfo_lines = SplitStringPiece(
       diskinfo_data, "\n", KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY);
   if (diskinfo_lines.empty()) {
     DLOG(WARNING) << "No lines found";
@@ -704,13 +690,14 @@ bool GetSystemDiskInfo(SystemDiskInfo* diskinfo) {
   uint64_t io_time = 0;
   uint64_t weighted_io_time = 0;
 
-  for (const StringPiece& line : diskinfo_lines) {
-    std::vector<StringPiece> disk_fields = SplitStringPiece(
+  for (std::string_view line : diskinfo_lines) {
+    std::vector<std::string_view> disk_fields = SplitStringPiece(
         line, kWhitespaceASCII, TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
 
     // Fields may have overflowed and reset to zero.
-    if (!IsValidDiskName(disk_fields[kDiskDriveName]))
+    if (!IsValidDiskName(disk_fields[kDiskDriveName])) {
       continue;
+    }
 
     StringToUint64(disk_fields[kDiskReads], &reads);
     StringToUint64(disk_fields[kDiskReadsMerged], &reads_merged);
@@ -772,7 +759,7 @@ Value::Dict GraphicsMemoryInfoKB::ToDict() const {
   return res;
 }
 
-bool ParseZramMmStat(StringPiece mm_stat_data, SwapInfo* swap_info) {
+bool ParseZramMmStat(std::string_view mm_stat_data, SwapInfo* swap_info) {
   // There are 7 columns in /sys/block/zram0/mm_stat,
   // split by several spaces. The first three columns
   // are orig_data_size, compr_data_size and mem_used_total.
@@ -782,7 +769,7 @@ bool ParseZramMmStat(StringPiece mm_stat_data, SwapInfo* swap_info) {
   // For more details:
   // https://www.kernel.org/doc/Documentation/blockdev/zram.txt
 
-  std::vector<StringPiece> tokens = SplitStringPiece(
+  std::vector<std::string_view> tokens = SplitStringPiece(
       mm_stat_data, kWhitespaceASCII, TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
   if (tokens.size() < 7) {
     DLOG(WARNING) << "zram mm_stat: tokens: " << tokens.size()
@@ -790,17 +777,20 @@ bool ParseZramMmStat(StringPiece mm_stat_data, SwapInfo* swap_info) {
     return false;
   }
 
-  if (!StringToUint64(tokens[0], &swap_info->orig_data_size))
+  if (!StringToUint64(tokens[0], &swap_info->orig_data_size)) {
     return false;
-  if (!StringToUint64(tokens[1], &swap_info->compr_data_size))
+  }
+  if (!StringToUint64(tokens[1], &swap_info->compr_data_size)) {
     return false;
-  if (!StringToUint64(tokens[2], &swap_info->mem_used_total))
+  }
+  if (!StringToUint64(tokens[2], &swap_info->mem_used_total)) {
     return false;
+  }
 
   return true;
 }
 
-bool ParseZramStat(StringPiece stat_data, SwapInfo* swap_info) {
+bool ParseZramStat(std::string_view stat_data, SwapInfo* swap_info) {
   // There are 11 columns in /sys/block/zram0/stat,
   // split by several spaces. The first column is read I/Os
   // and fifth column is write I/Os.
@@ -810,7 +800,7 @@ bool ParseZramStat(StringPiece stat_data, SwapInfo* swap_info) {
   // For more details:
   // https://www.kernel.org/doc/Documentation/blockdev/zram.txt
 
-  std::vector<StringPiece> tokens = SplitStringPiece(
+  std::vector<std::string_view> tokens = SplitStringPiece(
       stat_data, kWhitespaceASCII, TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
   if (tokens.size() < 11) {
     DLOG(WARNING) << "zram stat: tokens: " << tokens.size()
@@ -818,10 +808,12 @@ bool ParseZramStat(StringPiece stat_data, SwapInfo* swap_info) {
     return false;
   }
 
-  if (!StringToUint64(tokens[0], &swap_info->num_reads))
+  if (!StringToUint64(tokens[0], &swap_info->num_reads)) {
     return false;
-  if (!StringToUint64(tokens[4], &swap_info->num_writes))
+  }
+  if (!StringToUint64(tokens[4], &swap_info->num_writes)) {
     return false;
+  }
 
   return true;
 }
@@ -846,8 +838,9 @@ void ParseZramPath(SwapInfo* swap_info) {
   FilePath zram_path("/sys/block/zram0");
   uint64_t orig_data_size =
       ReadFileToUint64(zram_path.Append("orig_data_size"));
-  if (IgnoreZramFirstPage(orig_data_size, swap_info))
+  if (IgnoreZramFirstPage(orig_data_size, swap_info)) {
     return;
+  }
 
   swap_info->orig_data_size = orig_data_size;
   swap_info->num_reads = ReadFileToUint64(zram_path.Append("num_reads"));
@@ -865,7 +858,7 @@ bool GetSwapInfoImpl(SwapInfo* swap_info) {
   // Since ZRAM update, it shows the usage data in different places.
   // If file "/sys/block/zram0/mm_stat" exists, use the new way, otherwise,
   // use the old way.
-  static absl::optional<bool> use_new_zram_interface;
+  static std::optional<bool> use_new_zram_interface;
   FilePath zram_mm_stat_file("/sys/block/zram0/mm_stat");
   if (!use_new_zram_interface.has_value()) {
     use_new_zram_interface = PathExists(zram_mm_stat_file);
@@ -885,8 +878,9 @@ bool GetSwapInfoImpl(SwapInfo* swap_info) {
     DLOG(WARNING) << "Failed to parse " << zram_mm_stat_file.value();
     return false;
   }
-  if (IgnoreZramFirstPage(swap_info->orig_data_size, swap_info))
+  if (IgnoreZramFirstPage(swap_info->orig_data_size, swap_info)) {
     return true;
+  }
 
   FilePath zram_stat_file("/sys/block/zram0/stat");
   std::string stat_data;
@@ -912,7 +906,157 @@ bool GetSwapInfo(SwapInfo* swap_info) {
   return true;
 }
 
+namespace {
+
+size_t ParseSize(std::string_view value) {
+  size_t pos = value.find(' ');
+  std::string_view base = value.substr(0, pos);
+  std::string_view units = value.substr(pos + 1);
+
+  size_t ret = 0;
+
+  base::StringToSizeT(base, &ret);
+
+  if (units == "KiB") {
+    ret *= 1024;
+  } else if (units == "MiB") {
+    ret *= 1024 * 1024;
+  }
+
+  return ret;
+}
+
+struct DrmFdInfo {
+  size_t memory_total;
+  size_t memory_shared;
+};
+
+void GetFdInfoFromPid(pid_t pid,
+                      std::map<unsigned int, struct DrmFdInfo>& fdinfo_table) {
+  const FilePath pid_path =
+      FilePath("/proc").AppendASCII(base::NumberToString(pid));
+  const FilePath fd_path = pid_path.AppendASCII("fd");
+  DirReaderPosix dir_reader(fd_path.value().c_str());
+
+  if (!dir_reader.IsValid()) {
+    return;
+  }
+
+  for (; dir_reader.Next();) {
+    const char* name = dir_reader.name();
+
+    if (UNSAFE_TODO(strcmp(name, ".")) == 0 ||
+        UNSAFE_TODO(strcmp(name, "..")) == 0) {
+      continue;
+    }
+
+    struct stat stat;
+    int err = fstatat(dir_reader.fd(), name, &stat, 0);
+    if (err) {
+      continue;
+    }
+
+    /* Skip fd's that are not drm device files: */
+    if (!S_ISCHR(stat.st_mode) || major(stat.st_rdev) != 226) {
+      continue;
+    }
+
+    const FilePath fdinfo_path =
+        pid_path.AppendASCII("fdinfo").AppendASCII(name);
+
+    std::string fdinfo_data;
+    if (!ReadFileToStringNonBlocking(fdinfo_path, &fdinfo_data)) {
+      continue;
+    }
+
+    std::stringstream ss(fdinfo_data);
+    std::string line;
+    struct DrmFdInfo fdinfo = {};
+    unsigned int client_id = 0;
+
+    while (std::getline(ss, line, '\n')) {
+      size_t pos = line.find(':');
+
+      if (pos == std::string::npos) {
+        continue;
+      }
+
+      std::string_view line_view(line);
+      std::string_view key = line_view.substr(0, pos);
+      std::string_view value = line_view.substr(pos + 1);
+
+      /* trim leading space from the value: */
+      value = value.substr(value.find_first_not_of(" \t"));
+
+      if (key == "drm-client-id") {
+        base::StringToUint(value, &client_id);
+      } else if (key == "drm-total-memory") {
+        fdinfo.memory_total = ParseSize(value);
+      } else if (key == "drm-shared-memory") {
+        fdinfo.memory_shared = ParseSize(value);
+      }
+    }
+
+    /* The compositor only imports buffers.. so shared==total.  Skip this
+     * as it is not interesting:
+     */
+    if (client_id && fdinfo.memory_shared != fdinfo.memory_total) {
+      fdinfo_table[client_id] = fdinfo;
+    }
+  }
+}
+
+bool GetGraphicsMemoryInfoFdInfo(GraphicsMemoryInfoKB* gpu_meminfo) {
+  // First parse clients file to get the tgid's of processes using the GPU
+  // so that we don't need to parse *all* processes:
+  const FilePath clients_path("/run/debugfs_gpu/clients");
+  std::string clients_data;
+  std::map<unsigned int, struct DrmFdInfo> fdinfo_table;
+
+  if (!ReadFileToStringNonBlocking(clients_path, &clients_data)) {
+    return false;
+  }
+
+  // This has been the format since kernel commit:
+  // 50d47cb318ed ("drm: Include task->name and master status in debugfs clients
+  // info")
+  //
+  // comm pid dev  master auth uid magic
+  // %20s %5d %3d   %c    %c %5d %10u\n
+  //
+  // In practice comm rarely contains spaces, but it can in fact contain
+  // any character.  So we parse based on the 20 char limit (plus one
+  // space):
+  std::istringstream clients_stream(clients_data);
+  std::string line;
+  while (std::getline(clients_stream, line)) {
+    pid_t pid;
+    int num_res = UNSAFE_TODO(sscanf(&line.c_str()[21], "%5d", &pid));
+    if (num_res == 1) {
+      GetFdInfoFromPid(pid, fdinfo_table);
+    }
+  }
+
+  if (fdinfo_table.size() == 0) {
+    return false;
+  }
+
+  gpu_meminfo->gpu_memory_size = 0;
+
+  for (auto const& p : fdinfo_table) {
+    gpu_meminfo->gpu_memory_size += p.second.memory_total;
+    /* TODO it would be nice to also be able to report shared */
+  }
+
+  return true;
+}
+
+}  // namespace
+
 bool GetGraphicsMemoryInfo(GraphicsMemoryInfoKB* gpu_meminfo) {
+  if (GetGraphicsMemoryInfoFdInfo(gpu_meminfo)) {
+    return true;
+  }
 #if defined(ARCH_CPU_X86_FAMILY)
   // Reading i915_gem_objects on intel platform with kernel 5.4 is slow and is
   // prohibited.
@@ -920,8 +1064,9 @@ bool GetGraphicsMemoryInfo(GraphicsMemoryInfoKB* gpu_meminfo) {
   static bool is_newer_kernel =
       base::StartsWith(base::SysInfo::KernelVersion(), "5.");
   static bool is_intel_cpu = base::CPU().vendor_name() == "GenuineIntel";
-  if (is_newer_kernel && is_intel_cpu)
+  if (is_newer_kernel && is_intel_cpu) {
     return false;
+  }
 #endif
 
 #if defined(ARCH_CPU_ARM_FAMILY)
@@ -935,8 +1080,9 @@ bool GetGraphicsMemoryInfo(GraphicsMemoryInfoKB* gpu_meminfo) {
   if (ReadFileToStringNonBlocking(geminfo_path, &geminfo_data)) {
     int gpu_objects = -1;
     int64_t gpu_memory_size = -1;
-    int num_res = sscanf(geminfo_data.c_str(), "%d objects, %" SCNd64 " bytes",
-                         &gpu_objects, &gpu_memory_size);
+    int num_res = UNSAFE_TODO(sscanf(geminfo_data.c_str(),
+                                     "%d objects, %" SCNd64 " bytes",
+                                     &gpu_objects, &gpu_memory_size));
     if (num_res == 2) {
       gpu_meminfo->gpu_objects = gpu_objects;
       gpu_meminfo->gpu_memory_size = gpu_memory_size;
@@ -951,8 +1097,9 @@ bool GetGraphicsMemoryInfo(GraphicsMemoryInfoKB* gpu_meminfo) {
     int64_t mali_size = -1;
     int num_res =
         sscanf(mali_memory_data.c_str(), "%" SCNd64 " bytes", &mali_size);
-    if (num_res == 1)
+    if (num_res == 1) {
       gpu_meminfo->gpu_memory_size += mali_size;
+    }
   }
 #endif  // defined(ARCH_CPU_ARM_FAMILY)
 
@@ -965,7 +1112,8 @@ bool GetGraphicsMemoryInfo(GraphicsMemoryInfoKB* gpu_meminfo) {
 int ProcessMetrics::GetIdleWakeupsPerSecond() {
   uint64_t num_switches;
   static const char kSwitchStat[] = "voluntary_ctxt_switches";
-  return ReadProcStatusAndGetFieldAsUint64(process_, kSwitchStat, &num_switches)
+  return internal::ReadProcStatusAndGetFieldAsUint64(process_, kSwitchStat,
+                                                     &num_switches)
              ? CalculateIdleWakeupsPerSecond(num_switches)
              : 0;
 }

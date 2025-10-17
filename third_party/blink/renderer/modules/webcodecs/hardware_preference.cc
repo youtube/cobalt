@@ -19,7 +19,17 @@ HardwarePreference StringToHardwarePreference(const String& value) {
     return HardwarePreference::kPreferSoftware;
 
   NOTREACHED();
-  return HardwarePreference::kNoPreference;
+}
+
+String HardwarePreferenceToString(HardwarePreference hw_pref) {
+  switch (hw_pref) {
+    case HardwarePreference::kNoPreference:
+      return "no-preference";
+    case HardwarePreference::kPreferHardware:
+      return "prefer-hardware";
+    case HardwarePreference::kPreferSoftware:
+      return "prefer-software";
+  }
 }
 
 }  // namespace blink

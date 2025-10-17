@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_WEB_PACKAGE_SIGNED_EXCHANGE_CERT_FETCHER_H_
 #define CONTENT_BROWSER_WEB_PACKAGE_SIGNED_EXCHANGE_CERT_FETCHER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,7 +21,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 class SharedURLLoaderFactory;
@@ -35,6 +35,10 @@ namespace blink {
 class ThrottlingURLLoader;
 class URLLoaderThrottle;
 }  // namespace blink
+
+namespace url {
+class Origin;
+}  // namespace url
 
 namespace content {
 
@@ -63,8 +67,9 @@ class CONTENT_EXPORT SignedExchangeCertFetcher
       bool force_fetch,
       CertificateCallback callback,
       SignedExchangeDevToolsProxy* devtools_proxy,
-      const absl::optional<base::UnguessableToken>& throttling_profile_id,
-      net::IsolationInfo isolation_info);
+      const std::optional<base::UnguessableToken>& throttling_profile_id,
+      net::IsolationInfo isolation_info,
+      const std::optional<url::Origin>& initiator);
 
   SignedExchangeCertFetcher(const SignedExchangeCertFetcher&) = delete;
   SignedExchangeCertFetcher& operator=(const SignedExchangeCertFetcher&) =
@@ -89,8 +94,9 @@ class CONTENT_EXPORT SignedExchangeCertFetcher
       bool force_fetch,
       CertificateCallback callback,
       SignedExchangeDevToolsProxy* devtools_proxy,
-      const absl::optional<base::UnguessableToken>& throttling_profile_id,
-      net::IsolationInfo isolation_info);
+      const std::optional<base::UnguessableToken>& throttling_profile_id,
+      net::IsolationInfo isolation_info,
+      const std::optional<url::Origin>& initiator);
   void Start();
   void Abort();
   void OnHandleReady(MojoResult result);
@@ -104,7 +110,7 @@ class CONTENT_EXPORT SignedExchangeCertFetcher
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr head,
       mojo::ScopedDataPipeConsumerHandle body,
-      absl::optional<mojo_base::BigBuffer> cached_metadata) override;
+      std::optional<mojo_base::BigBuffer> cached_metadata) override;
   void OnReceiveRedirect(const net::RedirectInfo& redirect_info,
                          network::mojom::URLResponseHeadPtr head) override;
   void OnUploadProgress(int64_t current_position,
@@ -130,7 +136,7 @@ class CONTENT_EXPORT SignedExchangeCertFetcher
   // This is owned by SignedExchangeHandler which is the owner of |this|.
   raw_ptr<SignedExchangeDevToolsProxy> devtools_proxy_;
   bool has_notified_completion_to_devtools_ = false;
-  absl::optional<base::UnguessableToken> cert_request_id_;
+  std::optional<base::UnguessableToken> cert_request_id_;
 
   net::IPAddress cert_server_ip_address_;
 };

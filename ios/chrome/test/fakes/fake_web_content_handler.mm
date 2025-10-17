@@ -4,10 +4,6 @@
 
 #import "ios/chrome/test/fakes/fake_web_content_handler.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @class PKPass;
 
 @implementation FakeWebContentHandler {
@@ -21,15 +17,17 @@
 #pragma mark WebContentCommands
 
 - (void)showAppStoreWithParameters:(NSDictionary*)productParameters {
+  self.called = YES;
   self.productParams = productParameters;
 }
 
-- (void)showDialogForPassKitPass:(PKPass*)pass {
+- (void)showDialogForPassKitPasses:(NSArray<PKPass*>*)passes {
+  self.called = YES;
   if (!_passes) {
     _passes = [[NSMutableArray alloc] init];
   }
-  if (pass) {
-    [_passes addObject:pass];
+  if (passes.count > 0) {
+    [_passes addObjectsFromArray:passes];
   } else {
     [_passes addObject:[NSNull null]];
   }

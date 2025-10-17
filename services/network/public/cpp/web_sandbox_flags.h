@@ -7,8 +7,9 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
+
 #include "base/component_export.h"
-#include "base/strings/string_piece_forward.h"
 
 namespace network {
 namespace mojom {
@@ -60,9 +61,9 @@ struct WebSandboxFlagsParsingResult {
 //
 // Supposed to be called only from a (semi-)sandboxed processes, i.e. from blink
 // or from the network process. See: docs/security/rule-of-2.md.
-COMPONENT_EXPORT(NETWORK_CPP)
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 WebSandboxFlagsParsingResult ParseWebSandboxPolicy(
-    const base::StringPiece& input,
+    std::string_view input,
     mojom::WebSandboxFlags ignored_flags);
 
 }  // namespace network

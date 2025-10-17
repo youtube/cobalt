@@ -4,7 +4,10 @@
 
 #include "quiche/quic/core/quic_versions.h"
 
+#include <algorithm>
+#include <ostream>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/numbers.h"
@@ -36,22 +39,18 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
 }
 
 void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync");
   const bool enable = should_enable;
   const bool disable = !should_enable;
-  if (version == ParsedQuicVersion::V2Draft08()) {
-    SetQuicReloadableFlag(quic_enable_version_2_draft_08, enable);
+  if (version == ParsedQuicVersion::RFCv2()) {
+    SetQuicReloadableFlag(quic_enable_version_rfcv2, enable);
   } else if (version == ParsedQuicVersion::RFCv1()) {
     SetQuicReloadableFlag(quic_disable_version_rfcv1, disable);
   } else if (version == ParsedQuicVersion::Draft29()) {
     SetQuicReloadableFlag(quic_disable_version_draft_29, disable);
-  } else if (version == ParsedQuicVersion::Q050()) {
-    SetQuicReloadableFlag(quic_disable_version_q050, disable);
   } else if (version == ParsedQuicVersion::Q046()) {
     SetQuicReloadableFlag(quic_disable_version_q046, disable);
-  } else if (version == ParsedQuicVersion::Q043()) {
-    SetQuicReloadableFlag(quic_disable_version_q043, disable);
   } else {
     QUIC_BUG(quic_bug_10589_1)
         << "Cannot " << (enable ? "en" : "dis") << "able version " << version;
@@ -133,16 +132,6 @@ bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
   return VersionSupportsGoogleAltSvcFormat(transport_version);
 }
 
-bool ParsedQuicVersion::HasIetfInvariantHeader() const {
-  QUICHE_DCHECK(IsKnown());
-  return VersionHasIetfInvariantHeader(transport_version);
-}
-
-bool ParsedQuicVersion::SupportsMessageFrames() const {
-  QUICHE_DCHECK(IsKnown());
-  return VersionSupportsMessageFrames(transport_version);
-}
-
 bool ParsedQuicVersion::UsesHttp3() const {
   QUICHE_DCHECK(IsKnown());
   return VersionUsesHttp3(transport_version);
@@ -180,12 +169,12 @@ bool ParsedQuicVersion::UsesQuicCrypto() const {
 
 bool ParsedQuicVersion::UsesV2PacketTypes() const {
   QUICHE_DCHECK(IsKnown());
-  return transport_version == QUIC_VERSION_IETF_2_DRAFT_08;
+  return transport_version == QUIC_VERSION_IETF_RFC_V2;
 }
 
 bool ParsedQuicVersion::AlpnDeferToRFCv1() const {
   QUICHE_DCHECK(IsKnown());
-  return transport_version == QUIC_VERSION_IETF_2_DRAFT_08;
+  return transport_version == QUIC_VERSION_IETF_RFC_V2;
 }
 
 bool VersionHasLengthPrefixedConnectionIds(
@@ -223,20 +212,16 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync");
-  if (parsed_version == ParsedQuicVersion::V2Draft08()) {
+  if (parsed_version == ParsedQuicVersion::RFCv2()) {
     return MakeVersionLabel(0x6b, 0x33, 0x43, 0xcf);
   } else if (parsed_version == ParsedQuicVersion::RFCv1()) {
     return MakeVersionLabel(0x00, 0x00, 0x00, 0x01);
   } else if (parsed_version == ParsedQuicVersion::Draft29()) {
     return MakeVersionLabel(0xff, 0x00, 0x00, 29);
-  } else if (parsed_version == ParsedQuicVersion::Q050()) {
-    return MakeVersionLabel('Q', '0', '5', '0');
   } else if (parsed_version == ParsedQuicVersion::Q046()) {
     return MakeVersionLabel('Q', '0', '4', '6');
-  } else if (parsed_version == ParsedQuicVersion::Q043()) {
-    return MakeVersionLabel('Q', '0', '4', '3');
   } else if (parsed_version == ParsedQuicVersion::ReservedForNegotiation()) {
     return CreateRandomVersionLabelForNegotiation();
   }
@@ -305,6 +290,35 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
   return versions;
 }
 
+ParsedQuicVersionVector ObsoleteSupportedVersions() {
+  return ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046(),
+                                 quic::ParsedQuicVersion::Draft29()};
+}
+
+bool IsObsoleteSupportedVersion(ParsedQuicVersion version) {
+  static const ParsedQuicVersionVector obsolete_versions =
+      ObsoleteSupportedVersions();
+  for (const ParsedQuicVersion& obsolete_version : obsolete_versions) {
+    if (version == obsolete_version) {
+      return true;
+    }
+  }
+  return false;
+}
+
+ParsedQuicVersionVector CurrentSupportedVersionsForClients() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : CurrentSupportedVersionsWithTls()) {
+    QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
+    if (version.transport_version >= QUIC_VERSION_IETF_RFC_V1) {
+      versions.push_back(version);
+    }
+  }
+  QUIC_BUG_IF(quic_bug_10589_8, versions.empty())
+      << "No supported client versions found.";
+  return versions;
+}
+
 ParsedQuicVersionVector CurrentSupportedHttp3Versions() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
@@ -318,14 +332,22 @@ ParsedQuicVersionVector CurrentSupportedHttp3Versions() {
 }
 
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
-  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version_label == CreateQuicVersionLabel(version)) {
-      return version;
+  if (GetQuicReloadableFlag(quic_heapless_static_parser)) {
+    for (const ParsedQuicVersion& version : SupportedVersions()) {
+      if (version_label == CreateQuicVersionLabel(version)) {
+        return version;
+      }
     }
+  } else {
+    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+      if (version_label == CreateQuicVersionLabel(version)) {
+        return version;
+      }
+    }
+    // Reading from the client so this should not be considered an ERROR.
+    QUIC_DLOG(INFO) << "Unsupported QuicVersionLabel version: "
+                    << QuicVersionLabelToString(version_label);
   }
-  // Reading from the client so this should not be considered an ERROR.
-  QUIC_DLOG(INFO) << "Unsupported QuicVersionLabel version: "
-                  << QuicVersionLabelToString(version_label);
   return UnsupportedQuicVersion();
 }
 
@@ -424,13 +446,13 @@ ParsedQuicVersionVector CurrentSupportedVersions() {
 
 ParsedQuicVersionVector FilterSupportedVersions(
     ParsedQuicVersionVector versions) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync");
   ParsedQuicVersionVector filtered_versions;
   filtered_versions.reserve(versions.size());
   for (const ParsedQuicVersion& version : versions) {
-    if (version == ParsedQuicVersion::V2Draft08()) {
-      if (GetQuicReloadableFlag(quic_enable_version_2_draft_08)) {
+    if (version == ParsedQuicVersion::RFCv2()) {
+      if (GetQuicReloadableFlag(quic_enable_version_rfcv2)) {
         filtered_versions.push_back(version);
       }
     } else if (version == ParsedQuicVersion::RFCv1()) {
@@ -441,16 +463,8 @@ ParsedQuicVersionVector FilterSupportedVersions(
       if (!GetQuicReloadableFlag(quic_disable_version_draft_29)) {
         filtered_versions.push_back(version);
       }
-    } else if (version == ParsedQuicVersion::Q050()) {
-      if (!GetQuicReloadableFlag(quic_disable_version_q050)) {
-        filtered_versions.push_back(version);
-      }
     } else if (version == ParsedQuicVersion::Q046()) {
       if (!GetQuicReloadableFlag(quic_disable_version_q046)) {
-        filtered_versions.push_back(version);
-      }
-    } else if (version == ParsedQuicVersion::Q043()) {
-      if (!GetQuicReloadableFlag(quic_disable_version_q043)) {
         filtered_versions.push_back(version);
       }
     } else {
@@ -514,12 +528,10 @@ std::string QuicVersionLabelVectorToString(
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
   switch (transport_version) {
-    RETURN_STRING_LITERAL(QUIC_VERSION_43);
     RETURN_STRING_LITERAL(QUIC_VERSION_46);
-    RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_29);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_RFC_V1);
-    RETURN_STRING_LITERAL(QUIC_VERSION_IETF_2_DRAFT_08);
+    RETURN_STRING_LITERAL(QUIC_VERSION_IETF_RFC_V2);
     RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
     RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
@@ -538,13 +550,13 @@ std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync");
   if (version == UnsupportedQuicVersion()) {
     return "0";
-  } else if (version == ParsedQuicVersion::V2Draft08()) {
+  } else if (version == ParsedQuicVersion::RFCv2()) {
     QUICHE_DCHECK(version.UsesHttp3());
-    return "V2Draft08";
+    return "RFCv2";
   } else if (version == ParsedQuicVersion::RFCv1()) {
     QUICHE_DCHECK(version.UsesHttp3());
     return "RFCv1";
@@ -604,8 +616,8 @@ bool QuicVersionLabelUses4BitConnectionIdLength(
   // and Google QUIC 49 and later use the new length prefixed encoding.
   // Similarly, only IETF drafts 11 to 21 used this encoding.
 
-  // Check Q044, Q045, Q046, Q047 and Q048.
-  for (uint8_t c = '4'; c <= '8'; ++c) {
+  // Check Q043, Q044, Q045, Q046, Q047 and Q048.
+  for (uint8_t c = '3'; c <= '8'; ++c) {
     if (version_label == MakeVersionLabel('Q', '0', '4', c)) {
       return true;
     }
@@ -632,7 +644,7 @@ ParsedQuicVersion QuicVersionReservedForNegotiation() {
 }
 
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
-  if (parsed_version == ParsedQuicVersion::V2Draft08()) {
+  if (parsed_version == ParsedQuicVersion::RFCv2()) {
     return "h3";
   } else if (parsed_version == ParsedQuicVersion::RFCv1()) {
     return "h3";
@@ -640,11 +652,6 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
     return "h3-29";
   }
   return "h3-" + ParsedQuicVersionToString(parsed_version);
-}
-
-void QuicVersionInitializeSupportForIetfDraft() {
-  // Enable necessary flags.
-  SetQuicRestartFlag(quic_receive_ecn, true);
 }
 
 void QuicEnableVersion(const ParsedQuicVersion& version) {

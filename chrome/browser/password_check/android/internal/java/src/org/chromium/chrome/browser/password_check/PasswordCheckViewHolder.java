@@ -11,15 +11,19 @@ import android.view.ViewGroup;
 import androidx.annotation.LayoutRes;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor.ViewBinder;
 
+@NullMarked
 class PasswordCheckViewHolder extends RecyclerView.ViewHolder {
     private final ViewBinder<PropertyModel, View, PropertyKey> mViewBinder;
 
-    PasswordCheckViewHolder(ViewGroup parent, @LayoutRes int layout,
+    PasswordCheckViewHolder(
+            ViewGroup parent,
+            @LayoutRes int layout,
             ViewBinder<PropertyModel, View, PropertyKey> viewBinder) {
         super(LayoutInflater.from(parent.getContext()).inflate(layout, parent, false));
         mViewBinder = viewBinder;

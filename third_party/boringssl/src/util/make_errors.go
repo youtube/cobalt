@@ -1,16 +1,16 @@
-// Copyright (c) 2014, Google Inc.
+// Copyright 2014 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 //go:build ignore
 
@@ -57,6 +57,11 @@ func getLibraryInfo(lib string) libraryInfo {
 	if lib == "evp" {
 		info.headerName = "evp_errors.h"
 		info.sourceDirs = append(info.sourceDirs, filepath.Join("crypto", "hpke"))
+	}
+
+	if lib == "x509v3" {
+		info.headerName = "x509v3_errors.h"
+		info.sourceDirs = append(info.sourceDirs, filepath.Join("crypto", "x509"))
 	}
 
 	return info
@@ -321,7 +326,7 @@ func assignNewValues(assignments map[string]int, reserved int) {
 	}
 }
 
-func handleDeclareMacro(line, join, macroName string, m map[string]int) {
+func handleDeclareMacro(line, prefix, join, macroName string, m map[string]int) {
 	if i := strings.Index(line, macroName); i >= 0 {
 		contents := line[i+len(macroName):]
 		if i := strings.Index(contents, ")"); i >= 0 {
@@ -333,9 +338,11 @@ func handleDeclareMacro(line, join, macroName string, m map[string]int) {
 			if len(args) != 2 {
 				panic("Bad macro line: " + line)
 			}
-			token := args[0] + join + args[1]
-			if _, ok := m[token]; !ok {
-				m[token] = -1
+			if args[0] == prefix {
+				token := args[0] + join + args[1]
+				if _, ok := m[token]; !ok {
+					m[token] = -1
+				}
 			}
 		}
 	}
@@ -354,7 +361,7 @@ func addReasons(reasons map[string]int, filename, prefix string) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		handleDeclareMacro(line, "_R_", "OPENSSL_DECLARE_ERROR_REASON(", reasons)
+		handleDeclareMacro(line, prefix, "_R_", "OPENSSL_DECLARE_ERROR_REASON(", reasons)
 
 		for len(line) > 0 {
 			i := strings.Index(line, prefix+"_")

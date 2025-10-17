@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "base/functional/callback.h"
-#include "base/state_transitions.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_url_loader.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "url/gurl.h"
@@ -35,40 +34,41 @@ enum class SearchPrefetchStatus {
   // recorded as Start() should be called on the same stack as creating the
   // fetcher (as of now).
   kNotStarted = 0,
-  // The request is on the network and may move to any other state.
-  kInFlight = 1,
+
+  // The request is on the network and may move to any other state. Removed
+  // after https://crbug.com/40217275 is implemented.
+  // kInFlight = 1,
+
   // The request can be served to the navigation stack, but may still encounter
   // errors and move to |kRequestFailed| or it may complete and move to
-  // |kComplete|. It may also move to |kCanBeServedAndUserClicked| when the user
-  // navigates to the result in omnibox or |kRequestCancelled| if the user
-  // closes omnibox.
+  // |kComplete|.
   kCanBeServed = 2,
-  // The request can be served to the navigation stack, and is marked as being
-  // clicked by the user. At this point, it may move to |kComplete| or
-  // |kRequestFailed|.
-  kCanBeServedAndUserClicked = 3,
+
+  // Obsolete: After updating the cancellation logic, we no longer need this
+  // status to prevent a clicked prefetch from being deleted.
+  // kCanBeServedAndUserClicked = 3,
+
   // The request can be served to the navigation stack, and has fully streamed
   // the response with no errors.
   kComplete = 4,
+
   // The request hit an error and cannot be served.
   kRequestFailed = 5,
-  // The request was cancelled before completion. This is a terminal state.
-  kRequestCancelled = 6,
-  // The request was served to the navigation stack. This is a terminal state.
+
+  // Obsolete: After updating the cancellation logic, we no longer cancel
+  // in-flight prefetch requests on autocomplete result changed.
+  // kRequestCancelled = 6,
+
   kPrefetchServedForRealNavigation = 7,
-  // The request was served to the prerender navigation stack. It may move to
-  // |kPrerenderedAndClicked| when the user navigates to the result in omnibox
-  // or |kRequestCancelled| if the user closes omnibox.
-  kPrerendered = 8,
-  // Similar to |kCanBeServedAndUserClicked|, the request was served to the
-  // prerender navigation stack, and is marked as being
-  // clicked by the user. It is expected to move to |kPrerenderActivated| after
-  // the corresponding prerender is fully activated by the user.
-  kPrerenderedAndClicked = 9,
-  // The request was served to the prerender navigation stack, and the prerender
-  // page is fully activated by the user. This is a terminal state.
-  kPrerenderActivated = 10,
-  kMaxValue = kPrerenderActivated,
+
+  // Obsolete: Now search prefetch requests are reusable, i.e., can be served to
+  // both real navigation and prerender navigation, so we no longer track these
+  // statuses.
+  // kPrerendered = 8,
+  // kPrerenderedAndClicked = 9,
+  // kPrerenderActivated = 10,
+
+  kMaxValue = kPrefetchServedForRealNavigation,
 };
 
 // A class representing a prefetch used by the Search Prefetch Service.
@@ -95,18 +95,10 @@ class SearchPrefetchRequest {
   // The NTA for any search prefetch request.
   static net::NetworkTrafficAnnotationTag NetworkAnnotationForPrefetch();
 
-  // Starts the network request to prefetch |prefetch_url_|. Sets various fields
-  // on a resource request and calls |StartPrefetchRequestInternal()|. Returns
-  // |false| if the request is not started (i.e., it would be deferred by
-  // throttles).
+  // Starts the network request to prefetch `prefetch_url_`. Sets various fields
+  // on a resource request. Returns `false` if the request is not started (i.e.,
+  // it would be deferred by throttles).
   bool StartPrefetchRequest(Profile* profile);
-
-  // Returns true if this request should be canceled when the Autocomplete
-  // suggestion no longer lists this search prefetch.
-  bool ShouldBeCancelledOnResultChanges() const;
-
-  // Marks a prefetch as canceled and stops any ongoing fetch.
-  void CancelPrefetch();
 
   // Called when SearchPrefetchService receives the hint that this prefetch
   // request can be upgraded to a prerender attempt.
@@ -120,26 +112,12 @@ class SearchPrefetchRequest {
   // Called on the URL loader receives servable response.
   void OnServableResponseCodeReceived();
 
-  // Update the status when the request is serveable.
-  void MarkPrefetchAsServable();
-
   // Update the status when the request is complete.
   void MarkPrefetchAsComplete();
-
-  // Update the status when the relevant search item is clicked in omnibox.
-  void MarkPrefetchAsClicked();
 
   // Update the status when the request is actually served to the navigation
   // stack of a real navigation request.
   void MarkPrefetchAsServed();
-
-  // Updates the status when the request is served to a prerendering navigation
-  // stack. Note that after this point, this request cannot be served to a real
-  // navigation anymore.
-  void MarkPrefetchAsPrerendered();
-
-  // Updates the status when the prerendering page it is serving was activated.
-  void MarkPrefetchAsPrerenderActivated();
 
   // Called when AutocompleteMatches changes. It resets PrerenderUpgrader.
   // And if the AutocompleteMatches suggests to prerender a search result,
@@ -151,14 +129,7 @@ class SearchPrefetchRequest {
   void RecordClickTime();
 
   // Takes ownership of underlying data/objects needed to serve the response.
-  std::unique_ptr<StreamingSearchPrefetchURLLoader>
-  TakeSearchPrefetchURLLoader();
-
-  // If the loader is still serving to a navigation, we should not destroy the
-  // loader because it results in serving an incomplete response.
-  // TODO(https://crbug.com/1400881): We may need to consider using
-  // scoped_refptr. Figure out the safer one.
-  void TransferLoaderOwnershipIfStillServing();
+  scoped_refptr<StreamingSearchPrefetchURLLoader> TakeSearchPrefetchURLLoader();
 
   // Instead of completely letting a navigation stack own the prefetch loader,
   // creates a copy of the prefetched response so that it can be shared among
@@ -179,13 +150,12 @@ class SearchPrefetchRequest {
   // exists.
   void SetPrefetchAttemptFailureReason(content::PreloadingFailureReason reason);
 
- private:
-  // Starts and begins processing |resource_request|.
-  void StartPrefetchRequestInternal(
-      Profile* profile,
-      std::unique_ptr<network::ResourceRequest> resource_request,
-      base::OnceCallback<void(bool)> report_error_callback);
+  // Tells StreamingSearchPrefetchURLLoader to run the callback upon
+  // destruction.
+  void SetLoaderDestructionCallbackForTesting(
+      base::OnceClosure streaming_url_loader_destruction_callback);
 
+ private:
   // Stops the on-going prefetch and should mark |current_status_|
   // appropriately.
   void StopPrefetch();
@@ -226,7 +196,7 @@ class SearchPrefetchRequest {
   bool navigation_prefetch_;
 
   // The ongoing prefetch request. Null before and after the fetch.
-  std::unique_ptr<StreamingSearchPrefetchURLLoader> streaming_url_loader_;
+  scoped_refptr<StreamingSearchPrefetchURLLoader> streaming_url_loader_;
 
   // Once set, this is used to log the metrics corresponding to the prefetch
   // attempt. Please note this is different from `prerender_preloading_attempt_`
@@ -239,6 +209,8 @@ class SearchPrefetchRequest {
   // Called when there is a network/server error on the prefetch request.
   base::OnceCallback<void(bool)> report_error_callback_;
 
+  base::TimeTicks time_start_prefetch_request_;
+
   // The time at which the prefetched URL was clicked in the Omnibox.
   base::TimeTicks time_clicked_;
 
@@ -250,8 +222,6 @@ class SearchPrefetchRequest {
   // passed to log various metrics. We store WeakPtr as prerender can be deleted
   // before we receive a prefetch response or the prerender is not created.
   base::WeakPtr<content::PreloadingAttempt> prerender_preloading_attempt_;
-
-  base::raw_ptr<Profile> profile_;
 };
 
 // Used when DCHECK_STATE_TRANSITION triggers.

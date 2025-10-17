@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/controls/menu/menu_runner_impl.h"
 
@@ -23,7 +24,8 @@ bool MenuRunnerImplAdapter::IsRunning() const {
 }
 
 void MenuRunnerImplAdapter::Release() {
-  impl_->Release();
+  // Release will cause `impl_` to delete itself.
+  impl_.ExtractAsDangling()->Release();
   delete this;
 }
 
@@ -32,11 +34,13 @@ void MenuRunnerImplAdapter::RunMenuAt(
     MenuButtonController* button_controller,
     const gfx::Rect& bounds,
     MenuAnchorPosition anchor,
+    ui::mojom::MenuSourceType source_type,
     int32_t types,
     gfx::NativeView native_view_for_gestures,
-    absl::optional<gfx::RoundedCornersF> corners) {
-  impl_->RunMenuAt(parent, button_controller, bounds, anchor, types,
-                   native_view_for_gestures);
+    std::optional<gfx::RoundedCornersF> corners,
+    std::optional<std::string> show_menu_host_duration_histogram) {
+  impl_->RunMenuAt(parent, button_controller, bounds, anchor, source_type,
+                   types, native_view_for_gestures);
 }
 
 void MenuRunnerImplAdapter::Cancel() {

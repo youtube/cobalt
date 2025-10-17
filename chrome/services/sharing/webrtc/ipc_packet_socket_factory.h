@@ -12,14 +12,14 @@
 
 namespace sharing {
 
-// IpcPacketSocketFactory implements rtc::PacketSocketFactory
+// IpcPacketSocketFactory implements webrtc::PacketSocketFactory
 // interface for libjingle using IPC-based P2P sockets. The class must
 // be used on a thread that is a libjingle thread (implements
-// rtc::Thread) and also has associated base::MessageLoop. Each
+// webrtc::Thread) and also has associated base::MessageLoop. Each
 // socket created by the factory must be used on the thread it was
 // created on.
-// TODO(crbug.com/1044522): reuse code from blink instead.
-class IpcPacketSocketFactory : public rtc::PacketSocketFactory {
+// TODO(crbug.com/40115622): reuse code from blink instead.
+class IpcPacketSocketFactory : public webrtc::PacketSocketFactory {
  public:
   IpcPacketSocketFactory(
       const mojo::SharedRemote<network::mojom::P2PSocketManager>&
@@ -29,22 +29,21 @@ class IpcPacketSocketFactory : public rtc::PacketSocketFactory {
   IpcPacketSocketFactory& operator=(const IpcPacketSocketFactory&) = delete;
   ~IpcPacketSocketFactory() override;
 
-  rtc::AsyncPacketSocket* CreateUdpSocket(
-      const rtc::SocketAddress& local_address,
+  webrtc::AsyncPacketSocket* CreateUdpSocket(
+      const webrtc::SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port) override;
-  rtc::AsyncListenSocket* CreateServerTcpSocket(
-      const rtc::SocketAddress& local_address,
+  webrtc::AsyncListenSocket* CreateServerTcpSocket(
+      const webrtc::SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
       int opts) override;
-  rtc::AsyncPacketSocket* CreateClientTcpSocket(
-      const rtc::SocketAddress& local_address,
-      const rtc::SocketAddress& remote_address,
-      const rtc::ProxyInfo& proxy_info,
-      const std::string& user_agent,
-      const rtc::PacketSocketTcpOptions& opts) override;
-  rtc::AsyncResolverInterface* CreateAsyncResolver() override;
+  webrtc::AsyncPacketSocket* CreateClientTcpSocket(
+      const webrtc::SocketAddress& local_address,
+      const webrtc::SocketAddress& remote_address,
+      const webrtc::PacketSocketTcpOptions& opts) override;
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
+      override;
 
  private:
   mojo::SharedRemote<network::mojom::P2PSocketManager> socket_manager_;

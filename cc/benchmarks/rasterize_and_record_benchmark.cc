@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
@@ -20,7 +21,6 @@
 #include "cc/layers/recording_source.h"
 #include "cc/paint/display_item_list.h"
 #include "cc/trees/layer_tree_host.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace cc {
@@ -117,8 +117,9 @@ void RasterizeAndRecordBenchmark::RunOnLayer(PictureLayer* layer) {
       painter->PaintContentsToDisplayList();
   record_results_.paint_op_memory_usage += display_list->BytesUsed();
   record_results_.paint_op_count += display_list->TotalOpCount();
-  record_results_.pixels_recorded +=
-      painter->PaintableRegion().width() * painter->PaintableRegion().height();
+  gfx::Rect bounds =
+      display_list->bounds().value_or(gfx::Rect(layer->bounds()));
+  record_results_.pixels_recorded += bounds.size().Area64();
 }
 
 }  // namespace cc

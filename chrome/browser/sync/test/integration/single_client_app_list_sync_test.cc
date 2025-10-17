@@ -7,10 +7,10 @@
 #include "ash/constants/ash_features.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service_factory.h"
 #include "chrome/browser/ash/app_list/chrome_app_list_item.h"
-#include "chrome/browser/ash/app_list/internal_app/internal_app_metadata.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/sync/test/integration/apps_helper.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
@@ -19,8 +19,8 @@
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/updated_progress_marker_checker.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/test/browser_test.h"
 
 using syncer::UserSelectableOsTypeSet;
@@ -71,15 +71,14 @@ class AppListSyncUpdateWaiter
     : public StatusChangeChecker,
       public app_list::AppListSyncableService::Observer {
  public:
-  explicit AppListSyncUpdateWaiter(app_list::AppListSyncableService* service)
-      : service_(service) {
-    service_->AddObserverAndStart(this);
+  explicit AppListSyncUpdateWaiter(app_list::AppListSyncableService* service) {
+    observer_.Observe(service);
   }
 
   AppListSyncUpdateWaiter(const AppListSyncUpdateWaiter&) = delete;
   AppListSyncUpdateWaiter& operator=(const AppListSyncUpdateWaiter&) = delete;
 
-  ~AppListSyncUpdateWaiter() override { service_->RemoveObserver(this); }
+  ~AppListSyncUpdateWaiter() override = default;
 
   // StatusChangeChecker:
   bool IsExitConditionSatisfied(std::ostream* os) override {
@@ -94,7 +93,9 @@ class AppListSyncUpdateWaiter
   }
 
  private:
-  const raw_ptr<app_list::AppListSyncableService, ExperimentalAsh> service_;
+  base::ScopedObservation<app_list::AppListSyncableService,
+                          app_list::AppListSyncableService::Observer>
+      observer_{this};
   bool service_updated_ = false;
 };
 
@@ -125,7 +126,7 @@ class SingleClientAppListSyncTestWithVerifier
   ~SingleClientAppListSyncTestWithVerifier() override = default;
 
   bool UseVerifier() override {
-    // TODO(crbug.com/1137772): rewrite tests to not use verifier.
+    // TODO(crbug.com/40724974): rewrite tests to not use verifier.
     return true;
   }
 };
@@ -152,11 +153,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientAppListSyncTestWithVerifier,
   app_list::AppListSyncableService* service =
       app_list::AppListSyncableServiceFactory::GetForProfile(verifier());
 
-  // Default apps: chrome + web store + internal apps .
-  const size_t kNumDefaultApps =
-      2u + app_list::GetNumberOfInternalAppsShowInLauncherForTest(
-               /*apps_name=*/nullptr, GetProfile(0));
-  ASSERT_EQ(kNumApps + kNumDefaultApps, service->GetNumSyncItemsForTest());
+  // Default apps: chrome + web store.
+  ASSERT_EQ(kNumApps + 2u, service->sync_items().size());
 
   ASSERT_TRUE(UpdatedProgressMarkerChecker(GetSyncService(0)).Wait());
   ASSERT_TRUE(AllProfilesHaveSameAppList());
@@ -264,14 +262,14 @@ IN_PROC_BROWSER_TEST_F(SingleClientAppListOsSyncTest,
 
   // Disable all browser types.
   settings->SetSelectedTypes(false, UserSelectableTypeSet());
-  GetClient(0)->AwaitSyncSetupCompletion();
+  ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
 
   // APP_LIST is still synced because it is an OS setting.
   EXPECT_TRUE(service->GetActiveDataTypes().Has(syncer::APP_LIST));
 
   // Disable OS types.
   settings->SetSelectedOsTypes(false, UserSelectableOsTypeSet());
-  GetClient(0)->AwaitSyncSetupCompletion();
+  ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
 
   // APP_LIST is not synced.
   EXPECT_FALSE(service->GetActiveDataTypes().Has(syncer::APP_LIST));

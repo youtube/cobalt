@@ -6,11 +6,14 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
-#include "base/check.h"
+#include "base/barrier_callback.h"
 #include "base/check_op.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -19,8 +22,9 @@
 #include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
+#include "base/values.h"
+#include "base/version.h"
 #include "components/prefs/pref_service.h"
-#include "components/update_client/buildflags.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/crx_cache.h"
@@ -31,69 +35,57 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace update_client {
 
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-// TODO(crbug.com/1349060) once Puffin patches are fully implemented,
-// we should remove this #if.
-UpdateContext::UpdateContext(
-    scoped_refptr<Configurator> config,
-    absl::optional<scoped_refptr<CrxCache>> crx_cache,
-    bool is_foreground,
-    bool is_install,
-    const std::vector<std::string>& ids,
-    UpdateClient::CrxStateChangeCallback crx_state_change_callback,
-    const UpdateEngine::NotifyObserversCallback& notify_observers_callback,
-    UpdateEngine::Callback callback,
-    PersistedData* persisted_data,
-    bool is_update_check_only)
-    : config(config),
-      crx_cache_(crx_cache),
-      is_foreground(is_foreground),
-      is_install(is_install),
-      ids(ids),
-      crx_state_change_callback(crx_state_change_callback),
-      notify_observers_callback(notify_observers_callback),
-      callback(std::move(callback)),
-      session_id(base::StrCat(
-          {"{", base::Uuid::GenerateRandomV4().AsLowercaseString(), "}"})),
-      persisted_data(persisted_data),
-      is_update_check_only(is_update_check_only) {
-  for (const auto& id : ids) {
-    components.insert(
-        std::make_pair(id, std::make_unique<Component>(*this, id)));
+namespace {
+
+base::Value::Dict MakeEvent(UpdateClient::PingParams ping_params,
+                            const base::Version& previous_version) {
+  base::Value::Dict event;
+  event.Set("eventtype", ping_params.event_type);
+  event.Set("eventresult", ping_params.result);
+  if (ping_params.error_code) {
+    event.Set("errorcode", ping_params.error_code);
   }
+  if (ping_params.extra_code1) {
+    event.Set("extracode1", ping_params.extra_code1);
+  }
+  if (!ping_params.app_command_id.empty()) {
+    event.Set("appcommandid", ping_params.app_command_id);
+  }
+  event.Set("previousversion", previous_version.GetString());
+  return event;
 }
-#else
+
+}  // namespace
+
 UpdateContext::UpdateContext(
     scoped_refptr<Configurator> config,
     bool is_foreground,
     bool is_install,
     const std::vector<std::string>& ids,
     UpdateClient::CrxStateChangeCallback crx_state_change_callback,
-    const UpdateEngine::NotifyObserversCallback& notify_observers_callback,
     UpdateEngine::Callback callback,
     PersistedData* persisted_data,
-    bool is_update_check_only)
+    bool is_update_check_only,
+    base::RepeatingCallback<int64_t(const base::FilePath&)> get_available_space)
     : config(config),
       is_foreground(is_foreground),
       is_install(is_install),
       ids(ids),
       crx_state_change_callback(crx_state_change_callback),
-      notify_observers_callback(notify_observers_callback),
       callback(std::move(callback)),
       session_id(base::StrCat(
           {"{", base::Uuid::GenerateRandomV4().AsLowercaseString(), "}"})),
       persisted_data(persisted_data),
-      is_update_check_only(is_update_check_only) {
+      is_update_check_only(is_update_check_only),
+      get_available_space(get_available_space) {
   for (const auto& id : ids) {
     components.insert(
         std::make_pair(id, std::make_unique<Component>(*this, id)));
   }
 }
-#endif
 
 UpdateContext::~UpdateContext() = default;
 
@@ -101,28 +93,11 @@ UpdateEngine::UpdateEngine(
     scoped_refptr<Configurator> config,
     UpdateChecker::Factory update_checker_factory,
     scoped_refptr<PingManager> ping_manager,
-    const NotifyObserversCallback& notify_observers_callback)
+    const UpdateClient::CrxStateChangeCallback& notify_observers_callback)
     : config_(config),
-
       update_checker_factory_(update_checker_factory),
       ping_manager_(ping_manager),
-      metadata_(
-          std::make_unique<PersistedData>(config->GetPrefService(),
-                                          config->GetActivityDataService())),
-      notify_observers_callback_(notify_observers_callback) {
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-  // TODO(crbug.com/1349060) once Puffin patches are fully implemented,
-  // we should remove this #if.
-  absl::optional<base::FilePath> crx_cache_path = config->GetCrxCachePath();
-  if (!crx_cache_path.has_value()) {
-    crx_cache_ = absl::nullopt;
-  } else {
-    CrxCache::Options options(crx_cache_path.value());
-    crx_cache_ = absl::optional<scoped_refptr<CrxCache>>(
-        base::MakeRefCounted<CrxCache>(options));
-  }
-#endif
-}
+      notify_observers_callback_(notify_observers_callback) {}
 
 UpdateEngine::~UpdateEngine() = default;
 
@@ -174,31 +149,53 @@ base::RepeatingClosure UpdateEngine::InvokeOperation(
     return base::DoNothing();
   }
 
-  // Calls out to get the corresponding CrxComponent data for the components.
-  const std::vector<absl::optional<CrxComponent>> crx_components =
-      std::move(crx_data_callback).Run(ids);
-  if (crx_components.size() < ids.size()) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback), Error::BAD_CRX_DATA_CALLBACK));
-    return base::DoNothing();
-  }
-
-  const auto update_context = base::MakeRefCounted<UpdateContext>(
-      config_,
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-      // TODO(crbug.com/1349060) once Puffin patches are fully implemented,
-      // we should remove this #if.
-      crx_cache_,
-#endif
-      is_foreground, is_install, ids, crx_state_change_callback,
-      notify_observers_callback_, std::move(callback), metadata_.get(),
-      is_update_check_only);
+  scoped_refptr<UpdateContext> update_context =
+      base::MakeRefCounted<UpdateContext>(
+          config_, is_foreground, is_install, ids,
+          crx_state_change_callback
+              ? base::BindRepeating(
+                    [](UpdateClient::CrxStateChangeCallback a,
+                       UpdateClient::CrxStateChangeCallback b,
+                       const CrxUpdateItem& item) {
+                      a.Run(item);
+                      b.Run(item);
+                    },
+                    crx_state_change_callback, notify_observers_callback_)
+              : notify_observers_callback_,
+          std::move(callback), config_->GetPersistedData(),
+          is_update_check_only);
   CHECK(!update_context->session_id.empty());
 
-  const auto result = update_contexts_.insert(
+  const auto [unused, inserted] = update_contexts_.insert(
       std::make_pair(update_context->session_id, update_context));
-  CHECK(result.second);
+  CHECK(inserted);
+
+  // Calls out to get the corresponding CrxComponent data for the components.
+  std::move(crx_data_callback)
+      .Run(ids,
+           base::BindOnce(&UpdateEngine::StartOperation, this, update_context));
+  return is_update_check_only
+             ? base::DoNothing()
+             : base::BindRepeating(
+                   [](scoped_refptr<UpdateContext> context) {
+                     context->is_cancelled = true;
+                     for (const auto& entry : context->components) {
+                       entry.second->Cancel();
+                     }
+                   },
+                   update_context);
+}
+
+void UpdateEngine::StartOperation(
+    scoped_refptr<UpdateContext> update_context,
+    const std::vector<std::optional<CrxComponent>>& crx_components) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (crx_components.size() != update_context->ids.size()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(update_context->callback),
+                                  Error::BAD_CRX_DATA_CALLBACK));
+    return;
+  }
 
   for (size_t i = 0; i != update_context->ids.size(); ++i) {
     const auto& id = update_context->ids[i];
@@ -227,12 +224,6 @@ base::RepeatingClosure UpdateEngine::InvokeOperation(
                          ? &UpdateEngine::HandleComponent
                          : &UpdateEngine::DoUpdateCheck,
                      this, update_context));
-  return is_update_check_only ? base::DoNothing()
-                              : base::BindRepeating(
-                                    [](scoped_refptr<UpdateContext> context) {
-                                      context->is_cancelled = true;
-                                    },
-                                    update_context);
 }
 
 void UpdateEngine::DoUpdateCheck(scoped_refptr<UpdateContext> update_context) {
@@ -240,11 +231,11 @@ void UpdateEngine::DoUpdateCheck(scoped_refptr<UpdateContext> update_context) {
   CHECK(update_context);
 
   // Make the components transition from |kNew| to |kChecking| state.
-  for (const auto& id : update_context->components_to_check_for_updates)
+  for (const auto& id : update_context->components_to_check_for_updates) {
     update_context->components[id]->Handle(base::DoNothing());
+  }
 
-  update_context->update_checker =
-      update_checker_factory_(config_, metadata_.get());
+  update_context->update_checker = update_checker_factory_.Run(config_);
 
   update_context->update_checker->CheckForUpdates(
       update_context, config_->ExtraRequestParams(),
@@ -254,7 +245,7 @@ void UpdateEngine::DoUpdateCheck(scoped_refptr<UpdateContext> update_context) {
 
 void UpdateEngine::UpdateCheckResultsAvailable(
     scoped_refptr<UpdateContext> update_context,
-    const absl::optional<ProtocolParser::Results>& results,
+    std::optional<ProtocolParser::Results> results,
     ErrorCategory error_category,
     int error,
     int retry_after_sec) {
@@ -264,74 +255,103 @@ void UpdateEngine::UpdateCheckResultsAvailable(
   update_context->retry_after_sec = retry_after_sec;
 
   // Only positive values for throttle_sec are effective. 0 means that no
-  // throttling occurs and it resets |throttle_updates_until_|.
+  // throttling occurs and it resets the throttle.
   // Negative values are not trusted and are ignored.
-  constexpr int kMaxRetryAfterSec = 24 * 60 * 60;  // 24 hours.
+  static constexpr int kMaxRetryAfterSec = 24 * 60 * 60;  // 24 hours.
   const int throttle_sec =
       std::min(update_context->retry_after_sec, kMaxRetryAfterSec);
   if (throttle_sec >= 0) {
-    throttle_updates_until_ =
-        throttle_sec ? base::TimeTicks::Now() + base::Seconds(throttle_sec)
-                     : base::TimeTicks();
+    config_->GetPersistedData()->SetThrottleUpdatesUntil(
+        throttle_sec ? base::Time::Now() + base::Seconds(throttle_sec)
+                     : base::Time());
   }
 
   update_context->update_check_error = error;
 
+  auto complete = base::BarrierCallback<bool>(
+      update_context->components_to_check_for_updates.size(),
+      base::BindOnce([](const std::vector<bool>&) {})
+          .Then(base::BindOnce(&UpdateEngine::UpdateCheckComplete, this,
+                               update_context)));
   if (error) {
     CHECK(!results);
     for (const auto& id : update_context->components_to_check_for_updates) {
       CHECK_EQ(1u, update_context->components.count(id));
       auto& component = update_context->components.at(id);
-      component->SetUpdateCheckResult(absl::nullopt,
-                                      ErrorCategory::kUpdateCheck, error);
+      component->SetUpdateCheckResult(std::nullopt, ErrorCategory::kUpdateCheck,
+                                      error, complete);
     }
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&UpdateEngine::UpdateCheckComplete, this,
-                                  update_context));
     return;
   }
 
   CHECK(results);
   CHECK_EQ(0, error);
 
-  std::map<std::string, ProtocolParser::Result> id_to_result;
-  for (const auto& result : results->list)
-    id_to_result[result.extension_id] = result;
+  std::map<std::string, ProtocolParser::App> id_to_result;
+  for (const auto& result : results->apps) {
+    id_to_result[result.app_id] = result;
+  }
 
   for (const auto& id : update_context->components_to_check_for_updates) {
     CHECK_EQ(1u, update_context->components.count(id));
     auto& component = update_context->components.at(id);
     const auto& it = id_to_result.find(id);
     if (it != id_to_result.end()) {
-      const auto result = it->second;
-      const auto pair = [](const std::string& status) {
-        // First, handle app status literals which can be folded down as an
-        // updatecheck status
-        if (status == "error-unknownApplication")
+      const auto& result = it->second;
+      const auto& [category, protocol_error] = [](const std::string& status) {
+        // "ok" and "noupdate" are non-error cases.
+        if (status == "ok" || status == "noupdate") {
+          return std::make_pair(ErrorCategory::kNone, ProtocolError::NONE);
+        }
+        // Some app status literals can be folded down as an updatecheck status.
+        if (status == "error-unknownApplication") {
           return std::make_pair(ErrorCategory::kUpdateCheck,
                                 ProtocolError::UNKNOWN_APPLICATION);
-        if (status == "restricted")
+        }
+        if (status == "restricted") {
           return std::make_pair(ErrorCategory::kUpdateCheck,
                                 ProtocolError::RESTRICTED_APPLICATION);
-        if (status == "error-invalidAppId")
+        }
+        if (status == "error-invalidAppId") {
           return std::make_pair(ErrorCategory::kUpdateCheck,
                                 ProtocolError::INVALID_APPID);
-        // If the parser has return a valid result and the status is not one of
-        // the literals above, then this must be a success an not a parse error.
-        return std::make_pair(ErrorCategory::kNone, ProtocolError::NONE);
+        }
+        if (status == "error-osnotsupported") {
+          return std::make_pair(ErrorCategory::kUpdateCheck,
+                                ProtocolError::OS_NOT_SUPPORTED);
+        }
+        if (status == "error-hwnotsupported") {
+          return std::make_pair(ErrorCategory::kUpdateCheck,
+                                ProtocolError::HW_NOT_SUPPORTED);
+        }
+        if (status == "error-hash") {
+          return std::make_pair(ErrorCategory::kUpdateCheck,
+                                ProtocolError::NO_HASH);
+        }
+        if (status == "error-unsupportedprotocol") {
+          return std::make_pair(ErrorCategory::kUpdateCheck,
+                                ProtocolError::UNSUPPORTED_PROTOCOL);
+        }
+        if (status == "error-internal") {
+          return std::make_pair(ErrorCategory::kUpdateCheck,
+                                ProtocolError::INTERNAL);
+        }
+        if (status == "error-inexpressible") {
+          return std::make_pair(ErrorCategory::kUpdateCheck,
+                                ProtocolError::INEXPRESSIBLE);
+        }
+        // Otherwise, this is an unknown status.
+        return std::make_pair(ErrorCategory::kUpdateCheck,
+                              ProtocolError::UNKNOWN_ERROR);
       }(result.status);
-      component->SetUpdateCheckResult(result, pair.first,
-                                      static_cast<int>(pair.second));
+      component->SetUpdateCheckResult(
+          result, category, static_cast<int>(protocol_error), complete);
     } else {
       component->SetUpdateCheckResult(
-          absl::nullopt, ErrorCategory::kUpdateCheck,
-          static_cast<int>(ProtocolError::UPDATE_RESPONSE_NOT_FOUND));
+          std::nullopt, ErrorCategory::kUpdateCheck,
+          static_cast<int>(ProtocolError::UPDATE_RESPONSE_NOT_FOUND), complete);
     }
   }
-
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&UpdateEngine::UpdateCheckComplete, this, update_context));
 }
 
 void UpdateEngine::UpdateCheckComplete(
@@ -385,7 +405,6 @@ void UpdateEngine::HandleComponent(
         base::BindOnce(&UpdateEngine::HandleComponent, this, update_context),
         next_update_delay);
     next_update_delay = base::TimeDelta();
-    component->NotifyWait();
     return;
   }
 
@@ -412,11 +431,10 @@ void UpdateEngine::HandleComponentComplete(
     update_context->next_update_delay = component->GetUpdateDuration();
     queue.pop();
     if (!component->events().empty()) {
-      ping_manager_->SendPing(
-          *component, *metadata_,
-          base::BindOnce([](base::OnceClosure callback, int,
-                            const std::string&) { std::move(callback).Run(); },
-                         std::move(callback)));
+      CHECK(component->crx_component());
+      ping_manager_->SendPing(component->session_id(),
+                              *component->crx_component(),
+                              component->GetEvents(), std::move(callback));
       return;
     }
   }
@@ -454,53 +472,32 @@ bool UpdateEngine::GetUpdateState(const std::string& id,
 bool UpdateEngine::IsThrottled(bool is_foreground) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (is_foreground || throttle_updates_until_.is_null())
-    return false;
+  base::Time throttle_updates_until =
+      config_->GetPersistedData()->GetThrottleUpdatesUntil();
 
-  const auto now(base::TimeTicks::Now());
+  if (is_foreground || throttle_updates_until.is_null()) {
+    return false;
+  }
+
+  const auto now(base::Time::Now());
 
   // Throttle the calls in the interval (t - 1 day, t) to limit the effect of
   // unset clocks or clock drift.
-  return throttle_updates_until_ - base::Days(1) < now &&
-         now < throttle_updates_until_;
+  return throttle_updates_until - base::Days(1) < now &&
+         now < throttle_updates_until;
 }
 
-void UpdateEngine::SendUninstallPing(const CrxComponent& crx_component,
-                                     int reason,
-                                     Callback callback) {
+void UpdateEngine::SendPing(const CrxComponent& crx_component,
+                            UpdateClient::PingParams ping_params,
+                            Callback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  const std::string& id = crx_component.app_id;
-
-  const auto update_context = base::MakeRefCounted<UpdateContext>(
-      config_,
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-      // TODO(crbug.com/1349060) once Puffin patches are fully implemented,
-      // we should remove this #if.
-      crx_cache_,
-#endif
-      false, false, std::vector<std::string>{id},
-      UpdateClient::CrxStateChangeCallback(),
-      UpdateEngine::NotifyObserversCallback(), std::move(callback),
-      metadata_.get(), /*is_update_check_only=*/false);
-  CHECK(!update_context->session_id.empty());
-
-  const auto result = update_contexts_.insert(
-      std::make_pair(update_context->session_id, update_context));
-  CHECK(result.second);
-
-  CHECK(update_context);
-  CHECK_EQ(1u, update_context->ids.size());
-  CHECK_EQ(1u, update_context->components.count(id));
-  const auto& component = update_context->components.at(id);
-
-  component->Uninstall(crx_component, reason);
-
-  update_context->component_queue.push(id);
-
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&UpdateEngine::HandleComponent, this, update_context));
+  std::vector<base::Value::Dict> events;
+  events.push_back(MakeEvent(ping_params, crx_component.version));
+  ping_manager_->SendPing(
+      base::StrCat(
+          {"{", base::Uuid::GenerateRandomV4().AsLowercaseString(), "}"}),
+      crx_component, std::move(events),
+      base::BindOnce(std::move(callback), Error::NONE));
 }
 
 }  // namespace update_client

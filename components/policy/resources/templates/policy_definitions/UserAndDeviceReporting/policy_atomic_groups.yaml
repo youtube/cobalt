@@ -32,6 +32,7 @@ UserAndDeviceReporting:
   - ReportDeviceSystemInfo
   - ReportDevicePrintJobs
   - ReportDeviceLoginLogout
+  - DeviceReportRuntimeCounters
   - ReportUploadFrequency
   - ReportArcStatusEnabled
   - HeartbeatEnabled
@@ -39,3 +40,4 @@ UserAndDeviceReporting:
   - LogUploadEnabled
   - DeviceMetricsReportingEnabled
   - DeviceReportXDREvents
+  - DeviceExtensionsSystemLogEnabled

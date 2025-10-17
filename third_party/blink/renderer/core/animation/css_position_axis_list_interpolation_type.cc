@@ -44,13 +44,12 @@ CSSPositionAxisListInterpolationType::ConvertPositionAxisCSSValue(
       return InterpolationValue(InterpolableLength::CreatePercent(50));
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
 InterpolationValue CSSPositionAxisListInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState*,
+    const StyleResolverState&,
     ConversionCheckers&) const {
   if (!value.IsBaseValueList()) {
     return ListInterpolationFunctions::CreateList(

@@ -5,13 +5,18 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 #define QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 
+#include <cstddef>
+#include <cstdint>
+
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_interval_deque.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -26,7 +31,7 @@ class QuicDataWriter;
 // contiguous memory space. Please note, BufferedSlice is constructed when
 // stream data is saved in send buffer and is removed when stream data is fully
 // acked. It is move-only.
-struct QUIC_EXPORT_PRIVATE BufferedSlice {
+struct QUICHE_EXPORT BufferedSlice {
   BufferedSlice(quiche::QuicheMemSlice mem_slice, QuicStreamOffset offset);
   BufferedSlice(BufferedSlice&& other);
   BufferedSlice& operator=(BufferedSlice&& other);
@@ -44,7 +49,7 @@ struct QUIC_EXPORT_PRIVATE BufferedSlice {
   QuicStreamOffset offset;
 };
 
-struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
+struct QUICHE_EXPORT StreamPendingRetransmission {
   constexpr StreamPendingRetransmission(QuicStreamOffset offset,
                                         QuicByteCount length)
       : offset(offset), length(length) {}
@@ -60,8 +65,11 @@ struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
 // QuicStreamSendBuffer contains a list of QuicStreamDataSlices. New data slices
 // are added to the tail of the list. Data slices are removed from the head of
 // the list when they get fully acked. Stream data can be retrieved and acked
-// across slice boundaries.
-class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
+// across slice boundaries. Stream data must be saved before being written, and
+// it cannot be written after it is marked as acked. Stream data can be written
+// out-of-order within those bounds, but note that in-order wites are O(1)
+// whereas out-of-order writes are O(log(n)), see QuicIntervalDeque for details.
+class QUICHE_EXPORT QuicStreamSendBuffer {
  public:
   explicit QuicStreamSendBuffer(quiche::QuicheBufferAllocator* allocator);
   QuicStreamSendBuffer(const QuicStreamSendBuffer& other) = delete;
@@ -80,7 +88,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   // Called when |bytes_consumed| bytes has been consumed by the stream.
   void OnStreamDataConsumed(size_t bytes_consumed);
 
-  // Write |data_length| of data starts at |offset|.
+  // Write |data_length| of data starts at |offset|. Returns true if all data
+  // was successfully written. Returns false if the writer fails to write, or if
+  // the data was already marked as acked, or if the data was never saved in the
+  // first place.
   bool WriteStreamData(QuicStreamOffset offset, QuicByteCount data_length,
                        QuicDataWriter* writer);
 
@@ -136,34 +147,27 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   // not exist or has been acked.
   bool FreeMemSlices(QuicStreamOffset start, QuicStreamOffset end);
 
-  // Cleanup empty slices in order from buffered_slices_.
+  // Cleanup acked data from the start of the interval.
   void CleanUpBufferedSlices();
 
-  // |current_end_offset_| stores the end offset of the current slice to ensure
-  // data isn't being written out of order when using the |interval_deque_|.
-  QuicStreamOffset current_end_offset_;
   QuicIntervalDeque<BufferedSlice> interval_deque_;
 
   // Offset of next inserted byte.
-  QuicStreamOffset stream_offset_;
+  QuicStreamOffset stream_offset_ = 0;
 
   quiche::QuicheBufferAllocator* allocator_;
 
   // Bytes that have been consumed by the stream.
-  uint64_t stream_bytes_written_;
+  uint64_t stream_bytes_written_ = 0;
 
   // Bytes that have been consumed and are waiting to be acked.
-  uint64_t stream_bytes_outstanding_;
+  uint64_t stream_bytes_outstanding_ = 0;
 
   // Offsets of data that has been acked.
   QuicIntervalSet<QuicStreamOffset> bytes_acked_;
 
   // Data considered as lost and needs to be retransmitted.
   QuicIntervalSet<QuicStreamOffset> pending_retransmissions_;
-
-  // Index of slice which contains data waiting to be written for the first
-  // time. -1 if send buffer is empty or all data has been written.
-  int32_t write_index_;
 };
 
 }  // namespace quic

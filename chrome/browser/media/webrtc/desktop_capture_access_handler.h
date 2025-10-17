@@ -29,9 +29,9 @@ namespace extensions {
 class Extension;
 }
 
-namespace contents {
+namespace content {
 class WebContents;
-}
+}  // namespace content
 
 // MediaAccessHandler for DesktopCapture API requests that originate from
 // getUserMedia() calls. Note that getDisplayMedia() calls are handled in
@@ -50,12 +50,12 @@ class DesktopCaptureAccessHandler : public CaptureAccessHandlerBase,
   ~DesktopCaptureAccessHandler() override;
 
   // MediaAccessHandler implementation.
-  bool SupportsStreamType(content::WebContents* web_contents,
+  bool SupportsStreamType(content::RenderFrameHost* render_frame_host,
                           const blink::mojom::MediaStreamType type,
                           const extensions::Extension* extension) override;
   bool CheckMediaAccessPermission(
       content::RenderFrameHost* render_frame_host,
-      const GURL& security_origin,
+      const url::Origin& security_origin,
       blink::mojom::MediaStreamType type,
       const extensions::Extension* extension) override;
   void HandleRequest(content::WebContents* web_contents,
@@ -114,7 +114,8 @@ class DesktopCaptureAccessHandler : public CaptureAccessHandlerBase,
       bool capture_audio,
       bool is_dlp_allowed);
 
-  raw_ptr<aura::Window> primary_root_window_for_testing_ = nullptr;
+  raw_ptr<aura::Window, DanglingUntriaged> primary_root_window_for_testing_ =
+      nullptr;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 };
 

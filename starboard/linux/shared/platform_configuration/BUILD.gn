@@ -75,6 +75,12 @@ config("compiler_flags") {
 
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
+
+      # Do not warn about variable length arrays
+      "-Wno-vla-cxx-extension",
+
+      "-Wno-return-type",
+      "-Wno-sometimes-uninitialized",
     ]
 
     if (is_gold) {
@@ -130,15 +136,6 @@ config("platform_configuration") {
     "pthread",
     "rt",
   ]
-
-  if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
-    ldflags += [
-      "-static-libstdc++",
-
-      # TODO(b/371589344#comment2) Revisit if static-libstdc++ is needed.
-      "-Wno-unused-command-line-argument",
-    ]
-  }
 
   defines += [
     # Defined to get format macro constants from <inttypes.h>.

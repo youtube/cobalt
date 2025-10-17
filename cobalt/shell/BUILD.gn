@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/chromecast_build.gni")
+import("//build/config/cast.gni")
 import("//build/config/ui.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//starboard/build/buildflags.gni")
@@ -50,12 +50,13 @@ group("cobalt_shell_lib_deps") {
     ":resources",
     "//base",
     "//base:base_static",
-    "//base/third_party/dynamic_annotations",
     "//cc/base",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
+    "//components/embedder_support:embedder_support",
+    "//components/embedder_support:user_agent",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
@@ -69,7 +70,6 @@ group("cobalt_shell_lib_deps") {
     "//components/variations/service",
     "//components/web_cache/renderer",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/public/app",
     "//content/public/browser",
     "//content/public/gpu",
@@ -84,7 +84,6 @@ group("cobalt_shell_lib_deps") {
     "//third_party/blink/public:image_resources",
     "//third_party/blink/public:resources",
     "//third_party/blink/public/strings",
-    "//third_party/blink/public/strings:accessibility_strings",
     "//ui/gfx",
     "//ui/gfx/geometry",
     "//url",
@@ -120,6 +119,7 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//cc/slim",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
+      "//components/embedder_support/android:view",
       "//ui/android",
     ]
   }
@@ -230,8 +230,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
-    "browser/shell_paths.cc",
-    "browser/shell_paths.h",
     "browser/shell_platform_data_aura.cc",
     "browser/shell_platform_data_aura.h",
     "browser/shell_platform_delegate.cc",
@@ -242,6 +240,8 @@ static_library("cobalt_shell_lib") {
     "browser/shell_web_contents_view_delegate_creator.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
+    "common/shell_paths.cc",
+    "common/shell_paths.h",
     "common/shell_switches.cc",
     "common/shell_switches.h",
     "gpu/shell_content_gpu_client.cc",
@@ -268,7 +268,6 @@ static_library("cobalt_shell_lib") {
       "browser/shell_platform_delegate_ios.mm",
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
-    configs += [ "//build/config/compiler:enable_arc" ]
   }
 
   configs += [
@@ -394,23 +393,28 @@ repack("pak") {
   sources = [
     "$root_gen_dir/base/tracing/protos/tracing_proto_resources.pak",
     "$root_gen_dir/cobalt/shell/cobalt_shell_resources.pak",
+    "$root_gen_dir/components/ukm_resources.pak",
     "$root_gen_dir/content/browser/resources/media/media_internals_resources.pak",
     "$root_gen_dir/content/browser/webrtc/resources/webrtc_internals_resources.pak",
     "$root_gen_dir/content/content_resources.pak",
-    "$root_gen_dir/content/dev_ui_content_resources.pak",
     "$root_gen_dir/content/gpu_resources.pak",
     "$root_gen_dir/content/histograms_resources.pak",
+    "$root_gen_dir/content/private_aggregation_internals_resources.pak",
+    "$root_gen_dir/content/process_resources.pak",
+    "$root_gen_dir/content/service_worker_resources.pak",
     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
     "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
-    "$root_gen_dir/third_party/blink/public/strings/blink_accessibility_strings_en-US.pak",
     "$root_gen_dir/third_party/blink/public/strings/blink_strings_en-US.pak",
+    "$root_gen_dir/third_party/blink/public/strings/permission_element_generated_strings.pak",
+    "$root_gen_dir/third_party/blink/public/strings/permission_element_strings_en-US.pak",
     "$root_gen_dir/ui/resources/ui_resources_100_percent.pak",
-    "$root_gen_dir/ui/resources/webui_resources.pak",
     "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
+    "$root_gen_dir/ui/strings/auto_image_annotation_strings_en-US.pak",
     "$root_gen_dir/ui/strings/ax_strings_en-US.pak",
     "$root_gen_dir/ui/strings/ui_strings_en-US.pak",
+    "$root_gen_dir/ui/webui/resources/webui_resources.pak",
   ]
 
   if (!is_official_build) {
@@ -420,8 +424,8 @@ repack("pak") {
   deps = [
     ":resources",
     "//base/tracing/protos:chrome_track_event_resources",
+    "//components/ukm/debug:resources",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/browser/resources:resources",
     "//content/browser/resources/media:resources",
     "//content/browser/webrtc/resources",
@@ -431,9 +435,11 @@ repack("pak") {
     "//third_party/blink/public:resources",
     "//third_party/blink/public:scaled_resources_100_percent",
     "//third_party/blink/public/strings",
-    "//third_party/blink/public/strings:accessibility_strings",
+    "//third_party/blink/public/strings:permission_element_generated_strings",
+    "//third_party/blink/public/strings:permission_element_strings",
     "//ui/resources",
     "//ui/strings",
+    "//ui/webui/resources",
   ]
 
   if (!is_android) {
@@ -476,7 +482,6 @@ group("resources") {
 }
 
 mojom("browsertests_mojom") {
-  testonly = true
   sources = [
     "common/main_frame_counter_test.mojom",
     "common/power_monitor_test.mojom",

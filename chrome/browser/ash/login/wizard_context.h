@@ -6,10 +6,15 @@
 #define CHROME_BROWSER_ASH_LOGIN_WIZARD_CONTEXT_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/values.h"
+#include "chrome/browser/ash/login/enrollment/timebound_user_context_holder.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
+#include "chromeos/ash/components/login/auth/public/user_context.h"
+#include "chromeos/ash/components/osauth/public/common_types.h"
+#include "chromeos/ash/services/nearby/public/mojom/quick_start_decoder_types.mojom.h"
 
 namespace ash {
 
@@ -34,6 +39,50 @@ class WizardContext {
     kEnterprise,
   };
 
+  enum class GaiaPath {
+    kDefault,
+    kChildSignup,
+    kChildSignin,
+    kReauth,
+    kSamlRedirect,
+    kQuickStartFallback,
+  };
+
+  // Reflects if Gaia screen first shows a Gaia page or a SAML IdP
+  // page. This has some UI implications for the screen.
+  enum GaiaScreenMode {
+    // Gaia page is the first one to be shown.
+    kDefault = 0,
+
+    // SAML IdP page is the first one to be shown.
+    kSamlRedirect = 1,
+  };
+
+  struct GaiaConfig {
+    GaiaConfig();
+    ~GaiaConfig();
+
+    // GAIA path to be loaded the next time GAIA Sign-in screen is shown.
+    // This is usually set just before showing the GAIA screen and reset
+    // to the default value when hiding the screen.
+    GaiaPath gaia_path = GaiaPath::kDefault;
+
+    // The GAIA path shown the last time the GAIA Sign-in screen was shown.
+    // This is set by the GAIA screen when hiding the screen.
+    GaiaPath last_gaia_path_shown = GaiaPath::kDefault;
+
+    // The account ID to be used in the next loading of GAIA webview.
+    // The value is reset to `EmptyAccountId()` when hiding the screen.
+    AccountId prefilled_account = EmptyAccountId();
+
+    // The URL path and parameters to be used when showing the 'fallback' URL
+    // flow of QuickStart. Only exists when Gaia demands an extra verification.
+    std::optional<std::string> quick_start_fallback_path_contents;
+
+    // The type of Gaia screen to show.
+    GaiaScreenMode screen_mode = GaiaScreenMode::kDefault;
+  };
+
   struct RecoverySetup {
     // Whether the recovery auth factor is supported. Used for metrics.
     bool is_supported = false;
@@ -45,6 +94,52 @@ class WizardContext {
     // User's choice about using recovery factor. Filled by
     // consolidated consent screen, used by auth_factors_setup screen.
     bool recovery_factor_opted_in = false;
+  };
+
+  // This enum helps tell which auth setup flow we're currently going through.
+  // This helps screens that modify auth factors such as local password and
+  // pin to easily determine if we're adding a new auth factor as part of
+  // first user setup or updating an existing auth factor, for instance, as
+  // part of recovery flow, or it it just an reauthentication flow.
+  enum class AuthChangeFlow { kInitialSetup, kReauthentication, kRecovery };
+
+  // Indicates the flow path that lead to Data Loss warning screen,
+  // allowing screen to correctly display/handle Back button.
+  enum class DataLossBackOptions { kNone, kBackToOnlineAuth, kBackToLocalAuth };
+
+  // The mode in which the PinSetupScreen will be surfaced.
+  enum class PinSetupMode {
+    kSetupAsPrimaryFactor,
+    kSetupAsSecondaryFactor,
+    kRecovery,
+    // Setup modes that reflect the past user choice.
+    kAlreadyPerformed,
+    kUserChosePasswordInstead,
+  };
+
+  struct KnowledgeFactorSetup {
+    // Whether usage of local password is forced.
+    bool local_password_forced = false;
+
+    AuthChangeFlow auth_setup_flow = AuthChangeFlow::kInitialSetup;
+
+    DataLossBackOptions data_loss_back_option = DataLossBackOptions::kNone;
+
+    AuthFactorsSet modified_factors;
+
+    PinSetupMode pin_setup_mode = PinSetupMode::kSetupAsSecondaryFactor;
+  };
+
+  enum class OSAuthErrorKind {
+    // Most of the errors
+    kFatal,
+    // User is already authenticated, but cryptohome failed to rotate the key.
+    // It is more of a warning.
+    kRecoveryRotationFailed,
+    // There were problems using the recovery key, but it is still
+    // possible to proceed using knowledge-based keys.
+    kRecoveryAuthenticationFailed,
+
   };
 
   // Configuration for automating OOBE screen actions, e.g. during device
@@ -79,8 +174,16 @@ class WizardContext {
   bool skip_to_update_for_tests = false;
 
   // Whether the post login screens should be skipped. Used in MaybeSkip by
-  // screens in tests. Is set by WizardController::SkipPostLoginScreensForTests.
+  // screens in tests. Is set by WizardController::SkipPostLoginScreensForTests
+  // and LoginDisplayHost::SkipPostLoginScreensForDemoMode.
+  // TODO(crbug.com/376527458): Rename to `skip_post_login_screens`.
   bool skip_post_login_screens_for_tests = false;
+
+  // Whether CHOOBE screen should be skipped. Setting this flag will force skip
+  // CHOOBE screen regardless of the number of eligible optional screens.
+  // To test an optional screen without selecting the screen from CHOOBE screen,
+  // set this flag to true before logging in as a new user.
+  bool skip_choobe_for_tests = false;
 
   // Whether user creation screen is enabled (could be disabled due to disabled
   // feature or on managed device). It determines the behavior of back button
@@ -114,10 +217,15 @@ class WizardContext {
   // The data for recovery setup flow.
   RecoverySetup recovery_setup;
 
-  // Authorization data that is required by PinSetup screen to add PIN as
-  // another possible auth factor. Can be empty (if PIN is not supported).
-  // In future will be replaced by AuthSession.
-  std::unique_ptr<UserContext> extra_factors_auth_session;
+  KnowledgeFactorSetup knowledge_factor_setup;
+
+  std::optional<OSAuthErrorKind> osauth_error;
+
+  // Token used for retrieving the `UserContext` from `AuthSessionStorage`.
+  // Once authenticated, the `UserContext` is stored in `AuthSessionStorage` and
+  // this token is used for borrowing it in order to perform operations such as
+  // adding extra factors. See https://crrev.com/c/4729372 for history.
+  std::optional<AuthProofToken> extra_factors_token;
 
   // If the onboarding flow wasn't completed by the user we will try to show
   // TermsOfServiceScreen to them first and then continue the flow with this
@@ -126,11 +234,27 @@ class WizardContext {
   // ash::OOBE_SCREEN_UNKNOWN.
   OobeScreenId screen_after_managed_tos;
 
+  // This is set to true when the user hits the keyboard shortcut triggering the
+  // associated LoginAccelerator. This is used in place of a feature flag to
+  // determine whether to display the Quick Start calls to action.
+  bool quick_start_enabled = false;
+
   // This ID maps onto the instance_id used in
   // ash::multidevice::RemoteDevice. If a user connects their phone during Quick
   // Start, Quick Start saves this ID. After Quick Start, the multidevice screen
   // will show UI enhancements if this quick_start_phone_instance_id is present.
   std::string quick_start_phone_instance_id;
+
+  // Whether the user is currently setting up OOBE using QuickStart.
+  // TODO(b/283724988) - Combine QuickStart fields into a class.
+  bool quick_start_setup_ongoing = false;
+
+  // WiFi credentials that a received by a Chromebook from an Android device
+  // during Quick Start flow. They are set on the QuickStartScreen during the
+  // initial connection between the devices.
+  // TODO(b/283724988) - Combine QuickStart fields into a class.
+  std::optional<ash::quick_start::mojom::WifiCredentials>
+      quick_start_wifi_credentials;
 
   // If this is a first login after update from CloudReady to a new version.
   // During such an update show users license agreement and data collection
@@ -140,7 +264,7 @@ class WizardContext {
   // Determining ownership can take some time. Instead of finding out if the
   // current user is an owner of the device we reuse this value. It is set
   // during ConsolidatedConsentScreen.
-  absl::optional<bool> is_owner_flow;
+  std::optional<bool> is_owner_flow;
 
   // True when gesture navigation screen was shown during the OOBE.
   bool is_gesture_navigation_screen_was_shown = false;
@@ -152,14 +276,17 @@ class WizardContext {
   // selected screen.
   bool return_to_choobe_screen = false;
 
-  // Information that is used during Cryptohome recovery or password changed
-  // flow.
+  // Information that is used during Cryptohome recovery or password changed.
   std::unique_ptr<UserContext> user_context;
 
-  // Indicates whether there is error when fetching Gaia reauth request token.
-  // This flag helps us determine the reason when the reauth proof token is
-  // missing and if we should ask the user to login again.
-  bool gaia_reauth_token_fetch_error = false;
+  // Holds the UserContext for the flow which allows to skip the gaia
+  // screen. The wrapper manages the lifetime of the UserContext inside.
+  std::unique_ptr<TimeboundUserContextHolder> timebound_user_context_holder;
+
+  // Configuration for GAIA screen. If the configs needs to be updated, it
+  // should be updated before showing the GAIA screen. If the GAIA screen is
+  // already shown, a call to reload GAIA webview may be necessary.
+  GaiaConfig gaia_config;
 };
 
 // Returns |true| if this is an OOBE flow after enterprise enrollment.

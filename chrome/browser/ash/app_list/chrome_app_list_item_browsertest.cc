@@ -65,7 +65,7 @@ class ChromeAppListItemTest : public InProcessBrowserTest {
   void ShowLauncherAppsGrid() {
     EXPECT_FALSE(client_->GetAppListWindow());
     ash::AcceleratorController::Get()->PerformActionIfEnabled(
-        ash::TOGGLE_APP_LIST, {});
+        ash::AcceleratorAction::kToggleAppList, {});
     ash::AppListTestApi().WaitForBubbleWindow(
         /*wait_for_opening_animation=*/false);
     EXPECT_TRUE(client_->GetAppListWindow());
@@ -74,8 +74,8 @@ class ChromeAppListItemTest : public InProcessBrowserTest {
   Profile* profile() { return ProfileManager::GetActiveUserProfile(); }
 
  protected:
-  raw_ptr<AppListClientImpl, ExperimentalAsh> client_ = nullptr;
-  raw_ptr<AppListModelUpdater, ExperimentalAsh> model_updater_ = nullptr;
+  raw_ptr<AppListClientImpl, DanglingUntriaged> client_ = nullptr;
+  raw_ptr<AppListModelUpdater, DanglingUntriaged> model_updater_ = nullptr;
 };
 
 // Tests that app icon load is deferred until UI is shown.

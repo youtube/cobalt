@@ -6,11 +6,13 @@
 #define ASH_SYSTEM_TIME_CALENDAR_MONTH_VIEW_H_
 
 #include "ash/ash_export.h"
+#include "ash/system/time/calendar_list_model.h"
 #include "ash/system/time/calendar_model.h"
 #include "ash/system/time/calendar_view_controller.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/view.h"
 
@@ -24,13 +26,14 @@ namespace ash {
 // the date is not in the current month view's month.
 class CalendarDateCellView : public CalendarViewController::Observer,
                              public views::LabelButton {
- public:
-  METADATA_HEADER(CalendarDateCellView);
+  METADATA_HEADER(CalendarDateCellView, views::LabelButton)
 
+ public:
   CalendarDateCellView(CalendarViewController* calendar_view_controller,
                        base::Time date,
                        base::TimeDelta time_difference,
                        bool is_grayed_out_date,
+                       bool should_fetch_calendar_data,
                        int row_index,
                        bool is_fetched);
   CalendarDateCellView(const CalendarDateCellView& other) = delete;
@@ -94,6 +97,9 @@ class CalendarDateCellView : public CalendarViewController::Observer,
 
   const bool grayed_out_;
 
+  // Indicates whether calendar data is expected to be fetched for this cell.
+  const bool should_fetch_calendar_data_;
+
   // The row index in the current month for this date cell. Starts from 0.
   const int row_index_;
 
@@ -121,8 +127,7 @@ class CalendarDateCellView : public CalendarViewController::Observer,
   base::TimeDelta time_difference_;
 
   // Owned by UnifiedCalendarViewController.
-  const raw_ptr<CalendarViewController, ExperimentalAsh>
-      calendar_view_controller_;
+  const raw_ptr<CalendarViewController> calendar_view_controller_;
 
   base::ScopedObservation<CalendarViewController,
                           CalendarViewController::Observer>
@@ -131,7 +136,9 @@ class CalendarDateCellView : public CalendarViewController::Observer,
 
 //  Container for `CalendarDateCellView` for a single month.
 class ASH_EXPORT CalendarMonthView : public views::View,
+                                     public CalendarListModel::Observer,
                                      public CalendarModel::Observer {
+  METADATA_HEADER(CalendarMonthView, views::View)
  public:
   CalendarMonthView(base::Time first_day_of_month,
                     CalendarViewController* calendar_view_controller);
@@ -139,10 +146,12 @@ class ASH_EXPORT CalendarMonthView : public views::View,
   CalendarMonthView& operator=(const CalendarMonthView& other) = delete;
   ~CalendarMonthView() override;
 
+  // CalendarListModel::Observer:
+  void OnCalendarListFetchComplete() override;
+
   // CalendarModel::Observer:
   void OnEventsFetched(const CalendarModel::FetchingStatus status,
-                       const base::Time start_time,
-                       const google_apis::calendar::EventList* events) override;
+                       const base::Time start_time) override;
 
   // Enable each cell's focus behavior.
   void EnableFocus();
@@ -154,7 +163,10 @@ class ASH_EXPORT CalendarMonthView : public views::View,
   void UpdateIsFetchedAndRepaint(bool updated_is_fetched);
 
   // Gets the cells of each row that should be first focused on.
-  std::vector<CalendarDateCellView*> focused_cells() { return focused_cells_; }
+  std::vector<raw_ptr<CalendarDateCellView, VectorExperimental>>
+  focused_cells() {
+    return focused_cells_;
+  }
 
   // If today's cell is in this view.
   bool has_today() { return has_today_; }
@@ -176,14 +188,14 @@ class ASH_EXPORT CalendarMonthView : public views::View,
                                             int column,
                                             bool is_in_current_month,
                                             int row_index,
-                                            bool is_fetched);
+                                            bool is_fetched,
+                                            bool should_fetch_calendar_data);
 
   // Fetches events.
   void FetchEvents(const base::Time& month);
 
   // Owned by `CalendarView`.
-  const raw_ptr<CalendarViewController, ExperimentalAsh>
-      calendar_view_controller_;
+  const raw_ptr<CalendarViewController> calendar_view_controller_;
 
   // If today's cell is in this view.
   bool has_today_ = false;
@@ -195,14 +207,19 @@ class ASH_EXPORT CalendarMonthView : public views::View,
 
   // The cells of each row that should be first focused on. These
   // `CalendarDateCellView`s are the children of this view.
-  std::vector<CalendarDateCellView*> focused_cells_;
+  std::vector<raw_ptr<CalendarDateCellView, VectorExperimental>> focused_cells_;
 
   // UTC midnight to designate the month whose events will be fetched.
   base::Time fetch_month_;
 
+  const raw_ptr<CalendarListModel> calendar_list_model_;
+
+  base::ScopedObservation<CalendarListModel, CalendarListModel::Observer>
+      scoped_calendar_list_model_observer_{this};
+
   // Raw pointer to the (singleton) CalendarModel, to avoid a bunch of
   // daisy-chained calls to get the std::unique_ptr<>.
-  const raw_ptr<CalendarModel, ExperimentalAsh> calendar_model_;
+  const raw_ptr<CalendarModel> calendar_model_;
 
   base::ScopedObservation<CalendarModel, CalendarModel::Observer>
       scoped_calendar_model_observer_{this};

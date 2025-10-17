@@ -6,25 +6,23 @@
 #define COMPONENTS_BOOKMARKS_BROWSER_BOOKMARK_CLIENT_H_
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
 #include "base/functional/callback_forward.h"
 #include "base/task/cancelable_task_tracker.h"
-#include "components/bookmarks/browser/bookmark_node.h"
+#include "components/bookmarks/common/bookmark_metrics.h"
 #include "components/favicon_base/favicon_callback.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 class GURL;
 
-namespace base {
-struct UserMetricsAction;
-}
-
 namespace bookmarks {
 
 class BookmarkModel;
+class BookmarkNode;
 class BookmarkPermanentNode;
 
 // A callback that generates a std::unique_ptr<BookmarkPermanentNode>, given a
@@ -46,8 +44,22 @@ class BookmarkClient {
   // Called during initialization of BookmarkModel.
   virtual void Init(BookmarkModel* model);
 
-  // Requests a favicon from the history cache for the web page at |page_url|
-  // for icon type favicon_base::IconType::kFavicon. |callback| is run when the
+  // Called when loading from disk triggered some recovery, meaning that IDs or
+  // UUIDs could have been reassigned. If IDs were reassigned, which is not
+  // always the case, `local_or_syncable_reassigned_ids_per_old_id` contains
+  // the mapping from old IDs (before reassignment) to new ones.
+  virtual void RequiredRecoveryToLoad(
+      const std::multimap<int64_t, int64_t>&
+          local_or_syncable_reassigned_ids_per_old_id);
+
+  // Gets a bookmark folder that the provided URL can be saved to. If nullptr is
+  // returned, the bookmark is saved to the default location (usually this is
+  // the last modified folder). This affords features the option to override the
+  // default folder if relevant for the URL.
+  virtual const BookmarkNode* GetSuggestedSaveLocation(const GURL& url);
+
+  // Requests a favicon from the history cache for the web page at `page_url`
+  // for icon type favicon_base::IconType::kFavicon. `callback` is run when the
   // favicon has been fetched, which returns gfx::Image is a multi-resolution
   // image of gfx::kFaviconSize DIP width and height. The data from the history
   // cache is resized if need be.
@@ -60,47 +72,67 @@ class BookmarkClient {
   virtual bool SupportsTypedCountForUrls();
 
   // Retrieves the number of times each bookmark URL has been typed in
-  // the Omnibox by the user. For each key (URL) in |url_typed_count_map|,
+  // the Omnibox by the user. For each key (URL) in `url_typed_count_map`,
   // the corresponding value will be updated with the typed count of that URL.
-  // |url_typed_count_map| must not be null.
+  // `url_typed_count_map` must not be null.
   virtual void GetTypedCountForUrls(UrlTypedCountMap* url_typed_count_map);
-
-  // Returns whether the embedder wants permanent node of type |type|
-  // to always be visible or to only show them when not empty.
-  virtual bool IsPermanentNodeVisibleWhenEmpty(BookmarkNode::Type type) = 0;
-
-  // Wrapper around RecordAction defined in base/metrics/user_metrics.h
-  // that ensure that the action is posted from the correct thread.
-  virtual void RecordAction(const base::UserMetricsAction& action) = 0;
 
   // Returns a task that will be used to load a managed root node. This task
   // will be invoked in the Profile's IO task runner.
   virtual LoadManagedNodeCallback GetLoadManagedNodeCallback() = 0;
 
-  // Returns true if the |permanent_node| can have its title updated.
+  // Returns whether sync-the-feature is currently on, for the purpose of
+  // logging metrics and influence predicates such
+  // `BookmarkModel::IsLocalOnlyNode()`.
+  virtual bool IsSyncFeatureEnabledIncludingBookmarks() = 0;
+
+  // Returns true if the `permanent_node` can have its title updated.
   virtual bool CanSetPermanentNodeTitle(const BookmarkNode* permanent_node) = 0;
 
-  // Returns true if |node| should sync.
-  virtual bool CanSyncNode(const BookmarkNode* node) = 0;
-
-  // Returns true if this node can be edited by the user.
-  // TODO(joaodasilva): the model should check this more aggressively, and
-  // should give the client a means to temporarily disable those checks.
-  // http://crbug.com/49598
-  virtual bool CanBeEditedByUser(const BookmarkNode* node) = 0;
+  // Returns true if `node` is considered a managed node.
+  virtual bool IsNodeManaged(const BookmarkNode* node) = 0;
 
   // Encodes the bookmark sync data into a string blob. It's used by the
   // bookmark model to persist the sync metadata together with the bookmark
-  // model.
-  virtual std::string EncodeBookmarkSyncMetadata() = 0;
+  // model. It comes with two variants: the blob corresponding to the
+  // local-or-syncable bookmarks and the one for account bookmarks. In
+  // normal circumnstances, at most one of them is non-empty.
+  virtual std::string EncodeLocalOrSyncableBookmarkSyncMetadata() = 0;
+  virtual std::string EncodeAccountBookmarkSyncMetadata() = 0;
 
-  // Decodes a string represeting the sync metadata stored in |metadata_str|.
-  // The model calls this method after it has loaded the model data.
-  // |schedule_save_closure| is a repeating call back to trigger a model and
-  // metadata persistence process.
-  virtual void DecodeBookmarkSyncMetadata(
+  // Decodes a string representing the sync metadata stored in `metadata_str`.
+  // Same as with encoding, it comes with two variants, one for
+  // local-or-syncable bookmarks and one for account bookmarks. The model calls
+  // this method after it has loaded the model data. `schedule_save_closure` is
+  // a repeating call back to trigger a model and metadata persistence process.
+  virtual void DecodeLocalOrSyncableBookmarkSyncMetadata(
       const std::string& metadata_str,
       const base::RepeatingClosure& schedule_save_closure) = 0;
+
+  // Decoding of sync metadata corresponding to account bookmarks may result in
+  // metadata being invalidated. In this case, account bookmarks are also
+  // deleted automatically.
+  enum class DecodeAccountBookmarkSyncMetadataResult {
+    kSuccess,
+    kMustRemoveAccountPermanentFolders,
+  };
+  virtual DecodeAccountBookmarkSyncMetadataResult
+  DecodeAccountBookmarkSyncMetadata(
+      const std::string& metadata_str,
+      const base::RepeatingClosure& schedule_save_closure) = 0;
+
+  // Similar to BookmarkModelObserver::BookmarkNodeRemoved(), but transfers
+  // ownership of BookmarkNode, which allows undoing the operation.
+  virtual void OnBookmarkNodeRemovedUndoable(
+      const BookmarkNode* parent,
+      size_t index,
+      std::unique_ptr<BookmarkNode> node) = 0;
+
+  // Creates a persistent timer that allows recording metrics periodically
+  // (every 24hrs or on next startup). `metrics_callback` contains the logic to
+  // compute the metrics to be logged.
+  virtual void SchedulePersistentTimerForDailyMetrics(
+      base::RepeatingClosure metrics_callback) = 0;
 };
 
 }  // namespace bookmarks

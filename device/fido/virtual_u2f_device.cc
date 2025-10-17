@@ -31,7 +31,7 @@ namespace {
 constexpr uint8_t kU2fRegistrationResponseHeader = 0x05;
 
 // Returns an error response with the given status.
-absl::optional<std::vector<uint8_t>> ErrorStatus(
+std::optional<std::vector<uint8_t>> ErrorStatus(
     apdu::ApduResponse::Status status) {
   return apdu::ApduResponse(std::vector<uint8_t>(), status)
       .GetEncodedResponse();
@@ -88,7 +88,7 @@ FidoDevice::CancelToken VirtualU2fDevice::DeviceTransact(
     return 0;
   }
 
-  absl::optional<std::vector<uint8_t>> response;
+  std::optional<std::vector<uint8_t>> response;
 
   switch (parsed_command->ins()) {
     // Version request is defined by the U2F spec, but is never used in
@@ -120,7 +120,7 @@ base::WeakPtr<FidoDevice> VirtualU2fDevice::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 
-absl::optional<std::vector<uint8_t>> VirtualU2fDevice::DoRegister(
+std::optional<std::vector<uint8_t>> VirtualU2fDevice::DoRegister(
     uint8_t ins,
     uint8_t p1,
     uint8_t p2,
@@ -130,7 +130,7 @@ absl::optional<std::vector<uint8_t>> VirtualU2fDevice::DoRegister(
   }
 
   if (!SimulatePress()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto challenge_param = data.first<32>();
@@ -182,7 +182,7 @@ absl::optional<std::vector<uint8_t>> VirtualU2fDevice::DoRegister(
   response.reserve(1 + x962.size() + 1 + key_handle.size() +
                    attestation_cert->size() + sig.size());
   response.push_back(kU2fRegistrationResponseHeader);
-  Append(&response, base::as_bytes(base::make_span(x962)));
+  Append(&response, base::as_byte_span(x962));
   response.push_back(key_handle.size());
   Append(&response, key_handle);
   Append(&response, *attestation_cert);
@@ -197,7 +197,7 @@ absl::optional<std::vector<uint8_t>> VirtualU2fDevice::DoRegister(
       .GetEncodedResponse();
 }
 
-absl::optional<std::vector<uint8_t>> VirtualU2fDevice::DoSign(
+std::optional<std::vector<uint8_t>> VirtualU2fDevice::DoSign(
     uint8_t ins,
     uint8_t p1,
     uint8_t p2,
@@ -209,19 +209,20 @@ absl::optional<std::vector<uint8_t>> VirtualU2fDevice::DoSign(
   }
 
   if (!SimulatePress()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (data.size() < 32 + 32 + 1)
     return ErrorStatus(apdu::ApduResponse::Status::SW_WRONG_LENGTH);
 
-  auto challenge_param = data.first<32>();
-  auto application_parameter = data.subspan<32, 32>();
-  size_t key_handle_length = data[64];
-  if (data.size() != 32 + 32 + 1 + key_handle_length)
+  const auto [challenge_param, after_challenge] = data.split_at<32>();
+  const auto [application_parameter, after_application] =
+      after_challenge.split_at<32>();
+  const auto [key_handle_length, key_handle] = after_application.split_at<1>();
+  if (key_handle.size() != key_handle_length[0]) {
     return ErrorStatus(apdu::ApduResponse::Status::SW_WRONG_LENGTH);
+  }
 
-  auto key_handle = data.last(key_handle_length);
   auto* registration = FindRegistrationData(key_handle, application_parameter);
   if (!registration)
     return ErrorStatus(apdu::ApduResponse::Status::SW_WRONG_DATA);

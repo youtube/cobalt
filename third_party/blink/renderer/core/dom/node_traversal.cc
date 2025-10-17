@@ -27,7 +27,6 @@
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 
 #include "third_party/blink/renderer/core/dom/container_node.h"
-#include "third_party/blink/renderer/core/dom/range.h"
 
 namespace blink {
 
@@ -155,6 +154,21 @@ Node* NodeTraversal::NextPostOrder(const Node& current,
   return next;
 }
 
+Node* NodeTraversal::PreviousAncestorSibling(const Node& current,
+                                             const Node* stay_within) {
+  DCHECK(!current.HasPreviousSibling());
+  DCHECK_NE(current, stay_within);
+  for (Node& parent : AncestorsOf(current)) {
+    if (parent == stay_within) {
+      return nullptr;
+    }
+    if (parent.HasPreviousSibling()) {
+      return parent.previousSibling();
+    }
+  }
+  return nullptr;
+}
+
 Node* NodeTraversal::PreviousAncestorSiblingPostOrder(const Node& current,
                                                       const Node* stay_within) {
   DCHECK(!current.HasPreviousSibling());
@@ -181,7 +195,7 @@ Node* NodeTraversal::PreviousPostOrder(const Node& current,
 }
 
 Node* NodeTraversal::CommonAncestor(const Node& node_a, const Node& node_b) {
-  return Range::commonAncestorContainer(&node_a, &node_b);
+  return node_a.CommonAncestor(node_b, NodeTraversal::Parent);
 }
 
 }  // namespace blink

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/packet_dropping_test_writer.h"
 
+#include <memory>
+#include <utility>
+
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -52,6 +55,7 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
     : clock_(nullptr),
       cur_buffer_size_(0),
       num_calls_to_write_(0),
+      passthrough_for_next_n_packets_(0),
       // Do not require any number of successful writes before the first dropped
       // packet.
       num_consecutive_succesful_writes_(kMinSuccesfulWritesAfterPacketLoss),
@@ -88,11 +92,18 @@ void PacketDroppingTestWriter::Initialize(
 
 WriteResult PacketDroppingTestWriter::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
   ++num_calls_to_write_;
   ReleaseOldPackets();
 
-  QuicWriterMutexLock lock(&config_mutex_);
+  absl::WriterMutexLock lock(&config_mutex_);
+  if (passthrough_for_next_n_packets_ > 0) {
+    --passthrough_for_next_n_packets_;
+    return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
+                                                peer_address, options, params);
+  }
+
   if (fake_drop_first_n_packets_ > 0 &&
       num_calls_to_write_ <=
           static_cast<uint64_t>(fake_drop_first_n_packets_)) {
@@ -157,7 +168,7 @@ WriteResult PacketDroppingTestWriter::WritePacket(
     }
     delayed_packets_.push_back(
         DelayedWrite(buffer, buf_len, self_address, peer_address,
-                     std::move(delayed_options), send_time));
+                     std::move(delayed_options), params, send_time));
     cur_buffer_size_ += buf_len;
 
     // Set the alarm if it's not yet set.
@@ -169,7 +180,7 @@ WriteResult PacketDroppingTestWriter::WritePacket(
   }
 
   return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
-                                              peer_address, options);
+                                              peer_address, options, params);
 }
 
 bool PacketDroppingTestWriter::IsWriteBlocked() const {
@@ -190,7 +201,7 @@ QuicTime PacketDroppingTestWriter::ReleaseNextPacket() {
   if (delayed_packets_.empty()) {
     return QuicTime::Zero();
   }
-  QuicReaderMutexLock lock(&config_mutex_);
+  absl::ReaderMutexLock lock(&config_mutex_);
   auto iter = delayed_packets_.begin();
   // Determine if we should re-order.
   if (delayed_packets_.size() > 1 && fake_packet_reorder_percentage_ > 0 &&
@@ -207,7 +218,7 @@ QuicTime PacketDroppingTestWriter::ReleaseNextPacket() {
   // Grab the next one off the queue and send it.
   QuicPacketWriterWrapper::WritePacket(
       iter->buffer.data(), iter->buffer.length(), iter->self_address,
-      iter->peer_address, iter->options.get());
+      iter->peer_address, iter->options.get(), iter->params);
   QUICHE_DCHECK_GE(cur_buffer_size_, iter->buffer.length());
   cur_buffer_size_ -= iter->buffer.length();
   delayed_packets_.erase(iter);
@@ -239,11 +250,13 @@ void PacketDroppingTestWriter::OnCanWrite() { on_can_write_->OnCanWrite(); }
 PacketDroppingTestWriter::DelayedWrite::DelayedWrite(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address,
-    std::unique_ptr<PerPacketOptions> options, QuicTime send_time)
+    std::unique_ptr<PerPacketOptions> options,
+    const QuicPacketWriterParams& params, QuicTime send_time)
     : buffer(buffer, buf_len),
       self_address(self_address),
       peer_address(peer_address),
       options(std::move(options)),
+      params(params),
       send_time(send_time) {}
 
 PacketDroppingTestWriter::DelayedWrite::~DelayedWrite() = default;

@@ -15,12 +15,17 @@
  */
 
 #include "src/trace_processor/importers/common/system_info_tracker.h"
+
+#include <cstddef>
+#include <optional>
+
 #include "perfetto/ext/base/string_utils.h"
+#include "perfetto/ext/base/string_view.h"
+#include "src/trace_processor/types/version_number.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 
-SystemInfoTracker::SystemInfoTracker() {}
+SystemInfoTracker::SystemInfoTracker() = default;
 SystemInfoTracker::~SystemInfoTracker() = default;
 
 void SystemInfoTracker::SetKernelVersion(base::StringView name,
@@ -37,8 +42,11 @@ void SystemInfoTracker::SetKernelVersion(base::StringView name,
   auto minor_version = base::StringToUInt32(
       release.substr(first_dot_pos + 1, second_dot_pos - (first_dot_pos + 1))
           .ToStdString());
+  if (!major_version || !minor_version) {
+    version_ = std::nullopt;
+    return;
+  }
   version_ = VersionNumber{major_version.value(), minor_version.value()};
 }
 
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor

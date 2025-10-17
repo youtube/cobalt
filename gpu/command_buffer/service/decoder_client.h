@@ -47,9 +47,6 @@ class GPU_EXPORT DecoderClient {
   // because the fence completed.
   virtual void OnRescheduleAfterFinished() = 0;
 
-  // Called when SwapBuffers is called.
-  virtual void OnSwapBuffers(uint64_t swap_id, uint32_t flags) = 0;
-
   // Notifies the client that the shared GrContext may have been used by this
   // decoder and its GPU memory should be cleaned up.
   virtual void ScheduleGrContextCleanup() = 0;
@@ -58,6 +55,9 @@ class GPU_EXPORT DecoderClient {
 
   // Called by the decoder to pass a variable-size block of data to the client.
   virtual void HandleReturnData(base::span<const uint8_t> data) = 0;
+
+  // Returns true if rasterization should yield.
+  virtual bool ShouldYield() = 0;
 };
 
 }  // namespace gpu

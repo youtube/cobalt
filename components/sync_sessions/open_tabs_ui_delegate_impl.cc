@@ -4,9 +4,10 @@
 
 #include "components/sync_sessions/open_tabs_ui_delegate_impl.h"
 
+#include <algorithm>
 #include <memory>
 
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "components/sync_sessions/sync_sessions_client.h"
 #include "components/sync_sessions/synced_session_tracker.h"
 
@@ -23,19 +24,18 @@ OpenTabsUIDelegateImpl::OpenTabsUIDelegateImpl(
 OpenTabsUIDelegateImpl::~OpenTabsUIDelegateImpl() = default;
 
 bool OpenTabsUIDelegateImpl::GetAllForeignSessions(
-    std::vector<const SyncedSession*>* sessions) {
+    std::vector<raw_ptr<const SyncedSession, VectorExperimental>>* sessions) {
   *sessions = session_tracker_->LookupAllForeignSessions(
       SyncedSessionTracker::PRESENTABLE);
-  base::ranges::sort(
+  std::ranges::sort(
       *sessions, std::greater(),
       [](const SyncedSession* session) { return session->GetModifiedTime(); });
   return !sessions->empty();
 }
 
-bool OpenTabsUIDelegateImpl::GetForeignSession(
-    const std::string& tag,
-    std::vector<const sessions::SessionWindow*>* windows) {
-  return session_tracker_->LookupSessionWindows(tag, windows);
+std::vector<const sessions::SessionWindow*>
+OpenTabsUIDelegateImpl::GetForeignSession(const std::string& tag) {
+  return session_tracker_->LookupSessionWindows(tag);
 }
 
 bool OpenTabsUIDelegateImpl::GetForeignTab(const std::string& tag,
@@ -48,8 +48,9 @@ bool OpenTabsUIDelegateImpl::GetForeignTab(const std::string& tag,
 bool OpenTabsUIDelegateImpl::GetForeignSessionTabs(
     const std::string& tag,
     std::vector<const sessions::SessionTab*>* tabs) {
-  std::vector<const sessions::SessionWindow*> windows;
-  if (!session_tracker_->LookupSessionWindows(tag, &windows)) {
+  std::vector<const sessions::SessionWindow*> windows =
+      session_tracker_->LookupSessionWindows(tag);
+  if (windows.empty()) {
     return false;
   }
 
@@ -69,7 +70,7 @@ bool OpenTabsUIDelegateImpl::GetForeignSessionTabs(
       tabs->push_back(tab.get());
     }
   }
-  base::ranges::stable_sort(
+  std::ranges::stable_sort(
       *tabs, std::greater(),
       [](const sessions::SessionTab* tab) { return tab->timestamp; });
   return true;

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include "perfetto/base/build_config.h"
 #include "perfetto/base/logging.h"
 #include "perfetto/ext/base/file_utils.h"
@@ -21,11 +23,14 @@
 #include "perfetto/ext/base/scoped_file.h"
 #include "perfetto/ext/base/string_utils.h"
 #include "perfetto/ext/base/temp_file.h"
+#include "perfetto/ext/base/unix_socket.h"
 #include "perfetto/ext/base/utils.h"
 #include "perfetto/ext/tracing/core/commit_data_request.h"
+#include "perfetto/ext/tracing/core/null_consumer_endpoint_for_testing.h"
 #include "perfetto/ext/tracing/core/trace_packet.h"
 #include "perfetto/ext/tracing/core/tracing_service.h"
 #include "perfetto/protozero/scattered_heap_buffer.h"
+#include "perfetto/tracing/core/data_source_config.h"
 #include "perfetto/tracing/core/tracing_service_state.h"
 #include "src/base/test/test_task_runner.h"
 #include "src/base/test/utils.h"
@@ -53,6 +58,11 @@ using ::testing::Property;
 using ::testing::SizeIs;
 
 }  // namespace
+
+TEST(PerfettoTracedIntegrationTest, NullConsumerEndpointBuilds) {
+  NullConsumerEndpointForTesting npe;
+  npe.StartTracing();
+}
 
 TEST(PerfettoTracedIntegrationTest, TestFakeProducer) {
   base::TestTaskRunner task_runner;
@@ -451,5 +461,124 @@ TEST(PerfettoTracedIntegrationTest, TraceFilterLargePackets) {
       Each(Property(&protos::gen::TracePacket::for_testing,
                     Property(&protos::gen::TestEvent::str, SizeIs(kMsgSize)))));
 }
+
+#if (PERFETTO_BUILDFLAG(PERFETTO_START_DAEMONS) && \
+     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
+TEST(PerfettoTracedIntegrationTest, TestMultipleProducerSockets) {
+  base::TestTaskRunner task_runner;
+  auto temp_dir = base::TempDir::Create();
+
+  std::vector<std::string> producer_socket_names{
+      temp_dir.path() + "/producer1.sock",
+      temp_dir.path() + "/producer2.sock",
+  };
+  auto producer_sock_name = base::Join(producer_socket_names, ",");
+  // We need to start the service thread for multiple producer sockets.
+  TestHelper helper(&task_runner, TestHelper::Mode::kStartDaemons,
+                    producer_sock_name.c_str());
+  ASSERT_EQ(helper.num_producers(), 2u);
+  helper.StartServiceIfRequired();
+  // Setup the 1st producer (default).
+  helper.ConnectFakeProducer();
+  // Setup the 2ns producer.
+  helper.ConnectFakeProducer(1);
+  helper.ConnectConsumer();
+  helper.WaitForConsumerConnect();
+
+  TraceConfig trace_config;
+  trace_config.add_buffers()->set_size_kb(1024);
+  trace_config.set_duration_ms(200);
+
+  static constexpr uint32_t kMsgSize = 1024;
+  // Enable the 1st producer.
+  auto* ds_config = trace_config.add_data_sources()->mutable_config();
+  ds_config->set_name("android.perfetto.FakeProducer");
+  ds_config->set_target_buffer(0);
+  ds_config->mutable_for_testing()->set_message_count(12);
+  ds_config->mutable_for_testing()->set_message_size(kMsgSize);
+  ds_config->mutable_for_testing()->set_send_batch_on_register(true);
+  // Enable the 2nd producer.
+  ds_config = trace_config.add_data_sources()->mutable_config();
+  ds_config->set_name("android.perfetto.FakeProducer.1");
+  ds_config->set_target_buffer(0);
+  ds_config->mutable_for_testing()->set_message_count(24);
+  ds_config->mutable_for_testing()->set_message_size(kMsgSize);
+  ds_config->mutable_for_testing()->set_send_batch_on_register(true);
+
+  helper.StartTracing(trace_config);
+  helper.WaitForTracingDisabled();
+
+  helper.ReadData();
+  helper.WaitForReadData();
+
+  const auto& packets = helper.trace();
+  ASSERT_EQ(packets.size(), 36u);
+
+  for (const auto& packet : packets) {
+    ASSERT_TRUE(packet.has_for_testing());
+  }
+
+  for (const auto& sock_name : producer_socket_names)
+    remove(sock_name.c_str());
+}
+
+TEST(PerfettoTracedIntegrationTest, TestShmemEmulation) {
+  base::TestTaskRunner task_runner;
+  auto temp_dir = base::TempDir::Create();
+
+  std::string sock_name;
+  {
+    // Set up a server UnixSocket to find an unused TCP port.
+    base::UnixSocket::EventListener event_listener;
+    auto srv = base::UnixSocket::Listen("127.0.0.1:0", &event_listener,
+                                        &task_runner, base::SockFamily::kInet,
+                                        base::SockType::kStream);
+    ASSERT_TRUE(srv->is_listening());
+    sock_name = srv->GetSockAddr();
+    // Shut down |srv| here to free the port. It's unlikely that the port will
+    // be taken by another process so quickly before we reach the code below.
+  }
+
+  TestHelper helper(&task_runner, TestHelper::Mode::kStartDaemons,
+                    sock_name.c_str());
+  ASSERT_EQ(helper.num_producers(), 1u);
+  helper.StartServiceIfRequired();
+  // Setup the 1st producer (default).
+  helper.ConnectFakeProducer();
+  helper.ConnectConsumer();
+  helper.WaitForConsumerConnect();
+
+  TraceConfig trace_config;
+  trace_config.add_buffers()->set_size_kb(1024);
+  trace_config.set_duration_ms(200);
+
+  static constexpr uint32_t kMsgSize = 1024;
+  static constexpr uint32_t kRandomSeed = 42;
+  // Enable the producer.
+  auto* ds_config = trace_config.add_data_sources()->mutable_config();
+  ds_config->set_name("android.perfetto.FakeProducer");
+  ds_config->set_target_buffer(0);
+  ds_config->mutable_for_testing()->set_seed(kRandomSeed);
+  ds_config->mutable_for_testing()->set_message_count(12);
+  ds_config->mutable_for_testing()->set_message_size(kMsgSize);
+  ds_config->mutable_for_testing()->set_send_batch_on_register(true);
+
+  helper.StartTracing(trace_config);
+  helper.WaitForTracingDisabled();
+
+  helper.ReadData();
+  helper.WaitForReadData();
+
+  const auto& packets = helper.trace();
+  ASSERT_EQ(packets.size(), 12u);
+
+  std::minstd_rand0 rnd_engine(kRandomSeed);
+  for (const auto& packet : packets) {
+    ASSERT_TRUE(packet.has_for_testing());
+    ASSERT_EQ(packet.for_testing().seq_value(), rnd_engine());
+  }
+}
+#endif
 
 }  // namespace perfetto

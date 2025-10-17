@@ -50,6 +50,17 @@ class TestNotifyFailFunction : public TestExtensionFunction {
   ResponseAction Run() override;
 };
 
+class TestOpenFileUrlFunction : public TestExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("test.openFileUrl", UNKNOWN)
+
+ protected:
+  ~TestOpenFileUrlFunction() override;
+
+  // ExtensionFunction:
+  ResponseAction Run() override;
+};
+
 class TestLogFunction : public TestExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("test.log", UNKNOWN)
@@ -82,7 +93,7 @@ class TestSendMessageFunction : public ExtensionFunction {
   // Whether or not the function is currently waiting for a reply.
   bool waiting_ = false;
 
-  absl::optional<ResponseValue> response_;
+  std::optional<ResponseValue> response_;
 };
 
 class TestSendScriptResultFunction : public TestExtensionFunction {
@@ -102,7 +113,7 @@ class TestGetConfigFunction : public TestExtensionFunction {
   DECLARE_EXTENSION_FUNCTION("test.getConfig", UNKNOWN)
 
   // Set the dictionary returned by chrome.test.getConfig().
-  // Does not take ownership of |value|.
+  // Does not take ownership of `value`.
   static void set_test_config_state(base::Value::Dict* value);
 
  protected:

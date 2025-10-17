@@ -2,15 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Origin} from 'chrome://resources/mojo/url/mojom/origin.mojom-webui.js';
+import type {Origin} from 'chrome://resources/mojo/url/mojom/origin.mojom-webui.js';
 
-import {BucketTableEntry, QuotaInternalsHandler} from './quota_internals.mojom-webui.js';
-
-export enum StorageType {
-  TEMPORARY = 0,
-  // PERSISTENT = 1, DEPRECATED
-  SYNCABLE = 2,
-}
+import type {BucketTableEntry} from './quota_internals.mojom-webui.js';
+import {QuotaInternalsHandler} from './quota_internals.mojom-webui.js';
 
 interface GetDiskAvailabilityAndTempPoolSizeResult {
   totalSpace: bigint;
@@ -51,8 +46,8 @@ export class QuotaInternalsBrowserProxy {
     return this.handler.getDiskAvailabilityAndTempPoolSize();
   }
 
-  getGlobalUsage(storageType: number): Promise<GetGlobalUsageResult> {
-    return this.handler.getGlobalUsageForInternals(storageType);
+  getGlobalUsage(): Promise<GetGlobalUsageResult> {
+    return this.handler.getGlobalUsageForInternals();
   }
 
   getStatistics(): Promise<{evictionStatistics: {[key: string]: string}}> {
@@ -63,10 +58,12 @@ export class QuotaInternalsBrowserProxy {
     const originToTest = (document.body.querySelector<HTMLInputElement>(
         '#origin-to-test'))!.value;
     const originUrl = new URL(originToTest);
-    const newOrigin = new Origin();
-    newOrigin.scheme = originUrl.protocol.replace(/:$/, '');
-    newOrigin.host = originUrl.host;
-    newOrigin.port = urlPort(originUrl);
+    const newOrigin: Origin = {
+      scheme: originUrl.protocol.replace(/:$/, ''),
+      host: originUrl.host,
+      port: urlPort(originUrl),
+      nonceIfOpaque: null,
+    };
 
     this.handler.simulateStoragePressure(newOrigin);
   }

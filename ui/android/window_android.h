@@ -6,6 +6,7 @@
 #define UI_ANDROID_WINDOW_ANDROID_H_
 
 #include <jni.h>
+
 #include <memory>
 #include <string>
 
@@ -15,6 +16,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
+#include "third_party/blink/public/common/page/content_to_visible_time_reporter.h"
+#include "ui/android/progress_bar_config.h"
 #include "ui/android/ui_android_export.h"
 #include "ui/android/view_android.h"
 #include "ui/gfx/geometry/vector2d_f.h"
@@ -29,6 +32,7 @@ namespace ui {
 
 extern UI_ANDROID_EXPORT const float kDefaultMouseWheelTickMultiplier;
 
+class ModalDialogManagerBridge;
 class WindowAndroidCompositor;
 class WindowAndroidObserver;
 
@@ -36,6 +40,7 @@ class WindowAndroidObserver;
 // WindowAndroid is also the root of a ViewAndroid tree.
 class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
  public:
+  // Intended for unittests only.
   class ScopedWindowAndroidForTesting {
    public:
     ScopedWindowAndroidForTesting(WindowAndroid* window);
@@ -43,8 +48,22 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
 
     WindowAndroid* get() { return window_; }
 
+    void SetModalDialogManager(
+        base::android::ScopedJavaLocalRef<jobject> modal_dialog_manager);
+
    private:
     raw_ptr<WindowAndroid> window_;
+  };
+
+  struct AdaptiveRefreshRateInfo {
+    bool supports_adaptive_refresh_rate = false;
+    // Fields below are valid only if `supports_adaptive_refresh_rate` is true.
+    float suggested_frame_rate_high = 0.f;
+
+    AdaptiveRefreshRateInfo();
+    AdaptiveRefreshRateInfo(const AdaptiveRefreshRateInfo& other);
+    ~AdaptiveRefreshRateInfo();
+    AdaptiveRefreshRateInfo& operator=(const AdaptiveRefreshRateInfo& other);
   };
 
   static WindowAndroid* FromJavaWindowAndroid(
@@ -75,6 +94,9 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
   float GetRefreshRate();
   gfx::OverlayTransform GetOverlayTransform();
   std::vector<float> GetSupportedRefreshRates();
+  AdaptiveRefreshRateInfo adaptive_refresh_rate_info() const {
+    return adaptive_refresh_rate_info_;
+  }
   void SetPreferredRefreshRate(float refresh_rate);
 
   void SetNeedsAnimate();
@@ -86,9 +108,6 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
                          const base::android::JavaParamRef<jobject>& obj);
   void OnActivityStarted(JNIEnv* env,
                          const base::android::JavaParamRef<jobject>& obj);
-  void SetVSyncPaused(JNIEnv* env,
-                      const base::android::JavaParamRef<jobject>& obj,
-                      bool paused);
   void OnUpdateRefreshRate(JNIEnv* env,
                            const base::android::JavaParamRef<jobject>& obj,
                            float refresh_rate);
@@ -96,14 +115,33 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj,
       const base::android::JavaParamRef<jfloatArray>& supported_refresh_rates);
+  void OnAdaptiveRefreshRateInfoChanged(JNIEnv* env,
+                                        jboolean supports_adaptive_refresh_rate,
+                                        jfloat suggested_frame_rate_high);
   void OnOverlayTransformUpdated(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
+  void SendUnfoldLatencyBeginTimestamp(JNIEnv* env, jlong begin_time);
+
+  void OnWindowPointerLockRelease(JNIEnv* env);
+
+  void ShowToast(const std::string text);
 
   // Return whether the specified Android permission is granted.
   bool HasPermission(const std::string& permission);
   // Return whether the specified Android permission can be requested by Chrome.
   bool CanRequestPermission(const std::string& permission);
+
+  void set_progress_bar_config_for_testing(ProgressBarConfig config) {
+    progress_bar_config_for_testing_ = config;
+  }
+  ProgressBarConfig GetProgressBarConfig();
+
+  ModalDialogManagerBridge* GetModalDialogManagerBridge();
+
+  // Intended for native browser tests.
+  void SetModalDialogManagerForTesting(
+      base::android::ScopedJavaLocalRef<jobject> java_modal_dialog_manager);
 
   float mouse_wheel_scroll_factor() const { return mouse_wheel_scroll_factor_; }
 
@@ -116,6 +154,12 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
   display::Display GetDisplayWithWindowColorSpace();
 
   void SetWideColorEnabled(bool enabled);
+
+  bool RequestPointerLock(ViewAndroid& view_android);
+
+  bool HasPointerLock(ViewAndroid& view_android);
+
+  void ReleasePointerLock(ViewAndroid& view_android);
 
   class TestHooks {
    public:
@@ -153,14 +197,20 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
   const bool window_is_wide_color_gamut_;
   raw_ptr<WindowAndroidCompositor> compositor_;
 
+  std::optional<ProgressBarConfig> progress_bar_config_for_testing_;
+
   base::ObserverList<WindowAndroidObserver>::Unchecked observer_list_;
+  blink::ContentToVisibleTimeReporter content_to_visible_time_recorder_;
 
   float mouse_wheel_scroll_factor_;
-  bool vsync_paused_ = false;
 
   raw_ptr<TestHooks> test_hooks_ = nullptr;
 
   int selection_handles_active_count_ = 0;
+
+  raw_ptr<ViewAndroid> pointer_locking_view_ = nullptr;
+
+  AdaptiveRefreshRateInfo adaptive_refresh_rate_info_;
 };
 
 }  // namespace ui

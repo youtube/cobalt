@@ -37,10 +37,17 @@ config_data chromeos
 make -j 120
 $ICUROOT/scripts/copy_data.sh chromeos
 
+echo "Build the filtered data for Chromecast Video"
+(cd data && make clean)
+config_data chromecast_video
+make -j 120
+$ICUROOT/scripts/copy_data.sh chromecast_video
+
 echo "Build the filtered data for Cast"
 (cd data && make clean)
 config_data cast
-$ICUROOT/cast/patch_locale.sh && make -j 120
+$ICUROOT/cast/patch_locale.sh || exit 1
+make -j 120
 $ICUROOT/scripts/copy_data.sh cast
 
 echo "Build the filtered data for Android"
@@ -58,7 +65,8 @@ $ICUROOT/scripts/copy_data.sh ios
 echo "Build the filtered data for Flutter"
 (cd data && make clean)
 config_data flutter
-$ICUROOT/flutter/patch_brkitr.sh && make -j 120
+$ICUROOT/flutter/patch_brkitr.sh || exit 1
+make -j 120
 $ICUROOT/scripts/copy_data.sh flutter
 
 echo "Build the filtered data for Flutter Desktop"

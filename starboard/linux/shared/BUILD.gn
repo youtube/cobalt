@@ -27,7 +27,6 @@ group("starboard_platform") {
   ]
 
   deps = [
-    "//third_party/libevent",
     "//third_party/modp_b64",
     "//third_party/opus",
   ]

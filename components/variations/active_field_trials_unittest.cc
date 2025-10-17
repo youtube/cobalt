@@ -6,7 +6,8 @@
 
 #include <stddef.h>
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
 #include "components/variations/hashing.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,7 +41,7 @@ TEST(ActiveFieldTrialsTest, GetFieldTrialActiveGroups) {
   expected_groups.insert(name_group_id);
 
   std::vector<ActiveGroupId> active_group_ids;
-  testing::TestGetFieldTrialActiveGroupIds(base::StringPiece(), active_groups,
+  testing::TestGetFieldTrialActiveGroupIds(std::string_view(), active_groups,
                                            &active_group_ids);
   EXPECT_EQ(2U, active_group_ids.size());
   for (size_t i = 0; i < active_group_ids.size(); ++i) {
@@ -71,6 +72,32 @@ TEST(ActiveFieldTrialsTest, GetFieldTrialActiveGroupsWithSuffix) {
   uint32_t expected_group = HashName("group onesome_suffix");
   EXPECT_EQ(expected_name, active_group_ids[0].name);
   EXPECT_EQ(expected_group, active_group_ids[0].group);
+}
+
+TEST(ActiveFieldTrialsTest,
+     GetFieldTrialActiveGroupsProvidesDifferentHashesForOverriddenTrials) {
+  std::string trial_one("trial one");
+  std::string group_one("group one");
+
+  base::FieldTrial::ActiveGroup active_group;
+  active_group.trial_name = trial_one;
+  active_group.group_name = group_one;
+  active_group.is_overridden = true;
+
+  std::vector<ActiveGroupId> active_group_ids;
+  testing::TestGetFieldTrialActiveGroupIds(std::string_view(), {active_group},
+                                           &active_group_ids);
+  ASSERT_EQ(1U, active_group_ids.size());
+  EXPECT_EQ(active_group_ids[0].name, HashName(trial_one));
+  EXPECT_EQ(active_group_ids[0].group, HashName("group one_MANUALLY_FORCED"));
+
+  active_group_ids.clear();
+  testing::TestGetFieldTrialActiveGroupIds("_suffix", {active_group},
+                                           &active_group_ids);
+  ASSERT_EQ(1U, active_group_ids.size());
+  EXPECT_EQ(active_group_ids[0].name, HashName("trial one_suffix"));
+  EXPECT_EQ(active_group_ids[0].group,
+            HashName("group one_suffix_MANUALLY_FORCED"));
 }
 
 }  // namespace variations

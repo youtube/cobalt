@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -15,6 +16,7 @@
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
 
@@ -22,25 +24,34 @@ namespace {
 std::string GetHpkePrivateKey() {
   absl::string_view hpke_key_hex =
       "b77431ecfa8f4cfc30d6e467aafa06944dffe28cb9dd1409e33a3045f5adc8a1";
-  return absl::HexStringToBytes(hpke_key_hex);
+  std::string hpke_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(hpke_key_hex, &hpke_key_bytes));
+  return hpke_key_bytes;
 }
 
 std::string GetHpkePublicKey() {
   absl::string_view public_key =
       "6d21cfe09fbea5122f9ebc2eb2a69fcc4f06408cd54aac934f012e76fcdcef62";
-  return absl::HexStringToBytes(public_key);
+  std::string public_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(public_key, &public_key_bytes));
+  return public_key_bytes;
 }
 
 std::string GetSeed() {
   absl::string_view seed =
       "52c4a758a802cd8b936eceea314432798d5baf2d7e9235dc084ab1b9cfa2f736";
-  return absl::HexStringToBytes(seed);
+  std::string seed_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(seed, &seed_bytes));
+  return seed_bytes;
 }
 
 std::string GetSeededEncapsulatedKey() {
   absl::string_view encapsulated_key =
       "37fda3567bdbd628e88668c3c8d7e97d1d1253b6d4ea6d44c150f741f1bf4431";
-  return absl::HexStringToBytes(encapsulated_key);
+  std::string encapsulated_key_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(encapsulated_key, &encapsulated_key_bytes));
+  return encapsulated_key_bytes;
 }
 
 const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
@@ -150,13 +161,16 @@ TEST(ObliviousHttpResponse, TestDecapsulateReceivedResponse) {
   absl::string_view encrypted_response =
       "39d5b03c02c97e216df444e4681007105974d4df1585aae05e7b53f3ccdb55d51f711d48"
       "eeefbc1a555d6d928e35df33fd23c23846fa7b083e30692f7b";
+  std::string encrypted_response_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes(encrypted_response, &encrypted_response_bytes));
   auto oblivious_context =
       SetUpObliviousHttpContext(4, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                                 EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM,
                                 "test")
           .ReleaseContext();
   auto decapsulated = ObliviousHttpResponse::CreateClientObliviousResponse(
-      absl::HexStringToBytes(encrypted_response), oblivious_context);
+      std::move(encrypted_response_bytes), oblivious_context);
   EXPECT_TRUE(decapsulated.ok());
   auto decrypted = decapsulated->GetPlaintextData();
   EXPECT_EQ(decrypted, "test response");
@@ -190,7 +204,8 @@ TEST(ObliviousHttpResponse, TestEncapsulateWithQuicheRandom) {
       std::move(server_seeded_request).ReleaseContext();
   auto server_response_encapsulate =
       ObliviousHttpResponse::CreateServerObliviousResponse(
-          "test response", server_request_context, &random);
+          "test response", server_request_context,
+          ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel, &random);
   EXPECT_TRUE(server_response_encapsulate.ok());
   std::string response_nonce =
       server_response_encapsulate->EncapsulateAndSerialize().substr(
@@ -201,10 +216,13 @@ TEST(ObliviousHttpResponse, TestEncapsulateWithQuicheRandom) {
                 'z'));
   absl::string_view expected_encrypted_response =
       "2a3271ac4e6a501f51d0264d3dd7d0bc8a06973b58e89c26d6dac06144";
+  std::string expected_encrypted_response_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(expected_encrypted_response,
+                                     &expected_encrypted_response_bytes));
   EXPECT_EQ(
       server_response_encapsulate->EncapsulateAndSerialize().substr(
           GetResponseNonceLength(*(server_request_context.hpke_context_))),
-      absl::HexStringToBytes(expected_encrypted_response));
+      expected_encrypted_response_bytes);
 }
 
 }  // namespace quiche

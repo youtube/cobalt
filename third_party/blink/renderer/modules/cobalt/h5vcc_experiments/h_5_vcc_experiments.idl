@@ -30,12 +30,12 @@ dictionary ExperimentConfiguration {
 ]
 interface H5vccExperiments {
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setExperimentState(ExperimentConfiguration experiment_configuration);
+  Promise<undefined> setExperimentState(ExperimentConfiguration experiment_configuration);
 
   // Instructs Cobalt to delete its current cached experiment configuration.
   // Returns a promise that resolves/rejects in the event of success/failure.
   [CallWith=ScriptState, RaisesException]
-  Promise<void> resetExperimentState();
+  Promise<undefined> resetExperimentState();
 
   // Returns a list of Cobalt's currently active client experiment IDs for use
   // by the client to log.

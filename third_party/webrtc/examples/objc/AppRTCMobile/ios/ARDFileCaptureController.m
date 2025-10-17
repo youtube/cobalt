@@ -21,8 +21,10 @@
 @implementation ARDFileCaptureController
 @synthesize fileCapturer = _fileCapturer;
 
-- (instancetype)initWithCapturer:(RTC_OBJC_TYPE(RTCFileVideoCapturer) *)capturer {
-  if (self = [super init]) {
+- (instancetype)initWithCapturer:
+    (RTC_OBJC_TYPE(RTCFileVideoCapturer) *)capturer {
+  self = [super init];
+  if (self) {
     _fileCapturer = capturer;
   }
   return self;

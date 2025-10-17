@@ -36,15 +36,10 @@ egl::Error DeviceCGL::getAttribute(const egl::Display *display, EGLint attribute
             *outValue = displayImpl->getCGLPixelFormat();
             break;
         default:
-            return egl::EglBadAttribute();
+            return egl::Error(EGL_BAD_ATTRIBUTE);
     }
 
     return egl::NoError();
-}
-
-EGLint DeviceCGL::getType()
-{
-    return 0;
 }
 
 void DeviceCGL::generateExtensions(egl::DeviceExtensions *outExtensions) const

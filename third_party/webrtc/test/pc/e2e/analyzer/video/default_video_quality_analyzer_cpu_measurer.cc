@@ -17,27 +17,27 @@ namespace webrtc {
 
 void DefaultVideoQualityAnalyzerCpuMeasurer::StartMeasuringCpuProcessTime() {
   MutexLock lock(&mutex_);
-  cpu_time_ -= rtc::GetProcessCpuTimeNanos();
-  wallclock_time_ -= rtc::SystemTimeNanos();
+  cpu_time_ -= GetProcessCpuTimeNanos();
+  wallclock_time_ -= SystemTimeNanos();
 }
 
 void DefaultVideoQualityAnalyzerCpuMeasurer::StopMeasuringCpuProcessTime() {
   MutexLock lock(&mutex_);
-  cpu_time_ += rtc::GetProcessCpuTimeNanos();
-  wallclock_time_ += rtc::SystemTimeNanos();
+  cpu_time_ += GetProcessCpuTimeNanos();
+  wallclock_time_ += SystemTimeNanos();
 }
 
 void DefaultVideoQualityAnalyzerCpuMeasurer::StartExcludingCpuThreadTime() {
   MutexLock lock(&mutex_);
-  cpu_time_ += rtc::GetThreadCpuTimeNanos();
+  cpu_time_ += GetThreadCpuTimeNanos();
 }
 
 void DefaultVideoQualityAnalyzerCpuMeasurer::StopExcludingCpuThreadTime() {
   MutexLock lock(&mutex_);
-  cpu_time_ -= rtc::GetThreadCpuTimeNanos();
+  cpu_time_ -= GetThreadCpuTimeNanos();
 }
 
-double DefaultVideoQualityAnalyzerCpuMeasurer::GetCpuUsagePercent() {
+double DefaultVideoQualityAnalyzerCpuMeasurer::GetCpuUsagePercent() const {
   MutexLock lock(&mutex_);
   return static_cast<double>(cpu_time_) / wallclock_time_ * 100.0;
 }

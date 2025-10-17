@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "url/gurl.h"
 
@@ -38,6 +37,8 @@ struct ShareTarget {
     Files& operator=(Files&&);
     ~Files();
 
+    friend bool operator==(const Files&, const Files&) = default;
+
     base::Value AsDebugValue() const;
 
     std::string name;
@@ -51,6 +52,8 @@ struct ShareTarget {
     Params& operator=(const Params&);
     Params& operator=(Params&&);
     ~Params();
+
+    friend bool operator==(const Params&, const Params&) = default;
 
     base::Value AsDebugValue() const;
 
@@ -67,6 +70,8 @@ struct ShareTarget {
   ShareTarget& operator=(ShareTarget&&);
   ~ShareTarget();
 
+  friend bool operator==(const ShareTarget&, const ShareTarget&) = default;
+
   static const char* MethodToString(Method);
   static const char* EnctypeToString(Enctype);
 
@@ -80,21 +85,6 @@ struct ShareTarget {
 
   Params params;
 };
-
-bool operator==(const ShareTarget& share_target1,
-                const ShareTarget& share_target2);
-bool operator==(const ShareTarget::Params& params1,
-                const ShareTarget::Params& params2);
-bool operator==(const ShareTarget::Files& files1,
-                const ShareTarget::Files& files2);
-
-bool operator!=(const ShareTarget& share_target1,
-                const ShareTarget& share_target2);
-bool operator!=(const ShareTarget::Params& params1,
-                const ShareTarget::Params& params2);
-bool operator!=(const ShareTarget::Files& files1,
-                const ShareTarget::Files& files2);
-
 }  // namespace apps
 
 #endif  // COMPONENTS_SERVICES_APP_SERVICE_PUBLIC_CPP_SHARE_TARGET_H_

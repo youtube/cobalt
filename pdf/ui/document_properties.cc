@@ -4,6 +4,7 @@
 
 #include "pdf/ui/document_properties.h"
 
+#include <optional>
 #include <string>
 
 #include "base/i18n/number_formatting.h"
@@ -12,7 +13,6 @@
 #include "components/strings/grit/components_strings.h"
 #include "pdf/document_metadata.h"
 #include "printing/units.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/i18n/unicode/ulocdata.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/size.h"
@@ -75,7 +75,7 @@ bool ShowInches() {
 
 }  // namespace
 
-std::u16string FormatPageSize(const absl::optional<gfx::Size>& size_points) {
+std::u16string FormatPageSize(const std::optional<gfx::Size>& size_points) {
   if (!size_points.has_value())
     return l10n_util::GetStringUTF16(IDS_PDF_PROPERTIES_PAGE_SIZE_VARIABLE);
 

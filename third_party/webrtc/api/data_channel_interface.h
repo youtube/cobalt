@@ -17,21 +17,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 
 #include "absl/functional/any_invocable.h"
-#include "absl/types/optional.h"
 #include "api/priority.h"
+#include "api/ref_count.h"
 #include "api/rtc_error.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
-#include "rtc_base/ref_count.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 // C++ version of: https://www.w3.org/TR/webrtc/#idl-def-rtcdatachannelinit
-// TODO(deadbeef): Use absl::optional for the "-1 if unset" things.
+// TODO(deadbeef): Use std::optional for the "-1 if unset" things.
 struct DataChannelInit {
   // Deprecated. Reliability is assumed, and channel will be unreliable if
   // maxRetransmitTime or MaxRetransmits is set.
@@ -46,13 +46,13 @@ struct DataChannelInit {
   // Cannot be set along with `maxRetransmits`.
   // This is called `maxPacketLifeTime` in the WebRTC JS API.
   // Negative values are ignored, and positive values are clamped to [0-65535]
-  absl::optional<int> maxRetransmitTime;
+  std::optional<int> maxRetransmitTime;
 
   // The max number of retransmissions.
   //
   // Cannot be set along with `maxRetransmitTime`.
   // Negative values are ignored, and positive values are clamped to [0-65535]
-  absl::optional<int> maxRetransmits;
+  std::optional<int> maxRetransmits;
 
   // This is set by the application and opaque to the WebRTC implementation.
   std::string protocol;
@@ -67,21 +67,21 @@ struct DataChannelInit {
   int id = -1;
 
   // https://w3c.github.io/webrtc-priority/#new-rtcdatachannelinit-member
-  absl::optional<Priority> priority;
+  std::optional<PriorityValue> priority;
 };
 
 // At the JavaScript level, data can be passed in as a string or a blob, so
 // this structure's `binary` flag tells whether the data should be interpreted
 // as binary or text.
 struct DataBuffer {
-  DataBuffer(const rtc::CopyOnWriteBuffer& data, bool binary)
+  DataBuffer(const CopyOnWriteBuffer& data, bool binary)
       : data(data), binary(binary) {}
   // For convenience for unit tests.
   explicit DataBuffer(const std::string& text)
       : data(text.data(), text.length()), binary(false) {}
   size_t size() const { return data.size(); }
 
-  rtc::CopyOnWriteBuffer data;
+  CopyOnWriteBuffer data;
   // Indicates if the received data contains UTF-8 or binary data.
   // Note that the upper layers are left to verify the UTF-8 encoding.
   // TODO(jiayl): prefer to use an enum instead of a bool.
@@ -99,7 +99,7 @@ class DataChannelObserver {
   //  A data buffer was successfully received.
   virtual void OnMessage(const DataBuffer& buffer) = 0;
   // The data channel's buffered_amount has changed.
-  virtual void OnBufferedAmountChange(uint64_t sent_data_size) {}
+  virtual void OnBufferedAmountChange(uint64_t /* sent_data_size */) {}
 
   // Override this to get callbacks directly on the network thread.
   // An implementation that does that must not block the network thread
@@ -116,7 +116,7 @@ class DataChannelObserver {
   virtual ~DataChannelObserver() = default;
 };
 
-class RTC_EXPORT DataChannelInterface : public rtc::RefCountInterface {
+class RTC_EXPORT DataChannelInterface : public RefCountInterface {
  public:
   // C++ version of: https://www.w3.org/TR/webrtc/#idl-def-rtcdatachannelstate
   // Unlikely to change, but keep in sync with DataChannel.java:State and
@@ -160,11 +160,8 @@ class RTC_EXPORT DataChannelInterface : public rtc::RefCountInterface {
   // implemented these APIs. They should all just return the values the
   // DataChannel was created with.
   virtual bool ordered() const;
-  // TODO(hta): Deprecate and remove the following two functions.
-  virtual uint16_t maxRetransmitTime() const;
-  virtual uint16_t maxRetransmits() const;
-  virtual absl::optional<int> maxRetransmitsOpt() const;
-  virtual absl::optional<int> maxPacketLifeTime() const;
+  virtual std::optional<int> maxRetransmitsOpt() const;
+  virtual std::optional<int> maxPacketLifeTime() const;
   virtual std::string protocol() const;
   virtual bool negotiated() const;
 
@@ -172,7 +169,7 @@ class RTC_EXPORT DataChannelInterface : public rtc::RefCountInterface {
   // If negotiated in-band, this ID will be populated once the DTLS role is
   // determined, and until then this will return -1.
   virtual int id() const = 0;
-  virtual Priority priority() const { return Priority::kLow; }
+  virtual PriorityValue priority() const;
   virtual DataState state() const = 0;
   // When state is kClosed, and the DataChannel was not closed using
   // the closing procedure, returns the error information about the closing.

@@ -8,6 +8,7 @@
 #include <jni.h>
 
 #include "base/component_export.h"
+#include "device/vr/android/xr_activity_state_handler.h"
 
 namespace device {
 
@@ -21,7 +22,18 @@ class COMPONENT_EXPORT(VR_CARDBOARD) CardboardSdk {
   CardboardSdk() = default;
   virtual ~CardboardSdk() = default;
 
-  virtual void Initialize(jobject context);
+  // Initializes the Cardboard SDK (by setting the JavaVM and Android context).
+  virtual void Initialize(jobject context) = 0;
+  // Launches the QR code scanner activity and saves the obtained encoded device
+  // parameters. Meant to be used when it is not required to set a callback
+  // function.
+  virtual void ScanQrCodeAndSaveDeviceParams() = 0;
+  // Launches the QR code scanner activity and saves the obtained encoded device
+  // parameters. Meant to be used when it is required to set a callback function
+  // for when the device parameters have been saved.
+  virtual void ScanQrCodeAndSaveDeviceParams(
+      std::unique_ptr<XrActivityStateHandler> activity_state_handler,
+      base::OnceClosure on_params_saved) = 0;
 
   CardboardSdk(const CardboardSdk&) = delete;
   CardboardSdk& operator=(const CardboardSdk&) = delete;

@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash, "Non-ChromeOS builds cannot depend on //chromeos/ash")
+assert(is_chromeos, "Non-ChromeOS builds cannot depend on //chromeos/ash")
 
 component("shill") {
   defines = [ "IS_SHILL_CLIENT_IMPL" ]
@@ -20,6 +18,8 @@ component("shill") {
   ]
 
   sources = [
+    "fake_modem_3gpp_client.cc",
+    "fake_modem_3gpp_client.h",
     "fake_modem_messaging_client.cc",
     "fake_modem_messaging_client.h",
     "fake_shill_device_client.cc",
@@ -37,6 +37,8 @@ component("shill") {
     "fake_shill_third_party_vpn_driver_client.h",
     "fake_sms_client.cc",
     "fake_sms_client.h",
+    "modem_3gpp_client.cc",
+    "modem_3gpp_client.h",
     "modem_messaging_client.cc",
     "modem_messaging_client.h",
     "shill_client_helper.cc",
@@ -76,6 +78,7 @@ source_set("test_support") {
   ]
 
   sources = [
+    "modem_3gpp_client_unittest.cc",
     "modem_messaging_client_unittest.cc",
     "shill_client_unittest_base.cc",
     "shill_client_unittest_base.h",

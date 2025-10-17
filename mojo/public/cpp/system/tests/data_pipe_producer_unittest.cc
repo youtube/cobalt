@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "mojo/public/cpp/system/data_pipe_producer.h"
+
 #include <algorithm>
 #include <limits>
 #include <memory>
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
@@ -18,7 +21,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/system/data_pipe.h"
-#include "mojo/public/cpp/system/data_pipe_producer.h"
 #include "mojo/public/cpp/system/file_data_source.h"
 #include "mojo/public/cpp/system/filtered_data_source.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
@@ -57,15 +59,15 @@ class DataPipeReader {
  private:
   void OnDataAvailable(MojoResult result, const HandleSignalsState& state) {
     if (result == MOJO_RESULT_OK) {
-      uint32_t size = static_cast<uint32_t>(read_size_);
-      std::vector<char> buffer(size, 0);
+      size_t size = read_size_;
+      std::string buffer(size, '\0');
       MojoResult read_result;
       do {
-        read_result = consumer_handle_->ReadData(buffer.data(), &size,
-                                                 MOJO_READ_DATA_FLAG_NONE);
+        read_result = consumer_handle_->ReadData(
+            MOJO_READ_DATA_FLAG_NONE, base::as_writable_byte_span(buffer),
+            size);
         if (read_result == MOJO_RESULT_OK) {
-          std::copy(buffer.begin(), buffer.begin() + size,
-                    std::back_inserter(data_));
+          data_.append(base::as_string_view(base::span(buffer).first(size)));
         }
       } while (read_result == MOJO_RESULT_OK);
 
@@ -101,9 +103,7 @@ class DataPipeProducerTest : public testing::Test {
         base::StringPrintf("tmp%d", tmp_file_id_++));
     base::File temp_file(temp_file_path,
                          base::File::FLAG_CREATE | base::File::FLAG_WRITE);
-    int bytes_written = temp_file.WriteAtCurrentPos(
-        contents.data(), static_cast<int>(contents.size()));
-    CHECK_EQ(static_cast<int>(contents.size()), bytes_written);
+    CHECK(temp_file.WriteAtCurrentPosAndCheck(base::as_byte_span(contents)));
     return temp_file_path;
   }
 
@@ -318,6 +318,42 @@ TEST_F(DataPipeProducerTest, HugeFile) {
   EXPECT_EQ(test_string, reader.data());
   EXPECT_EQ(0, observer_data.num_read_errors);
   EXPECT_EQ(kHugeFileSize, observer_data.bytes_read);
+  EXPECT_EQ(1, observer_data.done_called);
+}
+
+// Simulate abnormal situations, such as changing the file size between
+// obtaining the file size and actually reading the file
+TEST_F(DataPipeProducerTest, WriteLengthGreaterThanFile) {
+  const std::string kTestStringFragment = "Hello, world!";
+  constexpr size_t kNumRepetitions = 10;
+  std::string test_string;
+  for (size_t i = 0; i < kNumRepetitions; ++i) {
+    test_string += kTestStringFragment;
+  }
+
+  uint64_t file_size = kNumRepetitions * kTestStringFragment.size() *
+                       sizeof(kTestStringFragment[0]);
+  uint64_t write_file_size = file_size + 10;
+  base::FilePath path = CreateTempFileWithContents(test_string);
+
+  base::RunLoop loop;
+  ScopedDataPipeProducerHandle producer_handle;
+  ScopedDataPipeConsumerHandle consumer_handle;
+  ASSERT_EQ(CreateDataPipe(16, producer_handle, consumer_handle),
+            MOJO_RESULT_OK);
+  DataPipeReader reader(std::move(consumer_handle), 16, loop.QuitClosure());
+
+  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  DataPipeObserverData observer_data;
+  auto observer = std::make_unique<TestObserver>(&observer_data);
+  WriteFromFileThenCloseWriter(
+      std::make_unique<DataPipeProducer>(std::move(producer_handle)),
+      std::move(observer), std::move(file), write_file_size);
+  loop.Run();
+
+  EXPECT_EQ(test_string, reader.data());
+  EXPECT_EQ(0, observer_data.num_read_errors);
+  EXPECT_EQ(test_string.size(), observer_data.bytes_read);
   EXPECT_EQ(1, observer_data.done_called);
 }
 

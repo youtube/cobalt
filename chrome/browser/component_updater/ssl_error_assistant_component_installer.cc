@@ -33,8 +33,9 @@ const uint8_t kSslErrorAssistantPublicKeySHA256[32] = {
     0x9c, 0xb1, 0x14, 0xcd, 0x3f, 0x54, 0x66, 0x25, 0x99, 0x3f};
 
 void LoadProtoFromDisk(const base::FilePath& pb_path) {
-  if (pb_path.empty())
+  if (pb_path.empty()) {
     return;
+  }
 
   std::string binary_pb;
   if (!base::ReadFileToString(pb_path, &binary_pb)) {
@@ -119,9 +120,8 @@ SSLErrorAssistantComponentInstallerPolicy::GetRelativeInstallDir() const {
 
 void SSLErrorAssistantComponentInstallerPolicy::GetHash(
     std::vector<uint8_t>* hash) const {
-  hash->assign(kSslErrorAssistantPublicKeySHA256,
-               kSslErrorAssistantPublicKeySHA256 +
-                   std::size(kSslErrorAssistantPublicKeySHA256));
+  hash->assign(std::begin(kSslErrorAssistantPublicKeySHA256),
+               std::end(kSslErrorAssistantPublicKeySHA256));
 }
 
 std::string SSLErrorAssistantComponentInstallerPolicy::GetName() const {

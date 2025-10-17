@@ -4,8 +4,10 @@
 
 package org.chromium.components.payments;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.payments.mojom.PaymentAddress;
 
 import java.nio.ByteBuffer;
@@ -16,6 +18,7 @@ import java.nio.ByteBuffer;
  * code calls "apps".
  */
 @JNINamespace("payments::android")
+@NullMarked
 public interface PaymentRequestUpdateEventListener {
     /**
      * Called to notify merchant of payment method change. The payment app should block user
@@ -63,6 +66,8 @@ public interface PaymentRequestUpdateEventListener {
      */
     @CalledByNative
     default boolean changeShippingAddress(ByteBuffer shippingAddress) {
-        return changeShippingAddressFromInvokedApp(PaymentAddress.deserialize(shippingAddress));
+        PaymentAddress address = PaymentAddress.deserialize(shippingAddress);
+        assert address != null;
+        return changeShippingAddressFromInvokedApp(address);
     }
 }

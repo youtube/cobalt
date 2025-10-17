@@ -16,28 +16,16 @@ namespace updater {
 // AppWake is a simple client which dials the same-versioned server via RPC.
 // This is done via the UpdateServiceInternal interface.
 class AppWake : public App {
- public:
-  AppWake() = default;
-
  private:
   ~AppWake() override = default;
 
   // Overrides for App.
   void FirstTaskRun() override;
-
-  scoped_refptr<UpdateServiceInternal> update_service_internal_;
 };
 
 void AppWake::FirstTaskRun() {
-  // The service creation might need task runners and the update service
-  // internal needs to be instantiated after the base class has initialized
-  // the thread pool.
-  //
-  // TODO(crbug.com/1113448) - consider initializing the thread pool in the
-  // constructor of the base class or earlier, in the updater main.
-  update_service_internal_ = CreateUpdateServiceInternalProxy(updater_scope());
-  update_service_internal_->Run(
-      base::BindOnce(&AppWake::Shutdown, this, kErrorOk));
+  CreateUpdateServiceInternalProxy(updater_scope())
+      ->Run(base::BindOnce(&AppWake::Shutdown, this, kErrorOk));
 }
 
 scoped_refptr<App> MakeAppWake() {

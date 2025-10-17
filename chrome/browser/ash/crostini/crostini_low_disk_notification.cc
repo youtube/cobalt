@@ -8,15 +8,15 @@
 
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/functional/bind.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/user_manager/user_manager.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -51,9 +51,8 @@ CrostiniLowDiskNotification::~CrostiniLowDiskNotification() {
 
 void CrostiniLowDiskNotification::OnLowDiskSpaceTriggered(
     const vm_tools::cicerone::LowDiskSpaceTriggeredSignal& signal) {
-
   if (signal.vm_name() != kCrostiniDefaultVmName) {
-    // TODO(crbug/1189009): Support VMs with different names
+    // TODO(crbug.com/40755190): Support VMs with different names
     return;
   }
   ShowNotificationIfAppropriate(signal.free_bytes());
@@ -77,7 +76,7 @@ void CrostiniLowDiskNotification::ShowNotificationIfAppropriate(
   // We suppress the low-space notifications when there are multiple users on an
   // enterprise managed device based on policy configuration.
   if (!show_low_disk_space_notification &&
-      user_manager::UserManager::Get()->GetUsers().size() > 1) {
+      user_manager::UserManager::Get()->GetPersistedUsers().size() > 1) {
     LOG(WARNING) << "Crostini is low on disk space, but the notification was "
                  << "suppressed on a managed device.";
     return;
@@ -121,7 +120,7 @@ CrostiniLowDiskNotification::CreateNotification(Severity severity) {
       message_center::NotifierType::SYSTEM_COMPONENT, kNotifierLowDisk,
       ash::NotificationCatalogName::kCrostiniLowDisk);
 
-  auto on_click = base::BindRepeating([](absl::optional<int> button_index) {
+  auto on_click = base::BindRepeating([](std::optional<int> button_index) {
     if (button_index) {
       DCHECK_EQ(0, *button_index);
       chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(

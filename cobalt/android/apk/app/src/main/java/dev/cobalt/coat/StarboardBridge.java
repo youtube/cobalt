@@ -43,10 +43,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard")
@@ -733,7 +733,6 @@ public class StarboardBridge {
   }
 
   /** A wrapper of the android.util.Size class to be used by JNI. */
-  @JNINamespace("starboard")
   public static class Size {
     private final int mWidth;
     private final int mHeight;

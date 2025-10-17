@@ -13,32 +13,25 @@
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
 #include "ash/wm/desks/templates/saved_desk_constants.h"
-#include "ash/wm/desks/templates/saved_desk_icon_view.h"
+#include "ash/wm/window_restore/window_restore_util.h"
 #include "base/check.h"
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
-#include "components/app_constants/constants.h"
+#include "base/memory/raw_ptr.h"
 #include "components/app_restore/app_restore_utils.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
-#include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
 
 namespace {
 
-bool IsBrowserAppId(const std::string& app_id) {
-  return app_id == app_constants::kChromeAppId ||
-         app_id == app_constants::kLacrosAppId;
-}
-
 // Given a map of unique icon identifiers to icon info, returns a vector of the
 // same key, value pair ordered by icons' activation index.
 std::vector<SavedDeskIconContainer::IconIdentifierAndIconInfo>
 SortIconIdentifierToIconInfo(
-    std::map<std::string, SavedDeskIconContainer::IconInfo>&&
+    std::map<SavedDeskIconIdentifier, SavedDeskIconContainer::IconInfo>&&
         icon_identifier_to_icon_info) {
   // Create a vector using `sorted_icon_identifier_to_icon_info` that contains
   // pairs of identifiers and counts. This will initially be unsorted.
@@ -46,12 +39,12 @@ SortIconIdentifierToIconInfo(
       sorted_icon_identifier_to_icon_info;
 
   for (auto& entry : icon_identifier_to_icon_info) {
-    sorted_icon_identifier_to_icon_info.emplace_back(entry.first,
+    sorted_icon_identifier_to_icon_info.emplace_back(std::move(entry.first),
                                                      std::move(entry.second));
   }
 
   // Sort by activation index.
-  base::ranges::sort(
+  std::ranges::sort(
       sorted_icon_identifier_to_icon_info, {},
       [](const SavedDeskIconContainer::IconIdentifierAndIconInfo& a) {
         return a.second.activation_index;
@@ -66,9 +59,9 @@ SortIconIdentifierToIconInfo(
 void InsertIconIdentifierToIconInfo(
     const std::string& app_id,
     const std::u16string& app_title,
-    const std::string& identifier,
+    const SavedDeskIconIdentifier& identifier,
     int activation_index,
-    std::map<std::string, SavedDeskIconContainer::IconInfo>&
+    std::map<SavedDeskIconIdentifier, SavedDeskIconContainer::IconInfo>&
         out_icon_identifier_to_icon_info) {
   // A single app/site can have multiple windows so count their occurrences and
   // use the smallest activation index for sorting purposes.
@@ -88,7 +81,7 @@ void InsertIconIdentifierToIconInfo(
 void InsertIconIdentifierToIconInfoFromLaunchList(
     const std::string& app_id,
     const app_restore::RestoreData::LaunchList& launch_list,
-    std::map<std::string, SavedDeskIconContainer::IconInfo>&
+    std::map<SavedDeskIconIdentifier, SavedDeskIconContainer::IconInfo>&
         out_icon_identifier_to_icon_info) {
   // We want to group active tabs and apps ahead of inactive tabs so offsets
   // inactive tabs activation index by `kInactiveTabOffset`. In almost every use
@@ -101,17 +94,19 @@ void InsertIconIdentifierToIconInfoFromLaunchList(
     // tab. However, in this case we want to display the SWA's icon via its app
     // id so to determine whether `restore_data` is an SWA we need to check
     // whether it's a browser.
+    const app_restore::BrowserExtraInfo& browser_extra_info =
+        restore_data.second->browser_extra_info;
     const bool is_browser =
         IsBrowserAppId(app_id) &&
-        (!restore_data.second->app_type_browser.has_value() ||
-         !restore_data.second->app_type_browser.value());
+        !browser_extra_info.app_type_browser.value_or(false);
     const int activation_index =
-        restore_data.second->activation_index.value_or(0);
+        restore_data.second->window_info.activation_index.value_or(0);
     const int active_tab_index =
-        restore_data.second->active_tab_index.value_or(-1);
-    const std::u16string app_title = restore_data.second->title.value_or(u"");
-    if (!restore_data.second->urls.empty() && is_browser) {
-      const auto& urls = restore_data.second->urls;
+        browser_extra_info.active_tab_index.value_or(-1);
+    const std::u16string app_title =
+        restore_data.second->window_info.app_title.value_or(u"");
+    if (!restore_data.second->browser_extra_info.urls.empty() && is_browser) {
+      const auto& urls = browser_extra_info.urls;
       // Make all urls that have the same domain identical.
       std::map<GURL, size_t> domain_to_url_index;
       for (int i = 0; i < static_cast<int>(urls.size()); ++i) {
@@ -124,7 +119,7 @@ void InsertIconIdentifierToIconInfoFromLaunchList(
         const GURL& url = urls[it->second];
 
         InsertIconIdentifierToIconInfo(
-            app_id, app_title, url.spec(),
+            app_id, app_title, {.url_or_id = url.spec()},
             active_tab_index == i ? activation_index
                                   : kInactiveTabOffset + activation_index,
             out_icon_identifier_to_icon_info);
@@ -133,14 +128,13 @@ void InsertIconIdentifierToIconInfoFromLaunchList(
       // PWAs will have the same app id as chrome. For these apps, retrieve
       // their app id from their app name if possible.
       std::string new_app_id = app_id;
-      const absl::optional<std::string>& app_name =
-          restore_data.second->app_name;
+      const std::optional<std::string>& app_name = browser_extra_info.app_name;
       if (IsBrowserAppId(app_id) && app_name.has_value())
         new_app_id = app_restore::GetAppIdFromAppName(app_name.value());
 
-      InsertIconIdentifierToIconInfo(app_id, app_title, new_app_id,
-                                     activation_index,
-                                     out_icon_identifier_to_icon_info);
+      InsertIconIdentifierToIconInfo(
+          app_id, app_title, {.url_or_id = new_app_id}, activation_index,
+          out_icon_identifier_to_icon_info);
     }
   }
 }
@@ -156,8 +150,8 @@ SavedDeskIconContainer::SavedDeskIconContainer() {
 
 SavedDeskIconContainer::~SavedDeskIconContainer() = default;
 
-void SavedDeskIconContainer::Layout() {
-  views::BoxLayoutView::Layout();
+void SavedDeskIconContainer::Layout(PassKey) {
+  LayoutSuperclass<views::BoxLayoutView>(this);
 
   // At this point we can not guarantee whether the child icon view has done
   // its icon loading yet, but `SortIconsAndUpdateOverflowIcon()` will be
@@ -175,7 +169,7 @@ void SavedDeskIconContainer::PopulateIconContainerFromTemplate(
 
   // Iterate through the template's WindowInfo, counting the occurrences of each
   // unique icon identifier and storing their lowest activation index.
-  std::map<std::string, IconInfo> icon_identifier_to_icon_info;
+  std::map<SavedDeskIconIdentifier, IconInfo> icon_identifier_to_icon_info;
   const auto& launch_list = restore_data->app_id_to_launch_list();
   for (auto& app_id_to_launch_list_entry : launch_list) {
     InsertIconIdentifierToIconInfoFromLaunchList(
@@ -188,25 +182,25 @@ void SavedDeskIconContainer::PopulateIconContainerFromTemplate(
 }
 
 void SavedDeskIconContainer::PopulateIconContainerFromWindows(
-    const std::vector<aura::Window*>& windows) {
+    const std::vector<raw_ptr<aura::Window, VectorExperimental>>& windows) {
   DCHECK(!windows.empty());
 
   // Iterate through `windows`, counting the occurrences of each unique icon and
   // storing their lowest activation index.
-  std::map<std::string, IconInfo> icon_identifier_to_icon_info;
+  std::map<SavedDeskIconIdentifier, IconInfo> icon_identifier_to_icon_info;
   auto* delegate = Shell::Get()->saved_desk_delegate();
   for (size_t i = 0; i < windows.size(); ++i) {
-    auto* window = windows[i];
+    auto* window = windows[i].get();
 
     // If `window` is an incognito window, we want to display the incognito icon
     // instead of its favicons so denote it using
     // `DeskTemplate::kIncognitoWindowIdentifier`.
-    const bool is_incognito_window = delegate->IsIncognitoWindow(window);
+    const bool is_window_persistable = delegate->IsWindowPersistable(window);
     const std::string app_id =
-        is_incognito_window
-            ? DeskTemplate::kIncognitoWindowIdentifier
-            : ShelfID::Deserialize(window->GetProperty(kShelfIDKey)).app_id;
-    if (is_incognito_window && !incognito_window_color_provider_) {
+        is_window_persistable
+            ? ShelfID::Deserialize(window->GetProperty(kShelfIDKey)).app_id
+            : DeskTemplate::kIncognitoWindowIdentifier;
+    if (!is_window_persistable && !incognito_window_color_provider_) {
       incognito_window_color_provider_ =
           views::Widget::GetWidgetForNativeWindow(window)->GetColorProvider();
     }
@@ -215,7 +209,7 @@ void SavedDeskIconContainer::PopulateIconContainerFromWindows(
     // are both `app_id`.
     InsertIconIdentifierToIconInfo(
         /*app_id=*/app_id, /*app_title=*/window->GetTitle(),
-        /*identifier=*/app_id, i, icon_identifier_to_icon_info);
+        /*identifier=*/{.url_or_id = app_id}, i, icon_identifier_to_icon_info);
   }
 
   CreateIconViewsFromIconIdentifiers(
@@ -225,7 +219,7 @@ void SavedDeskIconContainer::PopulateIconContainerFromWindows(
 std::vector<SavedDeskIconView*> SavedDeskIconContainer::GetIconViews() const {
   std::vector<SavedDeskIconView*> icon_views;
   icon_views.reserve(children().size());
-  base::ranges::for_each(children(), [&icon_views](views::View* view) {
+  std::ranges::for_each(children(), [&icon_views](views::View* view) {
     icon_views.emplace_back(static_cast<SavedDeskIconView*>(view));
   });
 
@@ -237,7 +231,7 @@ std::vector<SavedDeskIconView*> SavedDeskIconContainer::GetIconViews() const {
 }
 
 void SavedDeskIconContainer::OnViewLoaded(views::View* view_loaded) {
-  auto it = base::ranges::find(children(), view_loaded);
+  auto it = std::ranges::find(children(), view_loaded);
   DCHECK(it != children().end());
 
   SortIconsAndUpdateOverflowIcon();
@@ -254,7 +248,7 @@ void SavedDeskIconContainer::SortIcons() {
   // Make a cope of child icon views and sort them using
   // `SavedDeskIconView::key`.
   std::vector<SavedDeskIconView*> icon_views = GetIconViews();
-  base::ranges::sort(icon_views, {}, &SavedDeskIconView::GetSortingKey);
+  std::ranges::sort(icon_views, {}, &SavedDeskIconView::GetSortingKey);
 
   // Update child views to their expected index.
   for (size_t i = 0; i < icon_views.size(); i++)
@@ -262,7 +256,7 @@ void SavedDeskIconContainer::SortIcons() {
 
   // Notify the a11y API so that the spoken feedback order matches the view
   // order.
-  NotifyAccessibilityEvent(ax::mojom::Event::kTreeChanged, true);
+  NotifyAccessibilityEventDeprecated(ax::mojom::Event::kTreeChanged, true);
 }
 
 void SavedDeskIconContainer::UpdateOverflowIcon() {
@@ -274,7 +268,7 @@ void SavedDeskIconContainer::UpdateOverflowIcon() {
       static_cast<SavedDeskIconView*>(overflow_icon_view_);
   const int available_width = bounds().width();
   int used_width = -kSaveDeskSpacingDp;
-  base::ranges::for_each(
+  std::ranges::for_each(
       icon_views, [&used_width](SavedDeskIconView* icon_view) {
         if (!icon_view->IsOverflowIcon()) {
           used_width +=
@@ -332,7 +326,8 @@ void SavedDeskIconContainer::CreateIconViewsFromIconIdentifiers(
     // icons. Saved desks will not have incognito window icon identifiers and
     // will not count them here. For `sorting_key`, use `i` because we would
     // like to preserve the original order.
-    if (icon_identifier == DeskTemplate::kIncognitoWindowIdentifier ||
+    if (icon_identifier.url_or_id == DeskTemplate::kIncognitoWindowIdentifier ||
+        IsBrowserAppId(icon_info.app_id) ||
         delegate->IsAppAvailable(icon_info.app_id)) {
       AddChildView(std::make_unique<SavedDeskRegularIconView>(
           /*incognito_window_color_provider=*/incognito_window_color_provider_,
@@ -358,7 +353,7 @@ void SavedDeskIconContainer::CreateIconViewsFromIconIdentifiers(
           /*show_plus=*/!children().empty()));
 }
 
-BEGIN_METADATA(SavedDeskIconContainer, views::BoxLayoutView)
+BEGIN_METADATA(SavedDeskIconContainer)
 END_METADATA
 
 }  // namespace ash

@@ -14,7 +14,6 @@ class SystemUIComponentsGridView;
 // The factories of `SystemUIComponentsGridView` for different system UI
 // components in ash/style/.
 std::unique_ptr<SystemUIComponentsGridView> CreateIconButtonInstancesGridView();
-std::unique_ptr<SystemUIComponentsGridView> CreateIconSwitchInstancesGridView();
 std::unique_ptr<SystemUIComponentsGridView> CreatePillButtonInstancesGirdView();
 std::unique_ptr<SystemUIComponentsGridView> CreateCheckboxInstancesGridView();
 std::unique_ptr<SystemUIComponentsGridView>
@@ -29,6 +28,8 @@ std::unique_ptr<SystemUIComponentsGridView>
 CreateSystemTextfieldInstancesGridView();
 std::unique_ptr<SystemUIComponentsGridView> CreatePaginationInstancesGridView();
 std::unique_ptr<SystemUIComponentsGridView> CreateTypographyInstancesGridView();
+std::unique_ptr<SystemUIComponentsGridView> CreateComboboxInstancesGridView();
+std::unique_ptr<SystemUIComponentsGridView> CreateCutoutsGridView();
 
 }  // namespace ash
 

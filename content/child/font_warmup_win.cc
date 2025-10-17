@@ -6,6 +6,7 @@
 
 #include <dwrite.h>
 #include <stdint.h>
+
 #include <map>
 #include <string>
 #include <utility>
@@ -17,11 +18,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
-#include "base/sys_byteorder.h"
 #include "base/trace_event/trace_event.h"
 #include "base/win/iat_patch_function.h"
 #include "build/build_config.h"
@@ -67,8 +69,9 @@ SC_HANDLE WINAPI OpenServiceWPatch(SC_HANDLE sc_manager,
 
 BOOL WINAPI CloseServiceHandlePatch(SC_HANDLE service_handle) {
   if (service_handle != reinterpret_cast<SC_HANDLE>(kFakeServiceHandle) &&
-      service_handle != reinterpret_cast<SC_HANDLE>(kFakeSCMHandle))
-    CHECK(false);
+      service_handle != reinterpret_cast<SC_HANDLE>(kFakeSCMHandle)) {
+    NOTREACHED();
+  }
   ::SetLastError(0);
   return TRUE;
 }
@@ -76,8 +79,9 @@ BOOL WINAPI CloseServiceHandlePatch(SC_HANDLE service_handle) {
 BOOL WINAPI StartServiceWPatch(SC_HANDLE service,
                                DWORD args,
                                const wchar_t** arg_vectors) {
-  if (service != reinterpret_cast<SC_HANDLE>(kFakeServiceHandle))
-    CHECK(false);
+  if (service != reinterpret_cast<SC_HANDLE>(kFakeServiceHandle)) {
+    NOTREACHED();
+  }
   ::SetLastError(ERROR_ACCESS_DENIED);
   return FALSE;
 }
@@ -294,9 +298,9 @@ DWORD WINAPI GetFontDataPatch(HDC dc_handle,
   // which would in this case result in |getTableData| returning 0 which isn't
   // the correct answer for emulating GDI. |table_tag| must also have its
   // byte order swapped to counter the swap which occurs in the called method.
-  size_t length = typeface->getTableData(
-      base::ByteSwap(base::strict_cast<uint32_t>(table_tag)), table_offset,
-      buffer ? buffer_length : INT32_MAX, buffer);
+  size_t length =
+      typeface->getTableData(base::ByteSwap(uint32_t{table_tag}), table_offset,
+                             buffer ? buffer_length : INT32_MAX, buffer);
   // We can't distinguish between an empty table and an error.
   if (length == 0)
     return GDI_ERROR;

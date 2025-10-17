@@ -8,9 +8,9 @@
 #include <memory>
 #include <vector>
 
+#include "base/component_export.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
-#include "ui/gfx/gfx_export.h"
 
 class SkBitmap;
 
@@ -40,7 +40,7 @@ class TestOnThread;
 // potentially many different densities for high-DPI displays.
 //
 // ImageSkia is cheap to copy and intentionally supports copy semantics.
-class GFX_EXPORT ImageSkia {
+class COMPONENT_EXPORT(GFX) ImageSkia {
  public:
   typedef std::vector<ImageSkiaRep> ImageSkiaReps;
 
@@ -68,20 +68,6 @@ class GFX_EXPORT ImageSkia {
   ImageSkia& operator=(const ImageSkia& other);
 
   ~ImageSkia();
-
-  // Changes the value of GetSupportedScales() to |scales|.
-  static void SetSupportedScales(const std::vector<float>& scales);
-
-  // Returns a vector with the scale factors which are supported by this
-  // platform, in ascending order.
-  static const std::vector<float>& GetSupportedScales();
-
-  // Returns the maximum scale supported by this platform.
-  static float GetMaxSupportedScale();
-
-  // Returns the resource scale factor value that ImageSkia uses when
-  // looking for the resource for a given device scale factor.
-  static float MapToResourceScale(float device_scale_factor);
 
   // Creates an image from the passed in bitmap, which is designed for display
   // at the device scale factor given in `scale`. The DIP width and height will
@@ -178,6 +164,9 @@ class GFX_EXPORT ImageSkia {
   // Clears cached representations for non-supported scale factors that are
   // based on |scale|.
   void RemoveUnsupportedRepresentationsForScale(float scale);
+
+  // Returns true if the image storage is uniquely owned.
+  bool IsUniquelyOwned() const;
 
  private:
   friend class test::TestOnThread;

@@ -6,10 +6,13 @@ package org.chromium.chrome.browser.privacy_guide;
 
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * A delegate class to compute the visibility of each button in Privacy Guide
  * {@link PrivacyGuideFragment}
  */
+@NullMarked
 class NavbarVisibilityDelegate {
     private final int mTotalSteps;
 
@@ -29,11 +32,7 @@ class NavbarVisibilityDelegate {
     }
 
     int getBackButtonVisibility(int currentStepIdx) {
-        if (isCardBetweenFirstAndLast(currentStepIdx)) {
-            return isSecondCard(currentStepIdx) ? View.INVISIBLE : View.VISIBLE;
-        }
-
-        return View.GONE;
+        return isCardBetweenFirstAndLast(currentStepIdx) ? View.VISIBLE : View.GONE;
     }
 
     int getFinishButtonVisibility(int currentStepIdx) {
@@ -50,10 +49,6 @@ class NavbarVisibilityDelegate {
 
     private boolean isFirstCard(int currentStepIdx) {
         return currentStepIdx == 0;
-    }
-
-    private boolean isSecondCard(int currentStepIdx) {
-        return currentStepIdx == 1;
     }
 
     private boolean isCardBetweenFirstAndLast(int currentStepIdx) {

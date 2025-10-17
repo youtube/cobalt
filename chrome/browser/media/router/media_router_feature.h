@@ -6,6 +6,8 @@
 #define CHROME_BROWSER_MEDIA_ROUTER_MEDIA_ROUTER_FEATURE_H_
 
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 
 class PrefRegistrySimple;
@@ -24,21 +26,7 @@ bool MediaRouterEnabled(content::BrowserContext* context);
 // process.
 void ClearMediaRouterStoredPrefsForTesting();
 
-// If enabled, separate Media Router instances will be created for normal and
-// off-the-record profiles.
-BASE_DECLARE_FEATURE(kMediaRouterOTRInstance);
-
-#if BUILDFLAG(IS_ANDROID)
-// If enabled, the sink discovery on Caf MRP is run asynchronously when the main
-// thread is idle.
-BASE_DECLARE_FEATURE(kCafMRPDeferredDiscovery);
-
-// If enabled, and the HTMLMediaElement source changes (e.g. started observing
-// new source, and stopped observing the first one), the new source is cast
-// instead.
-BASE_DECLARE_FEATURE(kCastAnotherContentWhileCasting);
-#else
-
+#if !BUILDFLAG(IS_ANDROID)
 // Enables the media router. Can be disabled in tests unrelated to
 // Media Router where it interferes. Can also be useful to disable for local
 // development on Mac because DIAL local discovery opens a local port
@@ -50,24 +38,39 @@ BASE_DECLARE_FEATURE(kMediaRouter);
 // https://crbug.com/813974.
 BASE_DECLARE_FEATURE(kCastAllowAllIPsFeature);
 
-// Determine whether global media controls are used to start and stop casting.
-BASE_DECLARE_FEATURE(kGlobalMediaControlsCastStartStop);
-
 // If enabled, allows all websites to request to start mirroring via
 // Presentation API. If disabled, only the allowlisted sites can do so.
 BASE_DECLARE_FEATURE(kAllowAllSitesToInitiateMirroring);
 
-// If enabled, the Cast Media Route Provider starts a session without
-// terminating any existing session on the same sink.
-BASE_DECLARE_FEATURE(kStartCastSessionWithoutTerminating);
+// If enabled, The browser allows discovery of the DIAL support cast device.
+// It sends a discovery SSDP message every 120 seconds.
+BASE_DECLARE_FEATURE(kDialMediaRouteProvider);
+
+// If enabled, the browser delays background discovery of Cast and DIAL devices
+// until explicit user interaction with the Cast feature.
+BASE_DECLARE_FEATURE(kDelayMediaSinkDiscovery);
+
+// If enabled, the Cast or Global Media Controls UI shows error messages when
+// Chrome doesn't have necessary permission for discovery devices connected to
+// the local network.
+BASE_DECLARE_FEATURE(kShowCastPermissionRejectedError);
 
 // If enabled, sinks that do not support presentation or remote playback, will
 // fall back to audio tab mirroring when casting from the Global Media Controls.
 BASE_DECLARE_FEATURE(kFallbackToAudioTabMirroring);
 
-// If enabled, a separate 'stop' button is shown for connected sinks in the Cast
-// dialog instead of the entire sink button being a stop button.
-BASE_DECLARE_FEATURE(kCastDialogStopButton);
+// When enabled, messages between websites and Chrome, and Chrome and Cast
+// receivers will be logged in chrome://media-router-internals.  These messages
+// can be frequent and contain sensitive information, so disabled by default.
+BASE_DECLARE_FEATURE(kCastMessageLogging);
+
+#if BUILDFLAG(IS_MAC)
+// If enabled, Chrome uses the Network Framework API for local device discovery
+// on Mac.
+BASE_DECLARE_FEATURE(kUseNetworkFrameworkForLocalDiscovery);
+#endif
+
+extern const base::FeatureParam<int> kCastMirroringPlayoutDelayMs;
 
 // Registers |kMediaRouterCastAllowAllIPs| with local state pref |registry|.
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
@@ -88,9 +91,15 @@ std::string GetReceiverIdHashToken(PrefService* pref_service);
 // also disables SSDP-based discovery for Cast devices.
 bool DialMediaRouteProviderEnabled();
 
-// Returns true if global media controls are used to start and stop casting and
-// Media Router is enabled for |context|.
-bool GlobalMediaControlsCastStartStopEnabled(content::BrowserContext* context);
+// Returns the optional value to use for mirroring playout delay from the
+// relevant command line flag or feature, if any are set.
+std::optional<base::TimeDelta> GetCastMirroringPlayoutDelay();
+
+// When enabled, logs of all the messages exchanged between Cast devices,
+// Chrome, and Web pages using the Presentation API into
+// chrome://media-router-internals.  These logs can verbose and contain
+// sensitive information, so use with caution.
+bool IsCastMessageLoggingEnabled();
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace media_router

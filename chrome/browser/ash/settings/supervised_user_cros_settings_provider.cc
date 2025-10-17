@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/settings/supervised_user_cros_settings_provider.h"
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/values.h"
@@ -16,17 +18,19 @@ namespace ash {
 SupervisedUserCrosSettingsProvider::SupervisedUserCrosSettingsProvider(
     const CrosSettingsProvider::NotifyObserversCallback& notify_cb)
     : CrosSettingsProvider(notify_cb) {
-  child_user_restrictions_[kAccountsPrefAllowGuest] = base::Value(false);
-  child_user_restrictions_[kAccountsPrefShowUserNamesOnSignIn] =
-      base::Value(true);
-  child_user_restrictions_[kAccountsPrefAllowNewUser] = base::Value(true);
+  child_user_restrictions_.insert_or_assign(kAccountsPrefAllowGuest,
+                                            base::Value(false));
+  child_user_restrictions_.insert_or_assign(kAccountsPrefShowUserNamesOnSignIn,
+                                            base::Value(true));
+  child_user_restrictions_.insert_or_assign(kAccountsPrefAllowNewUser,
+                                            base::Value(true));
 }
 
 SupervisedUserCrosSettingsProvider::~SupervisedUserCrosSettingsProvider() =
     default;
 
 const base::Value* SupervisedUserCrosSettingsProvider::Get(
-    const std::string& path) const {
+    std::string_view path) const {
   DCHECK(HandlesSetting(path));
   auto iter = child_user_restrictions_.find(path);
   return &(iter->second);
@@ -39,12 +43,13 @@ SupervisedUserCrosSettingsProvider::PrepareTrustedValues(
 }
 
 bool SupervisedUserCrosSettingsProvider::HandlesSetting(
-    const std::string& path) const {
+    std::string_view path) const {
   if (!user_manager::UserManager::IsInitialized())
     return false;
   auto* user_manager = user_manager::UserManager::Get();
-  if (user_manager->GetUsers().empty())
+  if (user_manager->GetPersistedUsers().empty()) {
     return false;
+  }
 
   const AccountId owner_account_id = user_manager->GetOwnerAccountId();
   if (!owner_account_id.is_valid()) {

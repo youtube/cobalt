@@ -38,10 +38,7 @@
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 
 using testing::_;
-using testing::AtLeast;
-using testing::InSequence;
 using testing::Invoke;
-using testing::Return;
 using testing::StrictMock;
 
 namespace quic {
@@ -443,8 +440,8 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUnencrypted) {
             QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 }
 
-// Tests that calling GetOrCreateStream() on an outgoing stream not promised yet
-// should result close connection.
+// Tests that calling GetOrCreateStream() on an outgoing stream should result in
+// the connection being closed.
 TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
   const size_t initial_num_open_stream =
       QuicSessionPeer::GetNumOpenDynamicStreams(session_.get());

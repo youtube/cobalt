@@ -15,9 +15,11 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
@@ -62,7 +64,7 @@ PaymentRequestItemList::Item::Item(base::WeakPtr<PaymentRequestSpec> spec,
       selected_(selected),
       show_edit_button_(show_edit_button) {}
 
-PaymentRequestItemList::Item::~Item() {}
+PaymentRequestItemList::Item::~Item() = default;
 
 void PaymentRequestItemList::Item::Init() {
   views::BoxLayout* layout =
@@ -89,8 +91,9 @@ void PaymentRequestItemList::Item::Init() {
 
   container->AddChildView(CreateCheckmark(selected() && GetClickable()));
 
-  if (std::unique_ptr<views::View> extra_view = CreateExtraView())
+  if (std::unique_ptr<views::View> extra_view = CreateExtraView()) {
     container->AddChildView(std::move(extra_view));
+  }
 
   if (show_edit_button_) {
     auto edit_button = views::CreateVectorImageButton(
@@ -103,7 +106,7 @@ void PaymentRequestItemList::Item::Init() {
     views::InkDrop::Get(edit_button.get())->SetBaseColorId(ui::kColorIcon);
     edit_button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
     edit_button->SetID(static_cast<int>(DialogViewID::EDIT_ITEM_BUTTON));
-    edit_button->SetAccessibleName(
+    edit_button->GetViewAccessibility().SetName(
         l10n_util::GetStringUTF16(IDS_PAYMENTS_EDIT));
     container->AddChildView(std::move(edit_button));
   }
@@ -114,16 +117,18 @@ void PaymentRequestItemList::Item::Init() {
 void PaymentRequestItemList::Item::SetSelected(bool selected, bool notify) {
   selected_ = selected;
 
-  for (views::View* child : children())
+  for (views::View* child : children()) {
     if (child->GetID() == static_cast<int>(DialogViewID::CHECKMARK_VIEW)) {
       child->SetVisible(selected);
       break;
     }
+  }
 
   UpdateAccessibleName();
 
-  if (notify)
+  if (notify) {
     SelectedStateChanged();
+  }
 }
 
 std::unique_ptr<views::ImageView> PaymentRequestItemList::Item::CreateCheckmark(
@@ -133,7 +138,7 @@ std::unique_ptr<views::ImageView> PaymentRequestItemList::Item::CreateCheckmark(
   checkmark->SetID(static_cast<int>(DialogViewID::CHECKMARK_VIEW));
   checkmark->SetCanProcessEventsWithinSubtree(false);
   checkmark->SetImage(
-      gfx::CreateVectorIcon(views::kMenuCheckIcon, kCheckmarkColor));
+      ui::ImageModel::FromVectorIcon(views::kMenuCheckIcon, kCheckmarkColor));
   checkmark->SetVisible(selected);
   checkmark->SetFocusBehavior(views::View::FocusBehavior::NEVER);
   return checkmark;
@@ -151,14 +156,15 @@ void PaymentRequestItemList::Item::UpdateAccessibleName() {
                 : l10n_util::GetStringFUTF16(
                       IDS_PAYMENTS_ROW_ACCESSIBLE_NAME_FORMAT,
                       GetNameForDataType(), accessible_item_description_);
-  SetAccessibleName(accessible_content);
+  GetViewAccessibility().SetName(accessible_content);
 }
 
 void PaymentRequestItemList::Item::ButtonPressed() {
   if (selected_) {
     // |dialog()| may be null in tests
-    if (list_->dialog())
+    if (list_->dialog()) {
       list_->dialog()->GoBack();
+    }
   } else if (CanBeSelected()) {
     list()->SelectItem(this);
   } else {
@@ -166,21 +172,26 @@ void PaymentRequestItemList::Item::ButtonPressed() {
   }
 }
 
+BEGIN_METADATA(PaymentRequestItemList, Item)
+END_METADATA
+
 PaymentRequestItemList::PaymentRequestItemList(
     base::WeakPtr<PaymentRequestDialogView> dialog)
     : selected_item_(nullptr), dialog_(dialog) {}
 
-PaymentRequestItemList::~PaymentRequestItemList() {}
+PaymentRequestItemList::~PaymentRequestItemList() = default;
 
 void PaymentRequestItemList::AddItem(
     std::unique_ptr<PaymentRequestItemList::Item> item) {
   DCHECK_EQ(this, item->list());
-  if (!items_.empty())
+  if (!items_.empty()) {
     item->set_previous_row(items_.back()->AsWeakPtr());
+  }
   items_.push_back(std::move(item));
   if (items_.back()->selected()) {
-    if (selected_item_)
+    if (selected_item_) {
       selected_item_->SetSelected(/*selected=*/false, /*notify=*/false);
+    }
     selected_item_ = items_.back().get();
   }
 }
@@ -197,16 +208,18 @@ std::unique_ptr<views::View> PaymentRequestItemList::CreateListView() {
       views::BoxLayout::Orientation::kVertical,
       gfx::Insets::VH(kPaymentRequestRowVerticalInsets, 0), 0));
 
-  for (auto& item : items_)
-    content_view->AddChildView(item.release());
+  for (auto& item : items_) {
+    content_view->AddChildViewRaw(item.release());
+  }
 
   return content_view;
 }
 
 void PaymentRequestItemList::SelectItem(PaymentRequestItemList::Item* item) {
   DCHECK_EQ(this, item->list());
-  if (selected_item_ == item)
+  if (selected_item_ == item) {
     return;
+  }
 
   UnselectSelectedItem();
 
@@ -218,8 +231,9 @@ void PaymentRequestItemList::UnselectSelectedItem() {
   // It's possible that no item is currently selected, either during list
   // creation or in the middle of the selection operation when the previously
   // selected item has been deselected but the new one isn't selected yet.
-  if (selected_item_)
+  if (selected_item_) {
     selected_item_->SetSelected(/*selected=*/false, /*notify=*/true);
+  }
 
   selected_item_ = nullptr;
 }

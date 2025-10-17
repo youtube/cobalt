@@ -34,8 +34,7 @@ class GPU_GLES2_EXPORT SurfaceTextureGLOwner : public TextureOwner {
   void SetFrameAvailableCallback(
       const base::RepeatingClosure& frame_available_cb) override;
   gl::ScopedJavaSurface CreateJavaSurface() const override;
-  void UpdateTexImage() override;
-  void EnsureTexImageBound(GLuint service_id) override;
+  bool UpdateTexImage(bool discard) override;
   void ReleaseBackBuffers() override;
   std::unique_ptr<base::android::ScopedHardwareBufferFenceSync>
   GetAHardwareBuffer() override;
@@ -44,6 +43,10 @@ class GPU_GLES2_EXPORT SurfaceTextureGLOwner : public TextureOwner {
                                   gfx::Rect* visible_rect) override;
 
   void RunWhenBufferIsAvailable(base::OnceClosure callback) override;
+
+  // MemoryDumpProvider:
+  bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
+                    base::trace_event::ProcessMemoryDump* pmd) override;
 
  protected:
   void ReleaseResources() override;
@@ -70,6 +73,9 @@ class GPU_GLES2_EXPORT SurfaceTextureGLOwner : public TextureOwner {
 
   // To ensure that SetFrameAvailableCallback() is called only once.
   bool is_frame_available_callback_set_ = false;
+
+  // This is not precise, but good estimation for memory dumps.
+  std::optional<gfx::Size> last_coded_size_for_memory_dumps_;
 
   THREAD_CHECKER(thread_checker_);
 };

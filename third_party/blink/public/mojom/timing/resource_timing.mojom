@@ -7,6 +7,7 @@ module blink.mojom;
 import "mojo/public/mojom/base/time.mojom";
 import "services/network/public/mojom/fetch_api.mojom";
 import "services/network/public/mojom/load_timing_info.mojom";
+import "services/network/public/mojom/service_worker_router_info.mojom";
 import "third_party/blink/public/mojom/fetch/fetch_api_request.mojom";
 
 // This struct holds the information from PerformanceServerTiming that needs
@@ -49,18 +50,17 @@ struct ResourceTimingInfo {
   // in PerformanceResourceTiming (http://www.w3.org/TR/resource-timing-1/).
   string name;
 
-  // The start time of the request. Corresponds to
-  // |requestStart| in PerformanceResourceTiming
-  // (http://www.w3.org/TR/resource-timing-1/).
+  // This timestamp is set at the time when ResourceFetcher::RequestResource is
+  // called and will end up as the startTime of the corresponding performance
+  // timeline resource timing entry.
   mojo_base.mojom.TimeTicks start_time;
 
   // Corresponds to |nextHopProtocol| in PerformanceResourceTiming
   // (http://www.w3.org/TR/resource-timing-2/).
   string alpn_negotiated_protocol;
 
-  // Corresponds to the result of calling
-  // HttpResponseInfo::ConnectionInfoToString on the associated response
-  // object.
+  // Corresponds to the result of calling HttpConnectionInfoToString on
+  // the associated response object.
   string connection_info;
 
   // The load timing data.
@@ -124,4 +124,19 @@ struct ResourceTimingInfo {
   // Holds the string corresponding to |contentType| in
   // PerformanceResourceTiming (https://w3c.github.io/resource-timing/).
   string content_type;
+
+  // Holds the string corresponding to |contentEncoding| in
+  // PerformanceResourceTiming (https://w3c.github.io/resource-timing/).
+  string content_encoding;
+
+  // Holds the source type of ServiceWorker static routing API. It keeps track
+  // of |matchedSourceType| and |finalSourceType|. This is a proposed field in
+  // https://github.com/WICG/service-worker-static-routing-api, not in the
+  // resource-timing standard yet.
+  network.mojom.ServiceWorkerRouterInfo? service_worker_router_info;
+
+  // Holds where the source of the resource, when it was fetched via
+  // ServiceWorker. This is |kUnspecified| if the response is not from
+  // ServiceWorker.
+  network.mojom.FetchResponseSource service_worker_response_source;
 };

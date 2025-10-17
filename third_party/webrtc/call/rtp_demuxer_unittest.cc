@@ -10,16 +10,16 @@
 
 #include "call/rtp_demuxer.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "call/test/mock_rtp_packet_sink_interface.h"
-#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "test/gmock.h"
@@ -289,12 +289,12 @@ TEST_F(RtpDemuxerTest, DISABLED_RejectAddSinkForSamePayloadTypes) {
 
 TEST_F(RtpDemuxerTest, OnRtpPacketCalledOnCorrectSinkBySsrc) {
   constexpr uint32_t ssrcs[] = {101, 202, 303};
-  MockRtpPacketSink sinks[arraysize(ssrcs)];
-  for (size_t i = 0; i < arraysize(ssrcs); i++) {
+  MockRtpPacketSink sinks[std::size(ssrcs)];
+  for (size_t i = 0; i < std::size(ssrcs); i++) {
     AddSinkOnlySsrc(ssrcs[i], &sinks[i]);
   }
 
-  for (size_t i = 0; i < arraysize(ssrcs); i++) {
+  for (size_t i = 0; i < std::size(ssrcs); i++) {
     auto packet = CreatePacketWithSsrc(ssrcs[i]);
     EXPECT_CALL(sinks[i], OnRtpPacket(SamePacketAs(*packet))).Times(1);
     EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
@@ -303,14 +303,13 @@ TEST_F(RtpDemuxerTest, OnRtpPacketCalledOnCorrectSinkBySsrc) {
 
 TEST_F(RtpDemuxerTest, OnRtpPacketCalledOnCorrectSinkByRsid) {
   const std::string rsids[] = {"a", "b", "c"};
-  MockRtpPacketSink sinks[arraysize(rsids)];
-  for (size_t i = 0; i < arraysize(rsids); i++) {
+  MockRtpPacketSink sinks[std::size(rsids)];
+  for (size_t i = 0; i < std::size(rsids); i++) {
     AddSinkOnlyRsid(rsids[i], &sinks[i]);
   }
 
-  for (size_t i = 0; i < arraysize(rsids); i++) {
-    auto packet =
-        CreatePacketWithSsrcRsid(rtc::checked_cast<uint32_t>(i), rsids[i]);
+  for (size_t i = 0; i < std::size(rsids); i++) {
+    auto packet = CreatePacketWithSsrcRsid(checked_cast<uint32_t>(i), rsids[i]);
     EXPECT_CALL(sinks[i], OnRtpPacket(SamePacketAs(*packet))).Times(1);
     EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
   }
@@ -318,14 +317,13 @@ TEST_F(RtpDemuxerTest, OnRtpPacketCalledOnCorrectSinkByRsid) {
 
 TEST_F(RtpDemuxerTest, OnRtpPacketCalledOnCorrectSinkByMid) {
   const std::string mids[] = {"a", "v", "s"};
-  MockRtpPacketSink sinks[arraysize(mids)];
-  for (size_t i = 0; i < arraysize(mids); i++) {
+  MockRtpPacketSink sinks[std::size(mids)];
+  for (size_t i = 0; i < std::size(mids); i++) {
     AddSinkOnlyMid(mids[i], &sinks[i]);
   }
 
-  for (size_t i = 0; i < arraysize(mids); i++) {
-    auto packet =
-        CreatePacketWithSsrcMid(rtc::checked_cast<uint32_t>(i), mids[i]);
+  for (size_t i = 0; i < std::size(mids); i++) {
+    auto packet = CreatePacketWithSsrcMid(checked_cast<uint32_t>(i), mids[i]);
     EXPECT_CALL(sinks[i], OnRtpPacket(SamePacketAs(*packet))).Times(1);
     EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
   }
@@ -377,9 +375,9 @@ TEST_F(RtpDemuxerTest, PacketsDeliveredInRightOrder) {
   AddSinkOnlySsrc(ssrc, &sink);
 
   std::unique_ptr<RtpPacketReceived> packets[5];
-  for (size_t i = 0; i < arraysize(packets); i++) {
+  for (size_t i = 0; i < std::size(packets); i++) {
     packets[i] = CreatePacketWithSsrc(ssrc);
-    packets[i]->SetSequenceNumber(rtc::checked_cast<uint16_t>(i));
+    packets[i]->SetSequenceNumber(checked_cast<uint16_t>(i));
   }
 
   InSequence sequence;
@@ -512,7 +510,7 @@ TEST_F(RtpDemuxerTest, RsidLearnedAndLaterPacketsDeliveredWithOnlySsrc) {
   std::unique_ptr<RtpPacketReceived> packets[5];
   constexpr uint32_t rsid_ssrc = 111;
   packets[0] = CreatePacketWithSsrcRsid(rsid_ssrc, rsid);
-  for (size_t i = 1; i < arraysize(packets); i++) {
+  for (size_t i = 1; i < std::size(packets); i++) {
     packets[i] = CreatePacketWithSsrc(rsid_ssrc);
   }
 
@@ -664,7 +662,7 @@ TEST_F(RtpDemuxerTest, MultipleRsidsOnSameSink) {
   }
 
   InSequence sequence;
-  for (size_t i = 0; i < arraysize(rsids); i++) {
+  for (size_t i = 0; i < std::size(rsids); i++) {
     // Assign different SSRCs and sequence numbers to all packets.
     const uint32_t ssrc = 1000 + static_cast<uint32_t>(i);
     const uint16_t sequence_number = 50 + static_cast<uint16_t>(i);
@@ -710,7 +708,6 @@ TEST_F(RtpDemuxerTest, AssociatingByRsidAndBySsrcCannotTriggerDoubleCall) {
   EXPECT_CALL(sink, OnRtpPacket(SamePacketAs(*packet))).Times(1);
   EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
 }
-
 
 // If one sink is associated with SSRC x, and another sink with RSID y, then if
 // we receive a packet with both SSRC x and RSID y, route that to only the sink
@@ -1239,25 +1236,13 @@ TEST_F(RtpDemuxerTest, PacketWithMidAndUnknownRsidIsNotRoutedByPayloadType) {
   EXPECT_FALSE(demuxer_.OnRtpPacket(*packet));
 }
 
-TEST_F(RtpDemuxerTest, MidMustNotExceedMaximumLength) {
+#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+
+TEST_F(RtpDemuxerDeathTest, MidMustNotExceedMaximumLength) {
   MockRtpPacketSink sink1;
   std::string mid1(BaseRtpStringExtension::kMaxValueSizeBytes + 1, 'a');
-  // Adding the sink should pass even though the supplied mid is too long.
-  // The mid will be truncated though.
-  EXPECT_TRUE(AddSinkOnlyMid(mid1, &sink1));
-
-  // Adding a second sink with a mid that matches the truncated mid that was
-  // just added, should fail.
-  MockRtpPacketSink sink2;
-  std::string mid2(mid1.substr(0, BaseRtpStringExtension::kMaxValueSizeBytes));
-  EXPECT_FALSE(AddSinkOnlyMid(mid2, &sink2));
-  EXPECT_FALSE(RemoveSink(&sink2));
-
-  // Remove the original sink.
-  EXPECT_TRUE(RemoveSink(&sink1));
+  EXPECT_DEATH(AddSinkOnlyMid(mid1, &sink1), "");
 }
-
-#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
 TEST_F(RtpDemuxerDeathTest, CriteriaMustBeNonEmpty) {
   MockRtpPacketSink sink;

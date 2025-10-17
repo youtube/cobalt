@@ -34,9 +34,11 @@
 #include <limits>
 
 #include "base/memory/values_equivalent.h"
+#include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/fonts/font_face_creation_params.h"
 #include "third_party/blink/renderer/platform/fonts/font_palette.h"
+#include "third_party/blink/renderer/platform/fonts/font_size_adjust.h"
 #include "third_party/blink/renderer/platform/fonts/font_variant_alternates.h"
 #include "third_party/blink/renderer/platform/fonts/opentype/font_settings.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -55,24 +57,26 @@ struct FontCacheKey {
 
  public:
   FontCacheKey() = default;
-  FontCacheKey(FontFaceCreationParams creation_params,
-               float font_size,
-               unsigned options,
-               float device_scale_factor,
-               scoped_refptr<FontVariationSettings> variation_settings,
-               scoped_refptr<FontPalette> palette,
-               scoped_refptr<FontVariantAlternates> font_variant_alternates,
-               bool is_unique_match,
-               bool is_generic_family)
+  FontCacheKey(
+      FontFaceCreationParams creation_params,
+      float font_size,
+      unsigned options,
+      float device_scale_factor,
+      FontSizeAdjust size_adjust,
+      scoped_refptr<const FontVariationSettings> variation_settings,
+      scoped_refptr<const FontPalette> palette,
+      scoped_refptr<const FontVariantAlternates> font_variant_alternates,
+      bool is_unique_match)
       : creation_params_(creation_params),
-        font_size_(font_size * kFontSizePrecisionMultiplier),
+        font_size_(base::saturated_cast<unsigned>(
+            font_size * kFontSizePrecisionMultiplier)),
         options_(options),
         device_scale_factor_(device_scale_factor),
+        size_adjust_(size_adjust),
         variation_settings_(std::move(variation_settings)),
         palette_(palette),
         font_variant_alternates_(font_variant_alternates),
-        is_unique_match_(is_unique_match),
-        is_generic_family_(is_generic_family) {}
+        is_unique_match_(is_unique_match) {}
 
   FontCacheKey(WTF::HashTableDeletedValueType)
       : font_size_(std::numeric_limits<unsigned>::max()),
@@ -86,21 +90,21 @@ struct FontCacheKey {
   unsigned GetHash() const {
     // Convert from float with 3 digit precision before hashing.
     unsigned device_scale_factor_hash = device_scale_factor_ * 1000;
-    unsigned hash_codes[9] = {
+    unsigned hash_codes[10] = {
       creation_params_.GetHash(),
       font_size_,
       options_,
       device_scale_factor_hash,
+      size_adjust_ ? size_adjust_.GetHash() : 0,
 #if BUILDFLAG(IS_ANDROID)
       (locale_.empty() ? 0 : WTF::GetHash(locale_)) ^
 #endif  // BUILDFLAG(IS_ANDROID)
           (variation_settings_ ? variation_settings_->GetHash() : 0),
       palette_ ? palette_->GetHash() : 0,
       font_variant_alternates_ ? font_variant_alternates_->GetHash() : 0,
-      is_unique_match_,
-      is_generic_family_
+      is_unique_match_
     };
-    return StringHasher::HashMemory<sizeof(hash_codes)>(hash_codes);
+    return StringHasher::HashMemory(base::as_byte_span(hash_codes));
   }
 
   bool operator==(const FontCacheKey& other) const {
@@ -114,14 +118,14 @@ struct FontCacheKey {
     return creation_params_ == other.creation_params_ &&
            font_size_ == other.font_size_ && options_ == other.options_ &&
            device_scale_factor_ == other.device_scale_factor_ &&
+           size_adjust_ == other.size_adjust_ &&
 #if BUILDFLAG(IS_ANDROID)
            locale_ == other.locale_ &&
 #endif  // BUILDFLAG(IS_ANDROID)
            variation_settings_equal && palette_equal &&
            base::ValuesEquivalent(font_variant_alternates_,
                                   other.font_variant_alternates_) &&
-           is_unique_match_ == other.is_unique_match_ &&
-           is_generic_family_ == other.is_generic_family_;
+           is_unique_match_ == other.is_unique_match_;
   }
 
   bool operator!=(const FontCacheKey& other) const { return !(*this == other); }
@@ -129,8 +133,6 @@ struct FontCacheKey {
   static constexpr unsigned PrecisionMultiplier() {
     return kFontSizePrecisionMultiplier;
   }
-
-  void ClearFontSize() { font_size_ = 0; }
 
 #if BUILDFLAG(IS_ANDROID)
   // Set the locale if the font is locale-specific. This allows different
@@ -150,11 +152,11 @@ struct FontCacheKey {
 #if BUILDFLAG(IS_ANDROID)
   AtomicString locale_;
 #endif  // BUILDFLAG(IS_ANDROID)
-  scoped_refptr<FontVariationSettings> variation_settings_;
-  scoped_refptr<FontPalette> palette_;
-  scoped_refptr<FontVariantAlternates> font_variant_alternates_;
+  FontSizeAdjust size_adjust_;
+  scoped_refptr<const FontVariationSettings> variation_settings_;
+  scoped_refptr<const FontPalette> palette_;
+  scoped_refptr<const FontVariantAlternates> font_variant_alternates_;
   bool is_unique_match_ = false;
-  bool is_generic_family_ = false;
 };
 
 }  // namespace blink
@@ -167,6 +169,12 @@ struct HashTraits<blink::FontCacheKey>
   // and it is held within FontFaceCreationParams.
   static const bool kEmptyValueIsZero = false;
 };
+
+// `FontCacheKey` contains an `std::string` (via `FontFaceCreationParams`)
+// which contains poisoned metadata for detecting buffer overflows in short
+// strings. Copying this string as part of `KeyValuePairExtractor` will thus
+// trigger ASAN warnings.
+static_assert(!HashTraits<blink::FontCacheKey>::kCanTraceConcurrently);
 
 }  // namespace WTF
 

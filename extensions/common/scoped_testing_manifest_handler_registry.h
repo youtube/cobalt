@@ -7,6 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "extensions/common/manifest_handler.h"
+#include "extensions/common/manifest_handler_registry.h"
 
 namespace extensions {
 
@@ -15,7 +16,7 @@ class ScopedTestingManifestHandlerRegistry {
   ScopedTestingManifestHandlerRegistry();
   ~ScopedTestingManifestHandlerRegistry();
 
-  // TODO(devlin): Provide an accessor for |registry_|.
+  // TODO(devlin): Provide an accessor for `registry_`.
 
  private:
   ManifestHandlerRegistry registry_;

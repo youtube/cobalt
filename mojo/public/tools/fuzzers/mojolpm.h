@@ -633,7 +633,7 @@ template <typename ProtoTestcase,
 bool Testcase<ProtoTestcase, ProtoAction, kMaxActionCount, kMaxActionSize>::
     IsFinished() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!proto_testcase_.actions_size()) {
+  if (!proto_testcase_.actions_size() || !proto_testcase_.sequences_size()) {
     return true;
   }
 
@@ -685,6 +685,7 @@ void Testcase<ProtoTestcase, ProtoAction, kMaxActionCount, kMaxActionSize>::Run(
       }
     } else {
       next_sequence_idx_++;
+      next_action_idx_ = 0;
       fuzzer_task_runner->PostTask(FROM_HERE, std::move(run_closure));
     }
   }
@@ -758,6 +759,8 @@ void HandleDataPipeRead(const ::mojolpm::DataPipeRead& input);
 void HandleDataPipeWrite(const ::mojolpm::DataPipeWrite& input);
 void HandleDataPipeConsumerClose(const ::mojolpm::DataPipeConsumerClose& input);
 void HandleDataPipeProducerClose(const ::mojolpm::DataPipeProducerClose& input);
+void HandleSharedBufferWrite(const ::mojolpm::SharedBufferWrite& input);
+void HandleSharedBufferRelease(const ::mojolpm::SharedBufferRelease& input);
 }  // namespace mojolpm
 
 #endif  // MOJO_PUBLIC_TOOLS_FUZZERS_MOJOLPM_H_

@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
@@ -103,7 +104,7 @@ class MessageStreamFakeBluetoothDevice
   bool dont_invoke_callback_ = false;
   bool error_ = false;
   std::string error_message_;
-  raw_ptr<FakeBluetoothAdapter, ExperimentalAsh> fake_adapter_;
+  raw_ptr<FakeBluetoothAdapter> fake_adapter_;
   scoped_refptr<FakeBluetoothSocket> fake_socket_ =
       base::MakeRefCounted<FakeBluetoothSocket>();
 };
@@ -180,7 +181,7 @@ class MessageStreamLookupImplTest : public testing::Test,
       LOG(WARNING)
           << __func__
           << ": the maximum message stream attempts before failure is 5. "
-          << std::to_string(num_unsuccessful_attempts)
+          << num_unsuccessful_attempts
           << " were requested. 5 will be tested for failure.";
       num_unsuccessful_attempts = 5;
     }
@@ -203,9 +204,9 @@ class MessageStreamLookupImplTest : public testing::Test,
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::HistogramTester histogram_tester_;
-  raw_ptr<MessageStream, ExperimentalAsh> message_stream_ = nullptr;
+  raw_ptr<MessageStream, DanglingUntriaged> message_stream_ = nullptr;
   scoped_refptr<FakeBluetoothAdapter> adapter_;
-  raw_ptr<MessageStreamFakeBluetoothDevice, ExperimentalAsh> device_;
+  raw_ptr<MessageStreamFakeBluetoothDevice, DanglingUntriaged> device_;
   std::unique_ptr<MessageStreamLookup> message_stream_lookup_;
 };
 
@@ -365,6 +366,7 @@ TEST_F(MessageStreamLookupImplTest,
   histogram_tester().ExpectTotalCount(kMessageStreamConnectToServiceResult, 0);
 
   device_->AddUUID(kMessageStreamUuid);
+  device_->SetConnected(true);
   SetConnectToServiceError(kSocketNotListeningString);
 
   EXPECT_EQ(GetMessageStream(), nullptr);
@@ -477,6 +479,7 @@ TEST_F(MessageStreamLookupImplTest,
 TEST_F(MessageStreamLookupImplTest,
        DevicePairedChanged_ConnectToServiceSuccess_Observer) {
   device_->AddUUID(kMessageStreamUuid);
+  device_->SetConnected(true);
 
   EXPECT_EQ(GetMessageStream(), nullptr);
   DevicePairedChanged(/*new_paired_status=*/true);
@@ -518,14 +521,26 @@ TEST_F(MessageStreamLookupImplTest, ConnectDevice_DisconnectDevice) {
 
 TEST_F(MessageStreamLookupImplTest, PairDevice_UnpairDevice) {
   device_->AddUUID(kMessageStreamUuid);
-
+  device_->SetConnected(true);
+  EXPECT_EQ(device_->IsConnected(), true);
   EXPECT_EQ(GetMessageStream(), nullptr);
+
   DevicePairedChanged(/*new_paired_status=*/true);
   base::RunLoop().RunUntilIdle();
   EXPECT_NE(GetMessageStream(), nullptr);
 
   DevicePairedChanged(/*new_paired_status=*/false);
   EXPECT_EQ(GetMessageStream(), nullptr);
+}
+
+TEST_F(MessageStreamLookupImplTest, DevicePairedChanged_NotConnected) {
+  device_->AddUUID(kMessageStreamUuid);
+  device_->SetConnected(false);
+  EXPECT_EQ(GetMessageStream(), nullptr);
+
+  DevicePairedChanged(/*new_paired_status=*/true);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(message_stream_, nullptr);
 }
 
 TEST_F(MessageStreamLookupImplTest, AddDevice_RemoveDevice) {

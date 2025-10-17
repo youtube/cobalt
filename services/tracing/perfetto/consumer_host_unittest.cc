@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/extend.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
@@ -19,6 +21,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
 #include "base/trace_event/trace_config.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -35,13 +38,11 @@
 
 namespace tracing {
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 const std::string kDataSourceName = "track_event";
-#else
-const std::string kDataSourceName = mojom::kTraceEventDataSourceName;
-#endif
 
 constexpr base::ProcessId kProducerPid = 1234;
+
+using testing::_;
 
 // This is here so we can properly simulate this running on three
 // different sequences (ProducerClient side, Service side, and
@@ -100,7 +101,6 @@ class ThreadedPerfettoService : public mojom::TracingSessionClient {
     {
       base::RunLoop wait_for_destruction;
       PerfettoTracedProcess::GetTaskRunner()
-          ->GetOrCreateTaskRunner()
           ->PostTaskAndReply(FROM_HERE, base::DoNothing(),
                              wait_for_destruction.QuitClosure());
       wait_for_destruction.Run();
@@ -115,33 +115,107 @@ class ThreadedPerfettoService : public mojom::TracingSessionClient {
 
   void OnTracingDisabled(bool) override {}
 
-  void CreateProducer(const std::string& data_source_name,
-                      size_t num_packets,
-                      base::OnceClosure on_tracing_started) {
-    base::RunLoop wait_for_datasource_registration;
+  void CreateProducer() {
+    base::RunLoop wait_for_producer;
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&ThreadedPerfettoService::CreateProducerOnSequence,
+                       base::Unretained(this),
+                       wait_for_producer.QuitClosure()));
+    wait_for_producer.Run();
+  }
+
+  std::unique_ptr<perfetto::TraceWriter> RegisterDataSource(
+      const std::string& data_source_name) {
+    base::RunLoop wait_for_datasource;
+    std::unique_ptr<perfetto::TraceWriter> trace_writer;
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ThreadedPerfettoService::RegisterDataSourceOnSequence,
                        base::Unretained(this), data_source_name,
-                       wait_for_datasource_registration.QuitClosure(),
-                       std::move(on_tracing_started), num_packets));
-    wait_for_datasource_registration.Run();
+                       wait_for_datasource.QuitClosure()));
+    wait_for_datasource.Run();
+    return trace_writer;
+  }
+
+  std::unique_ptr<perfetto::TraceWriter> CreateTraceWriter(
+      const std::string& data_source_name) {
+    base::RunLoop wait_for_datasource;
+    std::unique_ptr<perfetto::TraceWriter> trace_writer;
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ThreadedPerfettoService::CreateTraceWriterOnSequence,
+                       base::Unretained(this), data_source_name,
+                       base::BindLambdaForTesting(
+                           [&](std::unique_ptr<perfetto::TraceWriter> writer) {
+                             trace_writer = std::move(writer);
+                             wait_for_datasource.Quit();
+                           })));
+    wait_for_datasource.Run();
+    return trace_writer;
+  }
+
+  perfetto::DataSourceConfig GetDataSourceConfig(
+      const std::string& data_source_name) {
+    base::RunLoop wait_for_datasource;
+    perfetto::DataSourceConfig ds_config;
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            &ThreadedPerfettoService::GetDataSourceConfigOnSequence,
+            base::Unretained(this), data_source_name,
+            base::BindLambdaForTesting([&](perfetto::DataSourceConfig config) {
+              ds_config = config;
+              wait_for_datasource.Quit();
+            })));
+    wait_for_datasource.Run();
+    return ds_config;
   }
 
   void CreateConsumerOnSequence() {
     consumer_ = std::make_unique<ConsumerHost>(perfetto_service_.get());
   }
 
-  void CreateProducerOnSequence(const std::string& data_source_name,
-                                base::OnceClosure on_datasource_registered,
-                                base::OnceClosure on_tracing_started,
-                                size_t num_packets) {
-    producer_ = std::make_unique<MockProducer>(
-        base::StrCat({mojom::kPerfettoProducerNamePrefix,
-                      base::NumberToString(kProducerPid)}),
-        data_source_name, perfetto_service_.get(),
-        std::move(on_datasource_registered), std::move(on_tracing_started),
-        num_packets);
+  void CreateProducerOnSequence(base::OnceClosure on_producer_connected) {
+    producer_ = std::make_unique<MockProducer>();
+    producer_->Connect(perfetto_service_.get(),
+                       base::StrCat({mojom::kPerfettoProducerNamePrefix,
+                                     base::NumberToString(kProducerPid)}));
+    EXPECT_CALL(*producer_, OnConnect())
+        .WillOnce(base::test::RunOnceClosure(std::move(on_producer_connected)));
+  }
+
+  void RegisterDataSourceOnSequence(const std::string& data_source_name,
+                                    base::OnceClosure on_data_source_start) {
+    producer_->RegisterDataSource(data_source_name);
+    EXPECT_CALL(*producer_, OnStartDataSource(data_source_name, _))
+        .WillOnce(base::test::RunOnceClosure(std::move(on_data_source_start)));
+  }
+
+  void CreateTraceWriterOnSequence(
+      const std::string& data_source_name,
+      base::RepeatingCallback<void(std::unique_ptr<perfetto::TraceWriter>)>
+          on_data_source_start) {
+    producer_->RegisterDataSource(data_source_name);
+    EXPECT_CALL(*producer_, OnStartDataSource(data_source_name, _))
+        .WillOnce(
+            [on_data_source_start, this](const std::string& name,
+                                         perfetto::DataSourceInstanceID ds_id) {
+              on_data_source_start.Run(producer_->CreateTraceWriter(ds_id));
+            });
+  }
+
+  void GetDataSourceConfigOnSequence(
+      const std::string& data_source_name,
+      base::RepeatingCallback<void(perfetto::DataSourceConfig)>
+          on_data_source_start) {
+    producer_->RegisterDataSource(data_source_name);
+    EXPECT_CALL(*producer_, OnStartDataSource(data_source_name, _))
+        .WillOnce(
+            [on_data_source_start, this](const std::string& name,
+                                         perfetto::DataSourceInstanceID ds_id) {
+              on_data_source_start.Run(producer_->GetDataSourceConfig(ds_id));
+            });
   }
 
   void EnableTracingWithConfig(const perfetto::TraceConfig& config) {
@@ -202,16 +276,11 @@ class ThreadedPerfettoService : public mojom::TracingSessionClient {
     wait_for_call.Run();
   }
 
-  void WritePacketBigly() {
-    base::RunLoop wait_for_call;
-    task_runner_->PostTask(FROM_HERE,
-                           base::BindOnce(&MockProducer::WritePacketBigly,
-                                          base::Unretained(producer_.get()),
-                                          wait_for_call.QuitClosure()));
-    wait_for_call.Run();
-  }
-
-  void Flush(base::OnceClosure on_flush_complete) {
+  void Flush(perfetto::TraceWriter& writer_to_flush,
+             base::OnceClosure on_flush_complete) {
+    EXPECT_CALL(*producer_, OnFlush()).WillOnce([&]() {
+      writer_to_flush.Flush();
+    });
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(
@@ -272,18 +341,6 @@ class ThreadedPerfettoService : public mojom::TracingSessionClient {
     *tracing_enabled = tracing_enabled_;
   }
 
-  perfetto::DataSourceConfig GetProducerClientConfig() {
-    perfetto::DataSourceConfig config;
-    base::RunLoop wait_loop;
-    task_runner_->PostTaskAndReply(FROM_HERE, base::BindLambdaForTesting([&]() {
-                                     config =
-                                         producer_->data_source()->config();
-                                   }),
-                                   wait_loop.QuitClosure());
-    wait_loop.Run();
-    return config;
-  }
-
   void ClearConsumer() {
     base::RunLoop wait_loop;
     task_runner_->PostTaskAndReply(
@@ -305,18 +362,10 @@ class ThreadedPerfettoService : public mojom::TracingSessionClient {
   bool tracing_enabled_ = false;
 };
 
-// TODO(crbug.com/1006541): Switch this to use TracingUnitTest.
 class TracingConsumerTest : public testing::Test,
                             public mojo::DataPipeDrainer::Client {
  public:
   void SetUp() override {
-    task_environment_ = std::make_unique<base::test::TaskEnvironment>(
-        base::test::TaskEnvironment::MainThreadType::IO);
-    tracing_environment_ = std::make_unique<base::test::TracingEnvironment>(
-        *task_environment_, base::SingleThreadTaskRunner::GetCurrentDefault(),
-        PerfettoTracedProcess::Get()->perfetto_platform_for_testing());
-    test_handle_ = tracing::PerfettoTracedProcess::SetupForTesting();
-    PerfettoTracedProcess::Get()->ClearDataSourcesForTesting();
     threaded_service_ = std::make_unique<ThreadedPerfettoService>();
 
     matching_packet_count_ = 0;
@@ -324,19 +373,13 @@ class TracingConsumerTest : public testing::Test,
   }
 
   void TearDown() override {
-    tracing_environment_.reset();
     threaded_service_.reset();
-    task_environment_->RunUntilIdle();
-    test_handle_.reset();
-    task_environment_.reset();
   }
 
   // mojo::DataPipeDrainer::Client
-  void OnDataAvailable(const void* data, size_t num_bytes) override {
-    total_bytes_received_ += num_bytes;
-    std::copy(static_cast<const uint8_t*>(data),
-              static_cast<const uint8_t*>(data) + num_bytes,
-              std::back_inserter(received_data_));
+  void OnDataAvailable(base::span<const uint8_t> data) override {
+    total_bytes_received_ += data.size();
+    base::Extend(received_data_, data);
   }
 
   // mojo::DataPipeDrainer::Client
@@ -439,7 +482,7 @@ class TracingConsumerTest : public testing::Test,
   bool IsTracingEnabled() {
     // Flush any other pending tasks on the perfetto task runner to ensure that
     // any pending data source start callbacks have propagated.
-    task_environment_->RunUntilIdle();
+    task_environment_.RunUntilIdle();
 
     return threaded_service_->IsTracingEnabled();
   }
@@ -451,10 +494,11 @@ class TracingConsumerTest : public testing::Test,
   }
 
  private:
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::IO};
+  TracedProcessForTesting traced_process_{
+      base::SingleThreadTaskRunner::GetCurrentDefault()};
   std::unique_ptr<ThreadedPerfettoService> threaded_service_;
-  std::unique_ptr<base::test::TaskEnvironment> task_environment_;
-  std::unique_ptr<base::test::TracingEnvironment> tracing_environment_;
-  std::unique_ptr<PerfettoTracedProcess::TestHandle> test_handle_;
   base::OnceClosure on_data_complete_;
   std::unique_ptr<mojo::DataPipeDrainer> drainer_;
   std::vector<uint8_t> received_data_;
@@ -481,11 +525,9 @@ TEST_F(TracingConsumerTest, EnableAndDisableTracing) {
 TEST_F(TracingConsumerTest, ReceiveTestPackets) {
   EnableTracingWithDataSourceName(kDataSourceName);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 10u, wait_for_tracing_start.QuitClosure());
-
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  auto writer = threaded_perfetto_service()->CreateTraceWriter(kDataSourceName);
+  MockProducer::WritePackets(*writer, 10);
 
   base::RunLoop no_more_data;
   ExpectPackets(kPerfettoTestString, no_more_data.QuitClosure());
@@ -501,11 +543,9 @@ TEST_F(TracingConsumerTest, ReceiveTestPackets) {
 TEST_F(TracingConsumerTest, DeleteConsumerWhenReceiving) {
   EnableTracingWithDataSourceName(kDataSourceName);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 100u, wait_for_tracing_start.QuitClosure());
-
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  auto writer = threaded_perfetto_service()->CreateTraceWriter(kDataSourceName);
+  MockProducer::WritePackets(*writer, 100u);
 
   base::RunLoop no_more_data;
   ExpectPackets(kPerfettoTestString, no_more_data.QuitClosure());
@@ -520,20 +560,19 @@ TEST_F(TracingConsumerTest, DeleteConsumerWhenReceiving) {
 TEST_F(TracingConsumerTest, FlushProducers) {
   EnableTracingWithDataSourceName(kDataSourceName);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 10u, wait_for_tracing_start.QuitClosure());
-
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  auto writer = threaded_perfetto_service()->CreateTraceWriter(kDataSourceName);
 
   base::RunLoop wait_for_packets;
   ExpectPackets(kPerfettoTestString, wait_for_packets.QuitClosure());
 
+  MockProducer::WritePackets(*writer, 10);
+
   base::RunLoop wait_for_flush;
-  threaded_perfetto_service()->Flush(wait_for_flush.QuitClosure());
-  ReadBuffers();
+  threaded_perfetto_service()->Flush(*writer, wait_for_flush.QuitClosure());
 
   wait_for_flush.Run();
+  ReadBuffers();
   wait_for_packets.Run();
 
   EXPECT_EQ(10u, matching_packet_count());
@@ -542,16 +581,12 @@ TEST_F(TracingConsumerTest, FlushProducers) {
 TEST_F(TracingConsumerTest, LargeDataSize) {
   EnableTracingWithDataSourceName(kDataSourceName);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 0u, wait_for_tracing_start.QuitClosure());
-
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  auto writer = threaded_perfetto_service()->CreateTraceWriter(kDataSourceName);
+  MockProducer::WritePacketBigly(*writer);
 
   base::RunLoop no_more_data;
   ExpectPackets(kPerfettoTestString, no_more_data.QuitClosure());
-
-  threaded_perfetto_service()->WritePacketBigly();
 
   threaded_perfetto_service()->DisableTracing();
   ReadBuffers();
@@ -578,10 +613,8 @@ TEST_F(TracingConsumerTest, NotifiesOnTracingEnabledWaitsForProducer) {
   // its data source has started.
   EXPECT_FALSE(IsTracingEnabled());
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 0u, wait_for_tracing_start.QuitClosure());
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  threaded_perfetto_service()->RegisterDataSource(kDataSourceName);
 
   EXPECT_TRUE(IsTracingEnabled());
 }
@@ -601,10 +634,8 @@ TEST_F(TracingConsumerTest, NotifiesOnTracingEnabledWaitsForFilteredProducer) {
   // its data source has started.
   EXPECT_FALSE(IsTracingEnabled());
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 0u, wait_for_tracing_start.QuitClosure());
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  threaded_perfetto_service()->RegisterDataSource(kDataSourceName);
 
   EXPECT_TRUE(IsTracingEnabled());
 }
@@ -637,10 +668,8 @@ TEST_F(TracingConsumerTest,
   // its data source has started and once the PIDs are initialized.
   EXPECT_FALSE(IsTracingEnabled());
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 0u, wait_for_tracing_start.QuitClosure());
-  wait_for_tracing_start.Run();
+  threaded_perfetto_service()->CreateProducer();
+  threaded_perfetto_service()->RegisterDataSource(kDataSourceName);
 
   EXPECT_FALSE(IsTracingEnabled());
 
@@ -653,19 +682,13 @@ TEST_F(TracingConsumerTest, PrivacyFilterConfig) {
                                   /* enable_privacy_filtering =*/true,
                                   /* convert_to_legacy_json =*/false);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 10u, wait_for_tracing_start.QuitClosure());
+  threaded_perfetto_service()->CreateProducer();
 
-  wait_for_tracing_start.Run();
-  EXPECT_TRUE(threaded_perfetto_service()
-                  ->GetProducerClientConfig()
-                  .chrome_config()
-                  .privacy_filtering_enabled());
-  base::trace_event::TraceConfig base_config(threaded_perfetto_service()
-                                                 ->GetProducerClientConfig()
-                                                 .chrome_config()
-                                                 .trace_config());
+  auto config =
+      threaded_perfetto_service()->GetDataSourceConfig(kDataSourceName);
+  EXPECT_TRUE(config.chrome_config().privacy_filtering_enabled());
+  base::trace_event::TraceConfig base_config(
+      config.chrome_config().trace_config());
   EXPECT_FALSE(base_config.IsArgumentFilterEnabled());
 }
 
@@ -674,20 +697,13 @@ TEST_F(TracingConsumerTest, NoPrivacyFilterWithJsonConversion) {
                                   /* enable_privacy_filtering =*/false,
                                   /* convert_to_legacy_json =*/true);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 10u, wait_for_tracing_start.QuitClosure());
+  threaded_perfetto_service()->CreateProducer();
 
-  wait_for_tracing_start.Run();
-
-  EXPECT_FALSE(threaded_perfetto_service()
-                   ->GetProducerClientConfig()
-                   .chrome_config()
-                   .privacy_filtering_enabled());
-  base::trace_event::TraceConfig base_config(threaded_perfetto_service()
-                                                 ->GetProducerClientConfig()
-                                                 .chrome_config()
-                                                 .trace_config());
+  auto config =
+      threaded_perfetto_service()->GetDataSourceConfig(kDataSourceName);
+  EXPECT_FALSE(config.chrome_config().privacy_filtering_enabled());
+  base::trace_event::TraceConfig base_config(
+      config.chrome_config().trace_config());
   EXPECT_FALSE(base_config.IsArgumentFilterEnabled());
 }
 
@@ -696,20 +712,12 @@ TEST_F(TracingConsumerTest, PrivacyFilterConfigInJson) {
                                   /* enable_privacy_filtering =*/true,
                                   /* convert_to_legacy_json =*/true);
 
-  base::RunLoop wait_for_tracing_start;
-  threaded_perfetto_service()->CreateProducer(
-      kDataSourceName, 10u, wait_for_tracing_start.QuitClosure());
-
-  wait_for_tracing_start.Run();
-
-  EXPECT_FALSE(threaded_perfetto_service()
-                   ->GetProducerClientConfig()
-                   .chrome_config()
-                   .privacy_filtering_enabled());
-  base::trace_event::TraceConfig base_config(threaded_perfetto_service()
-                                                 ->GetProducerClientConfig()
-                                                 .chrome_config()
-                                                 .trace_config());
+  threaded_perfetto_service()->CreateProducer();
+  auto config =
+      threaded_perfetto_service()->GetDataSourceConfig(kDataSourceName);
+  EXPECT_FALSE(config.chrome_config().privacy_filtering_enabled());
+  base::trace_event::TraceConfig base_config(
+      config.chrome_config().trace_config());
   EXPECT_TRUE(base_config.IsArgumentFilterEnabled());
 
   base::RunLoop no_more_data;
@@ -724,98 +732,6 @@ TEST_F(TracingConsumerTest, PrivacyFilterConfigInJson) {
   write_done.Run();
 
   EXPECT_EQ(1u, matching_packet_count());
-}
-
-class MockConsumerHost : public mojom::TracingSessionClient {
- public:
-  explicit MockConsumerHost(PerfettoService* service)
-      : consumer_host_(std::make_unique<ConsumerHost>(service)) {}
-
-  void EnableTracing(const perfetto::TraceConfig& config) {
-    mojo::PendingRemote<tracing::mojom::TracingSessionClient>
-        tracing_session_client;
-    receiver_.Bind(tracing_session_client.InitWithNewPipeAndPassReceiver());
-
-    receiver_.set_disconnect_handler(base::BindOnce(
-        &MockConsumerHost::OnConnectionLost, base::Unretained(this)));
-
-    consumer_host_->EnableTracing(
-        tracing_session_host_.BindNewPipeAndPassReceiver(),
-        std::move(tracing_session_client), config, base::File());
-    tracing_session_host_.set_disconnect_handler(base::BindOnce(
-        &MockConsumerHost::OnConnectionLost, base::Unretained(this)));
-  }
-
-  void DisableTracing() { tracing_session_host_->DisableTracing(); }
-
-  void OnConnectionLost() {
-    CloseTracingSession();
-    wait_for_connection_lost_.Quit();
-  }
-
-  void CloseTracingSession() {
-    tracing_session_host_.reset();
-    receiver_.reset();
-  }
-
-  // mojom::TracingSessionClient implementation:
-  void OnTracingEnabled() override { wait_for_tracing_enabled_.Quit(); }
-
-  void OnTracingDisabled(bool) override { wait_for_tracing_disabled_.Quit(); }
-
-  void WaitForConnectionLost() { wait_for_connection_lost_.Run(); }
-
-  void WaitForTracingEnabled() { wait_for_tracing_enabled_.Run(); }
-
-  void WaitForTracingDisabled() { wait_for_tracing_disabled_.Run(); }
-
- private:
-  mojo::Remote<tracing::mojom::TracingSessionHost> tracing_session_host_;
-  mojo::Receiver<mojom::TracingSessionClient> receiver_{this};
-  std::unique_ptr<ConsumerHost> consumer_host_;
-  base::RunLoop wait_for_connection_lost_;
-  base::RunLoop wait_for_tracing_enabled_;
-  base::RunLoop wait_for_tracing_disabled_;
-};
-
-TEST_F(TracingConsumerTest, TestConsumerPriority) {
-  PerfettoService::GetInstance()->SetActiveServicePidsInitialized();
-  auto trace_config_background = GetDefaultTraceConfig(
-      kDataSourceName, perfetto::protos::gen ::ChromeConfig::BACKGROUND);
-  auto trace_config_user_initiated = GetDefaultTraceConfig(
-      kDataSourceName, perfetto::protos::gen ::ChromeConfig::USER_INITIATED);
-
-  MockConsumerHost background_consumer_1(PerfettoService::GetInstance());
-  background_consumer_1.EnableTracing(trace_config_background);
-  background_consumer_1.WaitForTracingEnabled();
-
-  // Second consumer of the same priority should cause the first one to
-  // be disabled and the second to start.
-  MockConsumerHost background_consumer_2(PerfettoService::GetInstance());
-  background_consumer_2.EnableTracing(trace_config_background);
-  background_consumer_1.WaitForTracingDisabled();
-  background_consumer_2.WaitForTracingEnabled();
-
-  // Third consumer will have a higher priority, and should kill the second
-  // one.
-  MockConsumerHost user_initiated_consumer(PerfettoService::GetInstance());
-  user_initiated_consumer.EnableTracing(trace_config_user_initiated);
-  background_consumer_2.WaitForTracingDisabled();
-  user_initiated_consumer.WaitForTracingEnabled();
-
-  // Fourth consumer will be another background consumer, and should be
-  // itself killed as the third consumer is still running.
-  MockConsumerHost background_consumer_3(PerfettoService::GetInstance());
-  background_consumer_3.EnableTracing(trace_config_background);
-  background_consumer_3.WaitForConnectionLost();
-
-  // If we close the user initiated consumer, the third background consumer
-  // should now be able to trace.
-  user_initiated_consumer.DisableTracing();
-  user_initiated_consumer.WaitForTracingDisabled();
-  user_initiated_consumer.CloseTracingSession();
-  background_consumer_3.EnableTracing(trace_config_background);
-  background_consumer_3.WaitForTracingEnabled();
 }
 
 }  // namespace tracing

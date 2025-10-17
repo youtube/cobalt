@@ -6,12 +6,12 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
 #include "base/containers/adapters.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
 #include "chrome/browser/download/download_ui_model.h"
 #include "chrome/browser/themes/theme_properties.h"
@@ -21,12 +21,10 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/download/download_item_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/download/public/common/download_item.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -86,18 +84,10 @@ DownloadShelfView::DownloadShelfView(Browser* browser, BrowserView* parent)
 
   accessible_alert_ = AddChildView(std::make_unique<views::View>());
 
-  if (gfx::Animation::ShouldRenderRichAnimation()) {
-    new_item_animation_.SetSlideDuration(base::Milliseconds(800));
-    shelf_animation_.SetSlideDuration(base::Milliseconds(120));
-  } else {
-    new_item_animation_.SetSlideDuration(base::TimeDelta());
-    shelf_animation_.SetSlideDuration(base::TimeDelta());
-  }
-
   views::ViewAccessibility& accessibility = GetViewAccessibility();
-  accessibility.OverrideName(
-      l10n_util::GetStringUTF16(IDS_ACCNAME_DOWNLOADS_BAR));
-  accessibility.OverrideRole(ax::mojom::Role::kGroup);
+  accessibility.SetName(l10n_util::GetStringUTF16(IDS_ACCNAME_DOWNLOADS_BAR),
+                        ax::mojom::NameFrom::kAttribute);
+  accessibility.SetRole(ax::mojom::Role::kGroup);
 
   // Delay 5 seconds if the mouse leaves the shelf by way of entering another
   // window. This is much larger than the normal delay as opening a download is
@@ -124,7 +114,8 @@ views::View* DownloadShelfView::GetView() {
   return this;
 }
 
-gfx::Size DownloadShelfView::CalculatePreferredSize() const {
+gfx::Size DownloadShelfView::CalculatePreferredSize(
+    const views::SizeBounds& /*available_size*/) const {
   gfx::Size prefsize(kEndPadding + kStartPadding + kCloseAndLinkPadding, 0);
 
   // Enlarge the preferred size enough to hold various other views side-by-side.
@@ -136,15 +127,16 @@ gfx::Size DownloadShelfView::CalculatePreferredSize() const {
   adjust_size(close_button_);
   adjust_size(show_all_view_);
   // Add one download view to the preferred size.
-  if (!download_views_.empty())
+  if (!download_views_.empty()) {
     adjust_size(download_views_.front());
+  }
 
   prefsize.Enlarge(0, kTopPadding);
   return gfx::Tween::SizeValueBetween(shelf_animation_.GetCurrentValue(),
                                       gfx::Size(prefsize.width(), 0), prefsize);
 }
 
-void DownloadShelfView::Layout() {
+void DownloadShelfView::Layout(PassKey) {
   int x = kStartPadding;
   const int download_items_end =
       std::max(0, width() - kEndPadding - close_button_->width() -
@@ -168,12 +160,13 @@ void DownloadShelfView::Layout() {
        center_y(close_button_->height())});
 
   if (all_downloads_hidden) {
-    for (auto* view : download_views_)
+    for (DownloadItemView* view : download_views_) {
       view->SetVisible(false);
+    }
     return;
   }
 
-  for (auto* view : base::Reversed(download_views_)) {
+  for (DownloadItemView* view : base::Reversed(download_views_)) {
     gfx::Size view_size = view->GetPreferredSize();
     if (view == download_views_.back()) {
       view_size = gfx::Tween::SizeValueBetween(
@@ -205,16 +198,18 @@ void DownloadShelfView::AnimationProgressed(const gfx::Animation* animation) {
 }
 
 void DownloadShelfView::AnimationEnded(const gfx::Animation* animation) {
-  if (animation != &shelf_animation_)
+  if (animation != &shelf_animation_) {
     return;
+  }
 
   const bool shown = shelf_animation_.IsShowing();
   parent_->SetDownloadShelfVisible(shown);
 
   // If the shelf was explicitly closed by the user, there are further steps to
   // take to complete closing.
-  if (shown || is_hidden())
+  if (shown || is_hidden()) {
     return;
+  }
 
   // Remove all completed downloads.
   for (size_t i = 0; i < download_views_.size();) {
@@ -235,11 +230,12 @@ void DownloadShelfView::AnimationEnded(const gfx::Animation* animation) {
   //
   // If we had keyboard focus, calling SetVisible(false) will cause keyboard
   // focus to be completely lost. To prevent this, focus the web contents.
-  // TODO(crbug.com/846466): Fix AccessiblePaneView::SetVisible() or
+  // TODO(crbug.com/41390999): Fix AccessiblePaneView::SetVisible() or
   // FocusManager to make this unnecessary.
   auto* focus_manager = GetFocusManager();
-  if (focus_manager && Contains(focus_manager->GetFocusedView()))
+  if (focus_manager && Contains(focus_manager->GetFocusedView())) {
     parent_->contents_web_view()->RequestFocus();
+  }
   SetVisible(false);
 }
 
@@ -248,30 +244,30 @@ void DownloadShelfView::MouseMovedOutOfHost() {
 }
 
 void DownloadShelfView::AutoClose() {
-  if (base::ranges::all_of(download_views_, [](const auto* view) {
+  if (std::ranges::all_of(download_views_, [](const DownloadItemView* view) {
         return view->model()->GetOpened();
-      }))
+      })) {
     mouse_watcher_.Start(GetWidget()->GetNativeWindow());
+  }
 }
 
 void DownloadShelfView::RemoveDownloadView(View* view) {
   DCHECK(view);
-  const auto i = base::ranges::find(download_views_, view);
-  DCHECK(i != download_views_.end());
+  const auto i = std::ranges::find(download_views_, view);
+  CHECK(i != download_views_.end());
   download_views_.erase(i);
   RemoveChildViewT(view);
-  if (download_views_.empty())
+  if (download_views_.empty()) {
     Close();
-  else
+  } else {
     AutoClose();
+  }
   InvalidateLayout();
 }
 
 void DownloadShelfView::ConfigureButtonForTheme(views::MdTextButton* button) {
-  const auto* const cp = GetColorProvider();
-  DCHECK(cp);
-  button->SetBgColorOverride(cp->GetColor(kColorDownloadShelfButtonBackground));
-  button->SetEnabledTextColors(cp->GetColor(kColorDownloadShelfButtonText));
+  button->SetBgColorIdOverride(kColorDownloadShelfButtonBackground);
+  button->SetEnabledTextColors(kColorDownloadShelfButtonText);
 }
 
 void DownloadShelfView::DoShowDownload(
@@ -292,10 +288,13 @@ void DownloadShelfView::DoShowDownload(
   // we already have this many download views, one is removed.
   // TODO(pkasting): Maybe this should use a min width instead.
   constexpr size_t kMaxDownloadViews = 15;
-  if (download_views_.size() > kMaxDownloadViews)
+  if (download_views_.size() > kMaxDownloadViews) {
     RemoveDownloadView(download_views_.front());
+  }
 
   new_item_animation_.Reset();
+  new_item_animation_.SetSlideDuration(
+      gfx::Animation::RichAnimationDuration(base::Milliseconds(800)));
   new_item_animation_.Show();
 
   if (was_empty && !shelf_animation_.is_animating() && GetVisible()) {
@@ -306,14 +305,16 @@ void DownloadShelfView::DoShowDownload(
 
 void DownloadShelfView::DoOpen() {
   SetVisible(true);
+  shelf_animation_.SetSlideDuration(
+      gfx::Animation::RichAnimationDuration(base::Milliseconds(120)));
   shelf_animation_.Show();
-  SetLastOpened();
 }
 
 void DownloadShelfView::DoClose() {
   parent_->SetDownloadShelfVisible(false);
+  shelf_animation_.SetSlideDuration(
+      gfx::Animation::RichAnimationDuration(base::Milliseconds(120)));
   shelf_animation_.Hide();
-  RecordShelfVisibleTime();
 }
 
 void DownloadShelfView::DoHide() {
@@ -358,18 +359,5 @@ DownloadItemView* DownloadShelfView::GetViewOfLastDownloadItemForTesting() {
   return download_views_.empty() ? nullptr : download_views_.back();
 }
 
-void DownloadShelfView::SetLastOpened() {
-  last_opened_ = base::Time::Now();
-}
-
-void DownloadShelfView::RecordShelfVisibleTime() {
-  if (!last_opened_.is_null()) {
-    base::UmaHistogramCustomTimes("Download.Shelf.VisibleTime",
-                                  base::Time::Now() - last_opened_,
-                                  base::Seconds(1), base::Days(1), 100);
-    last_opened_ = base::Time();
-  }
-}
-
-BEGIN_METADATA(DownloadShelfView, views::AccessiblePaneView)
+BEGIN_METADATA(DownloadShelfView)
 END_METADATA

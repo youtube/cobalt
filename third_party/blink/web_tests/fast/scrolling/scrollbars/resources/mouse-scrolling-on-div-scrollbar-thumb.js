@@ -1,8 +1,17 @@
+// Logging to diagnose crbug.com/40273519
+function log(msg) {
+  if(window.console)
+    window.console.log(msg);
+}
+
 async function testScrollThumbNonScrolls(params) {
+  log("Entering testScrollThumbNonScrolls");
+  log("await waitForCompositorCommit");
   await waitForCompositorCommit();
   resetScrollOffset(params.scroller);
 
   const scrollRect = scroller.getBoundingClientRect();
+  log("scrollRect.left: " + scrollRect.left + " scrollRect.right: " + scrollRect.right);
 
   // Direction: rtl changes the x-wise position of the vertical scrollbar
   const rtl = params.scroller.style.direction === "rtl";
@@ -12,23 +21,34 @@ async function testScrollThumbNonScrolls(params) {
   const y = scrollRect.top + params.BUTTON_WIDTH + 2;
 
   await mouseMoveTo(x, y);
+  log("mouseMoveTo(" + x + "," + y + ")");
+
   await mouseDownAt(x, y);
+  log("mouseDownAt(" + x + "," + y + ")");
+
   assert_equals(params.scroller.scrollTop, 0, "Mousedown on vertical scrollbar thumb is not expected to scroll.");
 
   await mouseMoveTo(x, y - 10, Buttons.LEFT);
+  log("mouseMoveTo(" + x + "," + (y - 10) + ")");
   assert_equals(params.scroller.scrollTop, 0, "Vertical thumb drag beyond the track should not cause a scroll.");
 
   await mouseMoveTo(x, y, Buttons.LEFT);
+  log("mouseMoveTo(" + x + "," + y + ")");
   assert_equals(params.scroller.scrollTop, 0, "Vertical thumb drag beyond the track and back should not cause a scroll.");
 
   await mouseUpAt(x, y);
+  log("mouseUpAt(" + x + "," + y + ")");
+  log("Exiting testScrollThumbNonScrolls");
 }
 
 async function testThumbScrolls(params) {
+  log("Entering testThumbScrolls");
+  log("await waitForCompositorCommit");
   await waitForCompositorCommit();
   resetScrollOffset(params.scroller);
 
   const scrollRect = scroller.getBoundingClientRect();
+  log("scrollRect.left: " + scrollRect.left + " scrollRect.right: " + scrollRect.right);
 
   // Direction: rtl changes the x-wise position of the vertical scrollbar
   const rtl = params.scroller.style.direction === "rtl";
@@ -42,28 +62,58 @@ async function testThumbScrolls(params) {
   let asc_offsets = { linux: [549, 915, 915, 915, 915], win: [361, 601, 770, 915, 915], mac: [211, 351, 450, 534, 563] }[params.platform];
   let desc_increments = [3, 2, 5, 9, 21];
   let desc_offsets = { linux: [915, 915, 915, 768, 0], win: [890, 842, 722, 505, 0], mac: [520, 492, 422, 295, 0] }[params.platform];
+  // Fluent scrollbars have different minimum length thumbs which changes how
+  // far dragging the thumb scrolls the content.
+  let asc_offsets_fluent = {
+    linux: [361, 601, 770, 915, 915],
+    win: [361, 601, 770, 915, 915],
+    mac: [211, 351, 450, 534, 563]
+  }[params.platform];
+  let desc_offsets_fluent = {
+    linux: [890, 842, 722, 505, 0],
+    win: [890, 842, 722, 505, 0],
+    mac: [520, 492, 422, 295, 0]
+  }[params.platform];
 
   await mouseMoveTo(x, y);
+  log("mouseMoveTo(" + x + "," + y + ")");
+
   await mouseDownAt(x, y);
+  log("mouseDownAt(" + x + "," + y + ")");
 
   // Scroll down
   for (var i = 0; i < 5; i++) {
     y += asc_increments[i];
     await mouseMoveTo(x, y, Buttons.LEFT);
+    log("mouseMoveTo(" + x + "," + y + ")");
     // TODO(crbug.com/1009892): Sometimes there is 1px difference in threaded scrollbar scrolling mode.
     // Change assert_approx_equals(..., 1, ...) to assert_equals(...) when the bug is fixed.
-    assert_approx_equals(params.scroller.scrollTop, asc_offsets[i], 1, "Vertical thumb drag downwards did not scroll as expected at " + asc_increments[i] + " - ");
+    let expected_offset = internals.runtimeFlags.fluentScrollbarsEnabled ?
+        asc_offsets_fluent[i] :
+        asc_offsets[i];
+    assert_approx_equals(
+        params.scroller.scrollTop, expected_offset, 1,
+        'Vertical thumb drag downwards did not scroll as expected at ' +
+            asc_increments[i] + ' - ');
   };
 
   // Scroll up
   for (var i = 0; i < 5; i++) {
     y -= desc_increments[i];
     await mouseMoveTo(x, y, Buttons.LEFT);
+    log("mouseMoveTo(" + x + "," + y + ")");
     // TODO(crbug.com/1009892): Ditto.
-    assert_approx_equals(params.scroller.scrollTop, desc_offsets[i], 1, "Vertical thumb drag upwards did not scroll as expected at " + desc_increments[i] + " - ");
+    let expected_offset = internals.runtimeFlags.fluentScrollbarsEnabled ?
+        desc_offsets_fluent[i] :
+        desc_offsets[i];
+    assert_approx_equals(
+        params.scroller.scrollTop, expected_offset, 1,
+        'Vertical thumb drag upwards did not scroll as expected at ' +
+            desc_increments[i] + ' - ');
   };
 
   await mouseUpAt(x, y);
+  log("mouseUpAt(" + x + "," + y + ")");
   assert_equals(params.scroller.scrollTop, 0, "Mouseup on vertical scrollbar thumb is not expected to scroll.");
 
   // Since the horizontal scrolling is essentially the same codepath as vertical,

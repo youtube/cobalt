@@ -20,7 +20,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class MetricsTestPlatformServiceBridge extends PlatformServiceBridge {
     private final BlockingQueue<byte[]> mQueue;
     private int mStatus;
-    private boolean mUseDefaultUploadQos;
 
     public MetricsTestPlatformServiceBridge() {
         mQueue = new LinkedBlockingQueue<>();
@@ -36,24 +35,18 @@ public class MetricsTestPlatformServiceBridge extends PlatformServiceBridge {
     @Override
     public void queryMetricsSetting(Callback<Boolean> callback) {
         ThreadUtils.assertOnUiThread();
-        callback.onResult(true /* enabled */);
+        callback.onResult(/* result= */ true);
     }
 
     @Override
-    public void logMetrics(byte[] data, boolean useDefaultUploadQos) {
+    public void logMetrics(byte[] data) {
         mQueue.add(data);
-        mUseDefaultUploadQos = useDefaultUploadQos;
     }
 
     @Override
-    public int logMetricsBlocking(byte[] data, boolean useDefaultUploadQos) {
-        logMetrics(data, useDefaultUploadQos);
-        mUseDefaultUploadQos = useDefaultUploadQos;
+    public int logMetricsBlocking(byte[] data) {
+        logMetrics(data);
         return mStatus;
-    }
-
-    public boolean isLastLogUsingDefaultUploadQos() {
-        return mUseDefaultUploadQos;
     }
 
     /**
@@ -63,17 +56,13 @@ public class MetricsTestPlatformServiceBridge extends PlatformServiceBridge {
         mStatus = status;
     }
 
-    /**
-     * Gets the latest metrics log we've received.
-     */
+    /** Gets the latest metrics log we've received. */
     public ChromeUserMetricsExtension waitForNextMetricsLog() throws Exception {
         byte[] data = AwActivityTestRule.waitForNextQueueElement(mQueue);
         return ChromeUserMetricsExtension.parseFrom(data);
     }
 
-    /**
-     * Asserts there are no more metrics logs queued up.
-     */
+    /** Asserts there are no more metrics logs queued up. */
     public void assertNoMetricsLogs() throws Exception {
         // Assert the size is zero (rather than the queue is empty), so if this fails we have
         // some hint as to how many logs were queued up.

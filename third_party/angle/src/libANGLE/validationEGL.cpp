@@ -390,6 +390,72 @@ bool ValidateConfigAttributeValue(const ValidationContext *val,
             }
             break;
 
+        case EGL_CONFIG_CAVEAT:
+            switch (value)
+            {
+                case EGL_DONT_CARE:
+                case EGL_NONE:
+                case EGL_SLOW_CONFIG:
+                case EGL_NON_CONFORMANT_CONFIG:
+                    break;
+                default:
+                    val->setError(EGL_BAD_ATTRIBUTE, "EGL_CONFIG_CAVEAT invalid attribute: 0x%X",
+                                  static_cast<uint32_t>(value));
+                    return false;
+            }
+            break;
+
+        case EGL_SURFACE_TYPE:
+        {
+            if (value == EGL_DONT_CARE)
+            {
+                break;
+            }
+
+            EGLint kValidSurfaceTypeFlags =
+                (EGL_WINDOW_BIT | EGL_PIXMAP_BIT | EGL_PBUFFER_BIT |
+                 EGL_MULTISAMPLE_RESOLVE_BOX_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT |
+                 EGL_VG_COLORSPACE_LINEAR_BIT | EGL_VG_ALPHA_FORMAT_PRE_BIT);
+
+            if (display->getExtensions().mutableRenderBufferKHR)
+            {
+                kValidSurfaceTypeFlags |= EGL_MUTABLE_RENDER_BUFFER_BIT_KHR;
+            }
+            if (display->getExtensions().lockSurface3KHR)
+            {
+                kValidSurfaceTypeFlags |= EGL_LOCK_SURFACE_BIT_KHR;
+            }
+
+            if ((value & ~kValidSurfaceTypeFlags) != 0)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE, "EGL_SURFACE_TYPE invalid attribute: 0x%X",
+                              static_cast<uint32_t>(value));
+                return false;
+            }
+            break;
+        }
+
+        case EGL_CONFORMANT:
+        case EGL_RENDERABLE_TYPE:
+        {
+            if (value == EGL_DONT_CARE)
+            {
+                break;
+            }
+            constexpr EGLint kValidAPITypeFlags =
+                (EGL_OPENGL_BIT | EGL_OPENGL_ES_BIT | EGL_OPENGL_ES2_BIT | EGL_OPENVG_BIT |
+                 EGL_OPENGL_ES3_BIT_KHR);
+            if ((value & ~kValidAPITypeFlags) != 0)
+            {
+                val->setError(
+                    EGL_BAD_ATTRIBUTE, "%s invalid attribute: 0x%X",
+                    attribute == EGL_CONFORMANT ? "EGL_CONFORMANT" : "EGL_RENDERABLE_TYPE",
+                    static_cast<uint32_t>(value));
+                return false;
+            }
+            break;
+        }
+
         default:
             break;
     }
@@ -466,6 +532,31 @@ bool ValidateColorspaceAttribute(const ValidationContext *val,
                 return false;
             }
             break;
+        case EGL_GL_COLORSPACE_BT2020_LINEAR_EXT:
+            if (!displayExtensions.glColorspaceBt2020Linear &&
+                !displayExtensions.eglColorspaceAttributePassthroughANGLE)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE,
+                              "EXT_gl_colorspace_bt2020_linear is not available");
+                return false;
+            }
+            break;
+        case EGL_GL_COLORSPACE_BT2020_PQ_EXT:
+            if (!displayExtensions.glColorspaceBt2020Pq &&
+                !displayExtensions.eglColorspaceAttributePassthroughANGLE)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE, "EXT_gl_colorspace_bt2020_pq is not available");
+                return false;
+            }
+            break;
+        case EGL_GL_COLORSPACE_BT2020_HLG_EXT:
+            if (!displayExtensions.glColorspaceBt2020Hlg &&
+                !displayExtensions.eglColorspaceAttributePassthroughANGLE)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE, "EXT_gl_colorspace_bt2020_hlg is not available");
+                return false;
+            }
+            break;
         default:
             val->setError(EGL_BAD_ATTRIBUTE);
             return false;
@@ -505,6 +596,14 @@ bool ValidatePlatformType(const ValidationContext *val,
                 val->setError(EGL_BAD_ATTRIBUTE,
                               "Display type EGL_PLATFORM_ANGLE_TYPE_NULL_ANGLE "
                               "requires EGL_ANGLE_platform_angle_null.");
+                return false;
+            }
+            break;
+
+        case EGL_PLATFORM_ANGLE_TYPE_WEBGPU_ANGLE:
+            if (!clientExtensions.platformANGLEWebgpu)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE, "WebGPU platform is unsupported.");
                 return false;
             }
             break;
@@ -570,8 +669,15 @@ bool ValidateGetPlatformDisplayCommon(const ValidationContext *val,
                 return false;
             }
             break;
+        case EGL_PLATFORM_SURFACELESS_MESA:
+            if (!clientExtensions.platformSurfacelessMESA)
+            {
+                val->setError(EGL_BAD_PARAMETER, "Platform Surfaceless extension is not active");
+                return false;
+            }
+            break;
         default:
-            val->setError(EGL_BAD_CONFIG, "Bad platform type.");
+            val->setError(EGL_BAD_PARAMETER, "Bad platform type.");
             return false;
     }
 
@@ -585,11 +691,14 @@ bool ValidateGetPlatformDisplayCommon(const ValidationContext *val,
         bool presentPathSpecified    = false;
         bool luidSpecified           = false;
         bool deviceIdSpecified       = false;
+        bool vkDeviceUuidSpecified   = false;
 
         Optional<EGLAttrib> majorVersion;
         Optional<EGLAttrib> minorVersion;
         Optional<EGLAttrib> deviceType;
         Optional<EGLAttrib> eglHandle;
+        Optional<EGLAttrib> dawnProcTable;
+        Optional<EGLAttrib> webgpuDevice;
 
         for (const auto &curAttrib : attribMap)
         {
@@ -748,22 +857,13 @@ bool ValidateGetPlatformDisplayCommon(const ValidationContext *val,
                 case EGL_PLATFORM_ANGLE_D3D_LUID_LOW_ANGLE:
                     luidSpecified = true;
                     break;
-                case EGL_PLATFORM_ANGLE_DEVICE_CONTEXT_VOLATILE_EAGL_ANGLE:
-                    // The property does not have an effect if it's not active, so do not check
-                    // for non-support.
-                    switch (value)
-                    {
-                        case EGL_FALSE:
-                        case EGL_TRUE:
-                            break;
-                        default:
-                            val->setError(EGL_BAD_ATTRIBUTE,
-                                          "Invalid value for "
-                                          "EGL_PLATFORM_ANGLE_DEVICE_CONTEXT_VOLATILE_"
-                                          "EAGL_ANGLE attrib");
-                            return false;
-                    }
+
+                case EGL_PLATFORM_ANGLE_VULKAN_DEVICE_UUID_ANGLE:
+                case EGL_PLATFORM_ANGLE_VULKAN_DRIVER_UUID_ANGLE:
+                case EGL_PLATFORM_ANGLE_VULKAN_DRIVER_ID_ANGLE:
+                    vkDeviceUuidSpecified = true;
                     break;
+
                 case EGL_PLATFORM_ANGLE_DEVICE_CONTEXT_VOLATILE_CGL_ANGLE:
                     // The property does not have an effect if it's not active, so do not check
                     // for non-support.
@@ -791,6 +891,35 @@ bool ValidateGetPlatformDisplayCommon(const ValidationContext *val,
                     }
                     deviceIdSpecified = true;
                     break;
+
+                case EGL_PLATFORM_ANGLE_DAWN_PROC_TABLE_ANGLE:
+                    if (!clientExtensions.platformANGLEWebgpu)
+                    {
+                        val->setError(EGL_BAD_ATTRIBUTE,
+                                      "EGL_ANGLE_platform_angle_webgpu is not supported");
+                        return false;
+                    }
+
+                    if (value != 0)
+                    {
+                        dawnProcTable = value;
+                    }
+                    break;
+
+                case EGL_PLATFORM_ANGLE_WEBGPU_DEVICE_ANGLE:
+                    if (!clientExtensions.platformANGLEWebgpu)
+                    {
+                        val->setError(EGL_BAD_ATTRIBUTE,
+                                      "EGL_ANGLE_platform_angle_webgpu is not supported");
+                        return false;
+                    }
+
+                    if (value != 0)
+                    {
+                        webgpuDevice = value;
+                    }
+                    break;
+
                 default:
                     break;
             }
@@ -874,6 +1003,20 @@ bool ValidateGetPlatformDisplayCommon(const ValidationContext *val,
             }
         }
 
+        if (vkDeviceUuidSpecified)
+        {
+            if (platformType != EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE,
+                              "EGL_PLATFORM_ANGLE_VULKAN_DEVICE_UUID, "
+                              "EGL_PLATFORM_ANGLE_VULKAN_DRIVER_UUID and "
+                              "EGL_PLATFORM_ANGLE_VULKAN_DRIVER_ID "
+                              "require a platform type of "
+                              "EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE.");
+                return false;
+            }
+        }
+
         if (deviceIdSpecified)
         {
             if (attribMap.get(EGL_PLATFORM_ANGLE_DEVICE_ID_HIGH_ANGLE, 0) == 0 &&
@@ -937,6 +1080,22 @@ bool ValidateGetPlatformDisplayCommon(const ValidationContext *val,
             val->setError(EGL_BAD_ATTRIBUTE,
                           "EGL_PLATFORM_ANGLE_EGL_HANDLE_ANGLE requires a "
                           "device type of EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE.");
+            return false;
+        }
+
+        if (dawnProcTable.valid() && platformType != EGL_PLATFORM_ANGLE_TYPE_WEBGPU_ANGLE)
+        {
+            val->setError(EGL_BAD_ATTRIBUTE,
+                          "EGL_PLATFORM_ANGLE_DAWN_PROC_TABLE_ANGLE requires a "
+                          "platform type of EGL_PLATFORM_ANGLE_TYPE_WEBGPU_ANGLE.");
+            return false;
+        }
+
+        if (webgpuDevice.valid() && platformType != EGL_PLATFORM_ANGLE_TYPE_WEBGPU_ANGLE)
+        {
+            val->setError(EGL_BAD_ATTRIBUTE,
+                          "EGL_PLATFORM_ANGLE_WEBGPU_DEVICE_ANGLE requires a "
+                          "platform type of EGL_PLATFORM_ANGLE_TYPE_WEBGPU_ANGLE.");
             return false;
         }
     }
@@ -1187,44 +1346,33 @@ bool ValidateCompatibleSurface(const ValidationContext *val,
     const Config *contextConfig = context->getConfig();
     const Config *surfaceConfig = surface->getConfig();
 
-    if (context->getClientType() != EGL_OPENGL_API)
+    // Surface compatible with client API - only OPENGL_ES supported
+    switch (context->getClientVersion().getMajor())
     {
-        // Surface compatible with client API - only OPENGL_ES supported
-        switch (context->getClientMajorVersion())
-        {
-            case 1:
-                if (!(surfaceConfig->renderableType & EGL_OPENGL_ES_BIT))
-                {
-                    val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL ES 1.x.");
-                    return false;
-                }
-                break;
-            case 2:
-                if (!(surfaceConfig->renderableType & EGL_OPENGL_ES2_BIT))
-                {
-                    val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL ES 2.x.");
-                    return false;
-                }
-                break;
-            case 3:
-                if (!(surfaceConfig->renderableType & (EGL_OPENGL_ES2_BIT | EGL_OPENGL_ES3_BIT)))
-                {
-                    val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL ES 3.x.");
-                    return false;
-                }
-                break;
-            default:
-                val->setError(EGL_BAD_MATCH, "Surface not compatible with Context API.");
+        case 1:
+            if (!(surfaceConfig->renderableType & EGL_OPENGL_ES_BIT))
+            {
+                val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL ES 1.x.");
                 return false;
-        }
-    }
-    else
-    {
-        if (!(surfaceConfig->renderableType & EGL_OPENGL_BIT))
-        {
-            val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL Desktop.");
+            }
+            break;
+        case 2:
+            if (!(surfaceConfig->renderableType & EGL_OPENGL_ES2_BIT))
+            {
+                val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL ES 2.x.");
+                return false;
+            }
+            break;
+        case 3:
+            if (!(surfaceConfig->renderableType & (EGL_OPENGL_ES2_BIT | EGL_OPENGL_ES3_BIT)))
+            {
+                val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL ES 3.x.");
+                return false;
+            }
+            break;
+        default:
+            val->setError(EGL_BAD_MATCH, "Surface not compatible with Context API.");
             return false;
-        }
     }
 
     // EGL KHR no config context
@@ -1285,6 +1433,41 @@ bool ValidateCompatibleSurface(const ValidationContext *val,
     return true;
 }
 
+bool ValidateSurfaceBadAccess(const ValidationContext *val,
+                              const gl::Context *previousContext,
+                              const Surface *surface)
+{
+    if (surface->isReferenced() &&
+        (previousContext == nullptr || (surface != previousContext->getCurrentDrawSurface() &&
+                                        surface != previousContext->getCurrentReadSurface())))
+    {
+        val->setError(EGL_BAD_ACCESS, "Surface can only be current on one thread");
+        return false;
+    }
+    return true;
+}
+
+bool ValidateSyncAttribute(const ValidationContext *val,
+                           const Display *display,
+                           EGLAttrib attribute)
+{
+    switch (attribute)
+    {
+        case EGL_SYNC_CONDITION:
+        case EGL_SYNC_NATIVE_FENCE_FD_ANDROID:
+        case EGL_SYNC_METAL_SHARED_EVENT_OBJECT_ANGLE:
+        case EGL_SYNC_METAL_SHARED_EVENT_SIGNAL_VALUE_LO_ANGLE:
+        case EGL_SYNC_METAL_SHARED_EVENT_SIGNAL_VALUE_HI_ANGLE:
+            break;
+
+        default:
+            val->setError(EGL_BAD_ATTRIBUTE, "Unknown attribute: 0x%04" PRIxPTR "X", attribute);
+            return false;
+    }
+
+    return true;
+}
+
 bool ValidateCreateSyncBase(const ValidationContext *val,
                             const Display *display,
                             EGLenum type,
@@ -1292,8 +1475,7 @@ bool ValidateCreateSyncBase(const ValidationContext *val,
                             bool isExt)
 {
     ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
-
-    attribs.initializeWithoutValidation();
+    ANGLE_VALIDATION_TRY(attribs.validate(val, display, ValidateSyncAttribute));
 
     gl::Context *currentContext  = val->eglThread->getContext();
     egl::Display *currentDisplay = currentContext ? currentContext->getDisplay() : nullptr;
@@ -1301,6 +1483,7 @@ bool ValidateCreateSyncBase(const ValidationContext *val,
     switch (type)
     {
         case EGL_SYNC_FENCE_KHR:
+        case EGL_SYNC_GLOBAL_FENCE_ANGLE:
             if (!attribs.isEmpty())
             {
                 val->setError(EGL_BAD_ATTRIBUTE, "Invalid attribute");
@@ -1311,6 +1494,16 @@ bool ValidateCreateSyncBase(const ValidationContext *val,
             {
                 val->setError(EGL_BAD_MATCH, "EGL_KHR_fence_sync extension is not available");
                 return false;
+            }
+
+            if (type == EGL_SYNC_GLOBAL_FENCE_ANGLE)
+            {
+                if (!display->getExtensions().globalFenceSyncANGLE)
+                {
+                    val->setError(EGL_BAD_MATCH,
+                                  "EGL_ANGLE_global_fence_sync extension is not available");
+                    return false;
+                }
             }
 
             if (display != currentDisplay)
@@ -1357,7 +1550,7 @@ bool ValidateCreateSyncBase(const ValidationContext *val,
             if (!currentContext->getExtensions().EGLSyncOES)
             {
                 val->setError(EGL_BAD_MATCH,
-                              "EGL_SYNC_FENCE_KHR cannot be used without "
+                              "EGL_SYNC_NATIVE_FENCE_ANDROID cannot be used without "
                               "GL_OES_EGL_sync support.");
                 return false;
             }
@@ -1486,6 +1679,7 @@ bool ValidateGetSyncAttribBase(const ValidationContext *val,
             {
                 case EGL_SYNC_FENCE_KHR:
                 case EGL_SYNC_NATIVE_FENCE_ANDROID:
+                case EGL_SYNC_GLOBAL_FENCE_ANGLE:
                 case EGL_SYNC_METAL_SHARED_EVENT_ANGLE:
                     break;
 
@@ -1553,15 +1747,7 @@ bool ValidateCreateContextAttribute(const ValidationContext *val,
         case EGL_CONTEXT_FLAGS_KHR:
         case EGL_CONTEXT_OPENGL_DEBUG:
         case EGL_CONTEXT_OPENGL_ROBUST_ACCESS:
-            break;
-
         case EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR:
-            if (val->eglThread->getAPI() != EGL_OPENGL_API)
-            {
-                // Only valid for OpenGL (non-ES) contexts
-                val->setError(EGL_BAD_ATTRIBUTE, "OpenGL profile mask requires an OpenGL context.");
-                return false;
-            }
             break;
 
         case EGL_CONTEXT_OPENGL_ROBUST_ACCESS_EXT:
@@ -1738,16 +1924,6 @@ bool ValidateCreateContextAttribute(const ValidationContext *val,
                 return false;
             }
             break;
-        case EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE:
-            if (!display->getExtensions().externalContextAndSurface)
-            {
-                val->setError(EGL_BAD_ATTRIBUTE,
-                              "Attribute "
-                              "EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE requires "
-                              "EGL_ANGLE_external_context_and_surface.");
-                return false;
-            }
-            break;
 
         case EGL_PROTECTED_CONTENT_EXT:
             if (!display->getExtensions().protectedContentEXT)
@@ -1798,20 +1974,8 @@ bool ValidateCreateContextAttributeValue(const ValidationContext *val,
         case EGL_CONTEXT_MINOR_VERSION:
         case EGL_CONTEXT_OPENGL_DEBUG:
         case EGL_CONTEXT_VIRTUALIZATION_GROUP_ANGLE:
-            break;
-
         case EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR:
-        {
-            constexpr EGLint kValidProfileMaskFlags =
-                (EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT |
-                 EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT);
-            if ((value & ~kValidProfileMaskFlags) != 0)
-            {
-                val->setError(EGL_BAD_ATTRIBUTE, "Invalid OpenGL profile mask.");
-                return false;
-            }
             break;
-        }
 
         case EGL_CONTEXT_FLAGS_KHR:
         {
@@ -2020,15 +2184,6 @@ bool ValidateCreateContextAttributeValue(const ValidationContext *val,
                 return false;
             }
             break;
-        case EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE:
-            if (value != EGL_TRUE && value != EGL_FALSE)
-            {
-                val->setError(EGL_BAD_ATTRIBUTE,
-                              "EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE must "
-                              "be either EGL_TRUE or EGL_FALSE.");
-                return false;
-            }
-            break;
 
         case EGL_PROTECTED_CONTENT_EXT:
             if (value != EGL_TRUE && value != EGL_FALSE)
@@ -2124,6 +2279,16 @@ bool ValidateCreatePbufferSurfaceAttributeValue(const ValidationContext *val,
             break;
 
         case EGL_LARGEST_PBUFFER:
+        case EGL_MIPMAP_TEXTURE:
+            switch (value)
+            {
+                case EGL_TRUE:
+                case EGL_FALSE:
+                    break;
+                default:
+                    val->setError(EGL_BAD_ATTRIBUTE);
+                    return false;
+            }
             break;
 
         case EGL_TEXTURE_FORMAT:
@@ -2149,9 +2314,6 @@ bool ValidateCreatePbufferSurfaceAttributeValue(const ValidationContext *val,
                     val->setError(EGL_BAD_ATTRIBUTE);
                     return false;
             }
-            break;
-
-        case EGL_MIPMAP_TEXTURE:
             break;
 
         case EGL_VG_COLORSPACE:
@@ -2358,6 +2520,188 @@ bool ValidateSync(const ValidationContext *val, const Display *display, SyncID s
     return true;
 }
 
+bool ValidateCreateWindowSurfaceAttributes(const ValidationContext *val,
+                                           const Display *display,
+                                           const Config *config,
+                                           const AttributeMap &attributes)
+{
+    const DisplayExtensions &displayExtensions = display->getExtensions();
+    for (const auto &attributeIter : attributes)
+    {
+        EGLAttrib attribute = attributeIter.first;
+        EGLAttrib value     = attributeIter.second;
+
+        switch (attribute)
+        {
+            case EGL_RENDER_BUFFER:
+                switch (value)
+                {
+                    case EGL_BACK_BUFFER:
+                        break;
+                    case EGL_SINGLE_BUFFER:
+                        break;
+                    default:
+                        val->setError(EGL_BAD_ATTRIBUTE);
+                        return false;
+                }
+                break;
+
+            case EGL_POST_SUB_BUFFER_SUPPORTED_NV:
+                if (!displayExtensions.postSubBuffer)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE);
+                    return false;
+                }
+                break;
+
+            case EGL_WIDTH:
+            case EGL_HEIGHT:
+                if (!displayExtensions.windowFixedSize)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE);
+                    return false;
+                }
+                if (value < 0)
+                {
+                    val->setError(EGL_BAD_PARAMETER);
+                    return false;
+                }
+                break;
+
+            case EGL_FIXED_SIZE_ANGLE:
+                if (!displayExtensions.windowFixedSize)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE);
+                    return false;
+                }
+                break;
+
+            case EGL_SURFACE_ORIENTATION_ANGLE:
+                if (!displayExtensions.surfaceOrientation)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "EGL_ANGLE_surface_orientation is not enabled.");
+                    return false;
+                }
+                break;
+
+            case EGL_VG_COLORSPACE:
+                if (value != EGL_VG_COLORSPACE_sRGB)
+                {
+                    val->setError(EGL_BAD_MATCH);
+                    return false;
+                }
+                break;
+
+            case EGL_GL_COLORSPACE:
+                ANGLE_VALIDATION_TRY(ValidateColorspaceAttribute(val, displayExtensions, value));
+                break;
+
+            case EGL_VG_ALPHA_FORMAT:
+                val->setError(EGL_BAD_MATCH);
+                return false;
+
+            case EGL_DIRECT_COMPOSITION_ANGLE:
+                if (!displayExtensions.directComposition)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE);
+                    return false;
+                }
+                break;
+
+            case EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE:
+                if (!display->getExtensions().robustResourceInitializationANGLE)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "Attribute EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE "
+                                  "requires EGL_ANGLE_robust_resource_initialization.");
+                    return false;
+                }
+                if (value != EGL_TRUE && value != EGL_FALSE)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE must be "
+                                  "either EGL_TRUE or EGL_FALSE.");
+                    return false;
+                }
+                break;
+
+            case EGL_PROTECTED_CONTENT_EXT:
+                if (!displayExtensions.protectedContentEXT)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "Attribute EGL_PROTECTED_CONTEXT_EXT requires "
+                                  "extension EGL_EXT_protected_content.");
+                    return false;
+                }
+                if (value != EGL_TRUE && value != EGL_FALSE)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "EGL_PROTECTED_CONTENT_EXT must "
+                                  "be either EGL_TRUE or EGL_FALSE.");
+                    return false;
+                }
+                break;
+
+            case EGL_SWAP_INTERVAL_ANGLE:
+                if (!displayExtensions.createSurfaceSwapIntervalANGLE)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "Attribute EGL_SWAP_INTERVAL_ANGLE requires "
+                                  "extension EGL_ANGLE_create_surface_swap_interval.");
+                    return false;
+                }
+                if (value < config->minSwapInterval || value > config->maxSwapInterval)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "EGL_SWAP_INTERVAL_ANGLE must "
+                                  "be within the EGLConfig min and max swap intervals.");
+                    return false;
+                }
+                break;
+
+            case EGL_SURFACE_COMPRESSION_EXT:
+                if (!displayExtensions.surfaceCompressionEXT)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "Attribute EGL_SURFACE_COMPRESSION_EXT requires "
+                                  "extension EGL_EXT_surface_compression.");
+                    return false;
+                }
+
+                switch (value)
+                {
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_DEFAULT_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_1BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_2BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_3BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_4BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_5BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_6BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_7BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_8BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_9BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_10BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_11BPC_EXT:
+                    case EGL_SURFACE_COMPRESSION_FIXED_RATE_12BPC_EXT:
+                        break;
+                    default:
+                        val->setError(EGL_BAD_ATTRIBUTE);
+                        return false;
+                }
+
+                break;
+
+            default:
+                val->setError(EGL_BAD_ATTRIBUTE);
+                return false;
+        }
+    }
+
+    return true;
+}
+
 const Thread *GetThreadIfValid(const Thread *thread)
 {
     // Threads should always be valid
@@ -2371,12 +2715,14 @@ const Display *GetDisplayIfValid(const Display *display)
 
 const Surface *GetSurfaceIfValid(const Display *display, SurfaceID surfaceID)
 {
-    return ValidateSurface(nullptr, display, surfaceID) ? display->getSurface(surfaceID) : nullptr;
+    // display->getSurface() - validates surfaceID
+    return ValidateDisplay(nullptr, display) ? display->getSurface(surfaceID) : nullptr;
 }
 
 const Image *GetImageIfValid(const Display *display, ImageID imageID)
 {
-    return ValidateImage(nullptr, display, imageID) ? display->getImage(imageID) : nullptr;
+    // display->getImage() - validates imageID
+    return ValidateDisplay(nullptr, display) ? display->getImage(imageID) : nullptr;
 }
 
 const Stream *GetStreamIfValid(const Display *display, const Stream *stream)
@@ -2386,7 +2732,13 @@ const Stream *GetStreamIfValid(const Display *display, const Stream *stream)
 
 const gl::Context *GetContextIfValid(const Display *display, gl::ContextID contextID)
 {
-    return ValidateContext(nullptr, display, contextID) ? display->getContext(contextID) : nullptr;
+    // display->getContext() - validates contextID
+    return ValidateDisplay(nullptr, display) ? display->getContext(contextID) : nullptr;
+}
+
+gl::Context *GetContextIfValid(Display *display, gl::ContextID contextID)
+{
+    return ValidateDisplay(nullptr, display) ? display->getContext(contextID) : nullptr;
 }
 
 const Device *GetDeviceIfValid(const Device *device)
@@ -2396,7 +2748,8 @@ const Device *GetDeviceIfValid(const Device *device)
 
 const Sync *GetSyncIfValid(const Display *display, SyncID syncID)
 {
-    return ValidateSync(nullptr, display, syncID) ? display->getSync(syncID) : nullptr;
+    // display->getSync() - validates syncID
+    return ValidateDisplay(nullptr, display) ? display->getSync(syncID) : nullptr;
 }
 
 const LabeledObject *GetLabeledObjectIfValid(Thread *thread,
@@ -2506,7 +2859,7 @@ bool ValidateCreateContext(const ValidationContext *val,
                 case 1:
                     if (clientMinorVersion != 0 && clientMinorVersion != 1)
                     {
-                        val->setError(EGL_BAD_ATTRIBUTE);
+                        val->setError(EGL_BAD_MATCH);
                         return false;
                     }
                     if (configuration == EGL_NO_CONFIG_KHR)
@@ -2525,7 +2878,7 @@ bool ValidateCreateContext(const ValidationContext *val,
                 case 2:
                     if (clientMinorVersion != 0)
                     {
-                        val->setError(EGL_BAD_ATTRIBUTE);
+                        val->setError(EGL_BAD_MATCH);
                         return false;
                     }
                     if ((configuration != EGL_NO_CONFIG_KHR) &&
@@ -2538,7 +2891,7 @@ bool ValidateCreateContext(const ValidationContext *val,
                 case 3:
                     if (clientMinorVersion < 0 || clientMinorVersion > 2)
                     {
-                        val->setError(EGL_BAD_ATTRIBUTE);
+                        val->setError(EGL_BAD_MATCH);
                         return false;
                     }
                     if ((configuration != EGL_NO_CONFIG_KHR) &&
@@ -2548,22 +2901,23 @@ bool ValidateCreateContext(const ValidationContext *val,
                         return false;
                     }
                     if (display->getMaxSupportedESVersion() <
-                        gl::Version(static_cast<GLuint>(clientMajorVersion),
-                                    static_cast<GLuint>(clientMinorVersion)))
+                        gl::Version(static_cast<uint8_t>(clientMajorVersion),
+                                    static_cast<uint8_t>(clientMinorVersion)))
                     {
                         gl::Version max = display->getMaxSupportedESVersion();
-                        val->setError(EGL_BAD_ATTRIBUTE,
+                        val->setError(EGL_BAD_MATCH,
                                       "Requested GLES version (%" PRIxPTR ".%" PRIxPTR
                                       ") is greater than "
-                                      "max supported (%d, %d).",
-                                      clientMajorVersion, clientMinorVersion, max.major, max.minor);
+                                      "max supported (%d.%d).",
+                                      clientMajorVersion, clientMinorVersion, max.getMajor(),
+                                      max.getMinor());
                         return false;
                     }
                     if ((attributes.get(EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE, EGL_FALSE) ==
                          EGL_TRUE) &&
                         (clientMinorVersion > 1))
                     {
-                        val->setError(EGL_BAD_ATTRIBUTE,
+                        val->setError(EGL_BAD_MATCH,
                                       "Requested GLES version (%" PRIxPTR ".%" PRIxPTR
                                       ") is greater than "
                                       "max supported 3.1 for WebGL.",
@@ -2572,22 +2926,15 @@ bool ValidateCreateContext(const ValidationContext *val,
                     }
                     break;
                 default:
-                    val->setError(EGL_BAD_ATTRIBUTE);
+                    val->setError(EGL_BAD_MATCH);
                     return false;
             }
             break;
 
         case EGL_OPENGL_API:
-            // The requested configuration must use EGL_OPENGL_BIT if EGL_OPENGL_BIT is the
-            // currently bound API.
-            if ((configuration != EGL_NO_CONFIG_KHR) &&
-                !(configuration->renderableType & EGL_OPENGL_BIT))
-            {
-                val->setError(EGL_BAD_CONFIG);
-                return false;
-            }
-            // TODO(http://anglebug.com/7533): validate desktop OpenGL versions and profile mask
-            break;
+            // Desktop GL is not supported by ANGLE.
+            val->setError(EGL_BAD_CONFIG);
+            return false;
 
         default:
             val->setError(EGL_BAD_MATCH, "Unsupported API.");
@@ -2611,159 +2958,9 @@ bool ValidateCreateWindowSurface(const ValidationContext *val,
         return false;
     }
 
-    const DisplayExtensions &displayExtensions = display->getExtensions();
-
     attributes.initializeWithoutValidation();
 
-    for (const auto &attributeIter : attributes)
-    {
-        EGLAttrib attribute = attributeIter.first;
-        EGLAttrib value     = attributeIter.second;
-
-        switch (attribute)
-        {
-            case EGL_RENDER_BUFFER:
-                switch (value)
-                {
-                    case EGL_BACK_BUFFER:
-                        break;
-                    case EGL_SINGLE_BUFFER:
-                        break;
-                    default:
-                        val->setError(EGL_BAD_ATTRIBUTE);
-                        return false;
-                }
-                break;
-
-            case EGL_POST_SUB_BUFFER_SUPPORTED_NV:
-                if (!displayExtensions.postSubBuffer)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE);
-                    return false;
-                }
-                break;
-
-            case EGL_WIDTH:
-            case EGL_HEIGHT:
-                if (!displayExtensions.windowFixedSize)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE);
-                    return false;
-                }
-                if (value < 0)
-                {
-                    val->setError(EGL_BAD_PARAMETER);
-                    return false;
-                }
-                break;
-
-            case EGL_FIXED_SIZE_ANGLE:
-                if (!displayExtensions.windowFixedSize)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE);
-                    return false;
-                }
-                break;
-
-            case EGL_SURFACE_ORIENTATION_ANGLE:
-                if (!displayExtensions.surfaceOrientation)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "EGL_ANGLE_surface_orientation is not enabled.");
-                    return false;
-                }
-                break;
-
-            case EGL_VG_COLORSPACE:
-                if (value != EGL_VG_COLORSPACE_sRGB)
-                {
-                    val->setError(EGL_BAD_MATCH);
-                    return false;
-                }
-                break;
-
-            case EGL_GL_COLORSPACE:
-                ANGLE_VALIDATION_TRY(ValidateColorspaceAttribute(val, displayExtensions, value));
-                break;
-
-            case EGL_VG_ALPHA_FORMAT:
-                val->setError(EGL_BAD_MATCH);
-                return false;
-
-            case EGL_DIRECT_COMPOSITION_ANGLE:
-                if (!displayExtensions.directComposition)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE);
-                    return false;
-                }
-                break;
-
-            case EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE:
-                if (!display->getExtensions().robustResourceInitializationANGLE)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "Attribute EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE "
-                                  "requires EGL_ANGLE_robust_resource_initialization.");
-                    return false;
-                }
-                if (value != EGL_TRUE && value != EGL_FALSE)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE must be "
-                                  "either EGL_TRUE or EGL_FALSE.");
-                    return false;
-                }
-                break;
-
-            case EGL_GGP_STREAM_DESCRIPTOR_ANGLE:
-                if (!display->getExtensions().ggpStreamDescriptor)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "EGL_GGP_STREAM_DESCRIPTOR_ANGLE requires "
-                                  "EGL_ANGLE_ggp_stream_descriptor.");
-                    return false;
-                }
-                break;
-
-            case EGL_PROTECTED_CONTENT_EXT:
-                if (!displayExtensions.protectedContentEXT)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "Attribute EGL_PROTECTED_CONTEXT_EXT requires "
-                                  "extension EGL_EXT_protected_content.");
-                    return false;
-                }
-                if (value != EGL_TRUE && value != EGL_FALSE)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "EGL_PROTECTED_CONTENT_EXT must "
-                                  "be either EGL_TRUE or EGL_FALSE.");
-                    return false;
-                }
-                break;
-
-            case EGL_SWAP_INTERVAL_ANGLE:
-                if (!displayExtensions.createSurfaceSwapIntervalANGLE)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "Attribute EGL_SWAP_INTERVAL_ANGLE requires "
-                                  "extension EGL_ANGLE_create_surface_swap_interval.");
-                    return false;
-                }
-                if (value < config->minSwapInterval || value > config->maxSwapInterval)
-                {
-                    val->setError(EGL_BAD_ATTRIBUTE,
-                                  "EGL_SWAP_INTERVAL_ANGLE must "
-                                  "be within the EGLConfig min and max swap intervals.");
-                    return false;
-                }
-                break;
-
-            default:
-                val->setError(EGL_BAD_ATTRIBUTE);
-                return false;
-        }
-    }
+    ANGLE_VALIDATION_TRY(ValidateCreateWindowSurfaceAttributes(val, display, config, attributes));
 
     if (Display::hasExistingWindowSurface(window))
     {
@@ -2818,6 +3015,16 @@ bool ValidateCreatePbufferSurface(const ValidationContext *val,
 
     EGLint width  = static_cast<EGLint>(attributes.get(EGL_WIDTH, 0));
     EGLint height = static_cast<EGLint>(attributes.get(EGL_HEIGHT, 0));
+
+    EGLBoolean isLargestPbuffer =
+        static_cast<EGLBoolean>(attributes.get(EGL_LARGEST_PBUFFER, EGL_FALSE));
+
+    if (!isLargestPbuffer && (width > config->maxPBufferWidth || height > config->maxPBufferHeight))
+    {
+        val->setError(EGL_BAD_ATTRIBUTE);
+        return false;
+    }
+
     if (textureFormat != EGL_NO_TEXTURE && !caps.textureNPOT &&
         (!gl::isPow2(width) || !gl::isPow2(height)))
     {
@@ -2858,6 +3065,19 @@ bool ValidateCreatePbufferFromClientBuffer(const ValidationContext *val,
 
         case EGL_D3D_TEXTURE_ANGLE:
             if (!displayExtensions.d3dTextureClientBuffer)
+            {
+                val->setError(EGL_BAD_PARAMETER);
+                return false;
+            }
+            if (buffer == nullptr)
+            {
+                val->setError(EGL_BAD_PARAMETER);
+                return false;
+            }
+            break;
+
+        case EGL_WEBGPU_TEXTURE_ANGLE:
+            if (!displayExtensions.webgpuTextureClientBuffer)
             {
                 val->setError(EGL_BAD_PARAMETER);
                 return false;
@@ -2983,7 +3203,8 @@ bool ValidateCreatePbufferFromClientBuffer(const ValidationContext *val,
                 break;
 
             case EGL_TEXTURE_INTERNAL_FORMAT_ANGLE:
-                if (buftype != EGL_IOSURFACE_ANGLE && buftype != EGL_D3D_TEXTURE_ANGLE)
+                if (buftype != EGL_IOSURFACE_ANGLE && buftype != EGL_D3D_TEXTURE_ANGLE &&
+                    buftype != EGL_WEBGPU_TEXTURE_ANGLE)
                 {
                     val->setError(EGL_BAD_ATTRIBUTE,
                                   "<buftype> doesn't support texture internal format");
@@ -3032,6 +3253,16 @@ bool ValidateCreatePbufferFromClientBuffer(const ValidationContext *val,
                     val->setError(EGL_BAD_ATTRIBUTE,
                                   "EGL_PROTECTED_CONTENT_EXT must "
                                   "be either EGL_TRUE or EGL_FALSE.");
+                    return false;
+                }
+                break;
+
+            case EGL_D3D11_TEXTURE_PLANE_ANGLE:
+                if (!displayExtensions.imageD3D11Texture)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "EGL_D3D11_TEXTURE_PLANE_ANGLE cannot be used without "
+                                  "EGL_ANGLE_image_d3d11_texture support.");
                     return false;
                 }
                 break;
@@ -3303,37 +3534,38 @@ bool ValidateMakeCurrent(const ValidationContext *val,
         ANGLE_VALIDATION_TRY(ValidateContext(val, display, contextID));
     }
 
-    if (display->isInitialized() && display->isDeviceLost())
+    // Allow "un-make" the lost context:
+    // If the context is lost, but EGLContext passed to eglMakeCurrent is EGL_NO_CONTEXT, we should
+    // not return EGL_CONTEXT_LOST error code.
+    if (display->isInitialized() && display->isDeviceLost() && !noContext)
     {
         val->setError(EGL_CONTEXT_LOST);
         return false;
-    }
-
-    if (!noDraw)
-    {
-        ANGLE_VALIDATION_TRY(ValidateSurface(val, display, drawSurfaceID));
     }
 
     const Surface *drawSurface = GetSurfaceIfValid(display, drawSurfaceID);
     const Surface *readSurface = GetSurfaceIfValid(display, readSurfaceID);
     const gl::Context *context = GetContextIfValid(display, contextID);
 
+    const gl::Context *previousContext = val->eglThread->getContext();
+    if (!noContext && context->isReferenced() && context != previousContext)
+    {
+        val->setError(EGL_BAD_ACCESS, "Context can only be current on one thread");
+        return false;
+    }
+
     if (!noRead)
     {
         ANGLE_VALIDATION_TRY(ValidateSurface(val, display, readSurfaceID));
         ANGLE_VALIDATION_TRY(ValidateCompatibleSurface(val, display, context, readSurface));
+        ANGLE_VALIDATION_TRY(ValidateSurfaceBadAccess(val, previousContext, readSurface));
     }
 
-    if (drawSurface != readSurface)
+    if (drawSurface != readSurface && !noDraw)
     {
-        if (drawSurface)
-        {
-            ANGLE_VALIDATION_TRY(ValidateCompatibleSurface(val, display, context, drawSurface));
-        }
-        if (readSurface)
-        {
-            ANGLE_VALIDATION_TRY(ValidateCompatibleSurface(val, display, context, readSurface));
-        }
+        ANGLE_VALIDATION_TRY(ValidateSurface(val, display, drawSurfaceID));
+        ANGLE_VALIDATION_TRY(ValidateCompatibleSurface(val, display, context, drawSurface));
+        ANGLE_VALIDATION_TRY(ValidateSurfaceBadAccess(val, previousContext, drawSurface));
     }
     return true;
 }
@@ -3426,12 +3658,15 @@ bool ValidateCreateImage(const ValidationContext *val,
                 break;
 
             case EGL_TEXTURE_INTERNAL_FORMAT_ANGLE:
-                if (!displayExtensions.imageD3D11Texture && !displayExtensions.vulkanImageANGLE)
+                if (!displayExtensions.imageD3D11Texture && !displayExtensions.vulkanImageANGLE &&
+                    !displayExtensions.mtlTextureClientBuffer &&
+                    !displayExtensions.webgpuTextureClientBuffer)
                 {
-                    val->setError(
-                        EGL_BAD_PARAMETER,
-                        "EGL_TEXTURE_INTERNAL_FORMAT_ANGLE cannot be used without "
-                        "EGL_ANGLE_image_d3d11_texture or EGL_ANGLE_vulkan_image support.");
+                    val->setError(EGL_BAD_PARAMETER,
+                                  "EGL_TEXTURE_INTERNAL_FORMAT_ANGLE cannot be used without "
+                                  "EGL_ANGLE_image_d3d11_texture, EGL_ANGLE_vulkan_image, "
+                                  "EGL_ANGLE_metal_texture_client_buffer, or "
+                                  "EGL_ANGLE_webgpu_texture_client_buffer support.");
                     return false;
                 }
                 break;
@@ -3452,6 +3687,15 @@ bool ValidateCreateImage(const ValidationContext *val,
                     val->setError(EGL_BAD_ATTRIBUTE,
                                   "EGL_D3D11_TEXTURE_ARRAY_SLICE_ANGLE cannot be used without "
                                   "EGL_ANGLE_image_d3d11_texture support.");
+                    return false;
+                }
+                break;
+            case EGL_METAL_TEXTURE_ARRAY_SLICE_ANGLE:
+                if (!displayExtensions.mtlTextureClientBuffer)
+                {
+                    val->setError(EGL_BAD_ATTRIBUTE,
+                                  "EGL_METAL_TEXTURE_ARRAY_SLICE_ANGLE cannot be used without "
+                                  "EGL_ANGLE_metal_texture_client_buffer support.");
                     return false;
                 }
                 break;
@@ -3503,7 +3747,7 @@ bool ValidateCreateImage(const ValidationContext *val,
                         break;
 
                     default:
-                        val->setError(EGL_BAD_PARAMETER,
+                        val->setError(EGL_BAD_ATTRIBUTE,
                                       "Invalid value for EGL_YUV_COLOR_SPACE_HINT_EXT.");
                         return false;
                 }
@@ -3525,7 +3769,7 @@ bool ValidateCreateImage(const ValidationContext *val,
                         break;
 
                     default:
-                        val->setError(EGL_BAD_PARAMETER,
+                        val->setError(EGL_BAD_ATTRIBUTE,
                                       "Invalid value for EGL_SAMPLE_RANGE_HINT_EXT.");
                         return false;
                 }
@@ -3549,7 +3793,7 @@ bool ValidateCreateImage(const ValidationContext *val,
 
                     default:
                         val->setError(
-                            EGL_BAD_PARAMETER,
+                            EGL_BAD_ATTRIBUTE,
                             "Invalid value for EGL_YUV_CHROMA_HORIZONTAL_SITING_HINT_EXT or "
                             "EGL_YUV_CHROMA_VERTICAL_SITING_HINT_EXT.");
                         return false;
@@ -3661,6 +3905,21 @@ bool ValidateCreateImage(const ValidationContext *val,
                 return false;
             }
 
+            if (texture->isEGLImageSource(gl::ImageIndex::MakeFromTarget(
+                    gl::TextureTarget::_2D, static_cast<GLint>(level), 1)))
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The texture has been bound to an existing EGL image.");
+                return false;
+            }
+
+            if (texture->isEGLImageTarget())
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The texture has been a target of an existing EGL image.");
+                return false;
+            }
+
             ANGLE_VALIDATION_TRY(ValidateCreateImageMipLevelCommon(val, context, texture, level));
         }
         break;
@@ -3732,6 +3991,23 @@ bool ValidateCreateImage(const ValidationContext *val,
                               "of target.");
                 return false;
             }
+
+            gl::TextureTarget glTexTarget =
+                gl::CubeFaceIndexToTextureTarget(CubeMapTextureTargetToLayerIndex(target));
+            if (texture->isEGLImageSource(
+                    gl::ImageIndex::MakeCubeMapFace(glTexTarget, static_cast<GLint>(level))))
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The texture has been bound to an existing EGL image.");
+                return false;
+            }
+
+            if (texture->isEGLImageTarget())
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The texture has been a target of an existing EGL image.");
+                return false;
+            }
         }
         break;
 
@@ -3795,6 +4071,20 @@ bool ValidateCreateImage(const ValidationContext *val,
                               "of target.");
                 return false;
             }
+            if (texture->isEGLImageSource(
+                    gl::ImageIndex::Make3D(static_cast<GLint>(level), static_cast<GLint>(zOffset))))
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The texture has been bound to an existing EGL image.");
+                return false;
+            }
+
+            if (texture->isEGLImageTarget())
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The texture has been a target of an existing EGL image.");
+                return false;
+            }
 
             ANGLE_VALIDATION_TRY(ValidateCreateImageMipLevelCommon(val, context, texture, level));
         }
@@ -3847,6 +4137,20 @@ bool ValidateCreateImage(const ValidationContext *val,
                               "of target.");
                 return false;
             }
+
+            if (renderbuffer->isEGLImageSource())
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The renderbuffer has been bound to an existing EGL image.");
+                return false;
+            }
+
+            if (renderbuffer->isEGLImageTarget())
+            {
+                val->setError(EGL_BAD_ACCESS,
+                              "The renderbuffer has been a target of an existing EGL image.");
+                return false;
+            }
         }
         break;
 
@@ -3875,6 +4179,26 @@ bool ValidateCreateImage(const ValidationContext *val,
             if (!displayExtensions.imageD3D11Texture)
             {
                 val->setError(EGL_BAD_PARAMETER, "EGL_ANGLE_image_d3d11_texture not supported.");
+                return false;
+            }
+
+            if (context != nullptr)
+            {
+                val->setError(EGL_BAD_CONTEXT, "ctx must be EGL_NO_CONTEXT.");
+                return false;
+            }
+
+            ANGLE_EGL_TRY_RETURN(
+                val->eglThread,
+                display->validateImageClientBuffer(context, target, buffer, attributes),
+                val->entryPoint, val->labeledObject, false);
+            break;
+
+        case EGL_WEBGPU_TEXTURE_ANGLE:
+            if (!displayExtensions.webgpuTextureClientBuffer)
+            {
+                val->setError(EGL_BAD_PARAMETER,
+                              "EGL_ANGLE_webgpu_texture_client_buffer not supported.");
                 return false;
             }
 
@@ -5098,7 +5422,6 @@ bool ValidateBindAPI(const ValidationContext *val, const EGLenum api)
     switch (api)
     {
         case EGL_OPENGL_ES_API:
-        case EGL_OPENGL_API:
             break;
         case EGL_OPENVG_API:
             val->setError(EGL_BAD_PARAMETER);
@@ -5229,9 +5552,10 @@ bool ValidateCreatePlatformWindowSurfaceEXT(const ValidationContext *val,
         return false;
     }
 
-    const void *actualNativeWindow = display->getImplementation()->isX11()
-                                         ? *reinterpret_cast<const void *const *>(nativeWindow)
-                                         : nativeWindow;
+    const void *actualNativeWindow =
+        display->getImplementation()->getWindowSystem() == angle::NativeWindowSystem::X11
+            ? *reinterpret_cast<const void *const *>(nativeWindow)
+            : nativeWindow;
 
     return ValidateCreatePlatformWindowSurface(val, display, configuration, actualNativeWindow,
                                                attributes);
@@ -5276,6 +5600,48 @@ bool ValidateProgramCacheGetAttribANGLE(const ValidationContext *val,
         default:
             val->setError(EGL_BAD_PARAMETER, "Invalid program cache attribute.");
             return false;
+    }
+
+    return true;
+}
+
+bool ValidateQuerySupportedCompressionRatesEXT(const ValidationContext *val,
+                                               const Display *display,
+                                               const Config *config,
+                                               const EGLAttrib *attrib_list,
+                                               const EGLint *rates,
+                                               EGLint rate_size,
+                                               const EGLint *num_rates)
+{
+    const AttributeMap &attributes = PackParam<const AttributeMap &>((const EGLint *)attrib_list);
+
+    ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
+    if (!display->getExtensions().surfaceCompressionEXT)
+    {
+        val->setError(EGL_BAD_ACCESS, "EGL_EXT_surface_compression not supported");
+        return false;
+    }
+
+    ANGLE_VALIDATION_TRY(ValidateConfig(val, display, config));
+    attributes.initializeWithoutValidation();
+    ANGLE_VALIDATION_TRY(ValidateCreateWindowSurfaceAttributes(val, display, config, attributes));
+
+    if (rate_size < 0)
+    {
+        val->setError(EGL_BAD_PARAMETER, "rate_size cannot be negative.");
+        return false;
+    }
+
+    if (rate_size > 0 && rates == nullptr)
+    {
+        val->setError(EGL_BAD_PARAMETER, "rates cannot be null when rate_size greater than 0.");
+        return false;
+    }
+
+    if (num_rates == nullptr)
+    {
+        val->setError(EGL_BAD_PARAMETER, "num_rates cannot be null");
+        return false;
     }
 
     return true;
@@ -5497,7 +5863,23 @@ bool ValidateSurfaceAttrib(const ValidationContext *val,
             break;
 
         case EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID:
-            ASSERT(value == EGL_TRUE || value == EGL_FALSE);
+            if (!display->getExtensions().frontBufferAutoRefreshANDROID)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE,
+                              "EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID cannot be used without "
+                              "EGL_ANDROID_front_buffer_auto_refresh support.");
+                return false;
+            }
+            switch (value)
+            {
+                case EGL_TRUE:
+                case EGL_FALSE:
+                    break;
+
+                default:
+                    val->setError(EGL_BAD_ATTRIBUTE, "Invalid value.");
+                    return false;
+            }
             break;
 
         case EGL_RENDER_BUFFER:
@@ -5681,8 +6063,16 @@ bool ValidateQuerySurface(const ValidationContext *val,
             }
             break;
 
+        case EGL_SURFACE_COMPRESSION_EXT:
+            if (!display->getExtensions().surfaceCompressionEXT)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE, "EGL_EXT_surface_compression not supported");
+                return false;
+            }
+            break;
+
         default:
-            val->setError(EGL_BAD_ATTRIBUTE, "Invalid surface attribute: 0x%04X", attribute);
+            val->setError(EGL_BAD_ATTRIBUTE, "Invalid query surface attribute: 0x%04X", attribute);
             return false;
     }
 
@@ -5701,7 +6091,8 @@ bool ValidateQueryContext(const ValidationContext *val,
     {
         case EGL_CONFIG_ID:
         case EGL_CONTEXT_CLIENT_TYPE:
-        case EGL_CONTEXT_CLIENT_VERSION:
+        case EGL_CONTEXT_MAJOR_VERSION:
+        case EGL_CONTEXT_MINOR_VERSION:
         case EGL_RENDER_BUFFER:
             break;
 
@@ -5730,6 +6121,16 @@ bool ValidateQueryContext(const ValidationContext *val,
             if (!display->getExtensions().protectedContentEXT)
             {
                 val->setError(EGL_BAD_ATTRIBUTE, "EGL_EXT_protected_content not supported");
+                return false;
+            }
+            break;
+
+        case EGL_CONTEXT_MEMORY_USAGE_ANGLE:
+            if (!display->getExtensions().memoryUsageReportANGLE)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE,
+                              "Attribute EGL_CONTEXT_MEMORY_USAGE_ANGLE requires "
+                              "EGL_ANGLE_memory_usage_report.");
                 return false;
             }
             break;
@@ -6040,10 +6441,7 @@ bool ValidateQueryStringiANGLE(const ValidationContext *val,
     {
         case EGL_FEATURE_NAME_ANGLE:
         case EGL_FEATURE_CATEGORY_ANGLE:
-        case EGL_FEATURE_DESCRIPTION_ANGLE:
-        case EGL_FEATURE_BUG_ANGLE:
         case EGL_FEATURE_STATUS_ANGLE:
-        case EGL_FEATURE_CONDITION_ANGLE:
             break;
         default:
             val->setError(EGL_BAD_PARAMETER, "name is not valid.");
@@ -6198,24 +6596,6 @@ bool ValidateDupNativeFenceFDANDROID(const ValidationContext *val,
     return true;
 }
 
-bool ValidateSwapBuffersWithFrameTokenANGLE(const ValidationContext *val,
-                                            const Display *display,
-                                            SurfaceID surfaceID,
-                                            EGLFrameTokenANGLE frametoken)
-{
-    ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
-
-    if (!display->getExtensions().swapWithFrameToken)
-    {
-        val->setError(EGL_BAD_DISPLAY, "EGL_ANGLE_swap_buffers_with_frame_token is not available.");
-        return false;
-    }
-
-    ANGLE_VALIDATION_TRY(ValidateSurface(val, display, surfaceID));
-
-    return true;
-}
-
 bool ValidatePrepareSwapBuffersANGLE(const ValidationContext *val,
                                      const Display *display,
                                      SurfaceID surfaceID)
@@ -6346,15 +6726,14 @@ bool ValidateQueryDeviceAttribEXT(const ValidationContext *val,
     switch (attribute)
     {
         case EGL_D3D11_DEVICE_ANGLE:
-        case EGL_D3D9_DEVICE_ANGLE:
-            if (!device->getExtensions().deviceD3D || device->getType() != attribute)
+            if (!device->getExtensions().deviceD3D11)
             {
                 val->setError(EGL_BAD_ATTRIBUTE);
                 return false;
             }
             break;
-        case EGL_EAGL_CONTEXT_ANGLE:
-            if (!device->getExtensions().deviceEAGL)
+        case EGL_D3D9_DEVICE_ANGLE:
+            if (!device->getExtensions().deviceD3D9)
             {
                 val->setError(EGL_BAD_ATTRIBUTE);
                 return false;
@@ -6362,6 +6741,14 @@ bool ValidateQueryDeviceAttribEXT(const ValidationContext *val,
             break;
         case EGL_METAL_DEVICE_ANGLE:
             if (!device->getExtensions().deviceMetal)
+            {
+                val->setError(EGL_BAD_ATTRIBUTE);
+                return false;
+            }
+            break;
+        case EGL_WEBGPU_DEVICE_ANGLE:
+        case EGL_WEBGPU_ADAPTER_ANGLE:
+            if (!device->getExtensions().deviceWebGPU)
             {
                 val->setError(EGL_BAD_ATTRIBUTE);
                 return false;
@@ -6630,7 +7017,7 @@ bool ValidateLockSurfaceKHR(const ValidationContext *val,
                 }
                 break;
             default:
-                val->setError(EGL_BAD_ATTRIBUTE, "Invalid query surface64 attribute");
+                val->setError(EGL_BAD_ATTRIBUTE, "Invalid lock surface attribute");
                 return false;
         }
     }
@@ -6666,8 +7053,12 @@ bool ValidateQuerySurface64KHR(const ValidationContext *val,
         case EGL_BITMAP_POINTER_KHR:
             break;
         default:
-            val->setError(EGL_BAD_ATTRIBUTE, "Invalid eglQuerySurface64 attribute");
-            return false;
+        {
+            EGLint querySurfaceValue;
+            ANGLE_VALIDATION_TRY(
+                ValidateQuerySurface(val, dpy, surfaceID, attribute, &querySurfaceValue));
+        }
+        break;
     }
 
     if (value == nullptr)
@@ -6676,8 +7067,14 @@ bool ValidateQuerySurface64KHR(const ValidationContext *val,
         return false;
     }
 
+    // EGL_KHR_lock_surface3
+    //  If <attribute> is either EGL_BITMAP_POINTER_KHR or EGL_BITMAP_PITCH_KHR, and either
+    //  <surface> is not locked using eglLockSurfaceKHR ... then an EGL_BAD_ACCESS error is
+    //  generated.
+    const bool surfaceShouldBeLocked =
+        (attribute == EGL_BITMAP_POINTER_KHR) || (attribute == EGL_BITMAP_PITCH_KHR);
     const Surface *surface = dpy->getSurface(surfaceID);
-    if (!surface->isLocked())
+    if (surfaceShouldBeLocked && !surface->isLocked())
     {
         val->setError(EGL_BAD_ACCESS, "Surface is not locked");
         return false;
@@ -6747,6 +7144,12 @@ bool ValidateSetDamageRegionKHR(const ValidationContext *val,
     ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
     ANGLE_VALIDATION_TRY(ValidateSurface(val, display, surfaceID));
 
+    if (!display->getExtensions().partialUpdateKHR)
+    {
+        val->setError(EGL_BAD_DISPLAY, "EGL_KHR_partial_update is not available");
+        return false;
+    }
+
     const Surface *surface = display->getSurface(surfaceID);
     if (!(surface->getType() & EGL_WINDOW_BIT))
     {
@@ -6780,6 +7183,13 @@ bool ValidateSetDamageRegionKHR(const ValidationContext *val,
         val->setError(EGL_BAD_ACCESS,
                       "EGL_BUFFER_AGE_KHR attribute of surface has not been queried since the most "
                       "recent frame boundary");
+        return false;
+    }
+
+    /* Not in the spec, but a negative number of rects doesn't make sense. */
+    if (n_rects < 0)
+    {
+        val->setError(EGL_BAD_PARAMETER, "Invalid value for n_rects");
         return false;
     }
 
@@ -6850,6 +7260,89 @@ bool ValidateQueryDmaBufModifiersEXT(ValidationContext const *val,
                       "format should be one of the formats advertised by QueryDmaBufFormatsEXT");
         return false;
     }
+    return true;
+}
+
+bool ValidateLockVulkanQueueANGLE(const ValidationContext *val, const egl::Display *display)
+{
+    ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
+
+    if (!display->getDevice()->getExtensions().deviceVulkan)
+    {
+        val->setError(EGL_BAD_ACCESS, "EGL_ANGLE_device_vulkan not supported");
+        return false;
+    }
+
+    return true;
+}
+
+bool ValidateUnlockVulkanQueueANGLE(const ValidationContext *val, const egl::Display *display)
+{
+    ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
+
+    if (!display->getDevice()->getExtensions().deviceVulkan)
+    {
+        val->setError(EGL_BAD_ACCESS, "EGL_ANGLE_device_vulkan not supported");
+        return false;
+    }
+
+    return true;
+}
+
+bool ValidateAcquireExternalContextANGLE(const ValidationContext *val,
+                                         const egl::Display *display,
+                                         SurfaceID drawAndReadPacked)
+{
+    ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
+    ANGLE_VALIDATION_TRY(ValidateSurface(val, display, drawAndReadPacked));
+
+    const DisplayExtensions &displayExtensions = display->getExtensions();
+    if (!displayExtensions.externalContextAndSurface)
+    {
+        val->setError(EGL_BAD_ACCESS, "EGL_ANGLE_external_context_and_surface is not available");
+        return false;
+    }
+
+    gl::Context *currentContext = val->eglThread->getContext();
+    if (currentContext == nullptr || !currentContext->isExternal())
+    {
+        val->setError(EGL_BAD_CONTEXT, "Current context is not an external context");
+        return false;
+    }
+
+    return true;
+}
+
+bool ValidateReleaseExternalContextANGLE(const ValidationContext *val, const egl::Display *display)
+{
+    ANGLE_VALIDATION_TRY(ValidateDisplay(val, display));
+
+    const DisplayExtensions &displayExtensions = display->getExtensions();
+    if (!displayExtensions.externalContextAndSurface)
+    {
+        val->setError(EGL_BAD_ACCESS, "EGL_ANGLE_external_context_and_surface is not available");
+        return false;
+    }
+
+    gl::Context *currentContext = val->eglThread->getContext();
+    if (currentContext == nullptr || !currentContext->isExternal())
+    {
+        val->setError(EGL_BAD_CONTEXT, "Current context is not an external context");
+        return false;
+    }
+
+    return true;
+}
+
+bool ValidateSetValidationEnabledANGLE(const ValidationContext *val, EGLBoolean validationState)
+{
+    const ClientExtensions &clientExtensions = Display::GetClientExtensions();
+    if (!clientExtensions.noErrorANGLE)
+    {
+        val->setError(EGL_BAD_ACCESS, "EGL_ANGLE_no_error is not available.");
+        return false;
+    }
+
     return true;
 }
 

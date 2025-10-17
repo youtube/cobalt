@@ -28,15 +28,20 @@ void SimpleMainThreadScheduler::PostDelayedIdleTask(const base::Location&,
                                                     base::TimeDelta delay,
                                                     Thread::IdleTask) {}
 
-void SimpleMainThreadScheduler::PostNonNestableIdleTask(
-    const base::Location& location,
-    Thread::IdleTask task) {}
+void SimpleMainThreadScheduler::RemoveCancelledIdleTasks() {}
 
 void SimpleMainThreadScheduler::AddRAILModeObserver(
     RAILModeObserver* observer) {}
 
 void SimpleMainThreadScheduler::RemoveRAILModeObserver(
     RAILModeObserver const* observer) {}
+
+void SimpleMainThreadScheduler::ForEachMainThreadIsolate(
+    base::RepeatingCallback<void(v8::Isolate* isolate)> callback) {
+  if (isolate_) {
+    callback.Run(isolate_.get());
+  }
+}
 
 scoped_refptr<base::SingleThreadTaskRunner>
 SimpleMainThreadScheduler::V8TaskRunner() {
@@ -90,6 +95,12 @@ v8::Isolate* SimpleMainThreadScheduler::Isolate() {
   return isolate_;
 }
 
+void SimpleMainThreadScheduler::ExecuteAfterCurrentTaskForTesting(
+    base::OnceClosure on_completion_task,
+    ExecuteAfterCurrentTaskRestricted) {}
+
 void SimpleMainThreadScheduler::StartIdlePeriodForTesting() {}
+
+void SimpleMainThreadScheduler::SetRendererBackgroundedForTesting(bool) {}
 
 }  // namespace blink::scheduler

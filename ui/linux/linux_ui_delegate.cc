@@ -33,7 +33,6 @@ bool LinuxUiDelegate::ExportWindowHandle(
   // This function should not be called when using a platform that doesn't
   // implement it.
   NOTREACHED();
-  return false;
 }
 
 void LinuxUiDelegate::SetTransientWindowForParent(

@@ -26,7 +26,6 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::ContextResult, gpu::ContextResult> {
         return gpu::mojom::ContextResult::SurfaceFailure;
     }
     NOTREACHED();
-    return gpu::mojom::ContextResult::FatalFailure;
   }
 
   static bool FromMojom(gpu::mojom::ContextResult input,

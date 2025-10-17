@@ -10,12 +10,14 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor.h"
+#include "chrome/browser/signin/dice_web_signin_interceptor_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/pref_names.h"
@@ -27,32 +29,48 @@
 #include "components/password_manager/core/browser/sync_username_test_base.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+
+using signin::constants::kNoHostedDomainFound;
 
 namespace {
 
 // Dummy DiceWebSigninInterceptor::Delegate that does nothing.
 class TestDiceWebSigninInterceptorDelegate
-    : public DiceWebSigninInterceptor::Delegate {
+    : public WebSigninInterceptor::Delegate {
  public:
   bool IsSigninInterceptionSupported(
       const content::WebContents& web_contents) override {
     return true;
   }
 
-  std::unique_ptr<ScopedDiceWebSigninInterceptionBubbleHandle>
+  std::unique_ptr<ScopedWebSigninInterceptionBubbleHandle>
   ShowSigninInterceptionBubble(
       content::WebContents* web_contents,
       const BubbleParameters& bubble_parameters,
       base::OnceCallback<void(SigninInterceptionResult)> callback) override {
     return nullptr;
   }
+  std::unique_ptr<ScopedWebSigninInterceptionBubbleHandle>
+  ShowOidcInterceptionDialog(
+      content::WebContents* web_contents,
+      const BubbleParameters& bubble_parameters,
+      signin::SigninChoiceWithConfirmAndRetryCallback callback,
+      base::OnceClosure dialog_closed_closure,
+      base::RepeatingClosure retry_callback) override {
+    std::move(callback)
+        .Then(std::move(dialog_closed_closure))
+        .Run(signin::SIGNIN_CHOICE_CANCEL, base::DoNothing(),
+             base::DoNothing());
+    return nullptr;
+  }
   void ShowFirstRunExperienceInNewProfile(
       Browser* browser,
       const CoreAccountId& account_id,
-      DiceWebSigninInterceptor::SigninInterceptionType interception_type)
-      override {}
+      WebSigninInterceptor::SigninInterceptionType interception_type) override {
+  }
 };
 
 class TestPasswordManagerClient
@@ -63,12 +81,21 @@ class TestPasswordManagerClient
     return identity_manager_;
   }
 
+  const syncer::SyncService* GetSyncService() const override {
+    return sync_service_;
+  }
+
   void set_identity_manager(signin::IdentityManager* manager) {
     identity_manager_ = manager;
   }
 
+  void set_sync_service(const syncer::SyncService* sync_service) {
+    sync_service_ = sync_service;
+  }
+
  private:
   raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
+  raw_ptr<const syncer::SyncService> sync_service_ = nullptr;
 };
 
 }  // namespace
@@ -76,14 +103,7 @@ class TestPasswordManagerClient
 class MultiProfileCredentialsFilterTest : public BrowserWithTestWindowTest {
  public:
   MultiProfileCredentialsFilterTest()
-      : sync_filter_(&test_password_manager_client_, GetSyncServiceCallback()) {
-  }
-
-  password_manager::SyncCredentialsFilter::SyncServiceFactoryFunction
-  GetSyncServiceCallback() {
-    return base::BindRepeating(&MultiProfileCredentialsFilterTest::sync_service,
-                               base::Unretained(this));
-  }
+      : sync_filter_(&test_password_manager_client_) {}
 
   signin::IdentityTestEnvironment* identity_test_env() {
     return identity_test_env_profile_adaptor_->identity_test_env();
@@ -94,7 +114,7 @@ class MultiProfileCredentialsFilterTest : public BrowserWithTestWindowTest {
   }
 
   DiceWebSigninInterceptor* dice_web_signin_interceptor() {
-    return dice_web_signin_interceptor_.get();
+    return DiceWebSigninInterceptorFactory::GetForProfile(profile());
   }
 
   // Creates a profile, a tab and an account so that signing in this account
@@ -126,11 +146,10 @@ class MultiProfileCredentialsFilterTest : public BrowserWithTestWindowTest {
     identity_test_env_profile_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile());
     identity_test_env()->SetTestURLLoaderFactory(&test_url_loader_factory_);
-    dice_web_signin_interceptor_ = std::make_unique<DiceWebSigninInterceptor>(
-        profile(), std::make_unique<TestDiceWebSigninInterceptorDelegate>());
 
     test_password_manager_client_.set_identity_manager(
         identity_test_env()->identity_manager());
+    test_password_manager_client_.set_sync_service(&sync_service_);
 
     // If features::kEnablePasswordsAccountStorage is enabled, then the browser
     // never asks to save the primary account's password. So fake-signin an
@@ -142,9 +161,17 @@ class MultiProfileCredentialsFilterTest : public BrowserWithTestWindowTest {
   }
 
   void TearDown() override {
-    dice_web_signin_interceptor_->Shutdown();
+    test_password_manager_client_.set_identity_manager(nullptr);
     identity_test_env_profile_adaptor_.reset();
     BrowserWithTestWindowTest::TearDown();
+  }
+
+  std::unique_ptr<KeyedService> BuildDiceWebSigninInterceptor(
+      content::BrowserContext* browser_context) {
+    Profile* input_profile = Profile::FromBrowserContext(browser_context);
+    CHECK_EQ(input_profile, profile());
+    return std::make_unique<DiceWebSigninInterceptor>(
+        profile(), std::make_unique<TestDiceWebSigninInterceptorDelegate>());
   }
 
   TestingProfile::TestingFactories GetTestingFactories() override {
@@ -155,19 +182,22 @@ class MultiProfileCredentialsFilterTest : public BrowserWithTestWindowTest {
         {ChromeSigninClientFactory::GetInstance(),
          base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
                              &test_url_loader_factory_)});
+
+    factories.push_back(
+        {DiceWebSigninInterceptorFactory::GetInstance(),
+         base::BindRepeating(
+             &MultiProfileCredentialsFilterTest::BuildDiceWebSigninInterceptor,
+             base::Unretained(this))});
     return factories;
   }
 
  protected:
-  const syncer::SyncService* sync_service() { return &sync_service_; }
-
   network::TestURLLoaderFactory test_url_loader_factory_;
+  syncer::TestSyncService sync_service_;
   TestPasswordManagerClient test_password_manager_client_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_profile_adaptor_;
-  syncer::TestSyncService sync_service_;
   password_manager::SyncCredentialsFilter sync_filter_;
-  std::unique_ptr<DiceWebSigninInterceptor> dice_web_signin_interceptor_;
 };
 
 // Checks that MultiProfileCredentialsFilter returns false when
@@ -176,11 +206,11 @@ TEST_F(MultiProfileCredentialsFilterTest, SyncCredentialsFilter) {
   password_manager::PasswordForm form =
       password_manager::SyncUsernameTestBase::SimpleGaiaForm(
           "user@example.org");
-  form.form_data.is_gaia_with_skip_save_password_form = true;
+  form.form_data.set_is_gaia_with_skip_save_password_form(true);
 
   ASSERT_FALSE(sync_filter_.ShouldSave(form));
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
+      password_manager_client(),
       /*dice_web_signin_interceptor=*/nullptr);
   EXPECT_FALSE(multi_profile_filter.ShouldSave(form));
 }
@@ -192,7 +222,7 @@ TEST_F(MultiProfileCredentialsFilterTest, NullInterceptor) {
           "user@example.org");
   ASSERT_TRUE(sync_filter_.ShouldSave(form));
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
+      password_manager_client(),
       /*dice_web_signin_interceptor=*/nullptr);
   EXPECT_TRUE(multi_profile_filter.ShouldSave(form));
 }
@@ -205,8 +235,7 @@ TEST_F(MultiProfileCredentialsFilterTest, NonGaia) {
   ASSERT_TRUE(sync_filter_.ShouldSave(form));
 
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_TRUE(multi_profile_filter.ShouldSave(form));
 }
 
@@ -222,8 +251,7 @@ TEST_F(MultiProfileCredentialsFilterTest, InvalidEmail) {
   ASSERT_TRUE(sync_filter_.ShouldSave(form));
 
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_FALSE(multi_profile_filter.ShouldSave(form));
 }
 
@@ -239,8 +267,7 @@ TEST_F(MultiProfileCredentialsFilterTest, UsernameWithNoDomain) {
   ASSERT_TRUE(sync_filter_.ShouldSave(form));
 
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_TRUE(multi_profile_filter.ShouldSave(form));
 }
 
@@ -253,15 +280,15 @@ TEST_F(MultiProfileCredentialsFilterTest, InterceptInProgress) {
 
   // Start an interception for the sign-in.
   AccountInfo account_info = SetupInterception();
-  dice_web_signin_interceptor_->MaybeInterceptWebSignin(
+  dice_web_signin_interceptor()->MaybeInterceptWebSignin(
       browser()->tab_strip_model()->GetActiveWebContents(),
-      account_info.account_id, /*is_new_account=*/true,
+      account_info.account_id, signin_metrics::AccessPoint::kUnknown,
+      /*is_new_account=*/true,
       /*is_sync_signin=*/false);
-  ASSERT_TRUE(dice_web_signin_interceptor_->is_interception_in_progress());
+  ASSERT_TRUE(dice_web_signin_interceptor()->is_interception_in_progress());
 
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_FALSE(multi_profile_filter.ShouldSave(form));
 }
 
@@ -274,15 +301,14 @@ TEST_F(MultiProfileCredentialsFilterTest, SigninIntercepted) {
   ASSERT_TRUE(sync_filter_.ShouldSave(form));
   // Setup the account for interception, but do not intercept.
   AccountInfo account_info = SetupInterception();
-  ASSERT_FALSE(dice_web_signin_interceptor_->is_interception_in_progress());
-  ASSERT_EQ(dice_web_signin_interceptor_->GetHeuristicOutcome(
+  ASSERT_FALSE(dice_web_signin_interceptor()->is_interception_in_progress());
+  ASSERT_EQ(dice_web_signin_interceptor()->GetHeuristicOutcome(
                 /*is_new_account=*/true, /*is_sync_signin=*/false,
                 account_info.email),
             SigninInterceptionHeuristicOutcome::kInterceptProfileSwitch);
 
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_FALSE(multi_profile_filter.ShouldSave(form));
 }
 
@@ -297,13 +323,12 @@ TEST_F(MultiProfileCredentialsFilterTest, SigninInterceptionUnknown) {
   std::string dummy_email = "bob@example.com";
   AccountInfo account_info =
       identity_test_env()->MakeAccountAvailable(dummy_email);
-  ASSERT_FALSE(dice_web_signin_interceptor_->is_interception_in_progress());
-  ASSERT_FALSE(dice_web_signin_interceptor_->GetHeuristicOutcome(
+  ASSERT_FALSE(dice_web_signin_interceptor()->is_interception_in_progress());
+  ASSERT_FALSE(dice_web_signin_interceptor()->GetHeuristicOutcome(
       /*is_new_account=*/true, /*is_sync_signin=*/false, kFormEmail));
 
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_FALSE(multi_profile_filter.ShouldSave(form));
 }
 
@@ -327,9 +352,8 @@ TEST_F(MultiProfileCredentialsFilterTest, SigninNotIntercepted) {
       password_manager::SyncUsernameTestBase::SimpleGaiaForm(email.c_str());
   ASSERT_TRUE(sync_filter_.ShouldSave(form));
   // Not interception, credentials should be saved.
-  ASSERT_FALSE(dice_web_signin_interceptor_->is_interception_in_progress());
+  ASSERT_FALSE(dice_web_signin_interceptor()->is_interception_in_progress());
   MultiProfileCredentialsFilter multi_profile_filter(
-      password_manager_client(), GetSyncServiceCallback(),
-      dice_web_signin_interceptor());
+      password_manager_client(), dice_web_signin_interceptor());
   EXPECT_TRUE(multi_profile_filter.ShouldSave(form));
 }

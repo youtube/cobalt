@@ -8,12 +8,18 @@
 // correct rate.  We always pass in a very large destination buffer with the
 // expectation that FillBuffer() will fill as much as it can but no more.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/audio_renderer_algorithm.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>  // For std::min().
+#include <array>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -197,8 +203,9 @@ class AudioRendererAlgorithmTest : public testing::Test {
   bool VerifyAudioData(AudioBus* bus, int offset, int frames, float value) {
     for (int ch = 0; ch < bus->channels(); ++ch) {
       for (int i = offset; i < offset + frames; ++i) {
-        if (bus->channel(ch)[i] != value)
+        if (bus->channel(ch)[i] != value) {
           return false;
+        }
       }
     }
     return true;
@@ -269,7 +276,10 @@ class AudioRendererAlgorithmTest : public testing::Test {
       // if at very first buffer-fill only one frame is written, that is zero
       // which might cause exception in CheckFakeData().
       if (!first_fill_buffer || frames_written > 1)
-        ASSERT_FALSE(AudioDataIsMuted(bus.get(), frames_written, dest_offset));
+        if (!bus->is_bitstream_format()) {
+          ASSERT_FALSE(
+              AudioDataIsMuted(bus.get(), frames_written, dest_offset));
+        }
       first_fill_buffer = false;
       frames_remaining -= frames_written;
 
@@ -484,6 +494,45 @@ TEST_F(AudioRendererAlgorithmTest, FillBuffer_ResamplingRates) {
   TestPlaybackRate(1.00);
   TestPlaybackRate(1.05);
   TestPlaybackRate(2.00);
+}
+
+// This test verifies that we use the right underlying algorithms based on
+// the preserves pitch flag and the playback rate.
+TEST_F(AudioRendererAlgorithmTest, FillBuffer_FillModes) {
+  Initialize();
+
+  // WSOLA.
+  algorithm_.SetPreservesPitch(true);
+
+  // Passthrough data when we are close to a playback rate of 1.0.
+  TestPlaybackRate(1.00);
+  EXPECT_EQ(algorithm_.last_mode_for_testing(),
+            AudioRendererAlgorithm::FillBufferMode::kPassthrough);
+
+  // Use WSOLA when we are not close to 1.0.
+  TestPlaybackRate(1.05);
+  EXPECT_EQ(algorithm_.last_mode_for_testing(),
+            AudioRendererAlgorithm::FillBufferMode::kWSOLA);
+
+  // Return to passthrough.
+  TestPlaybackRate(1.00);
+  EXPECT_EQ(algorithm_.last_mode_for_testing(),
+            AudioRendererAlgorithm::FillBufferMode::kPassthrough);
+
+  // Always use resampling when preservesPitch is false.
+  algorithm_.SetPreservesPitch(false);
+
+  TestPlaybackRate(1.00);
+  EXPECT_EQ(algorithm_.last_mode_for_testing(),
+            AudioRendererAlgorithm::FillBufferMode::kResampler);
+
+  TestPlaybackRate(1.05);
+  EXPECT_EQ(algorithm_.last_mode_for_testing(),
+            AudioRendererAlgorithm::FillBufferMode::kResampler);
+
+  TestPlaybackRate(1.00);
+  EXPECT_EQ(algorithm_.last_mode_for_testing(),
+            AudioRendererAlgorithm::FillBufferMode::kResampler);
 }
 
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_WithOffset) {
@@ -820,7 +869,7 @@ TEST_F(AudioRendererAlgorithmTest, WsolaSpeedup) {
 
 TEST_F(AudioRendererAlgorithmTest, FillBufferOffset) {
   Initialize();
-  // Pad the queue capacity so fill requests for all rates bellow can be fully
+  // Pad the queue capacity so fill requests for all rates below can be fully
   // satisfied.
   algorithm_.IncreasePlaybackThreshold();
 
@@ -829,7 +878,8 @@ TEST_F(AudioRendererAlgorithmTest, FillBufferOffset) {
   // Verify that the first half of |bus| remains zero and the last half is
   // filled appropriately at normal, above normal, and below normal.
   const int kHalfSize = kFrameSize / 2;
-  const float kAudibleRates[] = {1.0f, 2.0f, 0.5f, 5.0f, 0.25f};
+  const auto kAudibleRates =
+      std::to_array<float>({1.0f, 2.0f, 0.5f, 5.0f, 0.25f});
   for (size_t i = 0; i < std::size(kAudibleRates); ++i) {
     SCOPED_TRACE(kAudibleRates[i]);
     bus->Zero();
@@ -987,7 +1037,7 @@ TEST_F(AudioRendererAlgorithmTest, LowLatencyHint) {
 
   // Clearing the hint should restore the higher default playback threshold,
   // such that we no longer have enough buffer to be "adequate for playback".
-  algorithm_.SetLatencyHint(absl::nullopt);
+  algorithm_.SetLatencyHint(std::nullopt);
   EXPECT_FALSE(algorithm_.IsQueueAdequateForPlayback());
 
   // Fill until "full". Verify that "adequate" now matches "full".
@@ -1038,7 +1088,7 @@ TEST_F(AudioRendererAlgorithmTest, HighLatencyHint) {
 
   // Clearing the hint should restore the lower default playback threshold and
   // capacity.
-  algorithm_.SetLatencyHint(absl::nullopt);
+  algorithm_.SetLatencyHint(std::nullopt);
   EXPECT_EQ(algorithm_.QueueCapacity(), default_capacity);
 
   // The queue is over-full from our last fill when the hint was set. Flush and
@@ -1085,7 +1135,7 @@ TEST_F(AudioRendererAlgorithmTest, ClampLatencyHint) {
 
   const base::TimeDelta kDefaultMax = base::Seconds(3);
   // Verify "full" and "adequate" thresholds increased, but to a known max well
-  // bellow the hinted value.
+  // below the hinted value.
   EXPECT_GT(algorithm_.QueueCapacity(), default_capacity);
   FillAlgorithmQueueUntilAdequate();
   EXPECT_EQ(BufferedTime(), kDefaultMax);

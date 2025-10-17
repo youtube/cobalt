@@ -4,12 +4,14 @@
 
 import("//build/config/features.gni")
 import("//ios/web/public/js_messaging/optimize_js.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("browser") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "autofill_agent.h",
     "autofill_agent.mm",
+    "autofill_client_ios.h",
+    "autofill_client_ios.mm",
     "autofill_client_ios_bridge.h",
     "autofill_driver_ios.h",
     "autofill_driver_ios.mm",
@@ -18,15 +20,21 @@ source_set("browser") {
     "autofill_driver_ios_factory.mm",
     "autofill_java_script_feature.h",
     "autofill_java_script_feature.mm",
-    "autofill_switches.cc",
-    "autofill_switches.h",
+    "autofill_manager_observer_bridge.h",
+    "autofill_manager_observer_bridge.mm",
+    "credit_card_save_metrics_ios.h",
+    "credit_card_save_metrics_ios.mm",
     "credit_card_util.h",
     "credit_card_util.mm",
+    "form_fetch_batcher.h",
+    "form_fetch_batcher.mm",
     "form_suggestion.h",
     "form_suggestion.mm",
     "form_suggestion_provider.h",
     "form_suggestion_provider_query.h",
     "form_suggestion_provider_query.mm",
+    "password_autofill_agent.h",
+    "password_autofill_agent.mm",
     "personal_data_manager_observer_bridge.h",
     "personal_data_manager_observer_bridge.mm",
     "suggestion_controller_java_script_feature.h",
@@ -40,29 +48,36 @@ source_set("browser") {
     "//base",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
+    "//components/autofill/ios/common",
     "//components/autofill/ios/form_util",
+    "//components/autofill/ios/form_util:autofill_form_features",
+    "//components/autofill/ios/form_util:autofill_form_features_injector",
+    "//components/autofill/ios/form_util:autofill_renderer_id_feature",
+    "//components/autofill/ios/form_util:child_frame_registrar",
     "//components/autofill/ios/form_util:form_handler_feature",
     "//components/autofill/ios/form_util:form_util_feature",
+    "//components/feature_engagement/public",
+    "//components/plus_addresses",
+    "//components/plus_addresses/resources/strings",
     "//components/prefs:prefs",
     "//components/prefs/ios",
+    "//components/resources:components_resources_grit",
     "//components/ukm/ios:ukm_url_recorder",
     "//google_apis",
     "//ios/web/common",
     "//ios/web/public",
-    "//ios/web/public/deprecated",
     "//ios/web/public/js_messaging",
     "//ios/web/public/security",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network/public/cpp",
-    "//ui/accessibility",
-    "//ui/gfx/geometry",
     "//url",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 source_set("util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "autofill_util.h",
     "autofill_util.mm",
@@ -71,32 +86,51 @@ source_set("util") {
     "//base",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
+    "//components/autofill/ios/common",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
     "//ios/web/public/security",
     "//url",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 optimize_js("autofill_js") {
   primary_script = "resources/autofill_controller.js"
   sources = [ "resources/autofill_controller.js" ]
+
+  deps = [
+    "//components/autofill/ios/form_util:fill_js_dependencies",
+    "//components/autofill/ios/form_util:fill_js_namespace",
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
 }
 
-optimize_js("suggestion_controller_js") {
-  primary_script = "resources/suggestion_controller.js"
-  sources = [ "resources/suggestion_controller.js" ]
+optimize_ts("suggestion_controller_js") {
+  sources = [ "resources/suggestion_controller.ts" ]
+
+  deps = [ "//ios/web/public/js_messaging:gcrweb" ]
 }
 
 source_set("test_support") {
   testonly = true
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
+    "autofill_driver_ios_factory_test_api.h",
+    "autofill_driver_ios_test_api.h",
     "credit_card_save_manager_test_observer_bridge.h",
     "credit_card_save_manager_test_observer_bridge.mm",
     "fake_autofill_agent.h",
     "fake_autofill_agent.mm",
     "ios_test_event_waiter.h",
+    "mock_password_autofill_agent_delegate.h",
+    "mock_password_autofill_agent_delegate.mm",
+    "new_frame_catcher.h",
+    "new_frame_catcher.mm",
+    "test_autofill_client_ios.h",
+    "test_autofill_client_ios.mm",
+    "test_autofill_java_script_feature_container.h",
+    "test_autofill_java_script_feature_container.mm",
     "test_autofill_manager_injector.h",
   ]
   public_deps = [ ":browser" ]
@@ -104,6 +138,11 @@ source_set("test_support") {
     "//base",
     "//base/test:test_support",
     "//components/autofill/core/browser",
+    "//components/autofill/core/browser:test_support",
+    "//components/autofill/ios/form_util:autofill_renderer_id_feature",
+    "//components/autofill/ios/form_util:form_handler_feature",
+    "//components/autofill/ios/form_util:form_util_feature",
+    "//components/autofill/ios/form_util:frame_registration_feature",
     "//components/leveldb_proto:leveldb_proto",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
@@ -112,38 +151,47 @@ source_set("test_support") {
 
 source_set("unit_tests") {
   testonly = true
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
+    "autofill_across_iframes_unittest.mm",
     "autofill_agent_unittests.mm",
+    "autofill_driver_ios_factory_unittest.mm",
     "autofill_util_unittests.mm",
+    "autofill_xhr_sumission_detection_unittest.mm",
+    "form_fetch_batcher_unittest.mm",
     "form_suggestion_provider_query_unittests.mm",
+    "password_autofill_agent_unittest.mm",
   ]
   deps = [
     ":browser",
+    ":test_support",
     ":util",
     "//base",
     "//base/test:test_support",
+    "//components/autofill/core/browser",
     "//components/autofill/core/browser:test_support",
     "//components/autofill/core/common",
-    "//components/autofill/ios/form_util",
+    "//components/autofill/core/common:features",
+    "//components/autofill/core/common:test_support",
+    "//components/autofill/core/common/mojom:mojo_types_shared_cpp_sources",
+    "//components/autofill/ios/common",
+    "//components/autofill/ios/form_util:child_frame_registrar",
     "//components/autofill/ios/form_util:form_handler_feature",
-    "//components/leveldb_proto:leveldb_proto",
-    "//components/prefs",
+    "//components/autofill/ios/form_util:form_util_feature",
+    "//components/autofill/ios/form_util:test_support",
+    "//components/prefs:test_support",
+    "//ios/testing:embedded_test_server_support",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
     "//ios/web/public/test",
     "//ios/web/public/test:test_fixture",
     "//ios/web/public/test/fakes",
+    "//net:test_support",
     "//services/metrics/public/cpp:ukm_builders",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/ocmock",
+    "//ui/gfx:test_support",
   ]
-
-  # TODO(crbug.com/1427365): Test currently fails on iOS blink.
-  if (is_ios && use_blink) {
-    sources -= [ "autofill_agent_unittests.mm" ]
-  }
 }
 
 bundle_data("autofill_test_bundle_data") {

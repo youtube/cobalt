@@ -10,6 +10,7 @@
 
 #include "base/task/sequenced_task_runner.h"
 #include "cc/animation/animation_host.h"
+#include "cc/test/layer_test_common.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "components/viz/test/begin_frame_args_test.h"
 
@@ -18,7 +19,7 @@ namespace cc {
 FakeLayerTreeHostImpl::FakeLayerTreeHostImpl(
     TaskRunnerProvider* task_runner_provider,
     TaskGraphRunner* task_graph_runner)
-    : FakeLayerTreeHostImpl(LayerListSettings(),
+    : FakeLayerTreeHostImpl(CommitToPendingTreeLayerListSettings(),
                             task_runner_provider,
                             task_graph_runner) {}
 
@@ -41,7 +42,7 @@ FakeLayerTreeHostImpl::FakeLayerTreeHostImpl(
                         task_runner_provider,
                         &stats_instrumentation_,
                         task_graph_runner,
-                        AnimationHost::CreateForTesting(ThreadInstance::IMPL),
+                        AnimationHost::CreateForTesting(ThreadInstance::kImpl),
                         nullptr,
                         0,
                         std::move(image_worker_task_runner),
@@ -75,9 +76,23 @@ void FakeLayerTreeHostImpl::CreatePendingTree() {
   set_pending_tree_fully_painted_for_testing(true);
 }
 
-void FakeLayerTreeHostImpl::NotifyTileStateChanged(const Tile* tile) {
-  LayerTreeHostImpl::NotifyTileStateChanged(tile);
-  notify_tile_state_changed_called_ = true;
+void FakeLayerTreeHostImpl::EnsureSyncTree() {
+  if (!CommitsToActiveTree() && !pending_tree()) {
+    CreatePendingTree();
+  }
+  CHECK(sync_tree());
+}
+
+void FakeLayerTreeHostImpl::NotifyTileStateChanged(const Tile* tile,
+                                                   bool update_damage) {
+  LayerTreeHostImpl::NotifyTileStateChanged(tile, update_damage);
+  notify_tile_state_changed_called_ = update_damage;
+}
+
+TargetColorParams FakeLayerTreeHostImpl::GetTargetColorParams(
+    gfx::ContentColorUsage content_color_usage) const {
+  return target_color_params_.value_or(
+      LayerTreeHostImpl::GetTargetColorParams(content_color_usage));
 }
 
 const viz::BeginFrameArgs& FakeLayerTreeHostImpl::CurrentBeginFrameArgs()

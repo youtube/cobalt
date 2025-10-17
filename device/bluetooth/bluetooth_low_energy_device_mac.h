@@ -8,13 +8,12 @@
 #import <CoreBluetooth/CoreBluetooth.h>
 #include <stdint.h>
 
+#include <optional>
 #include <set>
+#include <string_view>
 
-#include "base/mac/scoped_nsobject.h"
 #include "build/build_config.h"
-#include "crypto/sha2.h"
 #include "device/bluetooth/bluetooth_device_mac.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if !BUILDFLAG(IS_IOS)
 #import <IOBluetooth/IOBluetooth.h>
@@ -53,7 +52,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyDeviceMac
   uint16_t GetProductID() const override;
   uint16_t GetDeviceID() const override;
   uint16_t GetAppearance() const override;
-  absl::optional<std::string> GetName() const override;
+  std::optional<std::string> GetName() const override;
   bool IsPaired() const override;
   bool IsConnected() const override;
   bool IsGattConnected() const override;
@@ -89,7 +88,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyDeviceMac
  protected:
   // BluetoothDevice override.
   void CreateGattConnectionImpl(
-      absl::optional<BluetoothUUID> serivce_uuid) override;
+      std::optional<BluetoothUUID> service_uuid) override;
   void DisconnectGatt() override;
 
   // Methods used by BluetoothLowEnergyPeripheralBridge.
@@ -112,7 +111,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyDeviceMac
   // http://crbug.com/507824
   static std::string GetPeripheralHashAddress(CBPeripheral* peripheral);
   static std::string GetPeripheralHashAddress(
-      base::StringPiece device_identifier);
+      std::string_view device_identifier);
 
  private:
   friend class BluetoothLowEnergyAdapterApple;
@@ -154,11 +153,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyDeviceMac
   void DidDisconnectPeripheral(NSError* error);
 
   // CoreBluetooth data structure.
-  base::scoped_nsobject<CBPeripheral> peripheral_;
+  CBPeripheral* __strong peripheral_;
 
   // Objective-C delegate for the CBPeripheral.
-  base::scoped_nsobject<BluetoothLowEnergyPeripheralDelegate>
-      peripheral_delegate_;
+  BluetoothLowEnergyPeripheralDelegate* __strong peripheral_delegate_;
 
   // Whether the device is connected.
   bool connected_;

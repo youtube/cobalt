@@ -13,6 +13,7 @@
 #include "ash/app_list/model/search/search_model.h"
 #include "ash/app_list/quick_app_access_model.h"
 #include "ash/app_list/test_app_list_client.h"
+#include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/test/ash_test_color_generator.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/gfx/animation/tween.h"
@@ -28,6 +29,7 @@ class View;
 namespace ash {
 
 class AppListBubbleAppsPage;
+class AppListBubbleAppsCollectionsPage;
 class AppListBubbleAssistantPage;
 class AppListBubbleSearchPage;
 class AppListBubbleView;
@@ -128,6 +130,10 @@ class AppListTestHelper {
                                    IconColorType color_type,
                                    bool set_name);
 
+  // Similar to `AddAppItems()` but provides the option to set items an initial
+  // collection.
+  void AddAppListItemsWithCollection(AppCollection collection_id, int num_apps);
+
   // Adds `num_results` to continue section in the app list.
   void AddContinueSuggestionResults(int num_results);
 
@@ -165,9 +171,11 @@ class AppListTestHelper {
   SearchBoxView* GetBubbleSearchBoxView();
   AppListFolderView* GetBubbleFolderView();
   AppListBubbleAppsPage* GetBubbleAppsPage();
+  AppListBubbleAppsCollectionsPage* GetBubbleAppsCollectionsPage();
   ContinueSectionView* GetBubbleContinueSectionView();
   RecentAppsView* GetBubbleRecentAppsView();
   ScrollableAppsGridView* GetScrollableAppsGridView();
+  views::View* GetAppCollectionsSectionsContainer();
   AppListBubbleSearchPage* GetBubbleSearchPage();
   SearchResultPageAnchoredDialog* GetBubbleSearchPageDialog();
   AppListBubbleAssistantPage* GetBubbleAssistantPage();
@@ -190,8 +198,7 @@ class AppListTestHelper {
   test::AppListTestModel model_;
   SearchModel search_model_;
   QuickAppAccessModel quick_app_access_model_;
-  raw_ptr<AppListControllerImpl, ExperimentalAsh> app_list_controller_ =
-      nullptr;
+  raw_ptr<AppListControllerImpl> app_list_controller_ = nullptr;
   std::unique_ptr<TestAppListClient> app_list_client_;
 
   AshTestColorGenerator icon_color_generator_{/*default_color=*/SK_ColorRED};

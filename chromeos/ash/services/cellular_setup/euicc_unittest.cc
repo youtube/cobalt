@@ -5,15 +5,18 @@
 #include "chromeos/ash/services/cellular_setup/euicc.h"
 
 #include <utility>
+#include <vector>
 
 #include "ash/constants/ash_features.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_euicc_client.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_profile_client.h"
+#include "chromeos/ash/components/dbus/shill/shill_device_client.h"
+#include "chromeos/ash/components/network/cellular_utils.h"
 #include "chromeos/ash/components/network/fake_network_connection_handler.h"
+#include "chromeos/ash/components/network/metrics/cellular_network_metrics_logger.h"
 #include "chromeos/ash/components/network/network_type_pattern.h"
 #include "chromeos/ash/components/network/test_cellular_esim_profile_handler.h"
 #include "chromeos/ash/services/cellular_setup/esim_test_base.h"
@@ -25,17 +28,14 @@ namespace ash::cellular_setup {
 
 namespace {
 
-const char kInstallViaQrCodeHistogram[] =
-    "Network.Cellular.ESim.InstallViaQrCode.Result";
-
 using InstallResultPair = std::pair<mojom::ProfileInstallResult,
                                     mojo::PendingRemote<mojom::ESimProfile>>;
 
-mojom::ESimOperationResult RequestPendingProfiles(
+mojom::ESimOperationResult RefreshInstalledProfiles(
     mojo::Remote<mojom::Euicc>& euicc) {
   mojom::ESimOperationResult result;
   base::RunLoop run_loop;
-  euicc->RequestPendingProfiles(base::BindOnce(
+  euicc->RefreshInstalledProfiles(base::BindOnce(
       [](mojom::ESimOperationResult* out, base::OnceClosure quit_closure,
          mojom::ESimOperationResult result) {
         *out = result;
@@ -69,6 +69,7 @@ class EuiccTest : public ESimTestBase {
       const mojo::Remote<mojom::Euicc>& euicc,
       const std::string& activation_code,
       const std::string& confirmation_code,
+      mojom::ProfileInstallMethod install_method,
       bool wait_for_create,
       bool wait_for_connect,
       bool fail_connect) {
@@ -77,7 +78,7 @@ class EuiccTest : public ESimTestBase {
 
     base::RunLoop run_loop;
     euicc->InstallProfileFromActivationCode(
-        activation_code, confirmation_code, /*is_install_via_qr_code=*/true,
+        activation_code, confirmation_code, install_method,
         base::BindLambdaForTesting(
             [&](mojom::ProfileInstallResult install_result,
                 mojo::PendingRemote<mojom::ESimProfile> esim_profile) {
@@ -88,7 +89,7 @@ class EuiccTest : public ESimTestBase {
 
     if (wait_for_create) {
       base::RunLoop().RunUntilIdle();
-      // Set the enable notify prolie list update back to true if it was false
+      // Set the enable notify profile list update back to true if it was false
       // before and fire the pending notify profile list update and that should
       // make the pending create callback complete.
       cellular_esim_profile_handler()->SetEnableNotifyProfileListUpdate(true);
@@ -115,6 +116,14 @@ class EuiccTest : public ESimTestBase {
     run_loop.Run();
     return std::make_pair(out_install_result, std::move(out_esim_profile));
   }
+
+  void SetErrorForNextSetPropertyAttempt(const std::string& error_name) {
+    ShillDeviceClient::Get()
+        ->GetTestInterface()
+        ->SetErrorForNextSetPropertyAttempt(error_name);
+    base::RunLoop().RunUntilIdle();
+  }
+
 };
 
 TEST_F(EuiccTest, GetProperties) {
@@ -161,24 +170,66 @@ TEST_F(EuiccTest, InstallProfileFromActivationCode) {
   cellular_esim_profile_handler()->SetEnableNotifyProfileListUpdate(false);
   InstallResultPair result_pair = InstallProfileFromActivationCode(
       euicc, euicc_test->GenerateFakeActivationCode(),
-      /*confirmation_code=*/std::string(), /*wait_for_create=*/true,
+      /*confirmation_code=*/std::string(),
+      /*install_method=*/mojom::ProfileInstallMethod::kViaSmds,
+      /*wait_for_create=*/true,
       /*wait_for_connect=*/false, /*fail_connect=*/false);
   EXPECT_EQ(mojom::ProfileInstallResult::kSuccess, result_pair.first);
   EXPECT_TRUE(result_pair.second.is_valid());
-  histogram_tester.ExpectBucketCount(kInstallViaQrCodeHistogram,
-                                     HermesResponseStatus::kSuccess,
-                                     /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      CellularNetworkMetricsLogger::kESimUserInstallMethod,
+      CellularNetworkMetricsLogger::ESimUserInstallMethod::kViaSmds,
+      /*expected_count=*/1);
 
-  // Verify that install succeeds when valid activation code is passed.
-  result_pair = InstallProfileFromActivationCode(
-      euicc, euicc_test->GenerateFakeActivationCode(),
-      /*confirmation_code=*/std::string(), /*wait_for_create=*/false,
-      /*wait_for_connect=*/false, /*fail_connect=*/false);
-  EXPECT_EQ(mojom::ProfileInstallResult::kSuccess, result_pair.first);
-  EXPECT_TRUE(result_pair.second.is_valid());
-  histogram_tester.ExpectBucketCount(kInstallViaQrCodeHistogram,
-                                     HermesResponseStatus::kSuccess,
-                                     /*expected_count=*/2);
+  size_t expected_total_count = 1;
+  histogram_tester.ExpectTotalCount(
+      CellularNetworkMetricsLogger::kESimUserInstallMethod,
+      expected_total_count);
+
+  const std::vector<
+      std::pair<mojom::ProfileInstallMethod,
+                CellularNetworkMetricsLogger::ESimUserInstallMethod>>
+      kInstallMethodPairs = {
+          {
+              mojom::ProfileInstallMethod::kViaQrCodeAfterSmds,
+              CellularNetworkMetricsLogger::ESimUserInstallMethod::
+                  kViaQrCodeAfterSmds,
+          },
+          {
+              mojom::ProfileInstallMethod::kViaQrCodeSkippedSmds,
+              CellularNetworkMetricsLogger::ESimUserInstallMethod::
+                  kViaQrCodeSkippedSmds,
+          },
+          {
+              mojom::ProfileInstallMethod::kViaActivationCodeAfterSmds,
+              CellularNetworkMetricsLogger::ESimUserInstallMethod::
+                  kViaActivationCodeAfterSmds,
+          },
+          {
+              mojom::ProfileInstallMethod::kViaActivationCodeSkippedSmds,
+              CellularNetworkMetricsLogger::ESimUserInstallMethod::
+                  kViaActivationCodeSkippedSmds,
+          },
+      };
+
+  for (const auto& install_method_pair : kInstallMethodPairs) {
+    // Verify that install succeeds when valid activation code is passed.
+    result_pair = InstallProfileFromActivationCode(
+        euicc, euicc_test->GenerateFakeActivationCode(),
+        /*confirmation_code=*/std::string(),
+        /*install_method=*/install_method_pair.first, /*wait_for_create=*/false,
+        /*wait_for_connect=*/false, /*fail_connect=*/false);
+    EXPECT_EQ(mojom::ProfileInstallResult::kSuccess, result_pair.first);
+    EXPECT_TRUE(result_pair.second.is_valid());
+
+    histogram_tester.ExpectBucketCount(
+        CellularNetworkMetricsLogger::kESimUserInstallMethod,
+        install_method_pair.second,
+        /*expected_count=*/1);
+    histogram_tester.ExpectTotalCount(
+        CellularNetworkMetricsLogger::kESimUserInstallMethod,
+        ++expected_total_count);
+  }
 }
 
 TEST_F(EuiccTest, InstallProfileAlreadyConnected) {
@@ -194,7 +245,9 @@ TEST_F(EuiccTest, InstallProfileAlreadyConnected) {
       HermesEuiccClient::Get()
           ->GetTestInterface()
           ->GenerateFakeActivationCode(),
-      /*confirmation_code=*/std::string(), /*wait_for_create=*/false,
+      /*confirmation_code=*/std::string(),
+      /*install_method=*/mojom::ProfileInstallMethod::kViaQrCodeAfterSmds,
+      /*wait_for_create=*/false,
       /*wait_for_connect=*/false, /*fail_connect=*/false);
   EXPECT_EQ(mojom::ProfileInstallResult::kSuccess, result_pair.first);
 }
@@ -220,7 +273,9 @@ TEST_F(EuiccTest, InstallPendingProfileFromActivationCode) {
 
   InstallResultPair result_pair = InstallProfileFromActivationCode(
       euicc, dbus_properties->activation_code().value(),
-      /*confirmation_code=*/std::string(), /*wait_for_create=*/false,
+      /*confirmation_code=*/std::string(),
+      /*install_method=*/mojom::ProfileInstallMethod::kViaQrCodeAfterSmds,
+      /*wait_for_create=*/false,
       /*wait_for_connect=*/true, /*fail_connect=*/false);
   EXPECT_EQ(mojom::ProfileInstallResult::kSuccess, result_pair.first);
   ASSERT_TRUE(result_pair.second.is_valid());
@@ -231,74 +286,7 @@ TEST_F(EuiccTest, InstallPendingProfileFromActivationCode) {
   EXPECT_EQ(dbus_properties->iccid().value(), mojo_properties->iccid);
 
   // Installing a profile causes a list change.
-  EXPECT_EQ(2u, observer()->profile_list_change_calls().size());
-}
-
-TEST_F(EuiccTest, RequestPendingProfiles_DBusMigrationDisabled) {
-  static const char kOperationResultMetric[] =
-      "Network.Cellular.ESim.RequestPendingProfiles.OperationResult";
-  base::HistogramTester histogram_tester;
-  base::test::ScopedFeatureList feature_list;
-
-  feature_list.InitAndDisableFeature(ash::features::kSmdsDbusMigration);
-
-  mojo::Remote<mojom::Euicc> euicc = GetEuiccForEid(ESimTestBase::kTestEid);
-  ASSERT_TRUE(euicc.is_bound());
-
-  HermesEuiccClient::TestInterface* euicc_test =
-      HermesEuiccClient::Get()->GetTestInterface();
-  // Verify that pending profile request errors are return properly.
-  euicc_test->QueueHermesErrorStatus(HermesResponseStatus::kErrorNoResponse);
-  EXPECT_EQ(mojom::ESimOperationResult::kFailure,
-            RequestPendingProfiles(euicc));
-  histogram_tester.ExpectBucketCount(
-      kOperationResultMetric,
-      Euicc::RequestPendingProfilesResult::kInhibitFailed,
-      /*expected_count=*/1);
-  EXPECT_EQ(0u, observer()->profile_list_change_calls().size());
-
-  constexpr base::TimeDelta kHermesInteractiveDelay = base::Milliseconds(3000);
-  HermesEuiccClient::Get()->GetTestInterface()->SetInteractiveDelay(
-      kHermesInteractiveDelay);
-
-  // Verify that successful request returns correct status code.
-  EXPECT_EQ(mojom::ESimOperationResult::kSuccess,
-            RequestPendingProfiles(euicc));
-
-  // Before requesting pending profiles, we request installed profiles, so we
-  // expect that there will be 2 delays (one for installed, one for pending).
-  histogram_tester.ExpectTimeBucketCount(
-      "Network.Cellular.ESim.ProfileDiscovery.Latency",
-      2 * kHermesInteractiveDelay, 1);
-  histogram_tester.ExpectTotalCount(
-      "Network.Cellular.ESim.ProfileDiscovery.Latency", 1);
-  histogram_tester.ExpectBucketCount(
-      kOperationResultMetric, Euicc::RequestPendingProfilesResult::kSuccess,
-      /*expected_count=*/1);
-}
-
-TEST_F(EuiccTest, RequestPendingProfiles_DBusMigrationEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(ash::features::kSmdsDbusMigration);
-
-  mojo::Remote<mojom::Euicc> euicc = GetEuiccForEid(ESimTestBase::kTestEid);
-  ASSERT_TRUE(euicc.is_bound());
-
-  HermesEuiccClient::TestInterface* euicc_test =
-      HermesEuiccClient::Get()->GetTestInterface();
-  // Verify that pending profile request errors are return properly.
-  euicc_test->QueueHermesErrorStatus(HermesResponseStatus::kErrorNoResponse);
-  EXPECT_EQ(mojom::ESimOperationResult::kFailure,
-            RequestPendingProfiles(euicc));
-  EXPECT_EQ(0u, observer()->profile_list_change_calls().size());
-
-  constexpr base::TimeDelta kHermesInteractiveDelay = base::Milliseconds(3000);
-  HermesEuiccClient::Get()->GetTestInterface()->SetInteractiveDelay(
-      kHermesInteractiveDelay);
-
-  // Verify that successful request returns correct status code.
-  EXPECT_EQ(mojom::ESimOperationResult::kSuccess,
-            RequestPendingProfiles(euicc));
+  EXPECT_EQ(3u, observer()->profile_list_change_calls().size());
 }
 
 TEST_F(EuiccTest, GetEidQRCode) {
@@ -318,6 +306,124 @@ TEST_F(EuiccTest, GetEidQRCode) {
 
   ASSERT_FALSE(qr_code_result.is_null());
   EXPECT_LT(0, qr_code_result->size);
+}
+
+TEST_F(EuiccTest, RequestAvailableProfiles) {
+  mojo::Remote<mojom::Euicc> euicc = GetEuiccForEid(ESimTestBase::kTestEid);
+  ASSERT_TRUE(euicc.is_bound());
+
+  std::optional<mojom::ESimOperationResult> result;
+  std::optional<std::vector<mojom::ESimProfilePropertiesPtr>>
+      profile_properties_list;
+
+  base::RunLoop run_loop;
+  euicc->RequestAvailableProfiles(base::BindLambdaForTesting(
+      [&](mojom::ESimOperationResult returned_result,
+          std::vector<mojom::ESimProfilePropertiesPtr>
+              returned_profile_properties_list) {
+        result = returned_result;
+        profile_properties_list = std::move(returned_profile_properties_list);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, mojom::ESimOperationResult::kSuccess);
+
+  const std::vector<std::string> smds_activation_codes =
+      cellular_utils::GetSmdsActivationCodes();
+
+  ASSERT_TRUE(profile_properties_list.has_value());
+  EXPECT_EQ(smds_activation_codes.size(), profile_properties_list->size());
+
+  for (const auto& profile_properties : *profile_properties_list) {
+    EXPECT_EQ(profile_properties->eid, GetEuiccProperties(euicc)->eid);
+    EXPECT_NE(
+        std::find(smds_activation_codes.begin(), smds_activation_codes.end(),
+                  profile_properties->activation_code),
+        smds_activation_codes.end());
+  }
+}
+
+TEST_F(EuiccTest, RequestAvailableProfiles_FailToInhibit) {
+  mojo::Remote<mojom::Euicc> euicc = GetEuiccForEid(ESimTestBase::kTestEid);
+  ASSERT_TRUE(euicc.is_bound());
+
+  // The cellular device is inhibited by setting a device property. Simulate a
+  // failure to inhibit by making the next attempt to set a property fail.
+  SetErrorForNextSetPropertyAttempt("error_name");
+
+  std::optional<mojom::ESimOperationResult> result;
+  std::optional<std::vector<mojom::ESimProfilePropertiesPtr>>
+      profile_properties_list;
+
+  {
+    base::RunLoop run_loop;
+    euicc->RequestAvailableProfiles(base::BindLambdaForTesting(
+        [&](mojom::ESimOperationResult returned_result,
+            std::vector<mojom::ESimProfilePropertiesPtr>
+                returned_profile_properties_list) {
+          result = returned_result;
+          profile_properties_list = std::move(returned_profile_properties_list);
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, mojom::ESimOperationResult::kFailure);
+
+  ASSERT_TRUE(profile_properties_list.has_value());
+  EXPECT_TRUE(profile_properties_list->empty());
+
+  {
+    base::RunLoop run_loop;
+    euicc->RequestAvailableProfiles(base::BindLambdaForTesting(
+        [&](mojom::ESimOperationResult returned_result,
+            std::vector<mojom::ESimProfilePropertiesPtr>
+                returned_profile_properties_list) {
+          result = returned_result;
+          profile_properties_list = std::move(returned_profile_properties_list);
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+
+  EXPECT_EQ(*result, mojom::ESimOperationResult::kSuccess);
+
+  const std::vector<std::string> smds_activation_codes =
+      cellular_utils::GetSmdsActivationCodes();
+
+  EXPECT_EQ(smds_activation_codes.size(), profile_properties_list->size());
+
+  for (const auto& profile_properties : *profile_properties_list) {
+    EXPECT_EQ(profile_properties->eid, GetEuiccProperties(euicc)->eid);
+    EXPECT_NE(
+        std::find(smds_activation_codes.begin(), smds_activation_codes.end(),
+                  profile_properties->activation_code),
+        smds_activation_codes.end());
+  }
+}
+
+TEST_F(EuiccTest, RefreshInstalledProfiles) {
+  mojo::Remote<mojom::Euicc> euicc = GetEuiccForEid(ESimTestBase::kTestEid);
+  ASSERT_TRUE(euicc.is_bound());
+
+  HermesEuiccClient::TestInterface* euicc_test =
+      HermesEuiccClient::Get()->GetTestInterface();
+
+  // Failing to inhibit the cellular device will cause the refresh attempt to
+  // fail.
+  SetErrorForNextSetPropertyAttempt("error_name");
+  EXPECT_EQ(mojom::ESimOperationResult::kFailure,
+            RefreshInstalledProfiles(euicc));
+
+  euicc_test->QueueHermesErrorStatus(HermesResponseStatus::kErrorNoResponse);
+  EXPECT_EQ(mojom::ESimOperationResult::kFailure,
+            RefreshInstalledProfiles(euicc));
+
+  EXPECT_EQ(mojom::ESimOperationResult::kSuccess,
+            RefreshInstalledProfiles(euicc));
 }
 
 }  // namespace ash::cellular_setup

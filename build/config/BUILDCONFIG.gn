@@ -181,16 +181,21 @@ declare_args() {
   #
   # For more information see
   # https://chromium.googlesource.com/chromium/src/+/main/docs/component_build.md
-  is_component_build = is_debug && current_os != "ios"
+  is_component_build =
+      is_debug && current_os != "ios" && current_os != "watchos"
 }
 
 assert(!(is_debug && is_official_build), "Can't do official debug builds")
 assert(!(current_os == "ios" && is_component_build),
        "Can't use component build on iOS")
+assert(!(current_os == "watchos" && is_component_build),
+       "Can't use component build on watchOS")
 
-if (is_cobalt) {
-  assert(!cobalt_is_release_build || is_official_build,
-         "Release builds are only available in official builds.")
+declare_args() {
+  # Unsafe buffers. Location of file used by plugins to track portions of
+  # the codebase which have been made manifestly safe.
+  clang_unsafe_buffers_paths = ""
+  clang_warning_suppression_file = ""
 }
 
 # ==============================================================================
@@ -249,6 +254,7 @@ if (host_toolchain == "") {
 _default_toolchain = ""
 
 if (target_os == "android") {
+  # Targeting android on Mac is best-effort and not guaranteed to work.
   assert(host_os == "linux", "Android builds are only supported on Linux.")
   _default_toolchain = "//build/toolchain/android:android_clang_$target_cpu"
 } else if (target_os == "chromeos" || target_os == "linux") {
@@ -284,6 +290,11 @@ if (target_os == "android") {
   _default_toolchain = "//build/toolchain/aix:$target_cpu"
 } else if (target_os == "zos") {
   _default_toolchain = "//build/toolchain/zos:$target_cpu"
+} else if (target_os == "emscripten") {
+  # Because it's too hard to remove all targets from //BUILD.gn that do not work with it.
+  assert(
+      false,
+      "emscripten is not a supported target_os. It is available only as secondary toolchain.")
 } else {
   assert(false, "Unsupported target_os: $target_os")
 }
@@ -339,9 +350,11 @@ is_ios = current_os == "ios"
 is_linux = current_os == "linux"
 is_mac = current_os == "mac"
 is_nacl = current_os == "nacl"
+is_wasm = current_os == "emscripten"
+is_watchos = current_os == "watchos"
 is_win = current_os == "win" || current_os == "winuwp"
 
-is_apple = is_ios || is_mac
+is_apple = is_ios || is_mac || is_watchos
 is_posix = !is_win && !is_fuchsia
 
 # =============================================================================
@@ -382,13 +395,16 @@ default_compiler_configs = [
   "//build/config/compiler:default_optimization",
   "//build/config/compiler:default_stack_frames",
   "//build/config/compiler:default_symbols",
-  "//build/config/compiler:export_dynamic",
+  "//build/config/compiler:disallow_unstable_features",
+  "//build/config/compiler:libcxx_hardening",
+  "//build/config/compiler:libcxx_module",
   "//build/config/compiler:no_exceptions",
   "//build/config/compiler:no_rtti",
   "//build/config/compiler:no_unresolved_symbols",
   "//build/config/compiler:runtime_library",
   "//build/config/compiler:thin_archive",
   "//build/config/compiler:thinlto_optimize_default",
+  "//build/config/compiler:tot_warnings",
   "//build/config/compiler/pgo:default_pgo_flags",
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
@@ -409,6 +425,10 @@ if (is_win) {
   ]
 }
 
+if (is_apple) {
+  default_compiler_configs += [ "//build/config/compiler:enable_arc" ]
+}
+
 if (is_posix) {
   if (current_os != "aix") {
     default_compiler_configs +=
@@ -427,8 +447,9 @@ if (is_android) {
 
 if (is_clang && !is_nacl) {
   default_compiler_configs += [
-    "//build/config/clang:find_bad_constructs",
     "//build/config/clang:extra_warnings",
+    "//build/config/clang:find_bad_constructs",
+    "//build/config/clang:unsafe_buffers",
   ]
 }
 
@@ -442,11 +463,6 @@ if (is_debug) {
 # Static libraries and source sets use only the compiler ones.
 set_defaults("static_library") {
   configs = default_compiler_configs
-
-  # For Rust, a static library involves linking in all dependencies, and it
-  # performs LTO. But since we will perform LTO in the C++ linker which
-  # consumes the library, we defer LTO from Rust into the linker.
-  configs += [ "//build/config/compiler:rust_defer_lto_to_linker" ]
 }
 set_defaults("source_set") {
   configs = default_compiler_configs
@@ -469,12 +485,17 @@ if (is_win) {
   ]
 } else if (is_apple) {
   _linker_configs = [ "//build/config/apple:strip_all" ]
+} else if (is_android) {
+  # Warn whenever linking code that could unintentionally switch off
+  # branch target identification (BTI) on Arm systems.
+  _linker_configs = [ "//build/config/android:lld_branch_target_hardening" ]
 } else {
   _linker_configs = []
 }
 
 # Executable defaults.
 default_executable_configs = default_compiler_configs + [
+                               "//build/config/compiler:export_dynamic",
                                "//build/config:default_libs",
                                "//build/config:executable_config",
                              ] + _linker_configs
@@ -483,6 +504,14 @@ if (is_win) {
   # Turn on linker CFI for executables, and position it so it can be removed
   # if needed.
   default_executable_configs += [ "//build/config/win:cfi_linker" ]
+}
+if (is_fuchsia) {
+  # Sometimes executables are linked by rustc passing a command line to
+  # clang++. It includes "-pie" which is pointless on Fuchsia. Suppress the
+  # resulting (fatal) warning. Unfortunately there's no way to do this only
+  # for binaries linked by rustc; gn does not make the distinction.
+  default_executable_configs +=
+      [ "//build/config/fuchsia:rustc_no_pie_warning" ]
 }
 
 set_defaults("executable") {
@@ -505,6 +534,14 @@ if (is_android) {
   # want this can remove this config.
   default_shared_library_configs +=
       [ "//build/config/android:hide_all_but_jni_onload" ]
+}
+if (is_fuchsia) {
+  # Sometimes shared libraries are linked by rustc passing a command line to
+  # clang++. It includes "-pie" which is pointless on Fuchsia. Suppress the
+  # resulting (fatal) warning. Unfortunately there's no way to do this only
+  # for binaries linked by rustc; gn does not make the distinction.
+  default_shared_library_configs +=
+      [ "//build/config/fuchsia:rustc_no_pie_warning" ]
 }
 set_defaults("shared_library") {
   configs = default_shared_library_configs
@@ -534,6 +571,35 @@ set_defaults("rust_proc_macro") {
   configs = default_rust_proc_macro_configs
 }
 
+DEFAULT_MODULE_DEPS = [
+  "//buildtools/third_party/libc++:_Builtin_float",
+  "//buildtools/third_party/libc++:_Builtin_intrinsics",
+  "//buildtools/third_party/libc++:_Builtin_inttypes",
+  "//buildtools/third_party/libc++:_Builtin_limits",
+  "//buildtools/third_party/libc++:_Builtin_stdalign",
+  "//buildtools/third_party/libc++:_Builtin_stdarg",
+  "//buildtools/third_party/libc++:_Builtin_stdatomic",
+  "//buildtools/third_party/libc++:_Builtin_stdbool",
+  "//buildtools/third_party/libc++:_Builtin_stddef",
+  "//buildtools/third_party/libc++:_Builtin_stdint",
+  "//buildtools/third_party/libc++:_Builtin_unwind",
+  "//buildtools/third_party/libc++:std",
+  "//buildtools/third_party/libc++:std_config",
+  "//buildtools/third_party/libc++:std_core",
+  "//buildtools/third_party/libc++:std_ctype_h",
+  "//buildtools/third_party/libc++:std_errno_h",
+  "//buildtools/third_party/libc++:std_fenv_h",
+  "//buildtools/third_party/libc++:std_float_h",
+  "//buildtools/third_party/libc++:std_inttypes_h",
+  "//buildtools/third_party/libc++:std_math_h",
+  "//buildtools/third_party/libc++:std_private_mbstate_t",
+  "//buildtools/third_party/libc++:std_stdatomic_h",
+  "//buildtools/third_party/libc++:std_stdbool_h",
+  "//buildtools/third_party/libc++:std_string_h",
+  "//buildtools/third_party/libc++:std_uchar_h",
+  "//buildtools/third_party/libc++:std_wctype_h",
+]
+
 # A helper for forwarding testonly and visibility.
 # Forwarding "*" does not include variables from outer scopes (to avoid copying
 # all globals into each template invocation), so it will not pick up
@@ -546,6 +612,79 @@ TESTONLY_AND_VISIBILITY = [
   "visibility",
 ]
 
+# Sets default dependencies for static_library and source_set targets.
+#
+# Variables
+#   use_libcxx_modules: If true, libc++'s modules are added to deps.
+#       This is true by default.
+foreach(_target_type,
+        [
+          "source_set",
+          "static_library",
+        ]) {
+  template(_target_type) {
+    target(_target_type, target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             TESTONLY_AND_VISIBILITY + [ "use_libcxx_modules" ])
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      if (!defined(inputs)) {
+        inputs = []
+      }
+      if (!defined(deps)) {
+        deps = []
+      }
+
+      _use_libcxx_modules = true
+      if (defined(invoker.use_libcxx_modules)) {
+        _use_libcxx_modules = invoker.use_libcxx_modules
+      }
+
+      if (filter_include(configs,
+                         [
+                           "//build/config/compiler:exceptions",
+                           "//build/config/compiler:rtti",
+                         ]) != []) {
+        # Exceptions and RTTI flags are incompatible with libc++ modules build.
+        # So disable modules build for such targets.
+        _use_libcxx_modules = false
+      }
+
+      if (is_clang && _use_libcxx_modules) {
+        # This is necessary for Clang modules builds.
+        deps += DEFAULT_MODULE_DEPS
+      } else if (filter_include(configs,
+                                [ "//build/config/compiler:libcxx_module" ]) !=
+                 []) {
+        configs -= [ "//build/config/compiler:libcxx_module" ]
+      }
+
+      # _use_libcxx_modules is considered unused, if is_clang = false in the
+      # above conditional.
+      not_needed([ "_use_libcxx_modules" ])
+
+      # Consumed by the unsafe-buffers plugin during compile.
+      #
+      # TODO(crbug.com/326584510): Reclient doesn't respect this variable, see
+      # rbe_bug_326584510_missing_inputs in //build/config/clang/clang.gni
+      _uses_cflags = false
+      if (defined(sources)) {
+        foreach(f, sources) {
+          if (string_replace(f + ".END", ".cc.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".c.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".mm.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".m.END", "") != f + ".END") {
+            _uses_cflags = true
+          }
+        }
+      }
+      if (_uses_cflags && clang_unsafe_buffers_paths != "") {
+        inputs += [ clang_unsafe_buffers_paths ]
+      }
+    }
+  }
+}
+
 # Sets default dependencies for executable and shared_library targets.
 #
 # Variables
@@ -553,14 +692,13 @@ TESTONLY_AND_VISIBILITY = [
 #       Targets that set this usually also want to remove
 #       "//build/config/compiler:runtime_library" from configs (to remove
 #       its subconfig "//build/config/c++:runtime_library").
+#   use_libcxx_modules: If true, libc++'s modules are added to deps.
+#       This is true by default.
 foreach(_target_type,
         [
           "executable",
           "loadable_module",
           "shared_library",
-          "rust_bin",
-          "rust_dylib",
-          "rust_cdylib",
         ]) {
   template(_target_type) {
     # Alias "target_name" because it is clobbered by forward_variables_from().
@@ -568,8 +706,34 @@ foreach(_target_type,
     target(_target_type, _target_name) {
       forward_variables_from(invoker,
                              "*",
-                             TESTONLY_AND_VISIBILITY + [ "no_default_deps" ])
+                             TESTONLY_AND_VISIBILITY + [
+                                   "no_default_deps",
+                                   "use_libcxx_modules",
+                                 ])
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      if (!defined(inputs)) {
+        inputs = []
+      }
+
+      # Consumed by the unsafe-buffers plugin during compile.
+      #
+      # TODO(crbug.com/326584510): Reclient doesn't respect this variable, see
+      # rbe_bug_326584510_missing_inputs in //build/config/clang/clang.gni
+      _uses_cflags = false
+      if (defined(sources)) {
+        foreach(f, sources) {
+          if (string_replace(f + ".END", ".cc.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".c.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".mm.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".m.END", "") != f + ".END") {
+            _uses_cflags = true
+          }
+        }
+      }
+      if (_uses_cflags && clang_unsafe_buffers_paths != "") {
+        inputs += [ clang_unsafe_buffers_paths ]
+      }
+
       if (!defined(deps)) {
         deps = []
       }
@@ -582,6 +746,34 @@ foreach(_target_type,
         # they are used.)
         deps += [ "//build/config:${_target_type}_deps" ]
       }
+
+      _use_libcxx_modules = true
+      if (defined(invoker.use_libcxx_modules)) {
+        _use_libcxx_modules = invoker.use_libcxx_modules
+      }
+
+      if (filter_include(configs,
+                         [
+                           "//build/config/compiler:exceptions",
+                           "//build/config/compiler:rtti",
+                         ]) != []) {
+        # Exceptions and RTTI flags are incompatible with libc++ modules build.
+        # So disable modules build for such targets.
+        _use_libcxx_modules = false
+      }
+
+      if (is_clang && _use_libcxx_modules) {
+        # These are necessary for Clang modules builds.
+        deps += DEFAULT_MODULE_DEPS
+      } else if (filter_include(configs,
+                                [ "//build/config/compiler:libcxx_module" ]) !=
+                 []) {
+        configs -= [ "//build/config/compiler:libcxx_module" ]
+      }
+
+      # _use_libcxx_modules is considered unused, if is_clang = false in the
+      # above conditional.
+      not_needed([ "_use_libcxx_modules" ])
 
       # On Android, write shared library output file to metadata. We will use
       # this information to, for instance, collect all shared libraries that
@@ -604,8 +796,6 @@ foreach(_target_type,
 
         if (defined(output_extension)) {
           _shlib_extension = ".$output_extension"
-        } else if (is_component_build && _target_type != "loadable_module") {
-          _shlib_extension = ".cr.so"
         } else {
           _shlib_extension = ".so"
         }
@@ -662,6 +852,11 @@ template("component") {
     if (defined(_output_name)) {
       output_name = _output_name
     }
+    if (is_component_build && is_android) {
+      # By appending .cr, we prevent name collisions with libraries already
+      # loaded by the Android zygote.
+      output_extension = "cr.so"
+    }
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
   }
@@ -676,122 +871,15 @@ if (is_component_build) {
     default_component_configs -=
         [ "//build/config/android:hide_all_but_jni_onload" ]
   }
+  if (is_win) {
+    # We don't want component dlls to statically load OS dlls that aren't
+    # loaded normally.
+    default_component_configs += [ "//build/config/win:delayloads" ]
+  }
 } else {
   default_component_configs = default_compiler_configs
 }
 
 set_defaults("component") {
   configs = default_component_configs
-}
-
-# =============================================================================
-# ACTION OVERRIDE
-# =============================================================================
-#
-# We override gn action() to support remote execution using rewrapper. The
-# invoker should set allow_remote to true if remote execution is desired.
-#
-# As remote execution requires inputs to be made more explicit than is normally
-# expected with gn, you may find that setting allow_remote to true will result
-# in many missing file errors. In most cases, this should be resolved by
-# explicitly declaring these inputs/sources.
-#
-# However, it may be impractical to determine these inputs in gn. For such
-# cases, the invoker can specify a custom input processor, which are currently
-# defined and implemented in //build/util/action_remote.py. The appropriate
-# value should be set using the custom_processor arg.
-
-# Variables needed by rbe.gni aren't available at the top of this file.
-import("//build/toolchain/rbe.gni")
-
-# TODO(b/253987456): Add action_foreach support.
-foreach(_target_type, [ "action" ]) {
-  template(_target_type) {
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    forward_variables_from(invoker, [ "allow_remote" ])
-    action("${target_name}") {
-      forward_variables_from(invoker,
-                             [
-                               "args",
-                               "assert_no_deps",
-                               "check_includes",
-                               "configs",
-                               "data_deps",
-                               "data",
-                               "depfile",
-                               "deps",
-                               "metadata",
-                               "outputs",
-                               "pool",
-                               "script",
-                               "public_configs",
-                               "public_deps",
-                               "response_file_contents",
-                               "sources",
-                               "write_runtime_deps",
-                             ])
-      allow_remote = false
-      if (defined(invoker.allow_remote)) {
-        allow_remote = invoker.allow_remote
-      }
-
-      # If remote execution is desired, only run remotely when use_remoteexec
-      # is enabled, and the environment is not nacl.
-      # TODO(b/259381924): Investigate enabling in nacl config.
-      if (allow_remote && use_remoteexec && !is_nacl) {
-        pool = "//build/toolchain:remote_action_pool($default_toolchain)"
-        script = "//build/util/action_remote.py"
-        inputs = [ invoker.script ]
-
-        re_inputs = [ rebase_path(invoker.script, rbe_exec_root) ]
-        if (defined(invoker.inputs)) {
-          foreach(input, invoker.inputs) {
-            re_inputs += [ rebase_path(input, rbe_exec_root) ]
-            inputs += [ input ]
-          }
-        }
-        if (defined(invoker.sources)) {
-          foreach(source, invoker.sources) {
-            re_inputs += [ rebase_path(source, rbe_exec_root) ]
-          }
-        }
-
-        re_outputs = []
-        if (defined(invoker.outputs)) {
-          foreach(output, invoker.outputs) {
-            re_outputs += [ rebase_path(output, rbe_exec_root) ]
-          }
-        }
-
-        # Write input/output lists to files as these can grow extremely large.
-        re_inputs_file = "$target_gen_dir/${target_name}__remote_inputs.rsp"
-        write_file(re_inputs_file, re_inputs)
-        inputs += [ re_inputs_file ]
-        re_outputs_file = "$target_gen_dir/${target_name}__remote_outputs.rsp"
-        write_file(re_outputs_file, re_outputs)
-
-        args = []
-        args += [ "$rbe_bin_dir/rewrapper" ]
-        if (defined(invoker.custom_processor)) {
-          args += [ "--custom_processor=" + invoker.custom_processor ]
-        }
-
-        args += [
-          "--cfg=$rbe_py_cfg_file",
-          "--exec_root=$rbe_exec_root",
-          "--input_list_paths=" + rebase_path(re_inputs_file, root_build_dir),
-          "--output_list_paths=" + rebase_path(re_outputs_file, root_build_dir),
-          "python3",
-          rebase_path(invoker.script, root_build_dir),
-        ]
-
-        if (defined(invoker.args)) {
-          args += invoker.args
-        }
-      } else {
-        forward_variables_from(invoker, [ "inputs" ])
-        not_needed(invoker, [ "custom_processor" ])
-      }
-    }
-  }
 }

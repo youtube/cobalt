@@ -23,7 +23,7 @@ class GPUTestConfigTest : public ANGLETest<>
     void validateConfigBase(const GPUTestConfig &config)
     {
         EXPECT_EQ(IsWindows(), config.getConditions()[GPUTestConfig::kConditionWin]);
-        EXPECT_EQ(IsOSX(), config.getConditions()[GPUTestConfig::kConditionMac]);
+        EXPECT_EQ(IsMac(), config.getConditions()[GPUTestConfig::kConditionMac]);
         EXPECT_EQ(IsIOS(), config.getConditions()[GPUTestConfig::kConditionIOS]);
         EXPECT_EQ(IsLinux(), config.getConditions()[GPUTestConfig::kConditionLinux]);
         EXPECT_EQ(IsAndroid(), config.getConditions()[GPUTestConfig::kConditionAndroid]);
@@ -50,6 +50,7 @@ class GPUTestConfigTest : public ANGLETest<>
         bool GLES      = false;
         bool Vulkan    = false;
         bool Metal     = false;
+        bool Wgpu      = false;
         switch (api)
         {
             case GPUTestConfig::kAPID3D9:
@@ -70,6 +71,9 @@ class GPUTestConfigTest : public ANGLETest<>
             case GPUTestConfig::kAPIMetal:
                 Metal = true;
                 break;
+            case GPUTestConfig::kAPIWgpu:
+                Wgpu = true;
+                break;
             case GPUTestConfig::kAPIUnknown:
             default:
                 break;
@@ -80,6 +84,7 @@ class GPUTestConfigTest : public ANGLETest<>
         EXPECT_EQ(GLES, config.getConditions()[GPUTestConfig::kConditionGLES]);
         EXPECT_EQ(Vulkan, config.getConditions()[GPUTestConfig::kConditionVulkan]);
         EXPECT_EQ(Metal, config.getConditions()[GPUTestConfig::kConditionMetal]);
+        EXPECT_EQ(Wgpu, config.getConditions()[GPUTestConfig::kConditionWgpu]);
 
         switch (preRotation)
         {
@@ -137,6 +142,14 @@ TEST_P(GPUTestConfigTest, GPUTestConfigConditions_Metal)
 {
     GPUTestConfig config(GPUTestConfig::kAPIMetal, 0);
     validateConfigAPI(config, GPUTestConfig::kAPIMetal, 0);
+}
+
+// Create a new GPUTestConfig with webgpu and validate the
+// condition flags are set correctly.
+TEST_P(GPUTestConfigTest, GPUTestConfigConditions_Wgpu)
+{
+    GPUTestConfig config(GPUTestConfig::kAPIWgpu, 0);
+    validateConfigAPI(config, GPUTestConfig::kAPIWgpu, 0);
 }
 
 TEST_P(GPUTestConfigTest, GPUTestConfigConditions_GLDesktop)

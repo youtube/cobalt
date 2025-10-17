@@ -25,7 +25,6 @@ struct EnumTraits<paint_preview::mojom::RecordingPersistence,
         return paint_preview::mojom::RecordingPersistence::kMemoryBuffer;
     }
     NOTREACHED() << "Unknown persistence " << static_cast<int>(persistence);
-    return paint_preview::mojom::RecordingPersistence::kFileSystem;
   }
 
   static bool FromMojom(paint_preview::mojom::RecordingPersistence input,

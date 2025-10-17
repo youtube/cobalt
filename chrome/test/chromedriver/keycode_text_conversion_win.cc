@@ -15,13 +15,13 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/test/chromedriver/chrome/ui_events.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 bool ConvertKeyCodeToText(
     ui::KeyboardCode key_code, int modifiers, std::string* text,
     std::string* error_msg) {
   UINT scan_code = ::MapVirtualKeyW(key_code, MAPVK_VK_TO_VSC);
-  BYTE keyboard_state[256];
-  memset(keyboard_state, 0, 256);
+  BYTE keyboard_state[256] = {};
   *error_msg = std::string();
   if (modifiers & kShiftKeyModifierMask)
     keyboard_state[VK_SHIFT] |= 0x80;
@@ -33,10 +33,13 @@ bool ConvertKeyCodeToText(
   int code = ::ToUnicode(key_code, scan_code, keyboard_state, chars, 4, 0);
   // |ToUnicode| converts some non-text key codes like F1 to various
   // control chars. Filter those out.
-  if (code <= 0 || (code == 1 && iswcntrl(chars[0])))
+  if (code <= 0 ||
+      (code == 1 && chars[0] <= UCHAR_MAX &&
+       absl::ascii_iscntrl(static_cast<unsigned char>(chars[0])))) {
     *text = std::string();
-  else
+  } else {
     base::WideToUTF8(chars, code, text);
+  }
   return true;
 }
 

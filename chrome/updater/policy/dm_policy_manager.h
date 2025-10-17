@@ -5,11 +5,12 @@
 #ifndef CHROME_UPDATER_POLICY_DM_POLICY_MANAGER_H_
 #define CHROME_UPDATER_POLICY_DM_POLICY_MANAGER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
-#include "chrome/updater/device_management/dm_storage.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
 #include "chrome/updater/policy/manager.h"
 #include "chrome/updater/protos/omaha_settings.pb.h"
 
@@ -20,7 +21,8 @@ class DMPolicyManager : public PolicyManagerInterface {
  public:
   explicit DMPolicyManager(
       const ::wireless_android_enterprise_devicemanagement::
-          OmahaSettingsClientProto& omaha_settings);
+          OmahaSettingsClientProto& omaha_settings,
+      std::optional<bool> override_is_managed_device = std::nullopt);
   DMPolicyManager(const DMPolicyManager&) = delete;
   DMPolicyManager& operator=(const DMPolicyManager&) = delete;
 
@@ -29,39 +31,48 @@ class DMPolicyManager : public PolicyManagerInterface {
 
   bool HasActiveDevicePolicies() const override;
 
-  absl::optional<base::TimeDelta> GetLastCheckPeriod() const override;
-  absl::optional<UpdatesSuppressedTimes> GetUpdatesSuppressedTimes()
+  std::optional<bool> CloudPolicyOverridesPlatformPolicy() const override;
+  std::optional<base::TimeDelta> GetLastCheckPeriod() const override;
+  std::optional<UpdatesSuppressedTimes> GetUpdatesSuppressedTimes()
       const override;
-  absl::optional<std::string> GetDownloadPreferenceGroupPolicy() const override;
-  absl::optional<int> GetPackageCacheSizeLimitMBytes() const override;
-  absl::optional<int> GetPackageCacheExpirationTimeDays() const override;
-  absl::optional<int> GetEffectivePolicyForAppInstalls(
+  std::optional<std::string> GetDownloadPreference() const override;
+  std::optional<int> GetPackageCacheSizeLimitMBytes() const override;
+  std::optional<int> GetPackageCacheExpirationTimeDays() const override;
+  std::optional<int> GetEffectivePolicyForAppInstalls(
       const std::string& app_id) const override;
-  absl::optional<int> GetEffectivePolicyForAppUpdates(
+  std::optional<int> GetEffectivePolicyForAppUpdates(
       const std::string& app_id) const override;
-  absl::optional<std::string> GetTargetVersionPrefix(
+  std::optional<std::string> GetTargetVersionPrefix(
       const std::string& app_id) const override;
-  absl::optional<bool> IsRollbackToTargetVersionAllowed(
+  std::optional<bool> IsRollbackToTargetVersionAllowed(
       const std::string& app_id) const override;
-  absl::optional<std::string> GetProxyMode() const override;
-  absl::optional<std::string> GetProxyPacUrl() const override;
-  absl::optional<std::string> GetProxyServer() const override;
-  absl::optional<std::string> GetTargetChannel(
+  std::optional<std::string> GetProxyMode() const override;
+  std::optional<std::string> GetProxyPacUrl() const override;
+  std::optional<std::string> GetProxyServer() const override;
+  std::optional<std::string> GetTargetChannel(
       const std::string& app_id) const override;
-  absl::optional<std::vector<std::string>> GetForceInstallApps() const override;
-  absl::optional<std::vector<std::string>> GetAppsWithPolicy() const override;
+  std::optional<std::vector<std::string>> GetForceInstallApps() const override;
+  std::optional<std::vector<std::string>> GetAppsWithPolicy() const override;
 
  private:
   ~DMPolicyManager() override;
   const ::wireless_android_enterprise_devicemanagement::ApplicationSettings*
   GetAppSettings(const std::string& app_id) const;
 
+  const bool is_managed_device_;
   const ::wireless_android_enterprise_devicemanagement::OmahaSettingsClientProto
       omaha_settings_;
 };
 
+// Read the Omaha settings from DM storage.
+std::optional<
+    wireless_android_enterprise_devicemanagement::OmahaSettingsClientProto>
+GetOmahaPolicySettings(
+    scoped_refptr<device_management_storage::DMStorage> dm_storage);
+
 // A factory method to create a DM policy manager.
-scoped_refptr<PolicyManagerInterface> CreateDMPolicyManager();
+scoped_refptr<PolicyManagerInterface> CreateDMPolicyManager(
+    std::optional<bool> override_is_managed_device);
 
 }  // namespace updater
 

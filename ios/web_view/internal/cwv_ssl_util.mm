@@ -4,10 +4,6 @@
 
 #import "ios/web_view/internal/cwv_ssl_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 CWVCertStatus CWVCertStatusFromNetCertStatus(net::CertStatus cert_status) {
   CWVCertStatus cwv_status = 0;
   if (cert_status & net::CERT_STATUS_COMMON_NAME_INVALID) {
@@ -51,9 +47,6 @@ CWVCertStatus CWVCertStatusFromNetCertStatus(net::CertStatus cert_status) {
   }
   if (cert_status & net::CERT_STATUS_CERTIFICATE_TRANSPARENCY_REQUIRED) {
     cwv_status |= CWVCertStatusCertificateTransparencyRequired;
-  }
-  if (cert_status & net::CERT_STATUS_SYMANTEC_LEGACY) {
-    cwv_status |= CWVCertStatusSymantecLegacy;
   }
   if (cert_status & net::CERT_STATUS_KNOWN_INTERCEPTION_BLOCKED) {
     cwv_status |= CWVCertStatusKnownInterceptionBlocked;

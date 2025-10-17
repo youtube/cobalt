@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "chrome/test/chromedriver/logging.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include <array>
 #include <cmath>
 #include <memory>
 #include <utility>
@@ -53,14 +55,14 @@ int64_t g_start_time = 0;
 bool readable_timestamp;
 
 // Array indices are the Log::Level enum values.
-const char* const kLevelToName[] = {
-  "ALL",  // kAll
-  "DEBUG",  // kDebug
-  "INFO",  // kInfo
-  "WARNING",  // kWarning
-  "SEVERE",  // kError
-  "OFF",  // kOff
-};
+constexpr auto kLevelToName = std::to_array<const char*>({
+    "ALL",      // kAll
+    "DEBUG",    // kDebug
+    "INFO",     // kInfo
+    "WARNING",  // kWarning
+    "SEVERE",   // kError
+    "OFF",      // kOff
+});
 
 const char* LevelToName(Log::Level level) {
   const int index = level - Log::kAll;
@@ -74,25 +76,25 @@ struct LevelPair {
   Log::Level level;
 };
 
-const LevelPair kNameToLevel[] = {
+constexpr auto kNameToLevel = std::to_array<LevelPair>({
     {"ALL", Log::kAll},
     {"DEBUG", Log::kDebug},
     {"INFO", Log::kInfo},
     {"WARNING", Log::kWarning},
     {"SEVERE", Log::kError},
     {"OFF", Log::kOff},
-};
+});
 
 Log::Level GetLevelFromSeverity(int severity) {
   switch (severity) {
-    case logging::LOG_FATAL:
-    case logging::LOG_ERROR:
+    case logging::LOGGING_FATAL:
+    case logging::LOGGING_ERROR:
       return Log::kError;
-    case logging::LOG_WARNING:
+    case logging::LOGGING_WARNING:
       return Log::kWarning;
-    case logging::LOG_INFO:
+    case logging::LOGGING_INFO:
       return Log::kInfo;
-    case logging::LOG_VERBOSE:
+    case logging::LOGGING_VERBOSE:
     default:
       return Log::kDebug;
   }
@@ -248,7 +250,8 @@ void WebDriverLog::AddEntryTimestamped(const base::Time& timestamp,
     return;
 
   base::Value::Dict log_entry_dict;
-  log_entry_dict.Set("timestamp", std::trunc(timestamp.ToJsTime()));
+  log_entry_dict.Set("timestamp",
+                     std::trunc(timestamp.InMillisecondsFSinceUnixEpoch()));
   log_entry_dict.Set("level", LevelToName(level));
   if (!source.empty())
     log_entry_dict.Set("source", source);
@@ -276,7 +279,7 @@ Log::Level WebDriverLog::min_level() const {
   return min_level_;
 }
 
-bool InitLogging(uint16_t port) {
+bool InitLogging() {
   g_start_time = base::TimeTicks::Now().ToInternalValue();
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
 
@@ -288,13 +291,13 @@ bool InitLogging(uint16_t port) {
     if (cmd_line->HasSwitch("append-log")) {
       log_mode = FILE_PATH_LITERAL("a");
     }
-  if (cmd_line->HasSwitch("readable-timestamp")) {
-    readable_timestamp = true;
-  }
+    if (cmd_line->HasSwitch("readable-timestamp")) {
+      readable_timestamp = true;
+    }
 #if BUILDFLAG(IS_WIN)
-  FILE* redir_stderr = _wfreopen(log_path.value().c_str(), log_mode, stderr);
+    FILE* redir_stderr = _wfreopen(log_path.value().c_str(), log_mode, stderr);
 #else
-  FILE* redir_stderr = freopen(log_path.value().c_str(), log_mode, stderr);
+    FILE* redir_stderr = freopen(log_path.value().c_str(), log_mode, stderr);
 #endif
     if (!redir_stderr) {
       printf("Failed to redirect stderr to log file.\n");
@@ -335,7 +338,7 @@ bool InitLogging(uint16_t port) {
   if (!cmd_line->HasSwitch("vmodule"))
     cmd_line->AppendSwitchASCII("vmodule", "*/chrome/test/chromedriver/*=3");
 
-  logging::SetMinLogLevel(logging::LOG_WARNING);
+  logging::SetMinLogLevel(logging::LOGGING_WARNING);
   logging::SetLogItems(false,   // enable_process_id
                        false,   // enable_thread_id
                        false,   // enable_timestamp
@@ -345,13 +348,7 @@ bool InitLogging(uint16_t port) {
   logging::LoggingSettings logging_settings;
   logging_settings.logging_dest =
       logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
-  bool res = logging::InitLogging(logging_settings);
-  if (cmd_line->HasSwitch("log-path") && res) {
-    VLOG(0) << "Starting " << kChromeDriverProductFullName << " "
-            << kChromeDriverVersion << " on port " << port;
-    VLOG(0) << GetPortProtectionMessage();
-  }
-  return res;
+  return logging::InitLogging(logging_settings);
 }
 
 Status CreateLogs(

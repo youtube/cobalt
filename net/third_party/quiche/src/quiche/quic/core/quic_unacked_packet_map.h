@@ -27,7 +27,7 @@ class QuicUnackedPacketMapPeer;
 // 1) Track retransmittable data, including multiple transmissions of frames.
 // 2) Track packets and bytes in flight for congestion control.
 // 3) Track sent time of packets to provide RTT measurements from acks.
-class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
+class QUICHE_EXPORT QuicUnackedPacketMap {
  public:
   QuicUnackedPacketMap(Perspective perspective);
   QuicUnackedPacketMap(const QuicUnackedPacketMap&) = delete;
@@ -45,13 +45,20 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
                      bool set_in_flight, bool measure_rtt,
                      QuicEcnCodepoint ecn_codepoint);
 
+  const QuicTransmissionInfo& AddDispatcherSentPacket(
+      const DispatcherSentPacket& packet);
+
   // Returns true if the packet |packet_number| is unacked.
   bool IsUnacked(QuicPacketNumber packet_number) const;
 
-  // Notifies session_notifier that frames have been acked. Returns true if any
-  // new data gets acked, returns false otherwise.
-  bool NotifyFramesAcked(const QuicTransmissionInfo& info,
-                         QuicTime::Delta ack_delay, QuicTime receive_timestamp);
+  // Notifies session_notifier that frames in |packet_number| have been acked.
+  // Returns true if any new data gets acked, returns false otherwise.
+  // Note: The function may cause the QuicTransmissionInfo for |packet_number|
+  // to move, in that case, |info| will be updated to point to the new
+  // QuicTransmissionInfo when the function returns.
+  bool NotifyFramesAcked(QuicPacketNumber packet_number,
+                         QuicTime::Delta ack_delay, QuicTime receive_timestamp,
+                         QuicTransmissionInfo*& info);
 
   // Notifies session_notifier that frames in |info| are considered as lost.
   void NotifyFramesLost(const QuicTransmissionInfo& info,
@@ -183,13 +190,21 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Try to aggregate acked contiguous stream frames. For noncontiguous stream
   // frames or control frames, notify the session notifier they get acked
   // immediately.
-  void MaybeAggregateAckedStreamFrame(const QuicTransmissionInfo& info,
+  // Note: The function may cause the QuicTransmissionInfo for |packet_number|
+  // to move, in that case, |info| will be updated to point to the new
+  // QuicTransmissionInfo when the function returns.
+  void MaybeAggregateAckedStreamFrame(QuicPacketNumber packet_number,
                                       QuicTime::Delta ack_delay,
-                                      QuicTime receive_timestamp);
+                                      QuicTime receive_timestamp,
+                                      QuicTransmissionInfo*& info);
 
   // Notify the session notifier of any stream data aggregated in
   // aggregated_stream_frame_.  No effect if the stream frame has an invalid
   // stream id.
+  // Note: If the caller holds a reference to a QuicTransmissionInfo stored in
+  // unacked_packets_, the reference may be invalidated by this call, so after
+  // the call, caller should use GetTransmissionInfo() or
+  // GetMutableTransmissionInfo() to get a new reference.
   void NotifyAggregatedStreamFrameAcked(QuicTime::Delta ack_delay);
 
   // Returns packet number space that |packet_number| belongs to. Please use

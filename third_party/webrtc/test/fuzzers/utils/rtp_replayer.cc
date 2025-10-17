@@ -16,8 +16,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
-#include "api/task_queue/default_task_queue_factory.h"
-#include "api/transport/field_trial_based_config.h"
+#include "api/environment/environment_factory.h"
 #include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
@@ -48,12 +47,12 @@ void RtpReplayer::Replay(
     const uint8_t* rtp_dump_data,
     size_t rtp_dump_size) {
   RunLoop loop;
-  rtc::ScopedBaseFakeClock fake_clock;
+  ScopedBaseFakeClock fake_clock;
 
   // Work around: webrtc calls webrtc::Random(clock.TimeInMicroseconds())
   // everywhere and Random expects non-zero seed. Let's set the clock non-zero
   // to make them happy.
-  fake_clock.SetTime(webrtc::Timestamp::Millis(1));
+  fake_clock.SetTime(Timestamp::Millis(1));
 
   // Attempt to create an RtpReader from the input file.
   auto rtp_reader = CreateRtpReader(rtp_dump_data, rtp_dump_size);
@@ -73,14 +72,8 @@ void RtpReplayer::Replay(
   }
 
   // Setup the video streams based on the configuration.
-  webrtc::RtcEventLogNull event_log;
-  std::unique_ptr<TaskQueueFactory> task_queue_factory =
-      CreateDefaultTaskQueueFactory();
-  Call::Config call_config(&event_log);
-  call_config.task_queue_factory = task_queue_factory.get();
-  FieldTrialBasedConfig field_trials;
-  call_config.trials = &field_trials;
-  std::unique_ptr<Call> call(Call::Create(call_config));
+  CallConfig call_config(CreateEnvironment());
+  std::unique_ptr<Call> call(Call::Create(std::move(call_config)));
   SetupVideoStreams(&receive_stream_configs, stream_state.get(), call.get());
 
   // Start replaying the provided stream now that it has been configured.
@@ -156,14 +149,14 @@ std::unique_ptr<test::RtpFileReader> RtpReplayer::CreateRtpReader(
 }
 
 void RtpReplayer::ReplayPackets(
-    rtc::FakeClock* clock,
+    FakeClock* clock,
     Call* call,
     test::RtpFileReader* rtp_reader,
     const RtpPacketReceived::ExtensionManager& extensions) {
   int64_t replay_start_ms = -1;
 
   while (true) {
-    int64_t now_ms = rtc::TimeMillis();
+    int64_t now_ms = TimeMillis();
     if (replay_start_ms == -1) {
       replay_start_ms = now_ms;
     }
@@ -177,7 +170,7 @@ void RtpReplayer::ReplayPackets(
     if (deliver_in_ms > 0) {
       // StatsCounter::ReportMetricToAggregatedCounter is O(elapsed time).
       // Set an upper limit to prevent waste time.
-      clock->AdvanceTime(webrtc::TimeDelta::Millis(
+      clock->AdvanceTime(TimeDelta::Millis(
           std::min(deliver_in_ms, static_cast<int64_t>(100))));
     }
 
@@ -187,6 +180,8 @@ void RtpReplayer::ReplayPackets(
       RTC_LOG(LS_ERROR) << "Packet error, corrupt packets or incorrect setup?";
       break;
     }
+    // Set the clock rate - always 90K for video
+    received_packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
 
     call->Receiver()->DeliverRtpPacket(
         MediaType::VIDEO, std::move(received_packet),

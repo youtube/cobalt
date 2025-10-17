@@ -14,6 +14,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
 #include "components/dom_distiller/core/distilled_page_prefs.h"
 #include "components/dom_distiller/core/dom_distiller_service.h"
@@ -101,7 +102,6 @@ const std::string GetFontCssClass(mojom::FontFamily font_family) {
 }
 
 void EnsureNonEmptyContent(std::string* content) {
-  UMA_HISTOGRAM_BOOLEAN("DomDistiller.PageHasDistilledData", !content->empty());
   if (content->empty()) {
     *content =
         l10n_util::GetStringUTF8(IDS_DOM_DISTILLER_VIEWER_NO_DATA_CONTENT);
@@ -110,7 +110,8 @@ void EnsureNonEmptyContent(std::string* content) {
 
 std::string ReplaceHtmlTemplateValues(const mojom::Theme theme,
                                       const mojom::FontFamily font_family,
-                                      const std::string& csp_nonce) {
+                                      const std::string& csp_nonce,
+                                      bool use_offline_data) {
   std::string html_template =
       ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
           IDR_DOM_DISTILLER_VIEWER_HTML);
@@ -160,33 +161,32 @@ std::string ReplaceHtmlTemplateValues(const mojom::Theme theme,
   std::ostringstream csp;
   std::ostringstream css;
   std::ostringstream svg;
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(USE_BLINK)
   // On iOS the content is inlined as there is no API to detect those requests
   // and return the local data once a page is loaded.
   css << "<style>" << viewer::GetCss() << "</style>";
   svg << viewer::GetLoadingImage();
-
-  // iOS specific CSP policy to mitigate leaking of data from different
-  // origins.
-  csp << "<meta http-equiv=\"Content-Security-Policy\" content=\"";
-  csp << "default-src 'none'; ";
-  csp << "script-src 'nonce-" << csp_nonce << "'; ";
-  // YouTube videos are embedded as an iframe.
-  csp << "frame-src http://www.youtube.com; ";
-  csp << "style-src 'unsafe-inline' https://fonts.googleapis.com; ";
-  // Allows the fallback font-face from the main stylesheet.
-  csp << "font-src https://fonts.gstatic.com; ";
-  // Images will be inlined as data-uri if they are valid.
-  csp << "img-src data:; ";
-  csp << "form-action 'none'; ";
-  csp << "base-uri 'none'; ";
-  csp << "\">";
-
 #else
   css << "<link rel=\"stylesheet\" href=\"/" << kViewerCssPath << "\">";
   svg << "<img src=\"/" << kViewerLoadingImagePath << "\">";
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) && !BUILDFLAG(USE_BLINK)
 
+  if (use_offline_data) {
+    // CSP policy to mitigate leaking of data from different origins.
+    csp << "<meta http-equiv=\"Content-Security-Policy\" content=\"";
+    csp << "default-src 'none'; ";
+    csp << "script-src 'nonce-" << csp_nonce << "'; ";
+    // YouTube videos are embedded as an iframe.
+    csp << "frame-src http://www.youtube.com; ";
+    csp << "style-src 'unsafe-inline' https://fonts.googleapis.com; ";
+    // Allows the fallback font-face from the main stylesheet.
+    csp << "font-src https://fonts.gstatic.com; ";
+    // Images will be inlined as data-uri if they are valid.
+    csp << "img-src data:; ";
+    csp << "form-action 'none'; ";
+    csp << "base-uri 'none'; ";
+    csp << "\">";
+  }
   substitutions.push_back(csp.str());  // $1
   substitutions.push_back(css.str());  // $2
   substitutions.push_back(GetThemeCssClass(theme) + " " +
@@ -260,8 +260,10 @@ const std::string GetToggleLoadingIndicatorJs(bool is_last_page) {
 
 const std::string GetArticleTemplateHtml(mojom::Theme theme,
                                          mojom::FontFamily font_family,
-                                         const std::string& csp_nonce) {
-  return ReplaceHtmlTemplateValues(theme, font_family, csp_nonce);
+                                         const std::string& csp_nonce,
+                                         bool use_offline_data) {
+  return ReplaceHtmlTemplateValues(theme, font_family, csp_nonce,
+                                   use_offline_data);
 }
 
 const std::string GetUnsafeArticleContentJs(

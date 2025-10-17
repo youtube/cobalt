@@ -16,11 +16,11 @@ namespace {
 void AddDebugMessages(D3D11Status* error, ComD3D11Device device) {
   // MSDN says that this needs to be casted twice, then GetMessage should
   // be called with a malloc.
-  Microsoft::WRL::ComPtr<ID3D11Debug> debug_layer;
+  ComD3D11Debug debug_layer;
   if (!SUCCEEDED(device.As(&debug_layer)))
     return;
 
-  Microsoft::WRL::ComPtr<ID3D11InfoQueue> message_layer;
+  ComD3D11InfoQueue message_layer;
   if (!SUCCEEDED(debug_layer.As(&message_layer)))
     return;
 
@@ -105,6 +105,11 @@ D3D11Status VideoProcessorProxy::Init(uint32_t width, uint32_t height) {
                        device);
   }
 
+  // Turn off auto stream processing (the default) that will hurt power
+  // consumption.
+  video_context_->VideoProcessorSetStreamAutoProcessingMode(
+      video_processor_.Get(), 0, FALSE);
+
   return D3D11Status::Codes::kOk;
 }
 
@@ -159,29 +164,6 @@ void VideoProcessorProxy::SetOutputColorSpace(
         video_processor_.Get(),
         gfx::ColorSpaceWin::GetDXGIColorSpace(color_space));
   }
-}
-
-void VideoProcessorProxy::SetStreamHDRMetadata(
-    const DXGI_HDR_METADATA_HDR10& stream_metadata) {
-  ComD3D11VideoContext2 video_context2;
-  if (FAILED(video_context_.As(&video_context2)))
-    return;
-
-  // TODO: we shouldn't do this unless we also set the display metadata.
-  video_context2->VideoProcessorSetStreamHDRMetaData(
-      video_processor_.Get(), 0, DXGI_HDR_METADATA_TYPE_HDR10,
-      sizeof(stream_metadata), &stream_metadata);
-}
-
-void VideoProcessorProxy::SetDisplayHDRMetadata(
-    const DXGI_HDR_METADATA_HDR10& display_metadata) {
-  ComD3D11VideoContext2 video_context2;
-  if (FAILED(video_context_.As(&video_context2)))
-    return;
-
-  video_context2->VideoProcessorSetOutputHDRMetaData(
-      video_processor_.Get(), DXGI_HDR_METADATA_TYPE_HDR10,
-      sizeof(display_metadata), &display_metadata);
 }
 
 HRESULT VideoProcessorProxy::VideoProcessorBlt(

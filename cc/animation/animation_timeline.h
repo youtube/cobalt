@@ -42,6 +42,11 @@ class CC_ANIMATION_EXPORT AnimationTimeline
 
   int id() const { return id_; }
 
+  using IdToAnimationMap = std::unordered_map<int, scoped_refptr<Animation>>;
+  const IdToAnimationMap& animations() const {
+    return id_to_animation_map_.Read(*this);
+  }
+
   // Parent AnimationHost.
   AnimationHost* animation_host() {
     DCHECK(IsOwnerThread() || InProtectedSequence());
@@ -64,7 +69,8 @@ class CC_ANIMATION_EXPORT AnimationTimeline
   }
   bool TickTimeLinkedAnimations(
       const std::vector<scoped_refptr<Animation>>& ticking_animations,
-      base::TimeTicks monotonic_time);
+      base::TimeTicks monotonic_time,
+      bool tick_finished);
   virtual bool TickScrollLinkedAnimations(
       const std::vector<scoped_refptr<Animation>>& ticking_animations,
       const ScrollTree& scroll_tree,
@@ -93,8 +99,6 @@ class CC_ANIMATION_EXPORT AnimationTimeline
   ~AnimationTimeline() override;
 
   // A list of all animations which this timeline owns.
-  using IdToAnimationMap = std::unordered_map<int, scoped_refptr<Animation>>;
-
   ProtectedSequenceWritable<IdToAnimationMap> id_to_animation_map_;
 
  private:

@@ -16,6 +16,8 @@ import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 
 import org.chromium.base.MathUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.components.browser_ui.widget.async_image.AutoAnimatorDrawable;
 import org.chromium.components.browser_ui.widget.async_image.ForegroundDrawableCompat;
@@ -35,6 +37,7 @@ import java.lang.annotation.RetentionPolicy;
  * The indeterminate and determinate {@link Drawable}s support {@link Animatable} drawables and the
  * animation will be started/stopped when shown/hidden respectively.
  */
+@NullMarked
 public class CircularProgressView extends ChromeImageButton {
     /**
      * The value to use with {@link #setProgress(int)} to specify that the indeterminate
@@ -58,11 +61,11 @@ public class CircularProgressView extends ChromeImageButton {
 
     private static final int MAX_LEVEL = 10000;
 
-    private final Drawable mIndeterminateProgress;
-    private final Drawable mDeterminateProgress;
-    private final Drawable mResumeButtonSrc;
-    private final Drawable mPauseButtonSrc;
-    private final Drawable mRetryButtonSrc;
+    private final @Nullable Drawable mIndeterminateProgress;
+    private final @Nullable Drawable mDeterminateProgress;
+    private final @Nullable Drawable mResumeButtonSrc;
+    private final @Nullable Drawable mPauseButtonSrc;
+    private final @Nullable Drawable mRetryButtonSrc;
 
     private final ForegroundDrawableCompat mForegroundHelper;
 
@@ -77,14 +80,24 @@ public class CircularProgressView extends ChromeImageButton {
         mForegroundHelper = new ForegroundDrawableCompat(this);
         mForegroundHelper.setScaleType(ImageView.ScaleType.FIT_XY);
 
-        TypedArray types = attrs == null
-                ? null
-                : context.obtainStyledAttributes(attrs, R.styleable.CircularProgressView, 0, 0);
+        TypedArray types =
+                attrs == null
+                        ? null
+                        : context.obtainStyledAttributes(
+                                attrs, R.styleable.CircularProgressView, 0, 0);
 
-        mIndeterminateProgress = AutoAnimatorDrawable.wrap(UiUtils.getDrawable(
-                context, types, R.styleable.CircularProgressView_indeterminateProgress));
-        mDeterminateProgress = AutoAnimatorDrawable.wrap(UiUtils.getDrawable(
-                context, types, R.styleable.CircularProgressView_determinateProgress));
+        mIndeterminateProgress =
+                AutoAnimatorDrawable.wrap(
+                        UiUtils.getDrawable(
+                                context,
+                                types,
+                                R.styleable.CircularProgressView_indeterminateProgress));
+        mDeterminateProgress =
+                AutoAnimatorDrawable.wrap(
+                        UiUtils.getDrawable(
+                                context,
+                                types,
+                                R.styleable.CircularProgressView_determinateProgress));
         mResumeButtonSrc =
                 UiUtils.getDrawable(context, types, R.styleable.CircularProgressView_resumeSrc);
         mPauseButtonSrc =
@@ -122,8 +135,7 @@ public class CircularProgressView extends ChromeImageButton {
      */
     public void setState(@UiState int state) {
         Drawable imageDrawable;
-        @StringRes
-        int contentDescription;
+        @StringRes int contentDescription;
         switch (state) {
             case UiState.RUNNING:
                 imageDrawable = mPauseButtonSrc;

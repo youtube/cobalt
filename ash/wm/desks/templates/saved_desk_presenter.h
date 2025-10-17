@@ -38,10 +38,6 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
   SavedDeskPresenter& operator=(const SavedDeskPresenter&) = delete;
   ~SavedDeskPresenter() override;
 
-  bool should_show_saved_desk_library() {
-    return should_show_saved_desk_library_;
-  }
-
   // Retrieve the current and max count for a given saved desk type. Note that
   // these are snapshots of the model state, which may not match the current UI
   // state.
@@ -56,8 +52,7 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
 
   // Update UI for saved desk library. More specifically, it updates the
   // visibility of the library button, save desk button, and the saved desk
-  // grid. The grid contents are not updated. It also updates
-  // `should_show_saved_desk_library_`.
+  // grid. The grid contents are not updated.
   void UpdateUIForSavedDeskLibrary();
 
   // Calls the DeskModel to get all the saved desk entries, with a callback to
@@ -70,7 +65,7 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
   // Calls the DeskModel to delete the saved desk with the provided `uuid`. Will
   // record histogram if `record_for_type` is specified.
   void DeleteEntry(const base::Uuid& uuid,
-                   absl::optional<DeskTemplateType> record_for_type);
+                   std::optional<DeskTemplateType> record_for_type);
 
   // Launches `saved_desk` into a new desk.
   void LaunchSavedDesk(std::unique_ptr<DeskTemplate> saved_desk,
@@ -92,7 +87,8 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
   void DeskModelLoaded() override {}
   void OnDeskModelDestroying() override;
   void EntriesAddedOrUpdatedRemotely(
-      const std::vector<const DeskTemplate*>& new_entries) override;
+      const std::vector<raw_ptr<const DeskTemplate, VectorExperimental>>&
+          new_entries) override;
   void EntriesRemovedRemotely(const std::vector<base::Uuid>& uuids) override;
 
  private:
@@ -106,7 +102,7 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
   // Callback after deleting an entry. Will then call `RemoveUIEntries` to
   // update the UI by removing the deleted saved desk.
   void OnDeleteEntry(const base::Uuid& uuid,
-                     absl::optional<DeskTemplateType> record_for_type,
+                     std::optional<DeskTemplateType> record_for_type,
                      desks_storage::DeskModel::DeleteEntryStatus status);
 
   // Callback after adding or updating an entry. Will then call
@@ -121,7 +117,8 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
 
   // Helper functions for updating the UI.
   void AddOrUpdateUIEntries(
-      const std::vector<const DeskTemplate*>& new_entries);
+      const std::vector<raw_ptr<const DeskTemplate, VectorExperimental>>&
+          new_entries);
   void RemoveUIEntries(const std::vector<base::Uuid>& uuids);
 
   // Returns a copy of a duplicated name to be stored.  This function works by
@@ -137,15 +134,11 @@ class ASH_EXPORT SavedDeskPresenter : desks_storage::DeskModelObserver {
   static void FireWindowWatcherTimerForTesting();
 
   // Pointer to the session which owns `this`.
-  const raw_ptr<OverviewSession, ExperimentalAsh> overview_session_;
+  const raw_ptr<OverviewSession> overview_session_;
 
   base::ScopedObservation<desks_storage::DeskModel,
                           desks_storage::DeskModelObserver>
       desk_model_observation_{this};
-
-  // If the user has at least one saved desk entry, the saved desk library
-  // should be shown. Otherwise, it should be invisible.
-  bool should_show_saved_desk_library_ = false;
 
   // Test closure that runs after the UI has been updated async after a call to
   // the model.

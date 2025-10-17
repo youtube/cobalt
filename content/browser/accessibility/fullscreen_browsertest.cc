@@ -2,57 +2,51 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/test/scoped_feature_list.h"
-#include "content/browser/accessibility/browser_accessibility.h"
-#include "content/browser/accessibility/browser_accessibility_manager.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/public/common/content_features.h"
+#include "content/common/features.h"
 #include "content/public/test/accessibility_notification_waiter.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
+#include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/shell/browser/shell.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/accessibility/platform/browser_accessibility.h"
+#include "ui/accessibility/platform/browser_accessibility_manager.h"
 
 namespace content {
 
 class AccessibilityFullscreenBrowserTest : public ContentBrowserTest {
  public:
-  AccessibilityFullscreenBrowserTest();
+  AccessibilityFullscreenBrowserTest() = default;
   ~AccessibilityFullscreenBrowserTest() override = default;
 
  protected:
-  BrowserAccessibility* FindButton(BrowserAccessibility* node) {
-    if (node->GetRole() == ax::mojom::Role::kButton)
+  ui::BrowserAccessibility* FindButton(ui::BrowserAccessibility* node) {
+    if (node->GetRole() == ax::mojom::Role::kButton) {
       return node;
+    }
     for (unsigned i = 0; i < node->PlatformChildCount(); i++) {
-      if (BrowserAccessibility* button = FindButton(node->PlatformGetChild(i)))
+      if (ui::BrowserAccessibility* button =
+              FindButton(node->PlatformGetChild(i))) {
         return button;
+      }
     }
     return nullptr;
   }
 
-  int CountLinks(BrowserAccessibility* node) {
-    if (node->GetRole() == ax::mojom::Role::kLink)
+  int CountLinks(ui::BrowserAccessibility* node) {
+    if (node->GetRole() == ax::mojom::Role::kLink) {
       return 1;
+    }
     int links_in_children = 0;
     for (unsigned i = 0; i < node->PlatformChildCount(); i++) {
       links_in_children += CountLinks(node->PlatformGetChild(i));
     }
     return links_in_children;
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
-
-AccessibilityFullscreenBrowserTest::AccessibilityFullscreenBrowserTest() {
-  // The FakeFullscreenDelegate does not send the layout signals used to
-  // complete SurfaceSync for Fullscreen.
-  scoped_feature_list_.InitAndDisableFeature(
-      features::kSurfaceSyncFullscreenKillswitch);
-}
 
 namespace {
 
@@ -95,8 +89,9 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFullscreenBrowserTest,
   shell()->web_contents()->SetDelegate(&delegate);
 
   AccessibilityNotificationWaiter waiter(shell()->web_contents(),
-                                         ui::kAXModeComplete,
                                          ax::mojom::Event::kLoadComplete);
+  ScopedAccessibilityModeOverride complete_mode(ui::kAXModeComplete);
+
   GURL url(
       embedded_test_server()->GetURL("/accessibility/fullscreen/links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -104,7 +99,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFullscreenBrowserTest,
 
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
-  BrowserAccessibilityManager* manager =
+  ui::BrowserAccessibilityManager* manager =
       web_contents->GetRootBrowserAccessibilityManager();
 
   // Initially there are 3 links in the accessibility tree.
@@ -112,7 +107,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFullscreenBrowserTest,
 
   // Enter fullscreen by finding the button and performing the default action,
   // which is to click it.
-  BrowserAccessibility* button =
+  ui::BrowserAccessibility* button =
       FindButton(manager->GetBrowserAccessibilityRoot());
   ASSERT_NE(nullptr, button);
   manager->DoDefaultAction(*button);
@@ -133,8 +128,9 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFullscreenBrowserTest,
   shell()->web_contents()->SetDelegate(&delegate);
 
   AccessibilityNotificationWaiter waiter(shell()->web_contents(),
-                                         ui::kAXModeComplete,
                                          ax::mojom::Event::kLoadComplete);
+  ScopedAccessibilityModeOverride complete_mode(ui::kAXModeComplete);
+
   GURL url(
       embedded_test_server()->GetURL("/accessibility/fullscreen/iframe.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -142,7 +138,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFullscreenBrowserTest,
 
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());
-  BrowserAccessibilityManager* manager =
+  ui::BrowserAccessibilityManager* manager =
       web_contents->GetRootBrowserAccessibilityManager();
 
   // Initially there's just one link, in the top frame.
@@ -150,7 +146,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFullscreenBrowserTest,
 
   // Enter fullscreen by finding the button and performing the default action,
   // which is to click it.
-  BrowserAccessibility* button =
+  ui::BrowserAccessibility* button =
       FindButton(manager->GetBrowserAccessibilityRoot());
   ASSERT_NE(nullptr, button);
   manager->DoDefaultAction(*button);
