@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "init_musl.h"
-#include "libc.h"
-#include <sys/auxv.h>
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_
 
-void init_musl() {
+// Direct to the implementaton in a file that can be included in a source set
+// for build dependency tracking.
 
-  // Set __hwcap bitmask by getauxval.
-  __hwcap = getauxval(AT_HWCAP);
+#include "syscall_impl.h"
 
-  // Init the __stack_chk_guard.
-  init_stack_guard();
-}
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INTERNAL_BITS_SYSCALL_H_

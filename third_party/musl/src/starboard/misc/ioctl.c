@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "syscall.h"
+#include <sys/ioctl.h>
 
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
-
-#undef syscall
-
-long syscall(long n, ...) {
-  switch (n) {
-    case __NR_gettid: {
-      return SbThreadGetId();
-    }
-    default: {
-      SB_NOTIMPLEMENTED();
-      errno = ENOSYS;
-      return -1;
-    }
+int ioctl_TIOCGWINSZ(int fd, struct winsize *wz) {
+  // Return the current terminal size.
+  // Note: In POSIX 2024, this can be handled by tcgetwinsize.
+  if (wz) {
+    wz->ws_row = 24;
+    wz->ws_col = 80;
   }
+
+  // Return error when the fd is not for a tty.
+  return isatty(fd) ? 0 : -1;
 }
