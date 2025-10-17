@@ -922,7 +922,7 @@ public class MediaDrmBridge {
   }
 
   /** A wrapper of the android MediaDrm.KeyStatus class to be used by JNI. */
-  public static class KeyStatus {
+  private static class KeyStatus {
     private final byte[] mKeyId;
     private final int mStatusCode;
 
