@@ -5,6 +5,10 @@
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/partition_alloc.gni")
 
+if (is_cobalt) {
+  put_ref_count_in_previous_slot_default = true
+}
+
 if (is_apple) {
   import("//build/config/features.gni")
 }

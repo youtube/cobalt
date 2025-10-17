@@ -101,6 +101,14 @@ if (is_fuchsia) {
   import("//third_party/fuchsia-sdk/sdk/build/fidl_library.gni")
 }
 
+if (is_cobalt) {
+  use_perfetto_client_library = true
+  enable_log_error_not_reached = false
+  use_runtime_vlog = true
+  is_chromeos_lacros = false
+  build_rust_base_conversions = false
+  build_rust_json_reader = false
+} else {
 # TODO(crbug.com/1280708): Drop toolchain_has_rust and move the C++ parser into
 # components/nacl to just run in-process there. Don't compile base::JSONReader
 # on NaCL at all.
@@ -113,6 +121,7 @@ build_rust_base_conversions = toolchain_has_rust && enable_rust_base_conversions
 
 # The Rust implementation of base::JSONReader.
 build_rust_json_reader = toolchain_has_rust && enable_rust_json
+}
 
 assert(build_rust_base_conversions || !build_rust_json_reader,
        "Cannot enable Rust JSON decoder without also base conversions")

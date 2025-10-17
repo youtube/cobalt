@@ -4,10 +4,13 @@
 
 import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
 import("//build/buildflag_header.gni")
-import("//build/config/chromecast_build.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/logging.gni")
+
+if (is_cobalt) {
+  enable_log_error_not_reached = false
+}
 
 # Add partition_alloc.gni and import it for partition_alloc configs.
 
