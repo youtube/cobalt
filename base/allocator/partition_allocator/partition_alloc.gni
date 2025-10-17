@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+  import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
+} else {
 import("//build_overrides/partition_alloc.gni")
 
 # -----------------------------------------------------------------------------
@@ -554,4 +557,5 @@ declare_args() {
   # https://cs.android.com/android/platform/superproject/+/android14-qpr3-release:bionic/libc/bionic/pthread_mutex.cpp;drc=9108f258adad329a537e10461fbd526d5b9ad8bf;l=242
   enable_partition_lock_priority_inheritance =
       is_android && (current_cpu == "x64" || current_cpu == "arm64")
+}
 }

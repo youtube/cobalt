@@ -61,20 +61,20 @@ declare_args() {
   # Unsafe developer build. Has developer-friendly features that may weaken or
   # disable security measures like sandboxing or ASLR.
   # IMPORTANT: Unsafe developer builds should never be distributed to end users.
-  is_unsafe_developer_build = !is_official_build
+  _is_unsafe_developer_build = !is_official_build
 
   # Set to true to disable COM init check hooks.
-  com_init_check_hook_disabled = false
+  _com_init_check_hook_disabled = false
 
   # Set to true to enable mutex priority inheritance. See the comments in
   # LockImpl::PriorityInheritanceAvailable() in lock_impl_posix.cc for the
   # platform requirements to safely enable priority inheritance.
-  enable_mutex_priority_inheritance = false
+  _enable_mutex_priority_inheritance = false
 
   # Control whether the ios stack sampling profiler is enabled. This flag is
   # only supported on iOS 64-bit architecture, but some project build //base
   # for 32-bit architecture.
-  ios_stack_profiler_enabled = true
+  _ios_stack_profiler_enabled = true
 }
 
 # Mutex priority inheritance is disabled by default due to security
@@ -82,7 +82,7 @@ declare_args() {
 # Chromecast builds have full control over the platform and ensure that
 # the kernel and glibc versions used have patched the vulnerabilities,
 # so it is safe to use mutex priority inheritance on Chromecast platform.
-assert(!enable_mutex_priority_inheritance || is_castos || is_cast_android,
+assert(!_enable_mutex_priority_inheritance || is_castos || is_cast_android,
        "Do not enable PI mutexes without consulting the security team")
 
 assert(!is_nacl || is_nacl_saigo,
@@ -1991,7 +1991,7 @@ component("base") {
 
     data_deps += [ "//build/win:runtime_libs" ]
 
-    if (com_init_check_hook_disabled) {
+    if (_com_init_check_hook_disabled) {
       defines += [ "COM_INIT_CHECK_HOOK_DISABLED" ]
     }
 
@@ -2259,7 +2259,7 @@ component("base") {
       ]
     }
 
-    if (ios_stack_profiler_enabled) {
+    if (_ios_stack_profiler_enabled) {
       sources += [
         "profiler/frame_pointer_unwinder.cc",
         "profiler/frame_pointer_unwinder.h",
@@ -2547,7 +2547,7 @@ buildflag_header("debugging_buildflags") {
     "DCHECK_IS_CONFIGURABLE=$dcheck_is_configurable",
     "ENABLE_PROFILING=$enable_profiling",
     "CAN_UNWIND_WITH_FRAME_POINTERS=$can_unwind_with_frame_pointers",
-    "UNSAFE_DEVELOPER_BUILD=$is_unsafe_developer_build",
+    "UNSAFE_DEVELOPER_BUILD=$_is_unsafe_developer_build",
     "CAN_UNWIND_WITH_CFI_TABLE=$can_unwind_with_cfi_table",
     "EXCLUDE_UNWIND_TABLES=$exclude_unwind_tables",
     "ENABLE_GDBINIT_WARNING=$enable_gdbinit_warning",
@@ -2599,7 +2599,7 @@ buildflag_header("synchronization_buildflags") {
   header_dir = "base/synchronization"
 
   flags =
-      [ "ENABLE_MUTEX_PRIORITY_INHERITANCE=$enable_mutex_priority_inheritance" ]
+      [ "ENABLE_MUTEX_PRIORITY_INHERITANCE=$_enable_mutex_priority_inheritance" ]
 }
 
 buildflag_header("anchor_functions_buildflags") {
@@ -2652,7 +2652,7 @@ buildflag_header("profiler_buildflags") {
 
   flags = [
     "ENABLE_ARM_CFI_TABLE=$enable_arm_cfi_table",
-    "IOS_STACK_PROFILER_ENABLED=$ios_stack_profiler_enabled",
+    "IOS_STACK_PROFILER_ENABLED=$_ios_stack_profiler_enabled",
   ]
 }
 

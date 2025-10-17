@@ -15,6 +15,8 @@ declare_args() {
   # Although it should work on other platforms as well, for the above reasons,
   # we currently enable it only for Android when compiling for Arm64.
   build_allocation_stack_trace_recorder = false
+
+  build_allocation_trace_recorder_full_reporting = false
 }
 
 assert(!(build_allocation_stack_trace_recorder && is_fuchsia),
