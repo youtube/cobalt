@@ -66,7 +66,6 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
   return true;
 }
 
-namespace starboard {
 void JNI_PlatformError_SendResponse(JNIEnv* env,
                                     jint jni_response,
                                     jlong jni_data) {
@@ -83,4 +82,3 @@ void JNI_PlatformError_SendResponse(JNIEnv* env,
     delete send_response_callback;
   }
 }
-}  // namespace starboard
