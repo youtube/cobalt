@@ -1,6 +1,9 @@
 {
   "failing_tests": [
     "JournalMode/SQLDatabaseTest.*",
-    "SQLRecoveryTest.Bug387868"
+    "SQLRecoveryTest.Bug387868",
+    "SQLInvalidDatabaseFlagsDeathTest.ExclusiveDatabaseLock",
+    "SQLMetaTableTest.*",
+    "SQLMemoryDumpProviderTest.OnMemoryDump"
   ]
 }

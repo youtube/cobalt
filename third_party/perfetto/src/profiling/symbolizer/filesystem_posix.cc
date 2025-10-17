@@ -20,7 +20,9 @@
 
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)
+#if false
 #include <fts.h>
+#endif
 #include <sys/stat.h>
 #endif
 
@@ -30,7 +32,7 @@
 
 namespace perfetto {
 namespace profiling {
-#if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)
+#if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER) && false
 bool WalkDirectories(std::vector<std::string> dirs, FileCallback fn) {
   std::vector<char*> dir_cstrs;
   dir_cstrs.reserve(dirs.size());
